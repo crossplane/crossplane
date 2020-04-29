@@ -36,7 +36,8 @@ import (
 type Command struct {
 	Name                      string
 	Sync                      time.Duration
-	RestrictCoreAPIGroups     bool
+	AllowAllAPIGroups         bool
+	PassFullDeployment        bool
 	EnableTemplateStacks      bool
 	TemplatingControllerImage string
 	HostControllerNamespace   string
@@ -48,7 +49,8 @@ type Command struct {
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("restrict-core-apigroups", "Enable API group restrictions for Stacks. When enabled, APIs that Stacks depend on and own must contain a dot (\".\") and may not end with \"k8s.io\". When omitted, all groups are permitted.").Default("false").BoolVar(&c.RestrictCoreAPIGroups)
+	cmd.Flag("insecure-allow-all-apigroups", "Enable core Kubernetes API group permissions for Stacks. When enabled, Stacks may declare dependency on core Kubernetes API types. When omitted, APIs that Stacks depend on and own must contain a dot (\".\") and may not end with \"k8s.io\".").Default("false").BoolVar(&c.AllowAllAPIGroups)
+	cmd.Flag("insecure-pass-full-deployment", "Enable stacks to pass their full deployment, including security context. When omitted, Stacks deployments will have security context removed and all containers will have allowPrivilegeEscalation set to false.").Default("false").BoolVar(&c.PassFullDeployment)
 	cmd.Flag("templates", "Enable support for template stacks").BoolVar(&c.EnableTemplateStacks)
 	cmd.Flag("templating-controller-image", "The image of the template stacks controller").StringVar(&c.TemplatingControllerImage)
 	cmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").StringVar(&c.HostControllerNamespace)
@@ -58,11 +60,16 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 }
 
 // Run the stack manager.
+// nolint:gocyclo
 func (c *Command) Run(log logging.Logger) error {
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
-	if c.RestrictCoreAPIGroups {
-		log.Debug("Restricting core group use in the Stacks")
+	if c.AllowAllAPIGroups {
+		log.Debug("Allowing core group use in the Stacks")
+	}
+
+	if c.PassFullDeployment {
+		log.Debug("Allowing Stacks to pass full deployment manifests")
 	}
 
 	cfg, err := getRestConfig(c.TenantKubeConfig)
@@ -83,7 +90,7 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot add API extensions to scheme")
 	}
 
-	if err := stacks.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.RestrictCoreAPIGroups, c.ForceImagePullPolicy); err != nil {
+	if err := stacks.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.AllowAllAPIGroups, c.PassFullDeployment, c.ForceImagePullPolicy); err != nil {
 		return errors.Wrap(err, "Cannot add stacks controllers to manager")
 	}
 

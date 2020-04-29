@@ -2,7 +2,7 @@
 
 * Owner: Jared Watts (@jbw976)
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.1
+* Status: Draft, revision 1.2
 
 ## Revisions
 
@@ -10,6 +10,8 @@
   * Cluster stacks may own Cluster scoped CRDs
     [#958](https://github.com/crossplane/crossplane/pull/958)
   * Namespaced stacks may depend on Cluster scoped CRDs [#958](https://github.com/crossplane/crossplane/pull/958)
+* 1.2 - Dan Mangum (@hasheddan)
+  * Added section on [Stack Deployment Privileges](#stack-deployment-privileges).
 
 ## Background
 
@@ -303,6 +305,32 @@ With these two separate types, an administrator can allow access to installing c
 
 If the install scope type does not match what the stack author has declared within their stack metadata, an error status
  should be set on the install resource and installation of the stack should not proceed.
+
+### Stack Deployment Privileges
+
+All `Deployments` for both cluster-scoped and namespace-scoped stacks have their
+pod and container-level security-context set to restrict root access. This can
+be overridden by running the crossplane stack manager with the
+`--insecure-pass-full-deployment` flag, in which case the security context of
+the `Deployment` provided in a stack's `install.yaml` will not be modified.
+
+The security context at the pod-level will be configured as follows by default:
+```yaml
+securityContext:
+  runAsNonRoot: true
+```
+
+The security-context at the container-level will be configured as follows by
+default:
+```yaml
+securityContext:
+  allowPrivilegeEscalation: false
+  privileged: false
+  runAsNonRoot: true
+```
+
+*Note: container-level security context always overrides pod-level, but we set
+the pod-level security context as well for completeness.*
 
 ###  Crossplane ClusterRoles / RBAC
 

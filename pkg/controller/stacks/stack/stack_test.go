@@ -221,11 +221,11 @@ func resource(rm ...resourceModifier) *v1alpha1.Stack {
 // mockFactory and mockHandler
 // ************************************************************************************************
 type mockFactory struct {
-	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler
+	MockNewHandler func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, bool, string) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, restrictCore bool, forceImagePullPolicy string) handler {
-	return f.MockNewHandler(log, r, c, nil, nil, restrictCore, forceImagePullPolicy)
+func (f *mockFactory) newHandler(log logging.Logger, r *v1alpha1.Stack, c client.Client, h client.Client, hc *hosted.Config, allowCore, allowFullDeployment bool, forceImagePullPolicy string) handler {
+	return f.MockNewHandler(log, r, c, nil, nil, allowCore, allowFullDeployment, forceImagePullPolicy)
 }
 
 type mockHandler struct {
@@ -287,8 +287,27 @@ func withDeploymentSA(name string) deploymentSpecModifier {
 	return func(ds *apps.DeploymentSpec) {
 		ds.Template.Spec.ServiceAccountName = name
 	}
-
 }
+
+func withDeploymentSecurityContext(sc *corev1.PodSecurityContext) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		ds.Template.Spec.SecurityContext = sc
+	}
+}
+
+func withDeploymentContainerSecurityContext(sc *corev1.SecurityContext) deploymentSpecModifier {
+	return func(ds *apps.DeploymentSpec) {
+		for _, c := range [][]corev1.Container{
+			ds.Template.Spec.Containers,
+			ds.Template.Spec.InitContainers,
+		} {
+			for i := range c {
+				c[i].SecurityContext = sc
+			}
+		}
+	}
+}
+
 func deploymentSpec(dsm ...deploymentSpecModifier) *apps.DeploymentSpec {
 	ds := &apps.DeploymentSpec{Selector: &metav1.LabelSelector{}}
 
@@ -355,7 +374,7 @@ func TestReconcile(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler {
+					MockNewHandler: func(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, bool, string) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -428,8 +447,40 @@ func TestCreate(t *testing.T) {
 		name       string
 		r          *v1alpha1.Stack
 		clientFunc func(*v1alpha1.Stack) client.Client
+		allowCore  bool
 		want       want
 	}{
+		{
+			name: "FailRestricedPermissions",
+			r: resource(
+				withPolicyRules([]rbac.PolicyRule{{
+					APIGroups: []string{"*"},
+					Resources: []string{"*"},
+					Verbs:     []string{"*"},
+				}}),
+				withFinalizers(stacksFinalizer)),
+			clientFunc: func(r *v1alpha1.Stack) client.Client {
+				mc := test.NewMockClient()
+				mc.MockStatusUpdate = func(ctx context.Context, obj runtime.Object, _ ...client.UpdateOption) error { return nil }
+				return mc
+			},
+			want: want{
+				result: resultRequeue,
+				err:    nil,
+				r: resource(
+					withFinalizers(stacksFinalizer),
+					withPolicyRules([]rbac.PolicyRule{{
+						APIGroups: []string{"*"},
+						Resources: []string{"*"},
+						Verbs:     []string{"*"},
+					}}),
+					withConditions(
+						runtimev1alpha1.Creating(),
+						runtimev1alpha1.ReconcileError(errors.Errorf("permissions contain a restricted rule")),
+					),
+				),
+			},
+		},
 		{
 			name: "FailRBAC",
 			r: resource(
@@ -539,15 +590,45 @@ func TestCreate(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "SuccessfulCreateAllowCore",
+			r: resource(
+				withGVK(v1alpha1.StackGroupVersionKind),
+				withFinalizers(stacksFinalizer),
+				withResourceVersion("1"),
+				withPolicyRules([]rbac.PolicyRule{{
+					APIGroups: []string{"*"},
+					Resources: []string{"*"},
+					Verbs:     []string{"*"},
+				}})),
+			allowCore:  true,
+			clientFunc: func(r *v1alpha1.Stack) client.Client { return fake.NewFakeClient(r) },
+			want: want{
+				result: requeueOnSuccess,
+				err:    nil,
+				r: resource(
+					withGVK(v1alpha1.StackGroupVersionKind),
+					withConditions(runtimev1alpha1.Available(), runtimev1alpha1.ReconcileSuccess()),
+					withFinalizers(stacksFinalizer),
+					withResourceVersion("2"),
+					withPolicyRules([]rbac.PolicyRule{{
+						APIGroups: []string{"*"},
+						Resources: []string{"*"},
+						Verbs:     []string{"*"},
+					}},
+					)),
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := &stackHandler{
-				kube:     tt.clientFunc(tt.r),
-				hostKube: tt.clientFunc(tt.r),
-				ext:      tt.r,
-				log:      logging.NewNopLogger(),
+				kube:      tt.clientFunc(tt.r),
+				hostKube:  tt.clientFunc(tt.r),
+				ext:       tt.r,
+				log:       logging.NewNopLogger(),
+				allowCore: tt.allowCore,
 			}
 
 			got, err := handler.create(ctx)
@@ -1068,6 +1149,7 @@ func TestSyncSATokenSecret(t *testing.T) {
 // TestProcessDeployment
 // ************************************************************************************************
 func TestProcessDeployment(t *testing.T) {
+	trueVal := true
 	errBoom := errors.New("boom")
 	testDep := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -1091,6 +1173,7 @@ func TestProcessDeployment(t *testing.T) {
 		hostClientFunc       func() client.Client
 		hostawareCfg         *hosted.Config
 		forceImagePullPolicy string
+		passFullDeployment   bool
 		want                 want
 	}{
 		{
@@ -1220,6 +1303,12 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+							Privileged:               &privileged,
+							RunAsNonRoot:             &runAsNonRoot,
+						}),
 					),
 				},
 				controllerRef: &corev1.ObjectReference{
@@ -1248,6 +1337,12 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentPullPolicy(corev1.PullAlways),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+							Privileged:               &privileged,
+							RunAsNonRoot:             &runAsNonRoot,
+						}),
 					),
 				},
 				controllerRef: &corev1.ObjectReference{
@@ -1283,6 +1378,12 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentPullPolicy(corev1.PullAlways),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+							Privileged:               &privileged,
+							RunAsNonRoot:             &runAsNonRoot,
+						}),
 					),
 				},
 				controllerRef: &corev1.ObjectReference{
@@ -1293,7 +1394,6 @@ func TestProcessDeployment(t *testing.T) {
 				},
 			},
 		},
-
 		{
 			name:       "SuccessPullSecrets",
 			r:          resource(withControllerSpec(defaultControllerSpec(withDeploymentPullSecrets("foo")))),
@@ -1312,6 +1412,47 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentPullSecrets("foo"),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+							Privileged:               &privileged,
+							RunAsNonRoot:             &runAsNonRoot,
+						}),
+					),
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+		{
+			name: "SuccessPassFullDeployment",
+			r: resource(withControllerSpec(defaultControllerSpec(withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+				AllowPrivilegeEscalation: &trueVal,
+				Privileged:               &trueVal,
+			})))),
+			clientFunc:         fake.NewFakeClient,
+			passFullDeployment: true,
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						Labels:    stackspkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &trueVal,
+							Privileged:               &trueVal,
+						}),
 					),
 				},
 				controllerRef: &corev1.ObjectReference{
@@ -1355,6 +1496,7 @@ func TestProcessDeployment(t *testing.T) {
 							},
 							Spec: corev1.PodSpec{
 								ServiceAccountName:           "",
+								SecurityContext:              &corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot},
 								AutomountServiceAccountToken: &disableAutoMount,
 								Containers: []corev1.Container{
 									{
@@ -1373,6 +1515,11 @@ func TestProcessDeployment(t *testing.T) {
 												Name:  envPodNamespace,
 												Value: namespace,
 											},
+										},
+										SecurityContext: &corev1.SecurityContext{
+											AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+											Privileged:               &privileged,
+											RunAsNonRoot:             &runAsNonRoot,
 										},
 										VolumeMounts: []corev1.VolumeMount{
 											{
@@ -1457,6 +1604,7 @@ func TestProcessDeployment(t *testing.T) {
 							Spec: corev1.PodSpec{
 								ServiceAccountName:           "",
 								AutomountServiceAccountToken: &disableAutoMount,
+								SecurityContext:              &corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot},
 								Containers: []corev1.Container{
 									{
 										Name:  controllerContainerName,
@@ -1474,6 +1622,11 @@ func TestProcessDeployment(t *testing.T) {
 												Name:  envPodNamespace,
 												Value: namespace + dashAlphabet,
 											},
+										},
+										SecurityContext: &corev1.SecurityContext{
+											AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+											Privileged:               &privileged,
+											RunAsNonRoot:             &runAsNonRoot,
 										},
 										VolumeMounts: []corev1.VolumeMount{
 											{
@@ -1517,6 +1670,7 @@ func TestProcessDeployment(t *testing.T) {
 				hostAwareConfig:      tt.hostawareCfg,
 				ext:                  tt.r,
 				forceImagePullPolicy: tt.forceImagePullPolicy,
+				allowFullDeployment:  tt.passFullDeployment,
 			}
 			if tt.hostawareCfg == nil {
 				handler.hostKube = handler.kube
@@ -2771,54 +2925,54 @@ func Test_stackHandler_validateStackPermissions(t *testing.T) {
 
 	mixed := append(stackspkg.StackCoreRBACRules, everything...)
 	tests := []struct {
-		name         string
-		restrictCore bool
-		ext          *v1alpha1.Stack
-		wantErr      error
+		name      string
+		allowCore bool
+		ext       *v1alpha1.Stack
+		wantErr   error
 	}{
 		{
-			name:         "DefaultPolicy",
-			restrictCore: true,
-			ext:          resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
-			wantErr:      nil,
+			name:      "DefaultPolicy",
+			allowCore: false,
+			ext:       resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
+			wantErr:   nil,
 		},
 		{
-			name:         "DefaultPolicyWithoutRestrictions",
-			restrictCore: false,
-			ext:          resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
-			wantErr:      nil,
+			name:      "DefaultPolicyWithoutRestrictions",
+			allowCore: true,
+			ext:       resource(withPolicyRules(stackspkg.StackCoreRBACRules)),
+			wantErr:   nil,
 		},
 		{
-			name:         "EverythingPolicy",
-			restrictCore: true,
-			ext:          resource(withPolicyRules(everything)),
-			wantErr:      errors.New("permissions contain a restricted rule"),
+			name:      "EverythingPolicy",
+			allowCore: false,
+			ext:       resource(withPolicyRules(everything)),
+			wantErr:   errors.New("permissions contain a restricted rule"),
 		},
 		{
-			name:         "EverythingPolicyWithoutRestrictions",
-			restrictCore: false,
-			ext:          resource(withPolicyRules(everything)),
-			wantErr:      nil,
+			name:      "EverythingPolicyWithoutRestrictions",
+			allowCore: true,
+			ext:       resource(withPolicyRules(everything)),
+			wantErr:   nil,
 		},
 		{
-			name:         "MixedPolicy",
-			restrictCore: true,
-			ext:          resource(withPolicyRules(mixed)),
-			wantErr:      errors.New("permissions contain a restricted rule"),
+			name:      "MixedPolicy",
+			allowCore: false,
+			ext:       resource(withPolicyRules(mixed)),
+			wantErr:   errors.New("permissions contain a restricted rule"),
 		},
 		{
-			name:         "MixedPolicyWithoutRestrictions",
-			restrictCore: false,
-			ext:          resource(withPolicyRules(mixed)),
-			wantErr:      nil,
+			name:      "MixedPolicyWithoutRestrictions",
+			allowCore: true,
+			ext:       resource(withPolicyRules(mixed)),
+			wantErr:   nil,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := &stackHandler{
-				restrictCore: tt.restrictCore,
-				ext:          tt.ext,
-				log:          logging.NewNopLogger(),
+				allowCore: tt.allowCore,
+				ext:       tt.ext,
+				log:       logging.NewNopLogger(),
 			}
 			gotErr := h.validateStackPermissions()
 

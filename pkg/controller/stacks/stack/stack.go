@@ -86,6 +86,10 @@ var (
 	}
 
 	disableAutoMount = false
+
+	allowPrivilegeEscalation = false
+	privileged               = false
+	runAsNonRoot             = true
 )
 
 // Reconciler reconciles a Instance object
@@ -97,14 +101,15 @@ type Reconciler struct {
 	// created.
 	hostKube             client.Client
 	hostedConfig         *hosted.Config
-	restrictCore         bool
+	allowCore            bool
+	allowFullDeployment  bool
 	forceImagePullPolicy string
 	log                  logging.Logger
 	factory
 }
 
 // Setup adds a controller that reconciles Stacks.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, restrictCore bool, forceImagePullPolicy string) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, allowCore, allowFullDeployment bool, forceImagePullPolicy string) error {
 	name := "stacks/" + strings.ToLower(v1alpha1.StackGroupKind)
 
 	hostKube, _, err := hosted.GetClients()
@@ -121,7 +126,8 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace string, r
 		kube:                 mgr.GetClient(),
 		hostKube:             hostKube,
 		hostedConfig:         hc,
-		restrictCore:         restrictCore,
+		allowCore:            allowCore,
+		allowFullDeployment:  allowFullDeployment,
 		forceImagePullPolicy: forceImagePullPolicy,
 		factory:              &stackHandlerFactory{},
 		log:                  l.WithValues("controller", name),
@@ -156,7 +162,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return fail(ctx, r.kube, stack, err)
 	}
 
-	handler := r.factory.newHandler(r.log, stack, r.kube, r.hostKube, r.hostedConfig, r.restrictCore, r.forceImagePullPolicy)
+	handler := r.factory.newHandler(r.log, stack, r.kube, r.hostKube, r.hostedConfig, r.allowCore, r.allowFullDeployment, r.forceImagePullPolicy)
 
 	if meta.WasDeleted(stack) {
 		return handler.delete(ctx)
@@ -180,24 +186,26 @@ type stackHandler struct {
 	// created.
 	hostKube             client.Client
 	hostAwareConfig      *hosted.Config
-	restrictCore         bool
+	allowCore            bool
+	allowFullDeployment  bool
 	forceImagePullPolicy string
 	ext                  *v1alpha1.Stack
 	log                  logging.Logger
 }
 
 type factory interface {
-	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, string) handler
+	newHandler(logging.Logger, *v1alpha1.Stack, client.Client, client.Client, *hosted.Config, bool, bool, string) handler
 }
 
 type stackHandlerFactory struct{}
 
-func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, restrictCore bool, forceImagePullPolicy string) handler {
+func (f *stackHandlerFactory) newHandler(log logging.Logger, ext *v1alpha1.Stack, kube client.Client, hostKube client.Client, hostAwareConfig *hosted.Config, allowCore, allowFullDeployment bool, forceImagePullPolicy string) handler {
 	return &stackHandler{
 		kube:                 kube,
 		hostKube:             hostKube,
 		hostAwareConfig:      hostAwareConfig,
-		restrictCore:         restrictCore,
+		allowCore:            allowCore,
+		allowFullDeployment:  allowFullDeployment,
 		forceImagePullPolicy: forceImagePullPolicy,
 		ext:                  ext,
 		log:                  log,
@@ -217,6 +225,10 @@ func (h *stackHandler) sync(ctx context.Context) (reconcile.Result, error) {
 
 func (h *stackHandler) create(ctx context.Context) (reconcile.Result, error) {
 	h.ext.Status.SetConditions(runtimev1alpha1.Creating())
+
+	if err := h.validateStackPermissions(); err != nil {
+		return fail(ctx, h.kube, h.ext, err)
+	}
 
 	// create RBAC permissions
 	if err := h.processRBAC(ctx); err != nil {
@@ -560,7 +572,7 @@ func isPermittedStackPolicy(rule rbacv1.PolicyRule) bool {
 }
 
 func (h *stackHandler) validateStackPermissions() error {
-	if h.restrictCore {
+	if !h.allowCore {
 		for _, rule := range h.ext.Spec.Permissions.Rules {
 			if !isPermittedStackPolicy(rule) {
 				h.log.Debug("restricted rule found in stack spec permissions", "namespace", h.ext.GetNamespace(), "name", h.ext.GetName(), "rule", rule)
@@ -648,10 +660,6 @@ func (h *stackHandler) processRBAC(ctx context.Context) error {
 	}
 
 	labels := stacks.ParentLabels(h.ext)
-
-	if err := h.validateStackPermissions(); err != nil {
-		return err
-	}
 
 	clusterRoleName, err := h.createDeploymentClusterRole(ctx, labels)
 	if err != nil {
@@ -847,13 +855,26 @@ func (h *stackHandler) prepareDeployment(d *apps.Deployment) {
 
 	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
 
-	if h.forceImagePullPolicy != "" {
-		for _, c := range [][]corev1.Container{
-			d.Spec.Template.Spec.Containers,
-			d.Spec.Template.Spec.InitContainers,
-		} {
-			for i := range c {
+	if !h.allowFullDeployment {
+		d.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+			RunAsNonRoot: &runAsNonRoot,
+		}
+	}
+
+	for _, c := range [][]corev1.Container{
+		d.Spec.Template.Spec.Containers,
+		d.Spec.Template.Spec.InitContainers,
+	} {
+		for i := range c {
+			if h.forceImagePullPolicy != "" {
 				c[i].ImagePullPolicy = corev1.PullPolicy(h.forceImagePullPolicy)
+			}
+			if !h.allowFullDeployment {
+				c[i].SecurityContext = &corev1.SecurityContext{
+					AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+					Privileged:               &privileged,
+					RunAsNonRoot:             &runAsNonRoot,
+				}
 			}
 		}
 	}
