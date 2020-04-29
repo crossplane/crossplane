@@ -18,6 +18,8 @@ rules:
   - core.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
+  - core.oam.dev
+  - apiextensions.crossplane.io
   resources:
   - "*"
   verbs:
@@ -64,6 +66,8 @@ rules:
   - core.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
+  - core.oam.dev
+  - apiextensions.crossplane.io
   resources:
   - "*"
   verbs:
@@ -108,6 +112,8 @@ rules:
   - stacks.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
+  - core.oam.dev
+  - apiextensions.crossplane.io
   resources:
   - "*"
   verbs:
