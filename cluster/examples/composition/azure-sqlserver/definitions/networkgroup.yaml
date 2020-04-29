@@ -1,0 +1,155 @@
+---
+# This allows Crossplane to manage our new "NetworkGroup" composite resource and
+# the resources it composes.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: networkgroups.azure.example.org
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules:
+- apiGroups:
+  - azure.example.org
+  resources:
+  - networkgroups
+  - networkgroups/status
+  verbs:
+  - "*"
+- apiGroups:
+  - azure.crossplane.io
+  resources:
+  - resourcegroups
+  - resourcegroups
+  verbs:
+  - "*"
+- apiGroups:
+  - network.azure.crossplane.io
+  resources:
+  - virtualnetworks
+  - subnets
+  verbs:
+  - "*"
+---
+# This defines our new "NetworkGroup" composite resource. A NetworkGroup is a
+# simple combination of an Azure Resource Group and an Azure Virtual Network in
+# which infrastructure like SQL Servers can be deployed. This resource should
+# only be managed by infrastructure admins, so we don't publish it.
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: InfrastructureDefinition
+metadata:
+  name: networkgroups.azure.example.org
+spec:
+  # The schema of this composite resource, in the form of a partial template for
+  # a Kubernetes CustomResourceDefinition.
+  crdSpecTemplate:
+    group: azure.example.org
+    version: v1alpha1
+    names:
+      kind: NetworkGroup
+      listKind: NetworkGroupList
+      plural: networkgroups
+      singular: networkgroup
+    validation:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              location:
+                description: Geographic location of this network group.
+                type: string
+              addressPrefix:
+                description: CIDR of this network group
+                type: string
+              providerRef:
+                type: object
+                description: Crossplane Azure provider credentials to use.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+            required:
+            - location
+            - addressPrefix
+            - providerRef
+---
+# This specifies the resources that should be composed when a NetworkGroup is
+# created. Multiple Compositions may exist for any one kind of composite
+# resource. The composite resource (i.e. the NetworkGroup) can influence which
+# Composition is used via a spec.compositionSelector.matchLabels field that is
+# automatically added to all composite resources. In future it will be possible
+# mark a composition as the default, or force an InfrastructureDefinition to use
+# a particular Composition. Currently a reference or selector must be specified.
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: networkgroups.azure.example.org
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  reclaimPolicy: Delete
+  from:
+    apiVersion: azure.example.org/v1alpha1
+    kind: NetworkGroup
+  to:
+  - base:
+      # This is the base template for a ResourceGroup of which our
+      # NetworkGroup will be composed.
+      apiVersion: azure.crossplane.io/v1alpha3
+      kind: ResourceGroup
+      spec:
+        reclaimPolicy: Delete
+    patches:
+      # These are 'patches' that map the value of a field in the NetworkGroup
+      # to a field in the composed ResourceGroup.
+    - fromFieldPath: "metadata.labels"
+      toFieldPath: "metadata.labels"
+    - fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+    - fromFieldPath: "spec.providerRef.name"
+      toFieldPath: "spec.providerRef.name"
+    - fromFieldPath: "spec.location"
+      toFieldPath: "spec.location"
+  - base:
+      apiVersion: network.azure.crossplane.io/v1alpha3
+      kind: VirtualNetwork
+      spec:
+        # This selector ensures this VirtualNetwork will select and use the
+        # above ResourceGroup. They will both be controlled by the composite
+        # resource, and thus their controller references will match.
+        resourceGroupNameSelector:
+          matchControllerRef: true
+        reclaimPolicy: Delete
+    patches:
+    - fromFieldPath: "metadata.labels"
+      toFieldPath: "metadata.labels"
+    - fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+    - fromFieldPath: "spec.providerRef.name"
+      toFieldPath: "spec.providerRef.name"
+    - fromFieldPath: "spec.location"
+      toFieldPath: "spec.location"
+    - fromFieldPath: "spec.addressPrefix"
+      toFieldPath: "spec.properties.addressSpace.addressPrefixes[0]"
+  - base:
+      apiVersion: network.azure.crossplane.io/v1alpha3
+      kind: Subnet
+      spec:
+        resourceGroupNameSelector:
+          matchControllerRef: true
+        virtualNetworkNameSelector:
+          matchControllerRef: true
+        properties:
+          serviceEndpoints:
+            - service: Microsoft.Sql
+        reclaimPolicy: Delete
+    patches:
+    - fromFieldPath: "metadata.labels"
+      toFieldPath: "metadata.labels"
+    - fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+    - fromFieldPath: "spec.providerRef.name"
+      toFieldPath: "spec.providerRef.name"
+    - fromFieldPath: "spec.addressPrefix"
+      toFieldPath: "spec.properties.addressPrefix"
