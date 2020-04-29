@@ -15,20 +15,6 @@ rules:
   - networkgroups/status
   verbs:
   - "*"
-- apiGroups:
-  - azure.crossplane.io
-  resources:
-  - resourcegroups
-  - resourcegroups
-  verbs:
-  - "*"
-- apiGroups:
-  - network.azure.crossplane.io
-  resources:
-  - virtualnetworks
-  - subnets
-  verbs:
-  - "*"
 ---
 # This defines our new "NetworkGroup" composite resource. A NetworkGroup is a
 # simple combination of an Azure Resource Group and an Azure Virtual Network in
