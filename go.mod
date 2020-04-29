@@ -3,9 +3,9 @@ module github.com/crossplane/crossplane
 go 1.13
 
 require (
-	github.com/crossplane/crossplane-runtime v0.7.1-0.20200429054236-05ca13f8ea7b
-	github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330
-	github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200422175842-afde24fdf35b
+	github.com/crossplane/crossplane-runtime v0.8.0
+	github.com/crossplane/crossplane-tools v0.0.0-20200412230150-efd0edd4565b
+	github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200426101222-2b61763c2e51
 	github.com/docker/distribution v2.7.1+incompatible
 	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/ghodss/yaml v1.0.0
