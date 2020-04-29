@@ -33,6 +33,10 @@ import (
 // Error strings.
 const (
 	errApplySecret = "cannot apply connection secret"
+
+	errNoCompatibleComposition = "no compatible composition has been found"
+	errListCompositions        = "cannot list compositions"
+	errUpdateComposite         = "cannot update composite resource"
 )
 
 // APIFilteredSecretPublisher publishes ConnectionDetails content after filtering
@@ -44,7 +48,7 @@ type APIFilteredSecretPublisher struct {
 
 // NewAPIFilteredSecretPublisher returns a ConnectionPublisher that only
 // publishes connection secret keys that are included in the supplied filter.
-func NewAPIFilteredSecretPublisher(c client.Client, filter []string) ConnectionPublisher {
+func NewAPIFilteredSecretPublisher(c client.Client, filter []string) *APIFilteredSecretPublisher {
 	return &APIFilteredSecretPublisher{client: resource.NewAPIPatchingApplicator(c), filter: filter}
 }
 
@@ -107,7 +111,7 @@ func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.C
 	}
 	list := &v1alpha1.CompositionList{}
 	if err := r.client.List(ctx, list, client.MatchingLabels(labels)); err != nil {
-		return errors.Wrap(err, "cannot list compositions")
+		return errors.Wrap(err, errListCompositions)
 	}
 	apiVersion, kind := cr.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	for _, comp := range list.Items {
@@ -117,9 +121,9 @@ func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.C
 
 		cr.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
 
-		return errors.Wrap(r.client.Update(ctx, cr), "cannot update composite resource")
+		return errors.Wrap(r.client.Update(ctx, cr), errUpdateComposite)
 	}
-	return errors.New("no compatible composition has been found that has the given labels")
+	return errors.New(errNoCompatibleComposition)
 }
 
 // NewAPIConfigurator returns a Configurator that configures a
