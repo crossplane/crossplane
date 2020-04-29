@@ -1,0 +1,32 @@
+---
+# This creates a new PrivatePostgreSQLServerRequirement that models an app's
+# requirement of a PrivatePostgreSQLServer. A PrivatePostgreSQLServer is an
+# Azure PostgreSQLServer that can only be accessed from a selected NetworkGroup, 
+# which is also a composite resource. The PrivatePostgreSQLServer resource and
+# the resources of which it will be composed are configured by an infrastructure
+# operator in definitions/privatepostgresqlserver.yaml.
+apiVersion: azure.example.org/v1alpha1
+kind: PrivatePostgreSQLServerRequirement
+metadata:
+  namespace: default
+  name: example
+  labels:
+    location: west-us-2
+    provider: example
+spec:
+  location: West US 2
+  storageGB: 6
+  version: "9.6"
+  networkGroupSelector:
+    matchLabels:
+      group: example
+      location: west-us-2
+  providerRef:
+    name: example
+  # It will soon be possible to specify a default composition for
+  # PrivatePostgreSQLServers or even to force a particular composition for all
+  # PrivatePostgreSQLServers, but for now we must specify one to use.
+  compositionRef:
+    name: privatepostgresqlservers.azure.example.org
+  writeConnectionSecretToRef:
+    name: private-example

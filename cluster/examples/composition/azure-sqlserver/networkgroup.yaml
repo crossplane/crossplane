@@ -1,0 +1,22 @@
+---
+# This creates a new NetworkGroup named 'example' in West US 2. A NetworkGroup
+# is a composite resource. Both the schema of the NetworkGroup resource and the
+# resources of which it will be composed are configured by an infrastructure
+# operator in definitions/networkgroup.yaml.
+apiVersion: azure.example.org/v1alpha1
+kind: NetworkGroup
+metadata:
+  name: example
+  labels:
+    group: example
+    location: west-us-2
+spec:
+  location: West US 2
+  addressPrefix: 10.2.0.0/16
+  providerRef:
+    name: example
+  # It will soon be possible to specify a default composition for NetworkGroups
+  # or even to force a particular composition for all NetworkGroups, but for now
+  # we must specify one to use.
+  compositionRef:
+    name: networkgroups.azure.example.org
