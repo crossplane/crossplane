@@ -18,16 +18,16 @@ personas:
 
 clusterStacks:
   aws:
-    version: master
+    version: v0.9.0
     deploy: false
   gcp:
-    version: master
+    version: v0.9.0
     deploy: false
   azure:
-    version: master
+    version: v0.9.0
     deploy: false
   rook:
-    version: master
+    version: v0.6.0
     deploy: false
 
 hostedConfig:
@@ -35,7 +35,7 @@ hostedConfig:
 
 templateStacks:
   enabled: true
-  controllerImage: crossplane/templating-controller:v0.2.1
+  controllerImage: crossplane/templating-controller:v0.3.0
 
 resourcesCrossplane:
   limits:

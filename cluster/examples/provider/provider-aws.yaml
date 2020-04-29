@@ -5,4 +5,4 @@ metadata:
   name: provider-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/provider-aws:master"
+  package: "crossplane/provider-aws:v0.9.0"
