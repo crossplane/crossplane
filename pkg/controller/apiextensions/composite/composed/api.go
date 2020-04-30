@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -87,7 +88,7 @@ func (*DefaultOverlayApplicator) Overlay(cp resource.Composite, cd resource.Comp
 	return nil
 }
 
-// FetchFn is a function that implements OverlayApplicator interface.
+// FetchFn is a function that implements the ConnectionDetailsFetcher interface.
 type FetchFn func(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error)
 
 // Fetch calls FetchFn.
@@ -114,7 +115,11 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	// iteration.
 	s := &corev1.Secret{}
 	nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
-	if err := cdf.client.Get(ctx, nn, s); resource.IgnoreNotFound(err) != nil {
+	err := cdf.client.Get(ctx, nn, s)
+	if kerrors.IsNotFound(err) {
+		return nil, nil
+	}
+	if err != nil {
 		return nil, errors.Wrap(err, errGetSecret)
 	}
 	for _, pair := range t.ConnectionDetails {

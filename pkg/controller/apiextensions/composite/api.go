@@ -52,9 +52,8 @@ func NewAPIFilteredSecretPublisher(c client.Client, filter []string) *APIFiltere
 	return &APIFilteredSecretPublisher{client: resource.NewAPIPatchingApplicator(c), filter: filter}
 }
 
-// PublishConnection publishes the supplied ConnectionDetails to a Secret in the
-// same namespace as the supplied Managed resource. It is a no-op if the secret
-// already exists with the supplied ConnectionDetails.
+// PublishConnection publishes the supplied ConnectionDetails to the Secret
+// referenced in the resource.
 func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
 	// This resource does not want to expose a connection secret.
 	if o.GetWriteConnectionSecretToReference() == nil {

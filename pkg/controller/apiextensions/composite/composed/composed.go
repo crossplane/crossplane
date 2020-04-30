@@ -19,6 +19,8 @@ package composed
 import (
 	"context"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -27,7 +29,6 @@ import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -95,6 +96,15 @@ func WithConfigurator(c Configurator) ComposerOption {
 	}
 }
 
+type connection struct {
+	ConnectionDetailsFetcher
+}
+
+type composed struct {
+	Configurator
+	OverlayApplicator
+}
+
 // ComposerOption configures the Composer object.
 type ComposerOption func(*Composer)
 
@@ -106,9 +116,13 @@ func NewComposer(kube client.Client, opts ...ComposerOption) *Composer {
 			Client:     kube,
 			Applicator: resource.NewAPIPatchingApplicator(kube),
 		},
-		Configurator:             &DefaultConfigurator{},
-		OverlayApplicator:        &DefaultOverlayApplicator{},
-		ConnectionDetailsFetcher: &APIConnectionDetailsFetcher{client: kube},
+		composed: composed{
+			Configurator:      &DefaultConfigurator{},
+			OverlayApplicator: &DefaultOverlayApplicator{},
+		},
+		connection: connection{
+			ConnectionDetailsFetcher: &APIConnectionDetailsFetcher{client: kube},
+		},
 	}
 
 	for _, f := range opts {
@@ -120,9 +134,8 @@ func NewComposer(kube client.Client, opts ...ComposerOption) *Composer {
 // An Composer composes infrastructure resources in a Kubernetes API server.
 type Composer struct {
 	client resource.ClientApplicator
-	Configurator
-	OverlayApplicator
-	ConnectionDetailsFetcher
+	connection
+	composed
 }
 
 // Compose the supplied Composed resource into the supplied Composite resource
@@ -142,21 +155,21 @@ func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resour
 		// because the fields that are not referred in the patches should be
 		// mutable by the user, i.e. dependency on the Composition should be
 		// limited to the field propagation.
-		if err := r.Configure(cp, cd, t); err != nil {
+		if err := r.composed.Configure(cp, cd, t); err != nil {
 			return Observation{}, errors.Wrap(err, errConfigure)
 		}
 	}
 
 	// Overlay is applied to the Composed resource in all cases so that we can
 	// keep Composed resource up-to-date with the changes in Composite resource.
-	if err := r.Overlay(cp, cd, t); err != nil {
+	if err := r.composed.Overlay(cp, cd, t); err != nil {
 		return Observation{}, errors.Wrap(err, errOverlay)
 	}
 
 	// Connection details are fetched in all cases in a best-effort mode, i.e.
 	// it doesn't return error if the secret does not exist or the resource
 	// does not publish a secret at all.
-	conn, err := r.Fetch(ctx, cd, t)
+	conn, err := r.connection.Fetch(ctx, cd, t)
 	if err != nil {
 		return Observation{}, errors.Wrap(err, errFetchSecret)
 	}

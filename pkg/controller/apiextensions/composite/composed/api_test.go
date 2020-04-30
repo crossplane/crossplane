@@ -61,7 +61,7 @@ func TestConfigure(t *testing.T) {
 			},
 		},
 		"Success": {
-			reason: "Invalid template should not be accepted",
+			reason: "Configuration should result in the right object with correct generateName",
 			args: args{
 				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp"}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
