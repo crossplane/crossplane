@@ -130,16 +130,7 @@ func TestFetch(t *testing.T) {
 		"SecretNotPublishedYet": {
 			reason: "Should not fail if composed resource has yet to publish the secret",
 			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-					switch obj.(type) {
-					case *v1.Secret:
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return nil
-				}},
+				kube: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
@@ -148,9 +139,7 @@ func TestFetch(t *testing.T) {
 		"SecretGetFailed": {
 			reason: "Should fail if secret retrieval results in some error other than NotFound",
 			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, _ client.ObjectKey, _ runtime.Object) error {
-					return errBoom
-				}},
+				kube: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},

@@ -94,17 +94,17 @@ type APISelectorResolver struct {
 }
 
 // ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.Composite) error {
+func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cp resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
 	// because it will make confusion if the resource is backed up and restored
 	// to another cluster
-	if cr.GetCompositionReference() != nil {
+	if cp.GetCompositionReference() != nil {
 		return nil
 	}
 	labels := map[string]string{}
-	sel := cr.GetCompositionSelector()
+	sel := cp.GetCompositionSelector()
 	if sel != nil {
 		labels = sel.MatchLabels
 	}
@@ -112,15 +112,15 @@ func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cr resource.C
 	if err := r.client.List(ctx, list, client.MatchingLabels(labels)); err != nil {
 		return errors.Wrap(err, errListCompositions)
 	}
-	apiVersion, kind := cr.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	for _, comp := range list.Items {
 		if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
 			continue
 		}
 
-		cr.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
+		cp.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
 
-		return errors.Wrap(r.client.Update(ctx, cr), errUpdateComposite)
+		return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 	}
 	return errors.New(errNoCompatibleComposition)
 }
@@ -138,20 +138,20 @@ type APIConfigurator struct {
 }
 
 // Configure the supplied composite resource using its composition.
-func (c *APIConfigurator) Configure(ctx context.Context, cr resource.Composite, cp *v1alpha1.Composition) error {
-	if cr.GetReclaimPolicy() != "" && cr.GetWriteConnectionSecretToReference() != nil {
+func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
+	if cp.GetReclaimPolicy() != "" && cp.GetWriteConnectionSecretToReference() != nil {
 		return nil
 	}
 
-	if cr.GetReclaimPolicy() == "" {
-		cr.SetReclaimPolicy(cp.Spec.ReclaimPolicy)
+	if cp.GetReclaimPolicy() == "" {
+		cp.SetReclaimPolicy(comp.Spec.ReclaimPolicy)
 	}
-	if cr.GetWriteConnectionSecretToReference() == nil {
-		cr.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
-			Name:      string(cr.GetUID()),
-			Namespace: cp.Spec.WriteConnectionSecretsToNamespace,
+	if cp.GetWriteConnectionSecretToReference() == nil {
+		cp.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
+			Name:      string(cp.GetUID()),
+			Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
 		})
 	}
 
-	return errors.Wrap(c.client.Update(ctx, cr), "cannot update composite resource")
+	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }

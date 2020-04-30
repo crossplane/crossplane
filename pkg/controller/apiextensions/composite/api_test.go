@@ -21,20 +21,27 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
+
+var errBoom = errors.New("boom")
 
 func TestPublishConnection(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	owner := &fake.MockConnectionSecretOwner{
-		Ref: &v1alpha1.SecretReference{
+		Ref: &runtimev1alpha1.SecretReference{
 			Namespace: "coolnamespace",
 			Name:      "coolsecret",
 		},
@@ -90,6 +97,97 @@ func TestPublishConnection(t *testing.T) {
 			got := a.PublishConnection(context.Background(), tc.args.o, tc.args.c)
 			if diff := cmp.Diff(tc.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestConfigure(t *testing.T) {
+	cs := fake.ConnectionSecretWriterTo{Ref: &runtimev1alpha1.SecretReference{
+		Name:      "foo",
+		Namespace: "bar",
+	}}
+	rp := fake.Reclaimer{Policy: runtimev1alpha1.ReclaimDelete}
+	cp := &fake.Composite{
+		ObjectMeta:               v1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+		Reclaimer:                rp,
+		ConnectionSecretWriterTo: cs,
+	}
+
+	type args struct {
+		kube client.Client
+		cp   resource.Composite
+		comp *v1alpha1.Composition
+	}
+	type want struct {
+		cp  resource.Composite
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"AlreadyFilled": {
+			reason: "Should be no-op if reclaim policy and connection secret namespace is already filled",
+			args:   args{cp: cp},
+			want:   want{cp: cp},
+		},
+		"ReclaimPolicyMissing": {
+			reason: "Should fill reclaim policy if missing",
+			args: args{
+				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+				cp: &fake.Composite{
+					ObjectMeta:               cp.ObjectMeta,
+					ConnectionSecretWriterTo: cs,
+				},
+				comp: &v1alpha1.Composition{Spec: v1alpha1.CompositionSpec{ReclaimPolicy: rp.Policy}},
+			},
+			want: want{cp: cp},
+		},
+		"ConnectionSecretRefMissing": {
+			reason: "Should fill connection secret ref if missing",
+			args: args{
+				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+				cp: &fake.Composite{
+					ObjectMeta: v1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+					Reclaimer:  rp,
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{WriteConnectionSecretsToNamespace: cs.Ref.Namespace},
+				},
+			},
+			want: want{cp: cp},
+		},
+		"UpdateFailed": {
+			reason: "Should fail if kube update failed",
+			args: args{
+				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
+				cp: &fake.Composite{
+					ObjectMeta: v1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{
+						WriteConnectionSecretsToNamespace: cs.Ref.Namespace,
+						ReclaimPolicy:                     rp.Policy,
+					},
+				},
+			},
+			want: want{
+				cp:  cp,
+				err: errors.Wrap(errBoom, errUpdateComposite),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &APIConfigurator{client: tc.args.kube}
+			err := c.Configure(context.Background(), tc.args.cp, tc.args.comp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
