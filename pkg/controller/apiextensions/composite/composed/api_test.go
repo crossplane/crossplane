@@ -17,19 +17,30 @@ limitations under the License.
 package composed
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
+
+var errBoom = errors.New("boom")
 
 func TestConfigure(t *testing.T) {
 
@@ -81,6 +92,113 @@ func TestConfigure(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestFetch(t *testing.T) {
+
+	sref := &runtimev1alpha1.SecretReference{Name: "foo", Namespace: "bar"}
+	s := &v1.Secret{
+		Data: map[string][]byte{
+			"foo": []byte("a"),
+			"bar": []byte("b"),
+		},
+	}
+
+	type args struct {
+		kube client.Client
+		cd   resource.Composed
+		t    v1alpha1.ComposedTemplate
+	}
+	type want struct {
+		conn managed.ConnectionDetails
+		err  error
+	}
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"DoesNotPublish": {
+			reason: "Should not fail if composed resource doesn't publish a connection secret",
+			args: args{
+				cd: &fake.Composed{},
+			},
+		},
+		"SecretNotPublishedYet": {
+			reason: "Should not fail if composed resource has yet to publish the secret",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+					switch obj.(type) {
+					case *v1.Secret:
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return nil
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+			},
+		},
+		"SecretGetFailed": {
+			reason: "Should fail if secret retrieval results in some error other than NotFound",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, _ client.ObjectKey, _ runtime.Object) error {
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetSecret),
+			},
+		},
+		"Success": {
+			reason: "Should publish only the selected set of secret keys",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
+					switch sobj := obj.(type) {
+					case *v1.Secret:
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1alpha1.ComposedTemplate{ConnectionDetails: []v1alpha1.ConnectionDetail{
+					{FromConnectionSecretKey: "bar"},
+					{Name: pointer.StringPtr("convfoo"), FromConnectionSecretKey: "foo"},
+					{FromConnectionSecretKey: "none"},
+				}},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"convfoo": s.Data["foo"],
+					"bar":     s.Data["bar"],
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &APIConnectionDetailsFetcher{client: tc.args.kube}
+			conn, err := c.Fetch(context.Background(), tc.args.cd, tc.args.t)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.conn, conn); diff != "" {
+				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

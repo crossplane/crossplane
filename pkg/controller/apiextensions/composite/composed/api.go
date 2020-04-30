@@ -123,6 +123,9 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 		return nil, errors.Wrap(err, errGetSecret)
 	}
 	for _, pair := range t.ConnectionDetails {
+		if len(s.Data[pair.FromConnectionSecretKey]) == 0 {
+			continue
+		}
 		key := pair.FromConnectionSecretKey
 		if pair.Name != nil {
 			key = *pair.Name
