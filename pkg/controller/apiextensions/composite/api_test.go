@@ -23,10 +23,12 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -188,6 +190,122 @@ func TestConfigure(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestResolveSelector(t *testing.T) {
+	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
+	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1alpha1.Composition{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "foo",
+			Namespace: "bar",
+		},
+		Spec: v1alpha1.CompositionSpec{
+			From: tref,
+		},
+	}
+	sel := &v1.LabelSelector{MatchLabels: map[string]string{"select": "me"}}
+
+	type args struct {
+		kube client.Client
+		cp   resource.Composite
+	}
+	type want struct {
+		cp  resource.Composite
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"AlreadyResolved": {
+			reason: "Should be no-op if the composition selector is already resolved",
+			args: args{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+				},
+			},
+		},
+		"ListFailed": {
+			reason: "Should fail if List query fails",
+			args: args{
+				kube: &test.MockClient{MockList: test.NewMockListFn(errBoom)},
+				cp:   &fake.Composite{},
+			},
+			want: want{
+				cp:  &fake.Composite{},
+				err: errors.Wrap(errBoom, errListCompositions),
+			},
+		},
+		"NoneCompatible": {
+			reason: "Should fail if it cannot find a compatible Composition",
+			args: args{
+				kube: &test.MockClient{MockList: test.NewMockListFn(nil)},
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+				},
+				err: errors.New(errNoCompatibleComposition),
+			},
+		},
+		"SelectedTheCompatibleOne": {
+			reason: "Should select the one that is compatible",
+			args: args{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
+						compList := &v1alpha1.CompositionList{
+							Items: []v1alpha1.Composition{
+								{
+									Spec: v1alpha1.CompositionSpec{
+										From: v1alpha1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+									},
+								},
+								*comp,
+							},
+						}
+						if list, ok := obj.(*v1alpha1.CompositionList); ok {
+							compList.DeepCopyInto(list)
+							return nil
+						}
+						t.Errorf("wrong query")
+						return nil
+					}},
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionSelector:   fake.CompositionSelector{Sel: sel},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewAPISelectorResolver(tc.args.kube)
+			err := c.ResolveSelector(context.Background(), tc.args.cp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nResolveSelector(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nResolveSelector(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

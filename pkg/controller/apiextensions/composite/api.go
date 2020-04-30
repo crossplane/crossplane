@@ -83,7 +83,7 @@ func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ re
 }
 
 // NewAPISelectorResolver returns a SelectorResolver for composite resource.
-func NewAPISelectorResolver(c client.Client) SelectorResolver {
+func NewAPISelectorResolver(c client.Client) *APISelectorResolver {
 	return &APISelectorResolver{client: c}
 }
 

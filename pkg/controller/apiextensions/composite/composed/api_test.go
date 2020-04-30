@@ -152,8 +152,7 @@ func TestFetch(t *testing.T) {
 			reason: "Should publish only the selected set of secret keys",
 			args: args{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj runtime.Object) error {
-					switch sobj := obj.(type) {
-					case *v1.Secret:
+					if sobj, ok := obj.(*v1.Secret); ok {
 						if key.Name == sref.Name && key.Namespace == sref.Namespace {
 							s.DeepCopyInto(sobj)
 							return nil
