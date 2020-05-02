@@ -615,7 +615,7 @@ spec:
   # expose each of the named connection details exactly once in any of its
   # connectionDetails objects. The connection secret published by the defined
   # infrastructure resource will include only these connection details.
-  requiredConnectionDetails:
+  connectionDetails:
   - username
   - password
   - endpoint
