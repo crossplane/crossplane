@@ -907,12 +907,91 @@ a `NodePool`).
 
 ### Transform Functions
 
-TODO(negz): Explain transform functions.
+A `Composition` produces a set of composed resources by taking a set of 'base'
+resource templates and 'patching' them by copying fields from the composite
+resource to the composed resources, using [field path notation] to map a field
+path 'from' the composite resource 'to' a field path in the composed resource:
 
-* Simple, schemafied, functions that can transform claim fields.
-* Similar to Terraform's small set of functions.
-* Purposefully not open ended.
-* Written using plain old YAML.
+```yaml
+patches:
+- fromFieldPath: "spec.region"
+  toFieldPath: "spec.forProvider.location"
+```
+
+This alone is sufficient if the 'from' field's value is always a valid value of
+the 'to' field, but that is often not the case. Imagine for example a composite
+resource that could be satisfied by two compositions; one for Azure and another
+for GCP. Both clouds have similar geographic regions, but represent them
+differently; "West US 2" vs "us-west2". It's not possible to directly map one
+value from the composite resource to both sets of composed resources; you must
+pick either "West US 2" or "us-west2". This compromises the portability of the
+composite resource; it's values are only applicable to one cloud. In some cases
+this may be fine, but transform functions help where portability is desired.
+
+A transform function transforms the 'from' value, returning an altered 'to'
+value. For example the below map transform would take the value 'us-west' from
+the `spec.region` field of the composite resource and transform it to "West US"
+before writing it to the `spec.forProvider.location` field of the composed
+resource.
+
+```yaml
+patches:
+- fromFieldPath: "spec.region"
+  toFieldPath: "spec.forProvider.location"
+  transforms:
+  - type: map
+    map:
+      us-west: "West US"
+      us-east: "East US"
+```
+
+Transform functions are intended to be simple and validatable as YAML, rather
+than inventing a DSL inside YAML. Multiple transforms can be stacked if
+necessary and will be applied in the order they are specified. A conservative
+number of transform functions will be added at first, with more being added as
+use cases appear. This document proposes the following transforms be added to
+Crossplane initially, in addition to the map transform above:
+
+```yaml
+patches:
+- fromFieldPath: "spec.storageGB"
+  toFieldPath: "spec.forProvider.storageProfile.storageMB"
+  transforms:
+    - type: math
+      math:
+        multiply: 1024
+```
+
+A math transform that allows for simple math operations, like converting MB to
+GB.
+
+```yaml
+patches:
+- fromFieldPath: "metadata.uid"
+  toFieldPath: "spec.writeConnectionSecretToRef.name"
+  transforms:
+  - type: string
+    string:
+      fmt: "%s-postgresqlserver"
+```
+
+A string format transform (using the Go [fmt syntax]). This allows string values
+to be prefixed or suffixed, and allows number values to be converted to strings.
+The string format transform can be used to propagate the external name
+annotation from one composite resource to many composed resources of the same
+kind while ensuring their external names do not conflict. For example:
+
+```yaml
+patches:
+- fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+  toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+  transforms:
+  - type: string
+    string:
+      # If the composite resources external name was 'example', this composed
+      # resource's external name would be 'example-a'.
+      fmt: "%s-a"
+```
 
 ### Composite References
 
@@ -1005,40 +1084,6 @@ multiple managed resources one is chosen at random, though specifying both
 `matchControllerRef` and `matchLabels` can always guarantee that at most one
 provisioned managed resource will match the selector.
 
-### External Names
-
-Managed resources have a name and an _external name_. The former identifies the
-managed resource in the Kubernetes API, while the latter identifies the resource
-in the external system. Managed resources that have reached `v1beta1` allow both
-managed resource and resource claim authors to [control the name of their
-external resource] using the `crossplane.io/external-name` annotation:
-
-* The name of the external resource is set to the value of the annotation.
-* If the annotation is absent it is set to the managed resource's name.
-* The annotation is propagated from a resource claim to any managed resource it
-  dynamically provisions.
-
-This final point may pose a problem when one resource claim may provision many
-managed resources. If a resource claim set the `crossplane.io/external-name`
-annotation and referenced a `Composite` that specified two managed resources of
-the same kind, both dynamically provisioned resources would attempt to use the
-same external name. External names are unique at different scopes (global,
-project, region) for different resources so this will not be an issue all
-resources, but it may for some.
-
-This document proposes two new external naming annotations be introduced to help
-configuration class authors avoid external name conflicts:
-
-* `crossplane.io/external-name-prefix` - A value prepended to the external name
-  of a managed resource.
-* `crossplane.io/external-name-suffix` - A value appended to the external name
-  of a managed resource.
-
-These annotations would be set on the provisioned managed resources and parsed
-by their controllers alongside the existing `crossplane-io/external-name`
-annotation, resulting in an actual external name of the form
-`{external-name-prefix}{external-name}{external-name-suffix}`.
-
 ### Connection Secrets
 
 TODO(negz): Elaborate on how compositions must satisfy the connection details
@@ -1099,3 +1144,5 @@ resources (using Crossplane composition).
 [above example]: #example-google-cloud-sql-instance
 [managed instange group]: https://cloud.google.com/compute/docs/instance-groups/creating-groups-of-managed-instances
 [architecture-diagram]: design-doc-composition.png
+[field path notation]: https://github.com/kubernetes/community/blob/26337/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
+[fmt syntax]: https://golang.org/pkg/fmt/
