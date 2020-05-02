@@ -1,4 +1,5 @@
 # Resource Composition
+
 * Owner: Nic Cope (@negz)
 * Reviewers: Crossplane Maintainers
 * Status: Draft
@@ -576,7 +577,7 @@ spec:
     # https://github.com/kubernetes/kubernetes/issues/54498
     composedRefs:
     - apiVersion: database.example.org/v1alpha1
-      kind: MySQLInstanceBinding
+      kind: MySQLInstanceRequirement
       name: coolblog-3jmdf
     - apiVersion: workload.crossplane.io/v1alpha1
       kind: KubernetesApplication
@@ -596,8 +597,8 @@ Infrastructure is typically defined by an _infrastructure operator_, though it
 is expected that _infrastructure providers_ will frequently define composite
 infrastructure. An infrastructure operator would author an instance of the above
 `kind: MachineLearningCluster`. Application operators may _indirectly_ author
-infrastructure resources that have been published as an infrastructure binding -
-more on that below.
+infrastructure resources that have been published as an infrastructure
+requirement - more on that below.
 
 Here's an example that defines a new infrastructure resource of
 `kind: MySQLInstance`:
@@ -728,17 +729,16 @@ spec:
       namespace: crossplane-system
       name: sql
     # This cluster scoped MySQLInstance _may_ bind to exactly one namespaced
-    # MySQLInstanceBinding. See InfrastructurePublication below for details.
-    binding:
-      ref:
-      - apiVersion: database.example.org/v1alpha1
-        kind: MySQLInstanceBinding
-        namespace: default
-        name: sql
-      # The reclaim policy determines what happens to this infrastructure
-      # resource and all of the infrastructure resources it composes if it is
-      # bound and then released. The policy may be either 'Delete' or 'Retain'.
-      reclaimPolicy: Retain
+    # MySQLInstanceRequirement. See InfrastructurePublication below for details.
+    requirementRef:
+      apiVersion: database.example.org/v1alpha1
+      kind: MySQLInstanceRequirement
+      namespace: default
+      name: sql
+    # The reclaim policy determines what happens to this infrastructure
+    # resource and all of the infrastructure resources it composes if it is
+    # bound and then released. The policy may be either 'Delete' or 'Retain'.
+    reclaimPolicy: Retain
 ```
 
 Note that the use of controller references to model relationships between an
@@ -752,17 +752,17 @@ which control Kubernetes garbage collection.
 ### InfrastructurePublication
 
 A `kind: InfrastructurePublication` defines a new kind of custom resource that
-binds a logical group of infrastructure to an application by "publishing" a kind
-of resource defined by a `kind: InfrastructureDefinition`. The `kind:
-MySQLInstance` resource from the example above is cluster scoped and thus may
-only be authored (directly) by an _infrastructure operator_. It may however be
-"published" for use by _application operators_ by authoring a `kind:
+indicates an application's requirement of a logical group of infrastructure by
+"publishing" a kind of resource defined by a `kind: InfrastructureDefinition`.
+The `kind: MySQLInstance` resource from the example above is cluster scoped and
+thus may only be authored (directly) by an _infrastructure operator_. It may
+however be "published" for use by _application operators_ by authoring a `kind:
 InfrastructurePublication`. Doing so create a new, namespaced kind of resource
-that corresponds to the `kind: MySQLInstance`, of `kind: MySQLInstanceBinding`.
-This `kind: MySQLInstanceBinding` managed resource inherits all spec fields of a
-`kind: MySQLInstance`. Infrastructure bindings are analogous to contemporary
-Crossplane resource claims, and maintain all of their features and
-functionality.
+that corresponds to the `kind: MySQLInstance`, of `kind:
+MySQLInstanceRequirement`. This `kind: MySQLInstanceRequirement` managed
+resource inherits all spec fields of a `kind: MySQLInstance`. Infrastructure
+requirements are analogous to contemporary Crossplane resource claims, and
+maintain all of their features and functionality.
 
 Here's an example that publishes the above `kind: MySQLInstance` resource:
 
@@ -787,12 +787,12 @@ CustomResourceDefinition` allowing application operators to author the below
 custom resource:
 
 ```yaml
-# The API version of the binding is always the same as that of the resource it
-# publishes. The kind is the kind of the published resource suffixed with the
-# word 'Binding'. This enables users to distinguish between bindings and the
-# resources they bind.
+# The API version of the requirement is always the same as that of the resource
+# it publishes. The kind is the kind of the published resource suffixed with the
+# word 'Requirement'. This enables users to distinguish between requirements and
+# the resources they require.
 apiVersion: database.example.org/v1alpha1
-kind: MySQLInstanceBinding
+kind: MySQLInstanceRequirement
 metadata:
   namespace: default
   name: sql
@@ -800,28 +800,28 @@ spec:
   # The schema for the following three fields is inherited from the
   # InfrastructureDefinition referenced by the InfrastructurePublication that
   # publishes this kind of resource. Put otherwise, the schema identically
-  # matches this binding's cluster scoped equivalent.
+  # matches this requirement's cluster scoped equivalent.
   engineVersion: "5.7"
   storageGB: 10
   region: us-west
   # The infrastructure object schema is automatically injected into the
   # CustomResourceDefinition that is created by the InfrastructurePublication
-  # that publishes the MySQLInstanceBinding resource.
+  # that publishes the MySQLInstanceRequirement resource.
   infrastructure:
-    # An infrastructure binding binds to exactly one defined, cluster scoped,
-    # infrastructure resource. In the case of this MySQLInstanceBinding the
+    # An infrastructure requirement binds to exactly one defined, cluster scoped
+    # infrastructure resource. In the case of this MySQLInstanceRequirement the
     # kind of the bound resource will always be MySQLInstance. There is no
-    # binding phase; if the binding and the bound resource reference each other
-    # they are considered to be bound. An application operator may specify this
-    # resource reference explicitly in order to bind to a  MySQLInstance that
-    # was provisioned in advance by an infrastructure operator.
+    # binding phase; if the requirement and the required resource reference each
+    # other they are considered to be bound. An application operator may specify
+    # this resource reference explicitly in order to bind to a  MySQLInstance
+    # that was provisioned in advance by an infrastructure operator.
     resourceRef:
     - apiVersion: database.example.org/v1alpha1
       kind: MySQLInstance
       name: default-sql-dd02m
     # In the (common) case in which the application operator omits the above
     # resource reference a MySQLInstance will be dynamically provisioned to
-    # satisfy this MySQLInstanceBinding. When this is the case the below
+    # satisfy this MySQLInstanceRequirement. When this is the case the below
     # compositionSelector and compositionRef (if any) are copied verbatim to the
     # newly created MySQLInstance.
     compositionSelector:
@@ -829,30 +829,32 @@ spec:
        connectivity: private
     compositionRef:
     - name: private-mysql-server
-    # The MySQLInstanceBinding author must specify where the binding will write
-    # its connection details as a Kubernetes secret. The secret is an exact copy
-    # of the bound MySQLInstance's connection secret.
+    # The MySQLInstanceRequirement author must specify where the requirement
+    # will write its connection details as a Kubernetes secret. The secret is an
+    # exact copy of the bound MySQLInstance's connection secret.
     writeConnectionSecretToRef:
       name: sql
 ```
 
 The pattern of "publishing" a pre-defined cluster scoped infrastructure resource
-for binding to namespaced applications has several desirable properties:
+that may separately be required by namespaced applications has several desirable
+properties:
 
 * Infrastructure may be composed arbitrarily at the cluster scope by defining
   new infrastructure resource kinds and how they should be composed of other,
   predefined infrastructure resource kinds.
-* There is a one-to-one relationship between a namespaced infrastructure binding
-  and a cluster scoped infrastructure resource. In the static provisioning case
-  a binding may bind exactly one kind of cluster scoped infrastructure resource,
-  and exactly one instance of that kind of infrastructure resource.
+* There is a one-to-one relationship between a namespaced infrastructure
+  requirement and a cluster scoped infrastructure resource. In the static
+  provisioning case a requirement maps to exactly one kind of cluster scoped
+  infrastructure resource, and exactly one instance of that kind of
+  infrastructure resource.
 * In the dynamic provisioning case a cluster scoped resource may be created by
-  simply copying the spec of the binding to that of the cluster scoped resource,
-  avoiding the "double definition" problem.
+  simply copying the spec of the requirement to that of the cluster scoped
+  resource, avoiding the "double definition" problem.
 
 Presuming an infrastructure operator wanted to publish a `kind:
-MySQLInstanceBinding` for their application operators to use, the infrastructure
-operator would:
+MySQLInstanceRequirement` for their application operators to use, the
+infrastructure operator would:
 
 1. Author a `kind: InfrastructureDefinition` defining the schema and connection
    details of a cluster scoped `kind: MySQLInstance`.
@@ -860,7 +862,7 @@ operator would:
    MySQLInstance` may be satisfied - for example by provisioning a `kind:
    CloudSQLInstance`.
 1. Author an `kind: InfrastructurePublication` to publish the `kind:
-   MySQLInstanceBinding` kind for use by application operators.
+   MySQLInstanceRequirement` kind for use by application operators.
 
 Note that the `kind: MySQLInstance` defined in step 1 of this process is
 inherently composable into other cluster scoped infrastructure resources. An
@@ -872,7 +874,7 @@ simply omit step 3.
 #### The Double Definition Problem
 
 Presume an infrastructure operator wishes to expose two primitive infrastructure
-managed resources for binding to an application; their goal is to allow an
+managed resources that an application requires; their goal is to allow an
 application operator to author a single namespaced resource and in return be
 allocated two primitive infrastructure resources. Perhaps the application
 operator will author a `kind: KubernetesCluster` resource and in return be
