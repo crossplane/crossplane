@@ -756,8 +756,11 @@ only be authored (directly) by an _infrastructure operator_. It may however be
 that corresponds to the `MySQLInstance`, of kind `MySQLInstanceRequirement`.
 This `MySQLInstanceRequirement` managed resource inherits all spec fields of a
 `MySQLInstance`. Infrastructure requirements are analogous to contemporary
-Crossplane resource claims, and maintain all of their features and
-functionality.
+Crossplane resource claims. They maintain all of their features and
+functionality of a resource claim (e.g. static and dynamic binding). Unlike a
+resource claim, a resource requirement propagates any field updates made by the
+application operator on to its bound composite resource, and thus onto the
+composed resources.
 
 Here's an example that publishes the above `MySQLInstance` resource:
 
