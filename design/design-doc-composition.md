@@ -981,7 +981,7 @@ spec:
       # Match only managed resources that are part of the same composite, i.e.
       # managed resources that have the same controller reference as the
       # selecting resource.
-      matchController: true
+      matchControllerRef: true
       # Match only managed resources with the supplied labels.
       matchLabels:
         example: label
@@ -989,16 +989,17 @@ spec:
 
 The combination of these two fields allows a managed resource to uniquely
 identify a distinct managed resource within the same composite. In the previous
-example the `GKENodePool` resources need only use `matchController` to match the
-`GKECluster` they wish to join, because there is only one `GKECluster` for them
-to match within their composite resource. They need to use `matchController` and
-`matchLabels` to match their desired `ServiceAccount`; the labels distinguish of
-the two composed `ServiceAccount` resources are matched.
+example the `GKENodePool` resources need only use `matchControllerRef` to match
+the `GKECluster` they wish to join, because there is only one `GKECluster` for
+them to match within their composite resource. They need to use
+`matchControllerRef` and `matchLabels` to match their desired `ServiceAccount`;
+the labels distinguish of the two composed `ServiceAccount` resources are
+matched.
 
 If a reference field is set, its corresponding selector field is ignored. If the
 selector field is unset, it is ignored. If the specified selector matches
 multiple managed resources one is chosen at random, though specifying both
-`matchController` and `matchLabels` can always guarantee that at most one
+`matchControllerRef` and `matchLabels` can always guarantee that at most one
 provisioned managed resource will match the selector.
 
 ### External Names
