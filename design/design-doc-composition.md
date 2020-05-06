@@ -1086,8 +1086,91 @@ provisioned managed resource will match the selector.
 
 ### Connection Secrets
 
-TODO(negz): Elaborate on how compositions must satisfy the connection details
-"contract" of the various Crossplane definitions.
+Contemporary Crossplane infrastructure resources - resource claims and managed
+resources - expose their connection details as secrets. Connection details may
+include sensitive data required to connect to the infrastructure resource such
+as authentication credentials, or non-sensitive data such as a URL or endpoint.
+Composite infrastructure resources and their requirements must also expose
+connection details in order to enable applications to leverage the underlying
+composed resources.
+
+Composite resource cannot naively aggregate the various connection secrets of
+their composed resources. Secrets are a map of strings to byte arrays and there
+is no guarantee that two composed resources won't expose connection details
+using the same key; for example two composed resources could both expose the
+`username` detail.
+
+This document proposes that the connection secrets exposed by a composite
+resource define a contract that must be fulfilled by the composed resources. For
+example:
+
+```yaml
+apiVersion: crossplane.io/v1alpha1
+kind: InfrastructureDefinition
+# ...
+spec:
+  connectionDetails:
+  - username
+  - password
+  - endpoint
+```
+
+The above `InfrastructureDefinition` declares that the defined resource exposes
+three connection details in its secret; `username`, `password`, and `endpoint`.
+Each connection detail must be provided by exactly one composed resource.
+
+```yaml
+apiVersion: crossplane.io/v1alpha1
+kind: Composition
+# ...
+spec:
+  to:
+  - base:
+      # ...
+    patches:
+      # ...
+    connectionDetails:
+    - name: username
+      fromConnectionSecretKey: admin-username
+    - fromConnectionSecretKey: password
+    - fromConnectionSecretKey: endpoint
+```
+
+The above `Composition` satisfies the contract established by its corresponding
+`InfrastructureDefinition`. It composes a resource that publishes `username`,
+`password`, and `endpoint` as connection details. Note that the composed
+resource _actually_ publishes a connection detail under the secret key
+`admin-username`, but explicitly declares by including the `name` of the detail
+that its `admin-username` key should correspond to the composite's `username`
+key. The other two details don't specify a `name`, and thus it is inferred that
+the `fromConnectionSecretKey` is the same as the required detail name.
+
+Note that this contract could be satisfied by more than one composed resource,
+as long as each required detail is satisfied exactly once. In the below example
+the first composed resource satisfies the requirement for a username and
+password, while the second satsifies the requirment for an endpoint.
+
+```yaml
+apiVersion: crossplane.io/v1alpha1
+kind: Composition
+# ...
+spec:
+  to:
+  - base:
+      # ...
+    patches:
+      # ...
+    connectionDetails:
+    - name: username
+      fromConnectionSecretKey: admin-username
+    - fromConnectionSecretKey: password
+  - base:
+      # ...
+    patches:
+      # ...
+    connectionDetails:
+    - fromConnectionSecretKey: endpoint
+```
 
 ### Backward Compatibility
 
