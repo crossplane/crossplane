@@ -348,7 +348,7 @@ Crossplane concept of a resource class. Unlike resource classes, compositions:
 Here's an example composition:
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
   name: private-mysql-server
@@ -467,7 +467,7 @@ _application operator_.
 Here's an example that defines a new `Wordpress` application resource:
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: ApplicationDefinition
 metadata:
   # ApplicationDefinition names are subject to the constraints of Kubernetes
@@ -515,7 +515,7 @@ spec:
   # Wordpress custom resources that omit both their compositeSelector and their
   # compositeRef.
   defaultComposition:
-    apiVersion: crossplane.io
+    apiVersion: apiextensions.crossplane.io/v1alpha1
     kind: Composition
     name: local-wordpress
   # An optional forced composition that will be set automatically for any
@@ -523,7 +523,7 @@ spec:
   # compositeRef. If defaultComposition and forceComposition are both set, the
   # forced composition wins.
   forceComposition:
-    apiVersion: crossplane.io
+    apiVersion: apiextensions.crossplane.io/v1alpha1
     kind: Composition
     name: wordpresses.apps.example.org
 ```
@@ -599,7 +599,7 @@ requirement - more on that below.
 Here's an example that defines a new `MySQLInstance` infrastructure resource.
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructureDefinition
 metadata:
   # InfrastructureDefinition names are subject to the constraints of Kubernetes
@@ -653,7 +653,7 @@ spec:
   # MySQLInstance custom resources that omit both their compositeSelector and
   # their compositeRef.
   defaultComposition:
-    apiVersion: crossplane.io
+    apiVersion: apiextensions.crossplane.io/v1alpha1
     kind: Composition
     name: cheap-rds
   # An optional forced composition that will be set automatically for any
@@ -661,7 +661,7 @@ spec:
   # compositeRef. If defaultComposition and forceComposition are both set, the
   # forced composition wins.
   forceComposition:
-    apiVersion: crossplane.io
+    apiVersion: apiextensions.crossplane.io/v1alpha1
     kind: Composition
     name: mysqlinstances.database.example.org
 ```
@@ -765,7 +765,7 @@ composed resources.
 Here's an example that publishes the above `MySQLInstance` resource:
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructurePublication
 metadata:
   # The name of the InfrastructurePublication must match the name of the
@@ -1105,7 +1105,7 @@ resource define a contract that must be fulfilled by the composed resources. For
 example:
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructureDefinition
 # ...
 spec:
@@ -1120,7 +1120,7 @@ three connection details in its secret; `username`, `password`, and `endpoint`.
 Each connection detail must be provided by exactly one composed resource.
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 # ...
 spec:
@@ -1151,7 +1151,7 @@ the first composed resource satisfies the requirement for a username and
 password, while the second satsifies the requirment for an endpoint.
 
 ```yaml
-apiVersion: crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 # ...
 spec:
