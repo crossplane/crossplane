@@ -68,7 +68,7 @@ Install with Helm 2:
 
 ```console
 helm repo add crossplane-master https://charts.crossplane.io/master/
-helm search crossplane --devel
+helm search crossplane-master --devel
 helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version>
 ```
 
@@ -86,7 +86,7 @@ Crossplane via Helm 3, you'll need Helm v3.1.0+.
 ```console
 kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
-helm search repo crossplane --devel
+helm search repo crossplane-master --devel
 
 # Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
