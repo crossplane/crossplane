@@ -190,17 +190,24 @@ supporting all possible providers.
 
 ## Goals
 
-The goal of this document is to propose a simple, consistent, Kubernetes native
-model for composing applications and their infrastructure needs.
+The core goal of this document is to propose a simple, consistent, Kubernetes
+native model for composing applications and their infrastructure needs. The
+proposal put forward by this document should:
 
-TODO(negz): Elaborate on the below goals.
-
-* Nested composition
-* User defined abstractions
-* Shareable abstractions
-* Composable infrastructure
-* Discoverable abstraction to composition relationships
-* Compositions configured inside API boundary
+* Empower infrastructure operators to provide a platform of useful, opinionated
+  infrastructure abstractions to the application operators they support.
+* Empower application developers to provide intuitive application abstractions
+  to the people who operator their applications.
+* Enable both infrastructure operators and application developers to define
+  abstractions that may be portable across different infrastructure providers
+  and application runtimes.
+* Enable both infrastructure operators and application developers to share and
+  reuse the abstractions they define.
+* Leverage the Kubernetes Resource Model to model applications, infrastructure,
+  and the product of the two in a predictable, safe, and declarative fashion
+  using low or no code.
+* Avoid imposing unnecessary opinions, assumptions, or constraints around how
+  applications and infrastructure should function.
 
 ## Use Cases
 
