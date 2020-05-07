@@ -29,7 +29,8 @@ Contemporary Crossplane applications are packaged as Stacks. Each Stack defines
 a set of custom resources and the controllers that should reconcile them. Stack
 controllers may be implemented as bespoke code (for example using [kubebuilder])
 or as a [Template Stack]. A Template Stack invokes a [Kustomization] or a [Helm]
-chart in order to reconcile a custom resource.
+chart in order to reconcile a custom resource, using the
+[templating-controller].
 
 ```yaml
 ---
@@ -1179,13 +1180,79 @@ spec:
     - fromConnectionSecretKey: endpoint
 ```
 
-### Backward Compatibility
+## Relationship to Existing Functionality
 
-TODO(negz): Explain how this design is backward compatible with our current
-controllers. I'm _pretty sure_ this design is backward compatible, and could
-thus live alongside our existing resource classes, claims, etc. This would allow
-us to deprecate the existing classes (and claim controllers) and migrate away
-from them cleanly.
+The design put forward by this document will supersede Crossplane's contemporary
+class and claim based infrastructure abstractions in the short to medium term.
+It will also subsume the contemporary [templating-controller], which composes
+applications and stacks by rendering Kustomizations or Helm charts. It should be
+possible for this design to co-exist with these deprecated features for a few
+releases of Crossplane in order to allow users time to migrate.
+
+### For Infrastructure
+
+Infrastructure composition introduces new resource kinds (e.g. `Composition` and
+`InfrastructureDefinition`) that do not affect existing abstractions. The actual
+composite resource kinds are established by infrastructure operators, and should
+thus not conflict with existing resource claim kinds such as `MySQLInstance`,
+presuming they do not attempt to share the same API groups as resource claims. A
+composite resource could be of `MySQLInstance` as long as it was under the
+`database.crossplane.io` API group used by the resource claim of the same name.
+This document proposes that all contemporary resource claims and classes be
+marked as deprecated once support for composition has been added to Crossplane.
+
+The class and claim model requires that managed resources include a handful of
+fields that are defunct under the design proposed by this document:
+
+* `spec.classRef` is superseded by `spec.compositionRef`, which exists at the
+  composite resource rather than managed resource level.
+* `spec.claimRef` is superseded by `spec.requirementRef`, which exists at the
+  composite resource rather than managed resource level.
+* `status.bindingPhase` no longer exists. Any extant managed resource with a
+  composite resource as a controller reference is inherently 'bound' to that
+  composite resource. A composite resource is bound to a resource requirement
+  when each references the other.
+
+The contemporary resource claim controller uses the `status.bindingPhase` of an
+existing managed resource to determine whether it may be claimed by a resource
+claim that explicitly specifies the managed resource as its `spec.resourceRef`.
+Composed managed resources will appear to the resource claim controller to be
+available for binding due to their unset `status.bindingPhase`. This document
+recommends the resource claim controller be updated to disallow resource claims
+from binding to any managed resource with a controller reference, as composed
+managed resources will specify their composite resource as their controller
+reference.
+
+The semantics of the managed resource `spec.reclaimPolicy` also change under the
+proposed design. In the class and claim model `spec.reclaimPolicy` controls:
+
+* Whether the external resource is deleted when the managed resource is deleted.
+* Whether the managed resource is deleted when the resource claim it is bound to
+  is deleted.
+
+This is functionally identical to the [reclaim policy of persistent volumes].
+
+Under the proposed design `spec.reclaimPolicy` exists at two levels:
+
+* At the composite resource level the reclaim policy determines what happens to
+  the composite resource when its resource requirement is deleted. Note that
+  there is no `spec.bindingPhase`, so a 'retained' composition becomes available
+  to subsequent resource requirements.
+* At the managed resource level the reclaim policy determines what happens to
+  an external resource when its corresponding managed resource is deleted.
+
+It may be worth renaming these fields once resource claims are removed in order
+to avoid any implication that they function identically to the reclaim policy of
+a persistent volume.
+
+### For Applications
+
+Application composition introduces new resource kinds (e.g. `Composition` and
+`ApplicationDefinition`) that do not affect existing applications built using
+the  templating-controller (aka "Template Stacks"). This document proposes that
+the templating controller be marked as deprecated and its functionality merged
+into composition in a future release of Crossplane. This design may function
+alongside templated applications until that time.
 
 ## Alternatives Considered
 
@@ -1236,3 +1303,6 @@ resources (using Crossplane composition).
 [architecture-diagram]: design-doc-composition.png
 [field path notation]: https://github.com/kubernetes/community/blob/26337/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
 [fmt syntax]: https://golang.org/pkg/fmt/
+[templating-controller]: https://github.com/crossplane/templating-controller/
+[reclaim policy of persistent volumes]: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming
+[Kubernetes API versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
