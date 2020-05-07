@@ -1304,7 +1304,30 @@ alongside templated applications until that time.
 
 ## Alternatives Considered
 
-TODO(negz): Capture the various sketches and ideas that lead here.
+_Many_ alternatives were considered before arriving at the design put forward by
+this document. While these alternatives were ultimately discarded, many of the
+concepts they propose survive in this proposal. Some alternatives were captured
+as design documents or sketches, including in rough historical order:
+
+* The [Aggregate Resources] design. This design addressed only infrastructure
+  composition, and attempted to build on rather than replace the class and claim
+  pattern. This design was abandoned when it became clear that it was untenable
+  for Crossplane to maintain a fixed set of portable, useful, resource claims.
+* The [ResourceClaimDefinition] sketch laid the foundation for the design put
+  forward by this document, but did not address application composition. It
+  continued to hold to the class and claim concept, while making it possible for
+  an infrastructure operator to define their own claims. It was abandoned in
+  part due to a desire to compose infrastructure at the cluster scope in order
+  to allow infrastructure administrators to define and reuse compositions that
+  they may not wish to allow application operators to invoke.
+* The [CompositeResourceDefinition] gist (and subsequent sketches in comments)
+  began to address the possibility of application composition, and of composing
+  infrastructure at the cluster scope. It can be considered a series of early
+  drafts that lead to this proposal.
+* The [define-your-claim] repository was the leading alternative to this
+  proposal. It maintained the concepts of resource classes, and offered stronger
+  typing and security in exchange for using many distinct resource class kinds
+  in the place of a single `Composition` kind.
 
 ## Terminology
 
@@ -1354,3 +1377,7 @@ resources (using Crossplane composition).
 [templating-controller]: https://github.com/crossplane/templating-controller/
 [reclaim policy of persistent volumes]: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#reclaiming
 [Kubernetes API versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
+[Aggregate Resources]: https://github.com/crossplane/crossplane/pull/1094
+[ResourceClaimDefinition]: https://github.com/crossplane/crossplane/pull/1118
+[CompositeResourceDefinition]: https://gist.github.com/bassam/c2a5a00134768e0201533ac0ee3a57d0
+[define-your-claim]: https://github.com/muvaf/define-your-claim
