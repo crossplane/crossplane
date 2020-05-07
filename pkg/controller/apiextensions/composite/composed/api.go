@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -115,12 +114,8 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	// iteration.
 	s := &corev1.Secret{}
 	nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
-	err := cdf.client.Get(ctx, nn, s)
-	if kerrors.IsNotFound(err) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, errors.Wrap(err, errGetSecret)
+	if err := cdf.client.Get(ctx, nn, s); err != nil {
+		return nil, errors.Wrap(client.IgnoreNotFound(err), errGetSecret)
 	}
 	for _, pair := range t.ConnectionDetails {
 		if len(s.Data[pair.FromConnectionSecretKey]) == 0 {

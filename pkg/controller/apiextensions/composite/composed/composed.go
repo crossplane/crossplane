@@ -150,14 +150,11 @@ func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resour
 		}
 	}
 
-	if !meta.WasCreated(cd) {
-		// Configure is called only if Composed resource is not created yet
-		// because the fields that are not referred in the patches should be
-		// mutable by the user, i.e. dependency on the Composition should be
-		// limited to the field propagation.
-		if err := r.composed.Configure(cp, cd, t); err != nil {
-			return Observation{}, errors.Wrap(err, errConfigure)
-		}
+	// Doing the configuration only once or continuously is subject to discussion
+	// in https://github.com/crossplane/crossplane/issues/1481
+	// Until it's resolved, it's done in every reconcile.
+	if err := r.composed.Configure(cp, cd, t); err != nil {
+		return Observation{}, errors.Wrap(err, errConfigure)
 	}
 
 	// Overlay is applied to the Composed resource in all cases so that we can

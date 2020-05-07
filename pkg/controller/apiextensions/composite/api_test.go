@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -111,7 +111,7 @@ func TestConfigure(t *testing.T) {
 	}}
 	rp := fake.Reclaimer{Policy: runtimev1alpha1.ReclaimDelete}
 	cp := &fake.Composite{
-		ObjectMeta:               v1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+		ObjectMeta:               metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 		Reclaimer:                rp,
 		ConnectionSecretWriterTo: cs,
 	}
@@ -152,7 +152,7 @@ func TestConfigure(t *testing.T) {
 			args: args{
 				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 				cp: &fake.Composite{
-					ObjectMeta: v1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 					Reclaimer:  rp,
 				},
 				comp: &v1alpha1.Composition{
@@ -166,7 +166,7 @@ func TestConfigure(t *testing.T) {
 			args: args{
 				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(errBoom)},
 				cp: &fake.Composite{
-					ObjectMeta: v1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{
@@ -199,7 +199,7 @@ func TestResolveSelector(t *testing.T) {
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
 	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
 	comp := &v1alpha1.Composition{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "bar",
 		},
@@ -207,7 +207,7 @@ func TestResolveSelector(t *testing.T) {
 			From: tref,
 		},
 	}
-	sel := &v1.LabelSelector{MatchLabels: map[string]string{"select": "me"}}
+	sel := &metav1.LabelSelector{MatchLabels: map[string]string{"select": "me"}}
 
 	type args struct {
 		kube client.Client
