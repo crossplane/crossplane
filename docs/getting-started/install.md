@@ -310,6 +310,7 @@ and their default values.
 | `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`
 | `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`
 | `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
+| `priorityClassName      `        | Priority class name for crossplane and stack manager pods       | `""`
 | `resourcesCrossplane.limits.cpu`        | CPU resource limits for Crossplane                       | `100m`
 | `resourcesCrossplane.limits.memory`     | Memory resource limits for Crossplane                    | `512Mi`
 | `resourcesCrossplane.requests.cpu`      | CPU resource requests for Crossplane                     | `100m`
@@ -318,7 +319,7 @@ and their default values.
 | `resourcesStackManager.limits.memory`   | Memory resource limits for StackManager                  | `512Mi`
 | `resourcesStackManager.requests.cpu`    | CPU resource requests for StackManager                   | `100m`
 | `resourcesStackManager.requests.memory` | Memory resource requests for StackManager                | `256Mi`
-| `forceImagePullPolicy`           | Force the named ImagePullPolicy on Stack install and containers | ``
+| `forceImagePullPolicy`           | Force the named ImagePullPolicy on Stack install and containers | `""`
 | `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Stacks. When enabled, Stacks may declare dependency on core Kubernetes API types.) | `false` |
 | `insecurePassFullDeployment`     | Enable stacks to pass their full deployment, including security context. When omitted, Stacks deployments will have security context removed and all containers will have `allowPrivilegeEscalation` set to false. | `false` |
 
