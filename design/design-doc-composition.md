@@ -1180,6 +1180,54 @@ spec:
     - fromConnectionSecretKey: endpoint
 ```
 
+### Extension Points
+
+The `Composition` concept could be an extension point for this design in future.
+A Composition is effectively a template for a set of composed resources, and is
+thus similar in function to a Helm Chart, or a Kustomize Kustomization.
+
+The `Composition` put forward by this document is _intentionally limited_ in the
+functionality it provides, trading flexibility for simplicity and the ability to
+exist as a first class, validated custom resource rather than a reference to a
+configuration outside of the API server, or a custom resource consisting largely
+of configuration whose schema was opaque to the API server. It is possible that
+advanced uses for infrastructure or application composition will surface that
+are a poor fit for a `Composition`resource. Furthermore, applications are today
+most frequently modelled and packaged as Helm Charts or Kustomizations. The
+developers of these applications may wish to adapt them to Crossplane without
+having to translate their existing templates to a `Composition`. In either of
+these cases - wishing to use existing templates or needing advanced templating -
+alternate kinds such as a `HelmComposition` or a `KustomizeComposition` would
+help. A detailed design for these possible compositions is outside the scope of
+this document but an example may look as follows:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: HelmComposition
+metadata:
+  name: legacy-wordpress-chart
+spec:
+  from:
+    apiVersion: apps.example.org/v1alpha1
+    kind: Wordpress
+  to:
+    chart:
+      source: git
+      git:
+        url: https://github.com/crossplane/app-wordpress
+        path: helm-chart
+    values:
+    - fromFieldPath: "spec.image"
+      toValue: "image"
+    - fromFieldPath: "spec.provisionPolicy"
+      toValue: "provisionPolicy"
+```
+
+The above, hypothetical, `HelmComposition` could live alongside a `Composition`,
+a `KustomizeComposition`, or some as yet unimagined kind of composition, any of
+which were capable of specifying what resources a `Wordpress` application should
+be composed of.
+
 ## Relationship to Existing Functionality
 
 The design put forward by this document will supersede Crossplane's contemporary
