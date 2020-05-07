@@ -161,7 +161,7 @@ reviewable: generate lint
 # Ensure branch is clean.
 check-diff: reviewable
 	@$(INFO) checking that branch is clean
-	@git diff --quiet || $(FAIL)
+	@if [ $$(git status -s | wc -c) != "0" ]; then $(FAIL); fi;
 	@$(OK) branch is clean
 
 # integration tests
