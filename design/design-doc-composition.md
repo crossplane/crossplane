@@ -468,131 +468,6 @@ updates to a 'from' resource to be propagated to the various 'to' resources but
 keep the set of 'to' resources stable over the lifetime of the 'from' resource,
 allowing controllers to avoid complex update and garbage collection logic.
 
-### ApplicationDefinition
-
-An `ApplicationDefinition` defines a new kind of custom resource that represents
-an application - for example a `Wordpress` custom resource. An application
-resource is namespaced, and may only compose resources within its namespace.
-Applications are typically defined by an _application developer_ - the developer
-of Wordpress would author the `ApplicationDefinition` that defines the schema of
-a `Wordpress` resource. Application resources are typically authored by an
-_application operator_.
-
-Here's an example that defines a new `Wordpress` application resource:
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: ApplicationDefinition
-metadata:
-  # ApplicationDefinition names are subject to the constraints of Kubernetes
-  # CustomResourceDefinition names. They must be of the form <plural>.<group>.
-  name: wordpresses.apps.example.org
-spec:
-  # Defines the structural schema and GroupVersionKind of this application. Only
-  # a single API version of the application may exist. Additional fields will be
-  # injected to support composition machinery.
-  crdSpecTemplate:
-    group: apps.example.org
-    version: v1alpha1
-    names:
-      kind: Wordpress
-      listKind: WordpressList
-      plural: wordpresses
-      singular: wordpress
-    validation:
-      openAPIV3Schema:
-        properties:
-          administratorLogin:
-            type: string
-          storageSize:
-            type: int
-          storageType:
-            type: string
-        type: object
-  # An optional service account that will be used to reconcile Wordpress
-  # resources. This allows the use of RBAC to restrict which resources a
-  # Wordpress application may be composed of. The specified service account must
-  # have full access to Wordpress resources, and 'get' access to Component
-  # resources.
-  #
-  # If the service account is omitted Crossplane will use its pod service
-  # account to manage Wordpress resources. This implies that anyone with
-  # sufficient RBAC permissions to create a Composition and to create a
-  # Wordpress resource in a particular namespace will be able to compose their
-  # Wordpress of any resource Crossplane is able to create. Crossplane will
-  # refuse to create resources at the cluster scope or outside of the namespace
-  # in which the Wordpress was created.
-  serviceAccountRef:
-    namespace: crossplane-system
-    name: wordpresses.apps.example.org
-  # An optional default composition that will be set automatically for any
-  # Wordpress custom resources that omit both their compositeSelector and their
-  # compositeRef.
-  defaultComposition:
-    apiVersion: apiextensions.crossplane.io/v1alpha1
-    kind: Composition
-    name: local-wordpress
-  # An optional forced composition that will be set automatically for any
-  # Wordpress custom resource, overriding their compositeSelector and their
-  # compositeRef. If defaultComposition and forceComposition are both set, the
-  # forced composition wins.
-  forceComposition:
-    apiVersion: apiextensions.crossplane.io/v1alpha1
-    kind: Composition
-    name: wordpresses.apps.example.org
-```
-
-When an application developer authors the above `ApplicationDefinition`
-Crossplane will automatically create a `CustomResourceDefinition`, that
-allows application operators to author the below custom resource:
-
-```yaml
-apiVersion: example.org/v1alpha1
-kind: Wordpress
-metadata:
-  namespace: default
-  name: coolblog
-spec:
-  # The schema for the following three fields is defined by the above
-  # ApplicationDefinition.
-  administratorLogin: admin
-  storageSize: 2
-  storageType: SSD
-  # The below schema is automatically injected into the CustomResourceDefinition
-  # that is created by the ApplicationDefinition that defines the Wordpress
-  # resource.
-  # Multiple compositions may potentially satisfy a particular kind of
-  # application. Each application instance may influence which composition is
-  # used via label selectors. This could be used, for example, to determine
-  # whether a Wordpress application renders to a KubernetesApplication or to a
-  # plain old Kubernetes Deployment.
-  compositionSelector:
-    matchLabels:
-      compute: kubernetes
-      database: mysql
-  # The Wordpress author may explicitly select which composition should be used
-  # by setting the compositionRef. In the majority of cases the author will
-  # ignore this field and it will be set by a controller, similar to the
-  # contemporary classRef field.
-  compositionRef:
-  - name: wordpress-kubernetes-mysql
-  # Each application maintains an array of the resources they compose.
-  # Composed resources are always in the same namespace as the application
-  # resource. Any namespaced resource may be composed; composed resources
-  # model their relationship with the application resource via their
-  # controller reference. The application must maintain this array because
-  # there is currently no user friendly, performant way to discover which
-  # resources (of arbitrary kinds) are controlled by a particular resource per
-  # https://github.com/kubernetes/kubernetes/issues/54498
-  composedRefs:
-  - apiVersion: database.example.org/v1alpha1
-    kind: MySQLInstanceRequirement
-    name: coolblog-3jmdf
-  - apiVersion: workload.crossplane.io/v1alpha1
-    kind: KubernetesApplication
-    name: coolblog-3mdm2
-```
-
 ### InfrastructureDefinition
 
 An `InfrastructureDefinition` defines a new kind of custom resource that
@@ -665,21 +540,17 @@ spec:
   # An optional default composition that will be set automatically for any
   # MySQLInstance custom resources that omit both their compositeSelector and
   # their compositeRef.
-  defaultComposition:
-    apiVersion: apiextensions.crossplane.io/v1alpha1
-    kind: Composition
+  defaultCompositionRef:
     name: cheap-rds
   # An optional forced composition that will be set automatically for any
   # MySQLInstance custom resource, overriding their compositeSelector and their
   # compositeRef. If defaultComposition and forceComposition are both set, the
   # forced composition wins.
-  forceComposition:
-    apiVersion: apiextensions.crossplane.io/v1alpha1
-    kind: Composition
+  enforcedCompositionRef:
     name: mysqlinstances.database.example.org
 ```
 
-When an application developer authors the above `InfrastructureDefinition`
+When an infrastructure operator authors the above `InfrastructureDefinition`
 Crossplane will automatically create a `CustomResourceDefinition`, that allows
 application operators to author the below custom resource:
 
@@ -710,7 +581,7 @@ spec:
   # will ignore this field and it will be set by a controller, similar to the
   # contemporary classRef field.
   compositionRef:
-  - name: private-mysql-server
+    name: private-mysql-server
   # Each infrastructure resource maintains an array of the resources it
   # composes. Composed resources are always cluster scoped, and always either
   # primitive or composite infrastructure resources. Composed resources model
@@ -719,7 +590,7 @@ spec:
   # there is currently no user friendly, performant way to discover which
   # resources (of arbitrary kinds) are controlled by a particular resource per
   # https://github.com/kubernetes/kubernetes/issues/54498
-  composedRefs:
+  resourceRefs:
   - apiVersion: azure.crossplane.io/v1alpha3
     kind: ResourceGroup
     name: sql-34jd2
@@ -750,9 +621,9 @@ Note that the use of controller references to model relationships between an
 infrastructure resource and the other infrastructure resources it composes means
 there is no binding phase or reclaim policy between a composite infrastructure
 resource and the resources it composes. No concept of static provisioning or
-(not) reclaiming exists; the lifecycle of composed resources is tied to that of
-the composite resource due to the use of controller references, which control
-Kubernetes garbage collection.
+(not) reclaiming exists between a composite and its composed resources; the
+lifecycle of composed resources is tied to that of the composite resource due to
+the use of controller references, which control Kubernetes garbage collection.
 
 ### InfrastructurePublication
 
@@ -853,22 +724,28 @@ properties:
   provisioning case a requirement maps to exactly one kind of cluster scoped
   infrastructure resource, and exactly one instance of that kind of
   infrastructure resource.
-* In the dynamic provisioning case a cluster scoped resource may be created by
-  simply copying the spec of the requirement to that of the cluster scoped
-  resource, avoiding the "double definition" problem detailed below.
+* In the dynamic provisioning case a cluster scoped resource may be configured
+  by simply propagating the spec of the requirement to that of the cluster
+  scoped resource, avoiding the "double definition" problem detailed below.
 
-Presuming an infrastructure operator wanted to publish a
-`MySQLInstanceRequirement` for their application operators to use they would:
+Presuming an infrastructure operator wanted to publish a `MySQLInstance` for
+their application operators to use they would:
 
 1. Author a `InfrastructureDefinition` defining the schema and connection
    details of a cluster scoped `MySQLInstance`.
 1. Author at least one `Composition`, configuring how a `MySQLInstance` may be
    satisfied - for example by provisioning a `CloudSQLInstance`.
-1. Publish the `MySQLInstanceRequirement` kind to application operators by
-   authoring an `InfrastructurePublication` that references the
-   `InfrastructureDefinition` they authored in step 1.
+1. Publish the `MySQLInstance` to application operators by authoring an
+   `InfrastructurePublication` that references the `InfrastructureDefinition`.
 
-Note that the `MySQLInstance` defined in step 1 of this process is inherently
+Once the above steps have been performed application operators (or developers)
+can indicate that their application requires a `MySQLInstance` by authoring a
+`MySQLInstanceRequirement`. A `MySQLInstanceRequirement` is a lightweight,
+namespaced proxy for a cluster scoped `MySQLInstance`. Any changes made to a
+`MySQLInstanceRequirement` are immediately reflected by the `MySQLInstance` it
+corresponds to.
+
+Note that the `MySQLInstance` defined in step 1 of the process above is
 composable into other cluster scoped infrastructure resources. An infrastructure
 operator who wishes to define a new kind of infrastructure resource that may
 only be authored (or used in a `Composition`) by infrastructure operators uses
@@ -912,6 +789,127 @@ must define two layers of abstraction when they desire only one - a namespaced
 infrastructure resource (`KubernetesCluster`) that allows application operators
 to bind two cluster scoped infrastructure resources (a `GKECluster` and a
 `NodePool`). This is the double definition problem.
+
+### ApplicationDefinition
+
+An `ApplicationDefinition` defines a new kind of custom resource that represents
+an application - for example a `Wordpress` custom resource. An application
+resource is namespaced, and may only compose resources within its namespace.
+Applications are typically defined by an _application developer_ - the developer
+of Wordpress would author the `ApplicationDefinition` that defines the schema of
+a `Wordpress` resource. Application resources are typically authored by an
+_application operator_.
+
+Here's an example that defines a new `Wordpress` application resource:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ApplicationDefinition
+metadata:
+  # ApplicationDefinition names are subject to the constraints of Kubernetes
+  # CustomResourceDefinition names. They must be of the form <plural>.<group>.
+  name: wordpresses.apps.example.org
+spec:
+  # Defines the structural schema and GroupVersionKind of this application. Only
+  # a single API version of the application may exist. Additional fields will be
+  # injected to support composition machinery.
+  crdSpecTemplate:
+    group: apps.example.org
+    version: v1alpha1
+    names:
+      kind: Wordpress
+      listKind: WordpressList
+      plural: wordpresses
+      singular: wordpress
+    validation:
+      openAPIV3Schema:
+        properties:
+          administratorLogin:
+            type: string
+          storageSize:
+            type: int
+          storageType:
+            type: string
+        type: object
+  # An optional service account that will be used to reconcile Wordpress
+  # resources. This allows the use of RBAC to restrict which resources a
+  # Wordpress application may be composed of. The specified service account must
+  # have full access to Wordpress resources, and 'get' access to Component
+  # resources.
+  #
+  # If the service account is omitted Crossplane will use its pod service
+  # account to manage Wordpress resources. This implies that anyone with
+  # sufficient RBAC permissions to create a Composition and to create a
+  # Wordpress resource in a particular namespace will be able to compose their
+  # Wordpress of any resource Crossplane is able to create. Crossplane will
+  # refuse to create resources at the cluster scope or outside of the namespace
+  # in which the Wordpress was created.
+  serviceAccountRef:
+    namespace: crossplane-system
+    name: wordpresses.apps.example.org
+  # An optional default composition that will be set automatically for any
+  # Wordpress custom resources that omit both their compositeSelector and their
+  # compositeRef.
+  defaultCompositionRef:
+    name: local-wordpress
+  # An optional forced composition that will be set automatically for any
+  # Wordpress custom resource, overriding their compositeSelector and their
+  # compositeRef. If defaultComposition and forceComposition are both set, the
+  # forced composition wins.
+  enforcedCompositionRef:
+    name: wordpresses.apps.example.org
+```
+
+When an application developer authors the above `ApplicationDefinition`
+Crossplane will automatically create a `CustomResourceDefinition`, that
+allows application operators to author the below custom resource:
+
+```yaml
+apiVersion: example.org/v1alpha1
+kind: Wordpress
+metadata:
+  namespace: default
+  name: coolblog
+spec:
+  # The schema for the following three fields is defined by the above
+  # ApplicationDefinition.
+  administratorLogin: admin
+  storageSize: 2
+  storageType: SSD
+  # The below schema is automatically injected into the CustomResourceDefinition
+  # that is created by the ApplicationDefinition that defines the Wordpress
+  # resource.
+  # Multiple compositions may potentially satisfy a particular kind of
+  # application. Each application instance may influence which composition is
+  # used via label selectors. This could be used, for example, to determine
+  # whether a Wordpress application renders to a KubernetesApplication or to a
+  # plain old Kubernetes Deployment.
+  compositionSelector:
+    matchLabels:
+      compute: kubernetes
+      database: mysql
+  # The Wordpress author may explicitly select which composition should be used
+  # by setting the compositionRef. In the majority of cases the author will
+  # ignore this field and it will be set by a controller, similar to the
+  # contemporary classRef field.
+  compositionRef:
+  - name: wordpress-kubernetes-mysql
+  # Each application maintains an array of the resources they compose.
+  # Composed resources are always in the same namespace as the application
+  # resource. Any namespaced resource may be composed; composed resources
+  # model their relationship with the application resource via their
+  # controller reference. The application must maintain this array because
+  # there is currently no user friendly, performant way to discover which
+  # resources (of arbitrary kinds) are controlled by a particular resource per
+  # https://github.com/kubernetes/kubernetes/issues/54498
+  resourceRefs:
+  - apiVersion: database.example.org/v1alpha1
+    kind: MySQLInstanceRequirement
+    name: coolblog-3jmdf
+  - apiVersion: workload.crossplane.io/v1alpha1
+    kind: KubernetesApplication
+    name: coolblog-3mdm2
+```
 
 ### Transform Functions
 
