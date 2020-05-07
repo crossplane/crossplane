@@ -8,29 +8,34 @@
 
 Crossplane is a control plane for applications and the infrastructure upon which
 they run. Contemporary Crossplane applications are modelled as arbitrary custom
-resources. Application reconcile logic is provided by a [Stack] - a package of
+resources. Application reconcile logic is provided by a Package (née [Stack]) of
 [Custom Resource Definitions] (CRDs) and the controllers that reconcile them.
-The infrastructure needs of applications are modelled as a set of custom
-resources - resource claims - provided by Crossplane and its infrastruture
-providers. These resource claim custom resources are resolved and bound to
-provider specific, high fidelity custom resources known as managed resources.
+The infrastructure needs of applications are modelled using a set of custom
+resources - resource claims - provided by Crossplane. These resource claims are
+resolved and bound to infrastructure provider specific, high fidelity custom
+resources known as managed resources.
 
 Applications and infrastructure are modelled inconsistently in Crossplane. Each
-requires learning and applying a distinct set of patterns and concepts. Stacks
-enable bespoke, composable applications at the expense of requiring application
-developers to maintain code or configuration outside of the Kubernetes API in
-order to specify how their applications should be reconciled. Infrastructure is
-configured entirely within the Kubernetes API at the expense of flexibility and
-composability.
+requires learning and applying a distinct set of patterns and concepts.
+Application packages enable bespoke, composable applications at the expense of
+requiring application developers to maintain code or configuration outside of
+the Kubernetes API in order to specify how their applications should be
+reconciled. Infrastructure is configured entirely within the Kubernetes API at
+the expense of flexibility and composability.
 
 ### Applications
 
-Contemporary Crossplane applications are packaged as Stacks. Each Stack defines
-a set of custom resources and the controllers that should reconcile them. Stack
-controllers may be implemented as bespoke code (for example using [kubebuilder])
-or as a [Template Stack]. A Template Stack invokes a [Kustomization] or a [Helm]
-chart in order to reconcile a custom resource, using the
-[templating-controller].
+Contemporary Crossplane applications are installed via a Crossplane Package.
+Note that Crossplane packages were formerly known as 'Stacks'. This term has
+been rescoped to refer specifically to a package of infrastructure configuration
+but is frequently synonymous with packages in historical design documents and
+some remaining Crossplane APIs.
+
+Each package defines a set of custom resources and the controllers that should
+reconcile them. The packaged controllers may be implemented as bespoke code (for
+example using [kubebuilder]) or via the [templating-controller], which invokes a
+[Kustomization] or a [Helm] chart in order to reconcile a custom resource. Note
+that this latter pattern was previously known as a [Template Stack].
 
 ```yaml
 ---
@@ -44,12 +49,12 @@ spec:
 
 When an application is modelled as a Kubernetes custom resource - for example a
 `Wordpress` resource - Crossplane's goal is to use said resource to render one
-or more lower level resources that will actually trigger a deployment of
-Wordpress. Crossplane may for example render a `MySQLInstance`, a `Deployment`,
-and a `Service`. This process is known as reconciliation; the input resource is
-reconciled with the output resources. It's also an example of composition; the
-`Wordpress` is reconciled by composing resources in the Kubernetes API, as
-opposed to being reconciled by orchestrating an external system.
+or more lower level resources that will actually deploy Wordpress. Crossplane
+may for example render a `MySQLInstance`, a `Deployment`, and a `Service`. This
+process is known as reconciliation; the input resource is reconciled with the
+output resources. It's also an example of composition; the `Wordpress` is
+reconciled by composing resources in the Kubernetes API, as opposed to being
+reconciled by orchestrating an external system.
 
 The composition of a Crossplane application depends on two inputs; the custom
 resource that represents the application and a template for the outputs. The
@@ -63,26 +68,28 @@ rendering process opaque to application operators, who must leave the Kubernetes
 API and learn an external system (i.e. Helm, Kustomize, or kubebuilder) in order
 to determine how their application will be rendered.
 
-Note that Crossplane also defines a resource of `KubernetesApplication`, which
-models an opaque bundle of arbitrary Kubernetes resources. This resource was
-originally intended as a user-facing model for applications, but has in practice
-seen more use as a lower level mechanism to schedule and deliver applications to
-remote Kubernetes clusters. A `Wordpress` may render a `KubernetesApplication`
-in order to deploy the component resources of a `Wordpress` to a cluster
-distinct from that upon which Crossplane runs.
+Note that Crossplane also defines a `KubernetesApplication` resource, which
+models an opaque bundle of arbitrary Kubernetes resources that may be deployed
+to a 'remote' Kubernetes cluster - different API server from that which
+Crossplane is using. This resource was originally intended as a user-facing
+model for applications, but has in practice seen more use as a lower level
+mechanism to schedule and deliver applications to Kubernetes clusters. A
+`Wordpress` may render a `KubernetesApplication` in order to deploy the
+component resources of a `Wordpress` to a cluster distinct from that upon which
+Crossplane runs.
 
 ### Infrastructure
 
 Crossplane uses a [class and claim] model to provision and manage infrastructure
-in an external system, such as a cloud provider. _External resources_ in the
-provider's API are modelled as _managed (custom) resources_ in the Kubernetes
-API server. Managed resources are the domain of infrastructure operators;
-they're cluster scoped infrastructure like a `Node` or `PersistentVolume`.
-Application operators may claim a managed resource for a particular purpose by
-creating a namespaced _resource claim_. Managed resources may be provisioned
-explicitly before claim time (static provisioning), or automatically at claim
-time (dynamic provisioning). The initial configuration of dynamically
-provisioned managed resources is specified by a _resource class_.
+in an external system, such as a cloud provider. External resources in the
+provider's API are modelled as managed (custom) resources in the Kubernetes API
+server. Managed resources are the domain of infrastructure operators; they're
+cluster scoped infrastructure like a `Node` or `PersistentVolume`. Application
+operators may claim a managed resource for a particular purpose by creating a
+namespaced resource claim. Managed resources may be provisioned explicitly
+before claim time (static provisioning), or automatically at claim time (dynamic
+provisioning). The initial configuration of dynamically provisioned managed
+resources is specified by a resource class.
 
 ```yaml
 ---
@@ -130,7 +137,8 @@ These properties make managed resources - Crossplane's lowest level
 infrastructure primitive - flexible and self documenting. Managed resources in
 and of themselves hold few opinions about _how_ they should be used, and are
 easily related back to the APIs they represent. This provides a solid foundation
-upon which to build Crossplane's multicloud capability.
+upon which infrastructure operators may build a platform for their application
+operators.
 
 Application operators are typically prevented by [RBAC] from creating and
 modifying managed resources directly; they are instead expected to dynamically
@@ -169,15 +177,15 @@ limiting:
   provisioned `GKECluster`.
 
 The one-to-one relationship between resource claims and resource classes thus
-weakens portability, separation of concerns, and support for [GitOps]. An
+weakens separation of concerns, portability, and support for [GitOps]. An
 infrastructure operator can publish a resource class representing a single
 managed resource that an application operator may dynamically provision, but in
 the likely event that managed resource requires supporting managed resources to
-function usefully the application operator must ask an infrastructure operator
+function usefully the application operator must ask the infrastructure operator
 to provision them.
 
-Furthermore, defining a core set of portable resource claims has begun to limit
-Crossplane. Resource claims are subject to the [lowest common denominator]
+Furthermore, maintaining a core set of portable resource claims has begun to
+limit Crossplane. Resource claims are subject to the [lowest common denominator]
 problem; when a claim may provide configuration inputs that may be used to match
 or provision many kinds of managed resource it may support only the settings
 that apply to _all_ compatible managed resources. This is in part why Crossplane
@@ -198,7 +206,7 @@ proposal put forward by this document should:
 * Empower infrastructure operators to provide a platform of useful, opinionated
   infrastructure abstractions to the application operators they support.
 * Empower application developers to provide intuitive application abstractions
-  to the people who operator their applications.
+  to the operators of their applications.
 * Enable both infrastructure operators and application developers to define
   abstractions that may be portable across different infrastructure providers
   and application runtimes.
@@ -229,17 +237,15 @@ wordpress, an SQL database, and some kind of network ingress (e.g. a load
 balancer) to get requests to the web servers.
 
 Wordpress’s _application developers_ wish to allow _application operators_ to
-configure only how much storage their SQL database has, whether the database
-uses SSD or spinning disk, and how replicated the web server will be.
-
-All other configuration details should be selected from a “class” or “profile”of
-application. This class may decide whether the web server is containerized or a
-VM, whether the SQL database is PostgreSQL or MySQL, etc.
+configure only how much storage their SQL database has and what their wordpress
+administrator username will be. All other configuration details should be
+selected from a "class" of application. This class may decide whether the web
+server is containerized or a VM, whether the SQL database is PostgreSQL or
+MySQL, etc.
 
 The input to this example is a `Wordpress` custom resource. The outputs depend
 on the class of application, but could include a `Deployment`, and a
-`MySQLInstance`, where a `MySQLInstance` is a namespaced composite
-infrastructure resource.
+`MySQLInstance`, where a `MySQLInstance` is an infrastructure resource.
 
 GitLab is a more advanced example of an application composition, in which the
 GitLab application is composed in turn of many smaller composite applications
@@ -275,25 +281,25 @@ configure a subset of the many configuration parameters of the underlying
 primitive managed resources, for example the zone, size, and load balancer port
 of the instance group. All other configuration details should be fixed.
 
-The input to this example is a `ManagedInstanceGroup`. The outputs include
-an `Autoscaler`, an `InstanceTemplate`, and a `InstanceGroupManager`.
+The input to this example is a `ManagedInstanceGroup`. The outputs include an
+`Autoscaler`, an `InstanceTemplate`, and a `InstanceGroupManager`.
 
 In this example:
 
 * The _schema of the input_ (`ManagedInstanceGroup`) is defined by an
   _infrastructure provider or infrastructure operator_.
 * The _configuration of the input_ is defined by an _infrastructure operator_.
-* The _schema of the output_ composed resources (e.g. `Autoscaler`) is
-  defined by an _infrastructure provider_ or _infrastructure operator_.
+* The _schema of the output_ composed resources (e.g. `Autoscaler`) is defined
+  by an _infrastructure provider_ or _infrastructure operator_.
 * The _configuration of the output_ composed resources is defined by the
   _infrastructure provider_ or _infrastructure operator_.
 
 ### Infrastructure Publication
 
 An _infrastructure operator_ wishes to simplify and standardize the work of
-_application operators_ who may need to use the infrastructure they steward. The
-infrastructure operator wishes to expose only the application-focused
-configuration details of the infrastructure they offer.
+_application operators_ who may need to use the infrastructure they steward.
+They wish to expose only the application-focused configuration details of the
+infrastructure they offer.
 
 For example, an _infrastructure operator_ wishes to publish a MySQL database as
 a kind of infrastructure resource their _application operators_ may use. A MySQL
@@ -304,9 +310,9 @@ database is reachable from a particular VPC network.
 
 _Application operators_ should only be able to configure the version, region,
 database size, and disk type (spinning or SSD) of the MySQL instance. All other
-configuration details should be selected from a “class” or “profile” of
-infrastructure. This class may decide whether the SQL instance runs in GCP or
-AWS, whether it’s production or development grade, etc.
+configuration details should be selected from a "class" of infrastructure. This
+class may decide whether the SQL instance runs in GCP or AWS, whether it’s
+production or development grade, etc.
 
 The input to this example is a `MySQLDatabase` (in the `acme.example.org` API
 group). On Azure these outputs may include a `MySQLServer`, a `MySQLDatabase`
@@ -332,8 +338,9 @@ This document proposes the introduction of four new Crossplane resource kinds:
 * `InfrastructureDefinition` - Defines a new kind of Kubernetes custom resource
   that represents a logical group of infrastructure.
 * `InfrastructurePublication` - Defines a new kind of Kubernetes custom resource
-  that binds a logical group of infrastructure to an application by "publishing"
-  a resource defined by an `InfrastructureDefinition`.
+  that indicates an application operator's requirement for infrastructure by
+  "publishing" a resource defined by an `InfrastructureDefinition` as available
+  to application operators.
 * `Composition` - Configures how one or more custom resources should be rendered
   in response to the creation or modification of a custom resource defined by an
   `ApplicationDefinition` or `InfrastructureDefinition`.
@@ -345,8 +352,8 @@ This document proposes the introduction of four new Crossplane resource kinds:
 A `Composition` configures how one or more custom resource should be rendered in
 response to the creation or modification of a custom resource defined by an
 `ApplicationDefinition` or `InfrastructureDefinition`. No controller watches for
-the `Composition` kind; a `Composition` is loosely analogous to the existing
-Crossplane concept of a resource class. Unlike resource classes, compositions:
+the `Composition` kind; a `Composition` is analogous to the contemporary concept
+of a resource class. Unlike resource classes, compositions:
 
 * May define how to compose applications as well as infrastructure.
 * May compose more than one resource, including other composed resources.
@@ -364,19 +371,19 @@ metadata:
     connectivity: private
 spec:
   # This composition declares that its input values will be read 'from' a
-  # resource of the specified kind. The field name 'from' denotes the
-  # relationship with the 'fromFieldPath' notation below.
+  # resource of the specified kind, which must be defined by an
+  # InfrastructureDefinition. The field name denotes the relationship with the
+  # 'fromFieldPath' notation below.
   from:
     apiVersion: database.example.org/v1alpha1
     kind: MySQLInstance
   # This composition declares that its input values will be written 'to' the
-  # below resources. The field name 'to' denotes the relationship with the
+  # below resources. The field name denotes the relationship with the
   # 'toFieldPath' notation below.
   to:
   - base:
       apiVersion: azure.crossplane.io/v1alpha3
       kind: ResourceGroup
-      metadata:
       spec:
         location: West US
         providerRef:
@@ -444,7 +451,6 @@ spec:
       apiVersion: database.azure.crossplane.io/v1alpha3
       kind: MySQLServerVirtualNetworkRule
       spec:
-        name: my-cool-vnet-rule
         serverNameSelector:
           matchComposite: true
         resourceGroupNameSelector:
@@ -552,40 +558,39 @@ spec:
   administratorLogin: admin
   storageSize: 2
   storageType: SSD
-  # The application object schema is automatically injected into the
-  # CustomResourceDefinition that is created by the ApplicationDefinition that
-  # defines the Wordpress resource.
-  application:
-    # Multiple compositions may potentially satisfy a particular kind of
-    # application. Each application instance may influence which composition is
-    # used via label selectors. This could be used, for example, to determine
-    # whether a Wordpress application renders to a KubernetesApplication or to a
-    # plain old Kubernetes Deployment.
-    compositionSelector:
-      matchLabels:
-        compute: kubernetes
-        database: mysql
-    # The Wordpress author may explicitly select which composition should be
-    # used by setting the compositionRef. In the majority of cases the author
-    # will ignore this field and it will be set by a controller, similar to the
-    # contemporary classRef field.
-    compositionRef:
-    - name: wordpress-kubernetes-mysql
-    # Each application maintains an array of the resources they compose.
-    # Composed resources are always in the same namespace as the application
-    # resource. Any namespaced resource may be composed; composed resources
-    # model their relationship with the application resource via their
-    # controller reference. The application must maintain this array because
-    # there is currently no user friendly, performant way to discover which
-    # resources (of arbitrary kinds) are controlled by a particular resource per
-    # https://github.com/kubernetes/kubernetes/issues/54498
-    composedRefs:
-    - apiVersion: database.example.org/v1alpha1
-      kind: MySQLInstanceRequirement
-      name: coolblog-3jmdf
-    - apiVersion: workload.crossplane.io/v1alpha1
-      kind: KubernetesApplication
-      name: coolblog-3mdm2
+  # The below schema is automatically injected into the CustomResourceDefinition
+  # that is created by the ApplicationDefinition that defines the Wordpress
+  # resource.
+  # Multiple compositions may potentially satisfy a particular kind of
+  # application. Each application instance may influence which composition is
+  # used via label selectors. This could be used, for example, to determine
+  # whether a Wordpress application renders to a KubernetesApplication or to a
+  # plain old Kubernetes Deployment.
+  compositionSelector:
+    matchLabels:
+      compute: kubernetes
+      database: mysql
+  # The Wordpress author may explicitly select which composition should be used
+  # by setting the compositionRef. In the majority of cases the author will
+  # ignore this field and it will be set by a controller, similar to the
+  # contemporary classRef field.
+  compositionRef:
+  - name: wordpress-kubernetes-mysql
+  # Each application maintains an array of the resources they compose.
+  # Composed resources are always in the same namespace as the application
+  # resource. Any namespaced resource may be composed; composed resources
+  # model their relationship with the application resource via their
+  # controller reference. The application must maintain this array because
+  # there is currently no user friendly, performant way to discover which
+  # resources (of arbitrary kinds) are controlled by a particular resource per
+  # https://github.com/kubernetes/kubernetes/issues/54498
+  composedRefs:
+  - apiVersion: database.example.org/v1alpha1
+    kind: MySQLInstanceRequirement
+    name: coolblog-3jmdf
+  - apiVersion: workload.crossplane.io/v1alpha1
+    kind: KubernetesApplication
+    name: coolblog-3mdm2
 ```
 
 ### InfrastructureDefinition
@@ -689,85 +694,82 @@ spec:
   engineVersion: "5.7"
   storageGB: 10
   region: us-west
-  # The infrastructure object schema is automatically injected into the
-  # CustomResourceDefinition that is created by the InfrastructureDefinition
-  # that defines the MySQLInstance resource.
-  infrastructure:
-    # Multiple compositions may potentially satisfy a particular kind of
-    # infrastructure. Each infrastructure instance may influence which
-    # composition is used via label selectors. This could be used, for example,
-    # to determine whether a GCP CloudSQLInstance or an Azure SQLServer based
-    # composition satisfied this MySQLInstance.
-    compositionSelector:
-     matchLabels:
-       connectivity: private
-    # The MySQLInstance author may explicitly select which composition should be
-    # used by setting the compositionRef. In the majority of cases the author
-    # will ignore this field and it will be set by a controller, similar to the
-    # contemporary classRef field.
-    compositionRef:
-    - name: private-mysql-server
-    # Each infrastructure resource maintains an array of the resources it
-    # composes. Composed resources are always cluster scoped, and always either
-    # primitive or composite infrastructure resources. Composed resources model
-    # their relationship with the infrastructure resource via their controller
-    # reference. The infrastructure resource must maintain this array because
-    # there is currently no user friendly, performant way to discover which
-    # resources (of arbitrary kinds) are controlled by a particular resource per
-    # https://github.com/kubernetes/kubernetes/issues/54498
-    composedRefs:
-    - apiVersion: azure.crossplane.io/v1alpha3
-      kind: ResourceGroup
-      name: sql-34jd2
-    - apiVersion: database.azure.crossplane.io/v1beta1
-      kind: MySQLServer
-      name: sql-3i3d1
-    - apiVersion: database.azure.crossplane.io/v1alpha3
-      kind: MySQLServerVirtualNetworkRule
-      name: sql-2mdus
-    # The MySQLInstance author must specify where the MySQLInstance will write
-    # its connection details as a Kubernetes secret. The keys of the secret are
-    # specified by the InfrastructureDefinition.
-    writeConnectionSecretToRef:
-      namespace: crossplane-system
-      name: sql
-    # This cluster scoped MySQLInstance _may_ bind to exactly one namespaced
-    # MySQLInstanceRequirement. See InfrastructurePublication below for details.
-    requirementRef:
-      apiVersion: database.example.org/v1alpha1
-      kind: MySQLInstanceRequirement
-      namespace: default
-      name: sql
-    # The reclaim policy determines what happens to this infrastructure
-    # resource and all of the infrastructure resources it composes if it is
-    # bound and then released. The policy may be either 'Delete' or 'Retain'.
-    reclaimPolicy: Retain
+  # The below schema is automatically injected into the CustomResourceDefinition
+  # that is created by the InfrastructureDefinition that defines the
+  # MySQLInstance resource.
+  # Multiple compositions may potentially satisfy a particular kind of
+  # infrastructure. Each infrastructure instance may influence which composition
+  # is used via label selectors. This could be used, for example, to determine
+  # whether a GCP CloudSQLInstance or an Azure SQLServer based composition
+  # satisfied this MySQLInstance.
+  compositionSelector:
+   matchLabels:
+     connectivity: private
+  # The MySQLInstance author may explicitly select which composition should be
+  # used by setting the compositionRef. In the majority of cases the author
+  # will ignore this field and it will be set by a controller, similar to the
+  # contemporary classRef field.
+  compositionRef:
+  - name: private-mysql-server
+  # Each infrastructure resource maintains an array of the resources it
+  # composes. Composed resources are always cluster scoped, and always either
+  # primitive or composite infrastructure resources. Composed resources model
+  # their relationship with the infrastructure resource via their controller
+  # reference. The infrastructure resource must maintain this array because
+  # there is currently no user friendly, performant way to discover which
+  # resources (of arbitrary kinds) are controlled by a particular resource per
+  # https://github.com/kubernetes/kubernetes/issues/54498
+  composedRefs:
+  - apiVersion: azure.crossplane.io/v1alpha3
+    kind: ResourceGroup
+    name: sql-34jd2
+  - apiVersion: database.azure.crossplane.io/v1beta1
+    kind: MySQLServer
+    name: sql-3i3d1
+  - apiVersion: database.azure.crossplane.io/v1alpha3
+    kind: MySQLServerVirtualNetworkRule
+    name: sql-2mdus
+  # The MySQLInstance author must specify where the MySQLInstance will write
+  # its connection details as a Kubernetes secret. The keys of the secret are
+  # specified by the InfrastructureDefinition.
+  writeConnectionSecretToRef:
+    namespace: crossplane-system
+    name: sql
+  # This cluster scoped MySQLInstance _may_ bind to exactly one namespaced
+  # MySQLInstanceRequirement. See InfrastructurePublication below for details.
+  requirementRef:
+    namespace: default
+    name: sql
+  # The reclaim policy determines what happens to this infrastructure
+  # resource and all of the infrastructure resources it composes if it is
+  # bound and then released. The policy may be either 'Delete' or 'Retain'.
+  reclaimPolicy: Retain
 ```
 
 Note that the use of controller references to model relationships between an
 infrastructure resource and the other infrastructure resources it composes means
 there is no binding phase or reclaim policy between a composite infrastructure
 resource and the resources it composes. No concept of static provisioning or
-(not) reclaiming exists; the lifecycle of composed resources is strictly tied to
-that of the resource that composes them due to the use of controller references,
-which control Kubernetes garbage collection.
+(not) reclaiming exists; the lifecycle of composed resources is tied to that of
+the composite resource due to the use of controller references, which control
+Kubernetes garbage collection.
 
 ### InfrastructurePublication
 
 An `InfrastructurePublication` defines a new kind of custom resource that
 indicates an application's requirement of a logical group of infrastructure by
 "publishing" a kind of resource defined by a `InfrastructureDefinition`. The
-`MySQLInstance` resource from the example above is cluster scoped and thus may
-only be authored (directly) by an _infrastructure operator_. It may however be
-"published" for use by _application operators_ by authoring an
-`InfrastructurePublication`. Doing so create a new, namespaced kind of resource
-that corresponds to the `MySQLInstance`, of kind `MySQLInstanceRequirement`.
-This `MySQLInstanceRequirement` managed resource inherits all spec fields of a
-`MySQLInstance`. Infrastructure requirements are analogous to contemporary
-Crossplane resource claims. They maintain all of their features and
-functionality of a resource claim (e.g. static and dynamic binding). Unlike a
-resource claim, a resource requirement propagates any field updates made by the
-application operator on to its bound composite resource, and thus onto the
+`MySQLInstance` resource above is cluster scoped and thus may only be authored
+(directly) by an _infrastructure operator_. It may however be "published" for
+use by _application operators_ by authoring an `InfrastructurePublication`.
+Doing so create a new, namespaced kind of resource that corresponds to the
+`MySQLInstance`. This `MySQLInstanceRequirement` managed resource includes all
+spec fields defined by its corresponding `InfrastructureDefinition`, making it
+almost identical to a `MySQLInstance`. Infrastructure requirements are analogous
+to contemporary Crossplane resource claims. They maintain all of their features
+and functionality of a resource claim (e.g. static and dynamic binding). Unlike
+a resource claim, a resource requirement propagates any field updates made by
+the application operator on to its bound composite resource, and thus onto the
 composed resources.
 
 Here's an example that publishes the above `MySQLInstance` resource:
@@ -794,8 +796,8 @@ application operators to author the below custom resource:
 ```yaml
 # The API version of the requirement is always the same as that of the resource
 # it publishes. The kind is the kind of the published resource suffixed with the
-# word 'Requirement'. This enables users to distinguish between requirements and
-# the resources they require.
+# word 'Requirement'. This enables users to easily distinguish requirements from
+# the composite resources they require.
 apiVersion: database.example.org/v1alpha1
 kind: MySQLInstanceRequirement
 metadata:
@@ -809,36 +811,33 @@ spec:
   engineVersion: "5.7"
   storageGB: 10
   region: us-west
-  # The infrastructure object schema is automatically injected into the
-  # CustomResourceDefinition that is created by the InfrastructurePublication
-  # that publishes the MySQLInstanceRequirement resource.
-  infrastructure:
-    # An infrastructure requirement binds to exactly one defined, cluster scoped
-    # infrastructure resource. In the case of this MySQLInstanceRequirement the
-    # kind of the bound resource will always be MySQLInstance. There is no
-    # binding phase; if the requirement and the required resource reference each
-    # other they are considered to be bound. An application operator may specify
-    # this resource reference explicitly in order to bind to a  MySQLInstance
-    # that was provisioned in advance by an infrastructure operator.
-    resourceRef:
-    - apiVersion: database.example.org/v1alpha1
-      kind: MySQLInstance
-      name: default-sql-dd02m
-    # In the (common) case in which the application operator omits the above
-    # resource reference a MySQLInstance will be dynamically provisioned to
-    # satisfy this MySQLInstanceRequirement. When this is the case the below
-    # compositionSelector and compositionRef (if any) are copied verbatim to the
-    # newly created MySQLInstance.
-    compositionSelector:
-     matchLabels:
-       connectivity: private
-    compositionRef:
-    - name: private-mysql-server
-    # The MySQLInstanceRequirement author must specify where the requirement
-    # will write its connection details as a Kubernetes secret. The secret is an
-    # exact copy of the bound MySQLInstance's connection secret.
-    writeConnectionSecretToRef:
-      name: sql
+  # The below schema is automatically injected into the CustomResourceDefinition
+  # that is created by the InfrastructurePublication that publishes the
+  # MySQLInstanceRequirement resource.
+  # An infrastructure requirement binds to exactly one defined, cluster scoped
+  # infrastructure resource. In the case of this MySQLInstanceRequirement the
+  # kind of the bound resource will always be MySQLInstance. There is no binding
+  # phase; if the requirement and the required resource reference each other
+  # they are considered to be bound. An application operator may specify this
+  # resource reference explicitly in order to bind to a  MySQLInstance that was
+  # provisioned in advance by an infrastructure operator.
+  resourceRef:
+  - name: default-sql-dd02m
+  # In the (common) case in which the application operator omits the above
+  # resource reference a MySQLInstance will be dynamically provisioned to
+  # satisfy this MySQLInstanceRequirement. When this is the case the below
+  # compositionSelector and compositionRef (if any) are copied verbatim to the
+  # newly created MySQLInstance.
+  compositionSelector:
+   matchLabels:
+     connectivity: private
+  compositionRef:
+  - name: private-mysql-server
+  # The MySQLInstanceRequirement author must specify where the requirement
+  # will write its connection details as a Kubernetes secret. The secret is an
+  # exact copy of the required MySQLInstance's connection secret.
+  writeConnectionSecretToRef:
+    name: sql
 ```
 
 The pattern of "publishing" a pre-defined cluster scoped infrastructure resource
@@ -847,7 +846,8 @@ properties:
 
 * Infrastructure may be composed arbitrarily at the cluster scope by defining
   new infrastructure resource kinds and how they should be composed of other,
-  predefined infrastructure resource kinds.
+  predefined infrastructure resource kinds without necessarily making this
+  infrastructure available for application operators to request and consume.
 * There is a one-to-one relationship between a namespaced infrastructure
   requirement and a cluster scoped infrastructure resource. In the static
   provisioning case a requirement maps to exactly one kind of cluster scoped
@@ -855,18 +855,18 @@ properties:
   infrastructure resource.
 * In the dynamic provisioning case a cluster scoped resource may be created by
   simply copying the spec of the requirement to that of the cluster scoped
-  resource, avoiding the "double definition" problem.
+  resource, avoiding the "double definition" problem detailed below.
 
 Presuming an infrastructure operator wanted to publish a
-`MySQLInstanceRequirement` for their application operators to use, the
-infrastructure operator would:
+`MySQLInstanceRequirement` for their application operators to use they would:
 
 1. Author a `InfrastructureDefinition` defining the schema and connection
    details of a cluster scoped `MySQLInstance`.
 1. Author at least one `Composition`, configuring how a `MySQLInstance` may be
    satisfied - for example by provisioning a `CloudSQLInstance`.
-1. Author an `InfrastructurePublication` to publish the
-   `MySQLInstanceRequirement` kind for use by application operators.
+1. Publish the `MySQLInstanceRequirement` kind to application operators by
+   authoring an `InfrastructurePublication` that references the
+   `InfrastructureDefinition` they authored in step 1.
 
 Note that the `MySQLInstance` defined in step 1 of this process is inherently
 composable into other cluster scoped infrastructure resources. An infrastructure
@@ -876,42 +876,42 @@ the same process and resources as above; they simply omit step 3.
 
 #### The Double Definition Problem
 
-Presume an infrastructure operator wishes to expose two primitive infrastructure
-managed resources that an application requires; their goal is to allow an
-application operator to author a single namespaced resource and in return be
-allocated two primitive infrastructure resources. Perhaps the application
-operator will author a `KubernetesCluster` resource and in return be allocated a
-`GKECluster` and a `NodePool`. These two primitive resources may either exist
-already, or be created on demand to satisfy the `KubernetesCluster`.
+Presume an infrastructure operator wishes to expose a composite infrastructure
+resource for use by an application; their goal is to allow an application
+operator to author a single namespaced resource and in return be allocated two
+primitive infrastructure resources. Perhaps the application operator will author
+a `KubernetesCluster` resource and in return be allocated a `GKECluster` and a
+`NodePool`. These two primitive resources may either exist already, or be
+provisioned on demand to satisfy the `KubernetesCluster`.
 
 It's dramatically simpler to select and bind a single existing cluster scoped
-infrastructure resource than it is two select two existing resources. If the
+infrastructure resource than it is two select and bind two resources. If the
 `KubernetesCluster` were to explicitly select a `GKECluster` and a `NodePool` it
-would need to ensure the `GKECluster` and `NodePool` were part of the same
-cluster, presumably by understanding their cross resource references. The
-`KubernetesCluster` would then need to maintain references to both selected
-resources across the "scope boundary" - from namespace to cluster scope. This
-precludes the use of Kubernetes owner references.
+would need to ensure they were part of the same cluster, presumably by
+understanding how a `NodePool` refers to a `GKECluster`. The `KubernetesCluster`
+would then need to maintain references to both selected resources across the
+"scope boundary" - from namespace to cluster scope, precluding the use of owner
+references.
 
 So it's desirable for the application focused infrastructure resource to bind to
 exactly one cluster scoped infrastructure resource, whether that cluster scoped
 resource already exists or must be provisioned on-demand. The infrastructure
 operator is faced with the "double definition" problem when they must define the
-schema for both the `KubernetesCluster` resource and the "intermediate" cluster
-scoped infrastructure resource.
+schema for both the application-facing `KubernetesCluster` resource and an
+"intermediate" cluster scoped infrastructure resource that represents the
+`GKECluster` and its `NodePool`.
 
-A `GKECluster` managed resource has around 100 configurable spec fields. A
-`NodePool` managed resource has around 30. The infrastructure operator must
-first determine which of these fields should be represented on their new cluster
-scoped composite resource. All 130? Should the fields have the same names as
-their composed resources? Once the infrastructure operator has defined what
-seems like a reasonable set of fields for their cluster scoped managed resource
-they _must_ go through this process again in order to define an application
-focused, namespaced scope `KubernetesCluster`. The infrastructure operator must
-define two layers of abstraction when functionally they desire only one - a
-namespaced infrastructure resource (`KubernetesCluster`) that allows application
-operators to bind two cluster scoped infrastructur resources (a `GKECluster` and
-a `NodePool`).
+A `GKECluster` has around 100 configurable fields. A `NodePool` has around 30.
+The infrastructure operator must first determine which of these fields should be
+represented on the  cluster scoped composite resource. All 130? Should the
+fields have the same names as their composed resources? Once they have defined
+what seems like a reasonable set of fields for their cluster scoped managed
+resource they must go through this process again in order to define an
+application focused, namespaced `KubernetesCluster`. The infrastructure operator
+must define two layers of abstraction when they desire only one - a namespaced
+infrastructure resource (`KubernetesCluster`) that allows application operators
+to bind two cluster scoped infrastructure resources (a `GKECluster` and a
+`NodePool`). This is the double definition problem.
 
 ### Transform Functions
 
@@ -930,11 +930,12 @@ This alone is sufficient if the 'from' field's value is always a valid value of
 the 'to' field, but that is often not the case. Imagine for example a composite
 resource that could be satisfied by two compositions; one for Azure and another
 for GCP. Both clouds have similar geographic regions, but represent them
-differently; "West US 2" vs "us-west2". It's not possible to directly map one
-value from the composite resource to both sets of composed resources; you must
-pick either "West US 2" or "us-west2". This compromises the portability of the
-composite resource; it's values are only applicable to one cloud. In some cases
-this may be fine, but transform functions help where portability is desired.
+differently; "West US 2" vs "us-west2". It's not possible to map one value from
+the composite resource to both composed resource variants; you must pick either
+"West US 2" or "us-west2". This compromises the portability of the composite
+resource; it's values are only applicable to one infrastructure provider. In
+some cases this may be fine, but transform functions help where portability is
+desired.
 
 A transform function transforms the 'from' value, returning an altered 'to'
 value. For example the below map transform would take the value 'us-west' from
@@ -949,16 +950,30 @@ patches:
   transforms:
   - type: map
     map:
-      us-west: "West US"
-      us-east: "East US"
+      us-west: "West US 2"
+      us-east: "East US 1"
+```
+
+An alternative composition could transform the same 'from' value into the form
+required by its composed resource:
+
+```yaml
+patches:
+- fromFieldPath: "spec.region"
+  toFieldPath: "spec.forProvider.location"
+  transforms:
+  - type: map
+    map:
+      us-west: "us-west1"
+      us-east: "us-east1"
 ```
 
 Transform functions are intended to be simple and validatable as YAML, rather
-than inventing a DSL inside YAML. Multiple transforms can be stacked if
-necessary and will be applied in the order they are specified. A conservative
-number of transform functions will be added at first, with more being added as
-use cases appear. This document proposes the following transforms be added to
-Crossplane initially, in addition to the map transform above:
+than building a DSL inside YAML. Multiple transforms can be stacked if necessary
+and will be applied in the order they are specified. A conservative number of
+transform functions will be added at first, with more being added conservatively
+as use cases appear. This document proposes the following transform functions be
+supported initially, in addition to the map transform above:
 
 ```yaml
 patches:
@@ -970,8 +985,7 @@ patches:
         multiply: 1024
 ```
 
-A math transform that allows for simple math operations, like converting MB to
-GB.
+A math transform that enables simple operations like converting GB to MB.
 
 ```yaml
 patches:
@@ -985,9 +999,9 @@ patches:
 
 A string format transform (using the Go [fmt syntax]). This allows string values
 to be prefixed or suffixed, and allows number values to be converted to strings.
-The string format transform can be used to propagate the external name
-annotation from one composite resource to many composed resources of the same
-kind while ensuring their external names do not conflict. For example:
+This transform may be used to propagate the external name annotation from one
+composite resource to many composed resources of the same kind while ensuring
+their external names do not conflict. For example:
 
 ```yaml
 patches:
@@ -1001,7 +1015,7 @@ patches:
       fmt: "%s-a"
 ```
 
-### Composite References
+### Resource Reference Selection
 
 Crossplane allows certain fields of primitive managed resources to be set to a
 value inferred from another primitive managed resource using [cross resource
@@ -1014,8 +1028,8 @@ spec:
     network: /projects/example/global/networks/desired-vpc-network
 ```
 
-Cross resource references allow this resource to instead reference the `Network`
-resource that represents the desired VPC Network:
+Cross resource references allow this resource to instead reference a `Network`
+managed resource that represents the desired VPC Network:
 
 ```yaml
 spec:
@@ -1036,33 +1050,34 @@ spec:
       name: desired-vpc-network
 ```
 
-This functionality must be extended in order to support composite resource
-classes. Consider a `Composite` that may be used to dynamically provision
-the following primitive managed resources:
+This functionality must be extended in order to be used in a `Composition` that
+does not yet know the names of the resources it will compose. Consider a
+`Composition` that may be used to compose the following primitive managed
+resources:
 
 * `Subnetwork` A
 * `GKECluster` A
 * `ServiceAccount` A
 * `ServiceAccount` B
-* `GKENodePool` A
-* `GKENodePool` B
+* `NodePool` A
+* `NodePool` B
 
-The `Composite` author would like to configure the resources such that:
+The `Composition` author would like to ensure the resources are configured such
+that:
 
 1. `Subnetwork` A is created in an existing, statically provisioned `Network`.
 1. `GKECluster` A is created in `Subnetwork` A.
-1. `GKENodePool` A uses `ServiceAccount` A.
-1. `GKENodePool` B uses `ServiceAccount` B.
-1. Both `GKENodePool` resources join `GKECluster` A.
+1. `NodePool` A uses `ServiceAccount` A.
+1. `NodePool` B uses `ServiceAccount` B.
+1. Both `NodePool` resources join `GKECluster` A.
 
 The author cannot use a contemporary cross resource reference for requirements
 two through five. Managed resources are referenced by name, and the names of
 dynamically provisioned resources are non-deterministic; they are not known
-until they have been provisioned.
-
-This document proposes the introduction of a reference _selector_, which allows
-a managed resource to describe the properties of the distinct resource it wishes
-to reference, rather than explicitly naming it.
+until they have been provisioned. This document proposes the introduction of a
+reference _selector_, which allows a managed resource to describe the properties
+of the distinct resource it wishes to reference, rather than explicitly naming
+it.
 
 ```yaml
 spec:
@@ -1079,18 +1094,18 @@ spec:
 
 The combination of these two fields allows a managed resource to uniquely
 identify a distinct managed resource within the same composite. In the previous
-example the `GKENodePool` resources need only use `matchControllerRef` to match
-the `GKECluster` they wish to join, because there is only one `GKECluster` for
-them to match within their composite resource. They need to use
-`matchControllerRef` and `matchLabels` to match their desired `ServiceAccount`;
-the labels distinguish of the two composed `ServiceAccount` resources are
-matched.
+example the `NodePool` resources need only use `matchControllerRef` to match the
+`GKECluster` they wish to join. There is only one `GKECluster` within their
+composite resource and thus only one `GKECluster` with a matching controller
+reference. They need to use `matchControllerRef` and `matchLabels` to match
+their desired `ServiceAccount`; the labels distinguish of the two composed
+`ServiceAccount` resources are matched.
 
 If a reference field is set, its corresponding selector field is ignored. If the
 selector field is unset, it is ignored. If the specified selector matches
-multiple managed resources one is chosen at random, though specifying both
-`matchControllerRef` and `matchLabels` can always guarantee that at most one
-provisioned managed resource will match the selector.
+multiple managed resources one is chosen at random, though it is possible to
+guarantee at most one managed resource will match the selector through the use
+of both `matchControllerRef` and `matchLabels`.
 
 ### Connection Secrets
 
@@ -1102,14 +1117,14 @@ Composite infrastructure resources and their requirements must also expose
 connection details in order to enable applications to leverage the underlying
 composed resources.
 
-Composite resource cannot naively aggregate the various connection secrets of
+Composite resources cannot naively aggregate the various connection secrets of
 their composed resources. Secrets are a map of strings to byte arrays and there
 is no guarantee that two composed resources won't expose connection details
 using the same key; for example two composed resources could both expose the
 `username` detail.
 
-This document proposes that the connection secrets exposed by a composite
-resource define a contract that must be fulfilled by the composed resources. For
+This document proposes that the connection details exposed by a composite
+resource form a contract that must be fulfilled by its composed resources. For
 example:
 
 ```yaml
@@ -1125,7 +1140,7 @@ spec:
 
 The above `InfrastructureDefinition` declares that the defined resource exposes
 three connection details in its secret; `username`, `password`, and `endpoint`.
-Each connection detail must be provided by exactly one composed resource.
+Each detail must be provided by exactly one composed resource.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -1153,10 +1168,11 @@ that its `admin-username` key should correspond to the composite's `username`
 key. The other two details don't specify a `name`, and thus it is inferred that
 the `fromConnectionSecretKey` is the same as the required detail name.
 
-Note that this contract could be satisfied by more than one composed resource,
-as long as each required detail is satisfied exactly once. In the below example
-the first composed resource satisfies the requirement for a username and
-password, while the second satsifies the requirment for an endpoint.
+Note also that this contract could be satisfied by more than one composed
+resource, as long as each required detail is satisfied exactly once. In the
+below example the first composed resource satisfies the requirement for a
+username and password, while the second satisfies the requirement for an
+endpoint.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -1190,9 +1206,9 @@ The `Composition` put forward by this document is _intentionally limited_ in the
 functionality it provides, trading flexibility for simplicity and the ability to
 exist as a first class, validated custom resource rather than a reference to a
 configuration outside of the API server, or a custom resource consisting largely
-of configuration whose schema was opaque to the API server. It is possible that
+of configuration whose schema is opaque to the API server. It is possible that
 advanced uses for infrastructure or application composition will surface that
-are a poor fit for a `Composition`resource. Furthermore, applications are today
+are a poor fit for a `Composition` resource. Furthermore, applications are today
 most frequently modelled and packaged as Helm Charts or Kustomizations. The
 developers of these applications may wish to adapt them to Crossplane without
 having to translate their existing templates to a `Composition`. In either of
@@ -1234,8 +1250,9 @@ The design put forward by this document will supersede Crossplane's contemporary
 class and claim based infrastructure abstractions in the short to medium term.
 It will also subsume the contemporary [templating-controller], which composes
 applications and stacks by rendering Kustomizations or Helm charts. It should be
-possible for this design to co-exist with these deprecated features for a few
-releases of Crossplane in order to allow users time to migrate.
+possible for this design to co-exist with these features for a few releases of
+Crossplane in order to allow them to be marked as deprecated and give their
+users time to migrate to composition.
 
 ### For Infrastructure
 
@@ -1244,7 +1261,7 @@ Infrastructure composition introduces new resource kinds (e.g. `Composition` and
 composite resource kinds are established by infrastructure operators, and should
 thus not conflict with existing resource claim kinds such as `MySQLInstance`,
 presuming they do not attempt to share the same API groups as resource claims. A
-composite resource could be of `MySQLInstance` as long as it was under the
+composite resource could be of kind `MySQLInstance` as long as it was not in the
 `database.crossplane.io` API group used by the resource claim of the same name.
 This document proposes that all contemporary resource claims and classes be
 marked as deprecated once support for composition has been added to Crossplane.
@@ -1263,42 +1280,42 @@ fields that are defunct under the design proposed by this document:
 
 The contemporary resource claim controller uses the `status.bindingPhase` of an
 existing managed resource to determine whether it may be claimed by a resource
-claim that explicitly specifies the managed resource as its `spec.resourceRef`.
-Composed managed resources will appear to the resource claim controller to be
-available for binding due to their unset `status.bindingPhase`. This document
-recommends the resource claim controller be updated to disallow resource claims
-from binding to any managed resource with a controller reference, as composed
+claim that explicitly specifies said managed resource as its `spec.resourceRef`.
+A composed managed resource would thus appear to the resource claim controller
+to be available for binding due to their unset `status.bindingPhase`. This can
+be avoided by updating the resource claim controller to disallow resource claims
+from binding to a managed resource with a controller reference, as composed
 managed resources will specify their composite resource as their controller
 reference.
 
 The semantics of the managed resource `spec.reclaimPolicy` also change under the
-proposed design. In the class and claim model `spec.reclaimPolicy` controls:
+proposed design. In the contemporary class and claim model `spec.reclaimPolicy`
+is semantically identical to the [reclaim policy of persistent volumes]. It
+controls:
 
 * Whether the external resource is deleted when the managed resource is deleted.
 * Whether the managed resource is deleted when the resource claim it is bound to
   is deleted.
 
-This is functionally identical to the [reclaim policy of persistent volumes].
-
 Under the proposed design `spec.reclaimPolicy` exists at two levels:
 
-* At the composite resource level the reclaim policy determines what happens to
-  the composite resource when its resource requirement is deleted. Note that
-  there is no `spec.bindingPhase`, so a 'retained' composition becomes available
-  to subsequent resource requirements.
 * At the managed resource level the reclaim policy determines what happens to
   an external resource when its corresponding managed resource is deleted.
+* At the composite resource level the reclaim policy determines what happens to
+  the composite resource when it is bound to a resource requirement that is
+  deleted. There is no `spec.bindingPhase`, so a 'retained' composition becomes
+  available to subsequent resource requirements.
 
-It may be worth renaming these fields once resource claims are removed in order
-to avoid any implication that they function identically to the reclaim policy of
-a persistent volume.
+This document recommends these fields be renamed once resource claims are
+removed in order to avoid any implication that they function identically to the
+reclaim policy of a persistent volume.
 
 ### For Applications
 
 Application composition introduces new resource kinds (e.g. `Composition` and
 `ApplicationDefinition`) that do not affect existing applications built using
 the  templating-controller (aka "Template Stacks"). This document proposes that
-the templating controller be marked as deprecated and its functionality merged
+the templating-controller be marked as deprecated and its functionality merged
 into composition in a future release of Crossplane. This design may function
 alongside templated applications until that time.
 
