@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -39,6 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	composedctrl "github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
 const (
@@ -90,9 +91,12 @@ type ConnectionPublisher interface {
 	UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
 }
 
+// TODO(muvaf): Interface should not depend on composedctrl package but that's
+// the easiest way for now to not have circular dependency.
+
 // A Composer composes infrastructure resources.
 type Composer interface {
-	Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (Observation, error)
+	Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (composedctrl.Observation, error)
 }
 
 // SelectorResolver selects the composition reference with the information given
@@ -178,7 +182,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 		},
 
-		resource: NewAPIComposer(kube),
+		resource: composedctrl.NewComposer(kube),
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -264,7 +268,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// array with the same length. Then copy the already provisioned ones into
 	// that array to not create new ones because composed reconciler assumes that
 	// if the reference is empty, it needs to create the resource.
-	refs := make([]v1.ObjectReference, len(comp.Spec.To))
+	refs := make([]corev1.ObjectReference, len(comp.Spec.To))
 	copy(refs, cr.GetResourceReferences())
 	conn := managed.ConnectionDetails{}
 	ready := 0
