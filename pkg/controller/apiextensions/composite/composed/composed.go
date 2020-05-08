@@ -19,23 +19,20 @@ package composed
 import (
 	"context"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 // Error strings
 const (
-	errGetComposed = "cannot get composed resource"
 	errApply       = "cannot apply composed resource"
 	errFetchSecret = "cannot fetch connection secret"
 	errOverlay     = "cannot apply overlay"
@@ -141,14 +138,6 @@ type Composer struct {
 // Compose the supplied Composed resource into the supplied Composite resource
 // using the supplied CompositeTemplate.
 func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (Observation, error) {
-
-	// Composed may not have a name if it's not created yet.
-	if cd.GetName() != "" {
-		nn := types.NamespacedName{Namespace: cd.GetNamespace(), Name: cd.GetName()}
-		if err := r.client.Get(ctx, nn, cd); resource.IgnoreNotFound(err) != nil {
-			return Observation{}, errors.Wrap(err, errGetComposed)
-		}
-	}
 
 	// Doing the configuration only once or continuously is subject to discussion
 	// in https://github.com/crossplane/crossplane/issues/1481
