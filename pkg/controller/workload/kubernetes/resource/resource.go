@@ -266,9 +266,7 @@ func (c *unstructuredClient) sync(ctx context.Context, template *unstructured.Un
 	}
 
 	rs := getRemoteStatus(remote)
-
-	// TODO(negz): Update to resource.APIPatchingApplicator.
-	return rs, errors.Wrap(resource.Apply(ctx, c.kube, template), errSyncResource) // nolint:staticcheck
+	return rs, errors.Wrap(resource.NewAPIPatchingApplicator(c.kube).Apply(ctx, template), errSyncResource)
 }
 
 func getRemoteStatus(u runtime.Unstructured) *v1alpha1.RemoteStatus {
