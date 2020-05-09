@@ -16,7 +16,8 @@ request. An application operator may request a `PrivatePostgreSQLServer` to use
 with their application by authoring a `PrivatePostgreSQLServerRequirement` in
 the namespace where their application is running.
 
-To try this example, first [create an Azure `Provider`] named `example`, then:
+To try this example, first install provider-azure and create an Azure `Provider`
+named `example` per the [Crossplane documentation], then:
 
 1. Define and publish the new resources by running `kubectl apply -f
    definitions/`.
@@ -45,5 +46,5 @@ $ kubectl describe networkgroups
 $ kubectl describe privatepostgresqlserverrequirementes
 ```
 
-[composite infrastructure resources]: https://github.com/crossplane/crossplane/pull/1163
-[create an Azure `Provider`]: https://crossplane.io/docs/v0.9/cloud-providers/azure/azure-provider.html
+[composite infrastructure resources]: https://github.com/crossplane/crossplane/blob/f0263cd/design/design-doc-composition.md
+[Crossplane documentation]: https://crossplane.io/docs/

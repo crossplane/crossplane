@@ -1,0 +1,136 @@
+---
+# This allows Crossplane to manage our new composite resource.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: servicednetworks.gke.example.org
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules:
+- apiGroups:
+  - gke.example.org
+  resources:
+  - servicednetworks
+  - servicednetworks/status
+  verbs:
+  - "*"
+---
+# This defines our new 'ServicedNetwork', i.e. a VPC network that has a service
+# networking connection that allows instances in the VPC to access GCP services
+# like CloudSQL.
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: InfrastructureDefinition
+metadata:
+  name: servicednetworks.gke.example.org
+spec:
+  # The schema of this composite resource, in the form of a partial template for
+  # a Kubernetes CustomResourceDefinition.
+  crdSpecTemplate:
+    group: gke.example.org
+    version: v1alpha1
+    names:
+      kind: ServicedNetwork
+      listKind: ServicedNetworkList
+      plural: servicednetworks
+      singular: servicednetwork
+    validation:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              region:
+                type: string
+                description: Geographic region in which nodes will exist.
+              providerRef:
+                type: object
+                description: Crossplane GCP provider credentials to use.
+                properties:
+                  name:
+                    type: string
+                required:
+                - name
+            required:
+            - region
+            - providerRef
+---
+# This specifies the resources that should be composed when a ServicedNetwork is
+# created. Multiple Compositions may exist for any one kind of composite
+# resource. The composite resource (i.e. the ServicedNetwork) can influence
+# which Composition is used via a spec.compositionSelector.matchLabels field
+# that is automatically added to all composite resources. In future it will be
+# possible mark a composition as the default, or force an
+# InfrastructureDefinition to use a particular Composition. Currently a
+# reference or selector must be specified.
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: servicednetworks.gke.example.org
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  reclaimPolicy: Delete
+  from:
+    apiVersion: gke.example.org/v1alpha1
+    kind: ServicedNetwork
+  to:
+  - base:
+      apiVersion: compute.gcp.crossplane.io/v1beta1
+      kind: Network
+      spec:
+        forProvider:
+          autoCreateSubnetworks: false
+          routingConfig:
+            routingMode: REGIONAL
+        reclaimPolicy: Delete
+    patches:
+      # Copy any labels from our ServicedNetwork to the Network that it
+      # composes.
+    - fromFieldPath: "metadata.labels"
+      toFieldPath: "metadata.labels"
+      # Set the external name annotation of the composed Network to that of the
+      # ServicedNetwork composite, if one exists.
+    - fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      # Use the providerRef of the ServicedNetwork.
+    - fromFieldPath: "spec.providerRef.name"
+      toFieldPath: "spec.providerRef.name"
+  - base:
+      apiVersion: compute.gcp.crossplane.io/v1beta1
+      kind: GlobalAddress
+      spec:
+        forProvider:
+          purpose: VPC_PEERING
+          addressType: INTERNAL
+          prefixLength: 16
+          networkSelector:
+            # This selector ensures this GlobalAddress will select and use the
+            # above Network. They will both be controlled by the composite
+            # resource, and thus their controller references will match.
+            matchControllerRef: true
+        reclaimPolicy: Delete
+    patches:
+    - fromFieldPath: "metadata.labels"
+      toFieldPath: "metadata.labels"
+    - fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+    - fromFieldPath: "spec.providerRef.name"
+      toFieldPath: "spec.providerRef.name"
+  - base:
+      apiVersion: servicenetworking.gcp.crossplane.io/v1beta1
+      kind: Connection
+      spec:
+        forProvider:
+          parent: services/servicenetworking.googleapis.com
+          networkSelector:
+            matchControllerRef: true
+          reservedPeeringRangeSelector:
+            matchControllerRef: true
+        reclaimPolicy: Delete
+    patches:
+    - fromFieldPath: "metadata.labels"
+      toFieldPath: "metadata.labels"
+    - fromFieldPath: "metadata.annotations[crossplane.io/external-name]"
+      toFieldPath: "metadata.annotations[crossplane.io/external-name]"
+    - fromFieldPath: "spec.providerRef.name"
+      toFieldPath: "spec.providerRef.name"

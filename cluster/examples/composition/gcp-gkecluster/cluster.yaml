@@ -1,0 +1,22 @@
+---
+apiVersion: gke.example.org/v1alpha1
+kind: Cluster
+metadata:
+  name: example-gke
+  labels:
+    region: us-central1
+spec:
+  region: us-central1
+  zones:
+  - us-central1-a
+  - us-central1-b
+  cidrs:
+    nodes: 192.168.0.0/24
+    pods: 10.128.0.0/20
+    services: 172.16.0.0/16
+  servicedNetworkSelector:
+    matchLabels:
+      region: us-central1
+  reclaimPolicy: Delete
+  providerRef:
+    name: example
