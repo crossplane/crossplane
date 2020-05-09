@@ -71,15 +71,27 @@ func TestConfigure(t *testing.T) {
 				err: errors.Wrap(errors.New("invalid character 'o' looking for beginning of value"), errUnmarshal),
 			},
 		},
-		"Success": {
-			reason: "Configuration should result in the right object with correct generateName",
+		"NoLabel": {
+			reason: "The name prefix label has to be set",
 			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp"}},
+				cp: &fake.Composite{},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
 				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
 			},
 			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "cp-"}},
+				cd:  &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+				err: errors.New(errNamePrefix),
+			},
+		},
+		"Success": {
+			reason: "Configuration should result in the right object with correct generateName",
+			args: args{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{LabelKeyNamePrefixForComposed: "cp"}}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "cp-", Labels: map[string]string{LabelKeyNamePrefixForComposed: "cp"}}},
 			},
 		},
 	}

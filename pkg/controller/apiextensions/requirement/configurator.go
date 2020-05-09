@@ -29,7 +29,7 @@ import (
 )
 
 // Configure the supplied composite resource. The composite resource name is
-// derived from the supplied requirement, as {namespace}-{name}-{random-string}.
+// derived from the supplied requirement, as {name}-{random-string}.
 // The requirement's external name annotation, if any, is propagated to the
 // composite resource.
 func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite) error {

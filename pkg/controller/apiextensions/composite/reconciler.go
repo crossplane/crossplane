@@ -177,7 +177,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 
 		composite: compositeResource{
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
-			Configurator:        NewAPIConfigurator(kube),
+			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 		},
 

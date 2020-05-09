@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
@@ -32,9 +33,16 @@ import (
 )
 
 const (
-	errUnmarshal = "cannot unmarshal base template"
-	errFmtPatch  = "cannot apply the patch at index %d"
-	errGetSecret = "cannot get connection secret of composed resource"
+	errUnmarshal  = "cannot unmarshal base template"
+	errFmtPatch   = "cannot apply the patch at index %d"
+	errGetSecret  = "cannot get connection secret of composed resource"
+	errNamePrefix = "name prefix is not found in labels"
+)
+
+const (
+	// LabelKeyNamePrefixForComposed is the prefix that will be used by composed
+	// resources.
+	LabelKeyNamePrefixForComposed = "crossplane.io/root-composite"
 )
 
 // ConfigureFn is a function that implements Configurator interface.
@@ -54,14 +62,21 @@ func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Compose
 	// Any existing name will be overwritten when we unmarshal the template. We
 	// store it here so that we can reset it after unmarshalling.
 	name := cd.GetName()
+	namespace := cd.GetNamespace()
 	if err := json.Unmarshal(t.Base.Raw, cd); err != nil {
 		return errors.Wrap(err, errUnmarshal)
 	}
+	if cp.GetLabels()[LabelKeyNamePrefixForComposed] == "" {
+		return errors.New(errNamePrefix)
+	}
+	// This label will be used if composed resource is yet another composite.
+	meta.AddLabels(cd, map[string]string{LabelKeyNamePrefixForComposed: cp.GetLabels()[LabelKeyNamePrefixForComposed]})
 	// Unmarshalling the template will overwrite any existing fields, so we must
 	// restore the existing name, if any. We also set generate name in case we
 	// haven't yet named this composed resource.
-	cd.SetGenerateName(cp.GetName() + "-")
+	cd.SetGenerateName(cp.GetLabels()[LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
+	cd.SetNamespace(namespace)
 	return nil
 }
 
