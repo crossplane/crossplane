@@ -15,7 +15,8 @@ resource may subsequently be published as available for application operators to
 request - see the neighboring gcp-sqlserver for an example of a published
 resource.
 
-To try this example, first [create a GCP `Provider`] named `example`, then:
+To try this example, first install provider-gcp and create an GCP `Provider`
+named `example` per the [Crossplane documentation], then:
 
 1. Define and publish the new resources by running `kubectl apply -f
    definitions/`.
@@ -36,5 +37,5 @@ $ kubectl describe servicednetworks
 $ kubectl describe clusters
 ```
 
-[composite infrastructure resources]: https://github.com/crossplane/crossplane/pull/1163
-[create a GCP `Provider`]: https://crossplane.io/docs/v0.9/cloud-providers/gcp/gcp-provider.html
+[composite infrastructure resources]: https://github.com/crossplane/crossplane/blob/f0263cd/design/design-doc-composition.md
+[Crossplane documentation]: https://crossplane.io/docs/
