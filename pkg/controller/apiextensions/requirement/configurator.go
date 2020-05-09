@@ -33,7 +33,7 @@ import (
 // The requirement's external name annotation, if any, is propagated to the
 // composite resource.
 func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite) error {
-	cp.SetGenerateName(fmt.Sprintf("%s-%s-", rq.GetNamespace(), rq.GetName()))
+	cp.SetGenerateName(fmt.Sprintf("%s-", rq.GetName()))
 	if meta.GetExternalName(rq) != "" {
 		meta.SetExternalName(cp, meta.GetExternalName(rq))
 	}
