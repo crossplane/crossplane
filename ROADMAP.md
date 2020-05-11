@@ -176,7 +176,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## [v0.9.0 Providers, Stacks, Apps, Addons](https://github.com/crossplane/crossplane/releases/tag/v0.9.0)
 * Rename GitHub org from [crossplaneio](https://github.com/crossplaneio) to [crossplane](https://github.com/crossplane)
-* Docs overhaul (part 1/2) - https://crossplane.io/docs
+* Docs overhaul (part 1/3) - https://crossplane.io/docs
 * New `packageType` options in `app.yaml`, including: `Provider`, `Stack`, `Application`, and `Addon` (#1348) plus repo name updates: [#1300](https://github.com/crossplane/crossplane/issues/1300)
   - [provider-gcp](https://github.com/crossplane/provider-gcp)
   - [provider-aws](https://github.com/crossplane/provider-aws)
@@ -199,16 +199,42 @@ Any dates listed below and the specific issues that will ship in a given milesto
 * Stacks Manager support for private repos and robot account credentials
 * Release process and efficiency improvements
 
+## [v0.10.0 backup/restore, resource composition, Open Application Model](https://github.com/crossplane/crossplane/releases/tag/v0.10.0)
+* Backup/restore compatability with tools like Velero
+  - Allow a KubernetesApplication to be backed up and restored [crossplane#1382](https://github.com/crossplane/crossplane/issues/1382)
+  - Allow connection secrets to be backed up and restored [crossplane-runtime#140](https://github.com/crossplane/crossplane-runtime/issues/140)
+  - Support backup and restore of all GCP managed resources [provider-gcp#207](https://github.com/crossplane/provider-gcp/issues/207)
+  - Support backup and restore of all Azure managed resources [provider-azure#128](https://github.com/crossplane/provider-azure/issues/128)
+  - Support backup and restore of all AWS managed resources [provider-aws#181](https://github.com/crossplane/provider-aws/issues/181)
+  - Allow Stack, StackInstall, StackDefinition to be backed up and restored [crossplane#1389](https://github.com/crossplane/crossplane/issues/1389)
 
-## v0.10.0
+* Resource composition - experimental MVP [#1343](https://github.com/crossplane/crossplane/issues/1343)
+   * Defining your own claim kinds [#1106](https://github.com/crossplane/crossplane/issues/1106) 
+   * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplane/crossplane/issues/1105)
+
+* Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types
+  * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
+  * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
+  * Enhance Crossplane to support a choice of local and remote workload scheduling
+  * OAM sample app: [crossplane/app-service-tracker](https://github.com/crossplane/app-service-tracker)
+
+* Docs overhaul (part 2/3) - https://crossplane.io/docs
+  * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
+  * Updated docs sidebar
+
+## v0.11.0
+* Docs overhaul (part 3/3) - https://crossplane.io/docs
+  * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
+  * Updated docs sidebar
+  * Finish name refactoring e.g. StackInstall -> PackageInstall
+  * Add an experimental / deprecated section
+
+* Resource composition - alpha quality [#1343](https://github.com/crossplane/crossplane/issues/1343)
+
+* Enhanced support for [OAM](https://oam.dev/) (Open Application Model) API types
+
 * Backup/restore support - e.g. with Velero
-  - Allow a KubernetesApplication to be backed up and restored [crossplane#1382](https://crossplane/crossplane/issues/#1382)
-  - Allow connection secrets to be backed up and restored [crossplane-runtime#140](https://crossplane/crossplane-runtime/issues/#140)
-  - Support backup and restore of all GCP managed resources [provider-gcp#207](https://crossplane/provider-gcp/issues/#207)
-  - Support backup and restore of all Azure managed resources [provider-azure#128](https://crossplane/provider-azure/issues/#128)
-  - Support backup and restore of all AWS managed resources [provider-aws#181](https://crossplane/provider-gcp/issues/#181)
-  - Allow Stack, StackInstall, StackDefinition to be backed up and restored [crossplane#1389](https://crossplane/crossplane/issues/#1389)
-  - Backup and Restore doc [crossplane#1353](https://crossplane/crossplane/issues/#1353)
+  - Backup and Restore doc [crossplane#1353](https://github.com/crossplane/crossplane/issues/1353)
 
 * v1beta1 quality conformance doc [#933](https://github.com/crossplane/crossplane/issues/933)
 * v1beta1 quality for AWS API types  
@@ -222,18 +248,6 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * Basic versioning and upgrade support [#1334](https://github.com/crossplane/crossplane/issues/1334)
 
-* Resource composition - experimental MVP [#1343](https://github.com/crossplane/crossplane/issues/1343)
-
-* Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types
-  * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
-  * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
-  * Enhance Crossplane to support a choice of local and remote workload scheduling
-  * OAM sample app: [crossplane/app-service-tracker](https://github.com/crossplane/app-service-tracker)
-
-* Docs overhaul (part 2/2) - https://crossplane.io/docs
-  * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
-  * Updated docs sidebar
-
 ## Roadmap
 * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879) 
 
@@ -242,10 +256,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * AWS Stack integration tests 
   * Azure Stack integration tests 
 
-* Designs for:
-   * Defining your own claim kinds [#1106](https://github.com/crossplane/crossplane/issues/1106) 
-   * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplane/crossplane/issues/1105)
-   * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879), [#435](https://github.com/crossplane/crossplane/issues/435)
+* Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879), [#435](https://github.com/crossplane/crossplane/issues/435)
 
 * GCP: DNS, SSL, and Ingress support #1123 [#1123](https://github.com/crossplane/crossplane/issues/1123)
 
