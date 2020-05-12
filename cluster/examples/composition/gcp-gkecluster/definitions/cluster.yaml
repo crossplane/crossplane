@@ -54,6 +54,9 @@ spec:
                 type: object
                 description: CIDRs for nodes, pods, and services.
                 properties:
+                  master:
+                    type: string
+                    description: CIDR for master node(s).
                   nodes:
                     type: string
                     description: CIDR for nodes.
@@ -141,6 +144,9 @@ spec:
       kind: GKECluster
       spec:
         forProvider:
+          privateClusterConfig:
+            enablePrivateEndpoint: false
+            enablePrivateNodes: true
           ipAllocationPolicy:
             useIpAliases: true
             clusterSecondaryRangeName: pods
@@ -161,6 +167,8 @@ spec:
       toFieldPath: "spec.forProvider.location"
     - fromFieldPath: "spec.servicedNetworkSelector"
       toFieldPath: "spec.forProvider.networkSelector"
+    - fromFieldPath: "spec.cidrs.master"
+      toFieldPath: "spec.forProvider.privateClusterConfig.masterIpv4CidrBlock"
       # Store the connection secret for this GKECluster in a secret name derived
       # from the Cluster's UID. Use the string format transform function to
       # append -controlplane to the UID.

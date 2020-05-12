@@ -11,9 +11,10 @@ spec:
   - us-central1-a
   - us-central1-b
   cidrs:
-    nodes: 192.168.0.0/24
-    pods: 10.128.0.0/20
-    services: 172.16.0.0/16
+    master: 192.168.20.32/28
+    nodes: 192.168.1.0/24
+    pods: 10.129.0.0/20
+    services: 172.17.0.0/16
   servicedNetworkSelector:
     matchLabels:
       region: us-central1
