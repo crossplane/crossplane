@@ -659,9 +659,8 @@ func TestSyncApplicationResource(t *testing.T) {
 			ar: &applicationResourceClient{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ types.NamespacedName, obj runtime.Object) error {
-						r := kar()
+						r := kar(karWithState(v1alpha1.KubernetesApplicationResourceStateSubmitted))
 						r.SetOwnerReferences([]metav1.OwnerReference{})
-						r.Status.State = v1alpha1.KubernetesApplicationResourceStateSubmitted
 
 						*obj.(*v1alpha1.KubernetesApplicationResource) = *r
 						return nil
