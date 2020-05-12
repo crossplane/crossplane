@@ -67,7 +67,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 		Complete(&Reconciler{
 			client: resource.ClientApplicator{
 				Client:     mgr.GetClient(),
-				Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
+				Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 			},
 			log: l.WithValues("controller", name)})
 }
