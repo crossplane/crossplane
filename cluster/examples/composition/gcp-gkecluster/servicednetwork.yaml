@@ -2,7 +2,7 @@
 apiVersion: gke.example.org/v1alpha1
 kind: ServicedNetwork
 metadata:
-  name: example-gke
+  name: example-vpc
   labels:
     region: us-central1
 spec:
