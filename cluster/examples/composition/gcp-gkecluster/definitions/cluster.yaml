@@ -144,6 +144,8 @@ spec:
       kind: GKECluster
       spec:
         forProvider:
+          masterAuth:
+            username: admin
           privateClusterConfig:
             enablePrivateEndpoint: false
             enablePrivateNodes: true
