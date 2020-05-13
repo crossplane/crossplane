@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:stack-manager:ns:default:admin
+  name: {{ template "name" . }}:package-manager:ns:default:admin
   labels:
     rbac.crossplane.io/aggregate-to-namespace-default-admin: "true"
     app: {{ template "name" . }}
@@ -32,10 +32,10 @@ rules:
   - patch
   - update
 - apiGroups:
-  - stacks.crossplane.io
+  - packages.crossplane.io
   resources:
-  - stackinstalls
-  - stacks
+  - packageinstalls
+  - packages
   verbs:
   - get
   - list
@@ -49,7 +49,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:stack-manager:ns:default:edit
+  name: {{ template "name" . }}:package-manager:ns:default:edit
   labels:
     rbac.crossplane.io/aggregate-to-namespace-default-admin: "true"
     rbac.crossplane.io/aggregate-to-namespace-default-edit: "true"
@@ -94,7 +94,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:stack-manager:ns:default:view
+  name: {{ template "name" . }}:package-manager:ns:default:view
   labels:
     rbac.crossplane.io/aggregate-to-namespace-default-edit: "true"
     rbac.crossplane.io/aggregate-to-namespace-default-view: "true"
@@ -109,7 +109,7 @@ rules:
   - database.crossplane.io
   - kubernetes.crossplane.io
   - core.crossplane.io
-  - stacks.crossplane.io
+  - packages.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
   - core.oam.dev
@@ -121,10 +121,10 @@ rules:
   - list
   - watch
 - apiGroups:
-  - stacks.crossplane.io
+  - packages.crossplane.io
   resources:
-  - stacks
-  - stackinstalls
+  - packages
+  - packageinstalls
   verbs:
   - get
   - list

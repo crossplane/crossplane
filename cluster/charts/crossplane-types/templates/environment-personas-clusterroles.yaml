@@ -19,7 +19,7 @@ rules: [] # Rules are automatically filled in by the controller manager.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:stack-manager:env:default:admin
+  name: {{ template "name" . }}:package-manager:env:default:admin
   labels:
     rbac.crossplane.io/aggregate-to-environment-admin: "true"
     app: {{ template "name" . }}
@@ -33,7 +33,7 @@ rules:
   - database.crossplane.io
   - kubernetes.crossplane.io
   - core.crossplane.io
-  - stacks.crossplane.io
+  - packages.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
   - core.oam.dev
@@ -70,7 +70,7 @@ rules: [] # Rules are automatically filled in by the controller manager.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:stack-manager:env:default:edit
+  name: {{ template "name" . }}:package-manager:env:default:edit
   labels:
     rbac.crossplane.io/aggregate-to-environment-edit: "true"
     app: {{ template "name" . }}
@@ -131,7 +131,7 @@ rules: [] # Rules are automatically filled in by the controller manager.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:stack-manager:env:default:view
+  name: {{ template "name" . }}:package-manager:env:default:view
   labels:
     rbac.crossplane.io/aggregate-to-environment-view: "true"
     app: {{ template "name" . }}
@@ -145,7 +145,7 @@ rules:
   - database.crossplane.io
   - kubernetes.crossplane.io
   - core.crossplane.io
-  - stacks.crossplane.io
+  - packages.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
   - core.oam.dev
@@ -157,10 +157,10 @@ rules:
   - list
   - watch
 - apiGroups:
-  - stacks.crossplane.io
+  - packages.crossplane.io
   resources:
-  - clusterstackinstall
-  - stack
+  - clusterpackageinstall
+  - package
   verbs:
   - get
   - list

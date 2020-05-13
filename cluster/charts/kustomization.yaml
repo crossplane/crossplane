@@ -3,5 +3,5 @@ commonAnnotations:
   helm.sh/hook-delete-policy: before-hook-creation
 
 resources:
-  - crossplane/templates/crds/stacks.crossplane.io_clusterstackinstalls.yaml
-  - crossplane/templates/crds/stacks.crossplane.io_stackinstalls.yaml
+  - crossplane/templates/crds/packages.crossplane.io_clusterpackageinstalls.yaml
+  - crossplane/templates/crds/packages.crossplane.io_packageinstalls.yaml

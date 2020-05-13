@@ -1,0 +1,11 @@
+{{- range $key, $val := .Values.clusterPackages }}
+{{- if $val.deploy }}
+apiVersion: packages.crossplane.io/v1alpha1
+kind: ClusterPackageInstall
+metadata:
+  name: "provider-{{ $key }}"
+spec:
+  package: "crossplane/provider-{{ $key }}:{{ $val.version }}"
+---
+{{- end }}
+{{- end }}

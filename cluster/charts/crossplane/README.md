@@ -100,24 +100,24 @@ from Crossplane.
 ### Installation with Helm
 
 You can include deployment of additional infrastructure providers into your helm
-installation by setting `clusterStacks.<provider-name>.deploy` to `true`.
+installation by setting `clusterPackages.<provider-name>.deploy` to `true`.
 
-For example, the following will install `master` version of the GCP stack.
+For example, the following will install `master` version of the GCP package.
 
 Using Helm 2:
 
 ```console
-helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master
+helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterPackages.gcp.deploy=true --set clusterPackages.gcp.version=master
 ```
 
 Using Helm 3:
 
 ```console
 kubectl create namespace crossplane-system
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterStacks.gcp.deploy=true --set clusterStacks.gcp.version=master --devel
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterPackages.gcp.deploy=true --set clusterPackages.gcp.version=master --devel
 ```
 
-See [helm configuration parameters](#configuration) for supported stacks and
+See [helm configuration parameters](#configuration) for supported packages and
 parameters.
 
 ### Manual Installation
@@ -136,8 +136,8 @@ kind: Namespace
 metadata:
   name: gcp
 ---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: ClusterStackInstall
+apiVersion: packages.crossplane.io/v1alpha1
+kind: ClusterPackageInstall
 metadata:
   name: provider-gcp
   namespace: gcp
@@ -163,8 +163,8 @@ kind: Namespace
 metadata:
   name: aws
 ---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: ClusterStackInstall
+apiVersion: packages.crossplane.io/v1alpha1
+kind: ClusterPackageInstall
 metadata:
   name: provider-aws
   namespace: aws
@@ -190,8 +190,8 @@ kind: Namespace
 metadata:
   name: azure
 ---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: ClusterStackInstall
+apiVersion: packages.crossplane.io/v1alpha1
+kind: ClusterPackageInstall
 metadata:
   name: provider-azure
   namespace: azure
@@ -217,8 +217,8 @@ kind: Namespace
 metadata:
   name: rook
 ---
-apiVersion: stacks.crossplane.io/v1alpha1
-kind: ClusterStackInstall
+apiVersion: packages.crossplane.io/v1alpha1
+kind: ClusterPackageInstall
 metadata:
   name: provider-rook
   namespace: rook
@@ -292,29 +292,29 @@ and their default values.
 | `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
 | `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
 | `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `clusterStacks.aws.deploy`       | Deploy AWS stack                                                | `false`
-| `clusterStacks.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`
-| `clusterStacks.gcp.deploy`       | Deploy GCP stack                                                | `false`
-| `clusterStacks.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`
-| `clusterStacks.azure.deploy`     | Deploy Azure stack                                              | `false`
-| `clusterStacks.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`
-| `clusterStacks.rook.deploy`      | Deploy Rook stack                                               | `false`
-| `clusterStacks.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`
+| `clusterPackages.aws.deploy`       | Deploy AWS package                                                | `false`
+| `clusterPackages.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`
+| `clusterPackages.gcp.deploy`       | Deploy GCP package                                                | `false`
+| `clusterPackages.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`
+| `clusterPackages.azure.deploy`     | Deploy Azure package                                              | `false`
+| `clusterPackages.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`
+| `clusterPackages.rook.deploy`      | Deploy Rook package                                               | `false`
+| `clusterPackages.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`
 | `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`
 | `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`
 | `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
-| `priorityClassName      `        | Priority class name for crossplane and stack manager pods       | `""`
+| `priorityClassName      `        | Priority class name for crossplane and package manager pods       | `""`
 | `resourcesCrossplane.limits.cpu`        | CPU resource limits for Crossplane                       | `100m`
 | `resourcesCrossplane.limits.memory`     | Memory resource limits for Crossplane                    | `512Mi`
 | `resourcesCrossplane.requests.cpu`      | CPU resource requests for Crossplane                     | `100m`
 | `resourcesCrossplane.requests.memory`   | Memory resource requests for Crossplane                  | `256Mi`
-| `resourcesStackManager.limits.cpu`      | CPU resource limits for StackManager                     | `100m`
-| `resourcesStackManager.limits.memory`   | Memory resource limits for StackManager                  | `512Mi`
-| `resourcesStackManager.requests.cpu`    | CPU resource requests for StackManager                   | `100m`
-| `resourcesStackManager.requests.memory` | Memory resource requests for StackManager                | `256Mi`
-| `forceImagePullPolicy`           | Force the named ImagePullPolicy on Stack install and containers | `""`
-| `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Stacks. When enabled, Stacks may declare dependency on core Kubernetes API types.) | `false` |
-| `insecurePassFullDeployment`     | Enable stacks to pass their full deployment, including security context. When omitted, Stacks deployments will have security context removed and all containers will have `allowPrivilegeEscalation` set to false. | `false` |
+| `resourcesPackageManager.limits.cpu`      | CPU resource limits for PackageManager                     | `100m`
+| `resourcesPackageManager.limits.memory`   | Memory resource limits for PackageManager                  | `512Mi`
+| `resourcesPackageManager.requests.cpu`    | CPU resource requests for PackageManager                   | `100m`
+| `resourcesPackageManager.requests.memory` | Memory resource requests for PackageManager                | `256Mi`
+| `forceImagePullPolicy`           | Force the named ImagePullPolicy on Package install and containers | `""`
+| `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Packages. When enabled, Packages may declare dependency on core Kubernetes API types.) | `false` |
+| `insecurePassFullDeployment`     | Enable packages to pass their full deployment, including security context. When omitted, Packages deployments will have security context removed and all containers will have `allowPrivilegeEscalation` set to false. | `false` |
 
 ### Command Line
 
