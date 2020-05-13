@@ -28,8 +28,8 @@ limitations under the License.
 // Generate CRDs for OAM types in oam-kubernetes-runtime
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen crd paths=../vendor/github.com/crossplane/oam-kubernetes-runtime/apis/... crd:trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
-// Re-generate stack CRD manifests without descriptions.
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen paths=./stacks/... crd:maxDescLen=0,trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
+// Re-generate package CRD manifests without descriptions.
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen paths=./packages/... crd:maxDescLen=0,trivialVersions=true output:artifacts:config=../cluster/charts/crossplane-types/crds
 
 // Generate crossplane-runtime methodsets (resource.Claim, etc)
 //go:generate go run -tags generate github.com/crossplane/crossplane-tools/cmd/angryjet generate-methodsets --header-file=../hack/boilerplate.go.txt ./...
