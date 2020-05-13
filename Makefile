@@ -101,15 +101,15 @@ CONTROLLER_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DI
 # This target copies manifests in crossplane-controllers and crossplane-types chart into crossplane chart.
 manifests.prepare:
 	@$(INFO) Copying CRD manifests to Crossplane chart
-	rm -r $(CROSSPLANE_CHART_HELM2_CRD_DIR)
-	mkdir $(CROSSPLANE_CHART_HELM2_CRD_DIR)
-	cp $(CRD_DIR)/* $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	@rm -r $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	@mkdir $(CROSSPLANE_CHART_HELM2_CRD_DIR)
+	@cp $(CRD_DIR)/* $(CROSSPLANE_CHART_HELM2_CRD_DIR)
 	@$(OK) Copied CRD manifests to Crossplane chart
 	@$(INFO) Copying controller manifests to Crossplane chart
-	cp $(CONTROLLER_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
+	@cp $(CONTROLLER_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
 	@$(OK) Copied controller manifests to Crossplane chart
 	@$(INFO) Copying type manifests to Crossplane chart
-	cp $(TYPE_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
+	@cp $(TYPE_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
 	@$(OK) Copied type manifests to Crossplane chart
 
 
@@ -132,23 +132,23 @@ manifests.prepare:
 # was introduced with helm3 and ignored in helm2, then afterwards apply the annotation to
 # those CRDs under <chart>/templates/crds for helm2.
 manifests.annotate:
-	@$(INFO) Copying PackageInstall CRD manifests for helm3 compatibility
-	rm -r $(CROSSPLANE_CHART_HELM3_CRD_DIR)
-	mkdir -p $(CROSSPLANE_CHART_HELM3_CRD_DIR)
-	cp $(CRD_DIR)/packages.crossplane.io_packageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
-	cp $(CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
-	cp $(CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml
-	cp $(CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml
-	@$(OK) Copied PackageInstall CRD manifests for helm3 compatibility
-	@$(INFO) Annotating generated PackageInstall CRD manifests
-	$(eval TMPDIR := $(shell mktemp -d))
-	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterpackageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_packageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_infrastructuredefinitions.apiextensions.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_infrastructurepublications.apiextensions.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml
-	@$(OK) Annotated generated PackageInstall CRD manifests
-	sed '1,7d' $(SOURCE_DOCS_DIR)/getting-started/install.md > $(CROSSPLANE_CHART_DIR)/README.md
+	@$(INFO) Copying CRD manifests that should be installed first for helm3 compatibility
+	@rm -r $(CROSSPLANE_CHART_HELM3_CRD_DIR)
+	@mkdir -p $(CROSSPLANE_CHART_HELM3_CRD_DIR)
+	@cp $(CRD_DIR)/packages.crossplane.io_packageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
+	@cp $(CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
+	@cp $(CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml
+	@cp $(CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml
+	@$(OK) Copied CRD manifests that should be installed first for helm3 compatibility
+	@$(INFO) Annotating CRD manifests that should be installed first
+	@$(eval TMPDIR := $(shell mktemp -d))
+	@$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
+	@mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterpackageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
+	@mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_packageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
+	@mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_infrastructuredefinitions.apiextensions.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml
+	@mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_infrastructurepublications.apiextensions.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml
+	@$(OK) Annotated CRD manifests that should be installed first
+	@sed '1,7d' $(SOURCE_DOCS_DIR)/getting-started/install.md > $(CROSSPLANE_CHART_DIR)/README.md
 	@$(OK) Copied and modified chart README.md from Crossplane docs
 
 # Generate a coverage report for cobertura applying exclusions on
