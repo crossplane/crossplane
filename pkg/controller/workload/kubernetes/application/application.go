@@ -25,9 +25,9 @@ import (
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -35,6 +35,7 @@ import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -178,33 +179,26 @@ type applicationResourceClient struct {
 }
 
 func (c *applicationResourceClient) sync(ctx context.Context, template *v1alpha1.KubernetesApplicationResource) (bool, error) {
-	// We make a copy of our template here so we can compare the template as
-	// passed to this method with the remote resource.
-	remote := template.DeepCopy()
-
 	submitted := false
-	_, err := util.CreateOrUpdate(ctx, c.kube, remote, func() error {
-		// Inside this anonymous function ar could either be unchanged (if
-		// it does not exist in the API server) or updated to reflect its
-		// current state according to the API server.
 
-		if !meta.HaveSameController(remote, template) {
-			return errors.Errorf("%s %s exists and is not controlled by %s %s",
-				v1alpha1.KubernetesApplicationResourceKind, remote.GetName(),
-				v1alpha1.KubernetesApplicationKind, getControllerName(template))
-		}
-
-		if remote.Status.State == v1alpha1.KubernetesApplicationResourceStateSubmitted {
+	// ApplyOptions are executed in the order that they are passed, so by the
+	// time we reach the anonymous function we will already know that this KAR
+	// is controllable by the KA.
+	err := resource.NewAPIUpdatingApplicator(c.kube).Apply(ctx, template, resource.MustBeControllableBy(metav1.GetControllerOf(template).UID), resource.UpdateFn(func(current, _ runtime.Object) {
+		c := current.(*v1alpha1.KubernetesApplicationResource)
+		if c.Status.State == v1alpha1.KubernetesApplicationResourceStateSubmitted {
 			submitted = true
 		}
 
-		remote.SetLabels(template.GetLabels())
-		remote.SetAnnotations(template.GetAnnotations())
-		remote.Spec = *template.Spec.DeepCopy()
+		c.SetLabels(template.GetLabels())
+		c.SetAnnotations(template.GetAnnotations())
+		c.Spec = *template.Spec.DeepCopy()
 
-		return nil
-	})
-
+		// By the time we get here Apply will have already checked that this KAR
+		// is controllable by the KA in the MustBeControllableBy ApplyOption, so
+		// it is safe to overwrite the owner references with the template's.
+		c.SetOwnerReferences(template.GetOwnerReferences())
+	}))
 	return submitted, errors.Wrapf(err, "cannot sync %s", v1alpha1.KubernetesApplicationResourceKind)
 }
 

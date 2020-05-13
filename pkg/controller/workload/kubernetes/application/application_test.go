@@ -70,15 +70,23 @@ var (
 	}
 
 	targetRef = &v1alpha1.KubernetesTargetReference{Name: target.GetName()}
+)
 
-	resourceA = &v1alpha1.KubernetesApplicationResource{
+type karModifier func(*v1alpha1.KubernetesApplicationResource)
+
+func karWithState(s v1alpha1.KubernetesApplicationResourceState) karModifier {
+	return func(r *v1alpha1.KubernetesApplicationResource) { r.Status.State = s }
+}
+
+func kar(rm ...karModifier) *v1alpha1.KubernetesApplicationResource {
+	k := &v1alpha1.KubernetesApplicationResource{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   objectMeta.GetNamespace(),
 			Name:        templateA.GetName(),
 			Labels:      templateA.GetLabels(),
 			Annotations: templateA.GetAnnotations(),
 			OwnerReferences: []metav1.OwnerReference{
-				*(metav1.NewControllerRef(kubeApp(), v1alpha1.KubernetesApplicationGroupVersionKind)),
+				*(metav1.NewControllerRef(kubeApp(withUID(uid)), v1alpha1.KubernetesApplicationGroupVersionKind)),
 			},
 		},
 		Spec: templateA.Spec,
@@ -86,7 +94,13 @@ var (
 			State: v1alpha1.KubernetesApplicationResourceStateScheduled,
 		},
 	}
-)
+
+	for _, m := range rm {
+		m(k)
+	}
+
+	return k
+}
 
 type kubeAppModifier func(*v1alpha1.KubernetesApplication)
 
@@ -113,6 +127,12 @@ func withSubmittedResources(i int) kubeAppModifier {
 func withTarget(name string) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) {
 		r.Spec.Target = &v1alpha1.KubernetesTargetReference{Name: name}
+	}
+}
+
+func withUID(u types.UID) kubeAppModifier {
+	return func(r *v1alpha1.KubernetesApplication) {
+		r.UID = u
 	}
 }
 
@@ -639,38 +659,39 @@ func TestSyncApplicationResource(t *testing.T) {
 			ar: &applicationResourceClient{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ types.NamespacedName, obj runtime.Object) error {
-						r := resourceA.DeepCopy()
-						r.Status.State = v1alpha1.KubernetesApplicationResourceStateSubmitted
-
-						*obj.(*v1alpha1.KubernetesApplicationResource) = *r
-						return nil
-					},
-				},
-			},
-			template:      resourceA,
-			wantSubmitted: true,
-		},
-		{
-			name: "ExistingResourceHasDifferentController",
-			ar: &applicationResourceClient{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ types.NamespacedName, obj runtime.Object) error {
-						r := resourceA.DeepCopy()
+						r := kar(karWithState(v1alpha1.KubernetesApplicationResourceStateSubmitted))
 						r.SetOwnerReferences([]metav1.OwnerReference{})
 
 						*obj.(*v1alpha1.KubernetesApplicationResource) = *r
 						return nil
 					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 			},
-			template: resourceA,
-			wantErr: errors.WithStack(errors.Errorf("cannot sync %s: %s %s exists and is not controlled by %s %s",
-				v1alpha1.KubernetesApplicationResourceKind,
-				v1alpha1.KubernetesApplicationResourceKind,
-				templateA.GetName(),
-				v1alpha1.KubernetesApplicationKind,
-				objectMeta.GetName(),
-			)),
+			template:      kar(),
+			wantSubmitted: true,
+		},
+		{
+			name: "ExistingResourceIsNotControllable",
+			ar: &applicationResourceClient{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ types.NamespacedName, obj runtime.Object) error {
+						r := kar()
+						truePtr := true
+						r.SetOwnerReferences([]metav1.OwnerReference{
+							{
+								Controller: &truePtr,
+								UID:        types.UID("some-other-uid"),
+							},
+						})
+
+						*obj.(*v1alpha1.KubernetesApplicationResource) = *r
+						return nil
+					},
+				},
+			},
+			template: kar(),
+			wantErr:  errors.WithStack(errors.Errorf("cannot sync %s: existing object is not controlled by UID \"%s\"", v1alpha1.KubernetesApplicationResourceKind, uid)),
 		},
 		{
 
@@ -678,8 +699,8 @@ func TestSyncApplicationResource(t *testing.T) {
 			ar: &applicationResourceClient{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			template: resourceA,
-			wantErr:  errors.Wrapf(errorBoom, "cannot sync %s", v1alpha1.KubernetesApplicationResourceKind),
+			template: kar(),
+			wantErr:  errors.Wrapf(errorBoom, "cannot sync %s: cannot get object", v1alpha1.KubernetesApplicationResourceKind),
 		},
 	}
 
@@ -709,7 +730,7 @@ func TestRenderTemplate(t *testing.T) {
 			name:     "Successful",
 			app:      kubeApp(withTarget(target.GetName())),
 			template: &templateA,
-			want:     resourceA,
+			want:     kar(),
 		},
 	}
 
