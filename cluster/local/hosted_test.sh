@@ -78,9 +78,9 @@ Kind cluster is ${kind_context} created is created:
 
   export KUBECONFIG=${KUBECONFIG}
 
-A very basic check is to deploy a stack:
+A very basic check is to deploy a package:
 
-  kubectl crossplane stack generate-install --cluster 'crossplane/provider-gcp:master' provider-gcp | kubectl apply -f -
+  kubectl crossplane package generate-install --cluster 'crossplane/provider-gcp:master' provider-gcp | kubectl apply -f -
 
 and make sure that its controllers is running in ${controllers_namespace} namespace.
 """
