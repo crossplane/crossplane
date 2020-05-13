@@ -10,13 +10,13 @@ used for regular installations (i.e. not hosted/in host aware mode) as documente
 ## crossplane-types
 
 This chart contains type definitions (a.k.a. CRDs) and roles for operators. This chart should be used for hosted/host
-aware stack manager mode and should be deployed on Tenant Kubernetes API Server. For more details, please see related
+aware package manager mode and should be deployed on Tenant Kubernetes API Server. For more details, please see related
 [design doc](../../design/one-pager-host-aware-stack-manager.md).
 
 ## crossplane-controllers
 
-This chart contains controller deployments for `crossplane` and `stack-manager`. This chart should be used for hosted/host
-aware stack manager mode and should be deployed on Host Kubernetes Cluster. For more details, please see related
+This chart contains controller deployments for `crossplane` and `package-manager`. This chart should be used for hosted/host
+aware package manager mode and should be deployed on Host Kubernetes Cluster. For more details, please see related
 [design doc](../../design/one-pager-host-aware-stack-manager.md).
 
 ## Making changes in helm charts

@@ -59,7 +59,7 @@ rules:
   - database.crossplane.io
   - kubernetes.crossplane.io
   - core.crossplane.io
-  - stacks.crossplane.io
+  - packages.crossplane.io
   - storage.crossplane.io
   - workload.crossplane.io
   - core.oam.dev

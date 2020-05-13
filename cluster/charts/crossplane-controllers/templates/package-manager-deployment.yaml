@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "name" . }}-stack-manager
+  name: {{ template "name" . }}-package-manager
   labels:
-    app: {{ template "name" . }}-stack-manager
+    app: {{ template "name" . }}-package-manager
     chart: {{ template "chart" . }}
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
@@ -11,24 +11,24 @@ spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
-      app: {{ template "name" . }}-stack-manager
+      app: {{ template "name" . }}-package-manager
       release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
   template:
     metadata:
       labels:
-        app: {{ template "name" . }}-stack-manager
+        app: {{ template "name" . }}-package-manager
         release: {{ .Release.Name }}
     spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName | quote }}
       {{- end }}
-      serviceAccountName: stack-manager
+      serviceAccountName: package-manager
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
-        - stack
+        - package
         - manage
         {{- if .Values.hostedConfig.enabled }}
         - --tenant-kubeconfig
@@ -70,7 +70,7 @@ spec:
             fieldRef:
               fieldPath: metadata.namespace
         resources:
-          {{- toYaml .Values.resourcesStackManager | nindent 12 }}
+          {{- toYaml .Values.resourcesPackageManager | nindent 12 }}
       {{- if .Values.hostedConfig.enabled }}
         volumeMounts:
           - mountPath: /var/run/secrets/tenant
