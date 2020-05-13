@@ -1,0 +1,273 @@
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.4
+    helm.sh/hook: crd-install
+    helm.sh/hook-delete-policy: before-hook-creation
+  creationTimestamp: null
+  name: clusterpackageinstalls.packages.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.conditionedStatus.conditions[?(@.type=='Ready')].status
+    name: READY
+    type: string
+  - JSONPath: .spec.source
+    name: SOURCE
+    type: string
+  - JSONPath: .spec.package
+    name: PACKAGE
+    type: string
+  - JSONPath: .spec.crd
+    name: CRD
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: packages.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: ClusterPackageInstall
+    listKind: ClusterPackageInstallList
+    plural: clusterpackageinstalls
+    singular: clusterpackageinstall
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: ClusterPackageInstall is the CRD type for a request to add a package
+        to Crossplane.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation
+            of an object. Servers should convert recognized schemas to the latest
+            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this
+            object represents. Servers may infer this from the endpoint the client
+            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: PackageInstallSpec specifies details about a request to install
+            a package to Crossplane.
+          properties:
+            crd:
+              description: CustomResourceDefinition is the full name of a CRD that
+                is owned by the package being requested. This can be a convenient
+                way of installing a package when the desired CRD is known, but the
+                package name that contains it is not known. Either Package or CustomResourceDefinition
+                can be specified.
+              type: string
+            imagePullPolicy:
+              description: ImagePullPolicy defines the pull policy for all images
+                used during Package extraction and when running the Package controller.
+                https://kubernetes.io/docs/concepts/configuration/overview/#container-images
+              type: string
+            imagePullSecrets:
+              description: ImagePullSecrets are named secrets in the same workspace
+                that can be used to fetch Packages from private repositories and to
+                run controllers from private repositories
+              items:
+                description: LocalObjectReference contains enough information to let
+                  you locate the referenced object inside the same namespace.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              type: array
+            package:
+              description: Package is the name of the package package that is being
+                requested, e.g., myapp. Either Package or CustomResourceDefinition
+                can be specified.
+              type: string
+            serviceAccount:
+              description: ServiceAccount options allow for changes to the ServiceAccount
+                the Package Manager creates for the Package's controller
+              properties:
+                annotations:
+                  additionalProperties:
+                    type: string
+                  type: object
+              type: object
+            source:
+              description: Source is the domain name for the package registry hosting
+                the package being requested, e.g., registry.crossplane.io
+              type: string
+          type: object
+        status:
+          description: PackageInstallStatus represents the observed state of a PackageInstall.
+          properties:
+            conditionedStatus:
+              description: A ConditionedStatus reflects the observed status of a resource.
+                Only one condition of each type may exist.
+              properties:
+                conditions:
+                  description: Conditions of the resource.
+                  items:
+                    description: A Condition that may apply to a resource.
+                    properties:
+                      lastTransitionTime:
+                        description: LastTransitionTime is the last time this condition
+                          transitioned from one status to another.
+                        format: date-time
+                        type: string
+                      message:
+                        description: A Message containing details about this condition's
+                          last transition from one status to another, if any.
+                        type: string
+                      reason:
+                        description: A Reason for this condition's last transition
+                          from one status to another.
+                        type: string
+                      status:
+                        description: Status of this condition; is it currently True,
+                          False, or Unknown?
+                        type: string
+                      type:
+                        description: Type of this condition. At most one of each condition
+                          type may apply to a resource at any point in time.
+                        type: string
+                    required:
+                    - lastTransitionTime
+                    - reason
+                    - status
+                    - type
+                    type: object
+                  type: array
+              type: object
+            installJob:
+              description: 'ObjectReference contains enough information to let you
+                inspect or modify the referred object. --- New uses of this type are
+                discouraged because of difficulty describing its usage when embedded
+                in APIs.  1. Ignored fields.  It includes many fields which are not
+                generally honored.  For instance, ResourceVersion and FieldPath are
+                both very rarely valid in actual usage.  2. Invalid usage help.  It
+                is impossible to add specific help for individual usage.  In most
+                embedded usages, there are particular     restrictions like, "must
+                refer only to types A and B" or "UID not honored" or "name must be
+                restricted".     Those cannot be well described when embedded.  3.
+                Inconsistent validation.  Because the usages are different, the validation
+                rules are different by usage, which makes it hard for users to predict
+                what will happen.  4. The fields are both imprecise and overly precise.  Kind
+                is not a precise mapping to a URL. This can produce ambiguity     during
+                interpretation and require a REST mapping.  In most cases, the dependency
+                is on the group,resource tuple     and the version of the actual struct
+                is irrelevant.  5. We cannot easily change it.  Because this type
+                is embedded in many locations, updates to this type     will affect
+                numerous schemas.  Don''t make new APIs embed an underspecified API
+                type they do not control. Instead of using this type, create a locally
+                provided and used type that is well-focused on your reference. For
+                example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
+                .'
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+            packageRecord:
+              description: 'ObjectReference contains enough information to let you
+                inspect or modify the referred object. --- New uses of this type are
+                discouraged because of difficulty describing its usage when embedded
+                in APIs.  1. Ignored fields.  It includes many fields which are not
+                generally honored.  For instance, ResourceVersion and FieldPath are
+                both very rarely valid in actual usage.  2. Invalid usage help.  It
+                is impossible to add specific help for individual usage.  In most
+                embedded usages, there are particular     restrictions like, "must
+                refer only to types A and B" or "UID not honored" or "name must be
+                restricted".     Those cannot be well described when embedded.  3.
+                Inconsistent validation.  Because the usages are different, the validation
+                rules are different by usage, which makes it hard for users to predict
+                what will happen.  4. The fields are both imprecise and overly precise.  Kind
+                is not a precise mapping to a URL. This can produce ambiguity     during
+                interpretation and require a REST mapping.  In most cases, the dependency
+                is on the group,resource tuple     and the version of the actual struct
+                is irrelevant.  5. We cannot easily change it.  Because this type
+                is embedded in many locations, updates to this type     will affect
+                numerous schemas.  Don''t make new APIs embed an underspecified API
+                type they do not control. Instead of using this type, create a locally
+                provided and used type that is well-focused on your reference. For
+                example, ServiceReferences for admission registration: https://github.com/kubernetes/api/blob/release-1.17/admissionregistration/v1/types.go#L533
+                .'
+              properties:
+                apiVersion:
+                  description: API version of the referent.
+                  type: string
+                fieldPath:
+                  description: 'If referring to a piece of an object instead of an
+                    entire object, this string should contain a valid JSON/Go field
+                    access statement, such as desiredState.manifest.containers[2].
+                    For example, if the object reference is to a container within
+                    a pod, this would take on a value like: "spec.containers{name}"
+                    (where "name" refers to the name of the container that triggered
+                    the event) or if no container name is specified "spec.containers[2]"
+                    (container with index 2 in this pod). This syntax is chosen only
+                    to have some well-defined way of referencing a part of an object.
+                    TODO: this design is not final and this field is subject to change
+                    in the future.'
+                  type: string
+                kind:
+                  description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+                  type: string
+                name:
+                  description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
+                  type: string
+                namespace:
+                  description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
+                  type: string
+                resourceVersion:
+                  description: 'Specific resourceVersion to which this reference is
+                    made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
+                  type: string
+                uid:
+                  description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
+                  type: string
+              type: object
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

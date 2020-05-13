@@ -25,8 +25,8 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/pkg/stacks"
-	"github.com/crossplane/crossplane/pkg/stacks/walker"
+	"github.com/crossplane/crossplane/pkg/packages"
+	"github.com/crossplane/crossplane/pkg/packages/walker"
 )
 
 // Command configuration for unpacking stacks.
@@ -65,5 +65,5 @@ func (c *Command) Run(log logging.Logger) error {
 	// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 	fs := afero.NewOsFs()
 	rd := &walker.ResourceDir{Base: filepath.Clean(c.Dir), Walker: afero.Afero{Fs: fs}}
-	return errors.Wrap(stacks.Unpack(rd, outFile, rd.Base, c.PermissionScope, c.TemplatingControllerImage, log), "failed to unpack stacks")
+	return errors.Wrap(packages.Unpack(rd, outFile, rd.Base, c.PermissionScope, c.TemplatingControllerImage, log), "failed to unpack stacks")
 }

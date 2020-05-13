@@ -28,8 +28,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/pkg/controller/stacks"
-	"github.com/crossplane/crossplane/pkg/controller/stacks/templates"
+	"github.com/crossplane/crossplane/pkg/controller/packages"
+	"github.com/crossplane/crossplane/pkg/controller/packages/templates"
 )
 
 // Command configuration for the stack manager.
@@ -90,7 +90,7 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot add API extensions to scheme")
 	}
 
-	if err := stacks.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.AllowAllAPIGroups, c.PassFullDeployment, c.ForceImagePullPolicy); err != nil {
+	if err := packages.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.AllowAllAPIGroups, c.PassFullDeployment, c.ForceImagePullPolicy); err != nil {
 		return errors.Wrap(err, "Cannot add stacks controllers to manager")
 	}
 
