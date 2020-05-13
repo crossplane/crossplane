@@ -1578,7 +1578,7 @@ func TestProcessDeployment(t *testing.T) {
 				err: nil,
 				d: &apps.Deployment{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-package-abcd-u7d2t",
+						Name:      "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-package-ab-fup65",
 						Namespace: hostControllerNamespace,
 						Labels: packagespkg.ParentLabels(resource(
 							withNamespacedName(types.NamespacedName{
@@ -1642,7 +1642,7 @@ func TestProcessDeployment(t *testing.T) {
 										Name: saVolumeName,
 										VolumeSource: corev1.VolumeSource{
 											Secret: &corev1.SecretVolumeSource{
-												SecretName: "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-package-abcd-7u42t",
+												SecretName: "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-package-ab-vq7wj",
 											},
 										},
 									},
@@ -1652,7 +1652,7 @@ func TestProcessDeployment(t *testing.T) {
 					},
 				},
 				controllerRef: &corev1.ObjectReference{
-					Name:       "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-package-abcd-u7d2t",
+					Name:       "cool-namespace-abcdefghijklmnopqrstuvwxyz.cool-package-ab-fup65",
 					Namespace:  hostControllerNamespace,
 					Kind:       "Deployment",
 					APIVersion: "apps/v1",
