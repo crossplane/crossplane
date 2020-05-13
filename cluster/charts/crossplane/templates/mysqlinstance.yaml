@@ -1,0 +1,65 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: InfrastructureDefinition
+metadata:
+  name: mysqlinstances.definitions.crossplane.io
+spec:
+  connectionSecretKeys:
+    - username
+    - password
+    - endpoint
+    - port
+  crdSpecTemplate:
+    group: definitions.crossplane.io
+    version: v1alpha1
+    names:
+      categories:
+        - crossplane
+      kind: MySQLInstance
+      listKind: MySQLInstanceList
+      plural: mysqlinstances
+      singular: mysqlinstance
+    validation:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              version:
+                description: Version specifies the desired MySQL engine version,
+                  e.g. 5.7.
+                enum:
+                  - "5.6"
+                  - "5.7"
+                type: string
+              storageGB:
+                type: integer
+            required:
+              - version
+              - storageGB
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: InfrastructurePublication
+metadata:
+  name: mysqlinstances.definitions.crossplane.io
+spec:
+  infrastructureDefinitionRef:
+    name: mysqlinstances.definitions.crossplane.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: mysqlinstances.definitions.crossplane.io
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules:
+  - apiGroups:
+      - definitions.crossplane.io
+    resources:
+      - mysqlinstances
+      - mysqlinstances/status
+      - mysqlinstancerequirements
+      - mysqlinstancerequirements/status
+    verbs:
+      - "*"

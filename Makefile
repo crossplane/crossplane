@@ -95,7 +95,7 @@ CRD_DIR = $(CROSSPLANE_TYPES_CHART_DIR)/crds
 CROSSPLANE_CHART_HELM2_CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
 CROSSPLANE_CHART_HELM3_CRD_DIR = $(CROSSPLANE_CHART_DIR)/crds
 
-TYPE_MANIFESTS = $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/*.yaml)
+TYPE_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/*.yaml), $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/definitions/*.yaml))
 CONTROLLER_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/stack-manager-host-*.yaml), $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/*.yaml))
 
 # This target copies manifests in crossplane-controllers and crossplane-types chart into crossplane chart.
