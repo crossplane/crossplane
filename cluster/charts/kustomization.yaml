@@ -5,3 +5,5 @@ commonAnnotations:
 resources:
   - crossplane/templates/crds/packages.crossplane.io_clusterpackageinstalls.yaml
   - crossplane/templates/crds/packages.crossplane.io_packageinstalls.yaml
+  - crossplane/templates/crds/apiextensions.crossplane.io_infrastructuredefinitions.yaml
+  - crossplane/templates/crds/apiextensions.crossplane.io_infrastructurepublications.yaml

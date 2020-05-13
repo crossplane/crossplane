@@ -137,12 +137,16 @@ manifests.annotate:
 	mkdir -p $(CROSSPLANE_CHART_HELM3_CRD_DIR)
 	cp $(CRD_DIR)/packages.crossplane.io_packageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
 	cp $(CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
+	cp $(CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml
+	cp $(CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml
 	@$(OK) Copied PackageInstall CRD manifests for helm3 compatibility
 	@$(INFO) Annotating generated PackageInstall CRD manifests
 	$(eval TMPDIR := $(shell mktemp -d))
 	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
 	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterpackageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
 	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_packageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_infrastructuredefinitions.apiextensions.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/apiextensions.crossplane.io_infrastructuredefinitions.yaml
+	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_infrastructurepublications.apiextensions.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/apiextensions.crossplane.io_infrastructurepublications.yaml
 	@$(OK) Annotated generated PackageInstall CRD manifests
 	sed '1,7d' $(SOURCE_DOCS_DIR)/getting-started/install.md > $(CROSSPLANE_CHART_DIR)/README.md
 	@$(OK) Copied and modified chart README.md from Crossplane docs
