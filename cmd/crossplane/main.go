@@ -26,20 +26,20 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
-	"github.com/crossplane/crossplane/cmd/crossplane/stack/manage"
-	"github.com/crossplane/crossplane/cmd/crossplane/stack/unpack"
+	"github.com/crossplane/crossplane/cmd/crossplane/package/manage"
+	"github.com/crossplane/crossplane/cmd/crossplane/package/unpack"
 )
 
 func main() {
 	var (
 		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
 		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		stack = app.Command("stack", "Perform operations on stacks")
+		pkg   = app.Command("package", "Perform operations on packages")
 	)
 
 	c := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
-	m := manage.FromKingpin(stack.Command("manage", "Start Crossplane Stack Manager controllers"))
-	u := unpack.FromKingpin(stack.Command("unpack", "Unpack a Stack").Alias("unstack"))
+	m := manage.FromKingpin(pkg.Command("manage", "Start Crossplane Package Manager controllers"))
+	u := unpack.FromKingpin(pkg.Command("unpack", "Unpack a Package").Alias("unpackage"))
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
@@ -56,9 +56,9 @@ func main() {
 	case c.Name:
 		kingpin.FatalIfError(c.Run(logging.NewLogrLogger(zl.WithName("crossplane"))), "cannot run crossplane")
 	case m.Name:
-		kingpin.FatalIfError(m.Run(logging.NewLogrLogger(zl.WithName("stack-manager"))), "cannot run stack manager")
+		kingpin.FatalIfError(m.Run(logging.NewLogrLogger(zl.WithName("package-manager"))), "cannot run package manager")
 	case u.Name:
-		kingpin.FatalIfError(u.Run(logging.NewLogrLogger(zl.WithName("stack-unpack"))), "cannot unpack stack")
+		kingpin.FatalIfError(u.Run(logging.NewLogrLogger(zl.WithName("package-unpack"))), "cannot unpack package")
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
 	}

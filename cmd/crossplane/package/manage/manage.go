@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/controller/packages/templates"
 )
 
-// Command configuration for the stack manager.
+// Command configuration for the package manager.
 type Command struct {
 	Name                      string
 	Sync                      time.Duration
@@ -45,31 +45,31 @@ type Command struct {
 	ForceImagePullPolicy      string
 }
 
-// FromKingpin produces the stack manager command from a Kingpin command.
+// FromKingpin produces the package manager command from a Kingpin command.
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("insecure-allow-all-apigroups", "Enable core Kubernetes API group permissions for Stacks. When enabled, Stacks may declare dependency on core Kubernetes API types. When omitted, APIs that Stacks depend on and own must contain a dot (\".\") and may not end with \"k8s.io\".").Default("false").BoolVar(&c.AllowAllAPIGroups)
-	cmd.Flag("insecure-pass-full-deployment", "Enable stacks to pass their full deployment, including security context. When omitted, Stacks deployments will have security context removed and all containers will have allowPrivilegeEscalation set to false.").Default("false").BoolVar(&c.PassFullDeployment)
+	cmd.Flag("insecure-allow-all-apigroups", "Enable core Kubernetes API group permissions for Packages. When enabled, Packages may declare dependency on core Kubernetes API types. When omitted, APIs that Packages depend on and own must contain a dot (\".\") and may not end with \"k8s.io\".").Default("false").BoolVar(&c.AllowAllAPIGroups)
+	cmd.Flag("insecure-pass-full-deployment", "Enable packagess to pass their full deployment, including security context. When omitted, Packages deployments will have security context removed and all containers will have allowPrivilegeEscalation set to false.").Default("false").BoolVar(&c.PassFullDeployment)
 	cmd.Flag("templates", "Enable support for template stacks").BoolVar(&c.EnableTemplateStacks)
 	cmd.Flag("templating-controller-image", "The image of the template stacks controller").StringVar(&c.TemplatingControllerImage)
-	cmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Stack Manager").StringVar(&c.HostControllerNamespace)
+	cmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Package Manager").StringVar(&c.HostControllerNamespace)
 	cmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFileVar(&c.TenantKubeConfig)
-	cmd.Flag("force-image-pull-policy", "All containers created by the StackManager in service of StackInstall and Stack resources will use the specified imagePullPolicy").StringVar(&c.ForceImagePullPolicy)
+	cmd.Flag("force-image-pull-policy", "All containers created by the PackageManager in service of PackageInstall and Package resources will use the specified imagePullPolicy").StringVar(&c.ForceImagePullPolicy)
 	return c
 }
 
-// Run the stack manager.
+// Run the package manager.
 // nolint:gocyclo
 func (c *Command) Run(log logging.Logger) error {
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	if c.AllowAllAPIGroups {
-		log.Debug("Allowing core group use in the Stacks")
+		log.Debug("Allowing core group use in Packages")
 	}
 
 	if c.PassFullDeployment {
-		log.Debug("Allowing Stacks to pass full deployment manifests")
+		log.Debug("Allowing Packages to pass full deployment manifests")
 	}
 
 	cfg, err := getRestConfig(c.TenantKubeConfig)
@@ -91,7 +91,7 @@ func (c *Command) Run(log logging.Logger) error {
 	}
 
 	if err := packages.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.AllowAllAPIGroups, c.PassFullDeployment, c.ForceImagePullPolicy); err != nil {
-		return errors.Wrap(err, "Cannot add stacks controllers to manager")
+		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 
 	if c.EnableTemplateStacks {

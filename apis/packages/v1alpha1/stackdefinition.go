@@ -58,7 +58,7 @@ type BehaviorCRD struct {
 // StackResourceEngineConfiguration represents a configuration for a resource engine, such as helm2 or kustomize.
 type StackResourceEngineConfiguration struct {
 	// ControllerImage is the image of the generic controller used to reconcile
-	// the instances of the given CRDs. If empty, it is populated by stack manager
+	// the instances of the given CRDs. If empty, it is populated by package manager
 	// during unpack with default value.
 	// +optional
 	ControllerImage string `json:"controllerImage,omitempty"`

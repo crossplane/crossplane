@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/packages/walker"
 )
 
-// Command configuration for unpacking stacks.
+// Command configuration for unpacking packages.
 type Command struct {
 	Name                      string
 	Dir                       string
@@ -38,17 +38,17 @@ type Command struct {
 	TemplatingControllerImage string
 }
 
-// FromKingpin produces a stack unpack command from a Kingpin command.
+// FromKingpin produces a package unpack command from a Kingpin command.
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
-	cmd.Flag("content-dir", "The absolute path of the directory that contains the stack contents").Required().StringVar(&c.Dir)
-	cmd.Flag("outfile", "The file where the YAML Stack record and CRD artifacts will be written").StringVar(&c.OutFile)
-	cmd.Flag("permission-scope", "The permission-scope that the stack must request (Namespaced, Cluster)").Default("Namespaced").EnumVar(&c.PermissionScope, "Namespaced", "Cluster")
+	cmd.Flag("content-dir", "The absolute path of the directory that contains the package contents").Required().StringVar(&c.Dir)
+	cmd.Flag("outfile", "The file where the YAML Package record and CRD artifacts will be written").StringVar(&c.OutFile)
+	cmd.Flag("permission-scope", "The permission-scope that the package must request (Namespaced, Cluster)").Default("Namespaced").EnumVar(&c.PermissionScope, "Namespaced", "Cluster")
 	cmd.Flag("templating-controller-image", "The image of the Template Stacks controller").StringVar(&c.TemplatingControllerImage)
 	return c
 }
 
-// Run the stack unpack command.
+// Run the package unpack command.
 func (c *Command) Run(log logging.Logger) error {
 	outFile := os.Stdout
 	if c.OutFile != "" {
@@ -60,10 +60,10 @@ func (c *Command) Run(log logging.Logger) error {
 		defer f.Close() // nolint:errcheck
 		outFile = f
 	}
-	log.Debug("Unpacking stack", "to", outFile.Name())
+	log.Debug("Unpacking package", "to", outFile.Name())
 
 	// TODO(displague) afero.NewBasePathFs could avoid the need to track Base
 	fs := afero.NewOsFs()
 	rd := &walker.ResourceDir{Base: filepath.Clean(c.Dir), Walker: afero.Afero{Fs: fs}}
-	return errors.Wrap(packages.Unpack(rd, outFile, rd.Base, c.PermissionScope, c.TemplatingControllerImage, log), "failed to unpack stacks")
+	return errors.Wrap(packages.Unpack(rd, outFile, rd.Base, c.PermissionScope, c.TemplatingControllerImage, log), "failed to unpack packages")
 }
