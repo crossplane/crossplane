@@ -3,7 +3,7 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.4
-    helm.sh/hook: crd-install
+    helm.sh/hook: crd-install,pre-delete
     helm.sh/hook-delete-policy: before-hook-creation
   creationTimestamp: null
   name: clusterpackageinstalls.packages.crossplane.io

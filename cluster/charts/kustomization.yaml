@@ -1,6 +1,9 @@
 commonAnnotations:
-  helm.sh/hook: crd-install
-  helm.sh/hook-delete-policy: before-hook-creation
+  "helm.sh/hook": "crd-install,pre-delete"
+  "helm.sh/hook-delete-policy": before-hook-creation
+
+patchesStrategicMerge:
+  - kustomize_patches.yaml
 
 resources:
   - crossplane/templates/crds/packages.crossplane.io_clusterpackageinstalls.yaml
