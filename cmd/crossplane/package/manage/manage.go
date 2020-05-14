@@ -38,6 +38,7 @@ type Command struct {
 	Sync                      time.Duration
 	AllowAllAPIGroups         bool
 	PassFullDeployment        bool
+	InsecureInstallJob        bool
 	EnableTemplateStacks      bool
 	TemplatingControllerImage string
 	HostControllerNamespace   string
@@ -50,7 +51,8 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("insecure-allow-all-apigroups", "Enable core Kubernetes API group permissions for Packages. When enabled, Packages may declare dependency on core Kubernetes API types. When omitted, APIs that Packages depend on and own must contain a dot (\".\") and may not end with \"k8s.io\".").Default("false").BoolVar(&c.AllowAllAPIGroups)
-	cmd.Flag("insecure-pass-full-deployment", "Enable packagess to pass their full deployment, including security context. When omitted, Packages deployments will have security context removed and all containers will have allowPrivilegeEscalation set to false.").Default("false").BoolVar(&c.PassFullDeployment)
+	cmd.Flag("insecure-pass-full-deployment", "Enable packages to pass their full deployment, including security context. When omitted, Package controller deployments will have security context removed and all containers will have privileged and allowPrivilegeEscalation set to false, and runAsNonRoot set to true.").Default("false").BoolVar(&c.PassFullDeployment)
+	cmd.Flag("insecure-install-job", "Enable package install jobs to run as root. When omitted, Package install jobs will have security context removed and all containers containers will have privileged and allowPrivilegeEscalation set to false, and runAsNonRoot set to true.").Default("false").BoolVar(&c.InsecureInstallJob)
 	cmd.Flag("templates", "Enable support for template stacks").BoolVar(&c.EnableTemplateStacks)
 	cmd.Flag("templating-controller-image", "The image of the template stacks controller").StringVar(&c.TemplatingControllerImage)
 	cmd.Flag("host-controller-namespace", "The namespace on Host Cluster where install and controller jobs/deployments will be created. Setting this will activate host aware mode of Package Manager").StringVar(&c.HostControllerNamespace)
@@ -90,7 +92,7 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot add API extensions to scheme")
 	}
 
-	if err := packages.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.AllowAllAPIGroups, c.PassFullDeployment, c.ForceImagePullPolicy); err != nil {
+	if err := packages.Setup(mgr, log, c.HostControllerNamespace, c.TemplatingControllerImage, c.AllowAllAPIGroups, c.PassFullDeployment, c.InsecureInstallJob, c.ForceImagePullPolicy); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 

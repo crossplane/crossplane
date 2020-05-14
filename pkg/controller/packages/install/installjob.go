@@ -48,6 +48,10 @@ var (
 	jobBackoff                = int32(0)
 	registryDirName           = "/.registry"
 	packageContentsVolumeName = "package-contents"
+
+	allowPrivilegeEscalation = false
+	privileged               = false
+	runAsNonRoot             = true
 )
 
 // JobCompleter is an interface for handling job completion
@@ -75,10 +79,11 @@ type buildInstallJobParams struct {
 	labels                   map[string]string
 	annotations              map[string]string
 	imagePullSecrets         []corev1.LocalObjectReference
+	allowInsecureJob         bool
 }
 
 func buildInstallJob(p buildInstallJobParams) *batchv1.Job {
-	return &batchv1.Job{
+	j := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        p.name,
 			Namespace:   p.namespace,
@@ -146,6 +151,29 @@ func buildInstallJob(p buildInstallJobParams) *batchv1.Job {
 			},
 		},
 	}
+
+	if !p.allowInsecureJob {
+		j.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+			RunAsNonRoot: &runAsNonRoot,
+		}
+	}
+
+	for _, c := range [][]corev1.Container{
+		j.Spec.Template.Spec.Containers,
+		j.Spec.Template.Spec.InitContainers,
+	} {
+		for i := range c {
+			if !p.allowInsecureJob {
+				c[i].SecurityContext = &corev1.SecurityContext{
+					AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+					Privileged:               &privileged,
+					RunAsNonRoot:             &runAsNonRoot,
+				}
+			}
+		}
+	}
+
+	return j
 }
 
 func (jc *packageInstallJobCompleter) handleJobCompletion(ctx context.Context, i v1alpha1.PackageInstaller, job *batchv1.Job) error {
