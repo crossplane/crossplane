@@ -53,6 +53,9 @@ spec:
         {{- if .Values.insecurePassFullDeployment }}
         - --insecure-pass-full-deployment
         {{- end }}
+        {{- if .Values.insecureInstallJob }}
+        - --insecure-install-job
+        {{- end }}
         {{- range $arg := .Values.args }}
         - {{ $arg }}
         {{- end }}
