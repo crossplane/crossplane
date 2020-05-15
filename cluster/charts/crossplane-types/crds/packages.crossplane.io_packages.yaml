@@ -2823,7 +2823,7 @@ spec:
             packageType:
               enum:
               - Provider
-              - Package
+              - Stack
               - Application
               - Addon
               type: string
