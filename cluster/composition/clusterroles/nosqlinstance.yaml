@@ -1,0 +1,17 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: nosqlinstances.definitions.crossplane.io
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules:
+  - apiGroups:
+      - definitions.crossplane.io
+    resources:
+      - nosqlinstances
+      - nosqlinstances/status
+      - nosqlinstancerequirements
+      - nosqlinstancerequirements/status
+    verbs:
+      - "*"
