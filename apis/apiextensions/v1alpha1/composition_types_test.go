@@ -52,7 +52,7 @@ func TestMapResolve(t *testing.T) {
 				i: "ola",
 			},
 			want: want{
-				err: errors.New(errMapNotFound("ola")),
+				err: errors.New(errMapNotFound("ola", map[string]string{})),
 			},
 		},
 		"Success": {
