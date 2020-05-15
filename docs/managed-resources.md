@@ -17,6 +17,8 @@ For example, `RDSInstance` in AWS Provider corresponds to an actual RDS Instance
 in AWS. There is a one-to-one relationship and the changes on managed resources are
 reflected directly on the corresponding resource in the provider.
 
+You can browse [API Reference][api-reference] to discover all available managed resources.
+
 ## Syntax
 
 Crossplane has some API conventions that are built on top of Kubernetes API
@@ -67,6 +69,25 @@ Crossplane adheres to that and has its own conventions about how the fields unde
   The objects under `forProvider` field can get huge depending on the provider
   API. For example, GCP `ServiceAccount` has only a few fields while GCP `CloudSQLInstance`
   has over 100 fields that you can configure.
+
+### Versioning
+
+Crossplane closely follows [Kubernetes API versioning conventions][api-versioning]
+for the CRDs that it deploys. In short, for `vXbeta` and `vX` versions, you can
+expect that either automatic migration or instructions for manual migration will
+be provided in case a new version of that CRD schema is released.
+
+### Grouping
+
+In general, managed resources are high fidelity resources meaning they will provide
+parameters and behaviors that are provided by the external resource API. This applies
+to grouping of resources, too. For example, `RDSInstance` appears under `database`
+API group, so, its `APIVersion` and `Kind` look like the following:
+
+```yaml
+apiVersion: database.aws.crossplane.io/v1beta1
+kind: RDSInstance
+```
 
 ## Behavior
 
@@ -230,3 +251,6 @@ in your file system. When you reload them, as we've discovered in import section
 their external nem annotation and requried fields are there and those are enough to
 import a resource. The tool you're using needs to store `annotations` and `spec`
 fields, which most tools do including Velero.
+
+[api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
+[api-reference]: api-docs/overview.md
