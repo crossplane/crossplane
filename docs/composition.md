@@ -552,6 +552,8 @@ rules:
 
 ## Using Infrastructure
 
+![Infrastructure Composition Provisioning]
+
 Crossplane offers several ways for both infrastructure operators and application
 operators to use the composite infrastructure they've defined and published:
 
@@ -878,5 +880,6 @@ implemented:
   future release of Crossplane may alter the reclaim policy options.
 
 [Current Limitations]: #current-limitations
-[Infrastructure Composition Concepts]: composition.png
+[Infrastructure Composition Concepts]: composition-concepts.png
 [structural schemas]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
+[Infrastructure Composition Provisioning]: composition-provisioning.png
