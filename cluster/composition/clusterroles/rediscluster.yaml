@@ -1,0 +1,17 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: redisclusters.common.crossplane.io
+  labels:
+    rbac.crossplane.io/aggregate-to-crossplane: "true"
+rules:
+  - apiGroups:
+      - common.crossplane.io
+    resources:
+      - redisclusters
+      - redisclusters/status
+      - redisclusterrequirements
+      - redisclusterrequirements/status
+    verbs:
+      - "*"

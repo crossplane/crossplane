@@ -1,0 +1,48 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: InfrastructureDefinition
+metadata:
+  name: postgresqlinstances.common.crossplane.io
+spec:
+  connectionSecretKeys:
+    - username
+    - password
+    - endpoint
+    - port
+  crdSpecTemplate:
+    group: common.crossplane.io
+    version: v1alpha1
+    names:
+      categories:
+        - crossplane
+      kind: PostgreSQLInstance
+      listKind: PostgreSQLInstanceList
+      plural: postgresqlinstances
+      singular: postgresqlinstance
+    validation:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              engineVersion:
+                description: 'EngineVersion specifies the desired PostgreSQL engine
+                              version. Allowed Versions: 9.6 and 11.'
+                enum:
+                  - "9.6"
+                  - "11"
+                type: string
+              storageGB:
+                type: integer
+            required:
+              - version
+              - storageGB
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: InfrastructurePublication
+metadata:
+  name: postgresqlinstances.common.crossplane.io
+spec:
+  infrastructureDefinitionRef:
+    name: postgresqlinstances.common.crossplane.io
