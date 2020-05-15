@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -36,11 +37,13 @@ const (
 
 var (
 	errTransformAtIndex    = func(i int) string { return fmt.Sprintf("transform at index %d returned error", i) }
-	errMapNotFound         = func(s string) string { return fmt.Sprintf("given value %s is not found in map", s) }
-	errMapTypeNotSupported = func(s string) string { return fmt.Sprintf("type %s is not supported for map transform", s) }
 	errTypeNotSupported    = func(s string) string { return fmt.Sprintf("transform type %s is not supported", s) }
 	errConfigMissing       = func(s string) string { return fmt.Sprintf("given type %s requires configuration", s) }
 	errTransformWithType   = func(s string) string { return fmt.Sprintf("%s transform could not resolve", s) }
+	errMapTypeNotSupported = func(s string) string { return fmt.Sprintf("type %s is not supported for map transform", s) }
+	errMapNotFound         = func(s string, m map[string]string) string {
+		return fmt.Sprintf("given value %s is not found in %v", s, m)
+	}
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -245,13 +248,30 @@ type MapTransform struct {
 	Pairs map[string]string `json:",inline"`
 }
 
+// NOTE(negz): The Kubernetes JSON decoder doesn't seem to like inlining a map
+// into a struct - doing so results in a seemingly successful unmarshal of the
+// data, but an empty map. We must keep the ,inline tag nevertheless in order to
+// trick the CRD generator into thinking MapTransform is an arbitrary map (i.e.
+// generating a validation schema with string additionalProperties), but the
+// actual marshalling is handled by the marshal methods below.
+
+// UnmarshalJSON into this MapTransform.
+func (m *MapTransform) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &m.Pairs)
+}
+
+// MarshalJSON from this MapTransform.
+func (m MapTransform) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.Pairs)
+}
+
 // Resolve runs the Map transform.
 func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	switch i := input.(type) {
 	case string:
 		val, ok := m.Pairs[i]
 		if !ok {
-			return nil, errors.New(errMapNotFound(i))
+			return nil, errors.New(errMapNotFound(i, m.Pairs))
 		}
 		return val, nil
 	default:
