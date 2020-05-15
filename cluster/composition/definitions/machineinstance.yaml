@@ -2,10 +2,10 @@
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructureDefinition
 metadata:
-  name: machineinstances.definitions.crossplane.io
+  name: machineinstances.common.crossplane.io
 spec:
   crdSpecTemplate:
-    group: definitions.crossplane.io
+    group: common.crossplane.io
     version: v1alpha1
     names:
       categories:
@@ -18,7 +18,7 @@ spec:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructurePublication
 metadata:
-  name: machineinstances.definitions.crossplane.io
+  name: machineinstances.common.crossplane.io
 spec:
   infrastructureDefinitionRef:
-    name: machineinstances.definitions.crossplane.io
+    name: machineinstances.common.crossplane.io
