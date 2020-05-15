@@ -455,7 +455,7 @@ type AppMetadataSpec struct {
 	// drives the RBAC generation process.
 	DependsOn []PackageInstallSpec `json:"dependsOn,omitempty"`
 
-	// +kubebuilder:validation:Enum=Provider;Package;Application;Addon
+	// +kubebuilder:validation:Enum=Provider;Stack;Application;Addon
 	PackageType string `json:"packageType,omitempty"`
 
 	// +kubebuilder:validation:Enum=Cluster;Namespaced
