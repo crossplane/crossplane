@@ -40,14 +40,16 @@ A _Composite_ infrastructure resource is composed of other resources. Its
 configuration schema is user-defined. The `MySQLInstance` resources in the above
 diagram are composite infrastructure resources.
 
-A `Composition` specifies a set of resources of which a composite infrastructure
-resource may be composed. The Azure and AWS `Composition` resources in the above
-diagram configure two possible compositions of a `MySQLInstance`.
+A `Composition` specifies how Crossplane should reconcile a composite
+infrastructure resource - i.e. what infrastructure resources it should compose.
+For example the Azure `Composition` configures Crossplane to reconcile a
+`MySQLInstance` with an Azure `MySQLServer` and a `MySQLServerFirewallRule`.
 
 A _Requirement_ for an infrastructure resource declares that an application
-requires a particular kind and configuration of composite infrastructure
-resource. The `MySQLInstanceRequirement` resources in the above diagram declare
-that the application pods each require a `MySQLInstance`.
+requires a particular kind of composite infrastructure resource, as well as
+specifying how to configure that resource. The `MySQLInstanceRequirement`
+resources in the above diagram declare that the application pods each require a
+`MySQLInstance`.
 
 An `InfrastructureDefinition` defines a new kind of composite infrastructure
 resource. The `InfrastructureDefinition` in the above diagram defines the
@@ -247,10 +249,10 @@ offer their application operators a choice between multiple opinionated classes
 of infrastructure, allowing them to explicitly specify only some configuration.
 An infrastructure operator may offer their application operators the choice
 between an "Azure" and a "GCP" composition when creating a `MySQLInstance` for
-example, Or they may offer a choice between a choice between a "production" and
-a "staging" `MySQLInstance` composition. In either case the application operator
-may configure any value supported by the composite infrastructure resource's
-schema, with all other values being deferred to the composition.
+example, Or they may offer a choice between a "production" and a "staging"
+`MySQLInstance` composition. In either case the application operator may
+configure any value supported by the composite infrastructure resource's schema,
+with all other values being deferred to the composition.
 
 > Note that per [Current Limitations] it is not currently possible to specify a
 > default or an enforced composition for a particular kind of infrastructure
