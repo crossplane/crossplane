@@ -31,9 +31,11 @@ Here is the list of current providers:
 
 ## Installation
 
-Since all managed resources are all cluster-scoped, provider packages are
-bundled as `ClusterPackage`s. In order to request installation of a provider,
-the following `ClusterPackageInstall` needs to be created:
+The core Crossplane controller can install Provider controllers and CRDs for you
+through its own provider packaging mechanism, which is triggered by the application
+of a `ClusterPackageInstall` resource. For example, in order to request
+installation of the `provider-gcp` package, apply the following resource to the
+cluster where Crossplane is running:
 
 ```yaml
 apiVersion: packages.crossplane.io/v1alpha1
@@ -49,29 +51,26 @@ The field `spec.package` is where you refer to the container image of the
 provider. Crossplane Package Manager will unpack that container, register
 CRDs and set up necessary RBAC rules and then start the controllers.
 
-There are a few ways that are more convenient than creating a YAML to install
-the providers.
+There are a few other ways to install to trigger the installation of provider
+packages:
 
 * As part of Crossplane Helm chart by adding the following
   statement to your `helm install` command: `--set clusterPackages.gcp.deploy=true`
   It will install the default version hard-coded in that release of Crossplane
-  Helm chart but if you'd like to specif an exact version , you can use:
+  Helm chart but if you'd like to specif an exact version, you can add:
   `--set clusterPackages.gcp.version=master`.
 * Using Crossplane kubectl plugin:
   `kubectl crossplane package install --cluster -n crossplane-system 'crossplane/provider-gcp:master' provider-gcp`
 
-You can delete them by deleting the installed `ClusterPackageInstall` resource.
+You can delete them by deleting the `ClusterPackageInstall` resource you've created.
 
 ## Configuration
 
 In order to authenticate with the provider API, the provider controllers
 need to have access to credentials. It could be an AWS IAM User, GCP Service
-Account or Azure Service Principal. Every managed resource like `RDSInstance`
-or `CloudSQLInstance` has a field called `spec.providerRef` to refer to what
-credentials to use for operations regarding that managed resource. That
-reference points to a specific type called `Provider` that contains information
-about the authentication method that should be used. A `Provider` resource for
-Azure looks like the following:
+Account or Azure Service Principal. Every provider has a type called `Provider`
+that has information about how to authenticate to the provider API. A `Provider`
+resource for Azure looks like the following:
 
 ```yaml
 apiVersion: azure.crossplane.io/v1alpha3
@@ -88,16 +87,23 @@ spec:
 You can see that there is a reference to a key in a specific `Secret`. The value
 of that key should contain the credentials that the controller will use. The
 documentation of each provider should give you an idea of how that credentials
-blob should look like.
+blob should look like. See [Getting Started][getting-started] guide for more details.
 
-Keep in mind that it's not a requirement that the authentication should be done
-through a credentials blob in a `Secret`. For example, in AWS, `Provider` has
-a field called `useServiceAccount` to imply that the provider controller
-should use workload identity feature of AWS instead of a `Secret` that contains
-IAM credentials.
+The following is an example usage of Azure `Provider`, referred by a `MySQLServer`:
 
-Since each managed resource refers to a `Provider` resource, you can have multiple
-`Provider` resources in your cluster and different managed resources using them.
+```yaml
+apiVersion: database.azure.crossplane.io/v1beta1
+kind: MySQLServer
+metadata:
+  name: prod-sql
+spec:
+  providerRef: prod-acc
+  ...
+```
+
+The Azure provider controller will use that provider for this instance of `MySQLServer`.
+Since every resource has its own reference to a `Provider`, you can have multiple
+`Provider` resources in your cluster referred by different resources.
 
 
 <!-- Named Links -->
@@ -112,3 +118,4 @@ Since each managed resource refers to a `Provider` resource, you can have multip
 [rook-reference]: https://doc.crds.dev/github.com/crossplane/provider-rook
 [provider-alibaba]: https://github.com/crossplane/provider-alibaba
 [alibaba-reference]: https://doc.crds.dev/github.com/crossplane/provider-alibaba
+[getting-started]: getting-started/configure.md
