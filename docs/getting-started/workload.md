@@ -74,7 +74,7 @@ metadata:
 spec:
   classSelector:
     matchLabels:
-      example: "true"
+      guide: quickstart
   writeConnectionSecretToRef:
     name: k8scluster
 ```
