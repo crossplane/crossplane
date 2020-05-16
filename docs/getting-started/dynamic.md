@@ -55,7 +55,7 @@ specTemplate:
 > [cluster-scoped].*
 
 You will notice that this looks very similar to the
-`CloudMemorystoreInstanceClass` we created in the previous example. It has the
+`CloudMemorystoreInstance` we created in the previous example. It has the
 same configuration for the external Cloud Memorystore instance, but you will
 notice that it contains a `specTemplate` instead of a `spec`. The `specTemplate`
 will be used later to create a `CloudMemorystoreInstance` that has the same
