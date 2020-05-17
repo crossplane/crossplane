@@ -128,6 +128,23 @@ func TestForInfrastructureDefinition(t *testing.T) {
 			Subresources: &v1beta1.CustomResourceSubresources{
 				Status: &v1beta1.CustomResourceSubresourceStatus{},
 			},
+			AdditionalPrinterColumns: []v1beta1.CustomResourceColumnDefinition{
+				{
+					Name:     "READY",
+					Type:     "string",
+					JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+				},
+				{
+					Name:     "SYNCED",
+					Type:     "string",
+					JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+				},
+				{
+					Name:     "COMPOSITION",
+					Type:     "string",
+					JSONPath: ".spec.compositionRef.name",
+				},
+			},
 			Validation: &v1beta1.CustomResourceValidation{
 				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{
 					Type: "object",
@@ -340,6 +357,23 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 			PreserveUnknownFields: pointer.BoolPtr(false),
 			Subresources: &v1beta1.CustomResourceSubresources{
 				Status: &v1beta1.CustomResourceSubresourceStatus{},
+			},
+			AdditionalPrinterColumns: []v1beta1.CustomResourceColumnDefinition{
+				{
+					Name:     "READY",
+					Type:     "string",
+					JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+				},
+				{
+					Name:     "SYNCED",
+					Type:     "string",
+					JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+				},
+				{
+					Name:     "CONNECTION-SECRET",
+					Type:     "string",
+					JSONPath: ".spec.writeConnectionSecretToRef.name",
+				},
 			},
 			Validation: &v1beta1.CustomResourceValidation{
 				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{

@@ -97,11 +97,12 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 			meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind),
 		)})
+		crd.Spec.AdditionalPrinterColumns = InfrastructurePrinterColumns()
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
 		crd.Spec.Names = spec.Names
-		crd.Spec.AdditionalPrinterColumns = spec.AdditionalPrinterColumns
+		crd.Spec.AdditionalPrinterColumns = append(crd.Spec.AdditionalPrinterColumns, spec.AdditionalPrinterColumns...)
 		for k, v := range getSpecProps(spec) {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
@@ -140,10 +141,11 @@ func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *
 			Singular: spec.Names.Singular + PublishedInfrastructureSuffixSingular,
 			Plural:   spec.Names.Singular + PublishedInfrastructureSuffixPlural,
 		}
+		crd.Spec.AdditionalPrinterColumns = RequirementPrinterColumns()
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
-		crd.Spec.AdditionalPrinterColumns = spec.AdditionalPrinterColumns
+		crd.Spec.AdditionalPrinterColumns = append(crd.Spec.AdditionalPrinterColumns, spec.AdditionalPrinterColumns...)
 		for k, v := range getSpecProps(spec) {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}

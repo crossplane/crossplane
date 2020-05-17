@@ -193,3 +193,47 @@ func InfrastructureStatusProps() map[string]v1beta1.JSONSchemaProps {
 		},
 	}
 }
+
+// InfrastructurePrinterColumns returns the set of default printer columns that should
+// exist in all generated composite CRDs.
+func InfrastructurePrinterColumns() []v1beta1.CustomResourceColumnDefinition {
+	return []v1beta1.CustomResourceColumnDefinition{
+		{
+			Name:     "READY",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+		},
+		{
+			Name:     "SYNCED",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+		},
+		{
+			Name:     "COMPOSITION",
+			Type:     "string",
+			JSONPath: ".spec.compositionRef.name",
+		},
+	}
+}
+
+// RequirementPrinterColumns returns the set of default printer columns that should
+// exist in all generated requirement CRDs.
+func RequirementPrinterColumns() []v1beta1.CustomResourceColumnDefinition {
+	return []v1beta1.CustomResourceColumnDefinition{
+		{
+			Name:     "READY",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+		},
+		{
+			Name:     "SYNCED",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+		},
+		{
+			Name:     "CONNECTION-SECRET",
+			Type:     "string",
+			JSONPath: ".spec.writeConnectionSecretToRef.name",
+		},
+	}
+}
