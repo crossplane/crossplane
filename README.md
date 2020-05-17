@@ -2,64 +2,107 @@
 
 ![Crossplane](docs/media/banner.png)
 
-Crossplane is an open source control plane that allows you to manage
-applications and infrastructure the Kubernetes way. It provides the following
-features:
+Crossplane is an open source Kubernetes add-on that extends any cluster with
+the ability to provision and manage cloud infrastructure, services, and
+applications using kubectl, GitOps, or any tool that works with the Kubernetes
+API.
 
-- Deployment and management of cloud provider managed services using the
-  Kubernetes API.
-- Management and scheduling of configuration data across multiple Kubernetes
-  clusters.
-- Separation of concern between infrastructure owners, application owners, and
-  developers.
-- Infrastructure agnostic packaging of applications and their dependencies.
-- Scheduling applications into different clusters, zones, and regions.
+With Crossplane you can:
 
-Crossplane does not:
+* **Provision & manage cloud infrastructure with kubectl**
+  * [Install Crossplane] to provision and manage cloud infrastructure and
+    services from any Kubernetes cluster.
+  * Provision infrastructure primitives from any provider ([GCP], [AWS],
+    [Azure], [Alibaba], on-prem) and use them alongside existing application
+    configurations.
+  * Version, manage, and deploy with your favorite tools and workflows that
+    you’re using with your clusters today.
 
-- Require that you run your workloads on Kubernetes.
-- Manage the data plane across Kubernetes clusters.
-- Manage or provision non-hosted Kubernetes clusters.
+* **Publish custom infrastructure resources for your applications to use**
+  * Define, compose, and publish your own [infrastructure resources] with
+    declarative YAML, resulting in your own infrastructure CRDs being added to
+    the Kubernetes API for applications to use.
+  * Hide infrastructure complexity and include policy guardrails, so
+    applications can easily and safely consume the infrastructure they need,
+    using any tool that works with the Kubernetes API.
+  * Consume infrastructure resources alongside any Kubernetes application to
+    provision and manage the cloud services they need with Crossplane as an
+    add-on to any Kubernetes cluster.
 
-Crossplane can be [installed](docs/getting-started/install.md) into any Kubernetes cluster, and
-is compatible with any Kubernetes-native project. It manages external services
-by installing [Custom Resource
-Definitions](https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/)
-(CRDs) and
-[reconciling](https://kubernetes.io/docs/concepts/architecture/controller/)
-instances of those Custom Resources. Crossplane is built to be extensible,
-meaning that anyone can add functionality for an new or existing cloud provider.
+* **Deploy applications using a team-centric approach with OAM**
+  * Define cloud native applications and the infrastructure they require with
+    the Open Application Model ([OAM]).
+  * Collaborate with a team-centric approach with a strong separation of
+    concerns:
+    * Infrastructure operators - provide infrastructure and services for
+      applications to consume
+    * Application developers - build application components independent of
+      infrastructure
+    * Application operators - compose, deploy, and run application
+      configurations
+  * Deploy application configurations from app delivery pipelines or GitOps
+    workflows, using the proven Kubernetes declarative model.
 
-Crossplane is comprised of four main components:
+## Getting Started & Documentation
+Documentation is available on https://crossplane.io:
+ * [Getting Started][Install Crossplane]
+ * [Docs][documentation]
 
-1. **Core Crossplane**: the set of Kubernetes CRDs and controllers that manage
-   installation of `providers`, `stacks`, and `applications`, as well as the
-   scheduling of configuration data to remote Kubernetes clusters.
-2. **Providers**: the set of Kubernetes CRDs and controllers that provision and
-   manage services on cloud providers. A cloud provider is any service that
-   exposes infrastructure via an API.
-    - Examples: [Google Cloud
-      Platform](https://github.com/crossplane/provider-gcp), [Amazon Web
-      Services](https://github.com/crossplane/provider-aws),
-      [Azure](https://github.com/crossplane/provider-azure),
-      [Alibaba](https://github.com/crossplane/provider-alibaba),
-      [Github](https://github.com/crossplane/provider-github)
-3. **Stacks**: a bundled set of custom resources that together represent an
-   environment on a cloud provider. The bundle of instances can be created by a
-   single custom resource.
-   - Examples: [GCP Sample
-     Stack](https://github.com/crossplane/stack-gcp-sample), [AWS Sample
-     Stack](https://github.com/crossplane/stack-aws-sample), [Azure Sample
-     Stack](https://github.com/crossplane/stack-azure-sample)
-4. **Applications**: a deployable unit of code and configuration, which, when
-   created, may involve provisioning new services which are managed by a
-   `provider`, or consuming services created by a `stack`.
-    - Examples: [Wordpress](https://github.com/crossplane/app-wordpress)
+## Mission
 
-The full vision and architecture of the Crossplane project is described in our
-[architecture document].
+Crossplane strives to be the best Kubernetes add-on to provision and manage the
+infrastructure and services your applications need directly from kubectl. A
+huge part of this mission is arriving at an elegant, flexible way to define,
+compose, and publish your own infrastructure resources to the Kubernetes API
+and to model and manage cloud native applications.
 
-For more information, take a look at the official Crossplane [documentation].
+The path of cloud native apps from developer laptop into production requires
+collaboration across teams to build the app itself, deploy and manage the app
+and it’s infrastructure, and publishing infrastructure resources that embody
+organizational best practices and security policies.
+
+Today, multiple tools and management models must be glued together in
+deployment pipelines that are often fragile and error prone. Teams can find it
+difficult to collaborate in an effective way when aspects of an application are
+blurred, resulting in a lack of clear ownership and conflicts integrating
+changes. Requiring team members to master multiple tools, languages, and
+philosophies, while understanding the interactions and failure modes between
+them can significantly impede an organization’s ability to deliver applications
+efficiently.
+
+Crossplane believes that a team-centric approach with a strong separation of
+concerns combined with the proven Kubernetes declarative model is the best way
+to provision and manage infrastructure and cloud native applications. Teams
+should be able to publish infrastructure resources for applications to consume,
+define application components independent of infrastructure, and compose both
+into complete application configurations -- all using declarative YAML that can
+be deployed with kubectl from app delivery pipelines or with GitOps workflows.
+
+This team-centric approach reflects individuals often specializing in the
+following roles:
+
+*   **Infrastructure Operators** - provide infrastructure and services for apps
+    to consume
+*   **Application Developers** - build application components independent of
+    infrastructure
+*   **Application Operators** - compose, deploy, and run application
+    configurations
+
+This separation of concerns is core to Crossplane’s approach to infrastructure
+and application management, so team members can deliver value by focusing on
+what they know best.
+
+With Crossplane, infrastructure operators can define custom infrastructure
+resources with declarative YAML and publish them for applications to consume
+as Kubernetes custom resources or with any tool that works with the Kubernetes
+API. These infrastructure resources can be used with existing Kubernetes
+applications (Deployments, Services) and with application definition models
+like OAM.
+
+The result is a consistent, integrated, and modular approach to managing
+infrastructure and application configurations, that can be deployed with the
+same tooling including kubectl, GitOps, and anything can talk with the
+Kubernetes API.
 
 ## Get Involved
 
@@ -78,8 +121,8 @@ community is encouraged to join.
 
 Crossplane is a community driven project; we welcome your contribution. To file
 a bug, suggest an improvement, or request a new feature please open an [issue
-against Crossplane] or the relevant stack. Refer to our [contributing guide] for
-more information on how you can help.
+against Crossplane] or the relevant provider. Refer to our [contributing guide]
+for more information on how you can help.
 
 ## License
 
@@ -90,7 +133,14 @@ Crossplane is under the Apache 2.0 license.
 <!-- Named links -->
 
 [Crossplane]: https://crossplane.io
+[Install Crossplane]: docs/getting-started/install.md
 [documentation]: https://crossplane.io/docs/latest
+[GCP]: https://github.com/crossplane/provider-gcp
+[AWS]: https://github.com/crossplane/provider-aws
+[Azure]: https://github.com/crossplane/provider-azure
+[Alibaba]: https://github.com/crossplane/provider-alibaba
+[infrastructure resources]: https://blog.crossplane.io/crossplane-v0-10-compose-and-publish-your-own-infrastructure-crds-velero-backup-restore-compatibility-and-more/
+[OAM]: https://github.com/oam-dev/spec/releases/tag/v1.0.0-alpha.2
 [architecture document]: https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing
 [Slack]: https://slack.crossplane.io
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
