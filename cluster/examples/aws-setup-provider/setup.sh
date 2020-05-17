@@ -39,7 +39,7 @@ aws_profile="${aws_profile:-default}"
 AWS_REGION=$(aws configure get region --profile $aws_profile)
 
 # retrieve aws profile credentials, save it under 'default' profile, and base64 encode it
-AWS_CREDS_BASE64=$(cat ${HOME}/.aws/credentials | awk '/["$aws_profile"]/ {getline; print $0}' | awk 'NR==1{print "[default]"}1' | base64 | tr -d "\n")
+AWS_CREDS_BASE64=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
 
 if test -z "$AWS_REGION"; then
   echo "error retrieving region from aws config. "
