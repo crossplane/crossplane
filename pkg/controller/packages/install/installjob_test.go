@@ -472,6 +472,25 @@ func withJobExpectations() jobModifier {
 	}
 }
 
+func withJobSecurityContext(sc *corev1.PodSecurityContext) jobModifier {
+	return func(j *batchv1.Job) {
+		j.Spec.Template.Spec.SecurityContext = sc
+	}
+}
+
+func withJobContainerSecurityContext(sc *corev1.SecurityContext) jobModifier {
+	return func(j *batchv1.Job) {
+		for _, c := range [][]corev1.Container{
+			j.Spec.Template.Spec.Containers,
+			j.Spec.Template.Spec.InitContainers,
+		} {
+			for i := range c {
+				c[i].SecurityContext = sc
+			}
+		}
+	}
+}
+
 func job(jm ...jobModifier) *batchv1.Job {
 	j := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -999,6 +1018,14 @@ func TestCreate(t *testing.T) {
 				job: job(
 					withJobExpectations(),
 					withJobPullPolicy(corev1.PullAlways),
+					withJobSecurityContext(&corev1.PodSecurityContext{
+						RunAsNonRoot: &runAsNonRoot,
+					}),
+					withJobContainerSecurityContext(&corev1.SecurityContext{
+						AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+						Privileged:               &privileged,
+						RunAsNonRoot:             &runAsNonRoot,
+					}),
 				),
 			},
 		},

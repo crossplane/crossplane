@@ -301,7 +301,8 @@ and their default values.
 | `resourcesPackageManager.requests.memory` | Memory resource requests for PackageManager                | `256Mi`
 | `forceImagePullPolicy`           | Force the named ImagePullPolicy on Package install and containers | `""`
 | `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Packages. When enabled, Packages may declare dependency on core Kubernetes API types.) | `false` |
-| `insecurePassFullDeployment`     | Enable packages to pass their full deployment, including security context. When omitted, Packages deployments will have security context removed and all containers will have `allowPrivilegeEscalation` set to false. | `false` |
+| `insecurePassFullDeployment`     | Enable packages to pass their full deployment, including security context. When omitted, Package controller deployments will have security context removed and all containers will have `privileged` and `allowPrivilegeEscalation` set to `false`, and `runAsNonRoot` set to `true`. | `false` |
+| `insecureInstallJob`     | Enable package install jobs to run as root. When omitted, Package install jobs will have security context removed and all containers will have `privileged` and `allowPrivilegeEscalation` set to `false`, and `runAsNonRoot` set to `true`. | `false` |
 
 ### Command Line
 

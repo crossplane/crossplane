@@ -76,6 +76,7 @@ type Reconciler struct {
 	executorInfoDiscoverer   packages.ExecutorInfoDiscoverer
 	templatesControllerImage string
 	forceImagePullPolicy     string
+	allowInsecureJob         bool
 	log                      logging.Logger
 
 	factory
@@ -83,7 +84,7 @@ type Reconciler struct {
 
 // SetupClusterPackageInstall adds a controller that reconciles
 // ClusterPackageInstalls.
-func SetupClusterPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string) error {
+func SetupClusterPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string, allowInsecureJob bool) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ClusterPackageInstallGroupKind)
 	packinator := func() v1alpha1.PackageInstaller { return &v1alpha1.ClusterPackageInstall{} }
 
@@ -111,6 +112,7 @@ func SetupClusterPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControll
 		factory:                  &handlerFactory{},
 		executorInfoDiscoverer:   &packages.KubeExecutorInfoDiscoverer{Client: hostKube},
 		templatesControllerImage: tsControllerImage,
+		allowInsecureJob:         allowInsecureJob,
 		log:                      l.WithValues("controller", name),
 	}
 
@@ -121,7 +123,7 @@ func SetupClusterPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControll
 }
 
 // SetupPackageInstall adds a controller that reconciles PackageInstalls.
-func SetupPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage, forceImagePullPolicy string) error {
+func SetupPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage, forceImagePullPolicy string, allowInsecureJob bool) error {
 	name := "packages/" + strings.ToLower(v1alpha1.PackageInstallGroupKind)
 	packinator := func() v1alpha1.PackageInstaller { return &v1alpha1.PackageInstall{} }
 
@@ -150,6 +152,7 @@ func SetupPackageInstall(mgr ctrl.Manager, l logging.Logger, hostControllerNames
 		executorInfoDiscoverer:   &packages.KubeExecutorInfoDiscoverer{Client: hostKube},
 		templatesControllerImage: tsControllerImage,
 		forceImagePullPolicy:     forceImagePullPolicy,
+		allowInsecureJob:         allowInsecureJob,
 		log:                      l.WithValues("controller", name),
 	}
 
@@ -197,6 +200,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		executorinfo,
 		r.templatesControllerImage,
 		r.forceImagePullPolicy,
+		r.allowInsecureJob,
 	)
 
 	if meta.WasDeleted(packageInstaller) {
@@ -224,18 +228,19 @@ type packageInstallHandler struct {
 	ext                      v1alpha1.PackageInstaller
 	templatesControllerImage string
 	forceImagePullPolicy     string
+	allowInsecureJob         bool
 
 	log logging.Logger
 }
 
 // factory is an interface for creating new handlers
 type factory interface {
-	newHandler(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string) handler
+	newHandler(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string, bool) handler
 }
 
 type handlerFactory struct{}
 
-func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.PackageInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *packages.ExecutorInfo, templatesControllerImage, forceImagePullPolicy string) handler {
+func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.PackageInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *packages.ExecutorInfo, templatesControllerImage, forceImagePullPolicy string, allowInsecureJob bool) handler {
 
 	return &packageInstallHandler{
 		ext:             ext,
@@ -254,6 +259,7 @@ func (f *handlerFactory) newHandler(log logging.Logger, ext v1alpha1.PackageInst
 		log:                      log,
 		templatesControllerImage: templatesControllerImage,
 		forceImagePullPolicy:     forceImagePullPolicy,
+		allowInsecureJob:         allowInsecureJob,
 	}
 }
 
@@ -457,7 +463,9 @@ func (h *packageInstallHandler) prepareInstallJob(name, namespace string, labels
 		imagePullPolicy:          imagePullPolicy,
 		labels:                   labels,
 		annotations:              annotations,
-		imagePullSecrets:         imagePullSecrets})
+		imagePullSecrets:         imagePullSecrets,
+		allowInsecureJob:         h.allowInsecureJob,
+	})
 }
 
 func (h *packageInstallHandler) awaitInstallJob(ctx context.Context, jobRef *corev1.ObjectReference) (reconcile.Result, error) {

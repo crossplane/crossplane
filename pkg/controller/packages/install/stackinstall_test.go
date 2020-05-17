@@ -59,6 +59,7 @@ const (
 	packagePackageImage     = "cool/package-package:rad"
 	tsControllerImage       = "cool/fake-ts-controller:0.0.0"
 	noForcedImagePullPolicy = ""
+	insecureJob             = true
 )
 
 var (
@@ -174,11 +175,11 @@ func clusterInstallResource(rm ...resourceModifier) *v1alpha1.ClusterPackageInst
 
 // mock implementations
 type mockFactory struct {
-	MockNewHandler func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string) handler
+	MockNewHandler func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string, bool) handler
 }
 
-func (f *mockFactory) newHandler(log logging.Logger, i v1alpha1.PackageInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *packages.ExecutorInfo, tsControllerImage, forceImagePullPolicy string) handler {
-	return f.MockNewHandler(log, i, k8s, hostAwareConfig, ei, tsControllerImage, forceImagePullPolicy)
+func (f *mockFactory) newHandler(log logging.Logger, i v1alpha1.PackageInstaller, k8s k8sClients, hostAwareConfig *hosted.Config, ei *packages.ExecutorInfo, tsControllerImage, forceImagePullPolicy string, allowInsecureJob bool) handler {
+	return f.MockNewHandler(log, i, k8s, hostAwareConfig, ei, tsControllerImage, forceImagePullPolicy, allowInsecureJob)
 }
 
 type mockHandler struct {
@@ -247,7 +248,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string, bool) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -279,7 +280,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string, bool) handler {
 						return &mockHandler{
 							MockSync: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -342,7 +343,7 @@ func TestReconcile(t *testing.T) {
 					},
 				},
 				factory: &mockFactory{
-					MockNewHandler: func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string) handler {
+					MockNewHandler: func(logging.Logger, v1alpha1.PackageInstaller, k8sClients, *hosted.Config, *packages.ExecutorInfo, string, string, bool) handler {
 						return &mockHandler{
 							MockDelete: func(context.Context) (reconcile.Result, error) {
 								return reconcile.Result{}, nil
@@ -788,13 +789,14 @@ func TestHandlerFactory(t *testing.T) {
 				ext:                      packageInstallResource(),
 				log:                      logging.NewNopLogger(),
 				templatesControllerImage: tsControllerImage,
+				allowInsecureJob:         insecureJob,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.factory.newHandler(logging.NewNopLogger(), packageInstallResource(), k8sClients{}, nil, &packages.ExecutorInfo{Image: packagePackageImage}, tsControllerImage, noForcedImagePullPolicy)
+			got := tt.factory.newHandler(logging.NewNopLogger(), packageInstallResource(), k8sClients{}, nil, &packages.ExecutorInfo{Image: packagePackageImage}, tsControllerImage, noForcedImagePullPolicy, insecureJob)
 
 			diff := cmp.Diff(tt.want, got,
 				cmp.AllowUnexported(

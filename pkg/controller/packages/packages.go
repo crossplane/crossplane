@@ -27,12 +27,12 @@ import (
 )
 
 // Setup Crossplane Packages controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string, allowCore, allowFullDeployment bool, forceImagePullPolicy string) error {
-	if err := install.SetupPackageInstall(mgr, l, hostControllerNamespace, tsControllerImage, forceImagePullPolicy); err != nil {
+func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsControllerImage string, allowCore, allowFullDeployment, allowInsecureJob bool, forceImagePullPolicy string) error {
+	if err := install.SetupPackageInstall(mgr, l, hostControllerNamespace, tsControllerImage, forceImagePullPolicy, allowInsecureJob); err != nil {
 		return err
 	}
 
-	if err := install.SetupClusterPackageInstall(mgr, l, hostControllerNamespace, tsControllerImage); err != nil {
+	if err := install.SetupClusterPackageInstall(mgr, l, hostControllerNamespace, tsControllerImage, allowInsecureJob); err != nil {
 		return err
 	}
 
