@@ -138,16 +138,11 @@ To get started with Google Cloud Platform (GCP), create a file named
 `provider-gcp.yaml` with the following content:
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: gcp
----
 apiVersion: packages.crossplane.io/v1alpha1
 kind: ClusterPackageInstall
 metadata:
   name: provider-gcp
-  namespace: gcp
+  namespace: crossplane-system
 spec:
   package: "crossplane/provider-gcp:master"
 ```
@@ -165,16 +160,11 @@ To get started with Amazon Web Services (AWS), create a file named
 `provider-aws.yaml` with the following content:
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: aws
----
 apiVersion: packages.crossplane.io/v1alpha1
 kind: ClusterPackageInstall
 metadata:
   name: provider-aws
-  namespace: aws
+  namespace: crossplane-system
 spec:
   package: "crossplane/provider-aws:master"
 ```
@@ -192,16 +182,11 @@ To get started with Microsoft Azure, create a file named `provider-azure.yaml`
 with the following content:
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: azure
----
 apiVersion: packages.crossplane.io/v1alpha1
 kind: ClusterPackageInstall
 metadata:
   name: provider-azure
-  namespace: azure
+  namespace: crossplane-system
 spec:
   package: "crossplane/provider-azure:master"
 ```
@@ -219,16 +204,11 @@ To get started with Rook, create a file named `provider-rook.yaml` with the
 following content:
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook
----
 apiVersion: packages.crossplane.io/v1alpha1
 kind: ClusterPackageInstall
 metadata:
   name: provider-rook
-  namespace: rook
+  namespace: crossplane-system
 spec:
   package: "crossplane/provider-rook:master"
 ```
