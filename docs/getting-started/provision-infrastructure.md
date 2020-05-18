@@ -168,6 +168,7 @@ can then delete the `PostgreSQLServer`:
 
 ```console
 kubectl delete postgresqlservers.database.azure.crossplane.io sqlserverpostgresql
+kubectl delete resourcegroup.azure.crossplane.io sqlserverpostgresql-rg
 ```
 
 </div>
