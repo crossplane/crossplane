@@ -1,0 +1,47 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: postgresqlinstances.gcp.database.example.org
+  labels:
+    provider: gcp
+    guide: quickstart
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  reclaimPolicy: Delete
+  from:
+    apiVersion: database.example.org/v1alpha1
+    kind: PostgreSQLInstance
+  to:
+    - base:
+        apiVersion: database.gcp.crossplane.io/v1beta1
+        kind: CloudSQLInstance
+        spec:
+          forProvider:
+            databaseVersion: POSTGRES_9_6
+            region: us-central1
+            ipConfiguration:
+              ipv4Enabled: true
+              authorizedNetworks:
+                - value: "0.0.0.0/0"
+            settings:
+              tier: db-custom-1-3840
+              dataDiskType: PD_SSD
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+          providerRef:
+            name: gcp-provider
+          reclaimPolicy: Delete
+      patches:
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql"
+        - fromFieldPath: "spec.parameters.storageGB"
+          toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
+      connectionDetails:
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - fromConnectionSecretKey: endpoint

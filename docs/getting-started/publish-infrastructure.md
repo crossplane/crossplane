@@ -37,7 +37,7 @@ Let's get started!
 > infrastructure types that we define. This is covered in greater detail in the
 > [composition] section, but you can run the following command to grant all
 > necessary RBAC permissions for this quick start guide: `kubectl apply -f
-> https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/quick-start-clusterrole.yaml`
+> https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/clusterrole.yaml`
 
 ## Create InfrastructureDefinition
 
@@ -545,6 +545,10 @@ To clean up the `Pod`, run:
 kubectl delete pod see-db
 ```
 
+> Don't clean up your InfrastructureDefinition, InfrastructurePublication, or
+> Composition just yet if you plan to continue on to the next section of the
+> guide! We'll use them again when we deploy an OAM application.
+
 ## Next Steps
 
 Now you have seen how to provision and publish more complex infrastructure
@@ -555,5 +559,5 @@ alongside your [OAM] application manifests.
 
 [last section]: provision-infrastructure.yaml
 [composition]: ../composition.md
-[next section]: consume-infrastructure.md
+[next section]: run-applications.md
 [OAM]: https://oam.dev/

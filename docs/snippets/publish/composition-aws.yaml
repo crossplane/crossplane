@@ -1,0 +1,44 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: postgresqlinstances.aws.database.example.org
+  labels:
+    provider: aws
+    guide: quickstart
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  reclaimPolicy: Delete
+  from:
+    apiVersion: database.example.org/v1alpha1
+    kind: PostgreSQLInstance
+  to:
+    - base:
+        apiVersion: database.aws.crossplane.io/v1beta1
+        kind: RDSInstance
+        spec:
+          forProvider:
+            dbInstanceClass: db.t2.small
+            masterUsername: masteruser
+            engine: postgresql
+            engineVersion: "9.6"
+            skipFinalSnapshotBeforeDeletion: true
+            publiclyAccessible: true
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+      patches:
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql"
+        - fromFieldPath: "spec.parameters.storageGB"
+          toFieldPath: "spec.forProvider.allocatedStorage"
+      connectionDetails:
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - fromConnectionSecretKey: endpoint
