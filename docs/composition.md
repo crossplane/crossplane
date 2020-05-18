@@ -7,14 +7,14 @@ indent: true
 
 # Publishing Infrastructure
 
-Crossplane allows infrastructure operators to define new kinds of infrastructure
-resources and publish them for the application operators they support to use,
-all without writing any code.
+Crossplane allows infrastructure operators to define and compose new kinds of
+infrastructure resources then publish them for the application operators they
+support to use, all without writing any code.
 
-Infrastructure providers enable Crossplane to manage a wide array of
-infrastructure resources like Azure SQL servers and AWS ElastiCache clusters.
+Infrastructure providers extend Crossplane, enabling it to manage a wide array
+of infrastructure resources like Azure SQL servers and AWS ElastiCache clusters.
 Infrastructure composition allows infrastructure operators to define, share, and
-reuse new kinds of infrastructure resources that are _composed_ of other
+reuse new kinds of infrastructure resources that are _composed_ of these
 infrastructure resources. Infrastructure operators may configure one or more
 compositions of any defined resource, and may publish any defined resource to
 their application operators, who may then declare that their application
@@ -26,7 +26,10 @@ infrastructure operator you might define your own `MySQLInstance` resource. This
 resource would allow your application operators to configure only the settings
 that _your_ organisation needs - perhaps engine version and storage size. All
 other settings are deferred to a selectable composition representing a
-configuration class like "production" or "staging".
+configuration class like "production" or "staging". Compositions can hide
+infrastructure complexity and include policy guardrails so that applications can
+easily and safely consume the infrastructure they need, while conforming to your
+organisational best-practices.
 
 > Note that composition is an **experimental** feature of Crossplane. Refer to
 > [Current Limitations] for information on functionality that is planned but not
