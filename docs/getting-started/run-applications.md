@@ -305,6 +305,10 @@ spec:
       - spec.containers[0].env[0].value
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/components.yaml`
+```
+
 Each of the above components describes a particular kind of workload. The
 Service Tracker application consists of two kinds of workload:
 
@@ -381,6 +385,10 @@ spec:
           value: "http://weather-api.default.svc.cluster.local:3015/"
         - name: quakes-uri
           value: "http://quakes-api.default.svc.cluster.local:3012/"
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/appconfig.yaml`
 ```
 
 This application configuration names each of components the application
