@@ -124,7 +124,8 @@ define a `Composition` that satisfies the requirements of the
 in the provisioning of a public PostgreSQL instance on the provider.
 
 <ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
+<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
+<li><a href="#aws-new-tab-1" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
 <li><a href="#alibaba-tab-1" data-toggle="tab">Alibaba</a></li>
@@ -181,6 +182,182 @@ spec:
 
 ```console
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws.yaml
+```
+
+> Note that this Composition will create an RDS instance using your default VPC,
+> which may or may not allow connections from the internet depending on how it
+> is configured. Select the AWS (New VPC) Composition if you wish to create an
+> RDS instance that will allow traffic from the internet.
+
+</div>
+<div class="tab-pane fade in active" id="aws-new-tab-1" markdown="1">
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: vpcpostgresqlinstances.aws.database.example.org
+  labels:
+    provider: aws-vpc
+    guide: quickstart
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  reclaimPolicy: Delete
+  from:
+    apiVersion: database.example.org/v1alpha1
+    kind: PostgreSQLInstance
+  to:
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: VPC
+        spec:
+          cidrBlock: 192.168.0.0/16
+          enableDnsSupport: true
+          enableDnsHostNames: true
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-west-2a
+        spec:
+          cidrBlock: 192.168.64.0/18
+          vpcIdSelector:
+            matchControllerRef: true
+          availabilityZone: us-west-2a
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-west-2b
+        spec:
+          cidrBlock: 192.168.128.0/18
+          vpcIdSelector:
+            matchControllerRef: true
+          availabilityZone: us-west-2b
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: Subnet
+        metadata:
+          labels:
+            zone: us-west-2c
+        spec:
+          cidrBlock: 192.168.192.0/18
+          vpcIdSelector:
+            matchControllerRef: true
+          availabilityZone: us-west-2c
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: database.aws.crossplane.io/v1beta1
+        kind: DBSubnetGroup
+        spec:
+          forProvider:
+            description: An excellent formation of subnetworks.
+            subnetIdSelector:
+              matchControllerRef: true
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: InternetGateway
+        spec:
+          vpcIdSelector:
+            matchControllerRef: true
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: RouteTable
+        spec:
+          vpcIdSelector:
+            matchControllerRef: true
+          routes:
+            - destinationCidrBlock: 0.0.0.0/0
+              gatewayIdSelector:
+                matchControllerRef: true
+          associations:
+            - subnetIdSelector:
+                matchLabels:
+                  zone: us-west-2a
+            - subnetIdSelector:
+                matchLabels:
+                  zone: us-west-2b
+            - subnetIdSelector:
+                matchLabels:
+                  zone: us-west-2c
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: network.aws.crossplane.io/v1alpha3
+        kind: SecurityGroup
+        spec:
+          vpcIdSelector:
+            matchControllerRef: true
+          groupName: crossplane-getting-started
+          description: Allow access to PostgreSQL
+          ingress:
+            - fromPort: 5432
+              toPort: 5432
+              protocol: tcp
+              cidrBlocks:
+                - cidrIp: 0.0.0.0/0
+                  description: Everywhere
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+    - base:
+        apiVersion: database.aws.crossplane.io/v1beta1
+        kind: RDSInstance
+        spec:
+          forProvider:
+            dbSubnetGroupNameSelector:
+              matchControllerRef: true
+            vpcSecurityGroupIDSelector:
+              matchControllerRef: true
+            dbInstanceClass: db.t2.small
+            masterUsername: masteruser
+            engine: postgres
+            engineVersion: "9.6"
+            skipFinalSnapshotBeforeDeletion: true
+            publiclyAccessible: true
+          writeConnectionSecretToRef:
+            namespace: crossplane-system
+          providerRef:
+            name: aws-provider
+          reclaimPolicy: Delete
+      patches:
+        - fromFieldPath: "metadata.uid"
+          toFieldPath: "spec.writeConnectionSecretToRef.name"
+          transforms:
+            - type: string
+              string:
+                fmt: "%s-postgresql"
+        - fromFieldPath: "spec.parameters.storageGB"
+          toFieldPath: "spec.forProvider.allocatedStorage"
+      connectionDetails:
+        - fromConnectionSecretKey: username
+        - fromConnectionSecretKey: password
+        - fromConnectionSecretKey: endpoint
+
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws-with-vpc.yaml
 ```
 
 </div>
