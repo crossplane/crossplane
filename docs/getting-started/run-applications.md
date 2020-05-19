@@ -170,7 +170,8 @@ spec:
               fromSecret:
                 key: endpoint
             - name: DATABASE_PORT
-              value: "5432"
+              fromSecret:
+                key: port
             - name: DATABASE_NAME
               value: postgres
             - name: DATABASE_DRIVER
