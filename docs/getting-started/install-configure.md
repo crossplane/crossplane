@@ -357,8 +357,7 @@ kubectl apply -f provider.yaml
 </div>
 
 ## Next Steps
-Now that you have a provider configured, you can [provision
-infrastructure](provision-infrastructure.md).
+Now that you have a provider configured, you can [provision infrastructure].
 
 ## More Info
 See [Install] and [Configure] docs for installing alternate versions and more
@@ -375,6 +374,9 @@ kubectl delete secret -n crossplane-system --all
 helm delete crossplane --namespace crossplane-system
 ```
 
+<!-- Named Links -->
+
+[provision infrastructure]: provision-infrastructure.md
 [Install]: ../reference/install.md
 [Configure]: ../reference/configure.md
 [Kubernetes cluster]: https://kubernetes.io/docs/setup/
