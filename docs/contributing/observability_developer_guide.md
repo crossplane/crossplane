@@ -1,7 +1,7 @@
 ---
 title: Observability Developer Guide
 toc: true
-weight: 102
+weight: 1002
 indent: true
 ---
 

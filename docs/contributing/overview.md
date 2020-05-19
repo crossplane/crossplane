@@ -1,7 +1,7 @@
 ---
 title: Contributing
 toc: true
-weight: 100
+weight: 1000
 ---
 
 # Contributing
@@ -14,7 +14,10 @@ documentation you would like to see in this section.
 1. [Services Developer Guide]
 2. [Observability Developer Guide]
 
+# Experimental Projects
+See [experimental] projects.
 <!-- Named Link -->
 
 [Services Developer Guide]: services_developer_guide.md
 [Observability Developer Guide]: observability_developer_guide.md
+[experimental]: experimental.md

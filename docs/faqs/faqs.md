@@ -1,8 +1,7 @@
 ---
-title: FAQs
+title: FAQ
 toc: true
-weight: 301
-indent: true
+weight: 1200
 ---
 
 # Frequently Asked Questions (FAQs)
@@ -86,3 +85,8 @@ fidelity by the admin in resource classes. The combination of the two is what
 results in full configuration that can be deployed. We believe this to be a
 reasonable tradeoff that avoids the dumbing down to lowest common denominator
 problem, while still enabling portability.
+
+### Related Projects
+See [Related Projects].
+
+[Related Projects]: related_projects.md
