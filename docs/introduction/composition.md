@@ -101,6 +101,7 @@ spec:
   - username
   - password
   - hostname
+  - port
   # A template for the spec of a CustomResourceDefinition. Only the group,
   # version, names, validation, and additionalPrinterColumns fields of a CRD
   # spec are supported.
@@ -180,6 +181,7 @@ Spec:
     username
     password
     hostname
+    port
   Crd Spec Template:
     Group:  example.org
     Names:
@@ -398,6 +400,12 @@ spec:
       # the MySQLServer.
     - name: hostname
       fromConnectionSecretKey: endpoint
+      # In some cases it may be desirable to inject a fixed connection secret
+      # value, for example to expose fixed, non-sensitive connection details
+      # like standard ports that are not published to the composed resource's
+      # connection secret.
+    - name: port
+      value: "3306"
     # A MySQLInstance that uses this Composition will also be composed of an
     # Azure MySQLServerFirewallRule.
   - base:
