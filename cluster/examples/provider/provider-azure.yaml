@@ -5,4 +5,4 @@ metadata:
   name: provider-azure
   namespace: crossplane-system
 spec:
-  package: "crossplane/provider-azure:master"
+  package: "crossplane/provider-azure:v0.10.0"
