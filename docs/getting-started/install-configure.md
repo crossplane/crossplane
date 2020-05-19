@@ -164,7 +164,7 @@ Install and configure a provider for Crossplane to use for infrastructure provis
 ### Install AWS Provider
 
 ```
-PACKAGE=crossplane/provider-aws:master
+PACKAGE=crossplane/provider-aws:v0.10.0
 NAME=provider-aws
 
 kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
@@ -210,7 +210,7 @@ kubectl apply -f provider.yaml
 ### Install GCP Provider
 
 ```
-PACKAGE=crossplane/provider-gcp:master
+PACKAGE=crossplane/provider-gcp:v0.10.0
 NAME=provider-gcp
 
 kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
@@ -273,7 +273,7 @@ kubectl apply -f provider.yaml
 ### Install Azure Provider
 
 ```
-PACKAGE=crossplane/provider-azure:master
+PACKAGE=crossplane/provider-azure:v0.10.0
 NAME=provider-azure
 
 kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
@@ -329,7 +329,7 @@ kubectl apply -f provider.yaml
 ### Install Alibaba Provider
 
 ```
-PACKAGE=crossplane/provider-alibaba:master
+PACKAGE=crossplane/provider-alibaba:v0.1.0
 NAME=provider-alibaba
 
 kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
