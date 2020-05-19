@@ -18,10 +18,9 @@ spec:
         kind: RDSInstance
         spec:
           forProvider:
-            engine: postgresql
+            engine: PostgreSQL
             engineVersion: "9.4"
             dbInstanceClass: rds.pg.s1.small
-            dbInstanceStorageInGB: 20
             securityIPList: "0.0.0.0/0"
             masterUsername: "myuser"
           writeConnectionSecretToRef:
