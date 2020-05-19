@@ -147,7 +147,7 @@ spec:
           forProvider:
             dbInstanceClass: db.t2.small
             masterUsername: masteruser
-            engine: postgresql
+            engine: postgres
             engineVersion: "9.6"
             skipFinalSnapshotBeforeDeletion: true
             publiclyAccessible: true
