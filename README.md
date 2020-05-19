@@ -43,10 +43,9 @@ With Crossplane you can:
   * Deploy application configurations from app delivery pipelines or GitOps
     workflows, using the proven Kubernetes declarative model.
 
-## Getting Started & Documentation
-Documentation is available on https://crossplane.io:
- * [Getting Started][Install Crossplane]
- * [Docs][documentation]
+## Getting Started
+
+Take a look at the [documentation] to get started.
 
 ## Mission
 
