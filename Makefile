@@ -144,7 +144,7 @@ manifests.annotate:
 	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterpackageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
 	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_packageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
 	@$(OK) Annotated generated PackageInstall CRD manifests
-	sed '1,7d' $(SOURCE_DOCS_DIR)/getting-started/install.md > $(CROSSPLANE_CHART_DIR)/README.md
+	sed '1,7d' $(SOURCE_DOCS_DIR)/reference/install.md > $(CROSSPLANE_CHART_DIR)/README.md
 	@$(OK) Copied and modified chart README.md from Crossplane docs
 
 # Generate a coverage report for cobertura applying exclusions on
