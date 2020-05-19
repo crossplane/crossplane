@@ -1,7 +1,7 @@
 ---
 title: Providers
 toc: true
-weight: 400
+weight: 101
 indent: true
 ---
 
@@ -15,18 +15,27 @@ contain many Custom Resource Definitions and their controllers.
 
 Here is the list of current providers:
 
-* [Amazon Web Services][provider-aws]
-  * [API Reference][aws-reference]
-* [Google Cloud][provider-gcp]
-  * [API Reference][gcp-reference]
-* [Microsoft Azure][provider-azure]
-  * [API Reference][azure-reference]
-* [Rook][provider-rook]
-  * [API Reference][rook-reference]
-* [Alibaba Cloud][provider-alibaba]
-  * [API Reference][alibaba-reference]
+### AWS Provider
+* [GitHub][provider-aws]
+* [API Reference][aws-reference]
 
-## Installation
+### GCP Provider
+* [GitHub][provider-gcp]
+* [API Reference][gcp-reference]
+
+### Azure Provider
+* [GitHub][provider-azure]
+* [API Reference][azure-reference]
+
+### Rook Provider
+* [GitHub][provider-rook]
+* [API Reference][rook-reference]
+
+### Alibaba Cloud Provider
+* [GitHub][provider-alibaba]
+* [API Reference][alibaba-reference]
+
+## Installing Providers
 
 The core Crossplane controller can install provider controllers and CRDs for you
 through its own provider packaging mechanism, which is triggered by the application
@@ -62,7 +71,7 @@ packages:
 You can uninstall a provider by deleting the `ClusterPackageInstall` resource
 you've created.
 
-## Configuration
+## Configuring Providers
 
 In order to authenticate with the external provider API, the provider controllers
 need to have access to credentials. It could be an IAM User for AWS, a Service
@@ -116,5 +125,5 @@ Since every resource has its own reference to a `Provider`, you can have multipl
 [rook-reference]: https://doc.crds.dev/github.com/crossplane/provider-rook
 [provider-alibaba]: https://github.com/crossplane/provider-alibaba
 [alibaba-reference]: https://doc.crds.dev/github.com/crossplane/provider-alibaba
-[getting-started]: getting-started/configure.md
+[getting-started]: ../getting-started/install-configure.md
 [crossplane-cli]: https://github.com/crossplane/crossplane-cli

@@ -1,7 +1,7 @@
 ---
 title: Install
 toc: true
-weight: 201
+weight: 301
 indent: true
 ---
 

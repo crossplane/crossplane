@@ -1,7 +1,7 @@
 ---
 title: Publishing Infrastructure
 toc: true
-weight: 400
+weight: 103
 indent: true
 ---
 

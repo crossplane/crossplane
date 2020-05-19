@@ -1,7 +1,7 @@
 ---
 title: Managed Resources
 toc: true
-weight: 400
+weight: 102
 indent: true
 ---
 

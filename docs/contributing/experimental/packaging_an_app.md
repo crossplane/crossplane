@@ -1,7 +1,7 @@
 ---
 title: Packaging an Application
-toc: true
-weight: 202
+toc: false
+weight: 2000
 indent: true
 ---
 

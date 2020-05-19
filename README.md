@@ -133,14 +133,14 @@ Crossplane is under the Apache 2.0 license.
 <!-- Named links -->
 
 [Crossplane]: https://crossplane.io
-[Install Crossplane]: docs/getting-started/install.md
+[Install Crossplane]: docs/getting-started/install-configure.md
 [documentation]: https://crossplane.io/docs/latest
 [GCP]: https://github.com/crossplane/provider-gcp
 [AWS]: https://github.com/crossplane/provider-aws
 [Azure]: https://github.com/crossplane/provider-azure
 [Alibaba]: https://github.com/crossplane/provider-alibaba
 [infrastructure resources]: https://blog.crossplane.io/crossplane-v0-10-compose-and-publish-your-own-infrastructure-crds-velero-backup-restore-compatibility-and-more/
-[OAM]: https://github.com/oam-dev/spec/releases/tag/v1.0.0-alpha.2
+[OAM]: https://oam.dev/
 [architecture document]: https://docs.google.com/document/d/1whncqdUeU2cATGEJhHvzXWC9xdK29Er45NJeoemxebo/edit?usp=sharing
 [Slack]: https://slack.crossplane.io
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev

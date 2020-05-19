@@ -104,7 +104,7 @@ Kubernetes API.
 
 <!-- Named Links -->
 
-[Install Crossplane]: getting-started/install.md
+[Install Crossplane]: getting-started/install-configure.md
 [Custom Resource Definitions]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [reconciling]: https://kubernetes.io/docs/concepts/architecture/controller/
 [GCP]: https://github.com/crossplane/provider-gcp
