@@ -9,8 +9,8 @@ weight: 1200
 ### Where did the name Crossplane come from?
 
 Crossplane is the fusing of cross-cloud control plane. We wanted to use a noun
-that refers to the entity responsible for connecting different cloud providers
-and acts as control plane across them. Cross implies “cross-cloud” and “plane”
+that refers to the entity responsible for connecting to different cloud providers
+and acting as control plane across them. Cross implies “cross-cloud” and “plane”
 brings in “control plane”.
 
 ### What's up with popsicle?
@@ -20,55 +20,44 @@ We believe in a multi-flavor cloud.
 ### Why is Upbound open sourcing this project? What are Upbound’s monetization plans?
 
 Upbound’s mission is to create a more open cloud-computing platform, with more
-choice and less lock-in. We believe the Crossplane as an important step towards
+choice and less lock-in. We believe that Crossplane as an important step towards
 this vision and that it’s going to take a village to solve this problem. We
-believe that multicloud control plane is a new category of open source software,
+believe that control plane is a new category of open source software,
 and it will ultimately disrupt closed source and proprietary models. Upbound
 aspires to be a commercial provider of a more open cloud-computing platform.
 
 ### What kind of governance model will be used for Crossplane?
 
-Crossplane will be an independent project and we plan on making a community
-driven project and not a vendor driven project. It will have an independent
-brand, github organization, and an open governance model. It will not be tied to
-single organization or individual.
+Crossplane will be an independent project and we plan on making Crossplane a
+community driven project and not a vendor driven project. It will have an
+independent brand, github organization, and an open governance model. It will
+not be tied to single organization or individual.
 
 ### Will Crossplane be donated to an open source foundation?
 
 We don’t know yet. We are open to doing so but we’d like to revisit this after
 the project has gotten some end-user community traction.
 
-### Does using multicloud mean you will use the lowest common denominator across clouds?
+### Does supporting multiple Providers mean you will impose the lowest common denominator across clouds?
 
-Not necessarily. There are numerous best of breed cloud offerings that run on
-multiple clouds. For example, CockroachDB and ElasticSearch are world class
-implementations of platform software and run well on cloud providers. They
-compete with managed services offered by a cloud provider. We believe that by
-having an open control plane for them to integrate with, and providing a common
-API, CLI and UI for all of these services, that more of these offerings will
-exist and get first-class experience in the cloud.
+Not at all. Crossplane supports defining, composing, and publishing your own
+infrastructure resources to the Kubernetes API that can be composed using the
+infrastructure primitives in each Provider.  We believe that by having an open
+control plane for all cloud providers to integrate with using a common API,
+CLI and idomatic Kubernetes experience will make it easier for everyone to 
+define infrastructure abstractions that make sense for their organizations.
 
 ### How are resources and claims related to PersistentVolumes in Kubernetes?
 
-We modeled resource claims and classes after PersistentVolumes and
-PersistentVolumeClaims in Kubernetes. We believe many of the lessons learned
-from managing volumes in Kubernetes apply to managing resources within cloud
-providers. One notable exception is that we avoided creating a plugin model
-within Crossplane.
-
-### How is workload scheduling related to pod scheduling in Kubernetes?
-
-We modeled workload scheduling after the Pod scheduler in Kubernetes. We believe
-many of the lessons learned from Pod scheduling apply to scheduling workloads
-across cloud providers.
-
-### Can I use Crossplane to consistently provision and manage multiple Kubernetes clusters?
-
-Crossplane includes a portable API for Kubernetes clusters that will include
-common configuration including node pools, auto-scalers, taints, admission
-controllers, etc. These will be applied to the specific implementations within
-the cloud providers like EKS, GKE and AKS. We see the Kubernetes Cluster API to
-be something that will be used by administrators and not developers.
+Crossplane originally modeled resource claims and classes after
+PersistentVolumes and PersistentVolumeClaims in Kubernetes. We believe many of
+the lessons learned from managing volumes in Kubernetes apply to managing
+resources within cloud providers. The separation of concerns afforded by claims
+and classes has been moved forward and enhanced with the ability to define,
+compose, and publish your own infrastructure resources in a no-code way.
+They're not called claims and classes anymore, but the team-centered approach
+is intact and improved, and infrastructure operators have more control over the
+shape of the abstractions they provide for app operators to consume.
 
 ### Other attempts at building a higher level API on-top of a multitude of inconsistent lower level APIs have not been successful, will Crossplane not have the same issues?
 
@@ -78,13 +67,14 @@ dumbing down to lowest common denominator, or resulting in so loosely defined an
 API as to be impossible to practically develop real portable applications on top
 of it).
 
-Crossplane follows a different approach here. The portable API extracts the
-pieces that are common across all implementations, and from the perspective of
-the workload. The rest of the implementation details are captured in full
-fidelity by the admin in resource classes. The combination of the two is what
-results in full configuration that can be deployed. We believe this to be a
-reasonable tradeoff that avoids the dumbing down to lowest common denominator
-problem, while still enabling portability.
+That is why Crossplane offers the ability to define, compose, and publish
+your own infrastructure APIs in Kubernetes, so you can choose the right mix of 
+portable vs. cloud-specific abstractions for application teams to use. 
+
+With Crossplane you can choose how much or little of the underlying
+infrastructure configuration to export, to hide infrastructure complexity and
+include policy guardrails, so applications can easily and safely consume the
+infrastructure they need, using any tool that works with the Kubernetes API.
 
 ### Related Projects
 See [Related Projects].
