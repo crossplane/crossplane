@@ -133,7 +133,7 @@ Crossplane is under the Apache 2.0 license.
 <!-- Named links -->
 
 [Crossplane]: https://crossplane.io
-[Install Crossplane]: docs/getting-started/install-configure.md
+[Install Crossplane]: https://crossplane.io/docs/latest
 [documentation]: https://crossplane.io/docs/latest
 [GCP]: https://github.com/crossplane/provider-gcp
 [AWS]: https://github.com/crossplane/provider-aws
