@@ -82,6 +82,10 @@ spec:
               - parameters
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/definition.yaml
+```
+
 You are now able to create instances of kind `PostgreSQLInstance` at the cluster
 scope.
 
@@ -101,6 +105,10 @@ metadata:
 spec:
   infrastructureDefinitionRef:
     name: postgresqlinstances.database.example.org
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/publication.yaml
 ```
 
 This will create a new CRD named `PostgreSQLInstanceRequirement`, which is the
@@ -171,6 +179,10 @@ spec:
         - fromConnectionSecretKey: endpoint
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws.yaml
+```
+
 </div>
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
@@ -221,6 +233,10 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-gcp.yaml
 ```
 
 </div>
@@ -309,6 +325,10 @@ spec:
             name: azure-provider
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-azure.yaml
+```
+
 </div>
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
@@ -357,6 +377,10 @@ spec:
         - fromConnectionSecretKey: endpoint
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-alibaba.yaml
+```
+
 </div>
 </div>
 
@@ -395,6 +419,10 @@ spec:
     name: db-conn
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-aws.yaml
+```
+
 </div>
 <div class="tab-pane fade" id="gcp-tab-2" markdown="1">
 
@@ -412,6 +440,10 @@ spec:
       provider: gcp
   writeConnectionSecretToRef:
     name: db-conn
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-gcp.yaml
 ```
 
 </div>
@@ -433,6 +465,10 @@ spec:
     name: db-conn
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-azure.yaml
+```
+
 </div>
 <div class="tab-pane fade" id="alibaba-tab-2" markdown="1">
 
@@ -450,6 +486,10 @@ spec:
       provider: alibaba
   writeConnectionSecretToRef:
     name: db-conn
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-alibaba.yaml
 ```
 
 </div>
@@ -518,6 +558,10 @@ spec:
           key: password
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/pod.yaml
+```
+
 This `Pod` simply connects to a PostgreSQL database and prints its name, so you
 should see the following output (or similar) after creating it if you run
 `kubectl logs see-db`:
@@ -544,9 +588,9 @@ To clean up the `Pod`, run:
 kubectl delete pod see-db
 ```
 
-> Don't clean up your InfrastructureDefinition, InfrastructurePublication, or
-> Composition just yet if you plan to continue on to the next section of the
-> guide! We'll use them again when we deploy an OAM application.
+> Don't clean up your `InfrastructureDefinition`, `InfrastructurePublication`,
+> or `Composition` just yet if you plan to continue on to the next section of
+> the guide! We'll use them again when we deploy an OAM application.
 
 ## Next Steps
 
@@ -557,6 +601,6 @@ alongside your [OAM] application manifests.
 <!-- Named Links -->
 
 [last section]: provision-infrastructure.yaml
-[composition]: ../composition.md
+[composition]: ../introduction/composition.md
 [next section]: run-applications.md
 [OAM]: https://oam.dev/

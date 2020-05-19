@@ -52,6 +52,10 @@ spec:
   reclaimPolicy: Delete
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/aws.yaml
+```
+
 Creating the above instance will cause Crossplane to provision an RDS instance
 on AWS. You can view the progress with the following command:
 
@@ -91,6 +95,10 @@ spec:
   providerRef:
     name: gcp-provider
   reclaimPolicy: Delete
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/gcp.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision a CloudSQL
@@ -155,6 +163,10 @@ spec:
   reclaimPolicy: Delete
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/azure.yaml
+```
+
 Creating the above instance will cause Crossplane to provision a PostgreSQL
 database instance on Azure. You can view the progress with the following
 command:
@@ -198,6 +210,10 @@ spec:
   reclaimPolicy: Delete
 ```
 
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/alibaba.yaml
+```
+
 Creating the above instance will cause Crossplane to provision an RDS instance
 on Alibaba. You can view the progress with the following command:
 
@@ -223,8 +239,8 @@ publish them as a single unit to be consumed in the [next section].
 
 <!-- Named Links -->
 
-[installed a provider]: install.md
-[configured your credentials]: configure.md
+[installed a provider]: install-configure.md
+[configured your credentials]: install-configure.md
 [RDS]: https://aws.amazon.com/rds/
 [CloudSQL]: https://cloud.google.com/sql
 [Azure Database for PostgreSQL]: https://azure.microsoft.com/en-us/services/postgresql/

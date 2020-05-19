@@ -1,0 +1,18 @@
+apiVersion: database.alibaba.crossplane.io/v1alpha1
+kind: RDSInstance
+metadata:
+  name: rdspostgresql
+spec:
+  forProvider:
+    engine: postgresql
+    engineVersion: "9.4"
+    dbInstanceClass: rds.pg.s1.small
+    dbInstanceStorageInGB: 20
+    securityIPList: "0.0.0.0/0"
+    masterUsername: "test123"
+  writeConnectionSecretToRef:
+    namespace: crossplane-system
+    name: alibaba-rdspostgresql-conn
+  providerRef:
+    name: alibaba-provider
+  reclaimPolicy: Delete
