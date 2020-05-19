@@ -196,13 +196,13 @@ spec:
           forProvider:
             databaseVersion: POSTGRES_9_6
             region: us-central1
-            ipConfiguration:
-              ipv4Enabled: true
-              authorizedNetworks:
-                - value: "0.0.0.0/0"
             settings:
               tier: db-custom-1-3840
               dataDiskType: PD_SSD
+              ipConfiguration:
+                ipv4Enabled: true
+                authorizedNetworks:
+                  - value: "0.0.0.0/0"
           writeConnectionSecretToRef:
             namespace: crossplane-system
           providerRef:
