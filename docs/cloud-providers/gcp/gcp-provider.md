@@ -102,6 +102,7 @@ gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAcco
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/container.admin"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/redis.admin"
 gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/compute.networkAdmin"
+gcloud projects add-iam-policy-binding $EXAMPLE_PROJECT_ID --member "serviceAccount:$EXAMPLE_SA" --role="roles/storage.admin"
 ```
 
 ## Option 2: GCP Console in a Web Browser
