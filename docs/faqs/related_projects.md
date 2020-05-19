@@ -28,12 +28,13 @@ of a more Kubernetes-native solution, but one that is Google-specific and
 closed source.
 
 ## GCP Config Connector
+
 The [GCP Config Connector] is the GCP replacement for Open Service Broker, and
 implements a set of Kubernetes controllers that are able to provision managed
 services in GCP. It defines a set of CRDs for managed services like CloudSQL,
 and controllers that can provision them via their cloud APIs. It is similar to
-Crossplane in that it can provision managed services in GCP. Crossplane goes a
-lot further by enabling you to provision managed services from any cloud
+Crossplane in that it can provision managed services in GCP. Crossplane goes 
+further by enabling you to provision managed services from any cloud
 provider and the ability to define, compose, and publish your own
 infrastructure resources in a no-code way. Crossplane supports a team-centric
 approach with a strong separation of concerns, that enables applications to
@@ -46,7 +47,7 @@ The [AWS Service Operator] is a recent project that implements a set of
 Kubernetes controllers that are able to provision managed services in AWS. It
 defines a set of CRDs for managed services like DynamoDB, and controllers that
 can provision them via AWS CloudFormation. It is similar to Crossplane in that
-it can provision managed services in AWS. Crossplane goes a lot further by
+it can provision managed services in AWS. Crossplane goes further by
 enabling you to provision managed services from any cloud provider and the
 ability to define, compose, and publish your own infrastructure API types in
 Kubernetes in a no-code way. Crossplane supports a team-centric approach with a
@@ -62,42 +63,17 @@ one cloud provider, are generally closed source, and offer little or no
 extensibility points, let alone being able to extend the Kubernetes API to
 provide your own infrastructure abstractions in a no-code way. We have
 considered using some of these products as a way to implement resource
-controllers in Crossplane.
+controllers in Crossplane. These projects use an Infrastructure as Code
+approach to management, while Crossplane offers an API-driven control plane.
 
-## Terraform
+## Terraform and Pulumi
 
-[Terraform] is a popular tool for provisioning infrastructure across cloud
+[Terraform] and [Pulumi] are tools for provisioning infrastructure across cloud
 providers. It offers a declarative configuration language with support for
 templating, composability, referential integrity and dependency management.
 Terraform can declaratively manage any compatible API and perform changes when
-the tool is run by a human or in a deployment pipeline. Unlike Crossplane,
-Terraform does not support a team-centric approach where infrastructure
-operators can define, compose, and publish new infrastructure API types in
-Kubernetes, as a proxy to cloud infrastructure, so app operators can easily
-consume the infrastructure they need while conforming to organizational
-best-practices and security policies. Terraform takes a tools approach, and
-Crossplane is at the API and control plane level. Crossplane enables you to
-define control-plane APIs for your infrastructure in a no-code way, so app
-teams can use them with their tool of choice, including Terraform. Terraform is
-open source under a MPL license, and follows an open core business model, with
-a number of its features closed source. We are evaluating whether we can use
-Terraform to accelerate the development of resource controllers in Crossplane.
-
-## Pulumi
-
-[Pulumi] is a product that is based on Terraform and uses most of its
-providers.  Instead of using a configuration language, Pulumi uses popular
-programming languages like Typescript to capture the configuration. At runtime,
-Pulumi generates a DAG of resources just like Terraform and applies it to cloud
-providers. Unlike Crossplane, Pulumi does not support a team-centric approach
-where infrastructure operators can define, compose, and publish new
-infrastructure API types in Kubernetes, with active controllers that can react
-to failures and continuously reconcile to achieve their desired state. Pulumi
-takes a language and SDK approach and Crossplane is at the API and control
-plane level. Crossplane enables you to define a control-plane for your
-infrastructure in a no-code way, so app teams can use them with their tool or
-SDK of choice, including Pulumi.  Pulumi is open source under a APL2 license
-but a number of features require using their SaaS offering.
+the tool is run by a human or in a deployment pipeline. Terraform is an
+Infrastructure as Code tool, while Crossplane offers an API-driven control plane.
 
 <!-- Named Links -->
 
