@@ -1,0 +1,34 @@
+apiVersion: azure.crossplane.io/v1alpha3
+kind: ResourceGroup
+metadata:
+  name: sqlserverpostgresql-rg
+spec:
+  location: West US 2
+  reclaimPolicy: Delete
+  providerRef:
+    name: azure-provider
+---
+apiVersion: database.azure.crossplane.io/v1beta1
+kind: PostgreSQLServer
+metadata:
+  name: sqlserverpostgresql
+spec:
+  forProvider:
+    administratorLogin: myadmin
+    resourceGroupNameRef:
+      name: sqlserverpostgresql-rg
+    location: West US 2
+    sslEnforcement: Disabled
+    version: "5.7"
+    sku:
+      tier: GeneralPurpose
+      capacity: 2
+      family: Gen5
+    storageProfile:
+      storageMB: 20480
+  writeConnectionSecretToRef:
+    namespace: crossplane-system
+    name: sqlserverpostgresql-conn
+  providerRef:
+    name: azure-provider
+  reclaimPolicy: Delete
