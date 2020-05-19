@@ -223,8 +223,8 @@ publish them as a single unit to be consumed in the [next section].
 
 <!-- Named Links -->
 
-[installed a provider]: install.md
-[configured your credentials]: configure.md
+[installed a provider]: install-configure.md
+[configured your credentials]: install-configure.md
 [RDS]: https://aws.amazon.com/rds/
 [CloudSQL]: https://cloud.google.com/sql
 [Azure Database for PostgreSQL]: https://azure.microsoft.com/en-us/services/postgresql/
