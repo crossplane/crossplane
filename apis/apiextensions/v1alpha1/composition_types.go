@@ -302,7 +302,16 @@ type ConnectionDetail struct {
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
 	// from the given target resource.
-	FromConnectionSecretKey string `json:"fromConnectionSecretKey"`
+	// +optional
+	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
+
+	// Value that will be propagated to the connection secret of the composition
+	// instance. Typically you should use FromConnectionSecretKey instead, but
+	// an explicit value may be set to inject a fixed, non-sensitive connection
+	// secret values, for example a well-known port. Supercedes
+	// FromConnectionSecretKey when set.
+	// +optional
+	Value *string `json:"value,omitempty"`
 }
 
 // CompositionStatus shows the observed state of the composition.
