@@ -190,7 +190,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 > RDS instance that will allow traffic from the internet.
 
 </div>
-<div class="tab-pane fade in active" id="aws-new-tab-1" markdown="1">
+<div class="tab-pane fade" id="aws-new-tab-1" markdown="1">
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
