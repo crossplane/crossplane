@@ -10,7 +10,7 @@ API.
 With Crossplane you can:
 
 * **Provision & manage cloud infrastructure with kubectl**
-  * [Install Crossplane] to provision and manage cloud infrastructure and
+  * [Install Crossplane][documentation] to provision and manage cloud infrastructure and
     services from any Kubernetes cluster.
   * Provision infrastructure primitives from any provider ([GCP], [AWS],
     [Azure], [Alibaba], on-prem) and use them alongside existing application
@@ -132,7 +132,6 @@ Crossplane is under the Apache 2.0 license.
 <!-- Named links -->
 
 [Crossplane]: https://crossplane.io
-[Install Crossplane]: docs/getting-started/install-configure.md
 [documentation]: https://crossplane.io/docs/latest
 [GCP]: https://github.com/crossplane/provider-gcp
 [AWS]: https://github.com/crossplane/provider-aws
