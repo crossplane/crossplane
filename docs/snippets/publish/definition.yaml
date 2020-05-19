@@ -8,6 +8,7 @@ spec:
     - username
     - password
     - endpoint
+    - port
   crdSpecTemplate:
     group: database.example.org
     version: v1alpha1

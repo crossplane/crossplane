@@ -56,6 +56,7 @@ spec:
     - username
     - password
     - endpoint
+    - port
   crdSpecTemplate:
     group: database.example.org
     version: v1alpha1
@@ -178,6 +179,7 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
 ```
 
 ```console
@@ -353,6 +355,7 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
 
 ```
 
@@ -410,6 +413,7 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
 ```
 
 ```console
@@ -485,6 +489,7 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
     - base:
         apiVersion: database.azure.crossplane.io/v1alpha3
         kind: PostgreSQLServerFirewallRule
@@ -552,6 +557,7 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
 ```
 
 ```console
@@ -733,6 +739,11 @@ spec:
         secretKeyRef:
           name: db-conn
           key: password
+    - name: PGPORT
+      valueFrom:
+        secretKeyRef:
+          name: db-conn
+          key: port
 ```
 
 ```console
