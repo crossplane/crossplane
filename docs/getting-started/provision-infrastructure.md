@@ -186,7 +186,7 @@ kubectl delete resourcegroup.azure.crossplane.io sqlserverpostgresql-rg
 </div>
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
-The Alibaba provider supports provisioning an [AsparaDB for RDS] instance with
+The Alibaba provider supports provisioning an [ApsaraDB for RDS] instance with
 the `RDSInstance` CRD it installs into your cluster.
 
 ```yaml
