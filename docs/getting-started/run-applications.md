@@ -169,10 +169,10 @@ spec:
             - name: DATABASE_HOSTNAME
               fromSecret:
                 key: endpoint
-            - name: DATABASE_NAME
-              value: postgres
             - name: DATABASE_PORT
               value: "5432"
+            - name: DATABASE_NAME
+              value: postgres
             - name: DATABASE_DRIVER
               value: postgresql
           ports:
@@ -190,6 +190,7 @@ spec:
         - spec.containers[0].env[0].fromSecret.name
         - spec.containers[0].env[1].fromSecret.name
         - spec.containers[0].env[2].fromSecret.name
+        - spec.containers[0].env[3].fromSecret.name
 ---
 apiVersion: core.oam.dev/v1alpha2
 kind: Component

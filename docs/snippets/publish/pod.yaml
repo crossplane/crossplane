@@ -27,3 +27,8 @@ spec:
         secretKeyRef:
           name: db-conn
           key: password
+    - name: PGPORT
+      valueFrom:
+        secretKeyRef:
+          name: db-conn
+          key: port
