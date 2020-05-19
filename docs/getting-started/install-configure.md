@@ -5,7 +5,7 @@ weight: 2
 indent: true
 ---
 
-# Install & Configure Quickstart
+# Install & Configure Crossplane
 
 Crossplane can be easily installed into any existing Kubernetes cluster using
 the regularly published Helm chart. The Helm chart contains all the custom
@@ -32,7 +32,7 @@ brew install kind
 brew install kubectl
 brew install helm
 
-kind create cluster --image kindest/node:v1.17.5 --wait 5m
+kind create cluster --image kindest/node:v1.16.9 --wait 5m
 ```
 
 </div>
