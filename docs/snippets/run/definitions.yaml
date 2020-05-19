@@ -1,0 +1,24 @@
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: WorkloadDefinition
+metadata:
+  name: containerizedworkloads.core.oam.dev
+spec:
+  definitionRef:
+    name: containerizedworkloads.core.oam.dev
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: TraitDefinition
+metadata:
+  name: manualscalertraits.core.oam.dev
+spec:
+  definitionRef:
+    name: manualscalertraits.core.oam.dev
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: WorkloadDefinition
+metadata:
+  name: postgresqlinstancerequirements.database.example.org
+spec:
+  definitionRef:
+    name: postgresqlinstancerequirements.database.example.org

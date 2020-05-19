@@ -27,30 +27,30 @@ creating the following resources:
 In addition to making provisioning available at the namespace scope,
 [composition] also allows for multiple types of managed resources to satisfy the
 same namespace-scoped resource. In the examples below, we will define and
-publish a new `MySQLInstance` resource that only takes a single `storageGB`
+publish a new `PostgreSQLInstance` resource that only takes a single `storageGB`
 parameter, and specifies that it will create a connection `Secret` with keys for
 `username`, `password`, and `endpoint`. We will then create a `Composition` for
-each provider that can satisfy and be parameterized by a `MySQLInstance`. Let's
-get started!
+each provider that can satisfy and be parameterized by a `PostgreSQLInstance`.
+Let's get started!
 
 > Note: Crossplane must be granted RBAC permissions to managed new
 > infrastructure types that we define. This is covered in greater detail in the
 > [composition] section, but you can run the following command to grant all
 > necessary RBAC permissions for this quick start guide: `kubectl apply -f
-> https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/quick-start-clusterrole.yaml`
+> https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/clusterrole.yaml`
 
 ## Create InfrastructureDefinition
 
 The next step is defining an `InfrastructureDefinition` that declares the schema
-for a `MySQLInstance`. You will notice that this looks very similar to a CRD,
+for a `PostgreSQLInstance`. You will notice that this looks very similar to a CRD,
 and after the `InfrastructureDefinition` is created, we will in fact have a
-`MySQLInstance` CRD present in our cluster.
+`PostgreSQLInstance` CRD present in our cluster.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructureDefinition
 metadata:
-  name: mysqlinstances.database.example.org
+  name: postgresqlinstances.database.example.org
 spec:
   connectionSecretKeys:
     - username
@@ -60,10 +60,10 @@ spec:
     group: database.example.org
     version: v1alpha1
     names:
-      kind: MySQLInstance
-      listKind: MySQLInstanceList
-      plural: mysqlinstances
-      singular: mysqlinstance
+      kind: PostgreSQLInstance
+      listKind: PostgreSQLInstanceList
+      plural: postgresqlinstances
+      singular: postgresqlinstance
     validation:
       openAPIV3Schema:
         type: object
@@ -82,38 +82,38 @@ spec:
               - parameters
 ```
 
-You are now able to create instances of kind `MySQLInstance` at the cluster
+You are now able to create instances of kind `PostgreSQLInstance` at the cluster
 scope.
 
 ## Create InfrastructurePublication
 
-The `InfrastructureDefinition` will make it possible to create `MySQLInstance`
-objects in our Kubernetes cluster at the cluster scope, but we want to make them
-available at the namespace scope as well. This is done by defining an
-`InfrastructurePublication` that references the new `MySQLInstance` type.
+The `InfrastructureDefinition` will make it possible to create
+`PostgreSQLInstance` objects in our Kubernetes cluster at the cluster scope, but
+we want to make them available at the namespace scope as well. This is done by
+defining an `InfrastructurePublication` that references the new
+`PostgreSQLInstance` type.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: InfrastructurePublication
 metadata:
-  name: mysqlinstances.database.example.org
+  name: postgresqlinstances.database.example.org
 spec:
   infrastructureDefinitionRef:
-    name: mysqlinstances.database.example.org
+    name: postgresqlinstances.database.example.org
 ```
 
-This will create a new CRD named `MySQLInstanceRequirement`, which is the
-namespace-scoped variant of the `MySQLInstance` CRD. You are now able to create
-instances of kind `MySQLInstanceRequirement` at the namespace scope.
+This will create a new CRD named `PostgreSQLInstanceRequirement`, which is the
+namespace-scoped variant of the `PostgreSQLInstance` CRD. You are now able to
+create instances of kind `PostgreSQLInstanceRequirement` at the namespace scope.
 
 ## Create Compositions
 
 Now it is time to define the resources that represent the primitive
 infrastructure units that actually get provisioned. For each provider we will
-define a `Composition` that satisfies the requirements of the `MySQLInstance`
-`InfrastructureDefinition`. In this case, each will result in the provisioning
-of a public MySQL instance on the provider.
-
+define a `Composition` that satisfies the requirements of the
+`PostgreSQLInstance` `InfrastructureDefinition`. In this case, each will result
+in the provisioning of a public PostgreSQL instance on the provider.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
@@ -129,7 +129,7 @@ of a public MySQL instance on the provider.
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: mysqlinstances.aws.database.example.org
+  name: postgresqlinstances.aws.database.example.org
   labels:
     provider: aws
     guide: quickstart
@@ -138,7 +138,7 @@ spec:
   reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: MySQLInstance
+    kind: PostgreSQLInstance
   to:
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
@@ -147,7 +147,8 @@ spec:
           forProvider:
             dbInstanceClass: db.t2.small
             masterUsername: masteruser
-            engine: mysql
+            engine: postgres
+            engineVersion: "9.6"
             skipFinalSnapshotBeforeDeletion: true
             publiclyAccessible: true
           writeConnectionSecretToRef:
@@ -161,7 +162,7 @@ spec:
           transforms:
             - type: string
               string:
-                fmt: "%s-mysql"
+                fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
           toFieldPath: "spec.forProvider.allocatedStorage"
       connectionDetails:
@@ -177,7 +178,7 @@ spec:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: mysqlinstances.gcp.database.example.org
+  name: postgresqlinstances.gcp.database.example.org
   labels:
     provider: gcp
     guide: quickstart
@@ -186,22 +187,22 @@ spec:
   reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: MySQLInstance
+    kind: PostgreSQLInstance
   to:
     - base:
         apiVersion: database.gcp.crossplane.io/v1beta1
         kind: CloudSQLInstance
         spec:
           forProvider:
-            databaseVersion: MYSQL_5_7
+            databaseVersion: POSTGRES_9_6
             region: us-central1
-            ipConfiguration:
-              ipv4Enabled: true
-              authorizedNetworks:
-                - value: "0.0.0.0/0"
             settings:
-              tier: db-n1-standard-1
+              tier: db-custom-1-3840
               dataDiskType: PD_SSD
+              ipConfiguration:
+                ipv4Enabled: true
+                authorizedNetworks:
+                  - value: "0.0.0.0/0"
           writeConnectionSecretToRef:
             namespace: crossplane-system
           providerRef:
@@ -213,7 +214,7 @@ spec:
           transforms:
             - type: string
               string:
-                fmt: "%s-mysql"
+                fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
           toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
       connectionDetails:
@@ -226,16 +227,16 @@ spec:
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
 > Note: the `Composition` for Azure also includes a `ResourceGroup` and
-> `MySQLServerFirewallRule` that are required to provision a publicly available
-> MySQL instance on Azure. Composition enables scenarios such as this, as well
-> as far more complex ones. See the [composition] documentation for more
-> information.
+> `PostgreSQLServerFirewallRule` that are required to provision a publicly
+> available PostgreSQL instance on Azure. Composition enables scenarios such as
+> this, as well as far more complex ones. See the [composition] documentation
+> for more information.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: mysqlinstances.azure.database.example.org
+  name: postgresqlinstances.azure.database.example.org
   labels:
     provider: azure
     guide: quickstart
@@ -244,7 +245,7 @@ spec:
   reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: MySQLInstance
+    kind: PostgreSQLInstance
   to:
     - base:
         apiVersion: azure.crossplane.io/v1alpha3
@@ -256,7 +257,7 @@ spec:
             name: azure-provider
     - base:
         apiVersion: database.azure.crossplane.io/v1beta1
-        kind: MySQLServer
+        kind: PostgreSQLServer
         spec:
           forProvider:
             administratorLogin: myadmin
@@ -264,12 +265,11 @@ spec:
               matchControllerRef: true
             location: West US 2
             sslEnforcement: Disabled
-            version: "5.7"
+            version: "9.6"
             sku:
               tier: GeneralPurpose
               capacity: 2
               family: Gen5
-            storageProfile:
           writeConnectionSecretToRef:
             namespace: crossplane-system
           providerRef:
@@ -281,7 +281,7 @@ spec:
           transforms:
             - type: string
               string:
-                fmt: "%s-mysql"
+                fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
           toFieldPath: "spec.forProvider.storageProfile.storageMB"
           transforms:
@@ -294,7 +294,7 @@ spec:
         - fromConnectionSecretKey: endpoint
     - base:
         apiVersion: database.azure.crossplane.io/v1alpha3
-        kind: MySQLServerFirewallRule
+        kind: PostgreSQLServerFirewallRule
         spec:
           forProvider:
             serverNameSelector:
@@ -316,7 +316,7 @@ spec:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: mysqlinstances.alibaba.database.example.org
+  name: postgresqlinstances.alibaba.database.example.org
   labels:
     provider: alibaba
     guide: quickstart
@@ -325,17 +325,16 @@ spec:
   reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: MySQLInstance
+    kind: PostgreSQLInstance
   to:
     - base:
         apiVersion: database.alibaba.crossplane.io/v1alpha1
         kind: RDSInstance
         spec:
           forProvider:
-            engine: mysql
-            engineVersion: "5.7"
-            dbInstanceClass: rds.mysql.s1.small
-            dbInstanceStorageInGB: 20
+            engine: PostgreSQL
+            engineVersion: "9.4"
+            dbInstanceClass: rds.pg.s1.small
             securityIPList: "0.0.0.0/0"
             masterUsername: "myuser"
           writeConnectionSecretToRef:
@@ -349,7 +348,7 @@ spec:
           transforms:
             - type: string
               string:
-                fmt: "%s-mysql"
+                fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
           toFieldPath: "spec.forProvider.dbInstanceStorageInGB"
       connectionDetails:
@@ -363,12 +362,12 @@ spec:
 
 ## Create Requirement
 
-Now that we have defined our new type of infrastructure (`MySQLInstance`) and
-created at least one composition that can satisfy it, we can create a
-`MySQLInstanceRequirement` in the namespace of our choosing. In each
+Now that we have defined our new type of infrastructure (`PostgreSQLInstance`)
+and created at least one composition that can satisfy it, we can create a
+`PostgreSQLInstanceRequirement` in the namespace of our choosing. In each
 `Composition` we defined we added a `provider: <name-of-provider>` label. In the
-`MySQLInstanceRequirement` below we can use the `compositionSelector` to match
-our `Composition` of choice.
+`PostgreSQLInstanceRequirement` below we can use the `compositionSelector` to
+match our `Composition` of choice.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS</a></li>
@@ -382,7 +381,7 @@ our `Composition` of choice.
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: MySQLInstanceRequirement
+kind: PostgreSQLInstanceRequirement
 metadata:
   name: my-db
   namespace: default
@@ -401,7 +400,7 @@ spec:
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: MySQLInstanceRequirement
+kind: PostgreSQLInstanceRequirement
 metadata:
   name: my-db
   namespace: default
@@ -420,7 +419,7 @@ spec:
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: MySQLInstanceRequirement
+kind: PostgreSQLInstanceRequirement
 metadata:
   name: my-db
   namespace: default
@@ -439,7 +438,7 @@ spec:
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: MySQLInstanceRequirement
+kind: PostgreSQLInstanceRequirement
 metadata:
   name: my-db
   namespace: default
@@ -456,16 +455,18 @@ spec:
 </div>
 </div>
 
-After creating the `MySQLInstanceRequirement` Crossplane will provision a
+After creating the `PostgreSQLInstanceRequirement` Crossplane will provision a
 database instance on your provider of choice. Once provisioning is complete, you
 should see `READY: True` in the output when you run:
-```
-kubectl get mysqlinstancerequirement.database.example.org my-db
+
+```console
+kubectl get postgresqlinstancerequirement.database.example.org my-db
 ```
 
-> Note: while waiting for the `MySQLInstanceRequirement` to become ready, you
+> Note: while waiting for the `PostgreSQLInstanceRequirement` to become ready, you
 > may want to look at other resources in your cluser. The following commands
 > will allow you to view groups of Crossplane resources:
+>
 > - `kubectl get managed`: get all resources that represent a unit of external
 >   infrastructure
 > - `kubectl get <name-of-provider>`: get all resources related to `<provider>`
@@ -473,7 +474,8 @@ kubectl get mysqlinstancerequirement.database.example.org my-db
 
 You should also see a `Secret` in the `default` namespace named `db-conn` that
 contains fields for `username`, `password`, and `endpoint`:
-```
+
+```console
 kubectl get secrets db-conn
 ```
 
@@ -493,21 +495,23 @@ metadata:
 spec:
   containers:
   - name: see-db
-    image: mysql:5.7
-    command: ['mysql']
-    args: ['-u', '$(MYSQL_USER)', '-e', 'SELECT CURRENT_USER();']
+    image: postgres:9.6
+    command: ['psql']
+    args: ['-c', 'SELECT current_database();']
     env:
-    - name: MYSQL_HOST
+    - name: PGDATABASE
+      value: postgres
+    - name: PGHOST
       valueFrom:
         secretKeyRef:
           name: db-conn
           key: endpoint
-    - name: MYSQL_USER
+    - name: PGUSER
       valueFrom:
         secretKeyRef:
           name: db-conn
           key: username
-    - name: MYSQL_PWD
+    - name: PGPASSWORD
       valueFrom:
         secretKeyRef:
           name: db-conn
@@ -517,23 +521,32 @@ spec:
 This `Pod` simply connects to a PostgreSQL database and prints its name, so you
 should see the following output (or similar) after creating it if you run
 `kubectl logs see-db`:
-```
-CURRENT_USER()
-myadmin@%
+
+```SQL
+ current_database
+------------------
+ postgres
+(1 row)
 ```
 
 ## Clean Up
 
 To clean up the infrastructure that was provisioned, you can delete the
-`MySQLInstanceRequirement`:
-```
-kubectl delete mysqlinstancerequirement.database.example.org my-db
+`PostgreSQLInstanceRequirement`:
+
+```console
+kubectl delete postgresqlinstancerequirement.database.example.org my-db
 ```
 
 To clean up the `Pod`, run:
-```
+
+```console
 kubectl delete pod see-db
 ```
+
+> Don't clean up your InfrastructureDefinition, InfrastructurePublication, or
+> Composition just yet if you plan to continue on to the next section of the
+> guide! We'll use them again when we deploy an OAM application.
 
 ## Next Steps
 
@@ -541,10 +554,9 @@ Now you have seen how to provision and publish more complex infrastructure
 setups. In the [next section] you will learn how to consume infrastructure
 alongside your [OAM] application manifests.
 
-
 <!-- Named Links -->
 
 [last section]: provision-infrastructure.yaml
 [composition]: ../composition.md
-[next section]: consume-infrastructure.md
+[next section]: run-applications.md
 [OAM]: https://oam.dev/

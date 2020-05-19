@@ -30,21 +30,23 @@ provider.
 
 The AWS provider supports provisioning an [RDS] instance with the `RDSInstance`
 CRD it installs into your cluster.
+
 ```yaml
 apiVersion: database.aws.crossplane.io/v1beta1
 kind: RDSInstance
 metadata:
-  name: rdsmysql
+  name: rdspostgresql
 spec:
   forProvider:
     dbInstanceClass: db.t2.small
     masterUsername: masteruser
     allocatedStorage: 20
-    engine: mysql
+    engine: postgresql
+    engineVersion: "9.6"
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretToRef:
     namespace: crossplane-system
-    name: aws-rdsmysql-conn
+    name: aws-rdspostgresql-conn
   providerRef:
     name: aws-provider
   reclaimPolicy: Delete
@@ -52,14 +54,16 @@ spec:
 
 Creating the above instance will cause Crossplane to provision an RDS instance
 on AWS. You can view the progress with the following command:
-```
-kubectl get rdsinstances.database.aws.crossplane.io rdsmysql
+
+```console
+kubectl get rdsinstances.database.aws.crossplane.io rdspostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can then delete the `RDSInstance`:
-```
-kubectl delete rdsinstances.database.aws.crossplane.io rdsmysql
+
+```console
+kubectl delete rdsinstances.database.aws.crossplane.io rdspostgresql
 ```
 
 </div>
@@ -67,22 +71,23 @@ kubectl delete rdsinstances.database.aws.crossplane.io rdsmysql
 
 The GCP provider supports provisioning a [CloudSQL] instance with the
 `CloudSQLInstance` CRD it installs into your cluster.
+
 ```yaml
 apiVersion: database.gcp.crossplane.io/v1beta1
 kind: CloudSQLInstance
 metadata:
-  name: cloudsqlmysql
+  name: cloudsqlpostgresql
 spec:
   forProvider:
-    databaseVersion: MYSQL_5_7
+    databaseVersion: POSTGRES_9_6
     region: us-central1
     settings:
-      tier: db-n1-standard-1
+      tier: db-custom-1-3840
       dataDiskType: PD_SSD
       dataDiskSizeGb: 10
   writeConnectionSecretToRef:
     namespace: crossplane-system
-    name: cloudsqlmysql-conn
+    name: cloudsqlpostgresql-conn
   providerRef:
     name: gcp-provider
   reclaimPolicy: Delete
@@ -90,23 +95,25 @@ spec:
 
 Creating the above instance will cause Crossplane to provision a CloudSQL
 instance on GCP. You can view the progress with the following command:
-```
-kubectl get cloudsqlinstances.database.gcp.crossplane.io cloudsqlmysql
+
+```console
+kubectl get cloudsqlinstances.database.gcp.crossplane.io cloudsqlpostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can then delete the `CloudSQLInstance`:
-```
-kubectl delete cloudsqlinstances.database.gcp.crossplane.io cloudsqlmysql
+
+```console
+kubectl delete cloudsqlinstances.database.gcp.crossplane.io cloudsqlpostgresql
 ```
 
 </div>
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
-The Azure provider supports provisioning an [Azure Database for MySQL] instance
-with the `MySQLServer` CRD it installs into your cluster.
+The Azure provider supports provisioning an [Azure Database for PostgreSQL]
+instance with the `PostgreSQLServer` CRD it installs into your cluster.
 
-> Note: provisioning an Azure Database for MySQL requires the presence of a
+> Note: provisioning an Azure Database for PostgreSQL requires the presence of a
 > [Resource Group] in your Azure account. We go ahead and provision a new
 > `ResourceGroup` here in case you do not already have a suitable one in your
 > account.
@@ -115,7 +122,7 @@ with the `MySQLServer` CRD it installs into your cluster.
 apiVersion: azure.crossplane.io/v1alpha3
 kind: ResourceGroup
 metadata:
-  name: sqlservermysql-rg
+  name: sqlserverpostgresql-rg
 spec:
   location: West US 2
   reclaimPolicy: Delete
@@ -123,14 +130,14 @@ spec:
     name: azure-provider
 ---
 apiVersion: database.azure.crossplane.io/v1beta1
-kind: MySQLServer
+kind: PostgreSQLServer
 metadata:
-  name: sqlservermysql
+  name: sqlserverpostgresql
 spec:
   forProvider:
     administratorLogin: myadmin
     resourceGroupNameRef:
-      name: sqlservermysql-rg
+      name: sqlserverpostgresql-rg
     location: West US 2
     sslEnforcement: Disabled
     version: "5.7"
@@ -142,22 +149,26 @@ spec:
       storageMB: 20480
   writeConnectionSecretToRef:
     namespace: crossplane-system
-    name: sqlservermysql-conn
+    name: sqlserverpostgresql-conn
   providerRef:
     name: azure-provider
   reclaimPolicy: Delete
 ```
 
-Creating the above instance will cause Crossplane to provision a MySQL database
-instance on Azure. You can view the progress with the following command:
-```
-kubectl get mysqlservers.database.azure.crossplane.io sqlservermysql
+Creating the above instance will cause Crossplane to provision a PostgreSQL
+database instance on Azure. You can view the progress with the following
+command:
+
+```console
+kubectl get postgresqlservers.database.azure.crossplane.io sqlserverpostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
-can then delete the `MySQLServer`:
-```
-kubectl delete mysqlservers.database.azure.crossplane.io sqlservermysql
+can then delete the `PostgreSQLServer`:
+
+```console
+kubectl delete postgresqlservers.database.azure.crossplane.io sqlserverpostgresql
+kubectl delete resourcegroup.azure.crossplane.io sqlserverpostgresql-rg
 ```
 
 </div>
@@ -165,22 +176,23 @@ kubectl delete mysqlservers.database.azure.crossplane.io sqlservermysql
 
 The Alibaba provider supports provisioning an [AsparaDB for RDS] instance with
 the `RDSInstance` CRD it installs into your cluster.
+
 ```yaml
 apiVersion: database.alibaba.crossplane.io/v1alpha1
 kind: RDSInstance
 metadata:
-  name: rdsmysql
+  name: rdspostgresql
 spec:
   forProvider:
-    engine: mysql
-    engineVersion: "5.7"
-    dbInstanceClass: rds.mysql.s1.small
+    engine: postgresql
+    engineVersion: "9.4"
+    dbInstanceClass: rds.pg.s1.small
     dbInstanceStorageInGB: 20
     securityIPList: "0.0.0.0/0"
     masterUsername: "test123"
   writeConnectionSecretToRef:
     namespace: crossplane-system
-    name: alibaba-rdsmysql-conn
+    name: alibaba-rdspostgresql-conn
   providerRef:
     name: alibaba-provider
   reclaimPolicy: Delete
@@ -188,15 +200,18 @@ spec:
 
 Creating the above instance will cause Crossplane to provision an RDS instance
 on Alibaba. You can view the progress with the following command:
-```
-kubectl get rdsinstances.database.alibaba.crossplane.io rdsmysql
+
+```console
+kubectl get rdsinstances.database.alibaba.crossplane.io rdspostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can then delete the `RDSInstance`:
+
+```console
+kubectl delete rdsinstances.database.alibaba.crossplane.io rdspostgresql
 ```
-kubectl delete rdsinstances.database.alibaba.crossplane.io rdsmysql
-```
+
 </div>
 </div>
 
@@ -212,7 +227,7 @@ publish them as a single unit to be consumed in the [next section].
 [configured your credentials]: configure.md
 [RDS]: https://aws.amazon.com/rds/
 [CloudSQL]: https://cloud.google.com/sql
-[Azure Database for MySQL]: https://azure.microsoft.com/en-us/services/mysql/
+[Azure Database for PostgreSQL]: https://azure.microsoft.com/en-us/services/postgresql/
 [Resource Group]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal#what-is-a-resource-group
-[ApsaraDB for RDS]: https://www.alibabacloud.com/product/apsaradb-for-rds-mysql
+[ApsaraDB for RDS]: https://www.alibabacloud.com/product/apsaradb-for-rds-postgresql
 [next section]: publish-infrastructure.md
