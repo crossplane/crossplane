@@ -80,7 +80,12 @@ Use Helm 3 to install the latest official `alpha` release of Crossplane, suitabl
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+
+# Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
+
+# Kubernetes 1.14 and older versions
+helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --disable-openapi-validation
 ```
 
 </div>
@@ -106,6 +111,9 @@ helm search repo crossplane-master --devel
 
 # Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
+
+# Kubernetes 1.14 and older versions
+helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --version <version> --devel --disable-openapi-validation
 ```
 
 For example:
@@ -121,7 +129,7 @@ Use Helm 2 to install the latest `master` pre-release version of Crossplane, whi
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-master https://charts.crossplane.io/master/
-helm search crossplane-master --devel
+helm search crossplane-master
 
 helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version>
 ```

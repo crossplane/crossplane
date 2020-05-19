@@ -68,7 +68,7 @@ Install with Helm 2:
 
 ```console
 helm repo add crossplane-master https://charts.crossplane.io/master/
-helm search crossplane-master --devel
+helm search crossplane-master
 helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version>
 ```
 
