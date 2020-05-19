@@ -107,25 +107,40 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	if sref == nil {
 		return nil, nil
 	}
+
 	conn := managed.ConnectionDetails{}
+
 	// It's possible that the composed resource does want to write a
 	// connection secret but has not yet. We presume this isn't an issue and
 	// that we'll propagate any connection details during a future
 	// iteration.
 	s := &corev1.Secret{}
 	nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
-	if err := cdf.client.Get(ctx, nn, s); err != nil {
-		return nil, errors.Wrap(client.IgnoreNotFound(err), errGetSecret)
+	if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
+		return nil, errors.Wrap(err, errGetSecret)
 	}
-	for _, pair := range t.ConnectionDetails {
-		if len(s.Data[pair.FromConnectionSecretKey]) == 0 {
+
+	for _, d := range t.ConnectionDetails {
+		if d.Name != nil && d.Value != nil {
+			conn[*d.Name] = []byte(*d.Value)
 			continue
 		}
-		key := pair.FromConnectionSecretKey
-		if pair.Name != nil {
-			key = *pair.Name
+
+		if d.FromConnectionSecretKey == nil {
+			continue
 		}
-		conn[key] = s.Data[pair.FromConnectionSecretKey]
+
+		if len(s.Data[*d.FromConnectionSecretKey]) == 0 {
+			continue
+		}
+
+		key := *d.FromConnectionSecretKey
+		if d.Name != nil {
+			key = *d.Name
+		}
+
+		conn[key] = s.Data[*d.FromConnectionSecretKey]
 	}
+
 	return conn, nil
 }
