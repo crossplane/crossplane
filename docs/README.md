@@ -33,13 +33,7 @@ With Crossplane you can:
   * Define cloud native applications and the infrastructure they require with
     the Open Application Model ([OAM]).
   * Collaborate with a team-centric approach with a strong separation of
-    concerns:
-    * Infrastructure operators - provide infrastructure and services for
-      applications to consume
-    * Application developers - build application components independent of
-      infrastructure
-    * Application operators - compose, deploy, and run application
-      configurations
+    concerns.
   * Deploy application configurations from app delivery pipelines or GitOps
     workflows, using the proven Kubernetes declarative model.
 
