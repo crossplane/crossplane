@@ -39,7 +39,7 @@ on-demand by Crossplane.
 
 As the infrastructure operator our work is almost done - we defined, published,
 and composed the infrastructure that our application developer and operator
-teammates will use in the previous guide. One task remains is, which is to define
+teammates will use in the previous guide. One task remains, which is to define
 the [_workloads_] and [_traits_] that our platform supports.
 
 OAM applications consist of workloads, each of which may be modified by traits.
@@ -64,8 +64,9 @@ by this guide:
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.11/docs/snippets/run/definitions.yaml
 ```
 
-Among them, OAM core workloads and traits will need to install corresponding controllers
-as OAM addon:
+Now that we've defined our workloads and traits, we must install Crossplane's
+OAM addon. This addon packages the controllers that reconcile core OAM workloads
+and traits.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3</a></li>
