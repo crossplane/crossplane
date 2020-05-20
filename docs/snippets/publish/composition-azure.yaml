@@ -58,6 +58,8 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - name: port
+          value: "5432"
     - base:
         apiVersion: database.azure.crossplane.io/v1alpha3
         kind: PostgreSQLServerFirewallRule

@@ -134,6 +134,20 @@ func TestFetch(t *testing.T) {
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
+				t: v1alpha1.ComposedTemplate{ConnectionDetails: []v1alpha1.ConnectionDetail{
+					{
+						FromConnectionSecretKey: pointer.StringPtr("bar"),
+					},
+					{
+						Name:  pointer.StringPtr("fixed"),
+						Value: pointer.StringPtr("value"),
+					},
+				}},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"fixed": []byte("value"),
+				},
 			},
 		},
 		"SecretGetFailed": {
@@ -165,15 +179,35 @@ func TestFetch(t *testing.T) {
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1alpha1.ComposedTemplate{ConnectionDetails: []v1alpha1.ConnectionDetail{
-					{FromConnectionSecretKey: "bar"},
-					{Name: pointer.StringPtr("convfoo"), FromConnectionSecretKey: "foo"},
-					{FromConnectionSecretKey: "none"},
+					{
+						FromConnectionSecretKey: pointer.StringPtr("bar"),
+					},
+					{
+						FromConnectionSecretKey: pointer.StringPtr("none"),
+					},
+					{
+						Name:                    pointer.StringPtr("convfoo"),
+						FromConnectionSecretKey: pointer.StringPtr("foo"),
+					},
+					{
+						Name:  pointer.StringPtr("fixed"),
+						Value: pointer.StringPtr("value"),
+					},
+					{
+						// Entries with only a name are silently ignored.
+						Name: pointer.StringPtr("missingvalue"),
+					},
+					{
+						// Entries with only a value are silently ignored.
+						Value: pointer.StringPtr("missingname"),
+					},
 				}},
 			},
 			want: want{
 				conn: managed.ConnectionDetails{
 					"convfoo": s.Data["foo"],
 					"bar":     s.Data["bar"],
+					"fixed":   []byte("value"),
 				},
 			},
 		},

@@ -42,3 +42,4 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
+        - fromConnectionSecretKey: port
