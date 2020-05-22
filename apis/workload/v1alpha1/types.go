@@ -37,7 +37,7 @@ const (
 	KubernetesApplicationStatePartial   KubernetesApplicationState = "PartiallySubmitted"
 	KubernetesApplicationStateSubmitted KubernetesApplicationState = "Submitted"
 	KubernetesApplicationStateFailed    KubernetesApplicationState = "Failed"
-	KubernetesApplicationStateDeleted   KubernetesApplicationState = "Deleted"
+	KubernetesApplicationStateDeleting  KubernetesApplicationState = "Deleting"
 )
 
 // A KubernetesApplicationSpec specifies the resources of a Kubernetes

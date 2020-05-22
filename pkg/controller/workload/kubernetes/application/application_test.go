@@ -36,7 +36,9 @@ import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	"github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -139,6 +141,12 @@ func withUID(u types.UID) kubeAppModifier {
 func withTemplates(t ...v1alpha1.KubernetesApplicationResourceTemplate) kubeAppModifier {
 	return func(r *v1alpha1.KubernetesApplication) {
 		r.Spec.ResourceTemplates = t
+	}
+}
+
+func withFinalizer(f string) kubeAppModifier {
+	return func(r *v1alpha1.KubernetesApplication) {
+		r.Finalizers = append(r.Finalizers, f)
 	}
 }
 
@@ -362,15 +370,6 @@ func TestSync(t *testing.T) {
 			wantState: v1alpha1.KubernetesApplicationStatePartial,
 			wantErr:   errors.Wrap(condenseErrors([]error{errorBoom}), errSyncTemplate),
 		},
-		{
-			name: "ApplicationDeletedDoNotSync",
-			syncer: &localCluster{
-				ar: &mockARSyncer{mockSync: newMockARSyncFn(false, errorBoom)},
-				gc: &mockGarbageCollector{mockProcess: newMockProcessFn(nil)},
-			},
-			app:       kubeApp(withDeletionTimestamp(&metav1.Time{Time: time.Now()})),
-			wantState: v1alpha1.KubernetesApplicationStateDeleted,
-		},
 	}
 
 	for _, tc := range cases {
@@ -389,11 +388,12 @@ func TestSync(t *testing.T) {
 }
 
 type mockSyncFn func(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error)
+type mockDeleteFn func(ctx context.Context, app *v1alpha1.KubernetesApplication) (int, error)
 
 func newMockSyncFn(s v1alpha1.KubernetesApplicationState, submit bool, e error) mockSyncFn {
 	return func(_ context.Context, a *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
 		if meta.WasDeleted(a) {
-			return v1alpha1.KubernetesApplicationStateDeleted, e
+			return v1alpha1.KubernetesApplicationStateDeleting, e
 		}
 		if submit {
 			a.Status.SubmittedResources = a.Status.DesiredResources
@@ -403,11 +403,16 @@ func newMockSyncFn(s v1alpha1.KubernetesApplicationState, submit bool, e error) 
 }
 
 type mockSyncer struct {
-	mockSync mockSyncFn
+	mockSync   mockSyncFn
+	mockDelete mockDeleteFn
 }
 
 func (sd *mockSyncer) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
 	return sd.mockSync(ctx, app)
+}
+
+func (sd *mockSyncer) delete(ctx context.Context, app *v1alpha1.KubernetesApplication) (int, error) {
+	return sd.mockDelete(ctx, app)
 }
 
 func TestReconcile(t *testing.T) {
@@ -460,6 +465,7 @@ func TestReconcile(t *testing.T) {
 							withState(v1alpha1.KubernetesApplicationStateSubmitted),
 							withDesiredResources(3),
 							withSubmittedResources(3),
+							withFinalizer(finalizerName),
 						)
 
 						if diff := cmp.Diff(want, got); diff != "" {
@@ -469,8 +475,9 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
-				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateSubmitted, true, nil)},
-				log:   logging.NewNopLogger(),
+				local:     &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateSubmitted, true, nil)},
+				log:       logging.NewNopLogger(),
+				finalizer: resource.NewAPIFinalizer(test.NewMockClient(), finalizerName),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{RequeueAfter: longWait},
@@ -493,7 +500,7 @@ func TestReconcile(t *testing.T) {
 						want := kubeApp(
 							withConditions(runtimev1alpha1.ReconcileSuccess()),
 							withDeletionTimestamp(&metav1.Time{Time: delTime}),
-							withState(v1alpha1.KubernetesApplicationStateDeleted),
+							withState(v1alpha1.KubernetesApplicationStateDeleting),
 							withDesiredResources(3),
 						)
 
@@ -504,18 +511,21 @@ func TestReconcile(t *testing.T) {
 						return nil
 					},
 				},
-				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateDeleted, true, nil)},
-				log:   logging.NewNopLogger(),
+				local: &mockSyncer{mockDelete: func(_ context.Context, _ *v1alpha1.KubernetesApplication) (int, error) {
+					return 0, nil
+				}},
+				log:       logging.NewNopLogger(),
+				finalizer: resource.NewAPIFinalizer(test.NewMockClient(), finalizerName),
 			},
-			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
-			wantResult: reconcile.Result{RequeueAfter: longWait},
+			req: reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 		},
 		{
 			name: "ApplicationSyncFailure",
 			rec: &Reconciler{
-				kube:  &test.MockClient{MockGet: test.NewMockGetFn(nil), MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom)},
-				local: &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateFailed, false, errorBoom)},
-				log:   logging.NewNopLogger(),
+				kube:      &test.MockClient{MockGet: test.NewMockGetFn(nil), MockStatusUpdate: test.NewMockStatusUpdateFn(errorBoom)},
+				local:     &mockSyncer{mockSync: newMockSyncFn(v1alpha1.KubernetesApplicationStateFailed, false, errorBoom)},
+				log:       logging.NewNopLogger(),
+				finalizer: resource.NewAPIFinalizer(test.NewMockClient(), finalizerName),
 			},
 			req:        reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace, Name: name}},
 			wantResult: reconcile.Result{RequeueAfter: shortWait},
