@@ -267,7 +267,7 @@ defaultProviderRef:
 
 ### Resource Class Annotations
 
-The movement to strongly typed resource classes provides an opportunity to inject additional metadata in the form of annotations into a class's CRD when it is added to Crossplane. This metadata may include resource specific information that would be useful in creating an enhanced user experience via a GUI or some other presentation format. These annotations would be applied in a formal manner via the [stack manager](design-doc-stacks.md).
+The movement to strongly typed resource classes provides an opportunity to inject additional metadata in the form of annotations into a class's CRD when it is added to Crossplane. This metadata may include resource specific information that would be useful in creating an enhanced user experience via a GUI or some other presentation format. These annotations would be applied in a formal manner via the [package manager](design-doc-packages.md).
 
 ## Implementation
 

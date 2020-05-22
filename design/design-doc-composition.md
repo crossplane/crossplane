@@ -1369,7 +1369,7 @@ _Composite resource_. A Kubernetes custom resource that is composed of other
 resources (using Crossplane composition).
 
 [Custom Resource Definitions]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
-[Stack]: design-doc-stacks.md
+[Stack]: design-doc-packages.md
 [kubebuilder]: https://book.kubebuilder.io/
 [Template Stack]: one-pager-template-stacks.md
 [Helm]: https://helm.sh/
