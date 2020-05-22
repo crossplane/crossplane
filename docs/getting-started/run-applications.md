@@ -33,12 +33,40 @@ on-demand by Crossplane.
 > published a PostgreSQLInstance with at least one working Composition in order
 > to create the OAM application we'll use in this guide.
 
-## Install the OAM Addon
+## Infrastructure Operator
+
+### Install workloads and traits
 
 As the infrastructure operator our work is almost done - we defined, published,
-and composed the infrastructure  that our application developer and operator
-team-mates will use in the previous guide. One task remains for us, which is to
-install and configure Crossplane's OAM addon.
+and composed the infrastructure that our application developer and operator
+teammates will use in the previous guide. One task remains, which is to define
+the [_workloads_] and [_traits_] that our platform supports.
+
+OAM applications consist of workloads, each of which may be modified by traits.
+The infrastructure operator may choose which workloads and traits by creating
+or deleting `WorkloadDefinitions` and `TraitDefinitions` like below:
+
+```yaml
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: WorkloadDefinition
+metadata:
+  name: containerizedworkloads.core.oam.dev
+spec:
+  definitionRef:
+    name: containerizedworkloads.core.oam.dev
+```
+
+Run the following command to add support for all the workloads and traits required
+by this guide:
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.11/docs/snippets/run/definitions.yaml
+```
+
+Now that we've defined our workloads and traits, we must install Crossplane's
+OAM addon. This addon packages the controllers that reconcile core OAM workloads
+and traits.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3</a></li>
@@ -74,30 +102,9 @@ helm install --name addon-oam-kubernetes-local --namespace crossplane-system cro
 </div>
 </div>
 
-```yaml
----
-apiVersion: core.oam.dev/v1alpha2
-kind: WorkloadDefinition
-metadata:
-  name: containerizedworkloads.core.oam.dev
-spec:
-  definitionRef:
-    name: containerizedworkloads.core.oam.dev
-```
+## Application Developer
 
-Once the addon is installed we must define the [_workloads_] and [_traits_] that
-our platform supports. OAM applications consist of workloads, each of which may
-be modified by traits. The infrastructure operator may choose which workloads
-and traits their platform supports by creating or deleting `WorkloadDefinitions`
-and `TraitDefinitions`. We'll discuss workloads and traits in more detail below.
-Run the following command to add support for the workloads and traits required
-by this guide:
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.11/docs/snippets/run/definitions.yaml
-```
-
-## Publish Application Components
+### Publish Application Components
 
 Now we'll play the role of the application developer. Our Service Tracker
 application consists of a UI service, four API services, and a PostgreSQL
@@ -319,7 +326,9 @@ All OAM components configure a kind of workload, and any kind of Kubernetes
 resource may act as an OAM workload as long as an infrastructure operator has
 allowed it to by authoring a `WorkloadDefinition`.
 
-## Run The Application
+## Application Operator
+
+### Run The Application
 
 Finally, we'll play the role of an application operator and tie together the
 application components and infrastructure that our application developer and
@@ -394,7 +403,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 This application configuration names each of components the application
 developer created earlier to produce workloads. The application operator may (or
 in some cases _must_) provide parameter values for a component in order to
-specify certain configuration values. Component parameters represent
+override or specify certain configuration values. Component parameters represent
 configuration settings that the component author - the application developer -
 deemed to be of interest to application operators.
 
