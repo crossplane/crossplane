@@ -354,6 +354,7 @@ spec:
     namespace: crossplane-system
     name: alibaba-creds
     key: credentials
+  region: cn-beijing
 ```
 
 Then apply it:
