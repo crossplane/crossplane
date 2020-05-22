@@ -57,16 +57,17 @@ const (
 )
 
 var (
-	errUnmarshalTemplate = "cannot unmarshal template"
-	errUpdateStatusFmt   = "cannot update status %s %s"
-	errGetKey            = "cannot take object key from resource"
-	errDeleteResource    = "cannot delete resource"
-	errGetResource       = "cannot get resource"
-	errSyncResource      = "cannot sync resource"
-	errCreateResource    = "cannot create resource"
-	errDeleteSecret      = "cannot delete secret"
-	errGetSecret         = "cannot get secret"
-	errSyncSecret        = "cannot sync secret"
+	errUnmarshalTemplate  = "cannot unmarshal template"
+	errUpdateStatusFmt    = "cannot update status %s %s"
+	errGetKey             = "cannot take object key from resource"
+	errDeleteResource     = "cannot delete resource"
+	errGetResource        = "cannot get resource"
+	errSyncResource       = "cannot sync resource"
+	errCreateResource     = "cannot create resource"
+	errDeleteSecret       = "cannot delete secret"
+	errGetSecret          = "cannot get secret"
+	errSyncSecret         = "cannot sync secret"
+	errWaitingForDeletion = "waiting for resource to be deleted in remote cluster"
 )
 
 // Ownership annotations
@@ -299,6 +300,9 @@ func (c *unstructuredClient) delete(ctx context.Context, template *unstructured.
 		return errors.Wrap(err, errGetKey)
 	}
 
+	// We declare deletion as successful only if the remote resource is actually
+	// deleted so that we don't delete the local resource in case deletion
+	// results in error.
 	if err := c.kube.Get(ctx, key, remote); err != nil {
 		if kerrors.IsNotFound(err) {
 			return nil
@@ -311,8 +315,12 @@ func (c *unstructuredClient) delete(ctx context.Context, template *unstructured.
 		return nil
 	}
 
-	// The object exists and we own it. Delete it.
-	return errors.Wrap(c.kube.Delete(ctx, remote), errDeleteResource)
+	// TODO(muvaf): Using error as control flow is not a good practice. Consider
+	// returning a bool or a custom result object.
+	if err := c.kube.Delete(ctx, remote); err != nil {
+		return errors.Wrap(err, errDeleteResource)
+	}
+	return errors.New(errWaitingForDeletion)
 }
 
 type secretClient struct {
