@@ -95,8 +95,8 @@ This design is also not heavily concerned with the format of the `Stack` object
 or the layout of the Stack filesystem. Those topics will be discussed in another
 one-pager or subsequent updates to this design. It is assumed that the reader
 has some familiarity with [`Stack`
-resources](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#stack-crd)
-and the way [they are automatically created from StackInstall resources](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow).
+resources](https://github.com/crossplane/crossplane/blob/master/design/design-doc-packages.md#stack-crd)
+and the way [they are automatically created from StackInstall resources](https://github.com/crossplane/crossplane/blob/master/design/design-doc-packages.md#installation-flow).
 
 Stack resources that are managed as Template Stacks should require Namespaced
 scoping. Cluster scoped Template Stacks may require additional thinking.
@@ -1028,7 +1028,7 @@ spec:
 ```
 
 In response to a `StackInstall` request, the Stack Manager will do [its normal
-work](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#installation-flow)
+work](https://github.com/crossplane/crossplane/blob/master/design/design-doc-packages.md#installation-flow)
 and [some extra work](#Resource-life-cycle) to create a `Stack` resource and
 apply the appropriate `template` and `templateStatus` bodies to that `Stack`
 resource. It will also create a `Deployment` and `ServiceAccount` for the TSM.

@@ -280,7 +280,7 @@ also take advantage of the build submodule, they will also follow a very similar
 Crossplane and receive a similar set of improvements.
 
 Recall that a Stack is simply just an [OCI
-image](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md#stack-package-format).
+image](https://github.com/crossplane/crossplane/blob/master/design/design-doc-packages.md#package-format).
 Therefore, the build and publishing process can follow essentially the same process that Crossplane
 uses. Other functionality in the build submodule, such as creating a Helm chart, is not necessary
 for Stacks, but relevant functionality should definitely be reused. For example, building and

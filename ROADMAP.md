@@ -136,7 +136,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 * The Stack Manager supports more granular management of permissions for cluster (environment) and namespace (workspace) scoped stacks.
   * Default admin, editor, and viewer roles automatically updated as Stacks are installed/uninstalled.
   * Admins can create role bindings to these roles, to simplify granting user permissions.
-  * Details in the [design doc](https://github.com/crossplane/crossplane/blob/master/design/one-pager-stacks-security-isolation.md).
+  * Details in the [design doc](https://github.com/crossplane/crossplane/blob/master/design/one-pager-packages-security-isolation.md).
 * GKE cluster support has moved to `v1beta1` with node pool support.
   * The `v1alpha3` GKE cluster support has been left intact and can run side by side with v1beta1 
 * Integration test framework in the crossplane-runtime, reducing the burden to provide integration test coverage across all projects and prevent regressions.

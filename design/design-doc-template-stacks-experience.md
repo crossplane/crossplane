@@ -70,7 +70,7 @@ bundles in Kubernetes.
 
 On the Crossplane side, the extensibility model is still relatively new.
 In the most recent release, the concept of
-[Stacks](https://github.com/crossplane/crossplane/blob/master/design/design-doc-stacks.md)
+[Stacks](https://github.com/crossplane/crossplane/blob/master/design/design-doc-packages.md)
 was introduced, and the first version of some [tooling to help write
 Stacks](https://github.com/crossplane/crossplane-cli) was also
 introduced. The Crossplane project has been working toward making Stacks
