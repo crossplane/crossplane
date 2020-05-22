@@ -338,7 +338,7 @@ kubectl crossplane package install --cluster --namespace crossplane-system ${PAC
 ### Create a Provider Secret
 
 ```
-kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key> --from-literal=accessKeySecret=<your-secret>
+kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key> --from-literal=accessKeySecret=<your-secret> -n crossplane-system
 ```
 
 ### Configure the Provider
