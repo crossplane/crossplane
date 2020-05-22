@@ -1,4 +1,4 @@
-# Stacks Security and Isolation
+# Packages Security and Isolation
 
 * Owner: Jared Watts (@jbw976)
 * Reviewers: Crossplane Maintainers
