@@ -196,7 +196,7 @@ metadata:
   name: rdspostgresql
 spec:
   forProvider:
-    engine: postgresql
+    engine: PostgreSQL
     engineVersion: "9.4"
     dbInstanceClass: rds.pg.s1.small
     dbInstanceStorageInGB: 20
