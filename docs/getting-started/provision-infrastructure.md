@@ -41,7 +41,7 @@ spec:
     dbInstanceClass: db.t2.small
     masterUsername: masteruser
     allocatedStorage: 20
-    engine: postgresql
+    engine: postgres
     engineVersion: "9.6"
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretToRef:
@@ -196,7 +196,7 @@ metadata:
   name: rdspostgresql
 spec:
   forProvider:
-    engine: postgresql
+    engine: PostgreSQL
     engineVersion: "9.4"
     dbInstanceClass: rds.pg.s1.small
     dbInstanceStorageInGB: 20
