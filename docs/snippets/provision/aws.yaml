@@ -7,7 +7,7 @@ spec:
     dbInstanceClass: db.t2.small
     masterUsername: masteruser
     allocatedStorage: 20
-    engine: postgresql
+    engine: postgres
     engineVersion: "9.6"
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretToRef:
