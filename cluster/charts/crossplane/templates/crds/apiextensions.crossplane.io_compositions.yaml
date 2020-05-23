@@ -100,8 +100,14 @@ spec:
                             instance. Leave empty if you'd like to use the same key
                             name.
                           type: string
-                      required:
-                      - fromConnectionSecretKey
+                        value:
+                          description: Value that will be propagated to the connection
+                            secret of the composition instance. Typically you should
+                            use FromConnectionSecretKey instead, but an explicit value
+                            may be set to inject a fixed, non-sensitive connection
+                            secret values, for example a well-known port. Supercedes
+                            FromConnectionSecretKey when set.
+                          type: string
                       type: object
                     type: array
                   patches:

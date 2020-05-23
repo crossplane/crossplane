@@ -44,12 +44,16 @@ const (
 	shortWait        = 30 * time.Second
 	longWait         = 1 * time.Minute
 
-	errGarbageCollect = "failed to garbage collect KubernetesApplicationResources"
-	errSyncTemplate   = "failed to sync template with KubernetesApplicationResource"
+	finalizerName = "finalizer.kubernetesapplication.workload.crossplane.io"
+
+	errSyncTemplate    = "failed to sync template with KubernetesApplicationResource"
+	errAddFinalizer    = "failed to add finalizer"
+	errRemoveFinalizer = "failed to remove finalizer"
 )
 
 type syncer interface {
 	sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error)
+	delete(ctx context.Context, app *v1alpha1.KubernetesApplication) (int, error)
 }
 
 // CreatePredicate accepts KubernetesApplications that have been scheduled to a
@@ -83,44 +87,51 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
 		Complete(&Reconciler{
 			kube: mgr.GetClient(),
-			local: &localCluster{
-				ar: &applicationResourceClient{kube: mgr.GetClient()},
-				gc: &applicationResourceGarbageCollector{kube: mgr.GetClient()},
-			},
-			log: l.WithValues("controller", name),
+			gc:   &applicationResourceGarbageCollector{kube: mgr.GetClient()},
+			local: &localCluster{kube: resource.ClientApplicator{
+				Client:     mgr.GetClient(),
+				Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
+			}},
+			log:       l.WithValues("controller", name),
+			finalizer: resource.NewAPIFinalizer(mgr.GetClient(), finalizerName),
 		})
 }
 
 // localCluster is a syncDeleter that syncs and deletes resources from the same
 // cluster as their controlling application.
 type localCluster struct {
-	ar applicationResourceSyncer
-	gc garbageCollector
+	kube resource.ClientApplicator
 }
 
 func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplication) (v1alpha1.KubernetesApplicationState, error) {
 	var errs []error
-
-	// If App was deleted, do not attempt to sync. The KubernetesApplication is
-	// blocked on deletion of all KubernetesApplicationResources that have
-	// controller references to it. If we attempt to create or update while a
-	// subset of those KubernetesApplicationResources have not yet been deleted,
-	// we may be creating a resource that we intend to be deleted.
-	if meta.WasDeleted(app) {
-		return v1alpha1.KubernetesApplicationStateDeleted, nil
-	}
-
-	// Garbage collect any resource we control but no longer have templates for.
-	if err := c.gc.process(ctx, app); err != nil {
-		return v1alpha1.KubernetesApplicationStateFailed, errors.Wrap(err, errGarbageCollect)
-	}
 
 	app.Status.DesiredResources = len(app.Spec.ResourceTemplates)
 	app.Status.SubmittedResources = 0
 
 	// Create or update all resources with extant templates.
 	for i := range app.Spec.ResourceTemplates {
-		submitted, err := c.ar.sync(ctx, renderTemplate(app, &app.Spec.ResourceTemplates[i]))
+		template := renderTemplate(app, &app.Spec.ResourceTemplates[i])
+		submitted := false
+
+		// ApplyOptions are executed in the order that they are passed, so by the
+		// time we reach the anonymous function we will already know that this KAR
+		// is controllable by the KA.
+		err := c.kube.Apply(ctx, template, resource.MustBeControllableBy(metav1.GetControllerOf(template).UID), resource.UpdateFn(func(current, _ runtime.Object) {
+			c := current.(*v1alpha1.KubernetesApplicationResource)
+			if c.Status.State == v1alpha1.KubernetesApplicationResourceStateSubmitted {
+				submitted = true
+			}
+
+			c.SetLabels(template.GetLabels())
+			c.SetAnnotations(template.GetAnnotations())
+			c.Spec = *template.Spec.DeepCopy()
+
+			// By the time we get here Apply will have already checked that this KAR
+			// is controllable by the KA in the MustBeControllableBy ApplyOption, so
+			// it is safe to overwrite the owner references with the template's.
+			c.SetOwnerReferences(template.GetOwnerReferences())
+		}))
 
 		if submitted {
 			app.Status.SubmittedResources++
@@ -146,6 +157,21 @@ func (c *localCluster) sync(ctx context.Context, app *v1alpha1.KubernetesApplica
 	return v1alpha1.KubernetesApplicationStateSubmitted, nil
 }
 
+func (c *localCluster) delete(ctx context.Context, app *v1alpha1.KubernetesApplication) (int, error) {
+	remaining := len(app.Spec.ResourceTemplates)
+	for i := range app.Spec.ResourceTemplates {
+		kar := renderTemplate(app, &app.Spec.ResourceTemplates[i])
+		err := c.kube.Delete(ctx, kar)
+		if client.IgnoreNotFound(err) != nil {
+			return 0, err
+		}
+		if kerrors.IsNotFound(err) {
+			remaining--
+		}
+	}
+	return remaining, nil
+}
+
 // renderTemplate produces a KubernetesApplicationResource from the supplied
 // KubernetesApplicationResourceTemplate. Note that we somewhat confusingly
 // also refer to the output KubernetesApplicationResource as a 'template' when
@@ -165,41 +191,6 @@ func renderTemplate(app *v1alpha1.KubernetesApplication, template *v1alpha1.Kube
 	ar.Status.State = v1alpha1.KubernetesApplicationResourceStateScheduled
 
 	return ar
-}
-
-type applicationResourceSyncer interface {
-	// sync the supplied template with the Crossplane API server. Returns true
-	// if the templated resource exists and has been submitted to its scheduled
-	// API server, as well as any error encountered.
-	sync(ctx context.Context, template *v1alpha1.KubernetesApplicationResource) (submitted bool, err error)
-}
-
-type applicationResourceClient struct {
-	kube client.Client
-}
-
-func (c *applicationResourceClient) sync(ctx context.Context, template *v1alpha1.KubernetesApplicationResource) (bool, error) {
-	submitted := false
-
-	// ApplyOptions are executed in the order that they are passed, so by the
-	// time we reach the anonymous function we will already know that this KAR
-	// is controllable by the KA.
-	err := resource.NewAPIUpdatingApplicator(c.kube).Apply(ctx, template, resource.MustBeControllableBy(metav1.GetControllerOf(template).UID), resource.UpdateFn(func(current, _ runtime.Object) {
-		c := current.(*v1alpha1.KubernetesApplicationResource)
-		if c.Status.State == v1alpha1.KubernetesApplicationResourceStateSubmitted {
-			submitted = true
-		}
-
-		c.SetLabels(template.GetLabels())
-		c.SetAnnotations(template.GetAnnotations())
-		c.Spec = *template.Spec.DeepCopy()
-
-		// By the time we get here Apply will have already checked that this KAR
-		// is controllable by the KA in the MustBeControllableBy ApplyOption, so
-		// it is safe to overwrite the owner references with the template's.
-		c.SetOwnerReferences(template.GetOwnerReferences())
-	}))
-	return submitted, errors.Wrapf(err, "cannot sync %s", v1alpha1.KubernetesApplicationResourceKind)
 }
 
 type garbageCollector interface {
@@ -250,9 +241,11 @@ func (gc *applicationResourceGarbageCollector) process(ctx context.Context, app 
 
 // A Reconciler reconciles KubernetesApplications.
 type Reconciler struct {
-	kube  client.Client
-	local syncer
-	log   logging.Logger
+	kube      client.Client
+	gc        garbageCollector
+	local     syncer
+	log       logging.Logger
+	finalizer resource.Finalizer
 }
 
 // Reconcile scheduled KubernetesApplications by managing their templated
@@ -269,6 +262,36 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{Requeue: false}, nil
 		}
 		return reconcile.Result{Requeue: false}, errors.Wrapf(err, "cannot get %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+	}
+
+	if meta.WasDeleted(app) {
+		app.Status.State = v1alpha1.KubernetesApplicationStateDeleting
+		remaining, err := r.local.delete(ctx, app)
+		if err != nil {
+			app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+		}
+		if remaining != 0 {
+			app.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage("waiting for KubernetesApplicationResources to be deleted"))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+		}
+		if err := r.finalizer.RemoveFinalizer(ctx, app); err != nil {
+			app.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRemoveFinalizer)))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+		}
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	if err := r.finalizer.AddFinalizer(ctx, app); err != nil {
+		app.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errAddFinalizer)))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
+	}
+
+	// Garbage collect any resource we control but no longer have templates for.
+	if err := r.gc.process(ctx, app); err != nil {
+		app.Status.State = v1alpha1.KubernetesApplicationStateFailed
+		app.Status.SetConditions(runtimev1alpha1.ReconcileError(err))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.kube.Status().Update(ctx, app), "cannot update status %s %s", v1alpha1.KubernetesApplicationKind, req.NamespacedName)
 	}
 
 	state, err := r.local.sync(ctx, app)
