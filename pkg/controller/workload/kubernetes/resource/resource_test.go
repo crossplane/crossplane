@@ -780,6 +780,18 @@ func TestDeleteUnstructured(t *testing.T) {
 			unstructured: &unstructuredClient{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
+				},
+			},
+			template: template(service),
+			wantErr:  nil,
+		},
+		{
+			name: "CalledDelete",
+			unstructured: &unstructuredClient{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
 						*obj.(*unstructured.Unstructured) = *(template(existingService))
 						return nil
 					},
@@ -787,7 +799,7 @@ func TestDeleteUnstructured(t *testing.T) {
 				},
 			},
 			template: template(service),
-			wantErr:  nil,
+			wantErr:  errors.New(errWaitingForDeletion),
 		},
 		{
 			name: "ExistingResourceNotFound",
