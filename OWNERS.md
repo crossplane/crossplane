@@ -10,15 +10,15 @@ steering committee and maintainers.
 ## Steering Committee
 
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
-  * 2 year term expires `2022-05-xy`
+  * 2 year term expires `2022-05-26`
 * Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
-  * 2 year term expires `2022-05-xy`
+  * 2 year term expires `2022-05-26`
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * 2 year term expires `2022-05-xy`
+  * 2 year term expires `2022-05-26`
 * To be filled
-  * 1 year term expires `2021-05-xy`
+  * 1 year term expires `2021-05-26`
 * To be filled
-  * 1 year term expires `2021-05-xy`
+  * 1 year term expires `2021-05-26`
 
 ## Maintainers
 
