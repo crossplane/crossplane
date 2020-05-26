@@ -1,31 +1,33 @@
 # Crossplane Maintainers
 
-This page lists all active maintainers and their areas of expertise. This can be used for routing PRs, questions, etc. to the right place.
+This page lists all active members of the steering committee and maintainers for **this**
+repository. Each repository in the [Crossplane organization](https://github.com/crossplane/) will
+list their repository maintainers in their own `OWNERS.md` file.
 
-* See [CONTRIBUTING.md](CONTRIBUTING.md) for general contribution guidelines.
-* See [GOVERNANCE.md](GOVERNANCE.md) for governance guidelines and maintainer responsibilities.
+Please see [GOVERNANCE.md](GOVERNANCE.md) for governance guidelines and responsibilities for the
+steering committee and maintainers.
 
-## Senior maintainers
-
-Here's the current list of senior maintainers:
+## Steering Committee
 
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
-  * Catch-all, architecture, strategy
-* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * Stacks architecture, release engineering
+  * 2 year term expires `2022-05-26`
 * Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
-  * Services architecture
+  * 2 year term expires `2022-05-26`
+* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
+  * 2 year term expires `2022-05-26`
+* To be filled
+  * 1 year term expires `2021-05-26`
+* To be filled
+  * 1 year term expires `2021-05-26`
 
 ## Maintainers
 
-There are currently no maintainers. Maintainers will be added according to the [process for adding a maintainer](GOVERNANCE.md#becoming-a-maintainer) in the [governance](GOVERNANCE.md).
+* Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
+* Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
+* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
+* Daniel Mangum <dan@upbound.io> ([hasheddan](https://github.com/hasheddan))
+* Muvaffak Onus <monus@upbound.io> ([muvaf](https://github.com/muvaf))
 
 ## Emeritus maintainers
 
 * Illya Chekrygin <illya.chekrygin@gmail.com> ([ichekrygin](https://github.com/ichekrygin))
-
-## Friends of Crossplane
-
-This section lists people that are not currently maintainers but have demonstrated value to the community.
-They typically help out with technical, code and design reviews and also with support and troubleshooting.
-Feel free to loop them in as needed.
