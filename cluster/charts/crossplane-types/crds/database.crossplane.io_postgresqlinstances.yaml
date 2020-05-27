@@ -146,10 +146,12 @@ spec:
               type: object
             engineVersion:
               description: 'EngineVersion specifies the desired PostgreSQL engine
-                version. Allowed Versions: 9.6 and 11.'
+                version. Allowed Versions: 9.4, 10.0, 11.0 and 12.0.'
               enum:
-              - "9.6"
-              - "11"
+              - "9.4"
+              - "10.0"
+              - "11.0"
+              - "12.0"
               type: string
             resourceRef:
               description: A ResourceReference specifies an existing managed resource,
