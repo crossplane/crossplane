@@ -143,6 +143,7 @@ metadata:
   labels:
     provider: aws
     guide: quickstart
+    vpc: default
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
   reclaimPolicy: Delete
@@ -200,8 +201,9 @@ kind: Composition
 metadata:
   name: vpcpostgresqlinstances.aws.database.example.org
   labels:
-    provider: aws-vpc
+    provider: aws
     guide: quickstart
+    vpc: new
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
   reclaimPolicy: Delete
@@ -579,7 +581,8 @@ and created at least one composition that can satisfy it, we can create a
 match our `Composition` of choice.
 
 <ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS</a></li>
+<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS (Default VPC)</a></li>
+<li><a href="#aws-tab-new-2" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
 <li><a href="#alibaba-tab-2" data-toggle="tab">Alibaba</a></li>
@@ -600,6 +603,31 @@ spec:
   compositionSelector:
     matchLabels:
       provider: aws
+      vpc: default
+  writeConnectionSecretToRef:
+    name: db-conn
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-aws.yaml
+```
+
+</div>
+<div class="tab-pane fade" id="aws-tab-new-2" markdown="1">
+
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstanceRequirement
+metadata:
+  name: my-db
+  namespace: default
+spec:
+  parameters:
+    storageGB: 20
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      vpc: new
   writeConnectionSecretToRef:
     name: db-conn
 ```

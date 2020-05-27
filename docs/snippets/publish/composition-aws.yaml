@@ -6,6 +6,7 @@ metadata:
   labels:
     provider: aws
     guide: quickstart
+    vpc: default
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
   reclaimPolicy: Delete

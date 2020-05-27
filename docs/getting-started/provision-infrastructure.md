@@ -41,7 +41,7 @@ spec:
     dbInstanceClass: db.t2.small
     masterUsername: masteruser
     allocatedStorage: 20
-    engine: postgresql
+    engine: postgres
     engineVersion: "9.6"
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretToRef:
@@ -148,7 +148,7 @@ spec:
       name: sqlserverpostgresql-rg
     location: West US 2
     sslEnforcement: Disabled
-    version: "5.7"
+    version: "9.6"
     sku:
       tier: GeneralPurpose
       capacity: 2
@@ -196,7 +196,7 @@ metadata:
   name: rdspostgresql
 spec:
   forProvider:
-    engine: postgresql
+    engine: PostgreSQL
     engineVersion: "9.4"
     dbInstanceClass: rds.pg.s1.small
     dbInstanceStorageInGB: 20

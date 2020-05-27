@@ -4,8 +4,9 @@ kind: Composition
 metadata:
   name: vpcpostgresqlinstances.aws.database.example.org
   labels:
-    provider: aws-vpc
+    provider: aws
     guide: quickstart
+    vpc: new
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
   reclaimPolicy: Delete

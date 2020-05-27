@@ -15,7 +15,7 @@
 applications or infrastructure provider controllers.
 * **Stacks**: Stacks could refer to more than one Crossplane stack-manager packages or the Stack-Manager system as a whole.
 
-See the [Stacks Design Doc](design-doc-stacks.md) for more details about Crossplane Stacks.
+See the [Stacks Design Doc](design-doc-packages.md) for more details about Crossplane Stacks.
 
 ## Objective
 
