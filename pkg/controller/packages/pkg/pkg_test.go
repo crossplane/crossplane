@@ -69,6 +69,9 @@ const (
 var (
 	ctx     = context.Background()
 	errBoom = errors.New("boom")
+
+	nobodyGroup int64 = 65534
+	rootGroup   int64 = 0
 )
 
 func init() {
@@ -1303,7 +1306,9 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
-						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+						}),
 						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
 							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 							Privileged:               &privileged,
@@ -1337,7 +1342,9 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentPullPolicy(corev1.PullAlways),
-						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+						}),
 						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
 							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 							Privileged:               &privileged,
@@ -1378,7 +1385,9 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentPullPolicy(corev1.PullAlways),
-						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+						}),
 						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
 							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 							Privileged:               &privileged,
@@ -1412,7 +1421,88 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentSA(resourceName),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentPullSecrets("foo"),
-						withDeploymentSecurityContext(&corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot}),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+						}),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+							Privileged:               &privileged,
+							RunAsNonRoot:             &runAsNonRoot,
+						}),
+					),
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+		{
+			name: "SuccessNonZeroFsGroup",
+			r: resource(withControllerSpec(defaultControllerSpec(
+				withDeploymentSecurityContext(&corev1.PodSecurityContext{
+					FSGroup: &nobodyGroup,
+				}),
+			))),
+			clientFunc: fake.NewFakeClient,
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						Labels:    packagespkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+							FSGroup:      &nobodyGroup,
+						}),
+						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+							Privileged:               &privileged,
+							RunAsNonRoot:             &runAsNonRoot,
+						}),
+					),
+				},
+				controllerRef: &corev1.ObjectReference{
+					Name:       controllerDeploymentName,
+					Namespace:  namespace,
+					Kind:       "Deployment",
+					APIVersion: "apps/v1",
+				},
+			},
+		},
+		{
+			name: "SuccessZeroFsGroup",
+			r: resource(withControllerSpec(defaultControllerSpec(
+				withDeploymentSecurityContext(&corev1.PodSecurityContext{
+					FSGroup: &rootGroup,
+				}),
+			))),
+			clientFunc: fake.NewFakeClient,
+			want: want{
+				err: nil,
+				d: &apps.Deployment{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      controllerDeploymentName,
+						Namespace: namespace,
+						Labels:    packagespkg.ParentLabels(resource(withControllerSpec(defaultControllerSpec()))),
+					},
+					Spec: *deploymentSpec(
+						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
+						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
+						withDeploymentSA(resourceName),
+						withDeploymentContainer(controllerContainerName, controllerImageName),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							RunAsNonRoot: &runAsNonRoot,
+						}),
 						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
 							AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 							Privileged:               &privileged,
@@ -1430,10 +1520,14 @@ func TestProcessDeployment(t *testing.T) {
 		},
 		{
 			name: "SuccessPassFullDeployment",
-			r: resource(withControllerSpec(defaultControllerSpec(withDeploymentContainerSecurityContext(&corev1.SecurityContext{
-				AllowPrivilegeEscalation: &trueVal,
-				Privileged:               &trueVal,
-			})))),
+			r: resource(withControllerSpec(defaultControllerSpec(
+				withDeploymentSecurityContext(&corev1.PodSecurityContext{
+					FSGroup: &rootGroup,
+				}),
+				withDeploymentContainerSecurityContext(&corev1.SecurityContext{
+					AllowPrivilegeEscalation: &trueVal,
+					Privileged:               &trueVal,
+				})))),
 			clientFunc:         fake.NewFakeClient,
 			passFullDeployment: true,
 			want: want{
@@ -1448,6 +1542,9 @@ func TestProcessDeployment(t *testing.T) {
 						withDeploymentTmplMeta(controllerDeploymentName, "", nil),
 						withDeploymentMatchLabels(map[string]string{"app": controllerDeploymentName}),
 						withDeploymentSA(resourceName),
+						withDeploymentSecurityContext(&corev1.PodSecurityContext{
+							FSGroup: &rootGroup,
+						}),
 						withDeploymentContainer(controllerContainerName, controllerImageName),
 						withDeploymentContainerSecurityContext(&corev1.SecurityContext{
 							AllowPrivilegeEscalation: &trueVal,
@@ -1495,8 +1592,10 @@ func TestProcessDeployment(t *testing.T) {
 								Name: controllerDeploymentName,
 							},
 							Spec: corev1.PodSpec{
-								ServiceAccountName:           "",
-								SecurityContext:              &corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot},
+								ServiceAccountName: "",
+								SecurityContext: &corev1.PodSecurityContext{
+									RunAsNonRoot: &runAsNonRoot,
+								},
 								AutomountServiceAccountToken: &disableAutoMount,
 								Containers: []corev1.Container{
 									{
@@ -1604,7 +1703,9 @@ func TestProcessDeployment(t *testing.T) {
 							Spec: corev1.PodSpec{
 								ServiceAccountName:           "",
 								AutomountServiceAccountToken: &disableAutoMount,
-								SecurityContext:              &corev1.PodSecurityContext{RunAsNonRoot: &runAsNonRoot},
+								SecurityContext: &corev1.PodSecurityContext{
+									RunAsNonRoot: &runAsNonRoot,
+								},
 								Containers: []corev1.Container{
 									{
 										Name:  controllerContainerName,

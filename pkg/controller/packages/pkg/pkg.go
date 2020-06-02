@@ -856,9 +856,13 @@ func (h *packageHandler) prepareDeployment(d *apps.Deployment) {
 	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
 
 	if !h.allowFullDeployment {
-		d.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+		psc := &corev1.PodSecurityContext{
 			RunAsNonRoot: &runAsNonRoot,
 		}
+		if d.Spec.Template.Spec.SecurityContext != nil && d.Spec.Template.Spec.SecurityContext.FSGroup != nil && *d.Spec.Template.Spec.SecurityContext.FSGroup != 0 {
+			psc.FSGroup = d.Spec.Template.Spec.SecurityContext.FSGroup
+		}
+		d.Spec.Template.Spec.SecurityContext = psc
 	}
 
 	for _, c := range [][]corev1.Container{
