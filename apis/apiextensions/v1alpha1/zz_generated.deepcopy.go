@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/api/core/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -316,6 +317,11 @@ func (in *InfrastructureDefinitionSpec) DeepCopyInto(out *InfrastructureDefiniti
 		in, out := &in.ConnectionSecretKeys, &out.ConnectionSecretKeys
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.DefaultCompositionRef != nil {
+		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
+		*out = new(v1.ObjectReference)
+		**out = **in
 	}
 	in.CRDSpecTemplate.DeepCopyInto(&out.CRDSpecTemplate)
 }

@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -32,6 +33,11 @@ type InfrastructureDefinitionSpec struct {
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end
 	// user of the defined kind.
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
+
+	// DefaultCompositionRef refers to the Composition resource that will be used
+	// in case no composition selector is given.
+	// +optional
+	DefaultCompositionRef *v1.ObjectReference `json:"defaultCompositionRef,omitempty"`
 
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
 	// fields to the base template to accommodate Crossplane machinery.
