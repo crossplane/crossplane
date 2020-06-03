@@ -300,7 +300,7 @@ func TestResolveSelector(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := NewAPISelectorResolver(tc.args.kube)
-			err := c.ResolveSelector(context.Background(), tc.args.cp)
+			err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nResolveSelector(...): -want, +got:\n%s", tc.reason, diff)
 			}

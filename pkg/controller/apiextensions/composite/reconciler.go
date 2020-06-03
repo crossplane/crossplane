@@ -99,10 +99,9 @@ type Composer interface {
 	Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (composedctrl.Observation, error)
 }
 
-// SelectorResolver selects the composition reference with the information given
-// as selector.
-type SelectorResolver interface {
-	ResolveSelector(ctx context.Context, cr resource.Composite) error
+// CompositionSelector selects a composition reference.
+type CompositionSelector interface {
+	SelectComposition(ctx context.Context, cr resource.Composite) error
 }
 
 // A Configurator configures a composite resource using its
@@ -128,16 +127,16 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// WithSelectorResolver specifies how the Reconciler should publish
-// connection secrets.
-func WithSelectorResolver(p SelectorResolver) ReconcilerOption {
+// WithCompositionSelector specifies how the composition to be used should be
+// selected.
+func WithCompositionSelector(p CompositionSelector) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.SelectorResolver = p
+		r.composite.CompositionSelector = p
 	}
 }
 
 // WithConfigurator specifies how the Reconciler should configure
-// composite resources using their composition
+// composite resources using their composition.
 func WithConfigurator(c Configurator) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.composite.Configurator = c
@@ -160,7 +159,7 @@ func WithComposer(rc Composer) ReconcilerOption {
 }
 
 type compositeResource struct {
-	SelectorResolver
+	CompositionSelector
 	Configurator
 	ConnectionPublisher
 }
@@ -177,7 +176,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		newComposite: nc,
 
 		composite: compositeResource{
-			SelectorResolver:    NewAPISelectorResolver(kube),
+			CompositionSelector: NewAPISelectorResolver(kube),
 			Configurator:        NewAPIConfigurator(kube),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 		},
@@ -230,7 +229,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"name", cr.GetName(),
 	)
 
-	if err := r.composite.ResolveSelector(ctx, cr); err != nil {
+	if err := r.composite.SelectComposition(ctx, cr); err != nil {
 		log.Debug(errSelectComp, "error", err)
 		r.record.Event(cr, event.Warning(reasonResolve, err))
 		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errSelectComp)))

@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -82,6 +83,27 @@ func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ re
 	return nil
 }
 
+// NewCompositionSelectorChain returns a new CompositionSelectorChain.
+func NewCompositionSelectorChain(list ...CompositionSelector) *CompositionSelectorChain {
+	return &CompositionSelectorChain{list: list}
+}
+
+// CompositionSelectorChain calls the given list of CompositionSelectors in order.
+type CompositionSelectorChain struct {
+	list []CompositionSelector
+}
+
+// SelectComposition calls all SelectComposition functions of CompositionSelectors
+// in the list.
+func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp resource.Composite) error {
+	for _, cs := range r.list {
+		if err := cs.SelectComposition(ctx, cp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewAPISelectorResolver returns a SelectorResolver for composite resource.
 func NewAPISelectorResolver(c client.Client) *APISelectorResolver {
 	return &APISelectorResolver{client: c}
@@ -93,8 +115,8 @@ type APISelectorResolver struct {
 	client client.Client
 }
 
-// ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cp resource.Composite) error {
+// SelectComposition resolves selector to a reference if it doesn't exist.
+func (r *APISelectorResolver) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
@@ -123,6 +145,45 @@ func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cp resource.C
 		return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 	}
 	return errors.New(errNoCompatibleComposition)
+}
+
+// NewAPIDefaultCompositionSelector returns a APIDefaultCompositionSelector.
+func NewAPIDefaultCompositionSelector(c client.Client, ref v1.ObjectReference) *APIDefaultCompositionSelector {
+	return &APIDefaultCompositionSelector{client: c, defRef: ref}
+}
+
+// APIDefaultCompositionSelector selects the default composition referenced in
+// the definition of the resource if neither a reference nor selector is given
+// in composite resource.
+type APIDefaultCompositionSelector struct {
+	client client.Client
+	defRef v1.ObjectReference
+}
+
+// SelectComposition selects the default compositionif neither a reference nor
+// selector is given in composite resource.
+func (r *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
+	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
+		return nil
+	}
+	def := &v1alpha1.InfrastructureDefinition{}
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(&r.defRef), def); err != nil {
+		return err
+	}
+	if def.Spec.DefaultCompositionRef == nil {
+		return nil
+	}
+	comp := &v1alpha1.Composition{}
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.DefaultCompositionRef), comp); err != nil {
+		return err
+	}
+
+	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
+		return errors.New("default composition is not compatible with this composite resource")
+	}
+	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
+	return nil
 }
 
 // NewAPIConfigurator returns a Configurator that configures a
