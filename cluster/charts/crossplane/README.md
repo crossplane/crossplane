@@ -294,8 +294,8 @@ and their default values.
 | `resourcesPackageManager.requests.memory` | Memory resource requests for PackageManager                | `256Mi`
 | `forceImagePullPolicy`           | Force the named ImagePullPolicy on Package install and containers | `""`
 | `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Packages. When enabled, Packages may declare dependency on core Kubernetes API types.) | `false` |
-| `insecurePassFullDeployment`     | Enable packages to pass their full deployment, including security context. When omitted, Package controller deployments will have security context removed and all containers will have `privileged` and `allowPrivilegeEscalation` set to `false`, and `runAsNonRoot` set to `true`. | `false` |
-| `insecureInstallJob`     | Enable package install jobs to run as root. When omitted, Package install jobs will have security context removed and all containers will have `privileged` and `allowPrivilegeEscalation` set to `false`, and `runAsNonRoot` set to `true`. | `false` |
+| `insecurePassFullDeployment`     | Enable packages to pass their full deployment, including security context. When omitted, Package controller deployments will have existing pod security context fields (excluding `fsGroup`) removed and `runAsNonRoot` set to `true`. All containers will have existing security context fields removed and replaced by `false` values for `privileged` and `allowPrivilegeEscalation` and `true` value for `runAsNonRoot`. | `false` |
+| `insecureInstallJob`     | Enable package install jobs to run as root. When omitted, Package install jobs will have existing pod security context fields removed and `runAsNonRoot` set to `true`. All containers will have existing security context fields removed and replaced by `false` values for `privileged` and `allowPrivilegeEscalation` and `true` value for `runAsNonRoot`. | `false` |
 
 ### Command Line
 
