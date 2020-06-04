@@ -173,6 +173,10 @@ func (r *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
 	}
+
+	// TODO(muvaf): A vaidating webhook on InfrastructureDefinition that will make
+	// sure referenced Composition is compatible could make more sense.
+
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.DefaultCompositionRef), comp); err != nil {
 		return err
@@ -183,6 +187,50 @@ func (r *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 		return errors.New("default composition is not compatible with this composite resource")
 	}
 	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
+	return nil
+}
+
+// NewAPIEnforcedCompositionSelector returns a APIEnforcedCompositionSelector.
+func NewAPIEnforcedCompositionSelector(c client.Client, ref v1.ObjectReference) *APIEnforcedCompositionSelector {
+	return &APIEnforcedCompositionSelector{client: c, defRef: ref}
+}
+
+// APIEnforcedCompositionSelector , if it's given, selects the enforced composition
+// on the definition for all composite instances.
+type APIEnforcedCompositionSelector struct {
+	client client.Client
+	defRef v1.ObjectReference
+}
+
+// SelectComposition selects the enforced composition if it's given in definition.
+func (r *APIEnforcedCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
+	def := &v1alpha1.InfrastructureDefinition{}
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(&r.defRef), def); err != nil {
+		return err
+	}
+	if def.Spec.EnforcedCompositionRef == nil {
+		return nil
+	}
+
+	// If the composition is already chosen, we don't need to check for compatibility
+	// as its target type reference is immutable.
+	if cp.GetCompositionReference().String() == def.Spec.EnforcedCompositionRef.String() {
+		return nil
+	}
+
+	// TODO(muvaf): A vaidating webhook on InfrastructureDefinition that will make
+	// sure referenced Composition is compatible could make more sense.
+
+	comp := &v1alpha1.Composition{}
+	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.EnforcedCompositionRef), comp); err != nil {
+		return err
+	}
+
+	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
+		return errors.New("default composition is not compatible with this composite resource")
+	}
+	cp.SetCompositionReference(def.Spec.EnforcedCompositionRef)
 	return nil
 }
 

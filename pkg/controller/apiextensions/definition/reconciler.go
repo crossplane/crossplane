@@ -376,6 +376,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind)),
 			composite.NewAPISelectorResolver(r.client),
+			composite.NewAPIEnforcedCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind)),
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
