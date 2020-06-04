@@ -1,7 +1,7 @@
 # Managed Resources API Patterns
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, Revision 1.2
+* Status: Accepted, Revision 1.3
 
 ## Revisions
 
@@ -13,6 +13,9 @@
   * Added [external resource labelling](#external-resource-labeling).
   * Added [cross-resource reference edge case](#pointer-types-and-markers) for types.
   * Added a condition to enforce the status fields to be reproducible in section [High Fidelity](#high-fidelity).
+* 1.3 - Daniel Mangum (@hasheddan)
+  * Removed definition for _Claim_ as claims are to be deprecated per [#1479](https://github.com/crossplane/crossplane/issues/1479).
+  * Added section on choosing a [GVK for a resource](#group-version-kind-gvk).
 
 ## Terminology
 
@@ -20,9 +23,6 @@
   Memorystore instances are external resources.
 * _Managed resource_. The Crossplane representation of an external resource. The `RDSInstance` and `CloudMemorystoreInstance`
   kinds are managed resources.
-* _Claim_. The Crossplane representation of a request for the allocation of a managed resource. Resource claims
-  typically represent the need for a managed resource that implements a particular protocol. MySQLInstance and
-  RedisCluster are examples of resource claims.
 * _Provider_. Cloud provider such as GCP, AWS, Azure offering IaaS, cloud networking, and managed services.
 * _Spec_. The sub-resource of Kubernetes resources that represents the desired state of the user.
 * _Status_ The sub-resource of Kubernetes resources that represents the most up-to-date information about the resource.
@@ -51,12 +51,27 @@ deviate so that we can reassess and improve it.
 
 ## Guiding Principles
 
-Our users are the stakeholders on how we make decisions. There are two types of users for managed resources:
-* Input Users: Users who configure/create/manage the resource. `Crossplane Claim` Controller, `Cluster Admin` are a few
-  examples of this type. We want our `Spec` to be the source of truth for them to configure everything about the resource.
-* Output Users: Users who refer to/query/use/extract information from the managed resource. We want them to be able to
-  perform all read-only operations on the given resource as if they have the cloud provider's API available. This can
-  include configurations and metadata information about the resource.
+Our users are the stakeholders on how we make decisions. There are two
+types of users for managed resources:
+* Input Users: Users who configure/create/manage the resource. We want
+  our `Spec` to be the source of truth for them to configure everything
+  about the resource.
+* Output Users: Users who refer to/query/use/extract information from
+  the managed resource. We want them to be able to perform all read-only
+  operations on the given resource as if they have the cloud provider's
+  API available. This can include configurations and metadata
+  information about the resource.
+
+### Group Version Kind (GVK)
+
+All Kubernetes Custom Resources belong to a group and are of a certain
+kind and version. There may be multiple kinds in a group and multiple
+versions of the same kind. In Crossplane, Custom Resources should mirror
+the provider API type that they represent as close as possible in group
+and kind. For instance, AWS has a `Cluster` type that is part of the
+`eks` [package]. The first version of the `Cluster` custom resource
+should be of `kind: Cluster` and `apiVersion:
+eks.aws.crossplane.io/v1alpha1`.
   
 ### Naming Conventions
 
@@ -586,6 +601,7 @@ object's body. In case it's not in sync, we should indicate that through a `Cond
 Generic managed reconciler's `ExternalObservation` struct could be extended by adding a field about that sync status
 and reconciler can mark the sync status in one of the `Condition`s we already have or add a new one.
 
+[package]: https://docs.aws.amazon.com/sdk-for-go/v2/api/service/eks/
 [glossary]: https://github.com/crossplane/crossplane/blob/master/docs/concepts.md#glossary
 [from crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
 [Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
