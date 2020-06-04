@@ -856,9 +856,23 @@ func (h *packageHandler) prepareDeployment(d *apps.Deployment) {
 	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
 
 	if !h.allowFullDeployment {
-		d.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
+		psc := &corev1.PodSecurityContext{
 			RunAsNonRoot: &runAsNonRoot,
 		}
+		// NOTE(hasheddan): If a fsGroup is defined in the Pod Security
+		// Context we allow it to pass through unless GID is 0. The
+		// fsGroup is added as a supplemental group to any containers in
+		// the Pod, so this restricts potentially adding root group.
+		// However, we do not have a restriction on containers running
+		// with a GID of 0, so preventing adding root as a supplemental
+		// group is often not preventing the container from actually
+		// having root group privileges.
+		// See https://github.com/crossplane/provider-aws/issues/211 for
+		// more information about why this was introduced.
+		if d.Spec.Template.Spec.SecurityContext != nil && d.Spec.Template.Spec.SecurityContext.FSGroup != nil && *d.Spec.Template.Spec.SecurityContext.FSGroup != 0 {
+			psc.FSGroup = d.Spec.Template.Spec.SecurityContext.FSGroup
+		}
+		d.Spec.Template.Spec.SecurityContext = psc
 	}
 
 	for _, c := range [][]corev1.Container{
