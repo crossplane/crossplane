@@ -39,6 +39,11 @@ type InfrastructureDefinitionSpec struct {
 	// +optional
 	DefaultCompositionRef *v1.ObjectReference `json:"defaultCompositionRef,omitempty"`
 
+	// EnforcedCompositionRef refers to the Composition resource that will be used
+	// by all composite instances whose schema is defined by this definition.
+	// +optional
+	EnforcedCompositionRef *v1.ObjectReference `json:"enforcedCompositionRef,omitempty"`
+
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
 	// fields to the base template to accommodate Crossplane machinery.
 	CRDSpecTemplate CRDSpecTemplate `json:"crdSpecTemplate,omitempty"`

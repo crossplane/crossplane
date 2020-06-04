@@ -323,6 +323,11 @@ func (in *InfrastructureDefinitionSpec) DeepCopyInto(out *InfrastructureDefiniti
 		*out = new(v1.ObjectReference)
 		**out = **in
 	}
+	if in.EnforcedCompositionRef != nil {
+		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
+		*out = new(v1.ObjectReference)
+		**out = **in
+	}
 	in.CRDSpecTemplate.DeepCopyInto(&out.CRDSpecTemplate)
 }
 
