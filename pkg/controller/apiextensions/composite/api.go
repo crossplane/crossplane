@@ -210,7 +210,7 @@ type APIEnforcedCompositionSelector struct {
 func (r *APIEnforcedCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	def := &v1alpha1.InfrastructureDefinition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(&r.defRef), def); err != nil {
-		return err
+		return errors.Wrap(err, errGetInfraDef)
 	}
 	if def.Spec.EnforcedCompositionRef == nil {
 		return nil
@@ -227,7 +227,7 @@ func (r *APIEnforcedCompositionSelector) SelectComposition(ctx context.Context, 
 
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.EnforcedCompositionRef), comp); err != nil {
-		return err
+		return errors.Wrap(err, errGetComposition)
 	}
 
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
