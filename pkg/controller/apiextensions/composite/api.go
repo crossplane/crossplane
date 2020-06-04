@@ -38,6 +38,10 @@ const (
 	errNoCompatibleComposition = "no compatible composition has been found"
 	errListCompositions        = "cannot list compositions"
 	errUpdateComposite         = "cannot update composite resource"
+	errDefaultNotCompatible    = "default composition is not compatible with this composite resource"
+	errEnforcedNotCompatible   = "enforced composition is not compatible with this composite resource"
+	errGetComposition          = "cannot get composition"
+	errGetInfraDef             = "cannot get infrastructuredefinition"
 )
 
 // APIFilteredSecretPublisher publishes ConnectionDetails content after filtering
@@ -168,23 +172,23 @@ func (r *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	}
 	def := &v1alpha1.InfrastructureDefinition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(&r.defRef), def); err != nil {
-		return err
+		return errors.Wrap(err, errGetInfraDef)
 	}
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
 	}
 
-	// TODO(muvaf): A vaidating webhook on InfrastructureDefinition that will make
+	// TODO(muvaf): A validating webhook on InfrastructureDefinition that will make
 	// sure referenced Composition is compatible could make more sense.
 
 	comp := &v1alpha1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.DefaultCompositionRef), comp); err != nil {
-		return err
+		return errors.Wrap(err, errGetComposition)
 	}
 
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
-		return errors.New("default composition is not compatible with this composite resource")
+		return errors.New(errDefaultNotCompatible)
 	}
 	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
 	return nil
@@ -218,7 +222,7 @@ func (r *APIEnforcedCompositionSelector) SelectComposition(ctx context.Context, 
 		return nil
 	}
 
-	// TODO(muvaf): A vaidating webhook on InfrastructureDefinition that will make
+	// TODO(muvaf): A validating webhook on InfrastructureDefinition that will make
 	// sure referenced Composition is compatible could make more sense.
 
 	comp := &v1alpha1.Composition{}
@@ -228,7 +232,7 @@ func (r *APIEnforcedCompositionSelector) SelectComposition(ctx context.Context, 
 
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
-		return errors.New("default composition is not compatible with this composite resource")
+		return errors.New(errEnforcedNotCompatible)
 	}
 	cp.SetCompositionReference(def.Spec.EnforcedCompositionRef)
 	return nil
