@@ -56,7 +56,7 @@ const (
 	finalizer      = "finalizer.apiextensions.crossplane.io"
 
 	errGetInfraDef     = "cannot get InfrastructureDefinition"
-	errNewCRD          = "cannot generate CustomResourceDefinition"
+	errRenderCRD       = "cannot render CustomResourceDefinition"
 	errGetCRD          = "cannot get CustomResourceDefinition"
 	errApplyCRD        = "cannot apply the generated CustomResourceDefinition"
 	errUpdateStatus    = "cannot update status of InfrastructureDefinition"
@@ -160,6 +160,14 @@ func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	}
 }
 
+// WithClientApplicator specifies how the Reconciler should interact with the
+// Kubernetes API.
+func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.client = ca
+	}
+}
+
 type definition struct {
 	CRDRenderer
 	ControllerEngine
@@ -245,9 +253,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	crd, err := r.definition.Render(d)
 	if err != nil {
-		log.Debug(errNewCRD, "error", err)
+		log.Debug(errRenderCRD, "error", err)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errNewCRD)))
+		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRenderCRD)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
@@ -318,7 +326,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			log.Debug(waitCRDelete)
 			r.record.Event(d, event.Normal(reasonDeleteDef, waitCRDelete))
 			d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDelete))
-			return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+			return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
 
 		// The controller should be stopped before the deletion of CRD so that
@@ -358,15 +366,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if !ccrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonApplyDef, waitCRDEstablish))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(waitCRDEstablish)))
-		return reconcile.Result{RequeueAfter: 3 * time.Second}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDEstablish))
+		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
 	o := kcontroller.Options{Reconciler: composite.NewReconciler(r.mgr,
 		resource.CompositeKind(d.GetDefinedGroupVersionKind()),
 		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
-		composite.WithRecorder(event.NewAPIRecorder(r.mgr.GetEventRecorderFor(composite.ControllerName(d.GetName())))),
+		composite.WithRecorder(r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 	)}
 
 	u := &kunstructured.Unstructured{}

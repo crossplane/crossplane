@@ -62,7 +62,7 @@ const (
 const (
 	errGetInfraDef     = "cannot get InfrastructureDefinition"
 	errGetInfraPub     = "cannot get InfrastructurePublication"
-	errNewCRD          = "cannot generate CustomResourceDefinition"
+	errRenderCRD       = "cannot generate CustomResourceDefinition"
 	errGetCRD          = "cannot get CustomResourceDefinition"
 	errApplyCRD        = "cannot apply CustomResourceDefinition"
 	errUpdateStatus    = "cannot update status of InfrastructurePublication"
@@ -217,6 +217,14 @@ func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	}
 }
 
+// WithClientApplicator specifies how the Reconciler should interact with the
+// Kubernetes API.
+func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.client = ca
+	}
+}
+
 // NewReconciler returns a Reconciler of InfrastructurePublications.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
@@ -297,7 +305,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		log.Debug(errGetInfraDef)
 		r.record.Event(p, event.Warning(reasonGetDef, err))
-		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(errGetInfraDef)))
+		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetInfraDef)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
@@ -305,9 +313,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	crd, err := r.publication.Render(d, p)
 	if err != nil {
-		log.Debug(errNewCRD, "error", err)
+		log.Debug(errRenderCRD, "error", err)
 		r.record.Event(p, event.Warning(reasonRenderCRD, err))
-		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errNewCRD)))
+		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRenderCRD)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
@@ -428,7 +436,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if !ccrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(p, event.Normal(reasonApplyPub, waitCRDEstablish))
-		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.New(waitCRDEstablish)))
+		p.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDEstablish))
 		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
@@ -436,7 +444,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		resource.RequirementKind(Published(d.GetDefinedGroupVersionKind())),
 		resource.CompositeKind(d.GetDefinedGroupVersionKind()),
 		requirement.WithLogger(log.WithValues("controller", requirement.ControllerName(p.GetName()))),
-		requirement.WithRecorder(event.NewAPIRecorder(r.mgr.GetEventRecorderFor(requirement.ControllerName(p.GetName())))),
+		requirement.WithRecorder(r.record.WithAnnotations("controller", requirement.ControllerName(p.GetName()))),
 	)}
 
 	rq := &kunstructured.Unstructured{}
