@@ -51,8 +51,8 @@ deviate so that we can reassess and improve it.
 
 ## Guiding Principles
 
-Our users are the stakeholders on how we make decisions. There are two
-types of users for managed resources:
+Our users are our stakeholders. They influence how we make decisions.
+There are two types of users for managed resources:
 * Input Users: Users who configure/create/manage the resource. We want
   our `Spec` to be the source of truth for them to configure everything
   about the resource.
@@ -67,9 +67,9 @@ types of users for managed resources:
 All Kubernetes Custom Resources belong to a group and are of a certain
 kind and version. There may be multiple kinds in a group and multiple
 versions of the same kind. In Crossplane, Custom Resources should mirror
-the provider API type that they represent as close as possible in group
-and kind. For instance, AWS has a `Cluster` type that is part of the
-`eks` [package]. The first version of the `Cluster` custom resource
+the provider API type that they represent as closely as possible in
+group and kind. For instance, AWS has a `Cluster` type that is part of
+the `eks` [package]. The first version of the `Cluster` custom resource
 should be of `kind: Cluster` and `apiVersion:
 eks.aws.crossplane.io/v1alpha1`.
   
