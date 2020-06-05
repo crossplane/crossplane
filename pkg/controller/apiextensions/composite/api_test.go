@@ -316,7 +316,7 @@ func TestSelectorResolver(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPISelectorResolver(tc.args.kube)
+			c := NewAPILabelSelectorResolver(tc.args.kube)
 			err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)

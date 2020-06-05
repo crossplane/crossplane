@@ -374,9 +374,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		resource.CompositeKind(d.GetDefinedGroupVersionKind()),
 		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind), recorder),
-			composite.NewAPISelectorResolver(r.client),
 			composite.NewEnforcedCompositionSelector(*d, recorder),
+			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind), recorder),
+			composite.NewAPILabelSelectorResolver(r.client),
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(recorder),

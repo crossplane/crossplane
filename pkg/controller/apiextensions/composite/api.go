@@ -112,19 +112,19 @@ func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp res
 	return nil
 }
 
-// NewAPISelectorResolver returns a SelectorResolver for composite resource.
-func NewAPISelectorResolver(c client.Client) *APISelectorResolver {
-	return &APISelectorResolver{client: c}
+// NewAPILabelSelectorResolver returns a SelectorResolver for composite resource.
+func NewAPILabelSelectorResolver(c client.Client) *APILabelSelectorResolver {
+	return &APILabelSelectorResolver{client: c}
 }
 
-// APISelectorResolver is used to resolve the composition selector on the instance
+// APILabelSelectorResolver is used to resolve the composition selector on the instance
 // to composition reference.
-type APISelectorResolver struct {
+type APILabelSelectorResolver struct {
 	client client.Client
 }
 
 // SelectComposition resolves selector to a reference if it doesn't exist.
-func (r *APISelectorResolver) SelectComposition(ctx context.Context, cp resource.Composite) error {
+func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
@@ -183,7 +183,7 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 		return nil
 	}
 	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
-	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default Composition has been selected"))
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
 	return nil
 }
 
@@ -213,7 +213,7 @@ func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp re
 		return nil
 	}
 	cp.SetCompositionReference(s.def.Spec.EnforcedCompositionRef)
-	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced Composition has been selected"))
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
 	return nil
 }
 
