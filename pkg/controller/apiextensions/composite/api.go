@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -40,6 +41,11 @@ const (
 	errUpdateComposite          = "cannot update composite resource"
 	errCompositionNotCompatible = "referenced composition is not compatible with this composite resource"
 	errGetInfraDef              = "cannot get infrastructuredefinition"
+)
+
+// Event reasons.
+const (
+	reasonCompositionSelection event.Reason = "CompositionSelection"
 )
 
 // APIFilteredSecretPublisher publishes ConnectionDetails content after filtering
@@ -150,44 +156,47 @@ func (r *APISelectorResolver) SelectComposition(ctx context.Context, cp resource
 }
 
 // NewAPIDefaultCompositionSelector returns a APIDefaultCompositionSelector.
-func NewAPIDefaultCompositionSelector(c client.Client, ref v1.ObjectReference) *APIDefaultCompositionSelector {
-	return &APIDefaultCompositionSelector{client: c, defRef: ref}
+func NewAPIDefaultCompositionSelector(c client.Client, ref v1.ObjectReference, r event.Recorder) *APIDefaultCompositionSelector {
+	return &APIDefaultCompositionSelector{client: c, defRef: ref, recorder: r}
 }
 
 // APIDefaultCompositionSelector selects the default composition referenced in
 // the definition of the resource if neither a reference nor selector is given
 // in composite resource.
 type APIDefaultCompositionSelector struct {
-	client client.Client
-	defRef v1.ObjectReference
+	client   client.Client
+	defRef   v1.ObjectReference
+	recorder event.Recorder
 }
 
 // SelectComposition selects the default compositionif neither a reference nor
 // selector is given in composite resource.
-func (r *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
+func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
 		return nil
 	}
 	def := &v1alpha1.InfrastructureDefinition{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(&r.defRef), def); err != nil {
+	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
 		return errors.Wrap(err, errGetInfraDef)
 	}
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
 	}
 	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default Composition has been selected"))
 	return nil
 }
 
 // NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
-func NewEnforcedCompositionSelector(def v1alpha1.InfrastructureDefinition) *EnforcedCompositionSelector {
-	return &EnforcedCompositionSelector{def: def}
+func NewEnforcedCompositionSelector(def v1alpha1.InfrastructureDefinition, r event.Recorder) *EnforcedCompositionSelector {
+	return &EnforcedCompositionSelector{def: def, recorder: r}
 }
 
 // EnforcedCompositionSelector , if it's given, selects the enforced composition
 // on the definition for all composite instances.
 type EnforcedCompositionSelector struct {
-	def v1alpha1.InfrastructureDefinition
+	def      v1alpha1.InfrastructureDefinition
+	recorder event.Recorder
 }
 
 // SelectComposition selects the enforced composition if it's given in definition.
@@ -204,6 +213,7 @@ func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp re
 		return nil
 	}
 	cp.SetCompositionReference(s.def.Spec.EnforcedCompositionRef)
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced Composition has been selected"))
 	return nil
 }
 
