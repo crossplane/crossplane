@@ -35,13 +35,11 @@ import (
 const (
 	errApplySecret = "cannot apply connection secret"
 
-	errNoCompatibleComposition = "no compatible composition has been found"
-	errListCompositions        = "cannot list compositions"
-	errUpdateComposite         = "cannot update composite resource"
-	errDefaultNotCompatible    = "default composition is not compatible with this composite resource"
-	errEnforcedNotCompatible   = "enforced composition is not compatible with this composite resource"
-	errGetComposition          = "cannot get composition"
-	errGetInfraDef             = "cannot get infrastructuredefinition"
+	errNoCompatibleComposition  = "no compatible composition has been found"
+	errListCompositions         = "cannot list compositions"
+	errUpdateComposite          = "cannot update composite resource"
+	errCompositionNotCompatible = "referenced composition is not compatible with this composite resource"
+	errGetInfraDef              = "cannot get infrastructuredefinition"
 )
 
 // APIFilteredSecretPublisher publishes ConnectionDetails content after filtering
@@ -177,64 +175,35 @@ func (r *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
 	}
-
-	// TODO(muvaf): A validating webhook on InfrastructureDefinition that will make
-	// sure referenced Composition is compatible could make more sense.
-
-	comp := &v1alpha1.Composition{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.DefaultCompositionRef), comp); err != nil {
-		return errors.Wrap(err, errGetComposition)
-	}
-
-	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
-	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
-		return errors.New(errDefaultNotCompatible)
-	}
 	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
 	return nil
 }
 
-// NewAPIEnforcedCompositionSelector returns a APIEnforcedCompositionSelector.
-func NewAPIEnforcedCompositionSelector(c client.Client, ref v1.ObjectReference) *APIEnforcedCompositionSelector {
-	return &APIEnforcedCompositionSelector{client: c, defRef: ref}
+// NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
+func NewEnforcedCompositionSelector(def v1alpha1.InfrastructureDefinition) *EnforcedCompositionSelector {
+	return &EnforcedCompositionSelector{def: def}
 }
 
-// APIEnforcedCompositionSelector , if it's given, selects the enforced composition
+// EnforcedCompositionSelector , if it's given, selects the enforced composition
 // on the definition for all composite instances.
-type APIEnforcedCompositionSelector struct {
-	client client.Client
-	defRef v1.ObjectReference
+type EnforcedCompositionSelector struct {
+	def v1alpha1.InfrastructureDefinition
 }
 
 // SelectComposition selects the enforced composition if it's given in definition.
-func (r *APIEnforcedCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
-	def := &v1alpha1.InfrastructureDefinition{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(&r.defRef), def); err != nil {
-		return errors.Wrap(err, errGetInfraDef)
-	}
-	if def.Spec.EnforcedCompositionRef == nil {
+func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp resource.Composite) error {
+	// We don't need to fetch the InfrastructureDefinition at every reconcile
+	// because enforced composition ref is immutable as opposed to default
+	// composition ref.
+	if s.def.Spec.EnforcedCompositionRef == nil {
 		return nil
 	}
-
 	// If the composition is already chosen, we don't need to check for compatibility
 	// as its target type reference is immutable.
-	if cp.GetCompositionReference().String() == def.Spec.EnforcedCompositionRef.String() {
+	if cp.GetCompositionReference().String() == s.def.Spec.EnforcedCompositionRef.String() {
 		return nil
 	}
-
-	// TODO(muvaf): A validating webhook on InfrastructureDefinition that will make
-	// sure referenced Composition is compatible could make more sense.
-
-	comp := &v1alpha1.Composition{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(def.Spec.EnforcedCompositionRef), comp); err != nil {
-		return errors.Wrap(err, errGetComposition)
-	}
-
-	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
-	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
-		return errors.New(errEnforcedNotCompatible)
-	}
-	cp.SetCompositionReference(def.Spec.EnforcedCompositionRef)
+	cp.SetCompositionReference(s.def.Spec.EnforcedCompositionRef)
 	return nil
 }
 
@@ -252,6 +221,11 @@ type APIConfigurator struct {
 
 // Configure the supplied composite resource using its composition.
 func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
+	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
+		return errors.New(errCompositionNotCompatible)
+	}
+
 	if cp.GetReclaimPolicy() != "" && cp.GetWriteConnectionSecretToReference() != nil {
 		return nil
 	}

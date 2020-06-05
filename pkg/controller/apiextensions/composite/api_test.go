@@ -131,9 +131,24 @@ func TestConfigure(t *testing.T) {
 		args
 		want
 	}{
+		"NotCompatible": {
+			reason: "Should return error if given composition is not compatible",
+			args: args{
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{
+						From: v1alpha1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
+					},
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp:  &fake.Composite{},
+				err: errors.New(errCompositionNotCompatible),
+			},
+		},
 		"AlreadyFilled": {
 			reason: "Should be no-op if reclaim policy and connection secret namespace is already filled",
-			args:   args{cp: cp},
+			args:   args{cp: cp, comp: &v1alpha1.Composition{}},
 			want:   want{cp: cp},
 		},
 		"ReclaimPolicyMissing": {
@@ -317,8 +332,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
 	comp := &v1alpha1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "bar",
+			Name: "foo",
 		},
 		Spec: v1alpha1.CompositionSpec{
 			From: tref,
@@ -392,54 +406,6 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 				cp:  &fake.Composite{},
 			},
 		},
-		"GetCompositionFailed": {
-			reason: "Should return error if default composition cannot be retrieved",
-			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch cr := obj.(type) {
-						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{DefaultCompositionRef: &v1.ObjectReference{}}}
-							withRef.DeepCopyInto(cr)
-							return nil
-						case *v1alpha1.Composition:
-							return errBoom
-						}
-						return nil
-					},
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetComposition),
-				cp:  &fake.Composite{},
-			},
-		},
-		"CompositionNotCompatible": {
-			reason: "Should fail if the default composition is not compatible",
-			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch cr := obj.(type) {
-						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{DefaultCompositionRef: &v1.ObjectReference{}}}
-							withRef.DeepCopyInto(cr)
-							return nil
-						case *v1alpha1.Composition:
-							c := &v1alpha1.Composition{Spec: v1alpha1.CompositionSpec{From: v1alpha1.TypeReference{APIVersion: "ran", Kind: "dom"}}}
-							c.DeepCopyInto(cr)
-							return nil
-						}
-						return nil
-					},
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				err: errors.New(errDefaultNotCompatible),
-				cp:  &fake.Composite{},
-			},
-		},
 		"Success": {
 			reason: "Successfully set the default composition reference",
 			args: args{
@@ -485,17 +451,15 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
 	comp := &v1alpha1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "foo",
-			Namespace: "bar",
+			Name: "foo",
 		},
 		Spec: v1alpha1.CompositionSpec{
 			From: tref,
 		},
 	}
 	type args struct {
-		kube   client.Client
-		defRef v1.ObjectReference
-		cp     resource.Composite
+		def v1alpha1.InfrastructureDefinition
+		cp  resource.Composite
 	}
 	type want struct {
 		cp  resource.Composite
@@ -507,26 +471,11 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		args
 		want
 	}{
-		"GetDefinitionFailed": {
-			reason: "Should return error if InfraDef cannot be retrieved",
-			args: args{
-				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetInfraDef),
-				cp:  &fake.Composite{},
-			},
-		},
 		"NoEnforced": {
 			reason: "Should be no-op if no enforced composition ref is given in definition",
 			args: args{
-				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil),
-				},
-				cp: &fake.Composite{},
+				def: v1alpha1.InfrastructureDefinition{},
+				cp:  &fake.Composite{},
 			},
 			want: want{
 				cp: &fake.Composite{},
@@ -535,15 +484,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"EnforcedAlreadySet": {
 			reason: "Should be no-op if enforced composition reference is already set",
 			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						if d, ok := obj.(*v1alpha1.InfrastructureDefinition); ok {
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)}}
-							withRef.DeepCopyInto(d)
-							return nil
-						}
-						return errBoom
-					},
+				def: v1alpha1.InfrastructureDefinition{
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
@@ -553,72 +495,13 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
 				},
-			},
-		},
-		"GetCompositionFailed": {
-			reason: "Should return error if default composition cannot be retrieved",
-			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch cr := obj.(type) {
-						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &v1.ObjectReference{}}}
-							withRef.DeepCopyInto(cr)
-							return nil
-						case *v1alpha1.Composition:
-							return errBoom
-						}
-						return nil
-					},
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetComposition),
-				cp:  &fake.Composite{},
-			},
-		},
-		"CompositionNotCompatible": {
-			reason: "Should fail if the default composition is not compatible",
-			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch cr := obj.(type) {
-						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &v1.ObjectReference{}}}
-							withRef.DeepCopyInto(cr)
-							return nil
-						case *v1alpha1.Composition:
-							c := &v1alpha1.Composition{Spec: v1alpha1.CompositionSpec{From: v1alpha1.TypeReference{APIVersion: "ran", Kind: "dom"}}}
-							c.DeepCopyInto(cr)
-							return nil
-						}
-						return nil
-					},
-				},
-				cp: &fake.Composite{},
-			},
-			want: want{
-				err: errors.New(errEnforcedNotCompatible),
-				cp:  &fake.Composite{},
 			},
 		},
 		"Success": {
 			reason: "Successfully set the default composition reference",
 			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch cr := obj.(type) {
-						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)}}
-							withRef.DeepCopyInto(cr)
-							return nil
-						case *v1alpha1.Composition:
-							comp.DeepCopyInto(cr)
-							return nil
-						}
-						return nil
-					},
+				def: v1alpha1.InfrastructureDefinition{
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
 				},
 				cp: &fake.Composite{},
 			},
@@ -631,19 +514,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"SuccessOverride": {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch cr := obj.(type) {
-						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)}}
-							withRef.DeepCopyInto(cr)
-							return nil
-						case *v1alpha1.Composition:
-							comp.DeepCopyInto(cr)
-							return nil
-						}
-						return nil
-					},
+				def: v1alpha1.InfrastructureDefinition{
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &v1.ObjectReference{Name: "ola"}},
@@ -658,7 +530,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIEnforcedCompositionSelector(tc.args.kube, tc.args.defRef)
+			c := NewEnforcedCompositionSelector(tc.args.def)
 			err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)

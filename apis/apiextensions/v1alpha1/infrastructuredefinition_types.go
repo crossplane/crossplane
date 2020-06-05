@@ -34,6 +34,9 @@ type InfrastructureDefinitionSpec struct {
 	// user of the defined kind.
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
+	// TODO(muvaf): A validating webhook on InfrastructureDefinition that will make
+	// sure referenced Composition is compatible could make more sense.
+
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
 	// +optional
@@ -42,6 +45,7 @@ type InfrastructureDefinitionSpec struct {
 	// EnforcedCompositionRef refers to the Composition resource that will be used
 	// by all composite instances whose schema is defined by this definition.
 	// +optional
+	// +immutable
 	EnforcedCompositionRef *v1.ObjectReference `json:"enforcedCompositionRef,omitempty"`
 
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
