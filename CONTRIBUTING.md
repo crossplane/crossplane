@@ -1,162 +1,152 @@
-## How to Contribute
+# Contributing to Crossplane
 
-The Crossplane project is under [Apache 2.0 license](LICENSE). We accept contributions via
-GitHub pull requests. This document outlines some of the conventions related to
-development workflow, commit message formatting, contact points and other
-resources to make it easier to get your contribution accepted.
+Welcome, and thank you for considering contributing to Crossplane. We encourage
+you to help out by raising issues, improving documentation, fixing bugs, or
+adding new features
 
-## Certificate of Origin
+If you're interested in contributing please start by reading this document. If
+you have any questions at all, or don't know where to start, please reach out to
+us on [Slack]. Please also take a look at our [code of conduct], which details
+how contributors are expected to conduct themselves as part of the Crossplane
+community.
 
-By contributing to this project you agree to the Developer Certificate of
-Origin (DCO). This document was created by the Linux Kernel community and is a
-simple statement that you, as a contributor, have the legal right to make the
-contribution. See the [DCO](DCO) file for details.
+## Establishing a Development Environment
 
-Contributors sign-off that they adhere to these requirements by adding a
-Signed-off-by line to commit messages. For example:
+The Crossplane project consists of several repositories under the crossplane and
+crossplane-contrib GitHub organisations. Most of these projects use the Upbound
+[build submodule]; a library of common Makefiles. Establishing a development
+environment typically requires:
 
-```
-This is my commit message
+1. Forking and cloning the repository you wish to work on.
+1. Installing development dependencies.
+1. Running `make` to establish the build submodule.
 
-Signed-off-by: Random J Developer <random@developer.example.org>
-```
+Run `make help` for information on the available Make targets. Useful targets
+include:
 
-Git even has a -s command line option to append this automatically to your
-commit message:
+* `make test` - Run unit tests.
+* `make e2e` - Run end-to-end tests.
+* `make reviewable` - Run code generation and linters.
+* `make` - Build Crossplane.
 
-```
-git commit -s -m 'This is my commit message'
-```
-
-If you have already made a commit and forgot to include the sign-off, you can amend your last commit
-to add the sign-off with the following command, which can then be force pushed.
-
-```
-git commit --amend -s
-```
-
-We use a [DCO bot](https://github.com/apps/dco) to enforce the DCO on each pull
-request and branch commits.
-
-## Getting Started
-
-- Fork the repository on GitHub
-- Read the [install](INSTALL.md) for build and test instructions
-- Play with the project, submit bugs, submit patches!
-
-## Contribution Flow
-
-This is a rough outline of what a contributor's workflow looks like:
-
-1. Open an issue against this repository to propose your change.
-1. Consider writing a [one-pager or design doc](design/) if your proposal seems
-   complex or controversial.
-1. Create a branch from where you want to base your work (usually master).
-1. Make your changes and arrange them in readable commits.
-1. Make sure your commit messages are in the proper format (see below).
-1. Push your changes to the branch in your fork of the repository.
-1. Make sure all linters and tests pass, and add any new tests as appropriate.
-1. Submit a pull request to the original repository.
-
-## Building
-
-Details about building crossplane can be found in [INSTALL.md](INSTALL.md).
-
-## Coding Style and Linting
-
-Crossplane projects are written in Go. Coding style is enforced by
-[golangci-lint](https://github.com/golangci/golangci-lint). Crossplane's linter
-configuration is [documented here](.golangci.yml). Builds will fail locally and
-in CI if linter warnings are introduced:
+Once you've built Crossplane you can deploy it to a Kubernetes cluster of your
+choice. [`kind`] (Kubernetes in Docker) is a good choice for development. The
+`kind.sh` script contains several utilities to deploy and run a development
+build of Crossplane to `kind`:
 
 ```bash
-$ make build
-==> Linting /REDACTED/go/src/github.com/crossplane/crossplane/cluster/charts/crossplane
-[INFO] Chart.yaml: icon is recommended
+# Build Crossplane locally.
+make
 
-1 chart(s) linted, no failures
-20:31:42 [ .. ] helm dep crossplane 0.1.0-136.g2dfb012.dirty
-No requirements found in /REDACTED/go/src/github.com/crossplane/crossplane/cluster/charts/crossplane/charts.
-20:31:42 [ OK ] helm dep crossplane 0.1.0-136.g2dfb012.dirty
-20:31:42 [ .. ] golangci-lint
-pkg/clients/azure/redis/redis.go:35:7: exported const `NamePrefix` should have comment or be unexported (golint)
-const NamePrefix = "acr"
-      ^
-20:31:55 [FAIL]
-make[2]: *** [go.lint] Error 1
-make[1]: *** [build.all] Error 2
-make: *** [build] Error 2
+# See what commands are available.
+./cluster/local/kind.sh help
+
+# Start a new kind cluster. Specifying KUBE_IMAGE is optional.
+KUBE_IMAGE=kindest/node:v1.16.9 ./cluster/local/kind.sh up
+
+# Use Helm to deploy the local build of Crossplane.
+./cluster/local/kind.sh helm-install
+
+# Use Helm to upgrade the local build of Crossplane.
+./cluster/local/kind.sh helm-upgrade
 ```
 
-Note that Jenkins builds will not output linter warnings in the build log.
-Instead `upbound-bot` will leave comments on your pull request when a build
-fails due to linter warnings. You can run `make lint` locally to help determine
-whether you've fixed any linter warnings detected by Jenkins.
+When iterating rapidly on a change it can be faster to run Crossplane as a local
+process, rather than as a pod deployed by Helm to your Kubernetes cluster. Use
+Helm to install your local Crossplane build per the above instructions, then:
 
-In some cases linter warnings will be false positives. `golangci-lint` supports
-`//nolint[:lintername]` comment directives in order to quell them. Please
-include an explanatory comment if you must add a `//nolint` comment. You may
-also submit a PR against [`.golangci.yml`](.golangci.yml) if you feel
-particular linter warning should be permanently disabled.
+```bash
+# Stop the Helm-deployed Crossplane pod.
+kubectl -n crossplane-system scale deploy crossplane --replicas=0
 
-## Comments
-
-Comments should be added to all new methods and structures as is appropriate for the coding
-language. Additionally, if an existing method or structure is modified sufficiently, comments should
-be created if they do not yet exist and updated if they do.
-
-The goal of comments is to make the code more readable and grokkable by future developers. Once you
-have made your code as understandable as possible, add comments to make sure future developers can
-understand (A) what this piece of code's responsibility is within Crossplane's architecture and (B) why it
-was written as it was.
-
-The below blog entry explains more the why's and how's of this guideline.
-https://blog.codinghorror.com/code-tells-you-how-comments-tell-you-why/
-
-For Go, Crossplane follows standard godoc guidelines.
-A concise godoc guideline can be found here: https://blog.golang.org/godoc-documenting-go-code
-
-## Commits
-### Commit Messages
-
-We follow a rough convention for commit messages that is designed to answer two
-questions: what changed and why. The subject line should feature the what and
-the body of the commit should describe the why.
-
-```
-aws: add support for RDS controller
-
-this commit enables controllers and apis for RDS. It
-enables provisioning a RDS database.
+# Run Crossplane locally; it should connect to your kind cluster if said cluster
+# is your active kubectl context. You can also go run cmd/crossplane/main.go.
+make run
 ```
 
-The format can be described more formally as follows:
+> Note that local development using minikube and microk8s is also possible.
+> Simply use the `minikube.sh` or `microk8s.sh` variants of the above `kind.sh`
+> script to do so. Their arguments and functionality are identical.
 
-```
-<subsystem>: <what changed>
-<BLANK LINE>
-<why this change was made>
-<BLANK LINE>
-<footer>
-```
+## Contributing Code
 
-The first line is the subject and should be no longer than 70 characters, the
-second line is always blank, and other lines should be wrapped at 80 characters.
-This allows the message to be easier to read on GitHub as well as in various
-git tools.
+To contribute bug fixes or features to Crossplane:
 
-### Commit History
-To prepare your branch to open a PR, you will need to have the minimal number of logical commits so we can maintain
-a clean commit history. Most commonly a PR will include a single commit where all changes are squashed, although
-sometimes there will be multiple logical commits. Please refer to [git documentation] for more information regarding rewriting the history. 
+1. Communicate your intent.
+1. Make your changes.
+1. Test your changes.
+1. Update documentation and examples.
+1. Open a Pull Request (PR).
 
-#### Pull Request feedback commits
-When addressing pull request comments, individual commits could be created to clearly indicate the change that results from addressing in each iteration. However, once all comments are addressed and reviewer have signed off, the feedback commits should all be squashed into the original logical change commits.
+Communicating your intent lets the Crossplane maintainers know that you intend
+to contribute, and how. This sets you up for success - you can avoid duplicating
+an effort that may already be underway, adding a feature that may be rejected,
+or heading down a path that you would be steered away from at review time. The
+best way to communicate your intent is via a detailed GitHub issue. Take a look
+first to see if there's already an issue relating to the thing you'd like to
+contribute. If there isn't, please raise a new one! Let us know what you'd like
+to work on, and why. The Crossplane maintainers can't always triage new issues
+immediately, but we encourage you to bring them to our attention via [Slack].
 
-## Local Build and Test
+Be sure to practice [good git commit hygiene] as you make your changes. All but
+the smallest changes should be broken up into a few commits that tell a story.
+Use your git commits to provide context for the folks who will review PR, and
+the folks who will be spelunking the codebase in the months and years to come.
+Ensure each of your commits is signed-off in compliance with the [Developer
+Certificate of Origin] by using `git commit -s`. The Crossplane highly values
+readable, idiomatic Go code. Familiarise yourself with common [code review
+comments] that are left on Go PRs - try to preempt any that your reviewers would
+otherwise leave. Run `make reviewable` to lint your change.
 
-To learn more about the developer iteration workflow, including how to locally test new types/controllers, please refer to the [Local Build](cluster/local/README.md) instructions.
+All Crossplane code must be covered by tests. Note that unlike many Kubernetes
+projects Crossplane does not use gingko tests and will request changes to any PR
+that uses gingko or any third party testing library, per the common Go [test
+review comments]. Crossplane encourages the use of table driven unit tests. The
+tests of the [crossplane-runtime] project are representative of the testing
+style Crossplane encourages; new tests should follow their conventions. Note
+that when opening a PR your reviewer will expect you to detail how you've tested
+your work. For all but the smallest changes some manual testing is encouraged in
+addition to unit tests.
 
+All Crossplane documentation and examples are under revision control; see the
+[docs] and [examples] directories of this repository. Any change that introduces
+new behaviour or changes existing behaviour must include updates to any relevant
+documentation and examples. Please keep documentation and example changes in
+distinct commits.
 
+One your change is written, tested, and documented the final step is to have it
+reviewed! You'll be presented with a template and a small checklist when you
+open a PR. Please read the template and fill out the checklist. If the folks
+reviewing your PR request changes please make them in new commits. This allows
+your reviewers to see what has changed as you address their comments. Be mindful
+of  your commit history as you do this - avoid commit messages like "Address
+review feedback" if possible. If doing so is difficult a good alternative is to
+rewrite your commit history to clean them up after your PR is approved but
+before it is merged.
 
-[git documentation]: https://git-scm.com/book/en/v2/Git-Tools-Rewriting-History
+In summary, please:
+
+* Discuss your change in a GitHub issue before you start.
+* Use your Git commit messages to communicate your intent to your reviewers.
+* Sign-off on all Git commits by running `git commit -s`
+* Add or update tests for all changes.
+* Preempt common [code review comments] and [test review comments].
+* Update all relevant documentation and examples.
+* Don't force push to address review feedback.
+
+Thank you for reading through our contributing guide! We appreciate you taking
+the time to ensure your contributions are high quality and easy for our
+community to review and accept. Please don't hesitate to [reach out to
+us][Slack] if you have any questions about contributing!
+
+[Slack]: https://crossplane.slack.com/channels/dev
+[code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
+[build submodule]: https://github.com/upbound/build/
+[`kind`]: https://kind.sigs.k8s.io/
+[good git commit hygiene]: https://www.futurelearn.com/info/blog/telling-stories-with-your-git-history
+[Developer Certificate of Origin]: https://github.com/apps/dco
+[code review comments]: https://github.com/golang/go/wiki/CodeReviewComments
+[test review comments]: https://github.com/golang/go/wiki/TestComments
+[crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
+[docs]: docs/
+[examples]: cluster/examples/
