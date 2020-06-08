@@ -133,6 +133,7 @@ In summary, please:
 * Preempt common [code review comments] and [test review comments].
 * Update all relevant documentation and examples.
 * Don't force push to address review feedback.
+* If necessary, tidy up your git commit history once your PR is approved.
 
 Thank you for reading through our contributing guide! We appreciate you taking
 the time to ensure your contributions are high quality and easy for our
