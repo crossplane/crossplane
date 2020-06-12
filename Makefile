@@ -83,7 +83,7 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(KUSTOMIZE) go.vendor go.generate manifests.prepare manifests.annotate local-kustomize
+generate: $(KUSTOMIZE) go.vendor go.generate manifests.prepare manifests.annotate gen-kustomize-crds
 	@$(OK) Finished vendoring and generating
 
 
@@ -147,9 +147,11 @@ manifests.annotate:
 	sed '1,7d' $(SOURCE_DOCS_DIR)/reference/install.md > $(CROSSPLANE_CHART_DIR)/README.md
 	@$(OK) Copied and modified chart README.md from Crossplane docs
 
-local-kustomize:
+gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
 	@rm cluster/kustomization.yaml
+	@echo "# This kustomization can be used to remotely install all Crossplane CRDs" >> cluster/kustomization.yaml
+	@echo "# by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master" >> cluster/kustomization.yaml 
 	@echo "resources:" >> cluster/kustomization.yaml 
 	@find $(CRD_DIR) -type f -name '*.yaml' | sort | \
 		while read filename ;\
@@ -196,7 +198,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) --debug
 
-.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run local-kustomize
+.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run gen-kustomize-crds
 
 # ====================================================================================
 # Special Targets
