@@ -39,10 +39,11 @@ const (
 	errNamePrefix = "name prefix is not found in labels"
 )
 
+// Label keys.
 const (
-	// LabelKeyNamePrefixForComposed is the prefix that will be used by composed
-	// resources.
 	LabelKeyNamePrefixForComposed = "crossplane.io/root-composite"
+	LabelKeyRequirementName       = "crossplane.io/requirement-name"
+	LabelKeyRequirementNamespace  = "crossplane.io/requirement-namespace"
 )
 
 // ConfigureFn is a function that implements Configurator interface.
@@ -70,7 +71,11 @@ func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Compose
 		return errors.New(errNamePrefix)
 	}
 	// This label will be used if composed resource is yet another composite.
-	meta.AddLabels(cd, map[string]string{LabelKeyNamePrefixForComposed: cp.GetLabels()[LabelKeyNamePrefixForComposed]})
+	meta.AddLabels(cd, map[string]string{
+		LabelKeyNamePrefixForComposed: cp.GetLabels()[LabelKeyNamePrefixForComposed],
+		LabelKeyRequirementName:       cp.GetLabels()[LabelKeyRequirementName],
+		LabelKeyRequirementNamespace:  cp.GetLabels()[LabelKeyRequirementNamespace],
+	})
 	// Unmarshalling the template will overwrite any existing fields, so we must
 	// restore the existing name, if any. We also set generate name in case we
 	// haven't yet named this composed resource.

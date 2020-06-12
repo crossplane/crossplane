@@ -26,6 +26,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/requirement"
+
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
 // Configure the supplied composite resource. The composite resource name is
@@ -37,6 +39,10 @@ func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite
 	if meta.GetExternalName(rq) != "" {
 		meta.SetExternalName(cp, meta.GetExternalName(rq))
 	}
+	meta.AddLabels(cp, map[string]string{
+		composed.LabelKeyRequirementName:      rq.GetName(),
+		composed.LabelKeyRequirementNamespace: rq.GetNamespace(),
+	})
 
 	urq, ok := rq.(*requirement.Unstructured)
 	if !ok {

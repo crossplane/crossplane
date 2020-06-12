@@ -86,12 +86,20 @@ func TestConfigure(t *testing.T) {
 		"Success": {
 			reason: "Configuration should result in the right object with correct generateName",
 			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{LabelKeyNamePrefixForComposed: "cp"}}},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					LabelKeyNamePrefixForComposed: "ola",
+					LabelKeyRequirementName:       "rola",
+					LabelKeyRequirementNamespace:  "rolans",
+				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
 				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
 			},
 			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "cp-", Labels: map[string]string{LabelKeyNamePrefixForComposed: "cp"}}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "ola-", Labels: map[string]string{
+					LabelKeyNamePrefixForComposed: "ola",
+					LabelKeyRequirementName:       "rola",
+					LabelKeyRequirementNamespace:  "rolans",
+				}}},
 			},
 		},
 	}
