@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -30,7 +30,6 @@ import (
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -244,12 +243,12 @@ func TestSelectorResolver(t *testing.T) {
 			reason: "Should be no-op if the composition selector is already resolved",
 			args: args{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},
@@ -308,7 +307,7 @@ func TestSelectorResolver(t *testing.T) {
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 					CompositionSelector:   fake.CompositionSelector{Sel: sel},
 				},
 			},
@@ -341,7 +340,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 	}
 	type args struct {
 		kube   client.Client
-		defRef v1.ObjectReference
+		defRef corev1.ObjectReference
 		cp     resource.Composite
 	}
 	type want struct {
@@ -357,21 +356,21 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 		"AlreadyResolved": {
 			reason: "Should be no-op if a composition is already selected",
 			args: args{
-				defRef: v1.ObjectReference{},
+				defRef: corev1.ObjectReference{},
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},
 		"SelectorInPlace": {
 			reason: "Should be no-op if a composition selector is in place",
 			args: args{
-				defRef: v1.ObjectReference{},
+				defRef: corev1.ObjectReference{},
 				cp: &fake.Composite{
 					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
 				},
@@ -414,7 +413,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
 						switch cr := obj.(type) {
 						case *v1alpha1.InfrastructureDefinition:
-							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{DefaultCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)}}
+							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{DefaultCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}}}
 							withRef.DeepCopyInto(cr)
 							return nil
 						case *v1alpha1.Composition:
@@ -428,7 +427,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},
@@ -486,15 +485,15 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Should be no-op if enforced composition reference is already set",
 			args: args{
 				def: v1alpha1.InfrastructureDefinition{
-					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},
@@ -502,13 +501,13 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Successfully set the default composition reference",
 			args: args{
 				def: v1alpha1.InfrastructureDefinition{
-					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{},
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},
@@ -516,15 +515,15 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
 				def: v1alpha1.InfrastructureDefinition{
-					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &v1.ObjectReference{Name: "ola"}},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: "ola"}},
 				},
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},

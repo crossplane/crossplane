@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -148,7 +148,7 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 			continue
 		}
 
-		cp.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
+		cp.SetCompositionReference(&corev1.ObjectReference{Name: comp.Name})
 
 		return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 	}
@@ -156,7 +156,7 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 }
 
 // NewAPIDefaultCompositionSelector returns a APIDefaultCompositionSelector.
-func NewAPIDefaultCompositionSelector(c client.Client, ref v1.ObjectReference, r event.Recorder) *APIDefaultCompositionSelector {
+func NewAPIDefaultCompositionSelector(c client.Client, ref corev1.ObjectReference, r event.Recorder) *APIDefaultCompositionSelector {
 	return &APIDefaultCompositionSelector{client: c, defRef: ref, recorder: r}
 }
 
@@ -165,7 +165,7 @@ func NewAPIDefaultCompositionSelector(c client.Client, ref v1.ObjectReference, r
 // in composite resource.
 type APIDefaultCompositionSelector struct {
 	client   client.Client
-	defRef   v1.ObjectReference
+	defRef   corev1.ObjectReference
 	recorder event.Recorder
 }
 
@@ -182,7 +182,7 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
 	}
-	cp.SetCompositionReference(def.Spec.DefaultCompositionRef)
+	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.DefaultCompositionRef.Name})
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
 	return nil
 }
@@ -209,10 +209,10 @@ func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp re
 	}
 	// If the composition is already chosen, we don't need to check for compatibility
 	// as its target type reference is immutable.
-	if cp.GetCompositionReference().String() == s.def.Spec.EnforcedCompositionRef.String() {
+	if cp.GetCompositionReference() != nil && cp.GetCompositionReference().Name == s.def.Spec.EnforcedCompositionRef.Name {
 		return nil
 	}
-	cp.SetCompositionReference(s.def.Spec.EnforcedCompositionRef)
+	cp.SetCompositionReference(&corev1.ObjectReference{Name: s.def.Spec.EnforcedCompositionRef.Name})
 	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
 	return nil
 }
