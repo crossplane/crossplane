@@ -1,0 +1,28 @@
+# This kustomization can be used to remotely install all Crossplane CRDs
+# by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master
+resources:
+- charts/crossplane-types/crds/apiextensions.crossplane.io_compositions.yaml
+- charts/crossplane-types/crds/apiextensions.crossplane.io_infrastructuredefinitions.yaml
+- charts/crossplane-types/crds/apiextensions.crossplane.io_infrastructurepublications.yaml
+- charts/crossplane-types/crds/cache.crossplane.io_redisclusters.yaml
+- charts/crossplane-types/crds/compute.crossplane.io_kubernetesclusters.yaml
+- charts/crossplane-types/crds/compute.crossplane.io_machineinstances.yaml
+- charts/crossplane-types/crds/core.oam.dev_applicationconfigurations.yaml
+- charts/crossplane-types/crds/core.oam.dev_components.yaml
+- charts/crossplane-types/crds/core.oam.dev_containerizedworkloads.yaml
+- charts/crossplane-types/crds/core.oam.dev_manualscalertraits.yaml
+- charts/crossplane-types/crds/core.oam.dev_scopedefinitions.yaml
+- charts/crossplane-types/crds/core.oam.dev_traitdefinitions.yaml
+- charts/crossplane-types/crds/core.oam.dev_workloaddefinitions.yaml
+- charts/crossplane-types/crds/database.crossplane.io_mysqlinstances.yaml
+- charts/crossplane-types/crds/database.crossplane.io_nosqlinstances.yaml
+- charts/crossplane-types/crds/database.crossplane.io_postgresqlinstances.yaml
+- charts/crossplane-types/crds/kubernetes.crossplane.io_providers.yaml
+- charts/crossplane-types/crds/packages.crossplane.io_clusterpackageinstalls.yaml
+- charts/crossplane-types/crds/packages.crossplane.io_packageinstalls.yaml
+- charts/crossplane-types/crds/packages.crossplane.io_packages.yaml
+- charts/crossplane-types/crds/packages.crossplane.io_stackdefinitions.yaml
+- charts/crossplane-types/crds/storage.crossplane.io_buckets.yaml
+- charts/crossplane-types/crds/workload.crossplane.io_kubernetesapplicationresources.yaml
+- charts/crossplane-types/crds/workload.crossplane.io_kubernetesapplications.yaml
+- charts/crossplane-types/crds/workload.crossplane.io_kubernetestargets.yaml
