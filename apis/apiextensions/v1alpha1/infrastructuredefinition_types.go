@@ -33,6 +33,17 @@ type InfrastructureDefinitionSpec struct {
 	// user of the defined kind.
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
+	// DefaultCompositionRef refers to the Composition resource that will be used
+	// in case no composition selector is given.
+	// +optional
+	DefaultCompositionRef *v1alpha1.Reference `json:"defaultCompositionRef,omitempty"`
+
+	// EnforcedCompositionRef refers to the Composition resource that will be used
+	// by all composite instances whose schema is defined by this definition.
+	// +optional
+	// +immutable
+	EnforcedCompositionRef *v1alpha1.Reference `json:"enforcedCompositionRef,omitempty"`
+
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
 	// fields to the base template to accommodate Crossplane machinery.
 	CRDSpecTemplate CRDSpecTemplate `json:"crdSpecTemplate,omitempty"`

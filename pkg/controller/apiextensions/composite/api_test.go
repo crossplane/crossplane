@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -28,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -130,9 +131,24 @@ func TestConfigure(t *testing.T) {
 		args
 		want
 	}{
+		"NotCompatible": {
+			reason: "Should return error if given composition is not compatible",
+			args: args{
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{
+						From: v1alpha1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
+					},
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp:  &fake.Composite{},
+				err: errors.New(errCompositionNotCompatible),
+			},
+		},
 		"AlreadyFilled": {
 			reason: "Should be no-op if reclaim policy and connection secret namespace is already filled",
-			args:   args{cp: cp},
+			args:   args{cp: cp, comp: &v1alpha1.Composition{}},
 			want:   want{cp: cp},
 		},
 		"ReclaimPolicyMissing": {
@@ -195,7 +211,7 @@ func TestConfigure(t *testing.T) {
 	}
 }
 
-func TestResolveSelector(t *testing.T) {
+func TestSelectorResolver(t *testing.T) {
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
 	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
 	comp := &v1alpha1.Composition{
@@ -227,12 +243,12 @@ func TestResolveSelector(t *testing.T) {
 			reason: "Should be no-op if the composition selector is already resolved",
 			args: args{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 				},
 			},
 		},
@@ -291,7 +307,7 @@ func TestResolveSelector(t *testing.T) {
 			},
 			want: want{
 				cp: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: meta.ReferenceTo(comp, v1alpha1.CompositionGroupVersionKind)},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
 					CompositionSelector:   fake.CompositionSelector{Sel: sel},
 				},
 			},
@@ -299,13 +315,228 @@ func TestResolveSelector(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPISelectorResolver(tc.args.kube)
-			err := c.ResolveSelector(context.Background(), tc.args.cp)
+			c := NewAPILabelSelectorResolver(tc.args.kube)
+			err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nResolveSelector(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
-				t.Errorf("\n%s\nResolveSelector(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIDefaultCompositionSelector(t *testing.T) {
+	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
+	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1alpha1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+		Spec: v1alpha1.CompositionSpec{
+			From: tref,
+		},
+	}
+	type args struct {
+		kube   client.Client
+		defRef corev1.ObjectReference
+		cp     resource.Composite
+	}
+	type want struct {
+		cp  resource.Composite
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"AlreadyResolved": {
+			reason: "Should be no-op if a composition is already selected",
+			args: args{
+				defRef: corev1.ObjectReference{},
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+		},
+		"SelectorInPlace": {
+			reason: "Should be no-op if a composition selector is in place",
+			args: args{
+				defRef: corev1.ObjectReference{},
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{MatchLabels: map[string]string{"foo": "bar"}}},
+				},
+			},
+		},
+		"NoDefault": {
+			reason: "Should be no-op if no default is given in definition",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp: &fake.Composite{},
+			},
+		},
+		"GetDefinitionFailed": {
+			reason: "Should return error if InfraDef cannot be retrieved",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetInfraDef),
+				cp:  &fake.Composite{},
+			},
+		},
+		"Success": {
+			reason: "Successfully set the default composition reference",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						switch cr := obj.(type) {
+						case *v1alpha1.InfrastructureDefinition:
+							withRef := &v1alpha1.InfrastructureDefinition{Spec: v1alpha1.InfrastructureDefinitionSpec{DefaultCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}}}
+							withRef.DeepCopyInto(cr)
+							return nil
+						case *v1alpha1.Composition:
+							comp.DeepCopyInto(cr)
+							return nil
+						}
+						return nil
+					},
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewAPIDefaultCompositionSelector(tc.args.kube, tc.args.defRef, event.NewNopRecorder())
+			err := c.SelectComposition(context.Background(), tc.args.cp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIEnforcedCompositionSelector(t *testing.T) {
+	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
+	tref := v1alpha1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1alpha1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "foo",
+		},
+		Spec: v1alpha1.CompositionSpec{
+			From: tref,
+		},
+	}
+	type args struct {
+		def v1alpha1.InfrastructureDefinition
+		cp  resource.Composite
+	}
+	type want struct {
+		cp  resource.Composite
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"NoEnforced": {
+			reason: "Should be no-op if no enforced composition ref is given in definition",
+			args: args{
+				def: v1alpha1.InfrastructureDefinition{},
+				cp:  &fake.Composite{},
+			},
+			want: want{
+				cp: &fake.Composite{},
+			},
+		},
+		"EnforcedAlreadySet": {
+			reason: "Should be no-op if enforced composition reference is already set",
+			args: args{
+				def: v1alpha1.InfrastructureDefinition{
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}},
+				},
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+		},
+		"Success": {
+			reason: "Successfully set the default composition reference",
+			args: args{
+				def: v1alpha1.InfrastructureDefinition{
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}},
+				},
+				cp: &fake.Composite{},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+		},
+		"SuccessOverride": {
+			reason: "Successfully set the default composition reference even if another one was set",
+			args: args{
+				def: v1alpha1.InfrastructureDefinition{
+					Spec: v1alpha1.InfrastructureDefinitionSpec{EnforcedCompositionRef: &runtimev1alpha1.Reference{Name: comp.Name}},
+				},
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: "ola"}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+				},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewEnforcedCompositionSelector(tc.args.def, event.NewNopRecorder())
+			err := c.SelectComposition(context.Background(), tc.args.cp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

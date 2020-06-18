@@ -21,6 +21,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -316,6 +317,16 @@ func (in *InfrastructureDefinitionSpec) DeepCopyInto(out *InfrastructureDefiniti
 		in, out := &in.ConnectionSecretKeys, &out.ConnectionSecretKeys
 		*out = make([]string, len(*in))
 		copy(*out, *in)
+	}
+	if in.DefaultCompositionRef != nil {
+		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
+		*out = new(corev1alpha1.Reference)
+		**out = **in
+	}
+	if in.EnforcedCompositionRef != nil {
+		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
+		*out = new(corev1alpha1.Reference)
+		**out = **in
 	}
 	in.CRDSpecTemplate.DeepCopyInto(&out.CRDSpecTemplate)
 }

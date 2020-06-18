@@ -175,6 +175,27 @@ spec:
               - group
               - names
               type: object
+            defaultCompositionRef:
+              description: DefaultCompositionRef refers to the Composition resource
+                that will be used in case no composition selector is given.
+              properties:
+                name:
+                  description: Name of the referenced object.
+                  type: string
+              required:
+              - name
+              type: object
+            enforcedCompositionRef:
+              description: EnforcedCompositionRef refers to the Composition resource
+                that will be used by all composite instances whose schema is defined
+                by this definition.
+              properties:
+                name:
+                  description: Name of the referenced object.
+                  type: string
+              required:
+              - name
+              type: object
           type: object
         status:
           description: InfrastructureDefinitionStatus shows the observed state of

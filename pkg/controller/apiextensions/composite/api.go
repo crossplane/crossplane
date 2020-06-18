@@ -20,9 +20,11 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -34,9 +36,16 @@ import (
 const (
 	errApplySecret = "cannot apply connection secret"
 
-	errNoCompatibleComposition = "no compatible composition has been found"
-	errListCompositions        = "cannot list compositions"
-	errUpdateComposite         = "cannot update composite resource"
+	errNoCompatibleComposition  = "no compatible composition has been found"
+	errListCompositions         = "cannot list compositions"
+	errUpdateComposite          = "cannot update composite resource"
+	errCompositionNotCompatible = "referenced composition is not compatible with this composite resource"
+	errGetInfraDef              = "cannot get infrastructuredefinition"
+)
+
+// Event reasons.
+const (
+	reasonCompositionSelection event.Reason = "CompositionSelection"
 )
 
 // APIFilteredSecretPublisher publishes ConnectionDetails content after filtering
@@ -82,19 +91,40 @@ func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ re
 	return nil
 }
 
-// NewAPISelectorResolver returns a SelectorResolver for composite resource.
-func NewAPISelectorResolver(c client.Client) *APISelectorResolver {
-	return &APISelectorResolver{client: c}
+// NewCompositionSelectorChain returns a new CompositionSelectorChain.
+func NewCompositionSelectorChain(list ...CompositionSelector) *CompositionSelectorChain {
+	return &CompositionSelectorChain{list: list}
 }
 
-// APISelectorResolver is used to resolve the composition selector on the instance
+// CompositionSelectorChain calls the given list of CompositionSelectors in order.
+type CompositionSelectorChain struct {
+	list []CompositionSelector
+}
+
+// SelectComposition calls all SelectComposition functions of CompositionSelectors
+// in the list.
+func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp resource.Composite) error {
+	for _, cs := range r.list {
+		if err := cs.SelectComposition(ctx, cp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// NewAPILabelSelectorResolver returns a SelectorResolver for composite resource.
+func NewAPILabelSelectorResolver(c client.Client) *APILabelSelectorResolver {
+	return &APILabelSelectorResolver{client: c}
+}
+
+// APILabelSelectorResolver is used to resolve the composition selector on the instance
 // to composition reference.
-type APISelectorResolver struct {
+type APILabelSelectorResolver struct {
 	client client.Client
 }
 
-// ResolveSelector resolves selector to a reference if it doesn't exist.
-func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cp resource.Composite) error {
+// SelectComposition resolves selector to a reference if it doesn't exist.
+func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp resource.Composite) error {
 	// TODO(muvaf): need to block the deletion of composition via finalizer once
 	// it's selected since it's integral to this resource.
 	// TODO(muvaf): We don't rely on UID in practice. It should not be there
@@ -118,11 +148,73 @@ func (r *APISelectorResolver) ResolveSelector(ctx context.Context, cp resource.C
 			continue
 		}
 
-		cp.SetCompositionReference(meta.ReferenceTo(comp.DeepCopy(), v1alpha1.CompositionGroupVersionKind))
+		cp.SetCompositionReference(&corev1.ObjectReference{Name: comp.Name})
 
 		return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 	}
 	return errors.New(errNoCompatibleComposition)
+}
+
+// NewAPIDefaultCompositionSelector returns a APIDefaultCompositionSelector.
+func NewAPIDefaultCompositionSelector(c client.Client, ref corev1.ObjectReference, r event.Recorder) *APIDefaultCompositionSelector {
+	return &APIDefaultCompositionSelector{client: c, defRef: ref, recorder: r}
+}
+
+// APIDefaultCompositionSelector selects the default composition referenced in
+// the definition of the resource if neither a reference nor selector is given
+// in composite resource.
+type APIDefaultCompositionSelector struct {
+	client   client.Client
+	defRef   corev1.ObjectReference
+	recorder event.Recorder
+}
+
+// SelectComposition selects the default compositionif neither a reference nor
+// selector is given in composite resource.
+func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, cp resource.Composite) error {
+	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
+		return nil
+	}
+	def := &v1alpha1.InfrastructureDefinition{}
+	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
+		return errors.Wrap(err, errGetInfraDef)
+	}
+	if def.Spec.DefaultCompositionRef == nil {
+		return nil
+	}
+	cp.SetCompositionReference(&corev1.ObjectReference{Name: def.Spec.DefaultCompositionRef.Name})
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Default composition has been selected"))
+	return nil
+}
+
+// NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
+func NewEnforcedCompositionSelector(def v1alpha1.InfrastructureDefinition, r event.Recorder) *EnforcedCompositionSelector {
+	return &EnforcedCompositionSelector{def: def, recorder: r}
+}
+
+// EnforcedCompositionSelector , if it's given, selects the enforced composition
+// on the definition for all composite instances.
+type EnforcedCompositionSelector struct {
+	def      v1alpha1.InfrastructureDefinition
+	recorder event.Recorder
+}
+
+// SelectComposition selects the enforced composition if it's given in definition.
+func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp resource.Composite) error {
+	// We don't need to fetch the InfrastructureDefinition at every reconcile
+	// because enforced composition ref is immutable as opposed to default
+	// composition ref.
+	if s.def.Spec.EnforcedCompositionRef == nil {
+		return nil
+	}
+	// If the composition is already chosen, we don't need to check for compatibility
+	// as its target type reference is immutable.
+	if cp.GetCompositionReference() != nil && cp.GetCompositionReference().Name == s.def.Spec.EnforcedCompositionRef.Name {
+		return nil
+	}
+	cp.SetCompositionReference(&corev1.ObjectReference{Name: s.def.Spec.EnforcedCompositionRef.Name})
+	s.recorder.Event(cp, event.Normal(reasonCompositionSelection, "Enforced composition has been selected"))
+	return nil
 }
 
 // NewAPIConfigurator returns a Configurator that configures a
@@ -139,6 +231,11 @@ type APIConfigurator struct {
 
 // Configure the supplied composite resource using its composition.
 func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
+	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
+		return errors.New(errCompositionNotCompatible)
+	}
+
 	if cp.GetReclaimPolicy() != "" && cp.GetWriteConnectionSecretToReference() != nil {
 		return nil
 	}
