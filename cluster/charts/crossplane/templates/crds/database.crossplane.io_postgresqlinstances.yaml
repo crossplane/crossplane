@@ -41,9 +41,10 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A PostgreSQLInstance is a portable resource claim that may be satisfied
-        by binding to a PostgreSQL managed resource such as an AWS RDS instance or
-        a GCP CloudSQL instance.
+      description: 'A PostgreSQLInstance is a portable resource claim that may be
+        satisfied by binding to a PostgreSQL managed resource such as an AWS RDS instance
+        or a GCP CloudSQL instance. Deprecated: use postgresqlinstance.common.crossplane.io
+        and composition instead'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

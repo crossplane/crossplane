@@ -37,6 +37,7 @@ type RedisClusterSpec struct {
 // to a Redis managed resource such as a GCP CloudMemorystore instance or an AWS
 // ReplicationGroup. Despite the name RedisCluster claims may bind to Redis
 // managed resources that are a single node, or not in cluster mode.
+// Deprecated: use rediscluster.common.crossplane.io and composition instead
 // +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"

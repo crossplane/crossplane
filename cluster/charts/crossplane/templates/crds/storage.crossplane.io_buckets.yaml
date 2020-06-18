@@ -41,8 +41,9 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A Bucket is a portable resource claim that may be satisfied by
+      description: 'A Bucket is a portable resource claim that may be satisfied by
         binding to a managed resource such as an AWS S3 bucket or Azure storage container.
+        Deprecated: use bucket.common.crossplane.io and composition instead'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
