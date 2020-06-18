@@ -41,9 +41,10 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A NoSQLInstance is a portable resource claim that may be satisfied
+      description: 'A NoSQLInstance is a portable resource claim that may be satisfied
         by binding to a NoSQL managed resource such as an AWS DynamoDB or an Azure
-        CosmosDB instance.
+        CosmosDB instance. Deprecated: use nosqlinstance.common.crossplane.io and
+        composition instead'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

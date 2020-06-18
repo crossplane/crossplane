@@ -41,9 +41,10 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A MySQLInstance is a portable resource claim that may be satisfied
+      description: 'A MySQLInstance is a portable resource claim that may be satisfied
         by binding to a MySQL managed resource such as an AWS RDS instance or a GCP
-        CloudSQL instance.
+        CloudSQL instance. Deprecated: use mysqlinstance.common.crossplane.io and
+        composition instead'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

@@ -41,10 +41,11 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A MachineInstance is a portable resource claim that may be satisfied
+      description: 'A MachineInstance is a portable resource claim that may be satisfied
         by binding to a machine instance, which may include Virtual Machine managed
         resources such as an AWS EC2 instance or bare metal managed resources such
-        as a Packet Device.
+        as a Packet Device. Deprecated: use machineinstance.common.crossplane.io and
+        composition instead'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation

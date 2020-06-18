@@ -36,6 +36,7 @@ type MySQLInstanceSpec struct {
 // A MySQLInstance is a portable resource claim that may be satisfied by binding
 // to a MySQL managed resource such as an AWS RDS instance or a GCP CloudSQL
 // instance.
+// Deprecated: use mysqlinstance.common.crossplane.io and composition instead
 // +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
@@ -76,6 +77,7 @@ type PostgreSQLInstanceSpec struct {
 // A PostgreSQLInstance is a portable resource claim that may be satisfied by
 // binding to a PostgreSQL managed resource such as an AWS RDS instance or a GCP
 // CloudSQL instance.
+// Deprecated: use postgresqlinstance.common.crossplane.io and composition instead
 // +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
@@ -110,6 +112,7 @@ type NoSQLInstanceSpec struct {
 
 // A NoSQLInstance is a portable resource claim that may be satisfied by binding
 // to a NoSQL managed resource such as an AWS DynamoDB or an Azure CosmosDB instance.
+// Deprecated: use nosqlinstance.common.crossplane.io and composition instead
 // +kubebuilder:resource:categories={crossplane,claim}
 // +kubebuilder:printcolumn:name="STATUS",type="string",JSONPath=".status.bindingPhase"
 // +kubebuilder:printcolumn:name="CLASS-KIND",type="string",JSONPath=".spec.classRef.kind"
