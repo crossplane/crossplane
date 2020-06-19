@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
 // Error strings.
@@ -217,6 +218,26 @@ func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp re
 	return nil
 }
 
+// NewConfiguratorChain returns a new *ConfiguratorChain.
+func NewConfiguratorChain(l ...Configurator) *ConfiguratorChain {
+	return &ConfiguratorChain{list: l}
+}
+
+// ConfiguratorChain executes the Configurators in given order.
+type ConfiguratorChain struct {
+	list []Configurator
+}
+
+// Configure calls Configure function of every Configurator in the list.
+func (cc *ConfiguratorChain) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
+	for _, c := range cc.list {
+		if err := c.Configure(ctx, cp, comp); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // NewAPIConfigurator returns a Configurator that configures a
 // composite resource using its composition.
 func NewAPIConfigurator(c client.Client) *APIConfigurator {
@@ -250,5 +271,26 @@ func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, 
 		})
 	}
 
+	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
+}
+
+// NewAPINamingConfigurator returns a Configurator that sets the root name prefixKu
+// to its own name if it is not already set.
+func NewAPINamingConfigurator(c client.Client) *APINamingConfigurator {
+	return &APINamingConfigurator{client: c}
+}
+
+// An APINamingConfigurator sets the root name prefix to its own name if it is not
+// already set.
+type APINamingConfigurator struct {
+	client client.Client
+}
+
+// Configure the supplied composite resource's root name prefix.
+func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1alpha1.Composition) error {
+	if cp.GetLabels()[composed.LabelKeyNamePrefixForComposed] != "" {
+		return nil
+	}
+	meta.AddLabels(cp, map[string]string{composed.LabelKeyNamePrefixForComposed: cp.GetName()})
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }

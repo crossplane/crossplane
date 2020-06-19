@@ -26,17 +26,23 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/requirement"
+
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
 // Configure the supplied composite resource. The composite resource name is
-// derived from the supplied requirement, as {namespace}-{name}-{random-string}.
+// derived from the supplied requirement, as {name}-{random-string}.
 // The requirement's external name annotation, if any, is propagated to the
 // composite resource.
 func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite) error {
-	cp.SetGenerateName(fmt.Sprintf("%s-%s-", rq.GetNamespace(), rq.GetName()))
+	cp.SetGenerateName(fmt.Sprintf("%s-", rq.GetName()))
 	if meta.GetExternalName(rq) != "" {
 		meta.SetExternalName(cp, meta.GetExternalName(rq))
 	}
+	meta.AddLabels(cp, map[string]string{
+		composed.LabelKeyRequirementName:      rq.GetName(),
+		composed.LabelKeyRequirementNamespace: rq.GetNamespace(),
+	})
 
 	urq, ok := rq.(*requirement.Unstructured)
 	if !ok {

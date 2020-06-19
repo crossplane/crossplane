@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
 var errBoom = errors.New("boom")
@@ -537,6 +538,57 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPINamingConfigurator(t *testing.T) {
+	type args struct {
+		kube client.Client
+		cp   resource.Composite
+	}
+	type want struct {
+		cp  resource.Composite
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"LabelAlreadyExists": {
+			reason: "No operation should be done if the name prefix is already given",
+			args: args{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{composed.LabelKeyNamePrefixForComposed: "given"}}},
+			},
+			want: want{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{composed.LabelKeyNamePrefixForComposed: "given"}}},
+			},
+		},
+		"AssignedName": {
+			reason: "Its own name should be used as name prefix if it is not given",
+			args: args{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp"}},
+			},
+			want: want{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp", Labels: map[string]string{composed.LabelKeyNamePrefixForComposed: "cp"}}},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewAPINamingConfigurator(tc.args.kube)
+			err := c.Configure(context.Background(), tc.args.cp, nil)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
