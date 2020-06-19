@@ -41,7 +41,7 @@ const (
 
 // Label keys.
 const (
-	LabelKeyNamePrefixForComposed = "crossplane.io/root-composite"
+	LabelKeyNamePrefixForComposed = "crossplane.io/composite"
 	LabelKeyRequirementName       = "crossplane.io/requirement-name"
 	LabelKeyRequirementNamespace  = "crossplane.io/requirement-namespace"
 )
