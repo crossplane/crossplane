@@ -22,6 +22,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	corev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -152,6 +153,11 @@ func (in *KubernetesApplicationResourceSpec) DeepCopyInto(out *KubernetesApplica
 	if in.Target != nil {
 		in, out := &in.Target, &out.Target
 		*out = new(KubernetesTargetReference)
+		**out = **in
+	}
+	if in.CredentialsRef != nil {
+		in, out := &in.CredentialsRef, &out.CredentialsRef
+		*out = new(corev1alpha1.SecretKeySelector)
 		**out = **in
 	}
 	if in.Secrets != nil {

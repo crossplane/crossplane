@@ -113,6 +113,25 @@ spec:
                     description: KubernetesApplicationResourceSpec specifies the desired
                       state of a KubernetesApplicationResource.
                     properties:
+                      credentialsRef:
+                        description: TargetCredentialsRef references the secret that
+                          has the credentials to connect to the target Kubernetes
+                          cluster.
+                        properties:
+                          key:
+                            description: The key to select.
+                            type: string
+                          name:
+                            description: Name of the secret.
+                            type: string
+                          namespace:
+                            description: Namespace of the secret.
+                            type: string
+                        required:
+                        - key
+                        - name
+                        - namespace
+                        type: object
                       secrets:
                         description: Secrets upon which this application resource
                           depends. These secrets will be propagated to the Kubernetes
