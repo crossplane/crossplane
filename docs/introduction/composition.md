@@ -102,6 +102,16 @@ spec:
   - password
   - hostname
   - port
+  # You can specify a default Composition resource to be selected if there is
+  # no composition selector or reference was supplied on the Custom Resource.
+  defaultCompositionRef:
+    name: example-azure
+  # Enforced composition will be selected for all instances of this type and it
+  # will override the selectors and referencers that are different.
+  #
+  #enforcedCompositionRef:
+  #  name: securemysql.acme.org
+  #
   # A template for the spec of a CustomResourceDefinition. Only the group,
   # version, names, validation, and additionalPrinterColumns fields of a CRD
   # spec are supported.
@@ -182,6 +192,8 @@ Spec:
     password
     hostname
     port
+  Default Composition Ref:
+    Name: example-azure
   Crd Spec Template:
     Group:  example.org
     Names:
@@ -255,9 +267,12 @@ of infrastructure, allowing them to explicitly specify only some configuration.
 An infrastructure operator may offer their application operators the choice
 between an "Azure" and a "GCP" composition when creating a `MySQLInstance` for
 example, Or they may offer a choice between a "production" and a "staging"
-`MySQLInstance` composition. In either case the application operator may
-configure any value supported by the composite infrastructure resource's schema,
-with all other values being deferred to the composition.
+`MySQLInstance` composition. They can also offer a default composition in case
+application operators do not supply a composition selector or enforce a specific
+composition in order to override the composition choice of users for all instances.
+In all cases, the application operator may configure any value supported by the 
+composite infrastructure resource's schema, with all other values being deferred
+to the composition.
 
 > Note that per [Current Limitations] it is not currently possible to specify a
 > default or an enforced composition for a particular kind of infrastructure
