@@ -172,12 +172,22 @@ type KubernetesApplicationResourceSpec struct {
 
 	// TargetCredentialsRef references the secret that has the credentials to
 	// connect to the target Kubernetes cluster.
-	CredentialsRef *runtimev1alpha1.SecretKeySelector `json:"credentialsRef,omitempty"`
+	CredentialsRef *LocalSecretKeySelector `json:"credentialsRef,omitempty"`
 
 	// Secrets upon which this application resource depends. These secrets will
 	// be propagated to the Kubernetes cluster to which this application is
 	// scheduled.
 	Secrets []corev1.LocalObjectReference `json:"secrets,omitempty"`
+}
+
+// TODO(muvaf): Move LocalSecretKeySelector to crossplane-runtime.
+
+// A LocalSecretKeySelector is a reference to a secret key in local namespace.
+type LocalSecretKeySelector struct {
+	runtimev1alpha1.LocalSecretReference `json:",inline"`
+
+	// The key to select.
+	Key string `json:"key"`
 }
 
 // NOTE(negz): This content of a RemoteStatus is opaque to Crossplane. We wrap

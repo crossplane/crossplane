@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
@@ -36,14 +35,13 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	util "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	"github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
@@ -56,7 +54,7 @@ const (
 	shortWait = 30 * time.Second
 )
 
-var (
+const (
 	errUnmarshalTemplate  = "cannot unmarshal template"
 	errUpdateStatusFmt    = "cannot update status %s %s"
 	errGetKey             = "cannot take object key from resource"
@@ -68,6 +66,9 @@ var (
 	errGetSecret          = "cannot get secret"
 	errSyncSecret         = "cannot sync secret"
 	errWaitingForDeletion = "waiting for resource to be deleted in remote cluster"
+	errUpdateWithCreds    = "cannot update with credentials reference"
+	errNoSecretRef        = "target has no secret reference"
+	errGetTarget          = "cannot get target"
 )
 
 // Ownership annotations
@@ -77,26 +78,6 @@ var (
 	RemoteControllerUID       = v1alpha1.KubernetesApplicationGroupVersionKind.GroupKind().String() + "/uid"
 )
 
-// CreatePredicate accepts KubernetesApplicationResources that have been
-// scheduled to a KubernetesTarget.
-func CreatePredicate(event event.CreateEvent) bool {
-	wl, ok := event.Object.(*v1alpha1.KubernetesApplicationResource)
-	if !ok {
-		return false
-	}
-	return wl.Spec.Target != nil
-}
-
-// UpdatePredicate accepts KubernetesApplicationResources that have been
-// scheduled to a KubernetesTarget.
-func UpdatePredicate(event event.UpdateEvent) bool {
-	wl, ok := event.ObjectNew.(*v1alpha1.KubernetesApplicationResource)
-	if !ok {
-		return false
-	}
-	return wl.Spec.Target != nil
-}
-
 // Setup adds a controller that reconciles KubernetesApplicationResources.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationResourceGroupKind)
@@ -104,7 +85,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.KubernetesApplicationResource{}).
-		WithEventFilter(&predicate.Funcs{CreateFunc: CreatePredicate, UpdateFunc: UpdatePredicate}).
 		Complete(&Reconciler{
 			connecter: &clusterConnecter{kube: mgr.GetClient()},
 			kube:      mgr.GetClient(),
@@ -389,53 +369,36 @@ type clusterConnecter struct {
 }
 
 func (c *clusterConnecter) config(ctx context.Context, ar *v1alpha1.KubernetesApplicationResource) (*rest.Config, error) {
-	n := types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.GetName()}
-	if ar.Spec.Target == nil {
-		return nil, errors.Errorf("%s %s is not scheduled", v1alpha1.KubernetesApplicationResourceKind, n)
+	if ar.Spec.CredentialsRef == nil {
+		n := types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.GetName()}
+		if ar.Spec.Target == nil {
+			return nil, errors.Errorf("%s %s is not scheduled", v1alpha1.KubernetesApplicationResourceKind, n)
+		}
+
+		n = types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.Spec.Target.Name}
+		k := &v1alpha1.KubernetesTarget{}
+		if err := c.kube.Get(ctx, n, k); err != nil {
+			return nil, errors.Wrapf(err, errGetTarget)
+		}
+
+		if k.GetWriteConnectionSecretToReference() == nil {
+			return nil, errors.New(errNoSecretRef)
+		}
+		ar.Spec.CredentialsRef = &v1alpha1.LocalSecretKeySelector{
+			LocalSecretReference: *k.GetWriteConnectionSecretToReference(),
+			Key:                  runtimev1alpha1.ResourceCredentialsSecretKubeconfigKey,
+		}
+		if err := c.kube.Update(ctx, ar); err != nil {
+			return nil, errors.Wrap(err, errUpdateWithCreds)
+		}
 	}
 
-	n = types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.Spec.Target.Name}
-	k := &v1alpha1.KubernetesTarget{}
-	if err := c.kube.Get(ctx, n, k); err != nil {
-		return nil, errors.Wrapf(err, "cannot get %s %s", v1alpha1.KubernetesTargetKind, n)
-	}
-
-	if k.GetWriteConnectionSecretToReference() == nil {
-		return nil, errors.Errorf("%s %s has no connection secret", v1alpha1.KubernetesTargetKind, n)
-	}
-
-	n = types.NamespacedName{Namespace: k.GetNamespace(), Name: k.GetWriteConnectionSecretToReference().Name}
+	nn := types.NamespacedName{Namespace: ar.GetNamespace(), Name: ar.Spec.CredentialsRef.Name}
 	s := &corev1.Secret{}
-	if err := c.kube.Get(ctx, n, s); err != nil {
-		return nil, errors.Wrapf(err, "cannot get secret %s", n)
+	if err := c.kube.Get(ctx, nn, s); err != nil {
+		return nil, errors.Wrapf(err, errGetSecret)
 	}
-
-	if len(s.Data[runtimev1alpha1.ResourceCredentialsSecretKubeconfigKey]) != 0 {
-		return clientcmd.RESTConfigFromKubeConfig(s.Data[runtimev1alpha1.ResourceCredentialsSecretKubeconfigKey])
-	}
-
-	u, err := url.Parse(string(s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey]))
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot parse Kubernetes endpoint as URL")
-	}
-
-	config := &rest.Config{
-		Host:     u.String(),
-		Username: string(s.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey]),
-		Password: string(s.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]),
-		TLSClientConfig: rest.TLSClientConfig{
-			// This field's godoc claims clients will use 'the hostname used to
-			// contact the server' when it is left unset. In practice clients
-			// appear to use the URL, including scheme and port.
-			ServerName: u.Hostname(),
-			CAData:     s.Data[runtimev1alpha1.ResourceCredentialsSecretCAKey],
-			CertData:   s.Data[runtimev1alpha1.ResourceCredentialsSecretClientCertKey],
-			KeyData:    s.Data[runtimev1alpha1.ResourceCredentialsSecretClientKeyKey],
-		},
-		BearerToken: string(s.Data[runtimev1alpha1.ResourceCredentialsSecretTokenKey]),
-	}
-
-	return config, nil
+	return clientcmd.RESTConfigFromKubeConfig(s.Data[ar.Spec.CredentialsRef.Key])
 }
 
 // connect returns a syncdeleter backed by a KubernetesTarget.

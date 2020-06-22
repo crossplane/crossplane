@@ -20,9 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"testing"
 	"time"
+
+	"k8s.io/client-go/rest"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -35,15 +36,36 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	"github.com/crossplane/crossplane/apis/workload/v1alpha1"
+)
+
+const (
+	kubeconfig = `
+apiVersion: v1
+clusters:
+- cluster:
+    server: https://foo.bar/foo
+  name: foobar-foo
+contexts:
+- context:
+    cluster: foobar-foo
+    namespace: default
+    user: foo
+  name: foobar-foo
+current-context: foobar-foo
+kind: Config
+users:
+- name: foo
+  user:
+    token: olala
+`
 )
 
 const (
@@ -52,12 +74,6 @@ const (
 	uid             = types.UID("definitely-a-uuid")
 	resourceVersion = "coolVersion"
 )
-
-// url.Parse returns a slightly different error string in Go 1.14 than in prior versions.
-func urlParseError(s string) error {
-	_, err := url.Parse(s)
-	return err
-}
 
 var (
 	errorBoom  = errors.New("boom")
@@ -77,11 +93,6 @@ var (
 		},
 	}
 
-	targetRef = &v1alpha1.KubernetesTargetReference{Name: target.GetName()}
-
-	apiServerURL, _ = url.Parse("https://example.org")
-	malformedURL    = ":wat:"
-
 	secret = &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "coolSecret",
@@ -93,13 +104,7 @@ var (
 			},
 		},
 		Data: map[string][]byte{
-			runtimev1alpha1.ResourceCredentialsSecretEndpointKey:   []byte(apiServerURL.String()),
-			runtimev1alpha1.ResourceCredentialsSecretUserKey:       []byte("user"),
-			runtimev1alpha1.ResourceCredentialsSecretPasswordKey:   []byte("password"),
-			runtimev1alpha1.ResourceCredentialsSecretCAKey:         []byte("secretCA"),
-			runtimev1alpha1.ResourceCredentialsSecretClientCertKey: []byte("clientCert"),
-			runtimev1alpha1.ResourceCredentialsSecretClientKeyKey:  []byte("clientKey"),
-			runtimev1alpha1.ResourceCredentialsSecretTokenKey:      []byte("token"),
+			runtimev1alpha1.ResourceCredentialsSecretKubeconfigKey: []byte(kubeconfig),
 		},
 	}
 
@@ -234,91 +239,6 @@ func kubeAR(rm ...kubeARModifier) *v1alpha1.KubernetesApplicationResource {
 	}
 
 	return r
-}
-
-func TestCreatePredicate(t *testing.T) {
-	cases := []struct {
-		name  string
-		event event.CreateEvent
-		want  bool
-	}{
-		{
-			name: "ScheduledCluster",
-			event: event.CreateEvent{
-				Object: &v1alpha1.KubernetesApplicationResource{
-					Spec: v1alpha1.KubernetesApplicationResourceSpec{
-						Target: targetRef,
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "UnscheduledCluster",
-			event: event.CreateEvent{
-				Object: &v1alpha1.KubernetesApplicationResource{},
-			},
-			want: false,
-		},
-		{
-			name: "NotAKubernetesApplicationResource",
-			event: event.CreateEvent{
-				Object: &v1alpha1.KubernetesApplication{},
-			},
-			want: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := CreatePredicate(tc.event)
-			if got != tc.want {
-				t.Errorf("CreatePredicate(...): got %v, want %v", got, tc.want)
-			}
-		})
-	}
-}
-func TestUpdatePredicate(t *testing.T) {
-	cases := []struct {
-		name  string
-		event event.UpdateEvent
-		want  bool
-	}{
-		{
-			name: "ScheduledCluster",
-			event: event.UpdateEvent{
-				ObjectNew: &v1alpha1.KubernetesApplicationResource{
-					Spec: v1alpha1.KubernetesApplicationResourceSpec{
-						Target: targetRef,
-					},
-				},
-			},
-			want: true,
-		},
-		{
-			name: "UnscheduledCluster",
-			event: event.UpdateEvent{
-				ObjectNew: &v1alpha1.KubernetesApplicationResource{},
-			},
-			want: false,
-		},
-		{
-			name: "NotAKubernetesApplicationResource",
-			event: event.UpdateEvent{
-				ObjectNew: &v1alpha1.KubernetesApplication{},
-			},
-			want: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got := UpdatePredicate(tc.event)
-			if got != tc.want {
-				t.Errorf("UpdatePredicate(...): got %v, want %v", got, tc.want)
-			}
-		})
-	}
 }
 
 type mockSyncUnstructuredFn func(ctx context.Context, template *unstructured.Unstructured) (*v1alpha1.RemoteStatus, error)
@@ -999,134 +919,211 @@ type mockRESTMapper struct {
 	kmeta.RESTMapper
 }
 
-func TestConnectConfig(t *testing.T) {
-	cases := []struct {
-		name       string
-		connecter  *clusterConnecter
-		ar         *v1alpha1.KubernetesApplicationResource
-		wantConfig *rest.Config
-		wantErr    error
+func TestConfig(t *testing.T) {
+	type args struct {
+		kube client.Client
+		kar  *v1alpha1.KubernetesApplicationResource
+	}
+	type want struct {
+		result *rest.Config
+		err    error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
 	}{
-		{
-			name: "Successful",
-			connecter: &clusterConnecter{
+		"CredentialsRefExistsSuccess": {
+			reason: "Config should be constructed directly with given credentials ref",
+			args: args{
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, got client.ObjectKey, obj runtime.Object) error {
-						switch actual := obj.(type) {
-						case *v1alpha1.KubernetesTarget:
-							want := client.ObjectKey{
-								Namespace: target.GetNamespace(),
-								Name:      target.GetName(),
-							}
-							if diff := cmp.Diff(want, got); diff != "" {
-								return errors.Errorf("MockGet(Secret): -want, +got: %s", diff)
-							}
-							*actual = *target
-
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						switch r := obj.(type) {
 						case *corev1.Secret:
-							want := client.ObjectKey{
-								Namespace: target.GetNamespace(),
-								Name:      secret.GetName(),
-							}
-							if diff := cmp.Diff(want, got); diff != "" {
-								return errors.Errorf("MockGet(Secret): -want, +got: %s", diff)
-							}
-
-							*actual = *secret
-
+							secret.DeepCopyInto(r)
+						default:
+							return errors.New("unexpected Get call")
 						}
 						return nil
 					},
 				},
-				options: client.Options{Mapper: mockRESTMapper{}},
-			},
-			ar: kubeAR(withTarget(target.GetName())),
-			wantConfig: &rest.Config{
-				Host:     apiServerURL.String(),
-				Username: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretUserKey]),
-				Password: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretPasswordKey]),
-				TLSClientConfig: rest.TLSClientConfig{
-					ServerName: apiServerURL.Hostname(),
-					CAData:     secret.Data[runtimev1alpha1.ResourceCredentialsSecretCAKey],
-					CertData:   secret.Data[runtimev1alpha1.ResourceCredentialsSecretClientCertKey],
-					KeyData:    secret.Data[runtimev1alpha1.ResourceCredentialsSecretClientKeyKey],
+				kar: &v1alpha1.KubernetesApplicationResource{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{CredentialsRef: &v1alpha1.LocalSecretKeySelector{
+						LocalSecretReference: runtimev1alpha1.LocalSecretReference{
+							Name: secret.Name,
+						},
+						Key: runtimev1alpha1.ResourceCredentialsSecretKubeconfigKey,
+					}},
 				},
-				BearerToken: string(secret.Data[runtimev1alpha1.ResourceCredentialsSecretTokenKey]),
 			},
-			wantErr: nil,
-		},
-		{
-			name:      "KubernetesApplicationResourceNotScheduled",
-			connecter: &clusterConnecter{},
-			ar:        kubeAR(),
-			wantErr: errors.Errorf("%s %s/%s is not scheduled",
-				v1alpha1.KubernetesApplicationResourceKind, objectMeta.GetNamespace(), objectMeta.GetName()),
-		},
-		{
-			name: "GetKubernetesTargetFailed",
-			connecter: &clusterConnecter{
-				kube:    &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
-				options: client.Options{Mapper: mockRESTMapper{}},
+			want: want{
+				result: &rest.Config{
+					Host:        "https://foo.bar/foo",
+					BearerToken: "olala",
+				},
 			},
-			ar: kubeAR(withTarget(target.GetName())),
-			wantErr: errors.Wrapf(errorBoom, "cannot get %s %s/%s",
-				v1alpha1.KubernetesTargetKind, target.GetNamespace(), target.GetName()),
 		},
-		{
-			name: "GetConnectionSecretFailed",
-			connecter: &clusterConnecter{
+		"CredentialsRefNotExistSuccess": {
+			reason: "Credentials secret reference should be fetched from target and config should be constructed",
+			args: args{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch actual := obj.(type) {
+						switch r := obj.(type) {
+						case *corev1.Secret:
+							secret.DeepCopyInto(r)
 						case *v1alpha1.KubernetesTarget:
-							*actual = *target
+							target.DeepCopyInto(r)
+						default:
+							return errors.New("unexpected Get call")
+						}
+						return nil
+					},
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+				kar: &v1alpha1.KubernetesApplicationResource{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
+						Target: &v1alpha1.KubernetesTargetReference{Name: target.Name},
+					},
+				},
+			},
+			want: want{
+				result: &rest.Config{
+					Host:        "https://foo.bar/foo",
+					BearerToken: "olala",
+				},
+			},
+		},
+		"NoTargetOrCred": {
+			reason: "Should return error if neither credential secret ref nor target ref is given",
+			args: args{
+				kar: &v1alpha1.KubernetesApplicationResource{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "foo",
+						Namespace: "bar",
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf("%s bar/foo is not scheduled", v1alpha1.KubernetesApplicationResourceKind),
+			},
+		},
+		"GetTargetFail": {
+			reason: "Should return error if target cannot be fetched from api-server",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errorBoom),
+				},
+				kar: &v1alpha1.KubernetesApplicationResource{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
+						Target: &v1alpha1.KubernetesTargetReference{
+							Name: "foo",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errorBoom, errGetTarget),
+			},
+		},
+		"TargetWithNoSecretRef": {
+			reason: "Should return error if target does not have any secret reference",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						switch r := obj.(type) {
+						case *v1alpha1.KubernetesTarget:
+							kt := &v1alpha1.KubernetesTarget{}
+							kt.DeepCopyInto(r)
+						default:
+							return errors.New("unexpected Get call")
+						}
+						return nil
+					},
+				},
+				kar: &v1alpha1.KubernetesApplicationResource{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
+						Target: &v1alpha1.KubernetesTargetReference{
+							Name: "foo",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errNoSecretRef),
+			},
+		},
+		"UpdateWithSecretRefFailed": {
+			reason: "Should return error if controller cannot issue an update to KAR after adding the credentials secret ref",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						switch r := obj.(type) {
+						case *v1alpha1.KubernetesTarget:
+							target.DeepCopyInto(r)
+						default:
+							return errors.New("unexpected Get call")
+						}
+						return nil
+					},
+					MockUpdate: test.NewMockUpdateFn(errorBoom),
+				},
+				kar: &v1alpha1.KubernetesApplicationResource{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
+						Target: &v1alpha1.KubernetesTargetReference{
+							Name: "foo",
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errorBoom, errUpdateWithCreds),
+			},
+		},
+		"CredentialsSecretGetFailed": {
+			reason: "Should return error if the secret referenced as credentials secret cannot be fetched",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+						switch r := obj.(type) {
 						case *corev1.Secret:
 							return errorBoom
-						}
-						return nil
-					},
-				},
-				options: client.Options{Mapper: mockRESTMapper{}},
-			},
-			ar:      kubeAR(withTarget(target.GetName())),
-			wantErr: errors.Wrapf(errorBoom, "cannot get secret %s/%s", secret.GetNamespace(), secret.GetName()),
-		},
-		{
-			name: "ParseEndpointFailed",
-			connecter: &clusterConnecter{
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						switch actual := obj.(type) {
 						case *v1alpha1.KubernetesTarget:
-							*actual = *target
-						case *corev1.Secret:
-							s := secret.DeepCopy()
-							s.Data[runtimev1alpha1.ResourceCredentialsSecretEndpointKey] = []byte(malformedURL)
-							*actual = *s
+							target.DeepCopyInto(r)
+						default:
+							return errors.New("unexpected Get call")
 						}
 						return nil
 					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
-				options: client.Options{Mapper: mockRESTMapper{}},
+				kar: &v1alpha1.KubernetesApplicationResource{
+					Spec: v1alpha1.KubernetesApplicationResourceSpec{
+						Target: &v1alpha1.KubernetesTargetReference{Name: target.Name},
+					},
+				},
 			},
-			ar:      kubeAR(withTarget(target.GetName())),
-			wantErr: errors.WithStack(errors.Wrap(urlParseError(malformedURL), "cannot parse Kubernetes endpoint as URL")),
+			want: want{
+				err: errors.Wrap(errorBoom, errGetSecret),
+			},
 		},
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			gotConfig, gotErr := tc.connecter.config(ctx, tc.ar)
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &clusterConnecter{kube: tc.args.kube}
+			got, err := c.config(ctx, tc.kar)
 
-			if diff := cmp.Diff(tc.wantErr, gotErr, test.EquateErrors()); diff != "" {
-				t.Errorf("tc.connecter.config(...): want error != got error:\n%s", diff)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("config(...): want error != got error:\n%s", diff)
 			}
 
-			if diff := cmp.Diff(tc.wantConfig, gotConfig); diff != "" {
-				t.Errorf("tc.connecter.config(...): -want, +got:\n%s", diff)
+			if diff := cmp.Diff(tc.want.result, got); diff != "" {
+				t.Errorf("config(...): want error != got error:\n%s", diff)
 			}
 		})
 	}
+
 }
 
 func TestConnect(t *testing.T) {
@@ -1142,11 +1139,17 @@ func TestConnect(t *testing.T) {
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
-						if actual, ok := obj.(*v1alpha1.KubernetesTarget); ok {
-							*actual = *target
+						switch r := obj.(type) {
+						case *v1alpha1.KubernetesTarget:
+							target.DeepCopyInto(r)
+						case *corev1.Secret:
+							secret.DeepCopyInto(r)
+						default:
+							return errors.New("unexpected Get call")
 						}
 						return nil
 					},
+					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				options: client.Options{Mapper: mockRESTMapper{}},
 			},
@@ -1173,18 +1176,15 @@ func TestConnect(t *testing.T) {
 			// unexported fields. We don't inspect these unexported fields
 			// because doing so would mostly be testing controller-runtime's
 			// client.New() code, not ours.
-			wantErr: errors.Wrap(
-				errors.Errorf("%s %s/%s has no connection secret", v1alpha1.KubernetesTargetKind, target.GetNamespace(), target.GetName()),
-				"cannot create Kubernetes client configuration"),
+			wantErr: errors.Wrap(errors.New(errNoSecretRef), "cannot create Kubernetes client configuration"),
 		},
 		{
 			name: "ConfigFailure",
 			connecter: &clusterConnecter{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errorBoom)},
 			},
-			ar: kubeAR(withTarget(target.GetName())),
-			wantErr: errors.Wrapf(errorBoom, "cannot create Kubernetes client configuration: cannot get %s %s/%s",
-				v1alpha1.KubernetesTargetKind, target.GetNamespace(), target.GetName()),
+			ar:      kubeAR(withTarget(target.GetName())),
+			wantErr: errors.Wrap(errorBoom, errors.Wrap(errors.New(errGetTarget), "cannot create Kubernetes client configuration").Error()),
 		},
 	}
 
