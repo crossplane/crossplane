@@ -21,6 +21,9 @@
   * Removed definition for _Claim_ as claims are to be deprecated per
     [#1479](https://github.com/crossplane/crossplane/issues/1479).
   * Added section on choosing a [GVK for a resource](#group-version-kind-gvk).
+* 1.4 - Muvaffak Onus (@muvaf)
+  * Expanded [immutability section](#immutable-properties) to cover selector fields..
+  * Updated [labelling section](#external-resource-labeling) with current implementation.
 
 ## Terminology
 
@@ -178,7 +181,7 @@ Use the value of that annotation as external resource name in _all_ queries.
 #### External Resource Labeling
 
 If the external resource supports labelling, we should label it with the managed
-resource name and kind. This is helpful in variety of scenarios like:
+resource name, kind and provider. This is helpful in variety of scenarios like:
 * Identify services with non-deterministic naming, for example AWS VPC.
 * Provider level operations that are done via label filtering, for example
   search and batch operations.
@@ -189,8 +192,9 @@ resource name and kind. This is helpful in variety of scenarios like:
 The keys to use in labels are like the following:
 ```
 A tag set for a VPC in AWS:
-  "crossplane.io/name": "myappnamespace-mynetwork-5sc8a"
-  "crossplane.io/kind": "vpc.network.aws.crossplane.io"
+  "crossplane-kind": "vpc.network.aws.crossplane.io"
+  "crossplane-name": "myappnamespace-mynetwork-5sc8a"
+  "crossplane-provider": "aws-provider"
 ```
 
 In cases where the characters `.` and `/` are not allowed in key string, `-`
@@ -617,6 +621,12 @@ be immutable once set:
 ```
 //+immutable
 ```
+
+Note that there are many fields that are immutable and can be populated by a
+reference, which could be resolved via its label selector. In such cases, the
+raw config value, and the reference to the resource that the value will be fetched
+from are immutable. But since the selector is only a set of instructions to find
+a reference, it should not be marked as immutable.
 
 There are some solutions like admission webhooks to enforce immutability of some
 of the fields, however, current behavior is that Crossplane shows the user what
