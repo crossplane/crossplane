@@ -37,7 +37,7 @@ Let's get started!
 > infrastructure types that we define. This is covered in greater detail in the
 > [composition] section, but you can run the following command to grant all
 > necessary RBAC permissions for this quick start guide: `kubectl apply -f
-> https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/clusterrole.yaml`
+> https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/clusterrole.yaml`
 
 ## Create InfrastructureDefinition
 
@@ -84,7 +84,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/definition.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/definition.yaml
 ```
 
 You are now able to create instances of kind `PostgreSQLInstance` at the cluster
@@ -109,7 +109,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/publication.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/publication.yaml
 ```
 
 This will create a new CRD named `PostgreSQLInstanceRequirement`, which is the
@@ -184,7 +184,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/composition-aws.yaml
 ```
 
 > Note that this Composition will create an RDS instance using your default VPC,
@@ -362,7 +362,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws-with-vpc.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/composition-aws-with-vpc.yaml
 ```
 
 </div>
@@ -420,7 +420,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/composition-gcp.yaml
 ```
 
 </div>
@@ -512,7 +512,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/composition-azure.yaml
 ```
 
 </div>
@@ -565,7 +565,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/composition-alibaba.yaml
 ```
 
 </div>
@@ -609,7 +609,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/requirement-aws.yaml
 ```
 
 </div>
@@ -633,7 +633,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/requirement-aws.yaml
 ```
 
 </div>
@@ -656,7 +656,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/requirement-gcp.yaml
 ```
 
 </div>
@@ -679,7 +679,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/requirement-azure.yaml
 ```
 
 </div>
@@ -702,7 +702,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/requirement-alibaba.yaml
 ```
 
 </div>
@@ -777,7 +777,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/pod.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/publish/pod.yaml
 ```
 
 This `Pod` simply connects to a PostgreSQL database and prints its name, so you
