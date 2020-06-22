@@ -53,7 +53,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/provision/aws.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision an RDS instance
@@ -98,7 +98,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/provision/gcp.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision a CloudSQL
@@ -164,7 +164,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/provision/azure.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision a PostgreSQL
@@ -211,7 +211,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.12/docs/snippets/provision/alibaba.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision an RDS instance
