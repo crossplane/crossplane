@@ -33,11 +33,16 @@ parameter, and specifies that it will create a connection `Secret` with keys for
 each provider that can satisfy and be parameterized by a `PostgreSQLInstance`.
 Let's get started!
 
-> Note: Crossplane must be granted RBAC permissions to managed new
-> infrastructure types that we define. This is covered in greater detail in the
-> [composition] section, but you can run the following command to grant all
-> necessary RBAC permissions for this quick start guide: `kubectl apply -f
-> https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/clusterrole.yaml`
+## Grant RBAC Permissions
+
+Crossplane must be granted RBAC permissions to manage new infrastructure types
+that we define. This is covered in greater detail in the [composition] section,
+but you can easily run the following command now to grant all necessary RBAC
+permissions for the remainder of this quick start guide:
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/clusterrole.yaml
+```
 
 ## Create InfrastructureDefinition
 
