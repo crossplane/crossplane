@@ -18,6 +18,8 @@ package composite
 
 import (
 	"context"
+	"math/rand"
+	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -143,17 +145,25 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	if err := r.client.List(ctx, list, client.MatchingLabels(labels)); err != nil {
 		return errors.Wrap(err, errListCompositions)
 	}
-	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+
+	candidates := make([]string, 0, len(list.Items))
+	v, k := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+
 	for _, comp := range list.Items {
-		if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
-			continue
+		if comp.Spec.From.APIVersion == v && comp.Spec.From.Kind == k {
+			// This composition is compatible with our composite resource.
+			candidates = append(candidates, comp.Name)
 		}
-
-		cp.SetCompositionReference(&corev1.ObjectReference{Name: comp.Name})
-
-		return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 	}
-	return errors.New(errNoCompatibleComposition)
+
+	if len(candidates) == 0 {
+		return errors.New(errNoCompatibleComposition)
+	}
+
+	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	selected := candidates[random.Intn(len(candidates))]
+	cp.SetCompositionReference(&corev1.ObjectReference{Name: selected})
+	return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
 }
 
 // NewAPIDefaultCompositionSelector returns a APIDefaultCompositionSelector.
