@@ -150,7 +150,7 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	v, k := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 
 	for _, comp := range list.Items {
-		if comp.Spec.From.APIVersion == v || comp.Spec.From.Kind == k {
+		if comp.Spec.From.APIVersion == v && comp.Spec.From.Kind == k {
 			// This composition is compatible with our composite resource.
 			candidates = append(candidates, comp.Name)
 		}
