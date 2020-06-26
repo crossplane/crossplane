@@ -55,8 +55,8 @@ spec:
             of a KubernetesApplicationResource.
           properties:
             credentialsRef:
-              description: TargetCredentialsRef references the secret that has the
-                credentials to connect to the target Kubernetes cluster.
+              description: CredentialsRef references the secret that has the credentials
+                to connect to the target Kubernetes cluster.
               properties:
                 key:
                   description: The key to select.

@@ -170,7 +170,7 @@ type KubernetesApplicationResourceSpec struct {
 	// +optional
 	Target *KubernetesTargetReference `json:"targetRef,omitempty"`
 
-	// TargetCredentialsRef references the secret that has the credentials to
+	// CredentialsRef references the secret that has the credentials to
 	// connect to the target Kubernetes cluster.
 	CredentialsRef *LocalSecretKeySelector `json:"credentialsRef,omitempty"`
 
