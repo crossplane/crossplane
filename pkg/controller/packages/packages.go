@@ -37,7 +37,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, hostControllerNamespace, tsContro
 	}
 
 	if err := persona.Setup(mgr, l); err != nil {
-		return nil
+		return err
 	}
 	if err := pkg.Setup(mgr, l, hostControllerNamespace, allowCore, allowFullDeployment, forceImagePullPolicy); err != nil {
 		return err
