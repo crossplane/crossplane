@@ -63,6 +63,9 @@ spec:
               required:
               - name
               type: object
+            revisionEnabled:
+              description: Revision tells whether a trait is aware of component revision
+              type: boolean
           required:
           - definitionRef
           type: object

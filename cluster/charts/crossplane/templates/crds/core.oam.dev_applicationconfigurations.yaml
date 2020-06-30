@@ -51,8 +51,11 @@ spec:
                   a workload.
                 properties:
                   componentName:
-                    description: ComponentName specifies a component of which an ApplicationConfiguration
-                      should consist. The named component must exist.
+                    description: ComponentName specifies a component whose latest
+                      revision will be bind with ApplicationConfiguration. When the
+                      spec of the referenced component changes, ApplicationConfiguration
+                      will automatically migrate all trait affect from the prior revision
+                      to the new one. This is mutually exclusive with RevisionName.
                     type: string
                   parameterValues:
                     description: ParameterValues specify values for the the specified
@@ -77,6 +80,11 @@ spec:
                       - value
                       type: object
                     type: array
+                  revisionName:
+                    description: RevisionName of a specific component revision to
+                      which to bind ApplicationConfiguration. This is mutually exclusive
+                      with componentName.
+                    type: string
                   scopes:
                     description: Scopes in which the specified component should exist.
                     items:
@@ -123,8 +131,6 @@ spec:
                       - trait
                       type: object
                     type: array
-                required:
-                - componentName
                 type: object
               type: array
           required:
@@ -175,6 +181,39 @@ spec:
                   componentName:
                     description: ComponentName that produced this workload.
                     type: string
+                  componentRevisionName:
+                    description: ComponentRevisionName of current component
+                    type: string
+                  scopes:
+                    description: Scopes associated with this workload.
+                    items:
+                      description: A WorkloadScope represents a trait associated with
+                        a workload.
+                      properties:
+                        scopeRef:
+                          description: Reference to a scope created by an ApplicationConfiguration.
+                          properties:
+                            apiVersion:
+                              description: APIVersion of the referenced object.
+                              type: string
+                            kind:
+                              description: Kind of the referenced object.
+                              type: string
+                            name:
+                              description: Name of the referenced object.
+                              type: string
+                            uid:
+                              description: UID of the referenced object.
+                              type: string
+                          required:
+                          - apiVersion
+                          - kind
+                          - name
+                          type: object
+                      required:
+                      - scopeRef
+                      type: object
+                    type: array
                   traits:
                     description: Traits associated with this workload.
                     items:

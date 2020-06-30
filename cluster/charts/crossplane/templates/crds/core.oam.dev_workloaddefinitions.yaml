@@ -45,6 +45,30 @@ spec:
         spec:
           description: A WorkloadDefinitionSpec defines the desired state of a WorkloadDefinition.
           properties:
+            childResourceKinds:
+              description: ChildResourceKinds are the list of GVK of the child resources
+                this workload generates
+              items:
+                description: A ChildResourceKind defines a child Kubernetes resource
+                  kind with a selector
+                properties:
+                  apiVersion:
+                    description: APIVersion of the child resource
+                    type: string
+                  kind:
+                    description: Kind of the child resource
+                    type: string
+                  selector:
+                    additionalProperties:
+                      type: string
+                    description: Selector to select the child resources that the workload
+                      wants to expose to traits
+                    type: object
+                required:
+                - apiVersion
+                - kind
+                type: object
+              type: array
             definitionRef:
               description: Reference to the CustomResourceDefinition that defines
                 this workload kind.

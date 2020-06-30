@@ -122,6 +122,18 @@ spec:
                 - type
                 type: object
               type: array
+            latestRevision:
+              description: LatestRevision of component
+              properties:
+                name:
+                  type: string
+                revision:
+                  format: int64
+                  type: integer
+              required:
+              - name
+              - revision
+              type: object
           type: object
       type: object
   version: v1alpha2

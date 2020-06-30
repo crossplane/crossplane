@@ -10,6 +10,7 @@ resources:
 - charts/crossplane-types/crds/core.oam.dev_applicationconfigurations.yaml
 - charts/crossplane-types/crds/core.oam.dev_components.yaml
 - charts/crossplane-types/crds/core.oam.dev_containerizedworkloads.yaml
+- charts/crossplane-types/crds/core.oam.dev_healthscopes.yaml
 - charts/crossplane-types/crds/core.oam.dev_manualscalertraits.yaml
 - charts/crossplane-types/crds/core.oam.dev_scopedefinitions.yaml
 - charts/crossplane-types/crds/core.oam.dev_traitdefinitions.yaml

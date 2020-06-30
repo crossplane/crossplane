@@ -6,27 +6,28 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.4
   creationTimestamp: null
-  name: components.core.oam.dev
+  name: healthscopes.core.oam.dev
 spec:
   additionalPrinterColumns:
-  - JSONPath: .spec.workload.kind
-    name: WORKLOAD-KIND
+  - JSONPath: .status.health
+    name: HEALTH
     type: string
   group: core.oam.dev
   names:
     categories:
     - crossplane
     - oam
-    kind: Component
-    listKind: ComponentList
-    plural: components
-    singular: component
+    kind: HealthScope
+    listKind: HealthScopeList
+    plural: healthscopes
+    singular: healthscope
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A Component describes how an OAM workload kind may be instantiated.
+      description: A HealthScope determines an aggregate health status based of the
+        health of components.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -41,53 +42,46 @@ spec:
         metadata:
           type: object
         spec:
-          description: A ComponentSpec defines the desired state of a Component.
+          description: A HealthScopeSpec defines the desired state of a HealthScope.
           properties:
-            parameters:
-              description: Parameters exposed by this component. ApplicationConfigurations
-                that reference this component may specify values for these parameters,
-                which will in turn be injected into the embedded workload.
+            probe-interval:
+              description: ProbeInterval is the amount of time in seconds between
+                probing tries.
+              format: int32
+              type: integer
+            probe-timeout:
+              description: ProbeTimeout is the amount of time in seconds to wait when
+                receiving a response before marked failure.
+              format: int32
+              type: integer
+            workloadRefs:
+              description: WorkloadReferences to the workloads that are in this scope.
               items:
-                description: A ComponentParameter defines a configurable parameter
-                  of a component.
+                description: A TypedReference refers to an object by Name, Kind, and
+                  APIVersion. It is commonly used to reference cluster-scoped objects
+                  or objects where the namespace is already known.
                 properties:
-                  description:
-                    description: Description of this parameter.
+                  apiVersion:
+                    description: APIVersion of the referenced object.
                     type: string
-                  fieldPaths:
-                    description: FieldPaths specifies an array of fields within this
-                      Component's workload that will be overwritten by the value of
-                      this parameter. The type of the parameter (e.g. int, string)
-                      is inferred from the type of these fields; All fields must be
-                      of the same type. Fields are specified as JSON field paths without
-                      a leading dot, for example 'spec.replicas'.
-                    items:
-                      type: string
-                    type: array
+                  kind:
+                    description: Kind of the referenced object.
+                    type: string
                   name:
-                    description: Name of this parameter. OAM ApplicationConfigurations
-                      will specify parameter values using this name.
+                    description: Name of the referenced object.
                     type: string
-                  required:
-                    description: Required specifies whether or not a value for this
-                      parameter must be supplied when authoring an ApplicationConfiguration.
-                    type: boolean
+                  uid:
+                    description: UID of the referenced object.
+                    type: string
                 required:
-                - fieldPaths
+                - apiVersion
+                - kind
                 - name
                 type: object
               type: array
-            workload:
-              description: A Workload that will be created for each ApplicationConfiguration
-                that includes this Component. Workloads must be defined by a WorkloadDefinition.
-              type: object
-              x-kubernetes-embedded-resource: true
-              x-kubernetes-preserve-unknown-fields: true
-          required:
-          - workload
           type: object
         status:
-          description: A ComponentStatus represents the observed state of a Component.
+          description: A HealthScopeStatus represents the observed state of a HealthScope.
           properties:
             conditions:
               description: Conditions of the resource.
@@ -122,18 +116,10 @@ spec:
                 - type
                 type: object
               type: array
-            latestRevision:
-              description: LatestRevision of component
-              properties:
-                name:
-                  type: string
-                revision:
-                  format: int64
-                  type: integer
-              required:
-              - name
-              - revision
-              type: object
+            health:
+              type: string
+          required:
+          - health
           type: object
       type: object
   version: v1alpha2
