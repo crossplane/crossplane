@@ -171,9 +171,9 @@ policy, audit etc) but not necessarily applications.
 
 In order to preserve the central infrastructure management ability while
 alleviating the issues above, we will change our approach from push-based one to
-a pull-based one where applications, and their requirements are deployed into the
-remote cluster, and they request the infrastructure from central cluster and pull
-the necessary credentials.
+a pull-based one where applications, and their requirements are deployed into
+the remote cluster, and they request the infrastructure from a central cluster
+and pull the necessary credentials.
 
 Since having this logic in the applications themselves wouldn't be a good UX, we
 will have an agent that you will need to deploy into your remote cluster for
@@ -274,7 +274,7 @@ will consist of two steps:
   needs to be used:
   * `agent.crossplane.io/credentials-secret-name: sa-secret` for the full
     kubeconfig to connect to the central cluster.
-  * `agent.crossplane.io/namespace: my-app-1` for the namespace it should sync
+  * `agent.crossplane.io/target-namespace: my-app-1` for the namespace it should sync
     requirements and their secrets.
 * If no annotation is given, then use the defaults.
   * Installation procedure of the agent will allow to specify a default secret
@@ -559,6 +559,14 @@ In the remote cluster, we provide the `Role` that has the static set of
 could be a controller that is separately installed and it could add new
 `apiGroup`s as they appear as `InfrastructurePublication`s in the remote
 cluster.
+
+### Agent as an Executable for VMs
+
+Instead of remote cluster, a VM can also use the infrastructure services that
+the central cluster exposes. A different version of the agent could sync the
+secrets to a file in the VM that can be used as credential file for VM
+workloads. Maybe a small api-server shipped with that agent binary for
+requirement requests?
 
 ## Alternatives Considered
 
