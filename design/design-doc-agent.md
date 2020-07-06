@@ -24,10 +24,10 @@ the other one mounts it for the containers to consume.
 
 > For brevity, application will be assumed to have only one `Pod`.
 
-This consumption model works well in cases where you deploy your application in
-a cluster where Crossplane runs, i.e. local mode. However, there are many valid
-use cases where this is not really feasible. Here is a subset of those use
-cases:
+This consumption model works well in cases where you use a single cluster for
+both Crossplane and all of your applications. However, there could be many cases
+that you'd like to have multiple Kubernetes clusters for different purposes
+like:
 
 * Private Networking.
   * You may want to deploy different applications into different VPCs but manage
@@ -40,20 +40,23 @@ cases:
     your needs in terms of instance types could differ greatly depending on your
     workloads, like some need GPU-powered machines and others memory-heavy ones.
 * Security.
-    * All applications are subject to the same user management domain, i.e. same
-      api-server. This could be managed to be safe, but it's not physically
-      impossible to have a `ServiceAccount` in another namespace to have access
-      to resources in your namespace. So, you wouldn't really trust to have
-      production in one namespace and dev in the other.
+  * All applications are subject to the same user management domain, i.e. same
+    api-server. This could be managed to be safe, but it's not physically
+    impossible to have a `ServiceAccount` in another namespace to have access to
+    resources in your namespace. So, you wouldn't really trust to have
+    production in one namespace and dev in the other.
 
-The main point around all these use cases is that users want central
-infrastructure management but not a physically central place for all of their
-application deployment. In other terms, as a platform team in an organization,
-you might want to see all infrastructure to be managed & represented from one
-place and this has various benefits like common published APIs, cost overview,
-tracking lost/forgotten resources etc. But you would want to enable application
-teams to self-serve and have certain level of freedom about on a certain
-infrastructure architecture they'd like to have their applications run inside.
+When you use multiple clusters and deploy Crossplane to each one of them gives
+you more flexibility but you'd lose the ability to see all the infrastructure
+from one place as the clusters are physically isolated. An example case that
+you'd like to have centralized infrastructure management is that as a
+platform team in an organization, you might want to publish a set of APIs that
+are audited and blessed for developers in the organization to use in order to
+request infrastructure. Besides from that, there are other benefits like cost
+overview from one place, tracking lost/forgotten resources etc. But you
+would also want to enable application teams to self-serve and have certain level of
+freedom to choose the infrastructure architecture they'd like using the building
+blocks you've provided.
 
 What we need to do is to enable a platform team to have this central
 infrastructure management ability while not imposing hard restrictions on
@@ -131,13 +134,6 @@ with this approach:
     admission check rejections in case something went wrong. Instead, you'll see
     them in the status, but you won't be prevented from making the change as
     opposed to directly interacting.
-  * Late initialization.* You cannot interact with what you deploy directly,
-    i.e. always have to use `KubernetesApplicationResource` as a proxy and that
-    has its own set of challenges:
-  * It's a template and gets deployed after you make the edit, so, you loose the
-    admission check rejections in case something went wrong. Instead, you'll see
-    them in the status, but you won't be prevented from making the change as
-    opposed to directly interacting.
   * Late initialization.
     * Let's say you deployed a `Pod` and `spec.node` is late-initialized. You
       will not see that because we only propagate the status back, not spec
@@ -150,22 +146,24 @@ with this approach:
       usually not the case. For example, in some cases an element of an array in
       spec is late-inited for bookkeeping the IP and removing this causes its
       controller to provision new ones each time.
-* Migration from a Helm chart that has a few `Deployment`s and a `StatefulSet`
-  for DB is harder.
+* Making existing application bundles like Helm charts are harder.
   * You actually need to change each and every element to be in a
-    `KubernetesApplicationResource` as well as `StatefulSet` of DB with a DB
-    requirement CR.
+    `KubernetesApplicationResource` in order to deploy them to a cluster that's
+    different than where Crossplane itself runs.
+  * For example, you'd like change only the `StatefulSet` in the Helm chart with
+    `MySQLInstanceRequirement` to use Crossplane for DB provisioning but you
+    have to change each resource to be a template in a
+    `KubernetesApplicationResource` if you'd like to use the `Secret` of
+    `MySQLInstanceRequirement` in the remote cluster.
 * Operation experience. This is related to the first point. If you have an app
   using OAM, or some other app model, then you always have that intermediate
-  proxy of workload CRs. You're losing on some value that these models
-  provide because of that proxy and in some cases it could be functionally
-  detrimental.
+  proxy of workload CRs. You're losing on some value that these models provide
+  because of that proxy and in some cases it could be functionally detrimental.
 
 Surely, it has its own advantages as well. For example, you can manage all of
 your apps from single point via `KubernetesApplication`s targeting the right
-clusters. But as we see more usage patterns, we're more convinced that the thing
-users want to manage from a single central point is infrastructure (including
-policy, audit etc) but not necessarily applications.
+clusters. But as we see more usage patterns, we're convinced that the current
+mechanics do not provide the experience users would like to have.
 
 ## Proposal
 
@@ -181,8 +179,8 @@ doing the heavy-lifting for you. There are several technical problems to be
 solved in order to make the experience smooth. Overall, the goal is that we want
 to keep the UX of local mode for application operators while keeping the power
 of centralized infrastructure management for platform operators. For reference,
-here is an example local mode experience we'd like to have for the remote mode as
-well:
+here is an example local mode experience we'd like to have for the remote mode
+as well:
 
 ```yaml
 apiVersion: common.crossplane.io/v1alpha1
@@ -241,12 +239,12 @@ resources:
     it can be mounted to `Pod`s. Read-only.
 * Push
   * `*Requirement` custom resources so that infrastructure can be requested.
-    Read and write permissions in a specific namespace in the central cluster will
-    be needed.
+    Read and write permissions in a specific namespace in the central cluster
+    will be needed.
 
 ### RBAC
 
-As we have two different Kubernetes cluster, there will be two separate security
+As we have two different Kubernetes clusters, there will be two separate security
 domains and because of that, the `ServiceAccount`s in the remote cluster will
 not be able to do any operation in the central cluster. Since the entity that
 will execute the operations in the central cluster is the agent, we need to
@@ -266,30 +264,60 @@ is running in the remote cluster, the credentials of this `ServiceAccount` will
 be stored in a `Secret` in the remote cluster. Alongside the credentials, the
 agent needs to know the namespace that it should sync to in the central cluster.
 
-The way to have the agent find the right `Secret` to use in order to
-authenticate to the central cluster for synchronization of a given requirement
-will consist of two steps:
+The easiest configuration would be the one where we specify the `Secret` and a
+target namespace via installation commands of the agent. However, the namespace
+pairing list could change dynamically after the installation. So, we need to be
+able to supply the pairings after the installation. In order to specify which
+namespace in the remote cluster should be synced to which namespace in the
+central cluster, `Namespace` resource needs to be annotated.
 
-* Look for specific annotations on the requirement type to specify what `Secret`
-  needs to be used:
-  * `agent.crossplane.io/credentials-secret-name: sa-secret` for the full
-    kubeconfig to connect to the central cluster.
-  * `agent.crossplane.io/target-namespace: my-app-1` for the namespace it should sync
-    requirements and their secrets.
-* If no annotation is given, then use the defaults.
-  * Installation procedure of the agent will allow to specify a default secret
-    and namespace during installation.
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo
+  annotations:
+    "agent.crossplane.io/target-namespace": bar
+```
 
-By this override behavior, it is possible to supply credentials of another
-namespace or `ServiceAccount` for a specific `*Requirement` resource. So, users
-can target different namespaces in the central cluster from different namespaces
-in the remote cluster, having the ability to have the granularity of RBAC and
-synchronization as however they'd like.
 
-> Though the override behavior also paves the way to target a completely
-> different central cluster, too, which may break the setup since CRDs in that
-> other central cluster could be different. We accept this risk as it would have
-> to be a deliberate choice of the user.
+We also need to supply which `Secret` in the cluster contains the credentials to
+connect to that target namespace. There are two ways to do that:
+
+* Annotate `Namespace` with the name of the `Secret`.
+  * The `Secret` has to exist in that `Namespace`.
+* If name of the `Secret` is not given as annotation on the `Namespace`, use the
+  `Secret` name supplied as installation configuration.
+
+Here is an example `foo` namespace that uses its own `Secret` to connect to
+target `bar` namespace.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: foo
+  annotations:
+    "agent.crossplane.io/target-namespace": bar
+    "agent.crossplane.io/credentials-secret-name": my-sa-creds
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-sa-creds
+  namespace: foo
+type: Opaque
+data:
+  kubeconfig: MWYyZDFlMmU2N2Rm...
+```
+
+In case the annotation `agent.crossplane.io/credentials-secret-name` is not
+given on `Namespace`, then the installation configuration will be used which
+would look like the following:
+
+```bash
+helm install --namespace crossplane crossplane/agent --set credentials-secret-name=my-sa-creds
+```
 
 #### Authorization
 
@@ -368,8 +396,8 @@ application will be shown step by step to show how the user experience will
 shape.
 
 Setup:
-  * The Central Cluster: A Kubernetes cluster with Crossplane deployed & configured
-    with providers and some published APIs.
+  * The Central Cluster: A Kubernetes cluster with Crossplane deployed &
+    configured with providers and some published APIs.
 
 Steps in the central cluster:
 1. A new `Namespace` called `foo` is created.
@@ -454,7 +482,6 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
 ```
 
-
 At this point, we have a `ServiceAccount` with all necessary permissions in our
 central cluster. You can think of it like IAM user in the public cloud
 providers; we have created it and allowed it to access a certain set of APIs.
@@ -471,9 +498,18 @@ key of an IAM User.
 1. The agent is installed into the remote cluster. The Helm package will have
    all the necessary RBAC resources but user will need to enter the API groups
    of the published types so that it can reconcile them in the remote cluster.
-   `helm install crossplane/agent --set defaultCredentialsSecretRef=agent1-creds
-   --set defaultSyncNamespace=foo --set
-   apiGroups=database.acmeco.org,network.acmeco.org`
+   `helm install crossplane/agent --set apiGroups=database.acmeco.org,network.acmeco.org --set credentials-secret-name=agent1-creds`
+1. The `Namespace`s you'd like to sync are created with the necessary annotation
+   like the following:
+
+  ```yaml
+  apiVersion: v1
+  kind: Namespace
+  metadata:
+    name: foo
+    annotations:
+      "agent.crossplane.io/target-namespace": bar
+  ```
 
 At this point, the setup has been completed. Now, users can use the APIs in the
 remote cluster just as if they are in the local mode. An example application to
@@ -485,10 +521,6 @@ kind: MySQLInstanceRequirement
 metadata:
   name: sqldb
   namespace: default
-  # They can opt out of the default credenetials secret for this specific resource.
-  # annotations:
-  #   "agent.crossplane.io/credentials-secret-name": my-special-secret
-  #   "agent.crossplane.io/namespace": foo
 spec:
   version: "5.7"
   storageGB: 20
@@ -513,10 +545,11 @@ containers:
 ```
 
 Note that these steps show the bare-bones setup. Most of the steps can be made
-easier with simple commands in Crossplane CLI.
+easier with simple commands in Crossplane CLI and YAML templates you can edit &
+use.
 
-Additionally, they can discover what resources available to them and how they can
-consume them from their remote cluster.
+Users can discover what resources available to them and how they
+can consume them from their remote cluster.
 
 List the published APIs:
 ```bash
