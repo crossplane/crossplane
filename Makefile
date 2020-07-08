@@ -191,12 +191,12 @@ submodules:
 	@git submodule update --init --recursive
 
 # Install CRDs into a cluster. This is for convenience.
-install: reviewable
-	kubectl apply -f cluster/charts/crossplane-types/crds/
+install-crds: $(KUBECTL) reviewable
+	$(KUBECTL) apply -f cluster/charts/crossplane-types/crds/
 
 # Uninstall CRDs from a cluster. This is for convenience.
-uninstall:
-	kubectl delete -f cluster/charts/crossplane-types/crds/
+uninstall-crds:
+	$(KUBECTL) delete -f cluster/charts/crossplane-types/crds/
 
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,
@@ -206,7 +206,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) --debug
 
-.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run install gen-kustomize-crds
+.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds
 
 # ====================================================================================
 # Special Targets
