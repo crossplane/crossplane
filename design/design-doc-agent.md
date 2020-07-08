@@ -231,7 +231,7 @@ resources:
     * `InfrastructureDefinition`, `InfrastructurePublication` and `Composition`.
   * `Composition`s to discover what's available to choose. CRs of this type will
     be read-only, and the source of truth will be the central cluster.
-  * `InfrastructurePublication`s to discover what's availabe as published API.
+  * `InfrastructurePublication`s to discover what's available as published API.
     Read-only.
   * `InfrastructureDefinition`s to discover how the secret keys are shaped.
     Read-only.
@@ -241,6 +241,10 @@ resources:
   * `*Requirement` custom resources so that infrastructure can be requested.
     Read and write permissions in a specific namespace in the central cluster
     will be needed.
+
+Here is an illustration of how synchronization will work:
+
+![Synchronization Flows][sync-diagram]
 
 ### RBAC
 
@@ -655,3 +659,7 @@ could be possible but it's risky to enter one thing but end up with another
 thing in the cluster. It's essentially putting an abstraction on top of all
 api-server calls and it has to ignore some types that need to be in local
 cluster like requirements.
+
+
+
+[sync-diagram]: images/agent-diagram.png
