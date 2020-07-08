@@ -244,7 +244,7 @@ resources:
 
 ### RBAC
 
-As we have two different Kubernetes clusters, there will be two separate security
+As we have two different Kubernetes API servers, there will be two separate security
 domains and because of that, the `ServiceAccount`s in the remote cluster will
 not be able to do any operation in the central cluster. Since the entity that
 will execute the operations in the central cluster is the agent, we need to
@@ -265,11 +265,27 @@ be stored in a `Secret` in the remote cluster. Alongside the credentials, the
 agent needs to know the namespace that it should sync to in the central cluster.
 
 The easiest configuration would be the one where we specify the `Secret` and a
-target namespace via installation commands of the agent. However, the namespace
-pairing list could change dynamically after the installation. So, we need to be
-able to supply the pairings after the installation. In order to specify which
-namespace in the remote cluster should be synced to which namespace in the
-central cluster, `Namespace` resource needs to be annotated.
+target namespace via installation commands of the agent. Both of these inputs
+will act as default and they can be overriden for each `Namespace`
+independently. For example, multiple namespaces can have different requirements
+with the same name which could cause conficts in the central cluster because all
+namespaces are rolled up into one namespace. In order to prevent conflicts, the
+agent will annotate the requirements in the central cluster with the UID of the
+namespace in the remote cluster and do the necessary checks to avoid conflicts.
+
+An illustrative installation command:
+```bash
+helm install crossplane/agent \
+  --set default-credentials-secret-name=my-sa-creds \
+  --set default-target-namespace=ns-in-central
+```
+
+While this installation time configuration provides a simple setup, it comes
+with the restriction that you cannot have the requirements in different
+namespaces with the same name. You can either try using different names or you
+can specify which namespace in the remote cluster should be synced to which
+namespace in the central cluster. In the remote cluster, `Namespace` can be
+annotated as such:
 
 ```yaml
 apiVersion: v1
@@ -280,17 +296,12 @@ metadata:
     "agent.crossplane.io/target-namespace": bar
 ```
 
-
-We also need to supply which `Secret` in the cluster contains the credentials to
-connect to that target namespace. There are two ways to do that:
-
-* Annotate `Namespace` with the name of the `Secret`.
-  * The `Secret` has to exist in that `Namespace`.
-* If name of the `Secret` is not given as annotation on the `Namespace`, use the
-  `Secret` name supplied as installation configuration.
-
-Here is an example `foo` namespace that uses its own `Secret` to connect to
-target `bar` namespace.
+The agent then will try to sync the requirements in `foo` namespace of the
+remote cluster into `bar` namespace of the central cluster instead of the
+default target namespace which is `ns-in-central` in this example. But it will
+keep using the default credentials `Secret`. In case you don't want different
+namespaces to share the same credentials `Secret`, then you can override this
+setting, too:
 
 ```yaml
 apiVersion: v1
@@ -299,7 +310,7 @@ metadata:
   name: foo
   annotations:
     "agent.crossplane.io/target-namespace": bar
-    "agent.crossplane.io/credentials-secret-name": my-sa-creds
+    "agent.crossplane.io/credentials-secret-name": my-other-sa-creds
 ---
 apiVersion: v1
 kind: Secret
@@ -311,13 +322,9 @@ data:
   kubeconfig: MWYyZDFlMmU2N2Rm...
 ```
 
-In case the annotation `agent.crossplane.io/credentials-secret-name` is not
-given on `Namespace`, then the installation configuration will be used which
-would look like the following:
-
-```bash
-helm install --namespace crossplane crossplane/agent --set credentials-secret-name=my-sa-creds
-```
+Now, all the requirements in the `foo` namespace of the remote cluster will be
+synced to `bar` namespace of the central cluster and all of the operations will
+be done using the credentials in `my-other-sa-creds`.
 
 #### Authorization
 
@@ -400,18 +407,23 @@ Setup:
     configured with providers and some published APIs.
 
 Steps in the central cluster:
-1. A new `Namespace` called `foo` is created.
+1. A new `Namespace` called `bar` is created.
 1. A `ServiceAccount` called `agent1` in that namespace are created and
    necessary RBAC resources are created.
 
 ```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bar
+---
 # The ServiceAccount whose credentials will be copied over to remote cluster
 # for agent to use to connect to the central cluster.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: agent1
-  namespace: foo
+  namespace: bar
 ---
 # To be able to create & delete requirements in the designated namespace of
 # the central cluster.
@@ -419,7 +431,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: agent-requirement
-  namespace: foo
+  namespace: bar
 rules:
 - apiGroups: [""]
   resources: ["secrets"]
@@ -435,7 +447,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: agent-requirement
-  namespace: foo
+  namespace: bar
 subjects:
 - kind: ServiceAccount
   name: agent1
@@ -498,18 +510,12 @@ key of an IAM User.
 1. The agent is installed into the remote cluster. The Helm package will have
    all the necessary RBAC resources but user will need to enter the API groups
    of the published types so that it can reconcile them in the remote cluster.
-   `helm install crossplane/agent --set apiGroups=database.acmeco.org,network.acmeco.org --set credentials-secret-name=agent1-creds`
-1. The `Namespace`s you'd like to sync are created with the necessary annotation
-   like the following:
-
-  ```yaml
-  apiVersion: v1
-  kind: Namespace
-  metadata:
-    name: foo
-    annotations:
-      "agent.crossplane.io/target-namespace": bar
-  ```
+   ```bash
+   helm install crossplane/agent \
+   --set apiGroups=database.acmeco.org,network.acmeco.org \
+   --set default-credentials-secret-name=agent1-creds \
+   --set default-target-namespace=bar
+   ```
 
 At this point, the setup has been completed. Now, users can use the APIs in the
 remote cluster just as if they are in the local mode. An example application to
@@ -543,6 +549,12 @@ containers:
           name: sql-creds
           key: password
 ```
+
+The `MySQLInstanceRequirement` will be synced to `bar` namespace in the central
+cluster. In case there are other `MySQLInstanceRequirement` custom resources in
+the remote cluster with same name but in different namespaces, then the agent
+will reject syncing that in order to prevent the conflict.
+
 
 Note that these steps show the bare-bones setup. Most of the steps can be made
 easier with simple commands in Crossplane CLI and YAML templates you can edit &
@@ -600,6 +612,24 @@ the central cluster exposes. A different version of the agent could sync the
 secrets to a file in the VM that can be used as credential file for VM
 workloads. Maybe a small api-server shipped with that agent binary for
 requirement requests?
+
+### Read-only Mode for Federation
+
+Crossplane agent could have a read-only mode where it replicates `Secret`s and
+requirements in the remote cluster to let the `Pod`s use them. There would be
+only pull operation and the same requirements could be used by N cluster at the
+same time. For example, you might want to use the same database cluster from
+different clusters spread across the globe.
+
+### Admission Webhook to Reject Conflicts
+
+In the current design, if you configured the default namespace with the agent,
+then it's possible to have conflicts; `foo` requirement in `default` namespace
+can conflict with `foo` requirement in `special` namespace since both of them
+will be rolled up to a single default namespace in the central cluster. In such
+cases, the agent rejects syncing the second one and writes about the conflict to
+the status of the resource. However, an admission webhook could check the
+conflict and reject the creation altogether immediately.
 
 ## Alternatives Considered
 
