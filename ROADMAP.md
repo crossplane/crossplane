@@ -222,14 +222,9 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
   * Updated docs sidebar
 
-## v0.11.0
-* Docs overhaul (part 3/3) - https://crossplane.io/docs
-  * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
-  * Updated docs sidebar
-  * Finish name refactoring e.g. StackInstall -> PackageInstall
-  * Add an experimental / deprecated section
+## [v0.11.0 infra composition v1alpha1, OAM support, backup/restore, docs overhaul](https://github.com/crossplane/crossplane/releases/tag/v0.11.0)
 
-* Resource composition - alpha quality [#1343](https://github.com/crossplane/crossplane/issues/1343)
+* Infrastructure Composition - alpha quality [#1343](https://github.com/crossplane/crossplane/issues/1343)
 
 * Enhanced support for [OAM](https://oam.dev/) (Open Application Model) API types
 
@@ -246,7 +241,56 @@ Any dates listed below and the specific issues that will ship in a given milesto
   - Cert Manager [crossplane/provider-aws#171](https://github.com/crossplane/provider-aws/issues/171)
   - DNS [crossplane/provider-aws#172](https://github.com/crossplane/provider-aws/issues/172)
 
-* Basic versioning and upgrade support [#1334](https://github.com/crossplane/crossplane/issues/1334)
+
+* Docs overhaul (part 3/3) - https://crossplane.io/docs
+  * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
+  * Updated docs sidebar
+  * Finish name refactoring e.g. StackInstall -> PackageInstall
+  * Add an experimental / deprecated section
+
+
+## [v0.12.0 infra composition enhancements towards v1beta1](https://github.com/crossplane/crossplane/releases/tag/v0.12.0)
+* Infrastructure Composition
+  * Default composition for a definition [crossplane#1471](https://github.com/crossplane/crossplane/issues/1471)
+  * Enforced composition for a definition [crossplane#1470](https://github.com/crossplane/crossplane/issues/1470)
+  * Enhanced testing [crossplane#1474](https://github.com/crossplane/crossplane/issues/1474)
+  * Deprecate resource claims and classes [crossplane#1479](https://github.com/crossplane/crossplane/issues/1479)
+
+* Package Manager
+  * Passing non-zero fsGroup in package deployments [crossplane#1577](https://github.com/crossplane/crossplane/pull/1577)
+
+* OAM - Applications
+  * design: resource dependencies in OAM [oam-kubernetes-runtime#24](https://github.com/crossplane/oam-kubernetes-runtime/pull/24)
+  * design: versioning mechanism [oam-kubernetes-runtime#29](https://github.com/crossplane/oam-kubernetes-runtime/pull/29)
+
+## v0.13
+* Infrastructure Composition
+  * Progress towards v1beta1 quality
+  * Select random Composition when multiple match
+
+* Package Manager 
+  * Simplificition, versioning & upgrade design [crossplane#1616](https://github.com/crossplane/crossplane/pull/1616)
+
+* Provider Acceleration
+  * Evaluate code generation and use of Terraform providers
+
+* AWS Provider: additional API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+  * ACMPCA Certificate Authority [provider-aws#226](https://github.com/crossplane/provider-aws/pull/226) 
+  * IAMRolePolicyAttachment to refer IAMPolicy
+  * SQS
+  * Route53
+  * EKSCluster to v1beta1
+
+* GCP Provider
+   * Add GKE DnsCacheConfig, GcePersistentDiskCsiDriverConfig, KalmConfig [provider-gcp#229](https://github.com/crossplane/provider-gcp/pull/229)
+
+* Crossplane Agent - k8s-native infra API consumer UX
+  * Design [crossplane#1633](https://github.com/crossplane/crossplane/pull/1633)
+
+* OAM - Applications
+  * Move out of core into separate package
+  * Updates the runtime to the latest tagged version (includes HealthScope)
+  * Support for Scope in AppConfig controller
 
 ## Roadmap
 * Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879) 
