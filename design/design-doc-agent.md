@@ -49,12 +49,12 @@ like:
 When you use multiple clusters and deploy Crossplane to each one of them gives
 you more flexibility but you'd lose the ability to see all the infrastructure
 from one place as the clusters are physically isolated. An example case that
-you'd like to have centralized infrastructure management is that as a
-platform team in an organization, you might want to publish a set of APIs that
-are audited and blessed for developers in the organization to use in order to
+you'd like to have centralized infrastructure management is that as a platform
+team in an organization, you might want to publish a set of APIs that are
+audited and blessed for developers in the organization to use in order to
 request infrastructure. Besides from that, there are other benefits like cost
-overview from one place, tracking lost/forgotten resources etc. But you
-would also want to enable application teams to self-serve and have certain level of
+overview from one place, tracking lost/forgotten resources etc. But you would
+also want to enable application teams to self-serve and have certain level of
 freedom to choose the infrastructure architecture they'd like using the building
 blocks you've provided.
 
@@ -242,19 +242,26 @@ resources:
     Read and write permissions in a specific namespace in the central cluster
     will be needed.
 
+Note that there will be no controller reconciling `InfrastructurePublication`
+and `InfrastructureDefinition` types to generate their corresponding CRDs; the
+agent will blindly pull the resulting CRDs from the central cluster so that in
+case of a version mismatch between the agent(s) and the Crossplane in the
+central cluster, there won't be any schema difference. The source of truth for
+all these listed resources except the `*Requirement`s is the central cluster.
+
 Here is an illustration of how synchronization will work:
 
 ![Synchronization Flows][sync-diagram]
 
 ### RBAC
 
-As we have two different Kubernetes API servers, there will be two separate security
-domains and because of that, the `ServiceAccount`s in the remote cluster will
-not be able to do any operation in the central cluster. Since the entity that
-will execute the operations in the central cluster is the agent, we need to
-define how we can deliver the necessary credentials to the agent so that it can
-connect to the central cluster. Additionally, it will need some permissions to
-execute operations in the remote cluster like `Secret` and
+As we have two different Kubernetes API servers, there will be two separate
+security domains and because of that, the `ServiceAccount`s in the remote
+cluster will not be able to do any operation in the central cluster. Since the
+entity that will execute the operations in the central cluster is the agent, we
+need to define how we can deliver the necessary credentials to the agent so that
+it can connect to the central cluster. Additionally, it will need some
+permissions to execute operations in the remote cluster like `Secret` and
 `CustomResourceDefinition` creation. We will look at how the agent will be
 granted permissions to do its job in two separate domains with different
 mechanisms.
@@ -330,6 +337,64 @@ Now, all the requirements in the `foo` namespace of the remote cluster will be
 synced to `bar` namespace of the central cluster and all of the operations will
 be done using the credentials in `my-other-sa-creds`.
 
+There is also the option to automate the namespace pairings in a way that if
+requirement `A` is deployed in namespace `foo` of the remote cluster, then it
+gets synced to namespace `foo` of the central cluster. You can enable this
+automation using a flag. Helm command would look like:
+```bash
+helm install crossplane/agent \
+  --set default-credentials-secret-name=my-sa-creds \
+  --set match-namespaces=true
+```
+
+As with all cases, you can override specific pairings via annotations on the
+namespaces of the remote cluster.
+
+#### Conflicts
+
+The agent does not allow any conflicts to happen, meaning if two requirements
+created with the same name by different agents in some namespace in the pool of
+clusters, then it will reject syncing it to the central cluster. In order to do
+that, there needs to be unique identifier of the source of the requirement.
+
+Let's go over the different setups and consider conflict cases:
+* Each namespace is annotated with the target namespace.
+  * No conflict for single remote cluster.
+  * Could conflict if more than one remote cluster is connected and its namespaces have
+    common annotations with other namespaces of other remote clusters.
+* Each namespace targets a namespace with the same name in the central cluster.
+  * No conflict for single remote cluster.
+  * Could conflict if more than one cluster is connected and its namespaces have
+    the same names.
+* All namespaces roll up to a default namespace.
+  * Could conflict for single remote cluster if different namespaces have
+    requirements with same name.
+  * Could conflict if more than one cluster is connected to the same namespace
+    but it's less likely to be in that situation since the default namespace
+    selection is done explicitly during agent setup, probably by an admin.
+
+In order to prevent conflicts, the agent will add two annotations to the
+requirements it syncs:
+* `agent.crossplane.io/source-namespace`: The name of the namespace in the
+  remote cluster.
+* `agent.crossplane.io/source-uid`: The unique identifier of the remote
+  cluster.
+
+By default, the value of `agent.crossplane.io/source-uid` will be the UID of the
+`kube-system` namespace. However, you can override this with an installation
+parameter like:
+```bash
+helm install crossplane/agent \
+  --set default-credentials-secret-name=my-sa-creds \
+  --set cluster-identifier=my-funny-little-cluster
+```
+
+This override behavior is especially useful in case you need to replace the
+remote cluster with another one for various reasons like cluster simply not
+responding, datacenter catching fire etc. In such cases, you can use the same
+cluster identifier when you install the agent to the new remote cluster so that
+it claims the ownership of the requirements that the old remote cluster created.
+
 #### Authorization
 
 ##### Remote Cluster
@@ -350,7 +415,7 @@ kind level is not known during installation and it's not static; new published
 APIs should be available in the remote cluster dynamically. One option is to
 allow agent to grant `Role` and `RoleBinding`s to itself as it creates the
 necessary `CustomResourceDefinition`s in the remote cluster. However, an entity
-that is able to grant permissions to itself could greatly increase the security
+that is able to grant permissions to itself could greatly impact the security
 posture.
 
 When you zoom out and think about how the `Role` will look like, in most of the
@@ -564,8 +629,8 @@ Note that these steps show the bare-bones setup. Most of the steps can be made
 easier with simple commands in Crossplane CLI and YAML templates you can edit &
 use.
 
-Users can discover what resources available to them and how they
-can consume them from their remote cluster.
+Users can discover what resources available to them and how they can consume
+them from their remote cluster.
 
 List the published APIs:
 ```bash
