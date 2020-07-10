@@ -650,6 +650,28 @@ kubectl get compositions
 
 ## Future Considerations
 
+### Migration From Local Mode
+
+Let's say you're running Crossplane in a big cluster together with your apps and
+decided that you're at a point where you'd like to use the same Crossplane
+environment from multiple clusters. You can either make the current cluster a
+central cluster and have additional clusters connect to it via agent, which is
+possible with this current design, or you'd like to migrate all things related
+to Crossplane to a separate cluster and make your current one a remote cluster.
+The agent can make some smart operations to enable the migration of the current
+composite and managed resources to the central cluster for a smooth migration.
+
+There will likely some changes needed in Crossplane's deployment model as well
+but as an overarching goal, this migration path should be smooth.
+
+### Read-only Mode for Federation
+
+Crossplane agent could have a read-only mode where it replicates `Secret`s and
+requirements in the remote cluster to let the `Pod`s use them. There would be
+only pull operation and the same requirements could be used by N cluster at the
+same time. For example, you might want to use the same database cluster from
+different clusters spread across the globe.
+
 ### Additional Crossplane CLI Commands
 
 Crossplane CLI can have simple commands to do most of the setup. For example,
@@ -681,14 +703,6 @@ the central cluster exposes. A different version of the agent could sync the
 secrets to a file in the VM that can be used as credential file for VM
 workloads. Maybe a small api-server shipped with that agent binary for
 requirement requests?
-
-### Read-only Mode for Federation
-
-Crossplane agent could have a read-only mode where it replicates `Secret`s and
-requirements in the remote cluster to let the `Pod`s use them. There would be
-only pull operation and the same requirements could be used by N cluster at the
-same time. For example, you might want to use the same database cluster from
-different clusters spread across the globe.
 
 ### Admission Webhook to Reject Conflicts
 
