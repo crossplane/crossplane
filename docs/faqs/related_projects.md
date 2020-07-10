@@ -69,11 +69,12 @@ approach to management, while Crossplane offers an API-driven control plane.
 ## Terraform and Pulumi
 
 [Terraform] and [Pulumi] are tools for provisioning infrastructure across cloud
-providers. It offers a declarative configuration language with support for
+providers that offer a declarative configuration language with support for
 templating, composability, referential integrity and dependency management.
 Terraform can declaratively manage any compatible API and perform changes when
 the tool is run by a human or in a deployment pipeline. Terraform is an
-Infrastructure as Code tool, while Crossplane offers an API-driven control plane.
+Infrastructure as Code tool, while Crossplane offers an API-driven control
+plane.
 
 <!-- Named Links -->
 
