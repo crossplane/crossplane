@@ -55,6 +55,14 @@ metadata:
 spec:
   definitionRef:
     name: containerizedworkloads.core.oam.dev
+---
+apiVersion: core.oam.dev/v1alpha2
+kind: WorkloadDefinition
+metadata:
+  name: postgresqlinstancerequirements.database.example.org
+spec:
+  definitionRef:
+    name: postgresqlinstancerequirements.database.example.org
 ``` 
 Run the following command to add support for all the workloads and traits required
 by this guide:
@@ -487,6 +495,11 @@ definitions we created in this guide, run:
 ```console
 kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/components.yaml
 kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/definitions.yaml
+```
+
+To uninstall the Crossplane OAM Addon:
+```console
+helm delete addon-oam-kubernetes-local --namespace crossplane-system
 ```
 
 [Open Application Model]: https://oam.dev/
