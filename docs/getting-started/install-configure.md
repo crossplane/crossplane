@@ -373,14 +373,22 @@ See [Install] and [Configure] docs for installing alternate versions and more
 detailed instructions.
 
 ## Uninstall Provider
+Let's check whether there are any managed resources before deleting the provider.
+```
+kubectl get managed
+```
+
+If there are any, please delete them first so you don't lose track of them.
+
 ```
 kubectl delete -f provider.yaml
-kubectl delete secret -n crossplane-system --all
 ```
 
 ## Uninstall Crossplane
 ```
 helm delete crossplane --namespace crossplane-system
+
+kubectl delete namespace crossplane-system
 ```
 
 <!-- Named Links -->
