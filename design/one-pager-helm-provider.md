@@ -22,41 +22,6 @@ This provider will enable deployment of helm charts to (remote) Kubernetes Clust
 Crossplane. Considering the issues with helm 2 (e.g. security problems regarding tiller and lack of proper go 
 clients/libraries for helm), **we will focus and only support Helm 3**. 
 
-## Existing Helm Operators
-
-Deploying Helm charts in a declarative way is a common need especially for GitOps flows. So, there are couple of 
-existing helm operators in the community which could help here.
-
-Available Helm Operators as of now:
-
-- https://github.com/fluxcd/helm-operator:
-    - Focusing on supporting Flux CD flows
-    - Supporting both helm 2 and helm 3
-    - Mainly designed to deploy into the same cluster where operator runs - no way to specify cluster per custom resource
-- https://github.com/Kubedex/helm-controller
-    - Runs Helm binary inside a Kubernetes job for install/upgrade/delete and does not use helm go packages. The idea
-     sounds simple but not powerful enough when compared to using helm programmatically. It is a common pattern in 
-     Kubernetes controllers to observe existing state before taking an action, which would not be feasible with
-     this approach.
-    - Allows changing the image used for job, so claims to support helm 3 if you provide an image with helm 3 binary.
--  https://github.com/rancher/helm-controller
-    - Focuses on k3s and follows the job approach as kubedex/helm-controller
-    - Have couple of important open issues seems related to using jobs
-     (e.g. [#25](https://github.com/rancher/helm-controller/issues/25) and [#21](https://github.com/rancher/helm-controller/issues/21))
-     and does not seem very active
--  https://github.com/bitnami-labs/helm-crd
-    - Experimental and has been archived.
-
-Flux helm operator seems to be the most complete in terms of features, but still missing an important one which is
-deploying to remote clusters. There is no way to specify different clusters per `HelmRelease` resource. If we want to build
-a Helm provider on top of it, we would need to deploy that operator to the remote cluster as well, which would
-complicate the setup compared to just consuming Helm 3 go client and implement our controller with native support of
-deploying to remote clusters.
-
-Flux helm operator was mainly designed for helm 2 and later introduced helm 3 support. Designing only for helm 3
-would mean a cleaner codebase and by implementing using crossplane-runtime (e.g. managed reconciler, kubernetes native 
-providers), we can provide a first class crossplane experience.
-
 ## Design
 
 We will implement a Kubernetes controller watching `Release` custom resources and deploying helm charts with the desired
@@ -130,17 +95,24 @@ information.
 
 [Create](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClientFns.Create):
 
-1. Fetch the helm chart by constructing URL as  `<spec.forProvider.chart.repository>/<spec.forProvider.chart.name>-<spec.forProvider.chart.version>.tgz`
+1. Fetch the helm chart [by constructing URL as](https://chartmuseum.com/docs/#helm-chart-repository) `<spec.forProvider.chart.repository>/charts/<spec.forProvider.chart.name>-<spec.forProvider.chart.version>.tgz`
 2. Prepare desired config by combining `spec.forProvider.values` and `spec.forProvider.set`s
-3. Using [install action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/install.go#L150)
+3. Create the `spec.forProvider.namespace`, if not exists.
+4. Using [install action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/install.go#L150)
 of helm client, `helm install` with the desired config.
 
 [Update](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClientFns.Update):
 
-1. Fetch (if not exists already) the helm chart by constructing URL as  `<spec.forProvider.chart.repository>/<spec.forProvider.chart.name>-<spec.forProvider.chart.version>.tgz`
+1. Fetch (if not exists already) the helm chart [by constructing URL as](https://chartmuseum.com/docs/#helm-chart-repository) `<spec.forProvider.chart.repository>/<spec.forProvider.chart.name>-<spec.forProvider.chart.version>.tgz`
 2. Prepare desired config by combining `spec.forProvider.values` and `spec.forProvider.set`s
 3. Using [upgrade action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/upgrade.go#L71) of
 helm client, `helm upgrade` with the desired config.
+
+[Delete](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClientFns.Delete):
+
+1. Using [uninstall action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/uninstall.go#L49) of
+helm client, `helm uninstall` the release.
+2. Once uninstall is successful, finalizer is removed (by crossplane-runtime).
 
 #### Namespaced vs Cluster Scoped
 
@@ -260,7 +232,7 @@ spec:
           transforms:
             - type: string
               string:
-                fmt: "%s-postgresql"
+                fmt: "%s-mysql"
         - fromFieldPath: "spec.parameters.storageGB"
           toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
       connectionDetails:
@@ -273,8 +245,6 @@ spec:
         apiVersion: kubernetes.crossplane.io/v1alpha1
         kind: Provider
       patches:
-        - fromFieldPath: "metadata.name"
-          toFieldPath: "metadata.name"  
         - fromFieldPath: "metadata.name"
           toFieldPath: "spec.credentialsSecretRef.name"       
     - base:
@@ -304,28 +274,28 @@ spec:
                   key: password
             - name: blogName
           reclaimPolicy: Delete
+          providerSelector:
+            matchControllerRef: true
       patches:
         - fromFieldPath: "spec.parameters.version"
           toFieldPath: "spec.forProvider.chart.version"
-        - fromFieldPath: "metadata.name"
-          toFieldPath: "spec.providerRef.name"
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.forProvider.set[0].valueFrom.secretKeyRef.name"
           transforms:
             - type: string
               string:
-                fmt: "%s-postgresql"
+                fmt: "%s-mysql"
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.forProvider.set[1].valueFrom.secretKeyRef.name"
           transforms:
             - type: string
               string:
-                fmt: "%s-postgresql"
+                fmt: "%s-mysql"
           toFieldPath: "spec.forProvider.set[2].valueFrom.secretKeyRef.name"
           transforms:
             - type: string
               string:
-                fmt: "%s-postgresql"
+                fmt: "%s-mysql"
         - fromFieldPath: "spec.parameters.blogName"
           toFieldPath: "spec.forProvider.set[4].value"
 ```
@@ -380,6 +350,41 @@ spec:
             required:
               - parameters
 ```
+
+## Alternatives Considered
+
+Deploying Helm charts in a declarative way is a common need especially for GitOps flows. So, there are couple of 
+existing helm operators in the community which could help here.
+
+Available Helm Operators as of now:
+
+- https://github.com/fluxcd/helm-operator:
+    - Focusing on supporting Flux CD flows
+    - Supporting both helm 2 and helm 3
+    - Mainly designed to deploy into the same cluster where operator runs - no way to specify cluster per custom resource
+- https://github.com/Kubedex/helm-controller
+    - Runs Helm binary inside a Kubernetes job for install/upgrade/delete and does not use helm go packages. The idea
+     sounds simple but not powerful enough when compared to using helm programmatically. It is a common pattern in 
+     Kubernetes controllers to observe existing state before taking an action, which would not be feasible with
+     this approach.
+    - Allows changing the image used for job, so claims to support helm 3 if you provide an image with helm 3 binary.
+-  https://github.com/rancher/helm-controller
+    - Focuses on k3s and follows the job approach as kubedex/helm-controller
+    - Have couple of important open issues seems related to using jobs
+     (e.g. [#25](https://github.com/rancher/helm-controller/issues/25) and [#21](https://github.com/rancher/helm-controller/issues/21))
+     and does not seem very active
+-  https://github.com/bitnami-labs/helm-crd
+    - Experimental and has been archived.
+
+Flux helm operator seems to be the most complete in terms of features, but still missing an important one which is
+deploying to remote clusters. There is no way to specify different clusters per `HelmRelease` resource. If we want to build
+a Helm provider on top of it, we would need to deploy that operator to the remote cluster as well, which would
+complicate the setup compared to just consuming Helm 3 go client and implement our controller with native support of
+deploying to remote clusters.
+
+Flux helm operator was mainly designed for helm 2 and later introduced helm 3 support. Designing only for helm 3
+would mean a cleaner codebase and by implementing using crossplane-runtime (e.g. managed reconciler, kubernetes native 
+providers), we can provide a first class crossplane experience.
 
 ## Feature Roadmap
 
