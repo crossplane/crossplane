@@ -39,7 +39,7 @@ We modeled workload scheduling after the Pod scheduler in Kubernetes. We believe
 
 ### Can I use Crossplane to consistently provision and manage multiple Kubernetes clusters?
 
-Crossplane includes an portable API for Kubernetes clusters that will include common configuration including node pools, auto-scalers, taints, admission controllers, etc. These will be applied to the specific implementations within the cloud providers like EKS, GKE and AKS. We see the Kubernetes Cluster API to be something that will be used by administrators and not developers.
+Crossplane includes a portable API for Kubernetes clusters that will include common configuration including node pools, auto-scalers, taints, admission controllers, etc. These will be applied to the specific implementations within the cloud providers like EKS, GKE and AKS. We see the Kubernetes Cluster API to be something that will be used by administrators and not developers.
 
 ### Other attempts at building a higher level API on-top of a multitude of inconsistent lower level APIs have not been successful, will Crossplane not have the same issues?
 
