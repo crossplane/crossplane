@@ -2,7 +2,7 @@
 
 * Owner: Hasan Turken (@turkenh)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
@@ -20,7 +20,7 @@ Helm Provider could enable easy and quick demonstration of Crossplane capabiliti
 
 This provider will enable deployment of helm charts to (remote) Kubernetes Clusters typically provisioned via
 Crossplane. Considering the issues with helm 2 (e.g. security problems regarding tiller and lack of proper go 
-clients/libraries for helm), **we will focus and only support Helm 3**. 
+clients/libraries for helm), **we will focus and only support Helm 3**.
 
 ## Design
 
@@ -31,7 +31,12 @@ concept in Crossplane. By using existing [Kubernetes Provider](https://github.co
 Kind, we will be able to manage helm releases in **Crossplane provisioned external clusters**, **existing external
 clusters** and also **Crossplane control cluster** (a.k.a. local cluster).
 
-### `Release` Custom Resource and Controller
+Helm 3 introduced a new feature called [`post rendering`](https://helm.sh/docs/topics/advanced/#post-rendering) which
+enables manipulation of generated manifests before deploying into the cluster. This increases usability of existing helm
+charts for advanced use cases by allowing to apply last mile configurations. With Crossplane Helm Provider, we would
+like to leverage this feature to enable post rendering charts via simple patches.
+
+### `Release` Custom Resource
 
 ```
 apiVersion: helm.crossplane.io/v1alpha1
@@ -50,6 +55,12 @@ spec:
         enabled: false
       externaldb:
         enabled: true
+    valuesFrom:
+    - configMapKeyRef:
+        name: wordpress-defaults
+        namespace: prod
+        key: values.yaml
+        optional: false
     set:
     - name: wordpressBlogName
       value: "Hello Crossplane"
@@ -68,12 +79,103 @@ spec:
         secretKeyRef:
           name: dbconn
           key: password
+    patchesFrom:
+    - configMapKeyRef:
+        name: labels
+        namespace: prod
+        key: patches.yaml
+        optional: false
+    - configMapKeyRef:
+        name: wordpress-nodeselector
+        namespace: prod
+        key: patches.yaml
+        optional: false
+    - secretKeyRef:
+        name: image-pull-secret-patch
+        namespace: prod
+        key: patches.yaml
+        optional: false
   providerRef: 
     name: cluster-1-provider
   reclaimPolicy: Delete
 ```
 
-We will implement helm controller using the [managed reconciler of crossplane runtime](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed).
+### Value Overrides
+
+There are multiple ways to provide value overrides and final values will be composed with the following precedence:
+
+1. `spec.forProvider.valuesFrom` array, items with increasing precedence
+1. `spec.forProvider.values`
+1. `spec.forProvider.set` array, items with increasing precedence
+
+### Post Rendering Patches
+
+It will be possible to provide post rendering patches which will make last mile configurations using
+[`post rendering`](https://helm.sh/docs/topics/advanced/#post-rendering) option of Helm. `spec.forProvider.patchesFrom`
+array will be used to specify patch definitions satisfying [kustomizes patchTransformer interface](https://kubernetes-sigs.github.io/kustomize/api-reference/kustomization/patches/).
+
+Example:
+
+```
+patches:
+- patch: |-
+    - op: replace
+      path: /some/existing/path
+      value: new value
+  target:
+    kind: MyKind
+    labelSelector: "env=dev"
+- patch: |-
+    - op: add
+      path: /spec/template/spec/nodeSelector
+      value:
+        node.size: really-big
+        aws.az: us-west-2a
+  target:
+    kind: Deployment
+    labelSelector: "env=dev"
+```
+
+### Triggering a Helm Upgrade
+
+Running `helm upgrade` for a helm release creates a new [`Revision`](https://helm.sh/docs/helm/helm_history/) regardless
+of there is a change in generated manifests or not. With a controller running inside the cluster with active
+reconciliation, we need a consistent mechanism to decide whether we need an `helm upgrade` or not to prevent redundant
+revisions. [Helm Go SDK](https://helm.sh/docs/topics/advanced/#go-sdk) represents an existing helm release with
+[`Release`](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/release.go#L22)
+object which keeps values like [Chart information](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/chart/chart.go#L28),
+[user configuration](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/release.go#L31)
+(e.g. value overrides), [Release information](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/info.go#L21)
+and [string representation of rendered templates](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/release.go#L33).
+
+Everything in the `Release` custom resource spec is observable via Helm's `Release` struct except post rendering patches
+(e.g. `PatchesFrom`) we applied. We will store the information about used patches in the last deployed Helm `Release` 
+as an [annotation](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/chart/metadata.go#L58),
+so that whole actual state will be kept on Helm Storage later to be observed. We will store [`resourceVersion`](https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions)
+of used patches as follows:
+
+```
+"release.helm.crossplane.io/patch-1-e286dbc1-707d-4e39-b0e8-1012c047e662" = "314853"
+```
+
+Here, `e286dbc1-707d-4e39-b0e8-1012c047e662` is the UID of the ConfigMap referenced in `PatchesFrom` field and `314853`
+is the [`resourceVersion`](https://kubernetes.io/docs/reference/using-api/api-concepts/#resource-versions). This way,
+we will be able to decide whether there is a change related to patches which requires a `helm upgrade`.
+
+Flow to decide an Helm Upgrade:
+
+1. Get last [release](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/release.go#L22)
+information using Helm Go Client.
+1. Compare desired chart spec with the observe [Chart information](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/chart/chart.go#L28).
+1. Compose final value overrides and compare with [Release.Config](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/release.go#L31).
+1. Compose final patch annotations and compare with [Chart.Metadata.Annotations](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/chart/metadata.go#L58)
+
+Also see [Triggering a Helm Upgrade Based on Rendered Templates](#triggering-a-helm-upgrade-based-on-rendered-templates)
+as an alternative considered.
+
+### `Release` Controller
+
+We will implement the controller using the [managed reconciler of crossplane runtime](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed).
 
 Following logic will be implemented for corresponding functions:
 
@@ -88,31 +190,30 @@ of helm client, get last [release](https://github.com/helm/helm/blob/3d64c6bb549
 information.
     1. If there is no last release, return [`ExternalObservation`](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalObservation)
     as `ResourceExists = false` which will result in `Create` to be called.
-    2. If there is last release, compare last [release](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/release/release.go#L22)
-    information with the desired spec (e.g. `spec.forProvider`)
+    1. If there is last release, [decide whether desired state matches with observed or not](#triggering-a-helm-upgrade).
         1. If desired state matches with observed, return `ResourceUpToDate = true`
-        2. If desired state differs from observed, return `ResourceUpToDate = false`
+        1. If desired state differs from observed, return `ResourceUpToDate = false`
 
 [Create](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClientFns.Create):
 
-1. Fetch the helm chart [by constructing URL as](https://chartmuseum.com/docs/#helm-chart-repository) `<spec.forProvider.chart.repository>/charts/<spec.forProvider.chart.name>-<spec.forProvider.chart.version>.tgz`
-2. Prepare desired config by combining `spec.forProvider.values` and `spec.forProvider.set`s
-3. Create the `spec.forProvider.namespace`, if not exists.
-4. Using [install action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/install.go#L150)
+1. Pull and load the helm chart using [pull action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/pull.go#L56).
+1. Compose [value overrides](#value-overrides) as desired config.
+1. Create the `spec.forProvider.namespace`, if not exists.
+1. Using [install action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/install.go#L150)
 of helm client, `helm install` with the desired config.
 
 [Update](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClientFns.Update):
 
-1. Fetch (if not exists already) the helm chart [by constructing URL as](https://chartmuseum.com/docs/#helm-chart-repository) `<spec.forProvider.chart.repository>/<spec.forProvider.chart.name>-<spec.forProvider.chart.version>.tgz`
-2. Prepare desired config by combining `spec.forProvider.values` and `spec.forProvider.set`s
-3. Using [upgrade action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/upgrade.go#L71) of
+1. Pull and load the helm chart using [pull action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/pull.go#L56).
+1. Prepare desired config by combining `spec.forProvider.values` and `spec.forProvider.set`s
+1. Using [upgrade action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/upgrade.go#L71) of
 helm client, `helm upgrade` with the desired config.
 
 [Delete](https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClientFns.Delete):
 
 1. Using [uninstall action](https://github.com/helm/helm/blob/3d64c6bb5495d4e4426c27b181300fff45f95ff0/pkg/action/uninstall.go#L49) of
 helm client, `helm uninstall` the release.
-2. Once uninstall is successful, finalizer is removed (by crossplane-runtime).
+1. Once uninstall is successful, finalizer is removed (by crossplane-runtime).
 
 #### Namespaced vs Cluster Scoped
 
@@ -126,7 +227,7 @@ deploying to remote clusters. So we cannot use namespace of the custom resource 
 We have two options here:
 
 1. `Cluster` scoped resource and `spec.namespace` for helm deployment resource.
-2. `Namespaced` resource and an optional `spec.remoteNamespace`
+1. `Namespaced` resource and an optional `spec.remoteNamespace`
 
 Even option 2 makes more sense for local deployment case, we need to design for remote clusters first (e.g. crossplane 
 provisioned) and option 1 better fits current patterns in Crossplane for managed resources (i.e. all existing managed
@@ -353,6 +454,8 @@ spec:
 
 ## Alternatives Considered
 
+### Existing Helm Operators
+
 Deploying Helm charts in a declarative way is a common need especially for GitOps flows. So, there are couple of 
 existing helm operators in the community which could help here.
 
@@ -386,6 +489,20 @@ Flux helm operator was mainly designed for helm 2 and later introduced helm 3 su
 would mean a cleaner codebase and by implementing using crossplane-runtime (e.g. managed reconciler, kubernetes native 
 providers), we can provide a first class crossplane experience.
 
+### Triggering a Helm Upgrade Based on Rendered Templates
+
+Considering we want to support [`post rendering`](https://helm.sh/docs/topics/advanced/#post-rendering), relying on
+rendered manifests sounds like a good idea:
+
+1. Regardless of the chart version or user provided configuration, render chart via `helm template` and apply post
+rendering representing the desired state.
+1. Get last `Release` and compare `Relase.Manifest` with the desired manifest
+1. If not same, run `helm upgrade`
+
+However, this approach is not valid always. Usage of [random string generators](https://github.com/helm/charts/search?q=randAlphaNum&type=Code)
+in the templates would break this approach by generating a new random value resulting changes in the desired manifest
+per `helm template` run despite an upgrade is not necessary.
+
 ## Feature Roadmap
 
 |  | First Version (MVP) | v1.0 | Future Consideration |
@@ -396,6 +513,7 @@ providers), we can provide a first class crossplane experience.
 | Local and remote clusters support | ✔ |  |  |
 | Value overrides inline | ✔ |  |  |
 | Set values from secrets, configmaps | ✔ |  |  |
+| Post Rendering Patches |  | ✔ |  |
 | Parallel processing of multiple helm releases |  | ✔ |  |
 | Rollback in case of failure |  | ✔ |  |
 | Wait (not blocking but checking periodically) |  | ✔ |  |
@@ -403,3 +521,4 @@ providers), we can provide a first class crossplane experience.
 | Empty version for latest (operator fills at first reconcile) |  | ✔ |  |
 | Charts from public/private git repos |  |  | ✔ |
 | Auto deploy latest version |  |  | ✔ |
+| Full Kustomize support for post rendering |  |  | ✔ |
