@@ -70,10 +70,11 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 	}
 
 	tests := []struct {
-		name      string
-		imageName string
-		d         ExecutorInfoDiscoverer
-		want      want
+		name         string
+		imageName    string
+		imageNameEnv string
+		d            ExecutorInfoDiscoverer
+		want         want
 	}{
 		{
 			name: "FailedGetRunningPod",
@@ -105,14 +106,15 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 			},
 		},
 		{
-			name: "SuccessfulDiscovery",
+			name:         "SuccessfulDiscovery",
+			imageNameEnv: "foo",
 			d: &KubeExecutorInfoDiscoverer{
 				Client: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj runtime.Object) error {
 						*obj.(*corev1.Pod) = corev1.Pod{
 							ObjectMeta: metav1.ObjectMeta{Name: key.Name, Namespace: key.Namespace},
 							Spec: corev1.PodSpec{
-								Containers: []corev1.Container{{Name: "foo", Image: "foo-image"}},
+								Containers: []corev1.Container{{Name: "foo", Image: "foo-image", Env: []corev1.EnvVar{{Name: "CONTAINER_NAME", Value: "foo"}}}},
 							},
 						}
 						return nil
@@ -150,6 +152,7 @@ func TestExecutorInfoDiscoverer_Discover(t *testing.T) {
 
 			os.Setenv(PodNameEnvVar, "podName")
 			os.Setenv(PodNamespaceEnvVar, "podNamespace")
+			os.Setenv(ContainerNameEnvVar, tt.imageNameEnv)
 			os.Setenv(PodImageNameEnvVar, tt.imageName)
 			os.Setenv(PodImagePullPolicyEnvVar, "Always")
 

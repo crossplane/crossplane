@@ -31,6 +31,8 @@ const (
 	PodNameEnvVar = "POD_NAME"
 	// PodNamespaceEnvVar is the env variable for getting the pod namespace via downward api
 	PodNamespaceEnvVar = "POD_NAMESPACE"
+	// ContainerNameEnvVar is the env variable for getting the container name if provided
+	ContainerNameEnvVar = "CONTAINER_NAME"
 )
 
 // GetRunningPod will get the pod object for the currently running pod.  This assumes that the
@@ -91,16 +93,20 @@ func GetSpecContainer(spec v1.PodSpec, name string, initContainer bool) (v1.Cont
 	return image, nil
 }
 
-// GetMatchingContainer returns the container from the given set of containers that matches the
-// given name.  If the given container list has only 1 item then the name field is ignored and
-// that container is returned.
+// GetMatchingContainer returns the container from the given set of containers
+// that matches the given name. If the given container list has only 1 item and
+// no name is specified then that container is returned. If more than one
+// container exists and no name is specified it attempts to access a name from
+// env vars, before then checking for the existence of the container.
 func GetMatchingContainer(containers []v1.Container, name string) (v1.Container, error) {
 	var result *v1.Container
-	if len(containers) == 1 {
-		// if there is only one pod, use its image rather than require a set container name
+	if len(containers) == 1 && name == "" {
+		// if there is only one container and no name is specified, return it
 		result = &containers[0]
 	} else {
-		// if there are multiple pods, we require the container to have the expected name
+		if name == "" {
+			name = os.Getenv(ContainerNameEnvVar)
+		}
 		for _, container := range containers {
 			container := container // pin range scoped container var
 			if container.Name == name {

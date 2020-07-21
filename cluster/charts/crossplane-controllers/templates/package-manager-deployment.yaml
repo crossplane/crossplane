@@ -72,6 +72,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        # The container name
+        - name: CONTAINER_NAME
+          value: {{ .Chart.Name }}
         resources:
           {{- toYaml .Values.resourcesPackageManager | nindent 12 }}
       {{- if .Values.hostedConfig.enabled }}
