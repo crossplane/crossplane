@@ -63,6 +63,10 @@ case "${1:-}" in
 
     minikube addons enable ingress
 
+    # We'll use locally cached image instead of having it downloaded by the
+    # cluster.
+    docker pull "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
+    copy_image_to_cluster "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
     kubectl apply -f ${scriptdir}/helm-rbac.yaml
     ${HELM} init --service-account tiller
     kubectl -n kube-system rollout status deploy/tiller-deploy
