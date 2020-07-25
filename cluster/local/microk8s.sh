@@ -33,7 +33,7 @@ function wait_for_ready() {
 function copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
-    docker tag "${build_image}" "${final_image}" && docker push "${final_image}"
+    docker tag "${build_image}" "localhost:32000/${final_image}" && docker push "${final_image}"
     echo "Tagged image: ${final_image}"
 }
 
@@ -52,6 +52,10 @@ case "${1:-}" in
 
     microk8s.enable registry
 
+    # We'll use locally cached image instead of having it downloaded by the
+    # cluster.
+    docker pull "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
+    copy_image_to_cluster "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
     kubectl apply -f ${scriptdir}/helm-rbac.yaml
     ${HELM} init --service-account tiller
 
