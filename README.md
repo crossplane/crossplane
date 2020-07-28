@@ -2,10 +2,10 @@
 
 ![Crossplane](docs/media/banner.png)
 
-Crossplane is an open source Kubernetes add-on that extends any cluster with
-the ability to provision and manage cloud infrastructure, services, and
-applications using kubectl, GitOps, or any tool that works with the Kubernetes
-API.
+Crossplane, a [Cloud Native Computing Foundation][CNCF] sandbox project, is an
+open source Kubernetes add-on that extends any cluster with the ability to
+provision and manage cloud infrastructure, services, and applications using
+kubectl, GitOps, or any tool that works with the Kubernetes API.
 
 With Crossplane you can:
 
@@ -132,6 +132,7 @@ Crossplane is under the Apache 2.0 license.
 <!-- Named links -->
 
 [Crossplane]: https://crossplane.io
+[CNCF]: https://cncf.io
 [documentation]: https://crossplane.io/docs/latest
 [GCP]: https://github.com/crossplane/provider-gcp
 [AWS]: https://github.com/crossplane/provider-aws
