@@ -35,15 +35,6 @@ import (
 // The requirement's external name annotation, if any, is propagated to the
 // composite resource.
 func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite) error {
-	cp.SetGenerateName(fmt.Sprintf("%s-", rq.GetName()))
-	if meta.GetExternalName(rq) != "" {
-		meta.SetExternalName(cp, meta.GetExternalName(rq))
-	}
-	meta.AddLabels(cp, map[string]string{
-		composed.LabelKeyRequirementName:      rq.GetName(),
-		composed.LabelKeyRequirementNamespace: rq.GetNamespace(),
-	})
-
 	urq, ok := rq.(*requirement.Unstructured)
 	if !ok {
 		return nil
@@ -67,6 +58,16 @@ func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite
 
 	// TODO(negz): Make these filtered keys constants in the ccrds package?
 	_ = fieldpath.Pave(ucp.Object).SetValue("spec", filter(spec, "resourceRef", "writeConnectionSecretToRef"))
+	meta.AddAnnotations(ucp, urq.GetAnnotations())
+	meta.AddLabels(ucp, urq.GetLabels())
+	ucp.SetGenerateName(fmt.Sprintf("%s-", rq.GetName()))
+	if meta.GetExternalName(rq) != "" {
+		meta.SetExternalName(ucp, meta.GetExternalName(rq))
+	}
+	meta.AddLabels(ucp, map[string]string{
+		composed.LabelKeyRequirementName:      rq.GetName(),
+		composed.LabelKeyRequirementNamespace: rq.GetNamespace(),
+	})
 	return nil
 }
 
