@@ -29,9 +29,11 @@ spec:
       {{- end }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        {{- if .Values.args }}
         args:
         {{- range $arg := .Values.args }}
         - {{ $arg }}
+        {{- end }}
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}
