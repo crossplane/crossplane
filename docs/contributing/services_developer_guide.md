@@ -69,14 +69,12 @@ and the [kubebuilder book].
 Let's assume we want to add Crossplane support for your favourite cloud's
 database-as-a-service. Your favourite cloud brands these instances as "Favourite
 DB instances". Under the hood they're powered by the open source FancySQL
-engine. We'll name the new managed resource kind `FavouriteDBInstance` and the
-new resource claim `FancySQLInstance`.
+engine. We'll name the new managed resource kind `FavouriteDBInstance`.
 
 The first step toward implementing a new managed service is to define the code
 level schema of its configuration resources. These are referred to as
 [resources], (resource) [kinds], and [objects] interchangeably. The kubebuilder
-scaffolding is a good starting point for any new Crossplane API kind, whether
-they'll be a managed resource, resource class, or resource claim.
+scaffolding is a good starting point for any new Crossplane API kind.
 
 > Note that while Crossplane was originally derived from kubebuilder scaffolds
 > its patterns have diverged somewhat. It is _possible_ to use kubebuilder to
@@ -86,36 +84,35 @@ they'll be a managed resource, resource class, or resource claim.
 > kubebuilder.
 
 ```console
-# The resource claim.
 kubebuilder create api \
-    --group example --version v1alpha1 --kind FancySQLInstance \
+    --group example --version v1alpha1 --kind FavouriteDBInstance \
     --resource=true --controller=false --namespaced=false
 ```
 
 The above command should produce a scaffold similar to the below example:
 
 ```go
-type FancySQLInstanceSpec struct {
-    // INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+type FavouriteDBInstanceSpec struct {
+    // INSERT ADDITIONAL SPEC FIELDS - desired state of infrastructure
     // Important: Run "make" to regenerate code after modifying this file
 }
 
-// FancySQLInstanceStatus defines the observed state of FancySQLInstance
-type FancySQLInstanceStatus struct {
-    // INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+// FavouriteDBInstanceStatus defines the observed state of FavouriteDBInstance
+type FavouriteDBInstanceStatus struct {
+    // INSERT ADDITIONAL STATUS FIELD - define observed state of infrastructure
     // Important: Run "make" to regenerate code after modifying this file
 }
 
 // +kubebuilder:object:root=true
 
-// FancySQLInstance is the Schema for the fancysqlinstances API
+// FavouriteDBInstance is the Schema for the favouritedbinstance API
 // +kubebuilder:resource:scope=Cluster
-type FancySQLInstance struct {
+type FavouriteDBInstance struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    Spec   FancySQLInstanceSpec   `json:"spec,omitempty"`
-    Status FancySQLInstanceStatus `json:"status,omitempty"`
+    Spec   FavouriteDBInstanceeSpec   `json:"spec,omitempty"`
+    Status FavouriteDBInstanceStatus `json:"status,omitempty"`
 }
 ```
 
@@ -289,11 +286,11 @@ kind. These are typically added to either `register.go` or
 API type:
 
 ```go
-// FancySQLInstance type metadata.
+// FavouriteDBInstance type metadata.
 var (
-    FancySQLInstanceKind             = reflect.TypeOf(FancySQLInstance{}).Name()
-    FancySQLInstanceKindAPIVersion   = FancySQLInstanceKind + "." + GroupVersion.String()
-    FancySQLInstanceGroupVersionKind = GroupVersion.WithKind(FancySQLInstanceKind)
+    FavouriteDBInstanceKind             = reflect.TypeOf(FavouriteDBInstance{}).Name()
+    FavouriteDBInstanceKindAPIVersion   = FavouriteDBInstanceKind + "." + GroupVersion.String()
+    FavouriteDBInstanceGroupVersionKind = GroupVersion.WithKind(FavouriteDBInstanceKind)
 )
 ```
 
@@ -447,8 +444,6 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
     // are welcome to define and use their own.
     switch i.Status.Status {
     case database.StatusOnline:
-        // If the resource is available we also want to mark it as bindable to
-        // resource claims.
         resource.SetBindable(i)
         i.SetConditions(runtimev1alpha1.Available())
     case database.StatusCreating:
