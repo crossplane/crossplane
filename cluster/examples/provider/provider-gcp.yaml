@@ -5,4 +5,4 @@ metadata:
   name: provider-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/provider-gcp:v0.10.0"
+  package: "crossplane/provider-gcp:v0.11.0"
