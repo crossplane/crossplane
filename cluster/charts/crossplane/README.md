@@ -137,7 +137,7 @@ metadata:
   name: provider-gcp
   namespace: crossplane-system
 spec:
-  package: "crossplane/provider-gcp:v0.10.0"
+  package: "crossplane/provider-gcp:v0.11.0"
 ```
 
 Then you can install the GCP provider into Crossplane in the `gcp` namespace
@@ -159,7 +159,7 @@ metadata:
   name: provider-aws
   namespace: crossplane-system
 spec:
-  package: "crossplane/provider-aws:v0.10.0"
+  package: "crossplane/provider-aws:v0.11.1"
 ```
 
 Then you can install the AWS provider into Crossplane in the `aws` namespace
@@ -181,7 +181,7 @@ metadata:
   name: provider-azure
   namespace: crossplane-system
 spec:
-  package: "crossplane/provider-azure:v0.10.0"
+  package: "crossplane/provider-azure:v0.11.0"
 ```
 
 Then you can install the Azure provider into Crossplane in the `azure` namespace
