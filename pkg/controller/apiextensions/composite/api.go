@@ -260,26 +260,22 @@ type APIConfigurator struct {
 	client client.Client
 }
 
-// Configure the supplied composite resource using its composition.
+// Configure any required fields that were omitted from the composite resource
+// by copying them from its composition.
 func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
 	}
 
-	if cp.GetReclaimPolicy() != "" && cp.GetWriteConnectionSecretToReference() != nil {
+	if cp.GetWriteConnectionSecretToReference() != nil {
 		return nil
 	}
 
-	if cp.GetReclaimPolicy() == "" {
-		cp.SetReclaimPolicy(comp.Spec.ReclaimPolicy)
-	}
-	if cp.GetWriteConnectionSecretToReference() == nil {
-		cp.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
-			Name:      string(cp.GetUID()),
-			Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
-		})
-	}
+	cp.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
+		Name:      string(cp.GetUID()),
+		Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
+	})
 
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }
