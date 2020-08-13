@@ -151,7 +151,6 @@ metadata:
     vpc: default
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
@@ -211,7 +210,6 @@ metadata:
     vpc: new
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
@@ -383,7 +381,6 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
@@ -447,7 +444,6 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
@@ -533,7 +529,6 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
