@@ -61,7 +61,7 @@ const (
 // Event reasons.
 const (
 	reasonBind      event.Reason = "BindCompositeResource"
-	reasonUnbind    event.Reason = "UnbindCompositeResource"
+	reasonDelete    event.Reason = "DeleteCompositeResource"
 	reasonConfigure event.Reason = "ConfigureCompositeResource"
 	reasonPropagate event.Reason = "PropagateConnectionSecret"
 )
@@ -103,13 +103,16 @@ func (fn CompositeCreatorFn) Create(ctx context.Context, rq resource.Requirement
 	return fn(ctx, rq, cp)
 }
 
+// A CompositeDeleter deletes a composite resource.
+type CompositeDeleter interface {
+	// Delete the supplied Requirement to the supplied Composite resource.
+	Delete(ctx context.Context, rq resource.Requirement, cp resource.Composite) error
+}
+
 // A Binder binds a resource requirement to a composite resource.
 type Binder interface {
 	// Bind the supplied Requirement to the supplied Composite resource.
 	Bind(ctx context.Context, rq resource.Requirement, cp resource.Composite) error
-
-	// Unbind the supplied Requirement from the supplied Composite resource.
-	Unbind(ctx context.Context, rq resource.Requirement, cp resource.Composite) error
 }
 
 // BinderFns satisfy the Binder interface.
@@ -152,6 +155,7 @@ type Reconciler struct {
 type crComposite struct {
 	CompositeConfigurator
 	CompositeCreator
+	CompositeDeleter
 	resource.ConnectionPropagator
 }
 
@@ -159,6 +163,7 @@ func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
 	return crComposite{
 		CompositeConfigurator: CompositeConfiguratorFn(Configure),
 		CompositeCreator:      NewAPICompositeCreator(c, t),
+		CompositeDeleter:      NewAPICompositeDeleter(c),
 		ConnectionPropagator:  resource.NewAPIConnectionPropagator(c, t),
 	}
 }
@@ -299,7 +304,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 					// implicitly due to the status update. Otherwise we want to retry
 					// after a brief wait, in case this was a transient error.
 					log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
-					record.Event(rq, event.Warning(reasonUnbind, err))
+					record.Event(rq, event.Warning(reasonDelete, err))
 					rq.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 					return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 				}
@@ -337,25 +342,25 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if meta.WasDeleted(rq) {
 		log = log.WithValues("deletion-timestamp", rq.GetDeletionTimestamp())
 
-		if err := r.requirement.Unbind(ctx, rq, cp); err != nil {
+		if err := r.composite.Delete(ctx, rq, cp); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot unbind requirement", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonUnbind, err))
+			log.Debug("Cannot delete composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(rq, event.Warning(reasonDelete, err))
 			rq.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}
 
-		log.Debug("Successfully unbound composite resource")
-		record.Event(rq, event.Normal(reasonUnbind, "Successfully unbound composite resource"))
+		log.Debug("Successfully deleted composite resource")
+		record.Event(rq, event.Normal(reasonDelete, "Successfully deleted composite resource"))
 
 		if err := r.requirement.RemoveFinalizer(ctx, rq); err != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(rq, event.Warning(reasonUnbind, err))
+			record.Event(rq, event.Warning(reasonDelete, err))
 			rq.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, rq), errUpdateRequirementStatus)
 		}

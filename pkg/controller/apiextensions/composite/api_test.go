@@ -111,10 +111,8 @@ func TestConfigure(t *testing.T) {
 		Name:      "foo",
 		Namespace: "bar",
 	}}
-	rp := fake.Reclaimer{Policy: runtimev1alpha1.ReclaimDelete}
 	cp := &fake.Composite{
 		ObjectMeta:               metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
-		Reclaimer:                rp,
 		ConnectionSecretWriterTo: cs,
 	}
 
@@ -148,21 +146,9 @@ func TestConfigure(t *testing.T) {
 			},
 		},
 		"AlreadyFilled": {
-			reason: "Should be no-op if reclaim policy and connection secret namespace is already filled",
+			reason: "Should be no-op if connection secret namespace is already filled",
 			args:   args{cp: cp, comp: &v1alpha1.Composition{}},
 			want:   want{cp: cp},
-		},
-		"ReclaimPolicyMissing": {
-			reason: "Should fill reclaim policy if missing",
-			args: args{
-				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
-				cp: &fake.Composite{
-					ObjectMeta:               cp.ObjectMeta,
-					ConnectionSecretWriterTo: cs,
-				},
-				comp: &v1alpha1.Composition{Spec: v1alpha1.CompositionSpec{ReclaimPolicy: rp.Policy}},
-			},
-			want: want{cp: cp},
 		},
 		"ConnectionSecretRefMissing": {
 			reason: "Should fill connection secret ref if missing",
@@ -170,7 +156,6 @@ func TestConfigure(t *testing.T) {
 				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
-					Reclaimer:  rp,
 				},
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{WriteConnectionSecretsToNamespace: cs.Ref.Namespace},
@@ -188,7 +173,6 @@ func TestConfigure(t *testing.T) {
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{
 						WriteConnectionSecretsToNamespace: cs.Ref.Namespace,
-						ReclaimPolicy:                     rp.Policy,
 					},
 				},
 			},

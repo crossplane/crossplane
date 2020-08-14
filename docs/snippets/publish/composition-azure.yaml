@@ -8,7 +8,6 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
   from:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance

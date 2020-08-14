@@ -23,11 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
 // Error strings.
@@ -70,6 +67,21 @@ func (a *APICompositeCreator) Create(ctx context.Context, rq resource.Requiremen
 	return errors.Wrap(a.client.Update(ctx, rq), errUpdateRequirement)
 }
 
+// An APICompositeDeleter deletes composite resources from the API server.
+type APICompositeDeleter struct {
+	client client.Client
+}
+
+// NewAPICompositeDeleter returns a new APICompositeDeleter.
+func NewAPICompositeDeleter(c client.Client) *APICompositeDeleter {
+	return &APICompositeDeleter{client: c}
+}
+
+// Delete the supplied composite resource from the API server.
+func (a *APICompositeDeleter) Delete(ctx context.Context, _ resource.Requirement, cp resource.Composite) error {
+	return errors.Wrap(resource.IgnoreNotFound(a.client.Delete(ctx, cp)), errDeleteComposite)
+}
+
 // An APIBinder binds requirements to composites by updating them in a
 // Kubernetes API server. Note that APIBinder does not support objects that do
 // not use the status subresource; such objects should use
@@ -105,42 +117,4 @@ func (a *APIBinder) Bind(ctx context.Context, rq resource.Requirement, cp resour
 	// Propagate back the final name of the composite resource to the requirement.
 	meta.SetExternalName(rq, meta.GetExternalName(cp))
 	return errors.Wrap(a.client.Update(ctx, rq), errUpdateRequirement)
-}
-
-// Unbind the supplied Requirement from the supplied Composite resource by
-// removing the composite resource's requirement reference, and if the composite
-// resource's reclaim policy is "Delete", deleting it.
-func (a *APIBinder) Unbind(ctx context.Context, _ resource.Requirement, cp resource.Composite) error {
-	RemoveRequirementReference(cp)
-
-	if err := a.client.Update(ctx, cp); err != nil {
-		return errors.Wrap(resource.IgnoreNotFound(err), errUpdateComposite)
-	}
-
-	// We go to the trouble of unbinding the composite resource before deleting it
-	// because we want it to show up as "released" (not "bound") if its composite
-	// resource reconciler is wedged or delayed trying to delete it.
-	if cp.GetReclaimPolicy() != v1alpha1.ReclaimDelete {
-		return nil
-	}
-
-	return errors.Wrap(resource.IgnoreNotFound(a.client.Delete(ctx, cp)), errDeleteComposite)
-}
-
-// RemoveRequirementReference removes the requirement reference from the
-// supplied resource.Composite if it contains a *composite.Unstructured.
-func RemoveRequirementReference(cp resource.Composite) {
-	ucp, ok := cp.(*composite.Unstructured)
-	if !ok {
-		return
-	}
-
-	i, _ := fieldpath.Pave(ucp.Object).GetValue("spec")
-	spec, ok := i.(map[string]interface{})
-	if !ok {
-		return
-	}
-
-	// TODO(negz): Make this a constant in the ccrd package?
-	delete(spec, "requirementRef")
 }

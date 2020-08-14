@@ -134,7 +134,6 @@ spec:
       # - spec.resourceRefs
       # - spec.requirementRef
       # - spec.writeConnectionSecretToRef
-      # - spec.reclaimPolicy
       # - status.conditions
       openAPIV3Schema:
         type: object
@@ -270,7 +269,7 @@ example, Or they may offer a choice between a "production" and a "staging"
 `MySQLInstance` composition. They can also offer a default composition in case
 application operators do not supply a composition selector or enforce a specific
 composition in order to override the composition choice of users for all instances.
-In all cases, the application operator may configure any value supported by the 
+In all cases, the application operator may configure any value supported by the
 composite infrastructure resource's schema, with all other values being deferred
 to the composition.
 
@@ -447,11 +446,10 @@ spec:
       toFieldPath: "metadata.annotations"
   # Some composite resources may be "dynamically provisioned" - i.e. provisioned
   # on-demand to satisfy an application's requirement for infrastructure. The
-  # writeConnectionSecretsToNamespace and reclaimPolicy fields configure default
-  # values used when dynamically provisioning a composite resource; they are
-  # explained in more detail below.
+  # writeConnectionSecretsToNamespace field configures the default value used
+  # when dynamically provisioning a composite resource; it is explained in more
+  # detail below.
   writeConnectionSecretsToNamespace: crossplane-system
-  reclaimPolicy: Delete
 ```
 
 Field paths reference a field within a Kubernetes object via a simple string.
@@ -659,16 +657,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: infra-secrets
     name: example-mysqlinstance
-  # Support for a reclaimPolicy is automatically injected into the schema of all
-  # defined composite infrastructure resources. The reclaim policy applies only
-  # to published kinds of infrastructure - it controls whether the resource is
-  # deleted or retained when its corresponding Requirement is deleted. If an
-  # application authored a MySQLInstanceRequirement for this MySQLInstance then
-  # later deleted their MySQLInstanceRequirement this MySQLInstance and all of
-  # the resources it composes would be deleted. If the policy were instead set
-  # to 'Retain' the MySQLInstance would be retained, for example to allow an
-  # infrastructure operator to perform manual cleanup.
-  reclaimPolicy: Delete
 ```
 
 Any updates to the `MySQLInstance` composite infrastructure resource will be
