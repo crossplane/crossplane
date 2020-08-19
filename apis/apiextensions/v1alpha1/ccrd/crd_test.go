@@ -67,7 +67,7 @@ func TestIsEstablished(t *testing.T) {
 	}
 }
 
-func TestForInfrastructureDefinition(t *testing.T) {
+func TestForCompositeResourceDefinition(t *testing.T) {
 	name := "coolcomposites.example.org"
 	labels := map[string]string{"cool": "very"}
 	annotations := map[string]string{"example.org/cool": "very"}
@@ -81,14 +81,14 @@ func TestForInfrastructureDefinition(t *testing.T) {
 
 	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	d := &v1alpha1.InfrastructureDefinition{
+	d := &v1alpha1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1alpha1.InfrastructureDefinitionSpec{
+		Spec: v1alpha1.CompositeResourceDefinitionSpec{
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
@@ -111,7 +111,7 @@ func TestForInfrastructureDefinition(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind)),
+				meta.AsController(meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{
@@ -272,17 +272,17 @@ func TestForInfrastructureDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(ForInfrastructureDefinition(d))
+	got, err := New(ForCompositeResourceDefinition(d))
 	if err != nil {
-		t.Fatalf("New(ForInfrastructureDefinition(...): %s", err)
+		t.Fatalf("New(ForCompositeResourceDefinition(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(ForInfrastructureDefinition(...): -want, +got:\n%s", diff)
+		t.Errorf("New(ForCompositeResourceDefinition(...): -want, +got:\n%s", diff)
 	}
 }
 
-func TestPublishesInfrastructureDefinition(t *testing.T) {
+func TestPublishesCompositeResourceDefinition(t *testing.T) {
 	name := "coolcomposites.example.org"
 	labels := map[string]string{"cool": "very"}
 	annotations := map[string]string{"example.org/cool": "very"}
@@ -296,7 +296,7 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 
 	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	p := &v1alpha1.InfrastructurePublication{
+	p := &v1alpha1.CompositeResourcePublication{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
@@ -304,14 +304,14 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 			UID:         types.UID("you-you-eye-dee"),
 		},
 	}
-	d := &v1alpha1.InfrastructureDefinition{
+	d := &v1alpha1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1alpha1.InfrastructureDefinitionSpec{
+		Spec: v1alpha1.CompositeResourceDefinitionSpec{
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
@@ -334,7 +334,7 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind)),
+				meta.AsController(meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{
@@ -478,12 +478,12 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(PublishesInfrastructureDefinition(d, p))
+	got, err := New(PublishesCompositeResourceDefinition(d, p))
 	if err != nil {
-		t.Fatalf("New(PublishesInfrastructureDefinition(...): %s", err)
+		t.Fatalf("New(PublishesCompositeResourceDefinition(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(PublishesInfrastructureDefinition(...): -want, +got:\n%s", diff)
+		t.Errorf("New(PublishesCompositeResourceDefinition(...): -want, +got:\n%s", diff)
 	}
 }

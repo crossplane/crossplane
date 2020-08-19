@@ -82,9 +82,9 @@ func New(o ...Option) (*v1beta1.CustomResourceDefinition, error) {
 	return crd, nil
 }
 
-// ForInfrastructureDefinition configures the CustomResourceDefinition for the
-// supplied InfrastructureDefinition.
-func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
+// ForCompositeResourceDefinition configures the CustomResourceDefinition for the
+// supplied CompositeResourceDefinition.
+func ForCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition) Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
 		if err != nil {
@@ -95,7 +95,7 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 		crd.SetLabels(d.GetLabels())
 		crd.SetAnnotations(d.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind),
+			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
 		crd.Spec.AdditionalPrinterColumns = InfrastructurePrinterColumns()
 
@@ -119,9 +119,9 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 	}
 }
 
-// PublishesInfrastructureDefinition configures the CustomResourceDefinition
-// that publishes the supplied InfrastructureDefinition.
-func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *v1alpha1.InfrastructurePublication) Option {
+// PublishesCompositeResourceDefinition configures the CustomResourceDefinition
+// that publishes the supplied CompositeResourceDefinition.
+func PublishesCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition, p *v1alpha1.CompositeResourcePublication) Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
 		if err != nil {
@@ -132,7 +132,7 @@ func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *
 		crd.SetLabels(p.GetLabels())
 		crd.SetAnnotations(p.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(p, v1alpha1.InfrastructureDefinitionGroupVersionKind),
+			meta.ReferenceTo(p, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
 
 		crd.Spec.Names = v1beta1.CustomResourceDefinitionNames{

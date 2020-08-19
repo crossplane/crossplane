@@ -6,7 +6,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.4
   creationTimestamp: null
-  name: infrastructurepublications.apiextensions.crossplane.io
+  name: compositeresourcepublications.apiextensions.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .metadata.creationTimestamp
@@ -16,16 +16,16 @@ spec:
   names:
     categories:
     - crossplane
-    kind: InfrastructurePublication
-    listKind: InfrastructurePublicationList
-    plural: infrastructurepublications
-    singular: infrastructurepublication
+    kind: CompositeResourcePublication
+    listKind: CompositeResourcePublicationList
+    plural: compositeresourcepublications
+    singular: compositeresourcepublication
   scope: Cluster
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: An InfrastructurePublication publishes a defined kind of composite
+      description: An CompositeResourcePublication publishes a defined kind of composite
         infrastructure resource. Published infrastructure resources may be bound to
         an application via an infrastructure requirement.
       properties:
@@ -42,11 +42,11 @@ spec:
         metadata:
           type: object
         spec:
-          description: InfrastructurePublicationSpec specifies the desired state of
-            the definition.
+          description: CompositeResourcePublicationSpec specifies the desired state
+            of the definition.
           properties:
             infrastructureDefinitionRef:
-              description: InfrastructureDefinitionReference references the InfrastructureDefinition
+              description: CompositeResourceDefinitionReference references the CompositeResourceDefinition
                 that should be published.
               properties:
                 name:
@@ -59,8 +59,8 @@ spec:
           - infrastructureDefinitionRef
           type: object
         status:
-          description: InfrastructurePublicationStatus shows the observed state of
-            the definition.
+          description: CompositeResourcePublicationStatus shows the observed state
+            of the definition.
           properties:
             conditions:
               description: Conditions of the resource.

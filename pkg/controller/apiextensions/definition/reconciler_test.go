@@ -70,8 +70,8 @@ func TestReconcile(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"InfrastructureDefinitionNotFound": {
-			reason: "We should not return an error if the InfrastructureDefinition was not found.",
+		"CompositeResourceDefinitionNotFound": {
+			reason: "We should not return an error if the CompositeResourceDefinition was not found.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -86,8 +86,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"GetInfrastructureDefinitionError": {
-			reason: "We should return any other error encountered while getting an InfrastructureDefinition.",
+		"GetCompositeResourceDefinitionError": {
+			reason: "We should return any other error encountered while getting an CompositeResourceDefinition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -99,7 +99,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errGetInfraDef),
+				err: errors.Wrap(errBoom, errGetXRD),
 			},
 		},
 		"RenderCustomResourceDefinitionError": {
@@ -111,7 +111,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errRenderCRD)))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -121,7 +121,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return nil, errBoom
 					})),
 				},
@@ -139,8 +139,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1alpha1.InfrastructureDefinition:
-									d := v1alpha1.InfrastructureDefinition{}
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
 								case *v1beta1.CustomResourceDefinition:
@@ -149,7 +149,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
 								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errGetCRD)))
@@ -161,7 +161,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -178,15 +178,15 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								if v, ok := o.(*v1alpha1.InfrastructureDefinition); ok {
-									d := v1alpha1.InfrastructureDefinition{}
+								if v, ok := o.(*v1alpha1.CompositeResourceDefinition); ok {
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
 								}
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
 								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
@@ -198,7 +198,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -218,8 +218,8 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								if v, ok := o.(*v1alpha1.InfrastructureDefinition); ok {
-									d := v1alpha1.InfrastructureDefinition{}
+								if v, ok := o.(*v1alpha1.CompositeResourceDefinition); ok {
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
 								}
@@ -228,7 +228,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -249,8 +249,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1alpha1.InfrastructureDefinition:
-									d := v1alpha1.InfrastructureDefinition{}
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -263,7 +263,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
@@ -277,7 +277,7 @@ func TestReconcile(t *testing.T) {
 							MockDeleteAllOf: test.NewMockDeleteAllOfFn(errBoom),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -295,8 +295,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1alpha1.InfrastructureDefinition:
-									d := v1alpha1.InfrastructureDefinition{}
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -309,7 +309,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
@@ -324,7 +324,7 @@ func TestReconcile(t *testing.T) {
 							MockList:        test.NewMockListFn(errBoom),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -342,8 +342,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1alpha1.InfrastructureDefinition:
-									d := v1alpha1.InfrastructureDefinition{}
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -356,7 +356,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
@@ -377,7 +377,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -395,8 +395,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1alpha1.InfrastructureDefinition:
-									d := v1alpha1.InfrastructureDefinition{}
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -409,7 +409,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
@@ -425,7 +425,7 @@ func TestReconcile(t *testing.T) {
 							MockDelete:      test.NewMockDeleteFn(errBoom),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -443,8 +443,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1alpha1.InfrastructureDefinition:
-									d := v1alpha1.InfrastructureDefinition{}
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -457,7 +457,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
 								want.Status.SetConditions(v1alpha1.Deleting())
@@ -473,7 +473,7 @@ func TestReconcile(t *testing.T) {
 							MockDelete:      test.NewMockDeleteFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -491,7 +491,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -501,7 +501,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -522,7 +522,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errApplyCRD)))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -535,7 +535,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -556,7 +556,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDEstablish))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -569,7 +569,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -590,7 +590,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errStartController)))
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -603,7 +603,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{
 							Status: v1beta1.CustomResourceDefinitionStatus{
 								Conditions: []v1beta1.CustomResourceDefinitionCondition{
@@ -633,7 +633,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.InfrastructureDefinition{}
+								want := &v1alpha1.CompositeResourceDefinition{}
 								want.Status.SetConditions(v1alpha1.Started())
 								want.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
@@ -647,7 +647,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 						return &v1beta1.CustomResourceDefinition{
 							Status: v1beta1.CustomResourceDefinitionStatus{
 								Conditions: []v1beta1.CustomResourceDefinitionCondition{

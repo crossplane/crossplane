@@ -6,7 +6,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.4
   creationTimestamp: null
-  name: infrastructuredefinitions.apiextensions.crossplane.io
+  name: compositeresourcedefinitions.apiextensions.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .metadata.creationTimestamp
@@ -16,18 +16,18 @@ spec:
   names:
     categories:
     - crossplane
-    kind: InfrastructureDefinition
-    listKind: InfrastructureDefinitionList
-    plural: infrastructuredefinitions
-    singular: infrastructuredefinition
+    kind: CompositeResourceDefinition
+    listKind: CompositeResourceDefinitionList
+    plural: compositeresourcedefinitions
+    singular: compositeresourcedefinition
   scope: Cluster
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: An InfrastructureDefinition defines a new kind of composite infrastructure
-        resource. The new resource is composed of other composite or managed infrastructure
-        resources.
+      description: An CompositeResourceDefinition defines a new kind of composite
+        infrastructure resource. The new resource is composed of other composite or
+        managed infrastructure resources.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -42,8 +42,8 @@ spec:
         metadata:
           type: object
         spec:
-          description: InfrastructureDefinitionSpec specifies the desired state of
-            the definition.
+          description: CompositeResourceDefinitionSpec specifies the desired state
+            of the definition.
           properties:
             connectionSecretKeys:
               description: ConnectionSecretKeys is the list of keys that will be exposed
@@ -198,8 +198,8 @@ spec:
               type: object
           type: object
         status:
-          description: InfrastructureDefinitionStatus shows the observed state of
-            the definition.
+          description: CompositeResourceDefinitionStatus shows the observed state
+            of the definition.
           properties:
             conditions:
               description: Conditions of the resource.

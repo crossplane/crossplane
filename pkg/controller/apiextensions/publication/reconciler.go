@@ -60,12 +60,12 @@ const (
 
 // Error strings.
 const (
-	errGetInfraDef     = "cannot get InfrastructureDefinition"
-	errGetInfraPub     = "cannot get InfrastructurePublication"
+	errGetXRD          = "cannot get CompositeResourceDefinition"
+	errGetXRP          = "cannot get CompositeResourcePublication"
 	errRenderCRD       = "cannot generate CustomResourceDefinition"
 	errGetCRD          = "cannot get CustomResourceDefinition"
 	errApplyCRD        = "cannot apply CustomResourceDefinition"
-	errUpdateStatus    = "cannot update status of InfrastructurePublication"
+	errUpdateStatus    = "cannot update status of CompositeResourcePublication"
 	errStartController = "cannot start controller"
 	errAddFinalizer    = "cannot add finalizer"
 	errRemoveFinalizer = "cannot remove finalizer"
@@ -82,10 +82,10 @@ const (
 
 // Event reasons.
 const (
-	reasonGetDef    event.Reason = "GetInfrastructureDefinition"
+	reasonGetDef    event.Reason = "GetCompositeResourceDefinition"
 	reasonRenderCRD event.Reason = "RenderCustomResourceDefinition"
-	reasonDeletePub event.Reason = "DeleteInfrastructurePublication"
-	reasonApplyPub  event.Reason = "ApplyInfrastructurePublication"
+	reasonDeletePub event.Reason = "DeleteCompositeResourcePublication"
+	reasonApplyPub  event.Reason = "ApplyCompositeResourcePublication"
 )
 
 // A Finalizer adds and removes finalizers to and from object metadata.
@@ -135,41 +135,41 @@ type ControllerEngine interface {
 	Stop(name string)
 }
 
-// A CRDRenderer renders an InfrastructurePublication's corresponding
+// A CRDRenderer renders an CompositeResourcePublication's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1alpha1.InfrastructureDefinition, p *v1alpha1.InfrastructurePublication) (*v1beta1.CustomResourceDefinition, error)
+	Render(d *v1alpha1.CompositeResourceDefinition, p *v1alpha1.CompositeResourcePublication) (*v1beta1.CustomResourceDefinition, error)
 }
 
-// A CRDRenderFn renders an InfrastructurePublication's corresponding
+// A CRDRenderFn renders an CompositeResourcePublication's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1alpha1.InfrastructureDefinition, p *v1alpha1.InfrastructurePublication) (*v1beta1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v1alpha1.CompositeResourceDefinition, p *v1alpha1.CompositeResourcePublication) (*v1beta1.CustomResourceDefinition, error)
 
-// Render the supplied InfrastructurePublication's corresponding
+// Render the supplied CompositeResourcePublication's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1alpha1.InfrastructureDefinition, p *v1alpha1.InfrastructurePublication) (*v1beta1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition, p *v1alpha1.CompositeResourcePublication) (*v1beta1.CustomResourceDefinition, error) {
 	return fn(d, p)
 }
 
-// Setup adds a controller that reconciles InfrastructurePublications.
+// Setup adds a controller that reconciles CompositeResourcePublications.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "apiextensions/" + strings.ToLower(v1alpha1.InfrastructurePublicationGroupKind)
+	name := "apiextensions/" + strings.ToLower(v1alpha1.CompositeResourcePublicationGroupKind)
 
-	// This controller is for (i.e. reconciles) InfrastructurePublications, and
+	// This controller is for (i.e. reconciles) CompositeResourcePublications, and
 	// owns (i.e. creates) CustomResourceDefinitions. It also watches for
-	// InfrastructureDefinitions, because an InfrastructurePublication publishes
-	// an InfrastructureDefinition. A change to the InfrastructureDefinition may
-	// require a change to the InfrastructurePublication's CRD. Note that we
-	// (ab)use EnqueueRequestForObject when watching InfrastructureDefinitions.
-	// We require (by convention) that the InfrastructurePublication share the
-	// name of the InfrastructureDefinition it publishes, so when we enqueue a
-	// request for the name of the InfrastructureDefinition we're actually
-	// enqueueing a request for the InfrastructurePublication of the same name.
+	// CompositeResourceDefinitions, because an CompositeResourcePublication publishes
+	// an CompositeResourceDefinition. A change to the CompositeResourceDefinition may
+	// require a change to the CompositeResourcePublication's CRD. Note that we
+	// (ab)use EnqueueRequestForObject when watching CompositeResourceDefinitions.
+	// We require (by convention) that the CompositeResourcePublication share the
+	// name of the CompositeResourceDefinition it publishes, so when we enqueue a
+	// request for the name of the CompositeResourceDefinition we're actually
+	// enqueueing a request for the CompositeResourcePublication of the same name.
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.InfrastructurePublication{}).
+		For(&v1alpha1.CompositeResourcePublication{}).
 		Owns(&v1beta1.CustomResourceDefinition{}).
-		Watches(&source.Kind{Type: &v1alpha1.InfrastructureDefinition{}}, &handler.EnqueueRequestForObject{}).
+		Watches(&source.Kind{Type: &v1alpha1.CompositeResourceDefinition{}}, &handler.EnqueueRequestForObject{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
@@ -194,7 +194,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 }
 
 // WithFinalizer specifies how the Reconciler should finalize
-// InfrastructurePublications and InfrastructureDefinitions.
+// CompositeResourcePublications and CompositeResourceDefinitions.
 func WithFinalizer(f Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.publication.Finalizer = f
@@ -210,7 +210,7 @@ func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 }
 
 // WithCRDRenderer specifies how the Reconciler should render an
-// InfrastructurePublication's corresponding CustomResourceDefinition.
+// CompositeResourcePublication's corresponding CustomResourceDefinition.
 func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.publication.CRDRenderer = c
@@ -225,11 +225,11 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
-// NewReconciler returns a Reconciler of InfrastructurePublications.
+// NewReconciler returns a Reconciler of CompositeResourcePublications.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
-	rd := func(d *v1alpha1.InfrastructureDefinition, p *v1alpha1.InfrastructurePublication) (*v1beta1.CustomResourceDefinition, error) {
-		return ccrd.New(ccrd.PublishesInfrastructureDefinition(d, p))
+	rd := func(d *v1alpha1.CompositeResourceDefinition, p *v1alpha1.CompositeResourcePublication) (*v1beta1.CustomResourceDefinition, error) {
+		return ccrd.New(ccrd.PublishesCompositeResourceDefinition(d, p))
 	}
 
 	r := &Reconciler{
@@ -266,7 +266,7 @@ type publication struct {
 	Finalizer
 }
 
-// A Reconciler reconciles InfrastructurePublications.
+// A Reconciler reconciles CompositeResourcePublications.
 type Reconciler struct {
 	mgr    manager.Manager
 	client resource.ClientApplicator
@@ -277,7 +277,7 @@ type Reconciler struct {
 	record event.Recorder
 }
 
-// Reconcile an InfrastructurePublication.
+// Reconcile an CompositeResourcePublication.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
 	// complexity goal. Be wary when adding branches, and look for functionality
@@ -289,10 +289,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	p := &v1alpha1.InfrastructurePublication{}
+	p := &v1alpha1.CompositeResourcePublication{}
 	if err := r.client.Get(ctx, req.NamespacedName, p); err != nil {
-		log.Debug(errGetInfraPub, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetInfraPub)
+		log.Debug(errGetXRP, "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRP)
 	}
 
 	log = log.WithValues(
@@ -301,15 +301,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"name", p.GetName(),
 	)
 
-	d := &v1alpha1.InfrastructureDefinition{}
+	d := &v1alpha1.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
-		log.Debug(errGetInfraDef)
+		log.Debug(errGetXRD)
 		r.record.Event(p, event.Warning(reasonGetDef, err))
-		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetInfraDef)))
+		p.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetXRD)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	r.record.Event(p, event.Normal(reasonGetDef, "Got published InfrastructureDefinition"))
+	r.record.Event(p, event.Normal(reasonGetDef, "Got published CompositeResourceDefinition"))
 
 	crd, err := r.publication.Render(d, p)
 	if err != nil {
@@ -323,7 +323,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if meta.WasDeleted(p) {
 		p.Status.SetConditions(v1alpha1.Deleting())
-		r.record.Event(p, event.Normal(reasonDeletePub, "Deleting InfrastructurePublication"))
+		r.record.Event(p, event.Normal(reasonDeletePub, "Deleting CompositeResourcePublication"))
 
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
@@ -354,7 +354,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 			// We're all done deleting and have removed our finalizer. There's
 			// no need to requeue because there's nothing left to do.
-			r.record.Event(p, event.Normal(reasonDeletePub, "Successfully deleted InfrastructurePublication"))
+			r.record.Event(p, event.Normal(reasonDeletePub, "Successfully deleted CompositeResourcePublication"))
 			return reconcile.Result{Requeue: false}, nil
 		}
 
@@ -412,9 +412,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	// Note that we add a finalizer to the InfrastructureDefinition that we
+	// Note that we add a finalizer to the CompositeResourceDefinition that we
 	// publish. Infrastructure cannot be published without first being defined.
-	// If the InfrastructureDefinition is deleted nothing is reconciling the
+	// If the CompositeResourceDefinition is deleted nothing is reconciling the
 	// composite associated with the requirement we publish. The definition does
 	// not strictly own the publication, but we might consider making the
 	// definition an owner of the publication so that the publication is deleted

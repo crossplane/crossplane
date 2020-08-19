@@ -55,11 +55,11 @@ const (
 	maxConcurrency = 5
 	finalizer      = "finalizer.apiextensions.crossplane.io"
 
-	errGetInfraDef     = "cannot get InfrastructureDefinition"
+	errGetXRD          = "cannot get CompositeResourceDefinition"
 	errRenderCRD       = "cannot render CustomResourceDefinition"
 	errGetCRD          = "cannot get CustomResourceDefinition"
 	errApplyCRD        = "cannot apply the generated CustomResourceDefinition"
-	errUpdateStatus    = "cannot update status of InfrastructureDefinition"
+	errUpdateStatus    = "cannot update status of CompositeResourceDefinition"
 	errStartController = "cannot start controller"
 	errAddFinalizer    = "cannot add finalizer"
 	errRemoveFinalizer = "cannot remove finalizer"
@@ -77,8 +77,8 @@ const (
 // Event reasons.
 const (
 	reasonRenderCRD event.Reason = "RenderCustomResourceDefinition"
-	reasonDeleteDef event.Reason = "DeleteInfrastructureDefinition"
-	reasonApplyDef  event.Reason = "ApplyInfrastructureDefinition"
+	reasonDeleteDef event.Reason = "DeleteCompositeResourceDefinition"
+	reasonApplyDef  event.Reason = "ApplyCompositeResourceDefinition"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -88,32 +88,32 @@ type ControllerEngine interface {
 	Stop(name string)
 }
 
-// A CRDRenderer renders an InfrastructureDefinition's corresponding
+// A CRDRenderer renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error)
+	Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
 }
 
-// A CRDRenderFn renders an InfrastructureDefinition's corresponding
+// A CRDRenderFn renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
 
-// Render the supplied InfrastructureDefinition's corresponding
+// Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
 // Setup adds a controller that reconciles ApplicationConfigurations.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "apiextensions/" + strings.ToLower(v1alpha1.InfrastructureDefinitionGroupKind)
+	name := "apiextensions/" + strings.ToLower(v1alpha1.CompositeResourceDefinitionGroupKind)
 	r := NewReconciler(mgr,
 		WithLogger(log.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.InfrastructureDefinition{}).
+		For(&v1alpha1.CompositeResourceDefinition{}).
 		Owns(&v1beta1.CustomResourceDefinition{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(r)
@@ -137,7 +137,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 }
 
 // WithFinalizer specifies how the Reconciler should finalize
-// InfrastructureDefinitions.
+// CompositeResourceDefinitions.
 func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.definition.Finalizer = f
@@ -153,7 +153,7 @@ func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 }
 
 // WithCRDRenderer specifies how the Reconciler should render an
-// InfrastructureDefinition's corresponding CustomResourceDefinition.
+// CompositeResourceDefinition's corresponding CustomResourceDefinition.
 func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.definition.CRDRenderer = c
@@ -174,11 +174,11 @@ type definition struct {
 	resource.Finalizer
 }
 
-// NewReconciler returns a Reconciler of InfrastructureDefinitions.
+// NewReconciler returns a Reconciler of CompositeResourceDefinitions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
-	rd := func(d *v1alpha1.InfrastructureDefinition) (*v1beta1.CustomResourceDefinition, error) {
-		return ccrd.New(ccrd.ForInfrastructureDefinition(d))
+	rd := func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
+		return ccrd.New(ccrd.ForCompositeResourceDefinition(d))
 	}
 
 	r := &Reconciler{
@@ -209,7 +209,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	return r
 }
 
-// A Reconciler reconciles InfrastructureDefinitions.
+// A Reconciler reconciles CompositeResourceDefinitions.
 type Reconciler struct {
 	client resource.ClientApplicator
 	mgr    manager.Manager
@@ -221,10 +221,10 @@ type Reconciler struct {
 }
 
 // TODO(muvaf,negz): Consider deduplicating this Reconciler with the
-// InfrastructurePublication and (as yet unwritten) ApplicationDefinition
+// CompositeResourcePublication and (as yet unwritten) ApplicationDefinition
 // reconcilers.
 
-// Reconcile an InfrastructureDefinition.
+// Reconcile an CompositeResourceDefinition.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
 	// complexity goal. Be wary when adding branches, and look for functionality
@@ -236,13 +236,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	d := &v1alpha1.InfrastructureDefinition{}
+	d := &v1alpha1.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
 		// don't need to take any action in that case.
-		log.Debug(errGetInfraDef, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetInfraDef)
+		log.Debug(errGetXRD, "error", err)
+		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
 
 	log = log.WithValues(
@@ -263,7 +263,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if meta.WasDeleted(d) {
 		d.Status.SetConditions(v1alpha1.Deleting())
-		r.record.Event(d, event.Normal(reasonDeleteDef, "Deleting InfrastructureDefinition"))
+		r.record.Event(d, event.Normal(reasonDeleteDef, "Deleting CompositeResourceDefinition"))
 
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
@@ -293,11 +293,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 			// We're all done deleting and have removed our finalizer. There's
 			// no need to requeue because there's nothing left to do.
-			r.record.Event(d, event.Normal(reasonDeleteDef, "Successfully deleted InfrastructureDefinition"))
+			r.record.Event(d, event.Normal(reasonDeleteDef, "Successfully deleted CompositeResourceDefinition"))
 			return reconcile.Result{Requeue: false}, nil
 		}
 
-		// NOTE(muvaf): When user deletes InfrastructureDefinition object the
+		// NOTE(muvaf): When user deletes CompositeResourceDefinition object the
 		// deletion signal does not cascade to the owned resource until owner is
 		// gone. But owner has its own finalizer that depends on having no
 		// instance of the CRD because it cannot go away before stopping the
@@ -375,7 +375,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, recorder),
-			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind), recorder),
+			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind), recorder),
 			composite.NewAPILabelSelectorResolver(r.client),
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),

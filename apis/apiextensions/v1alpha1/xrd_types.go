@@ -26,8 +26,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// InfrastructureDefinitionSpec specifies the desired state of the definition.
-type InfrastructureDefinitionSpec struct {
+// CompositeResourceDefinitionSpec specifies the desired state of the definition.
+type CompositeResourceDefinitionSpec struct {
 
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end
 	// user of the defined kind.
@@ -117,39 +117,39 @@ type CustomResourceValidation struct {
 	OpenAPIV3Schema runtime.RawExtension `json:"openAPIV3Schema,omitempty"`
 }
 
-// InfrastructureDefinitionStatus shows the observed state of the definition.
-type InfrastructureDefinitionStatus struct {
+// CompositeResourceDefinitionStatus shows the observed state of the definition.
+type CompositeResourceDefinitionStatus struct {
 	v1alpha1.ConditionedStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
 
-// An InfrastructureDefinition defines a new kind of composite infrastructure
+// An CompositeResourceDefinition defines a new kind of composite infrastructure
 // resource. The new resource is composed of other composite or managed
 // infrastructure resources.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
-type InfrastructureDefinition struct {
+type CompositeResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InfrastructureDefinitionSpec   `json:"spec,omitempty"`
-	Status InfrastructureDefinitionStatus `json:"status,omitempty"`
+	Spec   CompositeResourceDefinitionSpec   `json:"spec,omitempty"`
+	Status CompositeResourceDefinitionStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// InfrastructureDefinitionList contains a list of InfrastructureDefinitions.
-type InfrastructureDefinitionList struct {
+// CompositeResourceDefinitionList contains a list of CompositeResourceDefinitions.
+type CompositeResourceDefinitionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []InfrastructureDefinition `json:"items"`
+	Items           []CompositeResourceDefinition `json:"items"`
 }
 
 // GetDefinedGroupVersionKind returns the schema.GroupVersionKind of the CRD that this
-// InfrastructureDefinition instance will define.
-func (in InfrastructureDefinition) GetDefinedGroupVersionKind() schema.GroupVersionKind {
+// CompositeResourceDefinition instance will define.
+func (in CompositeResourceDefinition) GetDefinedGroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   in.Spec.CRDSpecTemplate.Group,
 		Version: in.Spec.CRDSpecTemplate.Version,
@@ -159,6 +159,6 @@ func (in InfrastructureDefinition) GetDefinedGroupVersionKind() schema.GroupVers
 
 // GetConnectionSecretKeys returns the set of allowed keys to filter the connection
 // secret.
-func (in *InfrastructureDefinition) GetConnectionSecretKeys() []string {
+func (in *CompositeResourceDefinition) GetConnectionSecretKeys() []string {
 	return in.Spec.ConnectionSecretKeys
 }

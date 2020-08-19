@@ -22,39 +22,39 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// InfrastructurePublicationSpec specifies the desired state of the definition.
-type InfrastructurePublicationSpec struct {
-	// InfrastructureDefinitionReference references the InfrastructureDefinition
+// CompositeResourcePublicationSpec specifies the desired state of the definition.
+type CompositeResourcePublicationSpec struct {
+	// CompositeResourceDefinitionReference references the CompositeResourceDefinition
 	// that should be published.
-	InfrastructureDefinitionReference v1alpha1.Reference `json:"infrastructureDefinitionRef"`
+	CompositeResourceDefinitionReference v1alpha1.Reference `json:"infrastructureDefinitionRef"`
 }
 
-// InfrastructurePublicationStatus shows the observed state of the definition.
-type InfrastructurePublicationStatus struct {
+// CompositeResourcePublicationStatus shows the observed state of the definition.
+type CompositeResourcePublicationStatus struct {
 	v1alpha1.ConditionedStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
 
-// An InfrastructurePublication publishes a defined kind of composite
+// An CompositeResourcePublication publishes a defined kind of composite
 // infrastructure resource. Published infrastructure resources may be bound to
 // an application via an infrastructure requirement.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
-type InfrastructurePublication struct {
+type CompositeResourcePublication struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   InfrastructurePublicationSpec   `json:"spec,omitempty"`
-	Status InfrastructurePublicationStatus `json:"status,omitempty"`
+	Spec   CompositeResourcePublicationSpec   `json:"spec,omitempty"`
+	Status CompositeResourcePublicationStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// InfrastructurePublicationList contains a list of InfrastructurePublications.
-type InfrastructurePublicationList struct {
+// CompositeResourcePublicationList contains a list of CompositeResourcePublications.
+type CompositeResourcePublicationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []InfrastructurePublication `json:"items"`
+	Items           []CompositeResourcePublication `json:"items"`
 }
