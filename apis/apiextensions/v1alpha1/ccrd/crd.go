@@ -38,10 +38,10 @@ import (
 // The kind of a published infrastructure resource is the kind of the defined
 // infrastructure resource combined with these suffixes.
 const (
-	PublishedInfrastructureSuffixKind     = "Requirement"
-	PublishedInfrastructureSuffixListKind = "RequirementList"
-	PublishedInfrastructureSuffixSingular = "requirement"
-	PublishedInfrastructureSuffixPlural   = "requirements"
+	PublishedInfrastructureSuffixKind     = "Claim"
+	PublishedInfrastructureSuffixListKind = "ClaimList"
+	PublishedInfrastructureSuffixSingular = "claim"
+	PublishedInfrastructureSuffixPlural   = "claims"
 )
 
 const (
@@ -97,7 +97,7 @@ func ForCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition) Opt
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
-		crd.Spec.AdditionalPrinterColumns = InfrastructurePrinterColumns()
+		crd.Spec.AdditionalPrinterColumns = CompositeResourcePrinterColumns()
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
@@ -108,10 +108,10 @@ func ForCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition) Opt
 		}
 
 		crd.Spec.Scope = v1beta1.ClusterScoped
-		for k, v := range DefinedInfrastructureSpecProps() {
+		for k, v := range CompositeResourceSpecProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		for k, v := range InfrastructureStatusProps() {
+		for k, v := range CompositeResourceStatusProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 
@@ -141,7 +141,7 @@ func PublishesCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinitio
 			Singular: spec.Names.Singular + PublishedInfrastructureSuffixSingular,
 			Plural:   spec.Names.Singular + PublishedInfrastructureSuffixPlural,
 		}
-		crd.Spec.AdditionalPrinterColumns = RequirementPrinterColumns()
+		crd.Spec.AdditionalPrinterColumns = CompositeResourceClaimPrinterColumns()
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
@@ -151,10 +151,10 @@ func PublishesCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinitio
 		}
 
 		crd.Spec.Scope = v1beta1.NamespaceScoped
-		for k, v := range PublishedInfrastructureSpecProps() {
+		for k, v := range CompositeResourceClaimSpecProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		for k, v := range InfrastructureStatusProps() {
+		for k, v := range CompositeResourceStatusProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 

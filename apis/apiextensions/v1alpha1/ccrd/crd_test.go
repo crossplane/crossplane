@@ -173,7 +173,7 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 									},
 								},
 
-								// From DefinedInfrastructureSpecProps()
+								// From CompositeResourceSpecProps()
 								"compositionRef": {
 									Type:     "object",
 									Required: []string{"name"},
@@ -194,7 +194,7 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 										},
 									},
 								},
-								"requirementRef": {
+								"claimRef": {
 									Type:     "object",
 									Required: []string{"name", "namespace"},
 									Properties: map[string]v1beta1.JSONSchemaProps{
@@ -231,7 +231,7 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 							Type: "object",
 							Properties: map[string]v1beta1.JSONSchemaProps{
 
-								// From InfrastructureStatusProps()
+								// From CompositeResourceStatusProps()
 								"composedResources": {
 									Type: "integer",
 								},
@@ -396,7 +396,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 									},
 								},
 
-								// From PublishedInfrastructureSpecProps()
+								// From CompositeResourceClaimSpecProps()
 								"compositionRef": {
 									Type:     "object",
 									Required: []string{"name"},
@@ -437,7 +437,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 							Type: "object",
 							Properties: map[string]v1beta1.JSONSchemaProps{
 
-								// From InfrastructureStatusProps()
+								// From CompositeResourceStatusProps()
 								"composedResources": {
 									Type: "integer",
 								},

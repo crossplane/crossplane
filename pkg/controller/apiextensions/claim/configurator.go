@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package requirement
+package claim
 
 import (
 	"context"
@@ -24,18 +24,17 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/requirement"
 
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
 // Configure the supplied composite resource. The composite resource name is
-// derived from the supplied requirement, as {name}-{random-string}.
-// The requirement's external name annotation, if any, is propagated to the
-// composite resource.
-func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite) error {
-	urq, ok := rq.(*requirement.Unstructured)
+// derived from the supplied claim, as {name}-{random-string}. The claim's
+// external name annotation, if any, is propagated to the composite resource.
+func Configure(_ context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
 	}
@@ -50,23 +49,23 @@ func Configure(_ context.Context, rq resource.Requirement, cp resource.Composite
 	// prone. Note that deleting these keys isn't always necessary; the CRD will
 	// drop them if preserveUnknownFields is false, but that is not the default
 	// for pre-v1 CRDs.
-	i, _ := fieldpath.Pave(urq.Object).GetValue("spec")
+	i, _ := fieldpath.Pave(ucm.Object).GetValue("spec")
 	spec, ok := i.(map[string]interface{})
 	if !ok {
-		return errors.New("requirement spec was not an object")
+		return errors.New("composite resource claim spec was not an object")
 	}
 
 	// TODO(negz): Make these filtered keys constants in the ccrds package?
 	_ = fieldpath.Pave(ucp.Object).SetValue("spec", filter(spec, "resourceRef", "writeConnectionSecretToRef"))
-	meta.AddAnnotations(ucp, urq.GetAnnotations())
-	meta.AddLabels(ucp, urq.GetLabels())
-	ucp.SetGenerateName(fmt.Sprintf("%s-", rq.GetName()))
-	if meta.GetExternalName(rq) != "" {
-		meta.SetExternalName(ucp, meta.GetExternalName(rq))
+	meta.AddAnnotations(ucp, ucm.GetAnnotations())
+	meta.AddLabels(ucp, ucm.GetLabels())
+	ucp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+	if meta.GetExternalName(cm) != "" {
+		meta.SetExternalName(ucp, meta.GetExternalName(cm))
 	}
 	meta.AddLabels(ucp, map[string]string{
-		composed.LabelKeyRequirementName:      rq.GetName(),
-		composed.LabelKeyRequirementNamespace: rq.GetNamespace(),
+		composed.LabelKeyClaimName:      cm.GetName(),
+		composed.LabelKeyClaimNamespace: cm.GetNamespace(),
 	})
 	return nil
 }

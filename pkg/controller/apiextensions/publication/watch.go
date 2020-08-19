@@ -31,42 +31,42 @@ type adder interface {
 	Add(item interface{})
 }
 
-// EnqueueRequestForRequirement enqueues a reconcile.Request for the
-// NamespacedName of a RequirementReferencer's RequirementReference.
-type EnqueueRequestForRequirement struct{}
+// EnqueueRequestForClaim enqueues a reconcile.Request for the
+// NamespacedName of a ClaimReferencer's ClaimReference.
+type EnqueueRequestForClaim struct{}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is a
-// RequirementReferencer.
-func (e *EnqueueRequestForRequirement) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	addRequirement(evt.Object, q)
+// ClaimReferencer.
+func (e *EnqueueRequestForClaim) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	addClaim(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
-// RequirementReferencers.
-func (e *EnqueueRequestForRequirement) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	addRequirement(evt.ObjectOld, q)
-	addRequirement(evt.ObjectNew, q)
+// ClaimReferencers.
+func (e *EnqueueRequestForClaim) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	addClaim(evt.ObjectOld, q)
+	addClaim(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
-// RequirementReferencer.
-func (e *EnqueueRequestForRequirement) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	addRequirement(evt.Object, q)
+// ClaimReferencer.
+func (e *EnqueueRequestForClaim) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	addClaim(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
-// a RequirementReferencer.
-func (e *EnqueueRequestForRequirement) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	addRequirement(evt.Object, q)
+// a ClaimReferencer.
+func (e *EnqueueRequestForClaim) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	addClaim(evt.Object, q)
 }
 
-func addRequirement(obj runtime.Object, queue adder) {
+func addClaim(obj runtime.Object, queue adder) {
 	u, ok := obj.(*unstructured.Unstructured)
 	if !ok || u == nil {
 		return
 	}
 	cp := &composite.Unstructured{Unstructured: *u}
-	if cp.GetRequirementReference() != nil {
-		queue.Add(reconcile.Request{NamespacedName: meta.NamespacedNameOf(cp.GetRequirementReference())})
+	if cp.GetClaimReference() != nil {
+		queue.Add(reconcile.Request{NamespacedName: meta.NamespacedNameOf(cp.GetClaimReference())})
 	}
 }

@@ -45,7 +45,7 @@ import (
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1/ccrd"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/requirement"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/claim"
 )
 
 const (
@@ -202,7 +202,7 @@ func WithFinalizer(f Finalizer) ReconcilerOption {
 }
 
 // WithControllerEngine specifies how the Reconciler should manage the
-// lifecycles of requirement controllers.
+// lifecycles of claim controllers.
 func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.publication.ControllerEngine = c
@@ -343,7 +343,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// It's likely that we've already stopped this controller on a
 			// previous reconcile, but we try again just in case. This is a
 			// no-op if the controller was already stopped.
-			r.publication.Stop(requirement.ControllerName(p.GetName()))
+			r.publication.Stop(claim.ControllerName(p.GetName()))
 
 			if err := r.publication.RemoveFinalizer(ctx, d, p); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
@@ -372,7 +372,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// controller has a chance to execute its cleanup logic, if any.
 		if len(l.Items) > 0 {
 			// TODO(negz): DeleteAllOf does not work here, despite working in
-			// the definition controller. Could this be due to requirements
+			// the definition controller. Could this be due to claims
 			// being namespaced rather than cluster scoped?
 			for i := range l.Items {
 				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
@@ -394,7 +394,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		// The controller should be stopped before the deletion of CRD so that
 		// it doesn't crash.
-		r.publication.Stop(requirement.ControllerName(p.GetName()))
+		r.publication.Stop(claim.ControllerName(p.GetName()))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
@@ -406,8 +406,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue after
 		// a tiny wait just in case the CRD isn't gone after the first requeue.
-		log.Debug("Stopped requirement controller and deleted CustomResourceDefinition")
-		r.record.Event(p, event.Normal(reasonDeletePub, "Stopped requirement controller and deleted CustomResourceDefinition"))
+		log.Debug("Stopped claim controller and deleted CustomResourceDefinition")
+		r.record.Event(p, event.Normal(reasonDeletePub, "Stopped claim controller and deleted CustomResourceDefinition"))
 		p.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
@@ -415,10 +415,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// Note that we add a finalizer to the CompositeResourceDefinition that we
 	// publish. Infrastructure cannot be published without first being defined.
 	// If the CompositeResourceDefinition is deleted nothing is reconciling the
-	// composite associated with the requirement we publish. The definition does
-	// not strictly own the publication, but we might consider making the
-	// definition an owner of the publication so that the publication is deleted
-	// when its corresponding definition is deleted.
+	// composite associated with the claim we offer. The definition does not
+	// strictly own the publication, but we might consider making the definition
+	// an owner of the publication so that the publication is deleted when its
+	// corresponding definition is deleted.
 	if err := r.publication.AddFinalizer(ctx, d, p); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		r.record.Event(p, event.Warning(reasonApplyPub, err))
@@ -440,22 +440,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	o := kcontroller.Options{Reconciler: requirement.NewReconciler(r.mgr,
-		resource.RequirementKind(Published(d.GetDefinedGroupVersionKind())),
+	o := kcontroller.Options{Reconciler: claim.NewReconciler(r.mgr,
+		resource.CompositeClaimKind(Published(d.GetDefinedGroupVersionKind())),
 		resource.CompositeKind(d.GetDefinedGroupVersionKind()),
-		requirement.WithLogger(log.WithValues("controller", requirement.ControllerName(p.GetName()))),
-		requirement.WithRecorder(r.record.WithAnnotations("controller", requirement.ControllerName(p.GetName()))),
+		claim.WithLogger(log.WithValues("controller", claim.ControllerName(p.GetName()))),
+		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(p.GetName()))),
 	)}
 
-	rq := &kunstructured.Unstructured{}
-	rq.SetGroupVersionKind(Published(d.GetDefinedGroupVersionKind()))
+	cm := &kunstructured.Unstructured{}
+	cm.SetGroupVersionKind(Published(d.GetDefinedGroupVersionKind()))
 
 	cp := &kunstructured.Unstructured{}
 	cp.SetGroupVersionKind(d.GetDefinedGroupVersionKind())
 
-	if err := r.publication.Start(requirement.ControllerName(p.GetName()), o,
-		controller.For(rq, &handler.EnqueueRequestForObject{}),
-		controller.For(cp, &EnqueueRequestForRequirement{}),
+	if err := r.publication.Start(claim.ControllerName(p.GetName()), o,
+		controller.For(cm, &handler.EnqueueRequestForObject{}),
+		controller.For(cp, &EnqueueRequestForClaim{}),
 	); err != nil {
 		log.Debug(errStartController, "error", err)
 		r.record.Event(p, event.Warning(reasonApplyPub, err))
@@ -465,7 +465,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	p.Status.SetConditions(v1alpha1.Started())
 	p.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	r.record.Event(p, event.Normal(reasonApplyPub, "Applied CustomResourceDefinition and (re)started requirement controller"))
+	r.record.Event(p, event.Normal(reasonApplyPub, "Applied CustomResourceDefinition and (re)started claim controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 }
 

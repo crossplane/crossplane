@@ -30,7 +30,7 @@ import (
 )
 
 var (
-	_ handler.EventHandler = &EnqueueRequestForRequirement{}
+	_ handler.EventHandler = &EnqueueRequestForClaim{}
 )
 
 type addFn func(item interface{})
@@ -39,7 +39,7 @@ func (fn addFn) Add(item interface{}) {
 	fn(item)
 }
 
-func TestAddRequirement(t *testing.T) {
+func TestAddClaim(t *testing.T) {
 	ns := "coolns"
 	name := "coolname"
 
@@ -50,14 +50,14 @@ func TestAddRequirement(t *testing.T) {
 		"ObjectIsNotAComposite": {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"ObjectHasNilRequirementReference": {
+		"ObjectHasNilClaimReference": {
 			obj:   composite.New(),
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
-		"ObjectHasRequirementReference": {
+		"ObjectHasClaimReference": {
 			obj: func() runtime.Object {
 				cp := composite.New()
-				cp.SetRequirementReference(&corev1.ObjectReference{Namespace: ns, Name: name})
+				cp.SetClaimReference(&corev1.ObjectReference{Namespace: ns, Name: name})
 				return &cp.Unstructured
 			}(),
 			queue: addFn(func(got interface{}) {
@@ -70,6 +70,6 @@ func TestAddRequirement(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		addRequirement(tc.obj, tc.queue)
+		addClaim(tc.obj, tc.queue)
 	}
 }

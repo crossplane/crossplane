@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package requirement
+package claim
 
 import (
 	"context"
@@ -29,11 +29,11 @@ import (
 
 // Error strings.
 const (
-	errCreateComposite   = "cannot create composite resource"
-	errUpdateRequirement = "cannot update resource requirement"
-	errUpdateComposite   = "cannot update composite resource"
-	errDeleteComposite   = "cannot delete composite resource"
-	errBindConflict      = "cannot bind composite resource that references a different requirement"
+	errCreateComposite = "cannot create composite resource"
+	errUpdateClaim     = "cannot update composite resource claim"
+	errUpdateComposite = "cannot update composite resource"
+	errDeleteComposite = "cannot delete composite resource"
+	errBindConflict    = "cannot bind composite resource that references a different claim"
 )
 
 // An APICompositeCreator creates resources by submitting them to a Kubernetes
@@ -51,10 +51,10 @@ func NewAPICompositeCreator(c client.Client, t runtime.ObjectTyper) *APIComposit
 // TODO(negz): We should render and patch a composite resource on each
 // reconcile, rather than just creating it once.
 
-// Create the supplied composite using the supplied requirement.
-func (a *APICompositeCreator) Create(ctx context.Context, rq resource.Requirement, cp resource.Composite) error {
+// Create the supplied composite using the supplied claim.
+func (a *APICompositeCreator) Create(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 
-	cp.SetRequirementReference(meta.ReferenceTo(rq, resource.MustGetKind(rq, a.typer)))
+	cp.SetClaimReference(meta.ReferenceTo(cm, resource.MustGetKind(cm, a.typer)))
 	if err := a.client.Create(ctx, cp); err != nil {
 		return errors.Wrap(err, errCreateComposite)
 	}
@@ -62,9 +62,9 @@ func (a *APICompositeCreator) Create(ctx context.Context, rq resource.Requiremen
 	// resource is calculated during the creation of the resource. So, we
 	// can generate a complete reference only after the creation.
 	cpr := meta.ReferenceTo(cp, resource.MustGetKind(cp, a.typer))
-	rq.SetResourceReference(cpr)
+	cm.SetResourceReference(cpr)
 
-	return errors.Wrap(a.client.Update(ctx, rq), errUpdateRequirement)
+	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
 
 // An APICompositeDeleter deletes composite resources from the API server.
@@ -78,14 +78,13 @@ func NewAPICompositeDeleter(c client.Client) *APICompositeDeleter {
 }
 
 // Delete the supplied composite resource from the API server.
-func (a *APICompositeDeleter) Delete(ctx context.Context, _ resource.Requirement, cp resource.Composite) error {
+func (a *APICompositeDeleter) Delete(ctx context.Context, _ resource.CompositeClaim, cp resource.Composite) error {
 	return errors.Wrap(resource.IgnoreNotFound(a.client.Delete(ctx, cp)), errDeleteComposite)
 }
 
-// An APIBinder binds requirements to composites by updating them in a
-// Kubernetes API server. Note that APIBinder does not support objects that do
-// not use the status subresource; such objects should use
-// APIBinder.
+// An APIBinder binds claims to composites by updating them in a Kubernetes API
+// server. Note that APIBinder does not support objects that do not use the
+// status subresource; such objects should use APIBinder.
 type APIBinder struct {
 	client client.Client
 	typer  runtime.ObjectTyper
@@ -96,16 +95,16 @@ func NewAPIBinder(c client.Client, t runtime.ObjectTyper) *APIBinder {
 	return &APIBinder{client: c, typer: t}
 }
 
-// Bind the supplied requirement to the supplied composite.
-func (a *APIBinder) Bind(ctx context.Context, rq resource.Requirement, cp resource.Composite) error {
-	existing := cp.GetRequirementReference()
-	proposed := meta.ReferenceTo(rq, resource.MustGetKind(rq, a.typer))
+// Bind the supplied claim to the supplied composite.
+func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+	existing := cp.GetClaimReference()
+	proposed := meta.ReferenceTo(cm, resource.MustGetKind(cm, a.typer))
 
 	if existing != nil && (existing.Namespace != proposed.Namespace || existing.Name != proposed.Name) {
 		return errors.New(errBindConflict)
 	}
 
-	cp.SetRequirementReference(proposed)
+	cp.SetClaimReference(proposed)
 	if err := a.client.Update(ctx, cp); err != nil {
 		return errors.Wrap(err, errUpdateComposite)
 	}
@@ -114,7 +113,7 @@ func (a *APIBinder) Bind(ctx context.Context, rq resource.Requirement, cp resour
 		return nil
 	}
 
-	// Propagate back the final name of the composite resource to the requirement.
-	meta.SetExternalName(rq, meta.GetExternalName(cp))
-	return errors.Wrap(a.client.Update(ctx, rq), errUpdateRequirement)
+	// Propagate back the final name of the composite resource to the claim.
+	meta.SetExternalName(cm, meta.GetExternalName(cp))
+	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }

@@ -14,5 +14,5 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package requirement provides a resource requirement reconciler.
-package requirement
+// Package claim provides a composite resource claim reconciler.
+package claim

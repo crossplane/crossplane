@@ -210,14 +210,14 @@ spec:
           type: object
         status:
           description: A ResourceClaimStatus represents the observed status of a resource
-            claim.
+            claim. Deprecated. See https://github.com/crossplane/crossplane/issues/1670
           properties:
             bindingPhase:
               description: Phase represents the binding phase of a managed resource
                 or claim. Unbindable resources cannot be bound, typically because
                 they are currently unavailable, or still being created. Unbound resource
                 are available for binding, and Bound resources have successfully bound
-                to another resource.
+                to another resource. Deprecated. See https://github.com/crossplane/crossplane/issues/1670
               enum:
               - Unbindable
               - Unbound

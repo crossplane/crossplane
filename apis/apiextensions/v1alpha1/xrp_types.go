@@ -38,7 +38,7 @@ type CompositeResourcePublicationStatus struct {
 
 // An CompositeResourcePublication publishes a defined kind of composite
 // infrastructure resource. Published infrastructure resources may be bound to
-// an application via an infrastructure requirement.
+// an application via a composite resource claim.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
