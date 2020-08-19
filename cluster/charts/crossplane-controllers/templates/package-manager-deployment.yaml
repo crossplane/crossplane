@@ -74,6 +74,9 @@ spec:
               fieldPath: metadata.namespace
         resources:
           {{- toYaml .Values.resourcesPackageManager | nindent 12 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       {{- if .Values.hostedConfig.enabled }}
         volumeMounts:
           - mountPath: /var/run/secrets/tenant

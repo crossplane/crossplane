@@ -39,6 +39,9 @@ spec:
         name: {{ .Chart.Name }}
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
       {{- if .Values.hostedConfig.enabled }}
         env:
           - name: KUBERNETES_SERVICE_HOST
