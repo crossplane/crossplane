@@ -17,8 +17,9 @@ DEFAULT_NAMESPACE="crossplane-system"
 function copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
+    local kind_name=$3
     docker tag "${build_image}" "${final_image}"
-    kind load docker-image "${final_image}"
+    kind --name "${kind_name}" load docker-image "${final_image}"
     echo "Tagged image: ${final_image}"
 }
 
@@ -40,26 +41,26 @@ function check_context() {
 
 # configure kind
 KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.15.11@sha256:6cc31f3533deb138792db2c7d1ffc36f7456a06f1db5556ad3b6927641016f50"}
-
+KIND_NAME=${KIND_NAME:-"kind"}
 case "${1:-}" in
   up)
-    kind create cluster --image "${KUBE_IMAGE}" --wait 5m
+    kind create cluster --name "${KIND_NAME}" --image "${KUBE_IMAGE}" --wait 5m
 
     # We'll use locally cached image instead of having it downloaded by kind
     # cluster.
     docker pull "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
-    copy_image_to_cluster "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
+    copy_image_to_cluster "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "${KIND_NAME}"
 
     kubectl apply -f ${scriptdir}/helm-rbac.yaml
     ${HELM} init --service-account tiller
     kubectl -n kube-system rollout status deploy/tiller-deploy
 
-    copy_image_to_cluster ${BUILD_IMAGE} ${DEPLOYMENT_IMAGE}
+    copy_image_to_cluster ${BUILD_IMAGE} ${DEPLOYMENT_IMAGE} "${KIND_NAME}"
     ;;
   update)
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} ${DEPLOYMENT_IMAGE}
-    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
+    copy_image_to_cluster ${BUILD_IMAGE} ${DEPLOYMENT_IMAGE} "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
     ;;
   restart)
     if check_context; then
@@ -73,7 +74,7 @@ case "${1:-}" in
   helm-install)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package(s) into \"$ns\" namespace"
@@ -82,7 +83,7 @@ case "${1:-}" in
   helm-upgrade)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
     ${HELM} upgrade ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
     ;;
   helm-delete)
@@ -93,7 +94,7 @@ case "${1:-}" in
     ${HELM} list ${PROJECT_NAME} --all
     ;;
   clean)
-    kind delete cluster
+    kind --name "${KIND_NAME}" delete cluster
     ;;
   *)
     echo "usage:" >&2
