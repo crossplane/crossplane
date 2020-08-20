@@ -22,14 +22,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/definition"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/publication"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/offered"
 )
 
 // Setup workload controllers.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	for _, setup := range []func(ctrl.Manager, logging.Logger) error{
 		definition.Setup,
-		publication.Setup,
+		offered.Setup,
 	} {
 		if err := setup(mgr, l); err != nil {
 			return err

@@ -634,7 +634,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.CompositeResourceDefinition{}
-								want.Status.SetConditions(v1alpha1.Started())
+								want.Status.SetConditions(v1alpha1.WatchingComposite())
 								want.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 								if diff := cmp.Diff(want, o); diff != "" {

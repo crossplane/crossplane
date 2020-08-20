@@ -272,13 +272,13 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(ForCompositeResourceDefinition(d))
+	got, err := New(ForCompositeResource(d))
 	if err != nil {
-		t.Fatalf("New(ForCompositeResourceDefinition(...): %s", err)
+		t.Fatalf("New(ForCompositeResource(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(ForCompositeResourceDefinition(...): -want, +got:\n%s", diff)
+		t.Errorf("New(ForCompositeResource(...): -want, +got:\n%s", diff)
 	}
 }
 
@@ -289,21 +289,19 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 
 	group := "example.org"
 	version := "v1alpha1"
+
 	kind := "CoolComposite"
 	listKind := "CoolCompositeList"
 	singular := "coolcomposite"
 	plural := "coolcomposites"
 
+	claimKind := "CoolClaim"
+	claimListKind := "CoolClaimList"
+	claimSingular := "coolclaim"
+	claimPlural := "coolclaims"
+
 	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	p := &v1alpha1.CompositeResourcePublication{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Labels:      labels,
-			Annotations: annotations,
-			UID:         types.UID("you-you-eye-dee"),
-		},
-	}
 	d := &v1alpha1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
@@ -312,6 +310,12 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 			UID:         types.UID("you-you-eye-dee"),
 		},
 		Spec: v1alpha1.CompositeResourceDefinitionSpec{
+			ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+				Plural:   claimPlural,
+				Singular: claimSingular,
+				Kind:     claimKind,
+				ListKind: claimListKind,
+			},
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
@@ -330,7 +334,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 
 	want := &v1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        singular + PublishedInfrastructureSuffixPlural + "." + group,
+			Name:        claimPlural + "." + group,
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
@@ -341,10 +345,10 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 			Group:   group,
 			Version: version,
 			Names: v1beta1.CustomResourceDefinitionNames{
-				Plural:   singular + PublishedInfrastructureSuffixPlural,
-				Singular: singular + PublishedInfrastructureSuffixSingular,
-				Kind:     kind + PublishedInfrastructureSuffixKind,
-				ListKind: kind + PublishedInfrastructureSuffixListKind,
+				Plural:   claimPlural,
+				Singular: claimSingular,
+				Kind:     claimKind,
+				ListKind: claimListKind,
 			},
 			Scope:                 v1beta1.NamespaceScoped,
 			PreserveUnknownFields: pointer.BoolPtr(false),
@@ -478,12 +482,12 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(PublishesCompositeResourceDefinition(d, p))
+	got, err := New(ForCompositeResourceClaim(d))
 	if err != nil {
-		t.Fatalf("New(PublishesCompositeResourceDefinition(...): %s", err)
+		t.Fatalf("New(ForCompositeResourceClaim(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(PublishesCompositeResourceDefinition(...): -want, +got:\n%s", diff)
+		t.Errorf("New(ForCompositeResourceClaim(...): -want, +got:\n%s", diff)
 	}
 }

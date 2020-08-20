@@ -35,15 +35,6 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
-// The kind of a published infrastructure resource is the kind of the defined
-// infrastructure resource combined with these suffixes.
-const (
-	PublishedInfrastructureSuffixKind     = "Claim"
-	PublishedInfrastructureSuffixListKind = "ClaimList"
-	PublishedInfrastructureSuffixSingular = "claim"
-	PublishedInfrastructureSuffixPlural   = "claims"
-)
-
 const (
 	errNewSpec         = "cannot generate CustomResourceDefinition from crdSpecTemplate"
 	errParseValidation = "cannot parse validation schema"
@@ -82,9 +73,9 @@ func New(o ...Option) (*v1beta1.CustomResourceDefinition, error) {
 	return crd, nil
 }
 
-// ForCompositeResourceDefinition configures the CustomResourceDefinition for the
-// supplied CompositeResourceDefinition.
-func ForCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition) Option {
+// ForCompositeResource derives the CustomResourceDefinition for a composite
+// resource from the supplied CompositeResourceDefinition.
+func ForCompositeResource(d *v1alpha1.CompositeResourceDefinition) Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
 		if err != nil {
@@ -119,27 +110,27 @@ func ForCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition) Opt
 	}
 }
 
-// PublishesCompositeResourceDefinition configures the CustomResourceDefinition
-// that publishes the supplied CompositeResourceDefinition.
-func PublishesCompositeResourceDefinition(d *v1alpha1.CompositeResourceDefinition, p *v1alpha1.CompositeResourcePublication) Option {
+// ForCompositeResourceClaim derives the CustomResourceDefinition for a
+// composite resource claim from the supplied CompositeResourceDefinition.
+func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
 		if err != nil {
 			return errors.Wrap(err, errNewSpec)
 		}
 
-		crd.SetName(spec.Names.Singular + PublishedInfrastructureSuffixPlural + "." + spec.Group)
-		crd.SetLabels(p.GetLabels())
-		crd.SetAnnotations(p.GetAnnotations())
+		crd.SetName(d.Spec.ClaimNames.Plural + "." + spec.Group)
+		crd.SetLabels(d.GetLabels())
+		crd.SetAnnotations(d.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(p, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
 
 		crd.Spec.Names = v1beta1.CustomResourceDefinitionNames{
-			Kind:     spec.Names.Kind + PublishedInfrastructureSuffixKind,
-			ListKind: spec.Names.Kind + PublishedInfrastructureSuffixListKind,
-			Singular: spec.Names.Singular + PublishedInfrastructureSuffixSingular,
-			Plural:   spec.Names.Singular + PublishedInfrastructureSuffixPlural,
+			Kind:     d.Spec.ClaimNames.Kind,
+			ListKind: d.Spec.ClaimNames.ListKind,
+			Singular: d.Spec.ClaimNames.Singular,
+			Plural:   d.Spec.ClaimNames.Plural,
 		}
 		crd.Spec.AdditionalPrinterColumns = CompositeResourceClaimPrinterColumns()
 

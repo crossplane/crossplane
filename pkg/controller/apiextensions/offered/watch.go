@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package publication
+package offered
 
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -24,8 +24,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
+
+// OffersClaim accepts objects that are a CompositeResourceDefinition and offer
+// a composite resource claim.
+func OffersClaim() resource.PredicateFn {
+	return func(obj runtime.Object) bool {
+		d, ok := obj.(*v1alpha1.CompositeResourceDefinition)
+		if !ok {
+			return false
+		}
+		return d.OffersClaim()
+	}
+}
 
 type adder interface {
 	Add(item interface{})

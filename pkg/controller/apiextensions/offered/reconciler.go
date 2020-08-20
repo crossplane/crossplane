@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package definition
+package offered
 
 import (
 	"context"
@@ -23,7 +23,6 @@ import (
 
 	"github.com/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -44,34 +43,38 @@ import (
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1/ccrd"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/pkg/controller/apiextensions/claim"
 )
 
 const (
+	// TODO(negz): Use exponential backoff instead of RetryAfter durations.
 	tinyWait  = 3 * time.Second
 	shortWait = 30 * time.Second
 
-	timeout        = 2 * time.Minute
+	timeout        = 1 * time.Minute
 	maxConcurrency = 5
-	finalizer      = "defined.apiextensions.crossplane.io"
+	finalizer      = "offered.apiextensions.crossplane.io"
+)
 
+// Error strings.
+const (
 	errGetXRD          = "cannot get CompositeResourceDefinition"
-	errRenderCRD       = "cannot render composite resource CustomResourceDefinition"
-	errGetCRD          = "cannot get composite resource CustomResourceDefinition"
-	errApplyCRD        = "cannot apply rendered composite resource CustomResourceDefinition"
+	errRenderCRD       = "cannot render composite resource claim CustomResourceDefinition"
+	errGetCRD          = "cannot get composite resource claim CustomResourceDefinition"
+	errApplyCRD        = "cannot apply rendered composite resource claim CustomResourceDefinition"
 	errUpdateStatus    = "cannot update status of CompositeResourceDefinition"
-	errStartController = "cannot start composite resource controller"
-	errAddFinalizer    = "cannot add composite resource finalizer"
-	errRemoveFinalizer = "cannot remove composite resource finalizer"
-	errDeleteCRD       = "cannot delete composite resource CustomResourceDefinition"
-	errListCRs         = "cannot list defined composite resources"
-	errDeleteCRs       = "cannot delete defined composite resources"
+	errStartController = "cannot start composite resource claim controller"
+	errAddFinalizer    = "cannot add composite resource claim finalizer"
+	errRemoveFinalizer = "cannot remove composite resource claim finalizer"
+	errDeleteCRD       = "cannot delete composite resource claim CustomResourceDefinition"
+	errListCRs         = "cannot list defined composite resource claims"
+	errDeleteCR        = "cannot delete defined composite resource claim"
 )
 
 // Wait strings.
 const (
-	waitCRDelete     = "waiting for defined composite resources to be deleted"
-	waitCRDEstablish = "waiting for composite resource CustomResourceDefinition to be established"
+	waitCRDelete     = "waiting for defined composite resource claims to be deleted"
+	waitCRDEstablish = "waiting for composite resource claim CustomResourceDefinition to be established"
 )
 
 // Event reasons.
@@ -88,30 +91,31 @@ type ControllerEngine interface {
 	Stop(name string)
 }
 
-// A CRDRenderer renders an CompositeResourceDefinition's corresponding
+// A CRDRenderer renders an CompositeResourcePublication's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
 	Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
 }
 
-// A CRDRenderFn renders an CompositeResourceDefinition's corresponding
+// A CRDRenderFn renders an CompositeResourcePublication's corresponding
 // CustomResourceDefinition.
 type CRDRenderFn func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
 
-// Render the supplied CompositeResourceDefinition's corresponding
+// Render the supplied CompositeResourcePublication's corresponding
 // CustomResourceDefinition.
 func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
-// Setup adds a controller that reconciles ApplicationConfigurations.
+// Setup adds a controller that reconciles CompositeResourcePublications.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "defined/" + strings.ToLower(v1alpha1.CompositeResourceDefinitionGroupKind)
+	name := "offered/" + strings.ToLower(v1alpha1.CompositeResourceDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.CompositeResourceDefinition{}).
 		Owns(&v1beta1.CustomResourceDefinition{}).
+		WithEventFilter(resource.NewPredicates(OffersClaim())).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
@@ -136,26 +140,26 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 }
 
 // WithFinalizer specifies how the Reconciler should finalize
-// CompositeResourceDefinitions.
+// CompositeResourcePublications and CompositeResourceDefinitions.
 func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.Finalizer = f
+		r.claim.Finalizer = f
 	}
 }
 
 // WithControllerEngine specifies how the Reconciler should manage the
-// lifecycles of composite controllers.
+// lifecycles of claim controllers.
 func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.ControllerEngine = c
+		r.claim.ControllerEngine = c
 	}
 }
 
 // WithCRDRenderer specifies how the Reconciler should render an
-// CompositeResourceDefinition's corresponding CustomResourceDefinition.
+// CompositeResourcePublication's corresponding CustomResourceDefinition.
 func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.CRDRenderer = c
+		r.claim.CRDRenderer = c
 	}
 }
 
@@ -167,13 +171,7 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
-type definition struct {
-	CRDRenderer
-	ControllerEngine
-	resource.Finalizer
-}
-
-// NewReconciler returns a Reconciler of CompositeResourceDefinitions.
+// NewReconciler returns a Reconciler of CompositeResourcePublications.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
@@ -189,9 +187,9 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 			Applicator: resource.NewAPIPatchingApplicator(kube),
 		},
 
-		composite: definition{
+		claim: publication{
 			CRDRenderer: CRDRenderFn(func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-				return ccrd.New(ccrd.ForCompositeResource(d))
+				return ccrd.New(ccrd.ForCompositeResourceClaim(d))
 			}),
 			ControllerEngine: controller.NewEngine(mgr),
 			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
@@ -207,19 +205,24 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	return r
 }
 
-// A Reconciler reconciles CompositeResourceDefinitions.
-type Reconciler struct {
-	client resource.ClientApplicator
-	mgr    manager.Manager
+type publication struct {
+	CRDRenderer
+	ControllerEngine
+	resource.Finalizer
+}
 
-	composite definition
+// A Reconciler reconciles CompositeResourcePublications.
+type Reconciler struct {
+	mgr    manager.Manager
+	client resource.ClientApplicator
+
+	claim publication
 
 	log    logging.Logger
 	record event.Recorder
 }
 
-// Reconcile a CompositeResourceDefinition by defining a new kind of composite
-// resource and starting a controller to reconcile it.
+// Reconcile an CompositeResourcePublication.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
 	// complexity goal. Be wary when adding branches, and look for functionality
@@ -233,9 +236,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	d := &v1alpha1.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
-		// In case object is not found, most likely the object was deleted and
-		// then disappeared while the event was in the processing queue. We
-		// don't need to take any action in that case.
 		log.Debug(errGetXRD, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetXRD)
 	}
@@ -246,7 +246,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"name", d.GetName(),
 	)
 
-	crd, err := r.composite.Render(d)
+	crd, err := r.claim.Render(d)
 	if err != nil {
 		log.Debug(errRenderCRD, "error", err)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
@@ -254,14 +254,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource CustomResourceDefinition"))
+	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource claim CustomResourceDefinition"))
 
 	if meta.WasDeleted(d) {
 		d.Status.SetConditions(v1alpha1.Deleting())
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Removing support for composite resource"))
+		r.record.Event(d, event.Normal(reasonDeleteXRD, "Removing support for composite resource claim"))
 
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
+			log.Debug(errGetCRD, "error", err)
 			r.record.Event(d, event.Warning(reasonDeleteXRD, err))
 			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
@@ -277,11 +278,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// It's likely that we've already stopped this controller on a
 			// previous reconcile, but we try again just in case. This is a
 			// no-op if the controller was already stopped.
-			r.composite.Stop(composite.ControllerName(d.GetName()))
-			log.Debug("Stopped composite resource controller")
-			r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource controller"))
+			r.claim.Stop(claim.ControllerName(d.GetName()))
+			log.Debug("Stopped composite resource claim controller")
+			r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource claim controller"))
 
-			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
+			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
 				r.record.Event(d, event.Warning(reasonDeleteXRD, err))
 				d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRemoveFinalizer)))
@@ -293,22 +294,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{Requeue: false}, nil
 		}
 
-		// NOTE(muvaf): When user deletes CompositeResourceDefinition object the
-		// deletion signal does not cascade to the owned resource until owner is
-		// gone. But owner has its own finalizer that depends on having no
-		// instance of the CRD because it cannot go away before stopping the
-		// controller. So, we need to delete all instances of CRD manually here.
-		o := &kunstructured.Unstructured{}
-		o.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
-		if err := r.client.DeleteAllOf(ctx, o); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
-			log.Debug(errDeleteCRs, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, err))
-			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRs)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
-		}
-
 		l := &kunstructured.UnstructuredList{}
-		l.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+		l.SetGroupVersionKind(d.GetClaimGroupVersionKind())
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug(errListCRs, "error", err)
 			r.record.Event(d, event.Warning(reasonDeleteXRD, err))
@@ -316,9 +303,25 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
 
-		// Controller should be stopped only after all instances are gone so
-		// that deletion logic of the instances are processed by the controller.
+		// Ensure all the custom resources we defined are gone before stopping
+		// the controller we started to reconcile them. This ensures the
+		// controller has a chance to execute its cleanup logic, if any.
 		if len(l.Items) > 0 {
+			// TODO(negz): DeleteAllOf does not work here, despite working in
+			// the definition controller. Could this be due to claims being
+			// namespaced rather than cluster scoped?
+			for i := range l.Items {
+				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
+					log.Debug(errDeleteCR, "error", err)
+					r.record.Event(d, event.Warning(reasonDeleteXRD, err))
+					d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCR)))
+					return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+				}
+			}
+
+			// We requeue to confirm that all the custom resources we just
+			// deleted are actually gone. We need to requeue after a tiny wait
+			// because we won't be requeued implicitly when the CRs are deleted.
 			log.Debug(waitCRDelete)
 			r.record.Event(d, event.Normal(reasonDeleteXRD, waitCRDelete))
 			d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDelete))
@@ -327,9 +330,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		// The controller should be stopped before the deletion of CRD so that
 		// it doesn't crash.
-		r.composite.Stop(composite.ControllerName(d.GetName()))
-		log.Debug("Stopped composite resource controller")
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource controller"))
+		r.claim.Stop(claim.ControllerName(d.GetName()))
+		log.Debug("Stopped composite resource claim controller")
+		r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource claim controller"))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
@@ -337,8 +340,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 		}
-		log.Debug("Deleted composite resource CustomResourceDefinition")
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Deleted composite resource CustomResourceDefinition"))
+		log.Debug("Deleted composite resource claim CustomResourceDefinition")
+		r.record.Event(d, event.Normal(reasonDeleteXRD, "Deleted composite resource claim CustomResourceDefinition"))
 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue after
@@ -347,7 +350,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
 
-	if err := r.composite.AddFinalizer(ctx, d); err != nil {
+	if err := r.claim.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		r.record.Event(d, event.Warning(reasonApplyXRD, err))
 		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errAddFinalizer)))
@@ -360,7 +363,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errApplyCRD)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
-	r.record.Event(d, event.Normal(reasonApplyXRD, "Applied composite resource CustomResourceDefinition"))
+	r.record.Event(d, event.Normal(reasonApplyXRD, "Applied composite resource claim CustomResourceDefinition"))
 
 	if !ccrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
@@ -368,31 +371,32 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDEstablish))
 		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
-	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
-	o := kcontroller.Options{Reconciler: composite.NewReconciler(r.mgr,
+
+	o := kcontroller.Options{Reconciler: claim.NewReconciler(r.mgr,
+		resource.CompositeClaimKind(d.GetClaimGroupVersionKind()),
 		resource.CompositeKind(d.GetCompositeGroupVersionKind()),
-		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
-		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
-			composite.NewEnforcedCompositionSelector(*d, recorder),
-			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind), recorder),
-			composite.NewAPILabelSelectorResolver(r.client),
-		)),
-		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
-		composite.WithRecorder(recorder),
+		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
+		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
 	)}
 
-	u := &kunstructured.Unstructured{}
-	u.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+	cm := &kunstructured.Unstructured{}
+	cm.SetGroupVersionKind(d.GetClaimGroupVersionKind())
 
-	if err := r.composite.Start(composite.ControllerName(d.GetName()), o, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
+	cp := &kunstructured.Unstructured{}
+	cp.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
+
+	if err := r.claim.Start(claim.ControllerName(d.GetName()), o,
+		controller.For(cm, &handler.EnqueueRequestForObject{}),
+		controller.For(cp, &EnqueueRequestForClaim{}),
+	); err != nil {
 		log.Debug(errStartController, "error", err)
 		r.record.Event(d, event.Warning(reasonApplyXRD, err))
 		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errStartController)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errStartController)
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 	}
+	r.record.Event(d, event.Normal(reasonApplyXRD, "(Re)started composite resource claim controller"))
 
-	d.Status.SetConditions(v1alpha1.WatchingComposite())
+	d.Status.SetConditions(v1alpha1.WatchingClaim())
 	d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-	r.record.Event(d, event.Normal(reasonApplyXRD, "(Re)started composite resource controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

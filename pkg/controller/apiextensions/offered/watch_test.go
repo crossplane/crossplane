@@ -14,24 +14,59 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package publication
+package offered
 
 import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 var (
 	_ handler.EventHandler = &EnqueueRequestForClaim{}
 )
+
+func TestOffersClaim(t *testing.T) {
+	cases := map[string]struct {
+		obj  runtime.Object
+		want bool
+	}{
+		"NotAnXRD": {
+			want: false,
+		},
+		"DoesNotOfferClaim": {
+			obj:  &v1alpha1.CompositeResourceDefinition{},
+			want: false,
+		},
+		"OffersClaim": {
+			obj: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					// An XRD with non-nil claim names offers a claim.
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := OffersClaim()(tc.obj)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("OffersClaim(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
 
 type addFn func(item interface{})
 

@@ -45,14 +45,6 @@ var (
 	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
 )
 
-// InCompositeResourcePublication type metadata.
-var (
-	CompositeResourcePublicationKind             = reflect.TypeOf(CompositeResourcePublication{}).Name()
-	CompositeResourcePublicationGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourcePublicationKind}.String()
-	CompositeResourcePublicationKindAPIVersion   = CompositeResourcePublicationKind + "." + SchemeGroupVersion.String()
-	CompositeResourcePublicationGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourcePublicationKind)
-)
-
 // Composition type metadata.
 var (
 	CompositionKind             = reflect.TypeOf(Composition{}).Name()
@@ -63,6 +55,5 @@ var (
 
 func init() {
 	SchemeBuilder.Register(&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{})
-	SchemeBuilder.Register(&CompositeResourcePublication{}, &CompositeResourcePublicationList{})
 	SchemeBuilder.Register(&Composition{}, &CompositionList{})
 }

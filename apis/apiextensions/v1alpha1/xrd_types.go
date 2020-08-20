@@ -44,6 +44,16 @@ type CompositeResourceDefinitionSpec struct {
 	// +immutable
 	EnforcedCompositionRef *v1alpha1.Reference `json:"enforcedCompositionRef,omitempty"`
 
+	// ClaimNames specifies the names of an optional composite resource claim.
+	// When claim names are specified Crossplane will create a namespaced
+	// 'composite resource claim' CRD that corresponds to the defined composite
+	// resource. This composite resource claim acts as a namespaced proxy for
+	// the composite resource; creating, updating, or deleting the claim will
+	// create, update, or delete a corresponding composite resource. You may add
+	// claim names to an existing CompositeResourceDefinition, but they cannot
+	// be changed once they have been set.
+	ClaimNames *v1beta1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
+
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
 	// fields to the base template to accommodate Crossplane machinery.
 	CRDSpecTemplate CRDSpecTemplate `json:"crdSpecTemplate,omitempty"`
@@ -129,7 +139,7 @@ type CompositeResourceDefinitionStatus struct {
 // infrastructure resources.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
-// +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=xrd
 type CompositeResourceDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -147,13 +157,35 @@ type CompositeResourceDefinitionList struct {
 	Items           []CompositeResourceDefinition `json:"items"`
 }
 
-// GetDefinedGroupVersionKind returns the schema.GroupVersionKind of the CRD that this
-// CompositeResourceDefinition instance will define.
-func (in CompositeResourceDefinition) GetDefinedGroupVersionKind() schema.GroupVersionKind {
+// GetCompositeGroupVersionKind returns the schema.GroupVersionKind of the CRD for
+// the composite resource this CompositeResourceDefinition defines.
+func (in CompositeResourceDefinition) GetCompositeGroupVersionKind() schema.GroupVersionKind {
 	return schema.GroupVersionKind{
 		Group:   in.Spec.CRDSpecTemplate.Group,
 		Version: in.Spec.CRDSpecTemplate.Version,
 		Kind:    in.Spec.CRDSpecTemplate.Names.Kind,
+	}
+}
+
+// OffersClaim is true when a CompositeResourceDefinition offers a claim for the
+// composite resource it defines.
+func (in CompositeResourceDefinition) OffersClaim() bool {
+	return in.Spec.ClaimNames != nil
+}
+
+// GetClaimGroupVersionKind returns the schema.GroupVersionKind of the CRD for
+// the composite resource claim this CompositeResourceDefinition defines. An
+// empty GroupVersionKind is returned if the CompositeResourceDefinition does
+// not offer a claim.
+func (in CompositeResourceDefinition) GetClaimGroupVersionKind() schema.GroupVersionKind {
+	if !in.OffersClaim() {
+		return schema.GroupVersionKind{}
+	}
+
+	return schema.GroupVersionKind{
+		Group:   in.Spec.CRDSpecTemplate.Group,
+		Version: in.Spec.CRDSpecTemplate.Version,
+		Kind:    in.Spec.ClaimNames.Kind,
 	}
 }
 
