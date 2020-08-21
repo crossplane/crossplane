@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -279,6 +281,111 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("New(ForCompositeResource(...): -want, +got:\n%s", diff)
+	}
+}
+
+func TestValidateClaimNames(t *testing.T) {
+	cases := map[string]struct {
+		d    *v1alpha1.CompositeResourceDefinition
+		want error
+	}{
+		"MissingClaimNames": {
+			d:    &v1alpha1.CompositeResourceDefinition{},
+			want: errors.New(errMissingClaimNames),
+		},
+		"KindConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "a",
+							ListKind: "b",
+							Singular: "b",
+							Plural:   "b",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+		"ListKindConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "b",
+							ListKind: "a",
+							Singular: "b",
+							Plural:   "b",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+		"SingularConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "b",
+							ListKind: "b",
+							Singular: "a",
+							Plural:   "b",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+		"PluralConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "b",
+							ListKind: "b",
+							Singular: "b",
+							Plural:   "a",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := validateClaimNames(tc.d)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("validateClaimNames(...): -want, +got:\n%s", diff)
+			}
+		})
 	}
 }
 

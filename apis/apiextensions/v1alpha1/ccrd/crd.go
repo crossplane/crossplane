@@ -36,8 +36,11 @@ import (
 )
 
 const (
-	errNewSpec         = "cannot generate CustomResourceDefinition from crdSpecTemplate"
-	errParseValidation = "cannot parse validation schema"
+	errNewSpec                 = "cannot generate CustomResourceDefinition from crdSpecTemplate"
+	errParseValidation         = "cannot parse validation schema"
+	errInvalidClaimNames       = "invalid resource claim names"
+	errMissingClaimNames       = "missing names"
+	errFmtConflictingClaimName = "%q conflicts with composite resource name"
 )
 
 // NOTE(muvaf): We use v1beta1.CustomResourceDefinition for backward
@@ -119,6 +122,10 @@ func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
 			return errors.Wrap(err, errNewSpec)
 		}
 
+		if err := validateClaimNames(d); err != nil {
+			return errors.Wrap(err, errInvalidClaimNames)
+		}
+
 		crd.SetName(d.Spec.ClaimNames.Plural + "." + spec.Group)
 		crd.SetLabels(d.GetLabels())
 		crd.SetAnnotations(d.GetAnnotations())
@@ -151,6 +158,30 @@ func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
 
 		return nil
 	}
+}
+
+func validateClaimNames(d *v1alpha1.CompositeResourceDefinition) error {
+	if d.Spec.ClaimNames == nil {
+		return errors.New(errMissingClaimNames)
+	}
+
+	if n := d.Spec.ClaimNames.Kind; n == d.Spec.CRDSpecTemplate.Names.Kind {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	if n := d.Spec.ClaimNames.Plural; n == d.Spec.CRDSpecTemplate.Names.Plural {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	if n := d.Spec.ClaimNames.Singular; n != "" && n == d.Spec.CRDSpecTemplate.Names.Singular {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	if n := d.Spec.ClaimNames.ListKind; n != "" && n == d.Spec.CRDSpecTemplate.Names.ListKind {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	return nil
 }
 
 // NewSpec produces a CustomResourceDefinitionSpec from the supplied template.
