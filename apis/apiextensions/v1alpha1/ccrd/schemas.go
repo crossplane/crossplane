@@ -73,10 +73,12 @@ func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
 		},
 		"claimRef": {
 			Type:     "object",
-			Required: []string{"name", "namespace"},
+			Required: []string{"apiVersion", "kind", "namespace", "name"},
 			Properties: map[string]v1beta1.JSONSchemaProps{
-				"name":      {Type: "string"},
-				"namespace": {Type: "string"},
+				"apiVersion": {Type: "string"},
+				"kind":       {Type: "string"},
+				"namespace":  {Type: "string"},
+				"name":       {Type: "string"},
 			},
 		},
 		"resourceRefs": {
@@ -132,9 +134,11 @@ func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
 		},
 		"resourceRef": {
 			Type:     "object",
-			Required: []string{"name"},
+			Required: []string{"apiVersion", "kind", "name"},
 			Properties: map[string]v1beta1.JSONSchemaProps{
-				"name": {Type: "string"},
+				"apiVersion": {Type: "string"},
+				"kind":       {Type: "string"},
+				"name":       {Type: "string"},
 			},
 		},
 		"writeConnectionSecretToRef": {
