@@ -11,7 +11,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: network.aws.crossplane.io/v1alpha3

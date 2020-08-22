@@ -2,32 +2,30 @@
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.aws.database.example.org
+  name: compositepostgresqlinstances.alibaba.database.example.org
   labels:
-    provider: aws
+    provider: alibaba
     guide: quickstart
-    vpc: default
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
-        apiVersion: database.aws.crossplane.io/v1beta1
+        apiVersion: database.alibaba.crossplane.io/v1alpha1
         kind: RDSInstance
         spec:
           forProvider:
-            dbInstanceClass: db.t2.small
-            masterUsername: masteruser
-            engine: postgres
-            engineVersion: "9.6"
-            skipFinalSnapshotBeforeDeletion: true
-            publiclyAccessible: true
+            engine: PostgreSQL
+            engineVersion: "9.4"
+            dbInstanceClass: rds.pg.s1.small
+            securityIPList: "0.0.0.0/0"
+            masterUsername: "myuser"
           writeConnectionSecretToRef:
             namespace: crossplane-system
           providerRef:
-            name: aws-provider
+            name: alibaba-provider
           reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
@@ -37,7 +35,7 @@ spec:
               string:
                 fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.allocatedStorage"
+          toFieldPath: "spec.forProvider.dbInstanceStorageInGB"
       connectionDetails:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password

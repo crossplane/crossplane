@@ -2,7 +2,7 @@
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.azure.database.example.org
+  name: compositepostgresqlinstances.azure.database.example.org
   labels:
     provider: azure
     guide: quickstart
@@ -10,7 +10,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: azure.crossplane.io/v1alpha3

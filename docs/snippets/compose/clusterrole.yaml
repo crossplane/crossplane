@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: postgresqlinstances.database.example.org
+  name: compositepostgresqlinstances.database.example.org
   labels:
     rbac.crossplane.io/aggregate-to-crossplane: "true"
 rules:
@@ -10,7 +10,7 @@ rules:
   resources:
   - postgresqlinstances
   - postgresqlinstances/status
-  - postgresqlinstancerequirements
-  - postgresqlinstancerequirements/status
+  - compositepostgresqlinstances
+  - compositepostgresqlinstances/status
   verbs:
   - "*"

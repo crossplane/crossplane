@@ -29,8 +29,8 @@ on-demand by Crossplane.
 ![Service Tracker Diagram]
 
 > This guide follows on from the previous one in which we covered defining,
-> composing, and [publishing infrastructure]. You'll need to have defined and
-> published a PostgreSQLInstance with at least one working Composition in order
+> [composing], and offering infrastructure. You'll need to have defined and
+> offered a PostgreSQLInstance with at least one working Composition in order
 > to create the OAM application we'll use in this guide.
 
 ## Infrastructure Operator
@@ -39,11 +39,11 @@ on-demand by Crossplane.
 
 As the infrastructure operator our work is almost done - we defined, published,
 and composed the infrastructure that our application developer and operator
-teammates will use in the previous guide. One task remains, which is to define 
-the [_workloads_] and [_traits_] that our platform supports. 
- 
-OAM applications consist of workloads, each of which may be modified by traits. 
-The infrastructure operator may choose which workloads and traits by creating 
+teammates will use in the previous guide. One task remains, which is to define
+the [_workloads_] and [_traits_] that our platform supports.
+
+OAM applications consist of workloads, each of which may be modified by traits.
+The infrastructure operator may choose which workloads and traits by creating
 or deleting `WorkloadDefinitions` and `TraitDefinitions` like below:
 
 ```yaml
@@ -59,11 +59,12 @@ spec:
 apiVersion: core.oam.dev/v1alpha2
 kind: WorkloadDefinition
 metadata:
-  name: postgresqlinstancerequirements.database.example.org
+  name: postgresqlinstanceclaims.database.example.org
 spec:
   definitionRef:
-    name: postgresqlinstancerequirements.database.example.org
-``` 
+    name: postgresqlinstanceclaims.database.example.org
+```
+
 Run the following command to add support for all the workloads and traits required
 by this guide:
 
@@ -118,7 +119,7 @@ database. Under the Open Application Model application developers define
 [_components_] that application operators may compose into applications, which
 produce workloads. Creating components allows us as application developers to
 communicate any fundamental, suggested, or optional properties of our services
-and their infrastructure requirements.
+and their infrastructure claims.
 
 ```yaml
 ---
@@ -129,7 +130,7 @@ metadata:
 spec:
   workload:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstanceRequirement
+    kind: PostgreSQLInstance
     metadata:
       name: app-postgresql
     spec:
@@ -328,7 +329,7 @@ Each of the above components describes a particular kind of workload. The
 Service Tracker application consists of two kinds of workload:
 
 * A [`ContainerizedWorkload`] is a long-running containerized process.
-* A `PostSQLInstanceRequirement` is a PostgreSQL instance and database.
+* A `PostgreSQLInstance` is a PostgreSQL instance and database.
 
 All OAM components configure a kind of workload, and any kind of Kubernetes
 resource may act as an OAM workload as long as an infrastructure operator has
@@ -498,12 +499,13 @@ kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master
 ```
 
 To uninstall the Crossplane OAM Addon:
+
 ```console
 helm delete addon-oam-kubernetes-local --namespace crossplane-system
 ```
 
 [Open Application Model]: https://oam.dev/
-[publishing infrastructure]: publish-infrastructure.md
+[composing]: compose-infrastructure.md
 [Service Tracker Diagram]: run-applications-diagram.jpg
 [_workloads_]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/3.workload.md
 [_traits_]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/6.traits.md

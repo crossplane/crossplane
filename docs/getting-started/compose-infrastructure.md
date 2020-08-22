@@ -1,37 +1,35 @@
 ---
-title: Publish Infrastructure
+title: Compose Infrastructure
 toc: true
 weight: 4
 indent: true
 ---
 
-# Publish Infrastructure
+# Compose Infrastructure
 
-Provisioning infrastructure using the Kubernetes API is a powerful capability,
-but combining primitive infrastructure resources into a single unit and
-publishing them to be provisioned by developers and consumed by applications
-greatly enhances this functionality.
+In the [last section] we learned that Crossplane can be extended by installing
+_providers_, which add support for managed resources. A managed resource is a
+Kubernetes custom resource that offers a high fidelity representation of an
+infrastructure primitive, like an SQL instance or a firewall rule. Crossplane
+goes beyond simply modelling infrastructure primitives as custom resources - it
+enables you to define new custom resources with schemas of your choosing. These
+resources are composed of infrastructure primitives, allowing you to define and
+offer resources that group and abstract infrastructure primitives. We call these
+"composite resources" (XRs).
 
-As mentioned in the [last section], CRDs that represent infrastructure resources
-on a provider are installed at the *cluster scope*. However, applications are
-typically provisioned at the *namespace scope* using Kubernetes primitives such
-as `Pod` or `Deployment`. To make infrastructure resources available to be
-provisioned at the namespace scope, they can be *published*. This consists of
-creating the following resources:
+We use two special Crossplane resources to define and configure new XRs:
 
-- `InfrastructureDefinition`: defines a new kind of composite resource
-- `InfrastructurePublication`: makes an `InfrastructureDefinition` available at
-  the namespace scope
-- `Composition`: defines one or more resources and their configuration
+- A `CompositeResourceDefinition` (XRD) defines a new kind of composite
+  resource, including its schema.
+- A `Composition` specifies which managed resources a composite resource should
+  be composed of, and how they should be configured. You can create multiple
+  `Composition` options for each composite resource.
 
-In addition to making provisioning available at the namespace scope,
-[composition] also allows for multiple types of managed resources to satisfy the
-same namespace-scoped resource. In the examples below, we will define and
-publish a new `PostgreSQLInstance` resource that only takes a single `storageGB`
-parameter, and specifies that it will create a connection `Secret` with keys for
-`username`, `password`, and `endpoint`. We will then create a `Composition` for
-each provider that can satisfy and be parameterized by a `PostgreSQLInstance`.
-Let's get started!
+In the examples below, we will define a new `CompositePostgreSQLInstance` XR
+that only takes a single `storageGB` parameter, and specifies that it will
+create a connection `Secret` with keys for `username`, `password`, and
+`endpoint`. We will then create a `Composition` for each provider that can
+satisfy a `PostgreSQLInstance`. Let's get started!
 
 ## Grant RBAC Permissions
 
@@ -41,22 +39,22 @@ but you can easily run the following command now to grant all necessary RBAC
 permissions for the remainder of this quick start guide:
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/clusterrole.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/clusterrole.yaml
 ```
 
-## Create InfrastructureDefinition
+## Create CompositeResourceDefinition
 
-The next step is defining an `InfrastructureDefinition` that declares the schema
-for a `PostgreSQLInstance`. You will notice that this looks very similar to a CRD,
-and after the `InfrastructureDefinition` is created, we will in fact have a
-`PostgreSQLInstance` CRD present in our cluster.
+The next step is authoring an XRD that defines a `CompositePostgreSQLInstance`:
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructureDefinition
+kind: CompositeResourceDefinition
 metadata:
-  name: postgresqlinstances.database.example.org
+  name: compositepostgresqlinstances.database.example.org
 spec:
+  claimNames:
+    kind: PostgreSQLInstance
+    plural: postgresqlinstances
   connectionSecretKeys:
     - username
     - password
@@ -66,10 +64,8 @@ spec:
     group: database.example.org
     version: v1alpha1
     names:
-      kind: PostgreSQLInstance
-      listKind: PostgreSQLInstanceList
-      plural: postgresqlinstances
-      singular: postgresqlinstance
+      kind: CompositePostgreSQLInstance
+      plural: compositepostgresqlinstances
     validation:
       openAPIV3Schema:
         type: object
@@ -89,45 +85,41 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/definition.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/definition.yaml
 ```
 
-You are now able to create instances of kind `PostgreSQLInstance` at the cluster
-scope.
+You might notice that the above XRD specifies both "names" and "claim names".
+This is because the composite resource it defines offers a composite resource
+claim (XRC).
 
-## Create InfrastructurePublication
+Composite resources are always cluster scoped - they exist outside of any
+namespace. This allows a composite resource to represent infrastructure that
+might be consumed by multiple composite resources across different namespaces.
+VPC networks are a common example of this pattern - an infrastructure operator
+may wish to define one composite resource that represents a VPC network and
+another that represents an SQL instance. The infrastructure operator may wish to
+offer the ability to manage SQL instances to their application operators. The
+application operators are restricted to their team's namespace, but their SQL
+instance should all be attached to the VPC network that the infrastructure
+operator manages. Crossplane enables scenarios like this one by allowing the
+infrastructure operator to offer their application operators a composite
+resource claim.
 
-The `InfrastructureDefinition` will make it possible to create
-`PostgreSQLInstance` objects in our Kubernetes cluster at the cluster scope, but
-we want to make them available at the namespace scope as well. This is done by
-defining an `InfrastructurePublication` that references the new
-`PostgreSQLInstance` type.
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructurePublication
-metadata:
-  name: postgresqlinstances.database.example.org
-spec:
-  infrastructureDefinitionRef:
-    name: postgresqlinstances.database.example.org
-```
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/publication.yaml
-```
-
-This will create a new CRD named `PostgreSQLInstanceRequirement`, which is the
-namespace-scoped variant of the `PostgreSQLInstance` CRD. You are now able to
-create instances of kind `PostgreSQLInstanceRequirement` at the namespace scope.
+A composite resource claim is a namespaced proxy for a composite resource. The
+schema of the composite resource claim is identical to that of its corresponding
+composite resource. In the example above `CompositePostgreSQLInstance` is the
+composite resource, while `PostgreSQLInstance` is the composite resource claim.
+When an application operator creates a `PostgreSQLinstance` a corresponding
+`CompositePostgreSQLInstance` is created. The XRD is said to _define_ the XR,
+and to _offer_ the XRC. Offering an XRC is optional; omit `spec.claimNames` to
+avoid doing so.
 
 ## Create Compositions
 
-Now it is time to define the resources that represent the primitive
-infrastructure units that actually get provisioned. For each provider we will
-define a `Composition` that satisfies the requirements of the
-`PostgreSQLInstance` `InfrastructureDefinition`. In this case, each will result
-in the provisioning of a public PostgreSQL instance on the provider.
+Now we'll specify which managed resources our `CompositePostgreSQLInstance` XR
+could be composed of, and how they should be configured. For each provider we
+will define a `Composition` that can satisfy the XR. In this case, each will
+result in the provisioning of a public PostgreSQL instance on the provider.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
@@ -140,11 +132,16 @@ in the provisioning of a public PostgreSQL instance on the provider.
 <div class="tab-content">
 <div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
 
+> Note that this Composition will create an RDS instance using your default VPC,
+> which may or may not allow connections from the internet depending on how it
+> is configured. Select the AWS (New VPC) Composition if you wish to create an
+> RDS instance that will allow traffic from the internet.
+
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.aws.database.example.org
+  name: compositepostgresqlinstances.aws.database.example.org
   labels:
     provider: aws
     guide: quickstart
@@ -153,7 +150,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
@@ -188,16 +185,16 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-aws.yaml
 ```
-
-> Note that this Composition will create an RDS instance using your default VPC,
-> which may or may not allow connections from the internet depending on how it
-> is configured. Select the AWS (New VPC) Composition if you wish to create an
-> RDS instance that will allow traffic from the internet.
 
 </div>
 <div class="tab-pane fade" id="aws-new-tab-1" markdown="1">
+
+> Note: this `Composition` for AWS also includes several networking managed
+> resources that are required to provision a publicly available PostgreSQL
+> instance. Composition enables scenarios such as this, as well as far more
+> complex ones. See the [composition] documentation for more information.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -212,7 +209,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: network.aws.crossplane.io/v1alpha3
@@ -361,11 +358,10 @@ spec:
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
         - fromConnectionSecretKey: port
-
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-aws-with-vpc.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-aws-with-vpc.yaml
 ```
 
 </div>
@@ -375,7 +371,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.gcp.database.example.org
+  name: compositepostgresqlinstances.gcp.database.example.org
   labels:
     provider: gcp
     guide: quickstart
@@ -383,7 +379,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: database.gcp.crossplane.io/v1beta1
@@ -422,7 +418,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-gcp.yaml
 ```
 
 </div>
@@ -438,7 +434,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.azure.database.example.org
+  name: compositepostgresqlinstances.azure.database.example.org
   labels:
     provider: azure
     guide: quickstart
@@ -446,7 +442,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: azure.crossplane.io/v1alpha3
@@ -513,7 +509,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-azure.yaml
 ```
 
 </div>
@@ -523,7 +519,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.alibaba.database.example.org
+  name: compositepostgresqlinstances.alibaba.database.example.org
   labels:
     provider: alibaba
     guide: quickstart
@@ -531,7 +527,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
         apiVersion: database.alibaba.crossplane.io/v1alpha1
@@ -565,20 +561,24 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/composition-alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-alibaba.yaml
 ```
 
 </div>
 </div>
 
-## Create Requirement
+## Create a Claim
 
-Now that we have defined our new type of infrastructure (`PostgreSQLInstance`)
-and created at least one composition that can satisfy it, we can create a
-`PostgreSQLInstanceRequirement` in the namespace of our choosing. In each
-`Composition` we defined we added a `provider: <name-of-provider>` label. In the
-`PostgreSQLInstanceRequirement` below we can use the `compositionSelector` to
-match our `Composition` of choice.
+We have now:
+
+- Defined a `CompositePostgreSQLInstance` composite resource.
+- Offered a `PostgreSQLInstance` composite resource claim.
+- Created at least one `Composition` that can satisfy our composite resource.
+
+This means we have everything we need to create a `PostgreSQLInstance` in the
+namespace of our choosing. Each `Composition` we created was labelled
+`provider: <name-of-provider>` label. This lets us use a `compositionSelector`
+to match our `Composition` of choice.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS (Default VPC)</a></li>
@@ -593,7 +593,7 @@ match our `Composition` of choice.
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstanceRequirement
+kind: PostgreSQLInstance
 metadata:
   name: my-db
   namespace: default
@@ -609,7 +609,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
@@ -617,7 +617,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstanceRequirement
+kind: PostgreSQLInstance
 metadata:
   name: my-db
   namespace: default
@@ -633,7 +633,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
@@ -641,7 +641,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstanceRequirement
+kind: PostgreSQLInstance
 metadata:
   name: my-db
   namespace: default
@@ -656,7 +656,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-gcp.yaml
 ```
 
 </div>
@@ -664,7 +664,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstanceRequirement
+kind: PostgreSQLInstance
 metadata:
   name: my-db
   namespace: default
@@ -679,7 +679,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-azure.yaml
 ```
 
 </div>
@@ -687,7 +687,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstanceRequirement
+kind: PostgreSQLInstance
 metadata:
   name: my-db
   namespace: default
@@ -702,22 +702,22 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/requirement-alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-alibaba.yaml
 ```
 
 </div>
 </div>
 
-After creating the `PostgreSQLInstanceRequirement` Crossplane will provision a
+After creating the `PostgreSQLInstance` Crossplane will provision a
 database instance on your provider of choice. Once provisioning is complete, you
 should see `READY: True` in the output when you run:
 
 ```console
-kubectl get postgresqlinstancerequirement.database.example.org my-db
+kubectl get postgresqlinstances.database.example.org my-db
 ```
 
-> Note: while waiting for the `PostgreSQLInstanceRequirement` to become ready, you
-> may want to look at other resources in your cluser. The following commands
+> Note: while waiting for the `PostgreSQLInstance` to become ready, you
+> may want to look at other resources in your cluster. The following commands
 > will allow you to view groups of Crossplane resources:
 >
 > - `kubectl get managed`: get all resources that represent a unit of external
@@ -777,7 +777,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/publish/pod.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/pod.yaml
 ```
 
 This `Pod` simply connects to a PostgreSQL database and prints its name, so you
@@ -794,10 +794,10 @@ should see the following output (or similar) after creating it if you run
 ## Clean Up
 
 To clean up the infrastructure that was provisioned, you can delete the
-`PostgreSQLInstanceRequirement`:
+`PostgreSQLInstance`:
 
 ```console
-kubectl delete postgresqlinstancerequirement.database.example.org my-db
+kubectl delete postgresqlinstances.database.example.org my-db
 ```
 
 To clean up the `Pod`, run:
@@ -806,9 +806,9 @@ To clean up the `Pod`, run:
 kubectl delete pod see-db
 ```
 
-> Don't clean up your `InfrastructureDefinition`, `InfrastructurePublication`,
-> or `Composition` just yet if you plan to continue on to the next section of
-> the guide! We'll use them again when we deploy an OAM application.
+> Don't clean up your `CompositeResourceDefinition` or `Composition` just yet if
+> you plan to continue on to the next section of the guide! We'll use them again
+> when we deploy an OAM application.
 
 ## Next Steps
 

@@ -2,34 +2,32 @@
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: postgresqlinstances.gcp.database.example.org
+  name: compositepostgresqlinstances.aws.database.example.org
   labels:
-    provider: gcp
+    provider: aws
     guide: quickstart
+    vpc: default
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
   from:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstance
+    kind: CompositePostgreSQLInstance
   to:
     - base:
-        apiVersion: database.gcp.crossplane.io/v1beta1
-        kind: CloudSQLInstance
+        apiVersion: database.aws.crossplane.io/v1beta1
+        kind: RDSInstance
         spec:
           forProvider:
-            databaseVersion: POSTGRES_9_6
-            region: us-central1
-            settings:
-              tier: db-custom-1-3840
-              dataDiskType: PD_SSD
-              ipConfiguration:
-                ipv4Enabled: true
-                authorizedNetworks:
-                  - value: "0.0.0.0/0"
+            dbInstanceClass: db.t2.small
+            masterUsername: masteruser
+            engine: postgres
+            engineVersion: "9.6"
+            skipFinalSnapshotBeforeDeletion: true
+            publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
           providerRef:
-            name: gcp-provider
+            name: aws-provider
           reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
@@ -39,10 +37,9 @@ spec:
               string:
                 fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
+          toFieldPath: "spec.forProvider.allocatedStorage"
       connectionDetails:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
-        - name: port
-          value: "5432"
+        - fromConnectionSecretKey: port

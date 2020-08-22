@@ -1,5 +1,5 @@
 apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstanceRequirement
+kind: PostgreSQLInstance
 metadata:
   name: my-db
   namespace: default
@@ -8,6 +8,6 @@ spec:
     storageGB: 20
   compositionSelector:
     matchLabels:
-      provider: aws
+      provider: alibaba
   writeConnectionSecretToRef:
     name: db-conn

@@ -1,9 +1,12 @@
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructureDefinition
+kind: CompositeResourceDefinition
 metadata:
-  name: postgresqlinstances.database.example.org
+  name: compositepostgresqlinstances.database.example.org
 spec:
+  claimNames:
+    kind: PostgreSQLInstance
+    plural: postgresqlinstances
   connectionSecretKeys:
     - username
     - password
@@ -13,10 +16,8 @@ spec:
     group: database.example.org
     version: v1alpha1
     names:
-      kind: PostgreSQLInstance
-      listKind: PostgreSQLInstanceList
-      plural: postgresqlinstances
-      singular: postgresqlinstance
+      kind: CompositePostgreSQLInstance
+      plural: compositepostgresqlinstances
     validation:
       openAPIV3Schema:
         type: object
