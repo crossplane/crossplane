@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package definition
+package offered
 
 import (
 	"context"
@@ -102,7 +102,7 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetXRD),
 			},
 		},
-		"RenderCustomResourceDefinitionError": {
+		"RenderCompositeResourceDefinitionError": {
 			reason: "We should record any error encountered while rendering a CRD as a status condition.",
 			args: args{
 				mgr: &fake.Manager{},
@@ -240,52 +240,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"DeleteAllCustomResourcesError": {
-			reason: "We should record any error encountered while deleting all defined resources as a status condition.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								switch v := o.(type) {
-								case *v1alpha1.CompositeResourceDefinition:
-									d := v1alpha1.CompositeResourceDefinition{}
-									d.SetUID(owner)
-									d.SetDeletionTimestamp(&now)
-									*v = d
-								case *v1beta1.CustomResourceDefinition:
-									crd := v1beta1.CustomResourceDefinition{}
-									crd.SetCreationTimestamp(now)
-									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
-									*v = crd
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.CompositeResourceDefinition{}
-								want.SetUID(owner)
-								want.SetDeletionTimestamp(&now)
-								want.Status.SetConditions(v1alpha1.Deleting())
-								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errDeleteCRs)))
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(errBoom),
-						},
-					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
 		"ListCustomResourcesError": {
 			reason: "We should record any error encountered while listing all defined resources as a status condition.",
 			args: args{
@@ -320,8 +274,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList:        test.NewMockListFn(errBoom),
+							MockList: test.NewMockListFn(errBoom),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -333,8 +286,61 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"WaitForDeleteAllOf": {
-			reason: "We should record the pending deletion of defined resources as a status condition.",
+		"DeleteCustomResourcesError": {
+			reason: "We should record any error encountered while deleting defined resources as a status condition.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								switch v := o.(type) {
+								case *v1alpha1.CompositeResourceDefinition:
+									d := v1alpha1.CompositeResourceDefinition{}
+									d.SetUID(owner)
+									d.SetDeletionTimestamp(&now)
+									*v = d
+								case *v1beta1.CustomResourceDefinition:
+									crd := v1beta1.CustomResourceDefinition{}
+									crd.SetCreationTimestamp(now)
+									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
+									*v = crd
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.CompositeResourceDefinition{}
+								want.SetUID(owner)
+								want.SetDeletionTimestamp(&now)
+								want.Status.SetConditions(v1alpha1.Deleting())
+								want.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(errBoom, errDeleteCR)))
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+								v := o.(*unstructured.UnstructuredList)
+								*v = unstructured.UnstructuredList{
+									Items: []unstructured.Unstructured{{}, {}},
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(errBoom),
+						},
+					}),
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
+						return &v1beta1.CustomResourceDefinition{}, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"SuccessfulDeleteCustomResources": {
+			reason: "We should requeue after a tiny wait to ensure our defined resources are gone before we remove our CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -367,7 +373,6 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
 							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 								v := o.(*unstructured.UnstructuredList)
 								*v = unstructured.UnstructuredList{
@@ -375,6 +380,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -396,7 +402,9 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
 								case *v1alpha1.CompositeResourceDefinition:
-									d := v1alpha1.CompositeResourceDefinition{}
+									d := v1alpha1.CompositeResourceDefinition{
+										Spec: v1alpha1.CompositeResourceDefinitionSpec{},
+									}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -420,9 +428,8 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList:        test.NewMockListFn(nil),
-							MockDelete:      test.NewMockDeleteFn(errBoom),
+							MockList:   test.NewMockListFn(nil),
+							MockDelete: test.NewMockDeleteFn(errBoom),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -468,9 +475,8 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList:        test.NewMockListFn(nil),
-							MockDelete:      test.NewMockDeleteFn(nil),
+							MockList:   test.NewMockListFn(nil),
+							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -513,7 +519,7 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"ApplyCustomResourceDefinitionError": {
+		"ApplyCRDError": {
 			reason: "We should record any error encountered while applying our CRD as a status condition.",
 			args: args{
 				mgr: &fake.Manager{},
@@ -634,7 +640,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.CompositeResourceDefinition{}
-								want.Status.SetConditions(v1alpha1.WatchingComposite())
+								want.Status.SetConditions(v1alpha1.WatchingClaim())
 								want.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 
 								if diff := cmp.Diff(want, o); diff != "" {

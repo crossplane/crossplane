@@ -35,18 +35,12 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
-// The kind of a published infrastructure resource is the kind of the defined
-// infrastructure resource combined with these suffixes.
 const (
-	PublishedInfrastructureSuffixKind     = "Requirement"
-	PublishedInfrastructureSuffixListKind = "RequirementList"
-	PublishedInfrastructureSuffixSingular = "requirement"
-	PublishedInfrastructureSuffixPlural   = "requirements"
-)
-
-const (
-	errNewSpec         = "cannot generate CustomResourceDefinition from crdSpecTemplate"
-	errParseValidation = "cannot parse validation schema"
+	errNewSpec                 = "cannot generate CustomResourceDefinition from crdSpecTemplate"
+	errParseValidation         = "cannot parse validation schema"
+	errInvalidClaimNames       = "invalid resource claim names"
+	errMissingClaimNames       = "missing names"
+	errFmtConflictingClaimName = "%q conflicts with composite resource name"
 )
 
 // NOTE(muvaf): We use v1beta1.CustomResourceDefinition for backward
@@ -82,9 +76,9 @@ func New(o ...Option) (*v1beta1.CustomResourceDefinition, error) {
 	return crd, nil
 }
 
-// ForInfrastructureDefinition configures the CustomResourceDefinition for the
-// supplied InfrastructureDefinition.
-func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
+// ForCompositeResource derives the CustomResourceDefinition for a composite
+// resource from the supplied CompositeResourceDefinition.
+func ForCompositeResource(d *v1alpha1.CompositeResourceDefinition) Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
 		if err != nil {
@@ -95,9 +89,9 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 		crd.SetLabels(d.GetLabels())
 		crd.SetAnnotations(d.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind),
+			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
-		crd.Spec.AdditionalPrinterColumns = InfrastructurePrinterColumns()
+		crd.Spec.AdditionalPrinterColumns = CompositeResourcePrinterColumns()
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
@@ -108,10 +102,10 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 		}
 
 		crd.Spec.Scope = v1beta1.ClusterScoped
-		for k, v := range DefinedInfrastructureSpecProps() {
+		for k, v := range CompositeResourceSpecProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		for k, v := range InfrastructureStatusProps() {
+		for k, v := range CompositeResourceStatusProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 
@@ -119,29 +113,33 @@ func ForInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition) Option {
 	}
 }
 
-// PublishesInfrastructureDefinition configures the CustomResourceDefinition
-// that publishes the supplied InfrastructureDefinition.
-func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *v1alpha1.InfrastructurePublication) Option {
+// ForCompositeResourceClaim derives the CustomResourceDefinition for a
+// composite resource claim from the supplied CompositeResourceDefinition.
+func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
 	return func(crd *v1beta1.CustomResourceDefinition) error {
 		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
 		if err != nil {
 			return errors.Wrap(err, errNewSpec)
 		}
 
-		crd.SetName(spec.Names.Singular + PublishedInfrastructureSuffixPlural + "." + spec.Group)
-		crd.SetLabels(p.GetLabels())
-		crd.SetAnnotations(p.GetAnnotations())
+		if err := validateClaimNames(d); err != nil {
+			return errors.Wrap(err, errInvalidClaimNames)
+		}
+
+		crd.SetName(d.Spec.ClaimNames.Plural + "." + spec.Group)
+		crd.SetLabels(d.GetLabels())
+		crd.SetAnnotations(d.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(p, v1alpha1.InfrastructureDefinitionGroupVersionKind),
+			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
 
 		crd.Spec.Names = v1beta1.CustomResourceDefinitionNames{
-			Kind:     spec.Names.Kind + PublishedInfrastructureSuffixKind,
-			ListKind: spec.Names.Kind + PublishedInfrastructureSuffixListKind,
-			Singular: spec.Names.Singular + PublishedInfrastructureSuffixSingular,
-			Plural:   spec.Names.Singular + PublishedInfrastructureSuffixPlural,
+			Kind:     d.Spec.ClaimNames.Kind,
+			ListKind: d.Spec.ClaimNames.ListKind,
+			Singular: d.Spec.ClaimNames.Singular,
+			Plural:   d.Spec.ClaimNames.Plural,
 		}
-		crd.Spec.AdditionalPrinterColumns = RequirementPrinterColumns()
+		crd.Spec.AdditionalPrinterColumns = CompositeResourceClaimPrinterColumns()
 
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
@@ -151,15 +149,39 @@ func PublishesInfrastructureDefinition(d *v1alpha1.InfrastructureDefinition, p *
 		}
 
 		crd.Spec.Scope = v1beta1.NamespaceScoped
-		for k, v := range PublishedInfrastructureSpecProps() {
+		for k, v := range CompositeResourceClaimSpecProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
 		}
-		for k, v := range InfrastructureStatusProps() {
+		for k, v := range CompositeResourceStatusProps() {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
 
 		return nil
 	}
+}
+
+func validateClaimNames(d *v1alpha1.CompositeResourceDefinition) error {
+	if d.Spec.ClaimNames == nil {
+		return errors.New(errMissingClaimNames)
+	}
+
+	if n := d.Spec.ClaimNames.Kind; n == d.Spec.CRDSpecTemplate.Names.Kind {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	if n := d.Spec.ClaimNames.Plural; n == d.Spec.CRDSpecTemplate.Names.Plural {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	if n := d.Spec.ClaimNames.Singular; n != "" && n == d.Spec.CRDSpecTemplate.Names.Singular {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	if n := d.Spec.ClaimNames.ListKind; n != "" && n == d.Spec.CRDSpecTemplate.Names.ListKind {
+		return errors.Errorf(errFmtConflictingClaimName, n)
+	}
+
+	return nil
 }
 
 // NewSpec produces a CustomResourceDefinitionSpec from the supplied template.

@@ -7,7 +7,7 @@ weight: 100
 # Overview
 
 Crossplane introduces multiple building blocks that enable you to provision,
-publish, and consume infrastructure using the Kubernetes API. These individual
+compose, and consume infrastructure using the Kubernetes API. These individual
 concepts work together to allow for powerful separation of concern between
 different personas in an organization, meaning that each member of a team
 interacts with Crossplane at an appropriate level of abstraction.
@@ -18,35 +18,34 @@ The diagram above illustrates a common workflow using most of Crossplane's
 functionality.
 
 An infrastructure operator...
+
 1. Installs Crossplane and one or more [providers] (in this case
    [provider-azure]) as [packages]. This enables provisioning of external
    infrastructure from the Kubernetes cluster.
-2. Creates an `InfrastructureDefinition` to define a new type of resource (in
-   this case a `MySQLInstance`). Crossplane creates a cluster-scoped CRD of kind
-   `MySQLInstance` in response.
-3. Creates an `InfrastructurePublication` to make provisioning a `MySQLInstance`
-   possible at the namespace scope. Crossplane creates a namespace-scoped CRD of
-   kind `MySQLInstanceRequirement` in response.
-4. Creates a `Composition` that instructs Crossplane how to render one or more
-   infrastructure primitives installed by providers in response to the creation
-   of a `MySQLInstance` or `MySQLInstanceRequirement`. In this case the
-   `Composition` specifies that Azure `MySQLServer` and `MySQLFirewallRule`
-   [managed resources] should be created.
+2. Defines a new `CompositeMySQLInstance` composite resource and a corresponding
+   `MySQLInstance` resource claim by authoring a `CompositeResourceDefinition`.
+3. Creates a `Composition` that instructs Crossplane how to render one or more
+   managed resources installed by providers in response to the creation of the
+   composite resource. In this case the `Composition` specifies that Azure
+   `MySQLServer` and `MySQLFirewallRule` [managed resources] should be created
+   to satisfy a `CompositeMySQLInstance`.
 
 An application developer...
+
 1. Creates an [OAM] `Component` for their service that specifies that they wish
    to be run as an OAM `ContainerizedWorkload`.
 2. Creates an OAM `Component` for their MySQL database that can be satisfied by
-   the published `MySQLInstanceRequirement` type.
+   the `MySQLInstance` resource claim.
 
 An application operator...
+
 1. Creates an OAM `ApplicationConfiguration`, which is comprised of the two
    `Component` types that were defined by the application developer, and a
    `ManualScalerTrait` trait to modify the replicas in the
    `ContainerizedWorkload`. In response, Crossplane translates the OAM types
    into Kubernetes-native types, in this case a `Deployment` and `Service` for
    the `ContainerizedWorkload` component, and a `MySQLServer` and
-   `MySQLFirewallRule` for the `MySQLInstanceRequirement` component.
+   `MySQLFirewallRule` for the `MySQLInstance` component.
 2. Crossplane provisions the external infrastructure and makes the connection
    information available to the application, allowing it to connect to and
    consume the MySQL database on Azure.
@@ -78,17 +77,16 @@ Managed resources are Kubernetes custom resources that represent infrastructure
 primitives. Managed resources with an API version of `v1beta1` or higher support
 every field that the cloud provider does for the given resource. You can find
 the Managed Resources and their API specifications for each provider on
-[doc.crds.dev] and learn more in the [managed resource documentation]. 
+[doc.crds.dev] and learn more in the [managed resource documentation].
 
-## Composition
+## Composite Resources
 
-Composition refers the machinery that allows you to bundle managed resources
-into higher-level infrastructure units, using only the Kubernetes API. New
-infrastructure units are defined using the `InfrastructureDefinition`,
-`InfrastructurePublication`, and `Composition` types, which result in the
-creation of new CRDs in a cluster. Creating instances of these new CRDs result
-in the creation of one or more managed resources. You can learn more about all
-of these concepts in the [composition documentation].
+A composite resource (XR) is a special kind of custom resource that is defined
+by a `CompositeResourceDefinition`. It composes one or more managed resources
+into a higher level infrastructure unit. Composite resources are infrastructure
+operator facing, but may optionally offer an application developer facing
+composite resource claim that acts as a proxy for a composite resource. You can
+learn more about all of these concepts in the [composition documentation].
 
 ## OAM
 

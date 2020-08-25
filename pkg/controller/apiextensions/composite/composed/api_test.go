@@ -88,8 +88,8 @@ func TestConfigure(t *testing.T) {
 			args: args{
 				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
 					LabelKeyNamePrefixForComposed: "ola",
-					LabelKeyRequirementName:       "rola",
-					LabelKeyRequirementNamespace:  "rolans",
+					LabelKeyClaimName:             "rola",
+					LabelKeyClaimNamespace:        "rolans",
 				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
 				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
@@ -97,8 +97,8 @@ func TestConfigure(t *testing.T) {
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "ola-", Labels: map[string]string{
 					LabelKeyNamePrefixForComposed: "ola",
-					LabelKeyRequirementName:       "rola",
-					LabelKeyRequirementNamespace:  "rolans",
+					LabelKeyClaimName:             "rola",
+					LabelKeyClaimNamespace:        "rolans",
 				}}},
 			},
 		},

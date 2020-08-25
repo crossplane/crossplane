@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +34,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -67,7 +69,7 @@ func TestIsEstablished(t *testing.T) {
 	}
 }
 
-func TestForInfrastructureDefinition(t *testing.T) {
+func TestForCompositeResourceDefinition(t *testing.T) {
 	name := "coolcomposites.example.org"
 	labels := map[string]string{"cool": "very"}
 	annotations := map[string]string{"example.org/cool": "very"}
@@ -81,14 +83,14 @@ func TestForInfrastructureDefinition(t *testing.T) {
 
 	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	d := &v1alpha1.InfrastructureDefinition{
+	d := &v1alpha1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1alpha1.InfrastructureDefinitionSpec{
+		Spec: v1alpha1.CompositeResourceDefinitionSpec{
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
@@ -111,7 +113,7 @@ func TestForInfrastructureDefinition(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind)),
+				meta.AsController(meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{
@@ -173,7 +175,7 @@ func TestForInfrastructureDefinition(t *testing.T) {
 									},
 								},
 
-								// From DefinedInfrastructureSpecProps()
+								// From CompositeResourceSpecProps()
 								"compositionRef": {
 									Type:     "object",
 									Required: []string{"name"},
@@ -194,12 +196,14 @@ func TestForInfrastructureDefinition(t *testing.T) {
 										},
 									},
 								},
-								"requirementRef": {
+								"claimRef": {
 									Type:     "object",
-									Required: []string{"name", "namespace"},
+									Required: []string{"apiVersion", "kind", "namespace", "name"},
 									Properties: map[string]v1beta1.JSONSchemaProps{
-										"name":      {Type: "string"},
-										"namespace": {Type: "string"},
+										"apiVersion": {Type: "string"},
+										"kind":       {Type: "string"},
+										"namespace":  {Type: "string"},
+										"name":       {Type: "string"},
 									},
 								},
 								"resourceRefs": {
@@ -231,7 +235,7 @@ func TestForInfrastructureDefinition(t *testing.T) {
 							Type: "object",
 							Properties: map[string]v1beta1.JSONSchemaProps{
 
-								// From InfrastructureStatusProps()
+								// From CompositeResourceStatusProps()
 								"composedResources": {
 									Type: "integer",
 								},
@@ -272,46 +276,155 @@ func TestForInfrastructureDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(ForInfrastructureDefinition(d))
+	got, err := New(ForCompositeResource(d))
 	if err != nil {
-		t.Fatalf("New(ForInfrastructureDefinition(...): %s", err)
+		t.Fatalf("New(ForCompositeResource(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(ForInfrastructureDefinition(...): -want, +got:\n%s", diff)
+		t.Errorf("New(ForCompositeResource(...): -want, +got:\n%s", diff)
 	}
 }
 
-func TestPublishesInfrastructureDefinition(t *testing.T) {
+func TestValidateClaimNames(t *testing.T) {
+	cases := map[string]struct {
+		d    *v1alpha1.CompositeResourceDefinition
+		want error
+	}{
+		"MissingClaimNames": {
+			d:    &v1alpha1.CompositeResourceDefinition{},
+			want: errors.New(errMissingClaimNames),
+		},
+		"KindConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "a",
+							ListKind: "b",
+							Singular: "b",
+							Plural:   "b",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+		"ListKindConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "b",
+							ListKind: "a",
+							Singular: "b",
+							Plural:   "b",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+		"SingularConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "b",
+							ListKind: "b",
+							Singular: "a",
+							Plural:   "b",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+		"PluralConflict": {
+			d: &v1alpha1.CompositeResourceDefinition{
+				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "a",
+						Singular: "a",
+						Plural:   "a",
+					},
+					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
+						Names: v1beta1.CustomResourceDefinitionNames{
+							Kind:     "b",
+							ListKind: "b",
+							Singular: "b",
+							Plural:   "a",
+						},
+					},
+				},
+			},
+			want: errors.Errorf(errFmtConflictingClaimName, "a"),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := validateClaimNames(tc.d)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("validateClaimNames(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestPublishesCompositeResourceDefinition(t *testing.T) {
 	name := "coolcomposites.example.org"
 	labels := map[string]string{"cool": "very"}
 	annotations := map[string]string{"example.org/cool": "very"}
 
 	group := "example.org"
 	version := "v1alpha1"
+
 	kind := "CoolComposite"
 	listKind := "CoolCompositeList"
 	singular := "coolcomposite"
 	plural := "coolcomposites"
 
+	claimKind := "CoolClaim"
+	claimListKind := "CoolClaimList"
+	claimSingular := "coolclaim"
+	claimPlural := "coolclaims"
+
 	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	p := &v1alpha1.InfrastructurePublication{
+	d := &v1alpha1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-	}
-	d := &v1alpha1.InfrastructureDefinition{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Labels:      labels,
-			Annotations: annotations,
-			UID:         types.UID("you-you-eye-dee"),
-		},
-		Spec: v1alpha1.InfrastructureDefinitionSpec{
+		Spec: v1alpha1.CompositeResourceDefinitionSpec{
+			ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+				Plural:   claimPlural,
+				Singular: claimSingular,
+				Kind:     claimKind,
+				ListKind: claimListKind,
+			},
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
@@ -330,21 +443,21 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 
 	want := &v1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        singular + PublishedInfrastructureSuffixPlural + "." + group,
+			Name:        claimPlural + "." + group,
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.ReferenceTo(d, v1alpha1.InfrastructureDefinitionGroupVersionKind)),
+				meta.AsController(meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{
 			Group:   group,
 			Version: version,
 			Names: v1beta1.CustomResourceDefinitionNames{
-				Plural:   singular + PublishedInfrastructureSuffixPlural,
-				Singular: singular + PublishedInfrastructureSuffixSingular,
-				Kind:     kind + PublishedInfrastructureSuffixKind,
-				ListKind: kind + PublishedInfrastructureSuffixListKind,
+				Plural:   claimPlural,
+				Singular: claimSingular,
+				Kind:     claimKind,
+				ListKind: claimListKind,
 			},
 			Scope:                 v1beta1.NamespaceScoped,
 			PreserveUnknownFields: pointer.BoolPtr(false),
@@ -396,7 +509,7 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 									},
 								},
 
-								// From PublishedInfrastructureSpecProps()
+								// From CompositeResourceClaimSpecProps()
 								"compositionRef": {
 									Type:     "object",
 									Required: []string{"name"},
@@ -419,9 +532,11 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 								},
 								"resourceRef": {
 									Type:     "object",
-									Required: []string{"name"},
+									Required: []string{"apiVersion", "kind", "name"},
 									Properties: map[string]v1beta1.JSONSchemaProps{
-										"name": {Type: "string"},
+										"apiVersion": {Type: "string"},
+										"kind":       {Type: "string"},
+										"name":       {Type: "string"},
 									},
 								},
 								"writeConnectionSecretToRef": {
@@ -437,7 +552,7 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 							Type: "object",
 							Properties: map[string]v1beta1.JSONSchemaProps{
 
-								// From InfrastructureStatusProps()
+								// From CompositeResourceStatusProps()
 								"composedResources": {
 									Type: "integer",
 								},
@@ -478,12 +593,12 @@ func TestPublishesInfrastructureDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(PublishesInfrastructureDefinition(d, p))
+	got, err := New(ForCompositeResourceClaim(d))
 	if err != nil {
-		t.Fatalf("New(PublishesInfrastructureDefinition(...): %s", err)
+		t.Fatalf("New(ForCompositeResourceClaim(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(PublishesInfrastructureDefinition(...): -want, +got:\n%s", diff)
+		t.Errorf("New(ForCompositeResourceClaim(...): -want, +got:\n%s", diff)
 	}
 }

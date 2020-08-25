@@ -37,20 +37,12 @@ var (
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
 )
 
-// InInfrastructureDefinition type metadata.
+// InCompositeResourceDefinition type metadata.
 var (
-	InfrastructureDefinitionKind             = reflect.TypeOf(InfrastructureDefinition{}).Name()
-	InfrastructureDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: InfrastructureDefinitionKind}.String()
-	InfrastructureDefinitionKindAPIVersion   = InfrastructureDefinitionKind + "." + SchemeGroupVersion.String()
-	InfrastructureDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(InfrastructureDefinitionKind)
-)
-
-// InInfrastructurePublication type metadata.
-var (
-	InfrastructurePublicationKind             = reflect.TypeOf(InfrastructurePublication{}).Name()
-	InfrastructurePublicationGroupKind        = schema.GroupKind{Group: Group, Kind: InfrastructurePublicationKind}.String()
-	InfrastructurePublicationKindAPIVersion   = InfrastructurePublicationKind + "." + SchemeGroupVersion.String()
-	InfrastructurePublicationGroupVersionKind = SchemeGroupVersion.WithKind(InfrastructurePublicationKind)
+	CompositeResourceDefinitionKind             = reflect.TypeOf(CompositeResourceDefinition{}).Name()
+	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
+	CompositeResourceDefinitionKindAPIVersion   = CompositeResourceDefinitionKind + "." + SchemeGroupVersion.String()
+	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
 )
 
 // Composition type metadata.
@@ -62,7 +54,6 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&InfrastructureDefinition{}, &InfrastructureDefinitionList{})
-	SchemeBuilder.Register(&InfrastructurePublication{}, &InfrastructurePublicationList{})
+	SchemeBuilder.Register(&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{})
 	SchemeBuilder.Register(&Composition{}, &CompositionList{})
 }

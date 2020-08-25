@@ -50,12 +50,12 @@ const (
 
 // Error strings
 const (
-	errGet          = "cannot get composite infrastructure resource"
-	errUpdate       = "cannot update composite infrastructure resource"
-	errUpdateStatus = "cannot update composite infrastructure resource status"
+	errGet          = "cannot get composite resource"
+	errUpdate       = "cannot update composite resource"
+	errUpdateStatus = "cannot update composite resource status"
 	errSelectComp   = "cannot select Composition"
 	errGetComp      = "cannot get Composition"
-	errConfigure    = "cannot configure composite infrastructure resource"
+	errConfigure    = "cannot configure composite resource"
 	errReconcile    = "cannot reconcile composed infrastructure resource"
 	errPublish      = "cannot publish connection details"
 )
@@ -68,7 +68,7 @@ const (
 )
 
 // ControllerName returns the recommended name for controllers that use this
-// package to reconcile a particular kind of composite infrastructure resource.
+// package to reconcile a particular kind of composite resource.
 func ControllerName(name string) string {
 	return "composite/" + name
 }
@@ -164,7 +164,7 @@ type compositeResource struct {
 	ConnectionPublisher
 }
 
-// NewReconciler returns a new Reconciler of composite infrastructure resources.
+// NewReconciler returns a new Reconciler of composite resources.
 func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	nc := func() resource.Composite {
 		return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(of)))
@@ -193,7 +193,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	return r
 }
 
-// A Reconciler reconciles composite infrastructure resources.
+// A Reconciler reconciles composite resources.
 type Reconciler struct {
 	client       client.Client
 	newComposite func() resource.Composite
@@ -205,7 +205,7 @@ type Reconciler struct {
 	record event.Recorder
 }
 
-// Reconcile a composite infrastructure resource.
+// Reconcile a composite resource.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
 	// complexity goal. Be wary when adding branches, and look for functionality

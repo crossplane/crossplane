@@ -43,7 +43,7 @@ const (
 	errListCompositions         = "cannot list compositions"
 	errUpdateComposite          = "cannot update composite resource"
 	errCompositionNotCompatible = "referenced composition is not compatible with this composite resource"
-	errGetInfraDef              = "cannot get infrastructuredefinition"
+	errGetXRD                   = "cannot get composite resource definition"
 )
 
 // Event reasons.
@@ -186,9 +186,9 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
 		return nil
 	}
-	def := &v1alpha1.InfrastructureDefinition{}
+	def := &v1alpha1.CompositeResourceDefinition{}
 	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
-		return errors.Wrap(err, errGetInfraDef)
+		return errors.Wrap(err, errGetXRD)
 	}
 	if def.Spec.DefaultCompositionRef == nil {
 		return nil
@@ -199,20 +199,20 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 }
 
 // NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
-func NewEnforcedCompositionSelector(def v1alpha1.InfrastructureDefinition, r event.Recorder) *EnforcedCompositionSelector {
+func NewEnforcedCompositionSelector(def v1alpha1.CompositeResourceDefinition, r event.Recorder) *EnforcedCompositionSelector {
 	return &EnforcedCompositionSelector{def: def, recorder: r}
 }
 
 // EnforcedCompositionSelector , if it's given, selects the enforced composition
 // on the definition for all composite instances.
 type EnforcedCompositionSelector struct {
-	def      v1alpha1.InfrastructureDefinition
+	def      v1alpha1.CompositeResourceDefinition
 	recorder event.Recorder
 }
 
 // SelectComposition selects the enforced composition if it's given in definition.
 func (s *EnforcedCompositionSelector) SelectComposition(_ context.Context, cp resource.Composite) error {
-	// We don't need to fetch the InfrastructureDefinition at every reconcile
+	// We don't need to fetch the CompositeResourceDefinition at every reconcile
 	// because enforced composition ref is immutable as opposed to default
 	// composition ref.
 	if s.def.Spec.EnforcedCompositionRef == nil {

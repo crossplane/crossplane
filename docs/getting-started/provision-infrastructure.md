@@ -9,14 +9,13 @@ indent: true
 
 Crossplane allows you to provision infrastructure anywhere using the Kubernetes
 API. Once you have [installed a provider] and [configured your credentials], you
-can create any infrastructure resource currently supported by the provider.
-Let's start by provisioning a database on your provider of choice.
+can create any infrastructure currently supported by the provider. Let's start
+by provisioning a database on your provider of choice.
 
-Each provider below offers their own flavor of a managed database. When the
-provider is installed into your Crossplane cluster, it installs a cluster-scoped
-CRD that represents the managed service offering, as well as controllers that
-know how to create, update, and delete instances of the service on the cloud
-provider.
+Each provider below offers their own flavor of a managed database. When you
+install a provider it extends Crossplane by adding support for several "managed
+resources". A managed resource is a cluster-scoped Kubernetes custom resource
+that represents an infrastructure object, such as a database instance.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
@@ -28,8 +27,8 @@ provider.
 <div class="tab-content">
 <div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
 
-The AWS provider supports provisioning an [RDS] instance with the `RDSInstance`
-CRD it installs into your cluster.
+The AWS provider supports provisioning an [RDS] instance via the `RDSInstance`
+managed resource it adds to Crossplane.
 
 ```yaml
 apiVersion: database.aws.crossplane.io/v1beta1
@@ -74,7 +73,7 @@ kubectl delete rdsinstances.database.aws.crossplane.io rdspostgresql
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
 The GCP provider supports provisioning a [CloudSQL] instance with the
-`CloudSQLInstance` CRD it installs into your cluster.
+`CloudSQLInstance` managed resource it adds to Crossplane.
 
 ```yaml
 apiVersion: database.gcp.crossplane.io/v1beta1
@@ -119,7 +118,7 @@ kubectl delete cloudsqlinstances.database.gcp.crossplane.io cloudsqlpostgresql
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
 The Azure provider supports provisioning an [Azure Database for PostgreSQL]
-instance with the `PostgreSQLServer` CRD it installs into your cluster.
+instance with the `PostgreSQLServer` managed resource it adds to Crossplane.
 
 > Note: provisioning an Azure Database for PostgreSQL requires the presence of a
 > [Resource Group] in your Azure account. We go ahead and provision a new
@@ -187,7 +186,7 @@ kubectl delete resourcegroup.azure.crossplane.io sqlserverpostgresql-rg
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
 The Alibaba provider supports provisioning an [ApsaraDB for RDS] instance with
-the `RDSInstance` CRD it installs into your cluster.
+the `RDSInstance` managed resource it adds to Crossplane.
 
 ```yaml
 apiVersion: database.alibaba.crossplane.io/v1alpha1
@@ -233,9 +232,9 @@ kubectl delete rdsinstances.database.alibaba.crossplane.io rdspostgresql
 
 ## Next Steps
 
-Now that you have seen how to provision individual infrastructure resources,
-let's take a look at how we can compose infrastructure resources together and
-publish them as a single unit to be consumed in the [next section].
+Now that you have seen how to provision individual managed resources, let's take
+a look at how we can compose several managed resources into new resources with
+APIs of our choosing in the [next section].
 
 <!-- Named Links -->
 

@@ -46,10 +46,10 @@ func BaseProps() map[string]v1beta1.JSONSchemaProps {
 	}
 }
 
-// DefinedInfrastructureSpecProps is a partial OpenAPIV3Schema for the spec
-// fields that Crossplane expects to be present for all defined infrastructure
+// CompositeResourceSpecProps is a partial OpenAPIV3Schema for the spec fields
+// that Crossplane expects to be present for all defined infrastructure
 // resources.
-func DefinedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
+func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
 	return map[string]v1beta1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
@@ -71,12 +71,14 @@ func DefinedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
 				},
 			},
 		},
-		"requirementRef": {
+		"claimRef": {
 			Type:     "object",
-			Required: []string{"name", "namespace"},
+			Required: []string{"apiVersion", "kind", "namespace", "name"},
 			Properties: map[string]v1beta1.JSONSchemaProps{
-				"name":      {Type: "string"},
-				"namespace": {Type: "string"},
+				"apiVersion": {Type: "string"},
+				"kind":       {Type: "string"},
+				"namespace":  {Type: "string"},
+				"name":       {Type: "string"},
 			},
 		},
 		"resourceRefs": {
@@ -105,10 +107,10 @@ func DefinedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
 	}
 }
 
-// PublishedInfrastructureSpecProps is a partial OpenAPIV3Schema for the spec
+// CompositeResourceClaimSpecProps is a partial OpenAPIV3Schema for the spec
 // fields that Crossplane expects to be present for all published infrastructure
 // resources.
-func PublishedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
+func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
 	return map[string]v1beta1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
@@ -132,9 +134,11 @@ func PublishedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
 		},
 		"resourceRef": {
 			Type:     "object",
-			Required: []string{"name"},
+			Required: []string{"apiVersion", "kind", "name"},
 			Properties: map[string]v1beta1.JSONSchemaProps{
-				"name": {Type: "string"},
+				"apiVersion": {Type: "string"},
+				"kind":       {Type: "string"},
+				"name":       {Type: "string"},
 			},
 		},
 		"writeConnectionSecretToRef": {
@@ -147,10 +151,10 @@ func PublishedInfrastructureSpecProps() map[string]v1beta1.JSONSchemaProps {
 	}
 }
 
-// InfrastructureStatusProps is a partial OpenAPIV3Schema for the status fields
-// that Crossplane expects to be present for all defined or published
+// CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
+// fields that Crossplane expects to be present for all defined or published
 // infrastructure resources.
-func InfrastructureStatusProps() map[string]v1beta1.JSONSchemaProps {
+func CompositeResourceStatusProps() map[string]v1beta1.JSONSchemaProps {
 	return map[string]v1beta1.JSONSchemaProps{
 		"composedResources": {
 			Type: "integer",
@@ -187,9 +191,9 @@ func InfrastructureStatusProps() map[string]v1beta1.JSONSchemaProps {
 	}
 }
 
-// InfrastructurePrinterColumns returns the set of default printer columns that should
-// exist in all generated composite CRDs.
-func InfrastructurePrinterColumns() []v1beta1.CustomResourceColumnDefinition {
+// CompositeResourcePrinterColumns returns the set of default printer columns
+// that should exist in all generated composite resource CRDs.
+func CompositeResourcePrinterColumns() []v1beta1.CustomResourceColumnDefinition {
 	return []v1beta1.CustomResourceColumnDefinition{
 		{
 			Name:     "READY",
@@ -209,9 +213,9 @@ func InfrastructurePrinterColumns() []v1beta1.CustomResourceColumnDefinition {
 	}
 }
 
-// RequirementPrinterColumns returns the set of default printer columns that should
-// exist in all generated requirement CRDs.
-func RequirementPrinterColumns() []v1beta1.CustomResourceColumnDefinition {
+// CompositeResourceClaimPrinterColumns returns the set of default printer
+// columns that should exist in all generated composite resource claim CRDs.
+func CompositeResourceClaimPrinterColumns() []v1beta1.CustomResourceColumnDefinition {
 	return []v1beta1.CustomResourceColumnDefinition{
 		{
 			Name:     "READY",

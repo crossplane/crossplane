@@ -42,8 +42,8 @@ const (
 // Label keys.
 const (
 	LabelKeyNamePrefixForComposed = "crossplane.io/composite"
-	LabelKeyRequirementName       = "crossplane.io/requirement-name"
-	LabelKeyRequirementNamespace  = "crossplane.io/requirement-namespace"
+	LabelKeyClaimName             = "crossplane.io/claim-name"
+	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
 // ConfigureFn is a function that implements Configurator interface.
@@ -73,8 +73,8 @@ func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Compose
 	// This label will be used if composed resource is yet another composite.
 	meta.AddLabels(cd, map[string]string{
 		LabelKeyNamePrefixForComposed: cp.GetLabels()[LabelKeyNamePrefixForComposed],
-		LabelKeyRequirementName:       cp.GetLabels()[LabelKeyRequirementName],
-		LabelKeyRequirementNamespace:  cp.GetLabels()[LabelKeyRequirementNamespace],
+		LabelKeyClaimName:             cp.GetLabels()[LabelKeyClaimName],
+		LabelKeyClaimNamespace:        cp.GetLabels()[LabelKeyClaimNamespace],
 	})
 	// Unmarshalling the template will overwrite any existing fields, so we must
 	// restore the existing name, if any. We also set generate name in case we

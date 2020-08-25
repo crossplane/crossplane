@@ -25,41 +25,45 @@ import (
 
 // Condition types.
 const (
-	// TypeReady resources are believed to be ready to handle work.
+	// A TypeEstablished XRD has created the CRD for its composite resource and
+	// started a controller to reconcile instances of said resource.
 	TypeEstablished runtimev1alpha1.ConditionType = "Established"
+
+	// A TypeOffered XRD has created the CRD for its composite resource claim
+	// and started a controller to reconcile instances of said claim.
+	TypeOffered runtimev1alpha1.ConditionType = "Offered"
 )
 
-// Reasons a resource is or is not ready.
+// Reasons a resource is or is not established or offered.
 const (
-	ReasonStarting runtimev1alpha1.ConditionReason = "Creating CRD and starting controller"
-	ReasonStarted  runtimev1alpha1.ConditionReason = "Created CRD and started controller"
-	ReasonDeleting runtimev1alpha1.ConditionReason = "Definition is being deleted"
+	ReasonWatchingComposite runtimev1alpha1.ConditionReason = "WatchingCompositeResource"
+	ReasonWatchingClaim     runtimev1alpha1.ConditionReason = "WatchingCompositeResourceClaim"
+	ReasonDeleting          runtimev1alpha1.ConditionReason = "DefinitionDeleted"
 )
 
-// Starting returns a condition that indicates a definition or publication is
-// establishing its CustomResourceDefinition and starting its controller.
-func Starting() runtimev1alpha1.Condition {
-	return runtimev1alpha1.Condition{
-		Type:               TypeEstablished,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonStarting,
-	}
-}
-
-// Started returns a condition that indicates a definition or publication has
-// established its CustomResourceDefinition and started its controller.
-func Started() runtimev1alpha1.Condition {
+// WatchingComposite indicates that Crossplane has defined and is watching for a
+// new kind of composite resource.
+func WatchingComposite() runtimev1alpha1.Condition {
 	return runtimev1alpha1.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonStarted,
+		Reason:             ReasonWatchingComposite,
 	}
 }
 
-// Deleting returns a condition that indicates a definition or publication is
-// being deleted.
+// WatchingClaim indicates that Crossplane has defined and is watching for a
+// new kind of composite resource claim.
+func WatchingClaim() runtimev1alpha1.Condition {
+	return runtimev1alpha1.Condition{
+		Type:               TypeOffered,
+		Status:             corev1.ConditionTrue,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonWatchingClaim,
+	}
+}
+
+// Deleting returns a condition that indicates a definition is being deleted.
 func Deleting() runtimev1alpha1.Condition {
 	return runtimev1alpha1.Condition{
 		Type:               TypeEstablished,

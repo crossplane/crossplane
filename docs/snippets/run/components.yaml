@@ -6,7 +6,7 @@ metadata:
 spec:
   workload:
     apiVersion: database.example.org/v1alpha1
-    kind: PostgreSQLInstanceRequirement
+    kind: PostgreSQLInstance
     metadata:
       name: app-postgresql
     spec:
