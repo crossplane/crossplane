@@ -1,24 +1,17 @@
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructureDefinition
+kind: CompositeResourceDefinition
 metadata:
-  name: buckets.common.crossplane.io
+  name: compositebuckets.common.crossplane.io
 spec:
+  claimNames:
+    kind: Bucket
+    plural: buckets
   crdSpecTemplate:
     group: common.crossplane.io
     version: v1alpha1
     names:
       categories:
         - crossplane
-      kind: Bucket
-      listKind: BucketList
-      plural: buckets
-      singular: bucket
----
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructurePublication
-metadata:
-  name: buckets.common.crossplane.io
-spec:
-  infrastructureDefinitionRef:
-    name: buckets.common.crossplane.io
+      kind: CompositeBucket
+      plural: compositebuckets

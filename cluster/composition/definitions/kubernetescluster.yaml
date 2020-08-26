@@ -1,9 +1,12 @@
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructureDefinition
+kind: CompositeResourceDefinition
 metadata:
-  name: kubernetesclusters.common.crossplane.io
+  name: compositekubernetesclusters.common.crossplane.io
 spec:
+  claimNames:
+    kind: KubernetesCluster
+    plural: kubernetesclusters
   connectionSecretKeys:
     - kubeconfig
   crdSpecTemplate:
@@ -12,10 +15,8 @@ spec:
     names:
       categories:
         - crossplane
-      kind: KubernetesCluster
-      listKind: KubernetesClusterList
-      plural: kubernetesclusters
-      singular: kubernetescluster
+      kind: CompositeKubernetesCluster
+      plural: compositekubernetesclusters
     validation:
       openAPIV3Schema:
         type: object
@@ -29,11 +30,3 @@ spec:
                 type: string
             required:
               - version
----
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructurePublication
-metadata:
-  name: kubernetesclusters.common.crossplane.io
-spec:
-  infrastructureDefinitionRef:
-    name: kubernetesclusters.common.crossplane.io

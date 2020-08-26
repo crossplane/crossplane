@@ -1,9 +1,12 @@
 ---
 apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructureDefinition
+kind: CompositeResourceDefinition
 metadata:
-  name: redisclusters.common.crossplane.io
+  name: compositeredisclusters.common.crossplane.io
 spec:
+  claimNames:
+    kind: RedisCluster
+    plural: redisclusters
   connectionSecretKeys:
     - endpoint
     - password
@@ -14,10 +17,8 @@ spec:
     names:
       categories:
         - crossplane
-      kind: RedisCluster
-      listKind: RedisClusterList
-      plural: redisclusters
-      singular: rediscluster
+      kind: CompositeRedisCluster
+      plural: compositeredisclusters
     validation:
       openAPIV3Schema:
         type: object
@@ -36,11 +37,3 @@ spec:
                 type: string
             required:
               - version
----
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: InfrastructurePublication
-metadata:
-  name: redisclusters.common.crossplane.io
-spec:
-  infrastructureDefinitionRef:
-    name: redisclusters.common.crossplane.io
