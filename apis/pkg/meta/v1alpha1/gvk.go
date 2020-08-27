@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Crossplane Authors.
+Copyright 2020 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -43,4 +43,12 @@ var (
 	ProviderGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderKind}.String()
 	ProviderKindAPIVersion   = ProviderKind + "." + SchemeGroupVersion.String()
 	ProviderGroupVersionKind = SchemeGroupVersion.WithKind(ProviderKind)
+)
+
+// Configuration type metadata.
+var (
+	ConfigurationKind             = reflect.TypeOf(Configuration{}).Name()
+	ConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationKind}.String()
+	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
+	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
 )
