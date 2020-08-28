@@ -34,8 +34,8 @@ with support for new composite resources.
 ## Goals
 
 The goal of this document is to supplement the existing [package manager v2
-design][packages-v2] by formalising the content of a package - the filesystem
-that exists inside a package's OCI image. This metadata provides two purposes:
+design][packages-v2] by formalising package metadata. This metadata serves two
+purposes:
 
 1. It provides the information the Crossplane package manager needs to manage
    the lifecycle of a package - to install or upgrade a provider or a
@@ -46,30 +46,41 @@ that exists inside a package's OCI image. This metadata provides two purposes:
 
 Note that one goal of this design is to build a user experience around working
 with 'providers' and 'configurations', rather than working with 'packages'. The
-package itself will be positioned as strictly the delivery mechanism.
+package itself will be positioned as strictly a delivery mechanism.
 
 ## Proposal
 
-This document proposes that:
+There are two key audiences of package metadata; authors and consumers. The
+former are usually humans - a platform operator might author, describe, and
+package Crossplane configuration. The latter are usually software - the package
+manager might unpack, parse, and install the aforementioned configuration. This
+document therefore proposes that two key 'views' of package metadata exist:
 
-1. All Crossplane packages contain a `crossplane.yaml` file at their root.
-1. The `crossplane.yaml` file describe either a `Provider` or a `Configuration`.
-1. Packages may include YAML representations of Crossplane specific custom
-   resources (e.g. a `Composition` or a managed resource CRD). Crossplane is not
-   opinionated about where in the package filesystem these files exist - the
-   package unpack process should detect them automatically.
-1. Additional metadata that is opaque to Crossplane be stored in a directory
-   named `.crossplane` at the root of the package, alongside `crossplane.yaml`.
+* The 'on disk format(s)'. The format authored by a platform operator.
+* The 'output stream'. The single supported machine readable format.
 
-### Packaging a Provider
+This document proposes that the output stream be a [YAML stream] emitted to
+stdout when the package's OCI image [`entrypoint`][entrypoint] is invoked. The
+'on disk format' could take many forms - for example static files or a Python
+script - as long as that format is rendered as an output stream when invoked by
+package consumers.
 
-A packaged Crossplane provider must be an OCI image consisting of:
+### The Output Stream
 
-1. A `crossplane.yaml` file containing a `kind: Provider` at its root.
-1. One or more `CustomResourceDefinition` resources that must define Crossplane
-   provider specific resources, for example a managed resource.
-1. Optional additional metadata that is opaque to Crossplane in a `.crossplane`
-   directory at the root of the package.
+All software that consumes a package must do so via its output stream - a YAML
+stream emitted to stdout when the package's OCI image entrypoint is invoked. The
+output stream will consist of a `Provider` or `Configuration` YAML document
+(described below), followed by a series of Crossplane-specific YAML documents,
+which must be either:
+
+* A `CustomResourceDefinition` that defines a Crossplane managed resource.
+* A `CustomResourceDefinition` that defines a Crossplane provider configuration.
+* A `CompositeResourceDefinition` that defines a Crossplane composite resource.
+* A `Composition` that configures how Crossplane should reconciles a particular
+  kind of composite resource.
+
+Note that the order and length of this YAML stream is undefined, except that the
+`Provider` or `Configuration` must be the first document in the stream.
 
 Below is an example `Provider`, at `v1alpha1`:
 
@@ -132,10 +143,9 @@ spec:
       - otherresource/status
     verbs:
       - "*"
-  # Optional. Matching paths will be omitted from the OCI image when building a
-  # package.
+  # Optional. Matching paths will be omitted when rendering the output stream.
   ignore:
-    # Required. Currently only a path, relative to crossplane.yaml, is allowed.
+    # Required. Currently only a path is allowed.
   - path: examples/
 ```
 
@@ -157,26 +167,6 @@ the `packages.crossplane.io` API group. These are two sides of the same coin:
 Note that the two have different audiences; the `meta.packages.crossplane.io`
 file is authored by the provider maintainer, while the `packages.crossplane.io`
 custom resource is authored by the platform operator.
-
-Contemporary packages contain an `install.yaml` file that allows the package
-author to specify how the package's controller (e.g. the provider) should be
-invoked. This document proposes support for `install.yaml` be removed; packages
-will now only install a specific kind of controller - a Crossplane provider. It
-is possible that both the maintainer of the provider and the platform operator
-will need to influence how the provider is deployed; e.g. by specifying env
-vars, health checks, replica counts, or node selectors. Currently all providers
-use a minimal `install.yaml`; they do not make use of their ability to influence
-how the provider is run. This document recommends that the above `Provider`
-types be extended when and as appropriate to configure these concerns.
-
-### Packaging a Configuration
-
-A packaged Crossplane configuration must be an OCI image consisting of:
-
-1. A `crossplane.yaml` file containing a `kind: Configuration` at its root.
-1. One or more `CompositeResourceDefinition` and/or `Composition` resources.
-1. Optional additional metadata that is opaque to Crossplane in a `.crossplane`
-   directory at the root of the package.
 
 Below is an example `Configuration`, at `v1alpha`:
 
@@ -227,10 +217,9 @@ spec:
     # Required. Will be extended to support version ranges in future, but
     # currently treated as a specific version tag.
     version: v0.2.0
-  # Optional. Matching paths will be omitted from the OCI image when building a
-  # package.
+  # Optional. Matching paths will be omitted when rendering the output stream.
   ignore:
-    # Required. Currently only a path, relative to crossplane.yaml, is allowed.
+    # Required. Currently only a path is allowed.
   - path: examples/
 ```
 
@@ -242,26 +231,72 @@ resource. It corresponds to a `Configuration` custom resource in the
 authored by the provider maintainer, while the `packages.crossplane.io` custom
 resource is authored by the platform operator.
 
-## Open Question: Unpacking and Indexing Packages
+### An On-Disk Format
 
-Two known systems consume Crossplane packages and their metadata; the Crossplane
-package manager itself and the Upbound Cloud [registry]. In each case the system
-introspects the filesystem inside the package OCI image, relying on well known
-file paths (e.g. `.registry/app.yaml`) to extract package metadata. This will be
-discouraged going forward. Instead packages will be required to supply an OCI
-image `ENTRYPOINT` that emits the metadata necessary to run or index a package.
-This 'unpack' format is currently undefined, and may influence:
+It is likely that there will be multiple on-disk formats; i.e. static files,
+Python scripts, or a [cdk8s] app. This document describes the first such format;
+static files.
 
-* Whether Crossplane can truly be unopinionated about directory structures and
-  paths within a package's OCI image.
-* How metadata such as UI annotations and icons should be associated with the
-  Crossplane resources they correspond to. This metadata is _mostly_ opaque
-  to Crossplane, but the package manager does currently merge it onto the
-  relevant Crossplane resources (e.g. CRDs) as annotations.
+This document proposes that:
+
+1. The package contain a `crossplane.yaml` file at its root.
+1. The `crossplane.yaml` file contain either a `Provider` or a `Configuration`.
+1. The package contain zero or more Crossplane specific custom resources (e.g. a
+   `Composition` or a managed resource CRD). Crossplane is not opinionated about
+   where in the package these files exist.
+1. Any extended metadata that is opaque to Crossplane be stored in an
+   appropriately named directory starting with a period - e.g. `.upbound`, or
+   `.registry` - at the root of the package.
+
+Note that 'the package' in this context means both the content of the OCI image
+and the on-disk representation of that content; the OCI image should be built by
+simply copying the content of a directory into a layer of the OCI image. The
+base layer of packages that use this format should specify an entrypoint process
+that will, when invoked:
+
+1. Emit the content of `crossplane.yaml` to stdout.
+1. Discover and emit all Crossplane custom resources contained in the package to
+   stdout, with the exception of those resources ignored by the `ignore` stanza.
+
+The entrypoint may optionally decorate the YAML stream using any extended
+metadata (e.g. the contents of the `.registry` directory). Any such extended
+extended metadata must be written as annotations (`metadata.annotations`) on one
+or more documents in the YAML stream - it may not modify the documents in any
+other way.
+
+### Consuming an Output Stream
+
+Packages must be consumed via their output stream - a YAML stream emitted to
+stdout when the package's OCI image entrypoint is invoked. Package consumers
+must not inspect the content of the OCI image; it should be treated as opaque.
+
+All package entrypoints must support (or silently ignore) the `--context` flag.
+This flag can be used by the package consumer to provide context around how it
+is being consumed; i.e. whether the package is being consumed as part of the
+Crossplane package manager's unpack and install process or by some other system
+such as an indexer. The `--context=unpack` flag will be passed when the package
+manager unpacks a package. The `--context` flag must only affect the annotations
+(`metadata.annotations`) of zero or more documents in the output stream. It may
+not alter the stream in any other way.
+
+### Installing and Running a Provider
+
+Contemporary packages contain an `install.yaml` file that allows the package
+author to specify how the package's controller (e.g. the provider) should be
+invoked. This document proposes support for `install.yaml` be removed; packages
+will now only install a specific kind of controller - a Crossplane provider. It
+is possible that both the maintainer of the provider and the platform operator
+will need to influence how the provider is deployed; e.g. by specifying env
+vars, health checks, replica counts, or node selectors. Currently all providers
+use a minimal `install.yaml`; they do not make use of their ability to influence
+how the provider is run. This document recommends that the above `Provider`
+types be extended when and as appropriate to configure these concerns.
 
 [packages-v1]: design-doc-packages.md
 [packages-v2]: design-doc-packages-v2.md
+[YAML stream]: https://yaml.org/spec/1.2/spec.html#stream//
+[entrypoint]: https://github.com/opencontainers/image-spec/blob/79b036d80240ae530a8de15e1d21c7ab9292c693/config.md#properties
 [resource-packs]: design-doc-resource-packs.md
 [OCI]: https://opencontainers.org/
 [composition]: design-doc-composition.md
-[registry]: https://upbound.io/browse
+[cdk8s]: https://github.com/awslabs/cdk8s
