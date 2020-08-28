@@ -36,8 +36,8 @@ type ProviderSpec struct {
 	// supplied by the CRDs that the Provider installs.
 	PermissionRequests []rbac.PolicyRule `json:"permissionRequests,omitempty"`
 
-	// Paths to ignore when building package image.
-	Ignore []Path `json:"ignore,omitempty"`
+	// Paths and types to ignore when building package image.
+	Ignore []Ignore `json:"ignore,omitempty"`
 }
 
 // ControllerSpec specifies the configuration for the packaged Provider
@@ -59,8 +59,9 @@ type Dependency struct {
 	Version string `json:"version"`
 }
 
-// Path is a filesystem path.
-type Path struct {
+// Ignore contains paths and types that should be ignored during package build.
+type Ignore struct {
+	// Path is a filesystem path.
 	Path string `json:"path"`
 }
 

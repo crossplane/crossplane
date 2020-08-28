@@ -28,8 +28,8 @@ type ConfigurationSpec struct {
 	// Dependencies on other packages.
 	DependsOn []Dependency `json:"dependsOn,omitempty"`
 
-	// Paths to ignore when building package image.
-	Ignore []Path `json:"ignore,omitempty"`
+	// Paths and types to ignore when building package image.
+	Ignore []Ignore `json:"ignore,omitempty"`
 }
 
 // +kubebuilder:object:root=true
