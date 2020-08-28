@@ -86,7 +86,7 @@ Below is an example `Provider`, at `v1alpha1`:
 
 ```yaml
 # Required. Must be as below.
-apiVersion: meta.packages.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 # Required. Must be as below.
 kind: Provider
 # Required. Note that Crossplane is aware only of the name and annotations
@@ -154,25 +154,25 @@ It should be treated as the authoritative example of Provider metadata. Note
 that while it complies with Kubernetes API conventions _it is not a Kubernetes
 custom resource_ - it is never created in an API server and thus no controller
 reconciles it, however it does correspond to a `Provider` custom resource in
-the `packages.crossplane.io` API group. These are two sides of the same coin:
+the `pkg.crossplane.io` API group. These are two sides of the same coin:
 
-* The `meta.packages.crossplane.io` `Provider` instructs Crossplane how to run
-  the provider, and provides metadata for systems that build on Crossplane -
-  i.e. package registries.
-* The `packages.crossplane.io` `Provider` is submitted to the Crossplane API
-  server in order to declare that a provider should be installed and run. The
+* The `meta.pkg.crossplane.io` `Provider` instructs Crossplane how to run the
+  provider, and provides metadata for systems that build on Crossplane - i.e.
+  package registries.
+* The `pkg.crossplane.io` `Provider` is submitted to the Crossplane API server
+  in order to declare that a provider should be installed and run. The
   Crossplane package manager runs a provider by unpacking its package and
-  extracting its `meta.packages.crossplane.io` `Provider` configuration.
+  extracting its `meta.pkg.crossplane.io` `Provider` configuration.
 
-Note that the two have different audiences; the `meta.packages.crossplane.io`
-file is authored by the provider maintainer, while the `packages.crossplane.io`
-custom resource is authored by the platform operator.
+Note that the two have different audiences; the `meta.pkg.crossplane.io` file is
+authored by the provider maintainer, while the `pkg.crossplane.io` custom
+resource is authored by the platform operator.
 
 Below is an example `Configuration`, at `v1alpha`:
 
 ```yaml
 # Required. Must be as below.
-apiVersion: meta.packages.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 # Required. Must be as below.
 kind: Configuration
 # Required. Note that Crossplane is aware only of the name and annotations
@@ -227,9 +227,9 @@ The above `Configuration` example is exhaustive - it contains all supported
 fields. It should be treated as the authoritative example of Configuration
 metadata. As with the `Provider` example above it is not a Kubernetes custom
 resource. It corresponds to a `Configuration` custom resource in the
-`packages.crossplane.io` API group. The `meta.packages.crossplane.io` file is
-authored by the provider maintainer, while the `packages.crossplane.io` custom
-resource is authored by the platform operator.
+`pkg.crossplane.io` API group. The `meta.pkg.crossplane.io` file is authored by
+the provider maintainer, while the `pkg.crossplane.io` custom resource is
+authored by the platform operator.
 
 ### An On-Disk Format
 
