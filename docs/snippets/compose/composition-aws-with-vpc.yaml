@@ -9,10 +9,10 @@ metadata:
     vpc: new
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: network.aws.crossplane.io/v1alpha3
         kind: VPC

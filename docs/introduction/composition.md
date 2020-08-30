@@ -292,7 +292,7 @@ metadata:
 spec:
   # This Composition declares that it satisfies the CompositeMySQLInstance
   # resource defined above - i.e. it patches "from" a CompositeMySQLInstance.
-  from:
+  compositeTypeRef:
     apiVersion: example.org/v1alpha1
     kind: CompositeMySQLInstance
   # This Composition reconciles a CompositeMySQLInstance by patching from
@@ -300,7 +300,7 @@ spec:
   # resources below. These resources may be the managed resources of an
   # infrastructure provider such as provider-azure, or other composite
   # resources.
-  to:
+  resources:
     # A CompositeMySQLInstance that uses this Composition will be composed of an
     # Azure ResourceGroup. The "base" for this ResourceGroup specifies the base
     # configuration that may be extended or mutated by the patches below.

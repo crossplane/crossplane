@@ -8,10 +8,10 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: database.alibaba.crossplane.io/v1alpha1
         kind: RDSInstance

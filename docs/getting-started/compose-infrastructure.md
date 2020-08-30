@@ -148,10 +148,10 @@ metadata:
     vpc: default
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
@@ -207,10 +207,10 @@ metadata:
     vpc: new
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: network.aws.crossplane.io/v1alpha3
         kind: VPC
@@ -377,10 +377,10 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: database.gcp.crossplane.io/v1beta1
         kind: CloudSQLInstance
@@ -440,10 +440,10 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: azure.crossplane.io/v1alpha3
         kind: ResourceGroup
@@ -525,10 +525,10 @@ metadata:
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
-  from:
+  compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
-  to:
+  resources:
     - base:
         apiVersion: database.alibaba.crossplane.io/v1alpha1
         kind: RDSInstance
