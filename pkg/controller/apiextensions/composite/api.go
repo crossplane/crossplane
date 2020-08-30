@@ -150,7 +150,7 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	v, k := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 
 	for _, comp := range list.Items {
-		if comp.Spec.From.APIVersion == v && comp.Spec.From.Kind == k {
+		if comp.Spec.CompositeTypeRef.APIVersion == v && comp.Spec.CompositeTypeRef.Kind == k {
 			// This composition is compatible with our composite resource.
 			candidates = append(candidates, comp.Name)
 		}
@@ -264,7 +264,7 @@ type APIConfigurator struct {
 // by copying them from its composition.
 func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
-	if comp.Spec.From.APIVersion != apiVersion || comp.Spec.From.Kind != kind {
+	if comp.Spec.CompositeTypeRef.APIVersion != apiVersion || comp.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
 	}
 

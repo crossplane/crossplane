@@ -48,14 +48,13 @@ var (
 
 // CompositionSpec specifies the desired state of the definition.
 type CompositionSpec struct {
-	// From refers to the type that this composition is compatible. The values
-	// for the underlying resources will be fetched from the instances of the
-	// From.
+	// CompositeTypeRef specifies the type of composite resource that this
+	// composition is compatible with.
 	// +immutable
-	From TypeReference `json:"from"`
+	CompositeTypeRef TypeReference `json:"compositeTypeRef"`
 
-	// To is the list of target resources that make up the composition.
-	To []ComposedTemplate `json:"to"`
+	// Resources is the list of target resources that make up the composition.
+	Resources []ComposedTemplate `json:"resources"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using

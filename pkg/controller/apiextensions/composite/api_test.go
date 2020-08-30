@@ -135,7 +135,7 @@ func TestConfigure(t *testing.T) {
 			args: args{
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{
-						From: v1alpha1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
+						CompositeTypeRef: v1alpha1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
 					},
 				},
 				cp: &fake.Composite{},
@@ -205,7 +205,7 @@ func TestSelectorResolver(t *testing.T) {
 			Namespace: "bar",
 		},
 		Spec: v1alpha1.CompositionSpec{
-			From: tref,
+			CompositeTypeRef: tref,
 		},
 	}
 	sel := &metav1.LabelSelector{MatchLabels: map[string]string{"select": "me"}}
@@ -273,7 +273,7 @@ func TestSelectorResolver(t *testing.T) {
 							Items: []v1alpha1.Composition{
 								{
 									Spec: v1alpha1.CompositionSpec{
-										From: v1alpha1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+										CompositeTypeRef: v1alpha1.TypeReference{APIVersion: "foreign", Kind: "tome"},
 									},
 								},
 								*comp,
@@ -320,7 +320,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 			Name: "foo",
 		},
 		Spec: v1alpha1.CompositionSpec{
-			From: tref,
+			CompositeTypeRef: tref,
 		},
 	}
 	type args struct {
@@ -439,7 +439,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			Name: "foo",
 		},
 		Spec: v1alpha1.CompositionSpec{
-			From: tref,
+			CompositeTypeRef: tref,
 		},
 	}
 	type args struct {
