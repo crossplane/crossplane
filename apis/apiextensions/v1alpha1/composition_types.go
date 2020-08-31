@@ -60,7 +60,8 @@ type CompositionSpec struct {
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
 	// this composition will be created.
-	WriteConnectionSecretsToNamespace string `json:"writeConnectionSecretsToNamespace"`
+	// +optional
+	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
 }
 
 // TypeReference is used to refer to a type for declaring compatibility.

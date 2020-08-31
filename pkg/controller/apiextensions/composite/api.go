@@ -268,13 +268,13 @@ func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, 
 		return errors.New(errCompositionNotCompatible)
 	}
 
-	if cp.GetWriteConnectionSecretToReference() != nil {
+	if cp.GetWriteConnectionSecretToReference() != nil || comp.Spec.WriteConnectionSecretsToNamespace == nil {
 		return nil
 	}
 
 	cp.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
 		Name:      string(cp.GetUID()),
-		Namespace: comp.Spec.WriteConnectionSecretsToNamespace,
+		Namespace: *comp.Spec.WriteConnectionSecretsToNamespace,
 	})
 
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)

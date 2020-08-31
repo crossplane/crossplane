@@ -158,10 +158,25 @@ func TestConfigure(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
 				comp: &v1alpha1.Composition{
-					Spec: v1alpha1.CompositionSpec{WriteConnectionSecretsToNamespace: cs.Ref.Namespace},
+					Spec: v1alpha1.CompositionSpec{WriteConnectionSecretsToNamespace: &cs.Ref.Namespace},
 				},
 			},
 			want: want{cp: cp},
+		},
+		"NilWriteConnectionSecretsToNamespace": {
+			reason: "Should not fill connection secret ref if composition does not have WriteConnectionSecretsToNamespace",
+			args: args{
+				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{},
+				},
+			},
+			want: want{cp: &fake.Composite{
+				ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+			}},
 		},
 		"UpdateFailed": {
 			reason: "Should fail if kube update failed",
@@ -172,7 +187,7 @@ func TestConfigure(t *testing.T) {
 				},
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{
-						WriteConnectionSecretsToNamespace: cs.Ref.Namespace,
+						WriteConnectionSecretsToNamespace: &cs.Ref.Namespace,
 					},
 				},
 			},

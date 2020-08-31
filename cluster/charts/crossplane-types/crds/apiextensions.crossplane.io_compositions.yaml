@@ -58,8 +58,8 @@ spec:
               - kind
               type: object
             resources:
-              description: Resources is the list of target resources that make up
-                the composition.
+              description: Resources is the list of resource templates that will be
+                used when a composite resource referring to this composition is created.
               items:
                 description: ComposedTemplate is used to provide information about
                   how the composed resource should be processed.
@@ -173,7 +173,6 @@ spec:
           required:
           - compositeTypeRef
           - resources
-          - writeConnectionSecretsToNamespace
           type: object
         status:
           description: CompositionStatus shows the observed state of the composition.
