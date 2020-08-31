@@ -53,7 +53,8 @@ type CompositionSpec struct {
 	// +immutable
 	CompositeTypeRef TypeReference `json:"compositeTypeRef"`
 
-	// Resources is the list of target resources that make up the composition.
+	// Resources is the list of resource templates that will be used when a
+	// composite resource referring to this composition is created.
 	Resources []ComposedTemplate `json:"resources"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
