@@ -309,6 +309,8 @@ type CompositionStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +genclient
+// +genclient:nonNamespaced
 
 // Composition defines the group of resources to be created when a compatible
 // type is created with reference to the composition.
