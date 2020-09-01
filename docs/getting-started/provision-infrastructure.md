@@ -46,7 +46,7 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: aws-rdspostgresql-conn
-  providerRef:
+  providerConfigRef:
     name: aws-provider
   reclaimPolicy: Delete
 ```
@@ -91,7 +91,7 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: cloudsqlpostgresql-conn
-  providerRef:
+  providerConfigRef:
     name: gcp-provider
   reclaimPolicy: Delete
 ```
@@ -133,7 +133,7 @@ metadata:
 spec:
   location: West US 2
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: azure-provider
 ---
 apiVersion: database.azure.crossplane.io/v1beta1
@@ -157,7 +157,7 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: sqlserverpostgresql-conn
-  providerRef:
+  providerConfigRef:
     name: azure-provider
   reclaimPolicy: Delete
 ```
@@ -204,7 +204,7 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: alibaba-rdspostgresql-conn
-  providerRef:
+  providerConfigRef:
     name: alibaba-provider
   reclaimPolicy: Delete
 ```

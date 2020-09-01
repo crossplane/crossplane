@@ -17,6 +17,6 @@ specTemplate:
     allocatedStorage: 20
     engine: mysql
     skipFinalSnapshotBeforeDeletion: true
-  providerRef:
+  providerConfigRef:
     name: aws-provider
   reclaimPolicy: Delete

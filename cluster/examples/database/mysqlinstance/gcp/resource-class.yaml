@@ -16,6 +16,6 @@ specTemplate:
       dataDiskSizeGb: 10
       ipConfiguration:
         ipv4Enabled: true
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete

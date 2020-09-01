@@ -5,8 +5,8 @@ metadata:
   labels:
     app: yugastore
 ---
-apiVersion: kubernetes.crossplane.io/v1alpha1
-kind: Provider
+apiVersion: kubernetes.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: yugastore-k8s-provider
   labels:

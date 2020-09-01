@@ -14,5 +14,5 @@ spec:
     serviceEndpoints:
       - service: Microsoft.Sql
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: azure-provider

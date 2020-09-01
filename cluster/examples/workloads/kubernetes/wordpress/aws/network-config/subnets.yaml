@@ -9,7 +9,7 @@ spec:
     name: sample-vpc
   availabilityZone: us-west-2a
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider
 ---
 apiVersion: network.aws.crossplane.io/v1alpha3
@@ -22,7 +22,7 @@ spec:
     name: sample-vpc
   availabilityZone: us-west-2b
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider
 ---
 apiVersion: network.aws.crossplane.io/v1alpha3
@@ -35,5 +35,5 @@ spec:
     name: sample-vpc
   availabilityZone: us-west-2c
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider

@@ -226,7 +226,7 @@ specTemplate:
           # has a new name, the ref here is also updated.
           name: minimal-setup-network
       tier: db-n1-standard-1
-  providerRef:
+  providerConfigRef:
     name: minimal-setup-gcp-provider
   reclaimPolicy: Delete
   writeConnectionSecretsToNamespace: crossplane-system
@@ -404,9 +404,9 @@ An example kustomize config file looks like following:
 
 ```yaml
 nameReference:
-  - kind: Provider
+  - kind: ProviderConfig
     fieldSpecs:
-      - path: specTemplate/providerRef/name
+      - path: specTemplate/providerConfigRef/name
         kind: CloudMemoryInstanceClass
 varReference:
   - path: specTemplate/forProvider/region
@@ -414,11 +414,11 @@ varReference:
 ```
 
 What the `nameReference` in the snippet above says is that the kind
-`CloudMemoryInstanceClass`'s field path `specTemplate/providerRef/name` refers
-to the name of the kind `Provider`. So, during transformations, if the `Provider`
-resource with name in `specTemplate.providerRef.name` of the resources with kind
+`CloudMemoryInstanceClass`'s field path `specTemplate/providerConfigRef/name` refers
+to the name of the kind `ProviderConfig`. So, during transformations, if the `ProviderConfig`
+resource with name in `specTemplate.providerConfigRef.name` of the resources with kind
 `CloudMemoryInstanceClass` ends up with a different name, go ahead and update
-the value in `specTemplate.providerRef.name`.
+the value in `specTemplate.providerConfigRef.name`.
 
 What the `varReference` declares is that during variant calculations, the path
 `specTemplate/forProvider/region` of resources of kind `CloudMemorystoreInstanceClass`

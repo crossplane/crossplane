@@ -18,6 +18,6 @@ specTemplate:
     engine: postgres
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretsToNamespace: crossplane-system
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete

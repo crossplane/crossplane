@@ -19,6 +19,6 @@ specTemplate:
   securityGroupIds:
    - REDIS_SECURITY_GROUP
   cacheSubnetGroupName: REDIS_SUBNET_GROUP
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete

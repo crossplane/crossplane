@@ -10,6 +10,6 @@ specTemplate:
   machineType: n1-standard-1
   numNodes: 1
   zone: us-central1-b
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete

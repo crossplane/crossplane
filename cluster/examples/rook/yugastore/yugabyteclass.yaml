@@ -5,7 +5,7 @@ metadata:
   labels:
     app: yugastore
 specTemplate:
-  providerRef:
+  providerConfigRef:
     name: yugastore-k8s-provider
   reclaimPolicy: Delete
   writeConnectionSecretsToNamespace: crossplane-system

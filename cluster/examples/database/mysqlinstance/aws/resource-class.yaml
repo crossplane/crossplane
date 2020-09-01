@@ -16,6 +16,6 @@ specTemplate:
     engine: mysql
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretsToNamespace: crossplane-system
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete

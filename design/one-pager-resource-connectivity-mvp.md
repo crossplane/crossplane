@@ -572,7 +572,7 @@ metadata:
   namespace: crossplane-system
   name: example
 spec:
-  providerRef:
+  providerConfigRef:
     namespace: crossplane-system
     name: example
   nameFormat: mycoolnetwork
@@ -585,7 +585,7 @@ metadata:
   namespace: crossplane-system
   name: example
 spec:
-  providerRef:
+  providerConfigRef:
     namespace: crossplane-system
     name: example
   nameFormat: mycoolsubnetwork
@@ -620,7 +620,7 @@ specTemplate:
   # mycoolproject must match the Crossplane GCP Provider project.
   # mycoolnetwork must match the above Network managed resource's name.
   privateNetwork: /projects/mycoolproject/global/networks/mycoolnetwork
-  providerRef:
+  providerConfigRef:
     namespace: crossplane-system
     name: example
 ---
@@ -649,7 +649,7 @@ specTemplate:
   # claim, which is not ideal.
   clusterSecondaryRangeName: pods
   servicesSecondaryRangeName: services
-  providerRef:
+  providerConfigRef:
     namespace: crossplane-system
     name: example
 ```
@@ -847,7 +847,7 @@ specTemplate:
   size: 20
   engine: mysql
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider
     namespace: crossplane-system
 ---
@@ -871,7 +871,7 @@ specTemplate:
     nodeGroupName: demo-nodes
     clusterControlPlaneSecurityGroup: id(my-eks-sg)
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider
     namespace: crossplane-system
 ---
@@ -979,8 +979,8 @@ type: Opaque
 data:
   credentials: BASE64ENCODED_AZURE_PROVIDER_CREDS
 ---
-apiVersion: azure.crossplane.io/v1alpha1
-kind: Provider
+apiVersion: azure.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: example
   namespace: crossplane-system
@@ -997,7 +997,7 @@ metadata:
 spec:
   name: wordpress-rg
   location: Central US
-  providerRef:
+  providerConfigRef:
     name: example
     namespace: crossplane-system
 ---
@@ -1012,7 +1012,7 @@ spec:
   addressSpace: 10.0.0.0/16
   resourceGroupName: wordpress-rg
   location: Central US
-  providerRef:
+  providerConfigRef:
     name: example
     namespace: crossplane-system
 ---
@@ -1029,7 +1029,7 @@ spec:
    - Microsoft.Sql
   virtualNetworkName: wordpress-vnet
   resourceGroupName: wordpress-rg
-  providerRef:
+  providerConfigRef:
     name: example
     namespace: crossplane-system
 ---
@@ -1053,7 +1053,7 @@ specTemplate:
     storageGB: 25
     backupRetentionDays: 7
     geoRedundantBackup: false 
-  providerRef:
+  providerConfigRef:
     name: example
     namespace: crossplane-system
   reclaimPolicy: Delete
@@ -1076,7 +1076,7 @@ specTemplate:
   disableRBAC: false
   writeServicePrincipalTo:
     name: akscluster
-  providerRef:
+  providerConfigRef:
     name: example
     namespace: crossplane-system
   reclaimPolicy: Delete
@@ -1096,7 +1096,7 @@ specTemplate:
   serverName: wordpress-mysql
   virtualNetworSubnetID: id(wordpress-subnet)
   resourceGroupName: wordpress-rg
-  providerRef:
+  providerConfigRef:
     name: example
     namespace: crossplane-system
   reclaimPolicy: Delete

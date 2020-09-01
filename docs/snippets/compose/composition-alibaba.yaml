@@ -24,7 +24,7 @@ spec:
             masterUsername: "myuser"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: alibaba-provider
           reclaimPolicy: Delete
       patches:

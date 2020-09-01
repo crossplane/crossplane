@@ -57,7 +57,7 @@ parameters:
   localPermission: ReadWrite
   region: REGION
 provisioner: s3bucket.storage.aws.crossplane.io/v1alpha1
-providerRef:
+providerConfigRef:
   name: demo-aws
 reclaimPolicy: Delete
 ```

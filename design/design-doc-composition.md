@@ -122,7 +122,7 @@ specTemplate:
       ipConfiguration:
         ipv4Enabled: true
   writeConnectionSecretsToNamespace: crossplane-system
-  providerRef:
+  providerConfigRef:
     name: example
 ```
 
@@ -386,7 +386,7 @@ spec:
       kind: ResourceGroup
       spec:
         location: West US
-        providerRef:
+        providerConfigRef:
           name: example
         reclaimPolicy: Delete
     patches:
@@ -416,7 +416,7 @@ spec:
             storageMB: 20480
         writeConnectionSecretToRef:
           namespace: crossplane-system
-        providerRef:
+        providerConfigRef:
           name: example
         reclaimPolicy: Delete
     patches:
@@ -459,7 +459,7 @@ spec:
           virtualNetworkSubnetIdRef:
             name: sample-subnet
         reclaimPolicy: Delete
-        providerRef:
+        providerConfigRef:
           name: azure-provider
 ```
 

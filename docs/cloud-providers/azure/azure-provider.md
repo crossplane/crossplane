@@ -81,7 +81,7 @@ like Crossplane to use.
 BASE64ENCODED_AZURE_ACCOUNT_CREDS=$(base64 crossplane-azure-provider-key.json | tr -d "\n")
 ```
 
-Now we’ll create our `Secret` that contains the credential and `Provider`
+Now we’ll create our `Secret` that contains the credential and `ProviderConfig`
 resource that refers to that secret:
 
 ```bash
@@ -96,8 +96,8 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_AZURE_ACCOUNT_CREDS}
 ---
-apiVersion: azure.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: azure.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: azure-provider
 spec:

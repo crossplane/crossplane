@@ -9,5 +9,5 @@ spec:
   groupName: my-cool-ekscluster-sg
   description: Cluster communication with worker nodes
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider

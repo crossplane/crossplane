@@ -115,7 +115,7 @@ type AttributeReferencer interface {
 	GetStatus(context.Context, CanReference, client.Reader) ([]ReferenceStatus, error)
 
 	// Build retrieves referenced resource, as well as other non-managed
-	// resources (like a `Provider`), and builds the referenced attribute
+	// resources (like a `ProviderConfig`), and builds the referenced attribute
 	Build(context.Context, CanReference, client.Reader) (string, error)
 
 	// Assign accepts a managed resource object, and assigns the given value to the

@@ -2,7 +2,7 @@
 
 In this guide, we will walk through the steps necessary to configure your AWS
 account to be ready for integration with Crossplane. This will be done by adding
-an AWS `Provider` resource type, which enables Crossplane to communicate with an
+an AWS `ProviderConfig` resource type, which enables Crossplane to communicate with an
 AWS account. 
 
 ## Requirements
@@ -16,7 +16,7 @@ Prior to adding AWS to Crossplane, following steps need to be taken
 ## Step 1: Configure `aws` CLI
 
 Crossplane uses [AWS security credentials], and stores them as a [secret] which
-is managed by an AWS `Provider` instance. In addition, the AWS default region is
+is managed by an AWS `ProviderConfig` instance. In addition, the AWS default region is
 also used for targeting a specific region. Crossplane requires to have [`aws`
 command line tool] [installed] and [configured]. Once installed, the credentials
 and configuration will reside in `~/.aws/credentials` and `~/.aws/config`
@@ -38,7 +38,7 @@ Once the script is successfully executed, Crossplane will use the specified aws
 account and region in the given named profile to create subsequent AWS managed
 resources.
 
-You can confirm the existense of the  AWS `Provider` by running:
+You can confirm the existense of the  AWS `ProviderConfig` by running:
 
 ```bash
 kubectl -n crossplane-system get provider/aws-provider
@@ -66,7 +66,7 @@ setup cloud provider in the next section.
 
 Crossplane uses the AWS user credentials that were configured in the previous
 step to create resources in AWS. These credentials will be stored as a
-[secret][kubernetes secret] in Kubernetes, and will be used by an AWS `Provider`
+[secret][kubernetes secret] in Kubernetes, and will be used by an AWS `ProviderConfig`
 instance. The default AWS region is also pulled from the cli configuration, and
 added to the AWS provider.
 
@@ -94,8 +94,8 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_AWS_ACCOUNT_CREDS}
 ---
-apiVersion: aws.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: aws.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: aws-provider
 spec:

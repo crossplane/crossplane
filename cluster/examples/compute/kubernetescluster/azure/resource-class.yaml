@@ -20,6 +20,6 @@ specTemplate:
   writeServicePrincipalTo:
     name: unused
     namespace: unused
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete

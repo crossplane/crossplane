@@ -11,5 +11,5 @@ spec:
     reservedPeeringRangeRefs:
       - name: sample-globaladdress
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: gcp-provider

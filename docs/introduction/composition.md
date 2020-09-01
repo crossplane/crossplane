@@ -309,7 +309,7 @@ spec:
       kind: ResourceGroup
       spec:
         reclaimPolicy: Delete
-        providerRef:
+        providerConfigRef:
           name: example
     # Patches copy or "overlay" the value of a field path within the composite
     # resource (the CompositeMySQLInstance) to a field path within the composed
@@ -362,7 +362,7 @@ spec:
           storageProfile:
             backupRetentionDays: 7
             geoRedundantBackup: Disabled
-        providerRef:
+        providerConfigRef:
           name: example
         writeConnectionSecretToRef:
           namespace: crossplane-system
@@ -437,7 +437,7 @@ spec:
             endIpAddress: 10.10.255.254
             virtualNetworkSubnetIdSelector:
               name: sample-subnet
-        providerRef:
+        providerConfigRef:
           name: example
         reclaimPolicy: Delete
     patches:

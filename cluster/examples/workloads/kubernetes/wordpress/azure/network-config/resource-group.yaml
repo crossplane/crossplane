@@ -7,5 +7,5 @@ spec:
   name: my-cool-rg
   location: Central US
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: azure-provider

@@ -13,6 +13,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: cloudsqlpostgresql-conn
-  providerRef:
+  providerConfigRef:
     name: gcp-provider
   reclaimPolicy: Delete

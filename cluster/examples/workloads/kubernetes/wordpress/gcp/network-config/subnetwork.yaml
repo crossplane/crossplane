@@ -16,5 +16,5 @@ spec:
     networkRef:
       name: sample-network
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: gcp-provider

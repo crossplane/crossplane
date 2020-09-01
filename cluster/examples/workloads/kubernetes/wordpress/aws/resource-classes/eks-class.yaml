@@ -25,6 +25,6 @@ specTemplate:
     nodeGroupName: demo-nodes
     clusterControlPlaneSecurityGroupRef:
       name: sample-cluster-sg
-  providerRef:
+  providerConfigRef:
     name: aws-provider
   reclaimPolicy: Delete

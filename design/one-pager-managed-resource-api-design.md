@@ -9,7 +9,7 @@
   * Added [Embedded Structs with Mixed
     Fields](#embedded-structs-with-mixed-fields) and [Optional Embedded Structs
     with One Field](#optional-embedded-structs-with-one-field) sections
-  * Updated examples with cluster-scoped managed resource and `Provider` objects
+  * Updated examples with cluster-scoped managed resource and `ProviderConfig` objects
 * 1.2 - Muvaffak Onus (@muvaf)
   * Added [how to handle sensitive input fields](#sensitive-input-fields).
   * Added [external resource labelling](#external-resource-labeling).
@@ -406,7 +406,7 @@ metadata:\
   selfLink: /apis/compute.gcp.crossplane.io/v1alpha1/networks/my-legacy-network
 spec:
   name: monus-legacy-network-res
-  providerRef:
+  providerConfigRef:
     name: monus-gcp
   reclaimPolicy: Delete
   routingConfig:
@@ -437,7 +437,7 @@ metadata:
   name: my-legacy-network
   selfLink: /apis/compute.gcp.crossplane.io/v1alpha1/networks/my-legacy-network
 spec:
-  providerRef:
+  providerConfigRef:
     name: monus-gcp
   reclaimPolicy: Delete
   writeConnectionSecretToRef: {}
@@ -599,7 +599,7 @@ following configuration would be valid:
 ```yaml
 ...
 spec:
-  providerRef:
+  providerConfigRef:
     name: provider-gcp
   reclaimPolicy: Delete
   writeConnectionSecretToRef: {}

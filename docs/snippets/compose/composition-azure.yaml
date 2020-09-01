@@ -18,7 +18,7 @@ spec:
         spec:
           location: West US 2
           reclaimPolicy: Delete
-          providerRef:
+          providerConfigRef:
             name: azure-provider
     - base:
         apiVersion: database.azure.crossplane.io/v1beta1
@@ -37,7 +37,7 @@ spec:
               family: Gen5
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: azure-provider
           reclaimPolicy: Delete
       patches:
@@ -72,5 +72,5 @@ spec:
               startIpAddress: 0.0.0.0
               endIpAddress: 255.255.255.254
           reclaimPolicy: Delete
-          providerRef:
+          providerConfigRef:
             name: azure-provider

@@ -165,7 +165,7 @@ spec:
             publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
       patches:
@@ -218,7 +218,7 @@ spec:
           cidrBlock: 192.168.0.0/16
           enableDnsSupport: true
           enableDnsHostNames: true
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -232,7 +232,7 @@ spec:
           vpcIdSelector:
             matchControllerRef: true
           availabilityZone: us-west-2a
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -246,7 +246,7 @@ spec:
           vpcIdSelector:
             matchControllerRef: true
           availabilityZone: us-west-2b
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -260,7 +260,7 @@ spec:
           vpcIdSelector:
             matchControllerRef: true
           availabilityZone: us-west-2c
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -271,7 +271,7 @@ spec:
             description: An excellent formation of subnetworks.
             subnetIdSelector:
               matchControllerRef: true
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -280,7 +280,7 @@ spec:
         spec:
           vpcIdSelector:
             matchControllerRef: true
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -303,7 +303,7 @@ spec:
             - subnetIdSelector:
                 matchLabels:
                   zone: us-west-2c
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -321,7 +321,7 @@ spec:
               cidrBlocks:
                 - cidrIp: 0.0.0.0/0
                   description: Everywhere
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
     - base:
@@ -341,7 +341,7 @@ spec:
             publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
       patches:
@@ -397,7 +397,7 @@ spec:
                   - value: "0.0.0.0/0"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: gcp-provider
           reclaimPolicy: Delete
       patches:
@@ -450,7 +450,7 @@ spec:
         spec:
           location: West US 2
           reclaimPolicy: Delete
-          providerRef:
+          providerConfigRef:
             name: azure-provider
     - base:
         apiVersion: database.azure.crossplane.io/v1beta1
@@ -469,7 +469,7 @@ spec:
               family: Gen5
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: azure-provider
           reclaimPolicy: Delete
       patches:
@@ -504,7 +504,7 @@ spec:
               startIpAddress: 0.0.0.0
               endIpAddress: 255.255.255.254
           reclaimPolicy: Delete
-          providerRef:
+          providerConfigRef:
             name: azure-provider
 ```
 
@@ -541,7 +541,7 @@ spec:
             masterUsername: "myuser"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: alibaba-provider
           reclaimPolicy: Delete
       patches:

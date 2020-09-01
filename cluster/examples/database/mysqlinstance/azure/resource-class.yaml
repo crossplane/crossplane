@@ -21,6 +21,6 @@ specTemplate:
     storageProfile:
       storageMB: 20480
   writeConnectionSecretsToNamespace: crossplane-system
-  providerRef:
+  providerConfigRef:
     name: example
   reclaimPolicy: Delete
