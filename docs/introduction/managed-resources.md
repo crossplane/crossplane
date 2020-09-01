@@ -39,7 +39,7 @@ spec:
   writeConnectionSecretToRef:
       name: mysql-secret
       namespace: crossplane-system
-  providerRef:
+  providerConfigRef:
     name: mycreds
   reclaimPolicy: Delete
 ```
@@ -53,8 +53,8 @@ Crossplane adheres to that and has its own conventions about how the fields unde
   to your pods in the same namespace. For `RDSInstance`, this secret would contain
   `endpoint`, `username` and `password`.
   
-* `providerRef`: Reference to the `Provider` resource that will provide information
-  regarding authentication of Crossplane to the provider. `Provider` resources
+* `providerConfigRef`: Reference to the `ProviderConfig` resource that will provide information
+  regarding authentication of Crossplane to the provider. `ProviderConfig` resources
   refer to `Secret` and potentially contain other information regarding authentication.
 
 * `reclaimPolicy`: Enum to specify whether the actual cloud resource should be
@@ -230,7 +230,7 @@ metadata:
   annotation:
     crossplane.io/external-name: existing-network
 spec:
-  providerRef:
+  providerConfigRef:
     name: gcp-creds
 ```
 

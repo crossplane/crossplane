@@ -6,7 +6,7 @@ spec:
   nameFormat: wordpress-demo-%s
   versioning: false
   region: us-east-1
-  providerRef:
+  providerConfigRef:
     name: example
   writeConnectionSecretToRef:
     namespace: crossplane-system
@@ -25,7 +25,7 @@ spec:
 #    - vpc-rds-sg - security group to allow RDS connection
   allocatedStorage: 20
   skipFinalSnapshotBeforeDeletion: true
-  providerRef:
+  providerConfigRef:
     name: example
   writeConnectionSecretToRef:
     namespace: crossplane-system

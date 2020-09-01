@@ -76,12 +76,12 @@ you've created.
 In order to authenticate with the external provider API, the provider controllers
 need to have access to credentials. It could be an IAM User for AWS, a Service
 Account for GCP or a Service Principal for Azure. Every provider has a type called
-`Provider` that has information about how to authenticate to the provider API.
-An example `Provider` resource for Azure looks like the following:
+`ProviderConfig` that has information about how to authenticate to the provider API.
+An example `ProviderConfig` resource for Azure looks like the following:
 
 ```yaml
-apiVersion: azure.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: azure.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: prod-acc
 spec:
@@ -96,7 +96,7 @@ of that key should contain the credentials that the controller will use. The
 documentation of each provider should give you an idea of how that credentials
 blob should look like. See [Getting Started][getting-started] guide for more details.
 
-The following is an example usage of Azure `Provider`, referenced by a `MySQLServer`:
+The following is an example usage of Azure `ProviderConfig`, referenced by a `MySQLServer`:
 
 ```yaml
 apiVersion: database.azure.crossplane.io/v1beta1
@@ -104,13 +104,13 @@ kind: MySQLServer
 metadata:
   name: prod-sql
 spec:
-  providerRef: prod-acc
+  providerConfigRef: prod-acc
   ...
 ```
 
 The Azure provider controller will use that provider for this instance of `MySQLServer`.
-Since every resource has its own reference to a `Provider`, you can have multiple
-`Provider` resources in your cluster referenced by different resources.
+Since every resource has its own reference to a `ProviderConfig`, you can have multiple
+`ProviderConfig` resources in your cluster referenced by different resources.
 
 
 <!-- Named Links -->

@@ -12,5 +12,5 @@ spec:
     virtualNetworkSubnetIdRef:
       name: sample-subnet
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: azure-provider

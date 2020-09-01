@@ -16,5 +16,5 @@ spec:
       cidrBlocks:
         - cidrIp: 0.0.0.0/0
           description: all ips
-  providerRef:
+  providerConfigRef:
     name: aws-provider

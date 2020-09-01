@@ -20,5 +20,5 @@ spec:
       ]
     }
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider

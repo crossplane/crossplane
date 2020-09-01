@@ -9,7 +9,7 @@ spec:
   # wellknown policy arn
   policyArn: arn:aws:iam::aws:policy/AmazonEKSServicePolicy
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider
 ---
 apiVersion: identity.aws.crossplane.io/v1alpha3
@@ -22,5 +22,5 @@ spec:
   # wellknown policy arn
   policyArn: arn:aws:iam::aws:policy/AmazonEKSClusterPolicy
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider

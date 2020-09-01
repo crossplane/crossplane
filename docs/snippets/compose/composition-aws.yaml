@@ -26,7 +26,7 @@ spec:
             publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: aws-provider
           reclaimPolicy: Delete
       patches:

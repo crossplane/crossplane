@@ -54,8 +54,8 @@ spec:
           commonLabels:
             group: my-gcp-stuff
         overlays:
-        - apiVersion: gcp.crossplane.io/v1alpha3
-          kind: Provider
+        - apiVersion: gcp.crossplane.io/v1beta1
+          kind: ProviderConfig
           name: gcp-provider
           bindings:
             - from: "spec.credentialsSecretRef"

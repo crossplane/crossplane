@@ -4,7 +4,7 @@ metadata:
   labels:
   name: crossplane-wordpress-mysql
 spec:
-  providerRef:
+  providerConfigRef:
     name: example
   writeConnectionSecretToRef:
     namespace: crossplane-system

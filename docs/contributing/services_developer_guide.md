@@ -37,7 +37,7 @@ Memorystore illustrates this. First, the configuration resources:
    indicating a Kubernetes Secret containing any credentials required to
    authenticate to the system, as well as any other metadata required to
    connect. Providers are cluster scoped, like managed resources and classes.
-   The GCP [`Provider`] is an example of a provider. Note that provider is a
+   The GCP [`ProviderConfig`] is an example of a provider. Note that provider is a
    somewhat overloaded term in the Crossplane ecosystem - it's also used to
    refer to the controller manager for a particular cloud, for example
    `provider-gcp`.
@@ -235,11 +235,11 @@ infrastructure provider that adds support for a new infrastructure provider.
 
 Providers must:
 
-* Be named exactly `Provider`.
+* Be named exactly `ProviderConfig`.
 * Embed a [`ProviderSpec`] struct in their `Spec` struct.
 * Use the `+kubebuilder:resource:scope=Cluster` [comment marker].
 
-The Favourite Cloud `Provider` would look as follows. Note that the cloud to
+The Favourite Cloud `ProviderConfig` would look as follows. Note that the cloud to
 which it belongs should be indicated by its API group, i.e. its API Version
 would be `favouritecloud.crossplane.io/v1alpha1` or similar.
 
@@ -607,7 +607,7 @@ feedback you may have about the development process!
 [managed resource]: concepts.md#managed-resource
 [dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
 [`CloudMemorystoreInstance`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
-[`Provider`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/v1alpha3/types.go#L41
+[`ProviderConfig`]: https://github.com/crossplane/provider-gcp/blob/be5aaf6/apis/v1beta1/providerconfig_types.go#L39
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/

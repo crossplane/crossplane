@@ -9,5 +9,5 @@ spec:
     routingConfig:
       routingMode: REGIONAL
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: gcp-provider

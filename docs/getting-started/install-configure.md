@@ -187,8 +187,8 @@ kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./c
 Create the following `provider.yaml`:
 
 ```
-apiVersion: aws.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: aws.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: aws-provider
 spec:
@@ -249,8 +249,8 @@ kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./c
 Create the following `provider.yaml`:
 
 ```
-apiVersion: gcp.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: gcp.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: gcp-provider
 spec:
@@ -307,8 +307,8 @@ kubectl create secret generic azure-creds -n crossplane-system --from-file=key=.
 Create the following `provider.yaml`:
 
 ```
-apiVersion: azure.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: azure.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: azure-provider
 spec:

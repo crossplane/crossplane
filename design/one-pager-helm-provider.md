@@ -95,7 +95,7 @@ spec:
         namespace: prod
         key: patches.yaml
         optional: false
-  providerRef: 
+  providerConfigRef: 
     name: cluster-1-provider
   reclaimPolicy: Delete
 ```
@@ -265,7 +265,7 @@ spec:
         apiVersion: container.gcp.crossplane.io/v1beta1
         kind: GKECluster
         spec:
-          providerRef:
+          providerConfigRef:
             name: gcp-provider
           forProvider:
             addonsConfig:
@@ -324,7 +324,7 @@ spec:
                   - value: "0.0.0.0/0"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerRef:
+          providerConfigRef:
             name: gcp-provider
           reclaimPolicy: Delete
       patches:
@@ -343,8 +343,8 @@ spec:
         - name: port
           value: "5432"
     - base:
-        apiVersion: kubernetes.crossplane.io/v1alpha1
-        kind: Provider
+        apiVersion: kubernetes.crossplane.io/v1beta1
+        kind: ProviderConfig
       patches:
         - fromFieldPath: "metadata.name"
           toFieldPath: "spec.credentialsSecretRef.name"       
@@ -403,7 +403,7 @@ spec:
 
 Our composition will create:
 
-- a `GKECluster` whose connection secret will be consumed via a `Kubernetes Provider` which is set as `providerRef` in
+- a `GKECluster` whose connection secret will be consumed via a `Kubernetes Provider` which is set as `providerConfigRef` in
   helm `Release` resource.
  
 - a `CloudSQLInstance` whose connection details will be fed to Helm `Release` via `spec.forProvider.set` list and be

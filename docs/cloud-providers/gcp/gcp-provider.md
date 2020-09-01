@@ -216,7 +216,7 @@ PROVIDER_SECRET_NAMESPACE=crossplane-system
 ```
 
 Now we’ll create the `Secret` resource that contains the credential, and
- `Provider` resource which refers to that secret:
+ `ProviderConfig` resource which refers to that secret:
 
 ```bash
 cat > provider.yaml <<EOF
@@ -230,8 +230,8 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_GCP_PROVIDER_CREDS}
 ---
-apiVersion: gcp.crossplane.io/v1alpha3
-kind: Provider
+apiVersion: gcp.crossplane.io/v1beta1
+kind: ProviderConfig
 metadata:
   name: gcp-provider
 spec:

@@ -14,5 +14,5 @@ spec:
       - key: name
         value: my-cool-dbsubnetgroup
   reclaimPolicy: Delete
-  providerRef:
+  providerConfigRef:
     name: aws-provider
