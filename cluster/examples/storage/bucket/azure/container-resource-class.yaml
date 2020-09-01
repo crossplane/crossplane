@@ -9,7 +9,7 @@ metadata:
 specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   # Azure containers read their credentials from an account. We reuse the
-  # providerConfigRef class field to specify which account to read.
+  # providerRef class field to specify which account to read.
   accountReference:
     name: storageaccount
   providerRef:

@@ -620,7 +620,7 @@ specTemplate:
   # mycoolproject must match the Crossplane GCP Provider project.
   # mycoolnetwork must match the above Network managed resource's name.
   privateNetwork: /projects/mycoolproject/global/networks/mycoolnetwork
-  providerConfigRef:
+  providerRef:
     namespace: crossplane-system
     name: example
 ---
@@ -649,7 +649,7 @@ specTemplate:
   # claim, which is not ideal.
   clusterSecondaryRangeName: pods
   servicesSecondaryRangeName: services
-  providerConfigRef:
+  providerRef:
     namespace: crossplane-system
     name: example
 ```
@@ -847,7 +847,7 @@ specTemplate:
   size: 20
   engine: mysql
   reclaimPolicy: Delete
-  providerConfigRef:
+  providerRef:
     name: aws-provider
     namespace: crossplane-system
 ---
@@ -871,7 +871,7 @@ specTemplate:
     nodeGroupName: demo-nodes
     clusterControlPlaneSecurityGroup: id(my-eks-sg)
   reclaimPolicy: Delete
-  providerConfigRef:
+  providerRef:
     name: aws-provider
     namespace: crossplane-system
 ---
@@ -1053,7 +1053,7 @@ specTemplate:
     storageGB: 25
     backupRetentionDays: 7
     geoRedundantBackup: false 
-  providerConfigRef:
+  providerRef:
     name: example
     namespace: crossplane-system
   reclaimPolicy: Delete
@@ -1076,7 +1076,7 @@ specTemplate:
   disableRBAC: false
   writeServicePrincipalTo:
     name: akscluster
-  providerConfigRef:
+  providerRef:
     name: example
     namespace: crossplane-system
   reclaimPolicy: Delete

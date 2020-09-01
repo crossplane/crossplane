@@ -53,7 +53,7 @@ parameters:
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerConfigRef:
+providerRef:
   name: aws-provider
 reclaimPolicy: Delete
 ```
@@ -101,7 +101,7 @@ parameters:
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerConfigRef:
+providerRef:
   name: aws-provider
 reclaimPolicy: Delete
 ```
@@ -159,7 +159,7 @@ specTemplate:
    - sg-05adsfkaj1ksdjak
   size: 20
   engine: mysql
-  providerConfigRef:
+  providerRef:
     name: example
     namespace: crossplane-system
   reclaimPolicy: Delete

@@ -13,6 +13,6 @@ specTemplate:
     region: us-central1
     tier: BASIC
     memorySizeGb: 1
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

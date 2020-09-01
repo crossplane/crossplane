@@ -17,6 +17,6 @@ specTemplate:
       tier: db-custom-1-3840
       dataDiskType: PD_SSD
       dataDiskSizeGb: 10
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

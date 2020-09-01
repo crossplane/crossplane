@@ -31,7 +31,7 @@ parameters:
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerConfigRef:
+providerRef:
   name: aws-provider
 reclaimPolicy: Delete
 ```
@@ -69,7 +69,7 @@ parameters:
   securityGroups: "sg-ab1cdefg,sg-05adsfkaj1ksdjak"
   size: "20"
 provisioner: rdsinstance.database.aws.crossplane.io/v1alpha1
-providerConfigRef:
+providerRef:
   name: aws-provider
 reclaimPolicy: Delete
 ```
@@ -186,7 +186,7 @@ specTemplate:
     - sg-ab1cdefg
     - sg-05adsfkaj1ksdjak
   size: 20
-  providerConfigRef:
+  providerRef:
     name: aws-provider
   reclaimPolicy: Delete
 ```
@@ -245,7 +245,7 @@ spec:
 
 ### Expanding Policies
 
-The construction of these policy kinds allows for the future option of adding additional claim fields that can also be defaulted via the policy object. For example, if `providerConfigRef`, which is currently a field for resource classes, was moved to the claim level, the policy could be expanded to specify default provider behavior as well. The `MySQLInstancePolicy` is used again for demonstration:
+The construction of these policy kinds allows for the future option of adding additional claim fields that can also be defaulted via the policy object. For example, if `providerRef`, which is currently a field for resource classes, was moved to the claim level, the policy could be expanded to specify default provider behavior as well. The `MySQLInstancePolicy` is used again for demonstration:
 
 ```yaml
 apiVersion: storage.crossplane.io/v1alpha1
@@ -258,8 +258,8 @@ defaultClassRef:
   apiVersion: database.aws.crossplane.io/v1alpha1
   name: standard-mysql
   namespace: crossplane-system
-defaultProviderConfigRef:
-  kind: ProviderConfig
+defaultProviderRef:
+  kind: Provider
   apiVersion: aws.crossplane.io/v1alpha1
   name: my-aws-account
   namespace: crossplane-system

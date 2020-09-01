@@ -19,6 +19,6 @@ specTemplate:
     namespace: crossplane-system
     name: demo-gcs-creds
   storageClass: MULTI_REGIONAL
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete
