@@ -25,18 +25,13 @@ spec:
   subresources: {}
   validation:
     openAPIV3Schema:
-      description: A ProviderConfig configures how a Kubernetes provider can connect
-        to a specific Kubernetes cluster to do its operations.
+      description: A ProviderConfig configures how a Kubernetes provider can connect to a specific Kubernetes cluster to do its operations.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -44,8 +39,7 @@ spec:
           description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
           properties:
             credentialsSecretRef:
-              description: CredentialsSecretRef refers to a Secret containing connection
-                credentials for a Kubernetes cluster.
+              description: CredentialsSecretRef refers to a Secret containing connection credentials for a Kubernetes cluster.
               properties:
                 key:
                   description: The key to select.
