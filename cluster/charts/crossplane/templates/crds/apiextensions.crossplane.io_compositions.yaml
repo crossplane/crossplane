@@ -43,10 +43,9 @@ spec:
         spec:
           description: CompositionSpec specifies the desired state of the definition.
           properties:
-            from:
-              description: From refers to the type that this composition is compatible.
-                The values for the underlying resources will be fetched from the instances
-                of the From.
+            compositeTypeRef:
+              description: CompositeTypeRef specifies the type of composite resource
+                that this composition is compatible with.
               properties:
                 apiVersion:
                   description: APIVersion of the type.
@@ -58,8 +57,9 @@ spec:
               - apiVersion
               - kind
               type: object
-            to:
-              description: To is the list of target resources that make up the composition.
+            resources:
+              description: Resources is the list of resource templates that will be
+                used when a composite resource referring to this composition is created.
               items:
                 description: ComposedTemplate is used to provide information about
                   how the composed resource should be processed.
@@ -171,9 +171,8 @@ spec:
                 provisioned using this composition will be created.
               type: string
           required:
-          - from
-          - to
-          - writeConnectionSecretsToNamespace
+          - compositeTypeRef
+          - resources
           type: object
         status:
           description: CompositionStatus shows the observed state of the composition.

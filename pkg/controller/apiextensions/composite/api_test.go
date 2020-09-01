@@ -135,7 +135,7 @@ func TestConfigure(t *testing.T) {
 			args: args{
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{
-						From: v1alpha1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
+						CompositeTypeRef: v1alpha1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
 					},
 				},
 				cp: &fake.Composite{},
@@ -158,10 +158,25 @@ func TestConfigure(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
 				comp: &v1alpha1.Composition{
-					Spec: v1alpha1.CompositionSpec{WriteConnectionSecretsToNamespace: cs.Ref.Namespace},
+					Spec: v1alpha1.CompositionSpec{WriteConnectionSecretsToNamespace: &cs.Ref.Namespace},
 				},
 			},
 			want: want{cp: cp},
+		},
+		"NilWriteConnectionSecretsToNamespace": {
+			reason: "Should not fill connection secret ref if composition does not have WriteConnectionSecretsToNamespace",
+			args: args{
+				kube: &test.MockClient{MockUpdate: test.NewMockUpdateFn(nil)},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{},
+				},
+			},
+			want: want{cp: &fake.Composite{
+				ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
+			}},
 		},
 		"UpdateFailed": {
 			reason: "Should fail if kube update failed",
@@ -172,7 +187,7 @@ func TestConfigure(t *testing.T) {
 				},
 				comp: &v1alpha1.Composition{
 					Spec: v1alpha1.CompositionSpec{
-						WriteConnectionSecretsToNamespace: cs.Ref.Namespace,
+						WriteConnectionSecretsToNamespace: &cs.Ref.Namespace,
 					},
 				},
 			},
@@ -205,7 +220,7 @@ func TestSelectorResolver(t *testing.T) {
 			Namespace: "bar",
 		},
 		Spec: v1alpha1.CompositionSpec{
-			From: tref,
+			CompositeTypeRef: tref,
 		},
 	}
 	sel := &metav1.LabelSelector{MatchLabels: map[string]string{"select": "me"}}
@@ -273,7 +288,7 @@ func TestSelectorResolver(t *testing.T) {
 							Items: []v1alpha1.Composition{
 								{
 									Spec: v1alpha1.CompositionSpec{
-										From: v1alpha1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+										CompositeTypeRef: v1alpha1.TypeReference{APIVersion: "foreign", Kind: "tome"},
 									},
 								},
 								*comp,
@@ -320,7 +335,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 			Name: "foo",
 		},
 		Spec: v1alpha1.CompositionSpec{
-			From: tref,
+			CompositeTypeRef: tref,
 		},
 	}
 	type args struct {
@@ -439,7 +454,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			Name: "foo",
 		},
 		Spec: v1alpha1.CompositionSpec{
-			From: tref,
+			CompositeTypeRef: tref,
 		},
 	}
 	type args struct {

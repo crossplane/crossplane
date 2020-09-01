@@ -267,12 +267,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// array with the same length. Then copy the already provisioned ones into
 	// that array to not create new ones because composed reconciler assumes that
 	// if the reference is empty, it needs to create the resource.
-	refs := make([]corev1.ObjectReference, len(comp.Spec.To))
+	refs := make([]corev1.ObjectReference, len(comp.Spec.Resources))
 	copy(refs, cr.GetResourceReferences())
 	conn := managed.ConnectionDetails{}
 	ready := 0
 	for i, ref := range refs {
-		tmpl := comp.Spec.To[i]
+		tmpl := comp.Spec.Resources[i]
 
 		obs, err := r.resource.Compose(ctx, cr, composed.New(composed.FromReference(ref)), tmpl)
 		if err != nil {
