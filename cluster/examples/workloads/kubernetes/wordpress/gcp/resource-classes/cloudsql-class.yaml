@@ -18,5 +18,5 @@ specTemplate:
         privateNetworkRef:
           name: sample-network
   reclaimPolicy: Delete
-  providerConfigRef:
+  providerRef:
     name: gcp-provider

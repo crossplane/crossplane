@@ -15,6 +15,6 @@ specTemplate:
   cannedACL: private
   localPermission: ReadWrite
   region: REGION
-  providerConfigRef:
+  providerRef:
     name: demo-aws
   reclaimPolicy: Delete

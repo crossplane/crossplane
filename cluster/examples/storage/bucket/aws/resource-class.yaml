@@ -11,6 +11,6 @@ specTemplate:
   cannedACL: private
   region: us-east-1
   localPermission: ReadWrite
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

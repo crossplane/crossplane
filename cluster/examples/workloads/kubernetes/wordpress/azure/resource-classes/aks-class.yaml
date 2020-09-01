@@ -21,5 +21,5 @@ specTemplate:
     name: akscluster-net
     namespace: crossplane-system
   reclaimPolicy: Delete
-  providerConfigRef:
+  providerRef:
     name: azure-provider

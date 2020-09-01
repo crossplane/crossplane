@@ -12,7 +12,7 @@ specTemplate:
   # providerConfigRef class field to specify which account to read.
   accountReference:
     name: storageaccount
-  providerConfigRef:
+  providerRef:
     name: storageaccount
   reclaimPolicy: Delete
   nameFormat: example-%s

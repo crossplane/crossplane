@@ -21,6 +21,6 @@ specTemplate:
     nodeInstanceType: m3.medium
     nodeGroupName: demo-nodes
     clusterControlPlaneSecurityGroup: #sg-01
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

@@ -18,5 +18,5 @@ specTemplate:
   clusterSecondaryRangeName: pods
   servicesSecondaryRangeName: services
   reclaimPolicy: Delete
-  providerConfigRef:
+  providerRef:
     name: gcp-provider

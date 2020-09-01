@@ -9,6 +9,6 @@ specTemplate:
   writeConnectionSecretsToNamespace: crossplane-system
   location: US
   storageClass: MULTI_REGIONAL
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

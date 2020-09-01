@@ -15,6 +15,6 @@ specTemplate:
       family: C
       capacity: 0
     enableNonSslPort: true
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

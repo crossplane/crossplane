@@ -47,6 +47,9 @@ spec:
               description: CredentialsSecretRef refers to a Secret containing connection
                 credentials for a Kubernetes cluster.
               properties:
+                key:
+                  description: The key to select.
+                  type: string
                 name:
                   description: Name of the secret.
                   type: string
@@ -54,6 +57,7 @@ spec:
                   description: Namespace of the secret.
                   type: string
               required:
+              - key
               - name
               - namespace
               type: object

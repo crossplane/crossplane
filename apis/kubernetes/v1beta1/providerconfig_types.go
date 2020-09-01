@@ -26,7 +26,7 @@ import (
 type ProviderConfigSpec struct {
 	// CredentialsSecretRef refers to a Secret containing connection credentials
 	// for a Kubernetes cluster.
-	CredentialsSecretRef v1alpha1.SecretReference `json:"credentialsSecretRef"`
+	CredentialsSecretRef v1alpha1.SecretKeySelector `json:"credentialsSecretRef"`
 }
 
 // +kubebuilder:object:root=true

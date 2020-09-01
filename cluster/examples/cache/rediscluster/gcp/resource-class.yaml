@@ -11,6 +11,6 @@ specTemplate:
     tier: STANDARD_HA
     region: us-west2
     memorySizeGb: 1
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete

@@ -18,6 +18,6 @@ specTemplate:
       tier: Standard
     tags:
       application: crossplane
-  providerConfigRef:
+  providerRef:
     name: example
   reclaimPolicy: Delete
