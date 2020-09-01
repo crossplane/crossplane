@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Crossplane Authors.
+Copyright 2020 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,37 +22,31 @@ import (
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
-// A ProviderSpec defines the desired state of a Provider.
-// Deprecated: Please use ProviderConfigSpec.
-type ProviderSpec struct {
-	// A Secret containing connection credentials for a Kubernetes cluster
-	// client that will be used to authenticate to this Kubernetes Provider.
-	// This will typically be the connection secret of a KubernetesCluster claim,
-	// or the secret created by a Kubernetes service account, but could also be
-	// manually configured to connect to a preexisting cluster.
-	Secret v1alpha1.SecretReference `json:"credentialsSecretRef"`
+// A ProviderConfigSpec defines the desired state of a ProviderConfig.
+type ProviderConfigSpec struct {
+	// CredentialsSecretRef refers to a Secret containing connection credentials
+	// for a Kubernetes cluster.
+	CredentialsSecretRef v1alpha1.SecretReference `json:"credentialsSecretRef"`
 }
 
 // +kubebuilder:object:root=true
 
-// A Provider configures a Kubernetes 'provider', i.e. a connection to a particular
-// Kubernetes cluster using the referenced Secret.
+// A ProviderConfig configures how a Kubernetes provider can connect to a specific
+// Kubernetes cluster to do its operations.
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentialsSecretRef.name",priority=1
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
-// Deprecated: Please use ProviderConfig.
-type Provider struct {
+type ProviderConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec ProviderSpec `json:"spec,omitempty"`
+	Spec ProviderConfigSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// ProviderList contains a list of Provider
-// Deprecated: Please use ProviderConfigList.
-type ProviderList struct {
+// ProviderConfigList contains a list of ProviderConfig
+type ProviderConfigList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Provider `json:"items"`
+	Items           []ProviderConfig `json:"items"`
 }

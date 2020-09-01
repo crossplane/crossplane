@@ -6,7 +6,7 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.2.4
   creationTimestamp: null
-  name: providers.kubernetes.crossplane.io
+  name: providerconfigs.kubernetes.crossplane.io
 spec:
   additionalPrinterColumns:
   - JSONPath: .spec.credentialsSecretRef.name
@@ -17,17 +17,16 @@ spec:
   names:
     categories:
     - crossplane
-    kind: Provider
-    listKind: ProviderList
-    plural: providers
-    singular: provider
+    kind: ProviderConfig
+    listKind: ProviderConfigList
+    plural: providerconfigs
+    singular: providerconfig
   scope: Cluster
   subresources: {}
   validation:
     openAPIV3Schema:
-      description: 'A Provider configures a Kubernetes ''provider'', i.e. a connection
-        to a particular Kubernetes cluster using the referenced Secret. Deprecated:
-        Please use ProviderConfig.'
+      description: A ProviderConfig configures how a Kubernetes provider can connect
+        to a specific Kubernetes cluster to do its operations.
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -42,15 +41,11 @@ spec:
         metadata:
           type: object
         spec:
-          description: 'A ProviderSpec defines the desired state of a Provider. Deprecated:
-            Please use ProviderConfigSpec.'
+          description: A ProviderConfigSpec defines the desired state of a ProviderConfig.
           properties:
             credentialsSecretRef:
-              description: A Secret containing connection credentials for a Kubernetes
-                cluster client that will be used to authenticate to this Kubernetes
-                Provider. This will typically be the connection secret of a KubernetesCluster
-                claim, or the secret created by a Kubernetes service account, but
-                could also be manually configured to connect to a preexisting cluster.
+              description: CredentialsSecretRef refers to a Secret containing connection
+                credentials for a Kubernetes cluster.
               properties:
                 name:
                   description: Name of the secret.
@@ -66,9 +61,9 @@ spec:
           - credentialsSecretRef
           type: object
       type: object
-  version: v1alpha1
+  version: v1beta1
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     served: true
     storage: true
 status:

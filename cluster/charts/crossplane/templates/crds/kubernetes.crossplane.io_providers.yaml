@@ -25,8 +25,9 @@ spec:
   subresources: {}
   validation:
     openAPIV3Schema:
-      description: A Provider configures a Kubernetes 'provider', i.e. a connection
-        to a particular Kubernetes cluster using the referenced Secret.
+      description: 'A Provider configures a Kubernetes ''provider'', i.e. a connection
+        to a particular Kubernetes cluster using the referenced Secret. Deprecated:
+        Please use ProviderConfig.'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -41,7 +42,8 @@ spec:
         metadata:
           type: object
         spec:
-          description: A ProviderSpec defines the desired state of a Provider.
+          description: 'A ProviderSpec defines the desired state of a Provider. Deprecated:
+            Please use ProviderConfigSpec.'
           properties:
             credentialsSecretRef:
               description: A Secret containing connection credentials for a Kubernetes
