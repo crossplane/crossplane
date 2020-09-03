@@ -18,6 +18,7 @@ package parser
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -26,8 +27,10 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
@@ -41,12 +44,14 @@ type Parser interface {
 // DefaultParser is a Parser implementation with pluggable backends.
 type DefaultParser struct {
 	backend Backend
+	scheme  *runtime.Scheme
 }
 
 // New returns a new parser.
 func New(backend Backend) *DefaultParser {
 	return &DefaultParser{
 		backend: backend,
+		scheme:  runtime.NewScheme(),
 	}
 }
 
@@ -57,6 +62,12 @@ func (p *DefaultParser) Parse(ctx context.Context, opts ...BackendOption) (*Pack
 	if err != nil || reader == nil {
 		return pkg, err
 	}
+	if err := apiextensions.AddToScheme(p.scheme); err != nil {
+		return pkg, err
+	}
+	fmt.Println(p.scheme.AllKnownTypes())
+
+	fmt.Println("HERE")
 	defer func() { _ = reader.Close() }()
 	d := yaml.NewYAMLToJSONDecoder(reader)
 	for {
@@ -68,41 +79,53 @@ func (p *DefaultParser) Parse(ctx context.Context, opts ...BackendOption) (*Pack
 		if err != nil {
 			return pkg, err
 		}
-		switch u.GroupVersionKind() {
-		case pkgmetav1alpha1.ProviderGroupVersionKind:
-			provider := &pkgmetav1alpha1.Provider{}
-			if err := fromUnstructured(u.UnstructuredContent(), provider); err != nil {
-				return pkg, err
-			}
-			pkg.provider = provider
-		case pkgmetav1alpha1.ConfigurationGroupVersionKind:
-			configuration := &pkgmetav1alpha1.Configuration{}
-			if err := fromUnstructured(u.UnstructuredContent(), configuration); err != nil {
-				return pkg, err
-			}
-			pkg.configuration = configuration
-		case apiextensions.SchemeGroupVersion.WithKind("CustomResourceDefinition"):
-			crd := &apiextensions.CustomResourceDefinition{}
-			if err := fromUnstructured(u.UnstructuredContent(), crd); err != nil {
-				return pkg, err
-			}
-			pkg.customResourceDefinitions[crd.GetName()] = crd
-		case apiextensionsv1alpha1.CompositeResourceDefinitionGroupVersionKind:
-			xrd := &apiextensionsv1alpha1.CompositeResourceDefinition{}
-			if err := fromUnstructured(u.UnstructuredContent(), xrd); err != nil {
-				return pkg, err
-			}
-			pkg.compositeResourceDefinitions[xrd.GetName()] = xrd
-		case apiextensionsv1alpha1.CompositionGroupVersionKind:
-			comp := &apiextensionsv1alpha1.Composition{}
-			if err := fromUnstructured(u.UnstructuredContent(), comp); err != nil {
-				return pkg, err
-			}
-			pkg.compositions[comp.GetName()] = comp
-		default:
-			// Unrecognized objects will be ignored.
-			continue
+		var test runtime.Object
+		test = u
+		convert := &unstructured.Unstructured{}
+		if err := p.scheme.Convert(test, convert, nil); err != nil {
+			return pkg, err
 		}
+		gvk, err := apiutil.GVKForObject(u, p.scheme)
+		if err != nil {
+			return pkg, err
+		}
+		fmt.Println(p.scheme.Recognizes(gvk))
+		pkg.objects = append(pkg.objects, convert)
+		// 	switch u.GroupVersionKind() {
+		// 	case pkgmetav1alpha1.ProviderGroupVersionKind:
+		// 		provider := &pkgmetav1alpha1.Provider{}
+		// 		if err := fromUnstructured(u.UnstructuredContent(), provider); err != nil {
+		// 			return pkg, err
+		// 		}
+		// 		pkg.provider = provider
+		// 	case pkgmetav1alpha1.ConfigurationGroupVersionKind:
+		// 		configuration := &pkgmetav1alpha1.Configuration{}
+		// 		if err := fromUnstructured(u.UnstructuredContent(), configuration); err != nil {
+		// 			return pkg, err
+		// 		}
+		// 		pkg.configuration = configuration
+		// 	case apiextensions.SchemeGroupVersion.WithKind("CustomResourceDefinition"):
+		// 		crd := &apiextensions.CustomResourceDefinition{}
+		// 		if err := fromUnstructured(u.UnstructuredContent(), crd); err != nil {
+		// 			return pkg, err
+		// 		}
+		// 		pkg.customResourceDefinitions[crd.GetName()] = crd
+		// 	case apiextensionsv1alpha1.CompositeResourceDefinitionGroupVersionKind:
+		// 		xrd := &apiextensionsv1alpha1.CompositeResourceDefinition{}
+		// 		if err := fromUnstructured(u.UnstructuredContent(), xrd); err != nil {
+		// 			return pkg, err
+		// 		}
+		// 		pkg.compositeResourceDefinitions[xrd.GetName()] = xrd
+		// 	case apiextensionsv1alpha1.CompositionGroupVersionKind:
+		// 		comp := &apiextensionsv1alpha1.Composition{}
+		// 		if err := fromUnstructured(u.UnstructuredContent(), comp); err != nil {
+		// 			return pkg, err
+		// 		}
+		// 		pkg.compositions[comp.GetName()] = comp
+		// 	default:
+		// 		// Unrecognized objects will be ignored.
+		// 		continue
+		// 	}
 	}
 	return pkg, nil
 }
@@ -120,6 +143,7 @@ type Backend interface {
 type Package struct {
 	provider                     *pkgmetav1alpha1.Provider
 	configuration                *pkgmetav1alpha1.Configuration
+	objects                      []runtime.Object
 	customResourceDefinitions    map[string]*apiextensions.CustomResourceDefinition
 	compositeResourceDefinitions map[string]*apiextensionsv1alpha1.CompositeResourceDefinition
 	compositions                 map[string]*apiextensionsv1alpha1.Composition
