@@ -238,7 +238,7 @@ func (p *NopBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadClos
 type FsBackend struct {
 	fs    afero.Fs
 	dir   string
-	skips []SkipFn
+	skips []FilterFn
 }
 
 // NewFsBackend returns a FsBackend.
@@ -271,8 +271,8 @@ func FsDir(dir string) BackendOption {
 	}
 }
 
-// FsSkips adds SkipFns to a FsBackend.
-func FsSkips(skips ...SkipFn) BackendOption {
+// FsFilters adds FilterFns to a FsBackend.
+func FsFilters(skips ...FilterFn) BackendOption {
 	return func(p Backend) {
 		f, ok := p.(*FsBackend)
 		if !ok {

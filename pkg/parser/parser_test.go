@@ -142,7 +142,7 @@ func TestParser(t *testing.T) {
 		},
 		"FsBackend": {
 			reason: "should parse filesystem successfully",
-			parser: New(NewFsBackend(fs, FsDir("."), FsSkips(SkipDirs(), SkipNotYaml(), SkipPath("\\.crossplane")))),
+			parser: New(NewFsBackend(fs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML(), SkipPath("\\.crossplane")))),
 			pkg: &Package{
 				provider:                     provider,
 				configuration:                configuration,
@@ -170,7 +170,7 @@ func TestParser(t *testing.T) {
 		},
 		"FsBackendSkip": {
 			reason: "should skip empty files and files without yaml extension",
-			parser: New(NewFsBackend(emptyFs, FsDir("."), FsSkips(SkipDirs(), SkipNotYaml()))),
+			parser: New(NewFsBackend(emptyFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML()))),
 			pkg:    NewPackage(),
 		},
 	}

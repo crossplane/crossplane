@@ -33,59 +33,58 @@ type FsReadCloser struct {
 	position int
 }
 
-// A SkipFn indicates whether a file should be skipped when the FsReadCloser
+// A FilterFn indicates filters file when the FsReadCloser
 // walks the filesystem. Returning true indicates the file should be skipped.
 // Returning an error will cause the FsReadCloser to stop walking the filesystem and
-type SkipFn func(path string, info os.FileInfo) (bool, error)
+type FilterFn func(path string, info os.FileInfo) (bool, error)
 
 // SkipPath skips files at a certain path.
-func SkipPath(pattern string) SkipFn {
+func SkipPath(pattern string) FilterFn {
 	return func(path string, info os.FileInfo) (bool, error) {
-		y, err := filepath.Match(pattern, path)
-		return !y, err
+		return filepath.Match(pattern, path)
 	}
 }
 
 // SkipDirs skips directories.
-func SkipDirs() SkipFn {
+func SkipDirs() FilterFn {
 	return func(path string, info os.FileInfo) (bool, error) {
 		if info.IsDir() {
-			return false, nil
+			return true, nil
 		}
-		return true, nil
+		return false, nil
 	}
 }
 
-// SkipNotYaml skips files that do not have yaml extension.
-func SkipNotYaml() SkipFn {
+// SkipNotYAML skips files that do not have YAML extension.
+func SkipNotYAML() FilterFn {
 	return func(path string, info os.FileInfo) (bool, error) {
 		if filepath.Ext(path) != ".yaml" && filepath.Ext(path) != ".yml" {
-			return false, nil
+			return true, nil
 		}
-		return true, nil
+		return false, nil
 	}
 }
 
 // NewFsReadCloser returns an FsReadCloser that implements io.ReadCloser. It
 // walks the filesystem ahead of time, then reads file contents when Read is
 // invoked.
-func NewFsReadCloser(fs afero.Fs, dir string, fns ...SkipFn) (*FsReadCloser, error) {
+func NewFsReadCloser(fs afero.Fs, dir string, fns ...FilterFn) (*FsReadCloser, error) {
 	paths := []string{}
 	err := afero.Walk(fs, dir, func(path string, info os.FileInfo, err error) error {
-		include := true
+		if err != nil {
+			return err
+		}
 		for _, fn := range fns {
-			fnInc, fnErr := fn(path, info)
-			if fnErr != nil {
-				return fnErr
+			filter, err := fn(path, info)
+			if err != nil {
+				return err
 			}
-			if !fnInc {
-				include = false
+			if filter {
+				return nil
 			}
 		}
-		if include {
-			paths = append(paths, path)
-		}
-		return err
+		paths = append(paths, path)
+		return nil
 	})
 	return &FsReadCloser{
 		fs:       fs,
