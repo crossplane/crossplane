@@ -133,6 +133,8 @@ type CompositeResourceDefinitionStatus struct {
 }
 
 // +kubebuilder:object:root=true
+// +genclient
+// +genclient:nonNamespaced
 
 // An CompositeResourceDefinition defines a new kind of composite infrastructure
 // resource. The new resource is composed of other composite or managed
