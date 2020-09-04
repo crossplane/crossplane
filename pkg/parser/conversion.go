@@ -16,26 +16,20 @@ limitations under the License.
 
 package parser
 
-import (
-	"encoding/json"
-
-	"github.com/pkg/errors"
-)
-
 // fromUnstructured converts an object from map[string]interface{}
 // representation into a concrete type.
 // TODO(hasheddan): revmove once
 // https://github.com/kubernetes/kubernetes/pull/93250 is merged and we consume
 // the appropriate k8s.io/apimachinery version (likely k8s v1.20).
-func fromUnstructured(unstructured map[string]interface{}, obj interface{}) error {
-	b, err := json.Marshal(unstructured)
-	if err != nil {
-		return errors.Wrap(err, "unable to convert unstructured item to JSON")
-	}
+// func fromUnstructured(unstructured map[string]interface{}, obj interface{}) error {
+// 	b, err := json.Marshal(unstructured)
+// 	if err != nil {
+// 		return errors.Wrap(err, "unable to convert unstructured item to JSON")
+// 	}
 
-	if err = json.Unmarshal(b, &obj); err != nil {
-		return errors.Wrap(err, "unable to convert JSON to interface")
-	}
+// 	if err = json.Unmarshal(b, &obj); err != nil {
+// 		return errors.Wrap(err, "unable to convert JSON to interface")
+// 	}
 
-	return nil
-}
+// 	return nil
+// }

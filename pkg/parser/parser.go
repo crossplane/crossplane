@@ -30,10 +30,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-const (
-	errNilReadCloser = "cannot read from nil io.ReadCloser"
-)
-
 // Package includes fields that all meaningful parsers should support.
 type Package struct {
 	meta    []runtime.Object
