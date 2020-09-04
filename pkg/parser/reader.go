@@ -93,7 +93,7 @@ func NewFsReadCloser(fs afero.Fs, dir string, fns ...FilterFn) (*FsReadCloser, e
 		paths:      paths,
 		index:      0,
 		position:   0,
-		writeBreak: true,
+		writeBreak: false,
 	}, err
 }
 

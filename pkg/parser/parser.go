@@ -18,56 +18,68 @@ package parser
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
 
 	"github.com/spf13/afero"
 	corev1 "k8s.io/api/core/v1"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
-
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 )
+
+const (
+	errNilReadCloser = "cannot read from nil io.ReadCloser"
+)
+
+// Package includes fields that all meaningful parsers should support.
+type Package struct {
+	meta    []runtime.Object
+	objects []runtime.Object
+}
+
+// NewPackage returns a new Package with maps initialized.
+func NewPackage() *Package {
+	return &Package{}
+}
+
+// GetMeta gets the package provider manifest.
+func (p *Package) GetMeta() []runtime.Object {
+	return p.meta
+}
+
+// GetObjects gets the package provider manifest.
+func (p *Package) GetObjects() []runtime.Object {
+	return p.objects
+}
 
 // Parser is a package parser.
 type Parser interface {
-	Parse(context.Context, ...BackendOption) (*Package, error)
+	Parse(context.Context, io.ReadCloser) (*Package, error)
 }
 
-// DefaultParser is a Parser implementation with pluggable backends.
+// DefaultParser is the default Parser implementation.
 type DefaultParser struct {
-	backend Backend
-	scheme  *runtime.Scheme
+	metaScheme *runtime.Scheme
+	objScheme  *runtime.Scheme
 }
 
-// New returns a new parser.
-func New(backend Backend) *DefaultParser {
+// New returns a new DefaultParser.
+func New(meta, obj *runtime.Scheme) *DefaultParser {
 	return &DefaultParser{
-		backend: backend,
-		scheme:  runtime.NewScheme(),
+		metaScheme: meta,
+		objScheme:  obj,
 	}
 }
 
 // Parse is the underlying parsing logic for parsing Crossplane packages.
-func (p *DefaultParser) Parse(ctx context.Context, opts ...BackendOption) (*Package, error) { //nolint:gocyclo
+func (p *DefaultParser) Parse(ctx context.Context, reader io.ReadCloser) (*Package, error) { //nolint:gocyclo
 	pkg := NewPackage()
-	reader, err := p.backend.Init(ctx, opts...)
-	if err != nil || reader == nil {
-		return pkg, err
+	if reader == nil {
+		return pkg, nil
 	}
-	if err := apiextensions.AddToScheme(p.scheme); err != nil {
-		return pkg, err
-	}
-	fmt.Println(p.scheme.AllKnownTypes())
-
-	fmt.Println("HERE")
 	defer func() { _ = reader.Close() }()
 	d := yaml.NewYAMLToJSONDecoder(reader)
 	for {
@@ -79,53 +91,12 @@ func (p *DefaultParser) Parse(ctx context.Context, opts ...BackendOption) (*Pack
 		if err != nil {
 			return pkg, err
 		}
-		var test runtime.Object
-		test = u
-		convert := &unstructured.Unstructured{}
-		if err := p.scheme.Convert(test, convert, nil); err != nil {
-			return pkg, err
+		if p.metaScheme.Recognizes(u.GroupVersionKind()) {
+			pkg.meta = append(pkg.meta, u)
 		}
-		gvk, err := apiutil.GVKForObject(u, p.scheme)
-		if err != nil {
-			return pkg, err
+		if p.objScheme.Recognizes(u.GroupVersionKind()) {
+			pkg.objects = append(pkg.objects, u)
 		}
-		fmt.Println(p.scheme.Recognizes(gvk))
-		pkg.objects = append(pkg.objects, convert)
-		// 	switch u.GroupVersionKind() {
-		// 	case pkgmetav1alpha1.ProviderGroupVersionKind:
-		// 		provider := &pkgmetav1alpha1.Provider{}
-		// 		if err := fromUnstructured(u.UnstructuredContent(), provider); err != nil {
-		// 			return pkg, err
-		// 		}
-		// 		pkg.provider = provider
-		// 	case pkgmetav1alpha1.ConfigurationGroupVersionKind:
-		// 		configuration := &pkgmetav1alpha1.Configuration{}
-		// 		if err := fromUnstructured(u.UnstructuredContent(), configuration); err != nil {
-		// 			return pkg, err
-		// 		}
-		// 		pkg.configuration = configuration
-		// 	case apiextensions.SchemeGroupVersion.WithKind("CustomResourceDefinition"):
-		// 		crd := &apiextensions.CustomResourceDefinition{}
-		// 		if err := fromUnstructured(u.UnstructuredContent(), crd); err != nil {
-		// 			return pkg, err
-		// 		}
-		// 		pkg.customResourceDefinitions[crd.GetName()] = crd
-		// 	case apiextensionsv1alpha1.CompositeResourceDefinitionGroupVersionKind:
-		// 		xrd := &apiextensionsv1alpha1.CompositeResourceDefinition{}
-		// 		if err := fromUnstructured(u.UnstructuredContent(), xrd); err != nil {
-		// 			return pkg, err
-		// 		}
-		// 		pkg.compositeResourceDefinitions[xrd.GetName()] = xrd
-		// 	case apiextensionsv1alpha1.CompositionGroupVersionKind:
-		// 		comp := &apiextensionsv1alpha1.Composition{}
-		// 		if err := fromUnstructured(u.UnstructuredContent(), comp); err != nil {
-		// 			return pkg, err
-		// 		}
-		// 		pkg.compositions[comp.GetName()] = comp
-		// 	default:
-		// 		// Unrecognized objects will be ignored.
-		// 		continue
-		// 	}
 	}
 	return pkg, nil
 }
@@ -134,53 +105,9 @@ func (p *DefaultParser) Parse(ctx context.Context, opts ...BackendOption) (*Pack
 // creation time, but must accept them at initialization.
 type BackendOption func(Backend)
 
-// Backend provides a source for the parser.
+// Backend provides a source for a parser.
 type Backend interface {
 	Init(context.Context, ...BackendOption) (io.ReadCloser, error)
-}
-
-// Package includes fields that all meaningful parsers should support.
-type Package struct {
-	provider                     *pkgmetav1alpha1.Provider
-	configuration                *pkgmetav1alpha1.Configuration
-	objects                      []runtime.Object
-	customResourceDefinitions    map[string]*apiextensions.CustomResourceDefinition
-	compositeResourceDefinitions map[string]*apiextensionsv1alpha1.CompositeResourceDefinition
-	compositions                 map[string]*apiextensionsv1alpha1.Composition
-}
-
-// NewPackage returns a new Package with maps initialized.
-func NewPackage() *Package {
-	return &Package{
-		customResourceDefinitions:    map[string]*apiextensions.CustomResourceDefinition{},
-		compositeResourceDefinitions: map[string]*apiextensionsv1alpha1.CompositeResourceDefinition{},
-		compositions:                 map[string]*apiextensionsv1alpha1.Composition{},
-	}
-}
-
-// GetProvider gets the package provider manifest.
-func (p *Package) GetProvider() *pkgmetav1alpha1.Provider {
-	return p.provider
-}
-
-// GetConfiguration gets the package configuration manifest.
-func (p *Package) GetConfiguration() *pkgmetav1alpha1.Configuration {
-	return p.configuration
-}
-
-// GetCustomResourceDefinitions gets a package's custom resource definitions.
-func (p *Package) GetCustomResourceDefinitions() map[string]*apiextensions.CustomResourceDefinition {
-	return p.customResourceDefinitions
-}
-
-// GetCompositeResourceDefinitions gets a package's composite resource definitions.
-func (p *Package) GetCompositeResourceDefinitions() map[string]*apiextensionsv1alpha1.CompositeResourceDefinition {
-	return p.compositeResourceDefinitions
-}
-
-// GetCompositions gets a package's compositions.
-func (p *Package) GetCompositions() map[string]*apiextensionsv1alpha1.Composition {
-	return p.compositions
 }
 
 // PodLogBackend is a package parser that uses Kubernetes pod logs as source.
@@ -212,7 +139,7 @@ func (p *PodLogBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadC
 	return reader, nil
 }
 
-// PodName sets the pod name of a PodLogParser.
+// PodName sets the pod name of a PodLogBackend.
 func PodName(name string) BackendOption {
 	return func(p Backend) {
 		pl, ok := p.(*PodLogBackend)
@@ -223,7 +150,7 @@ func PodName(name string) BackendOption {
 	}
 }
 
-// PodNamespace sets the pod namespace of a PodLogParser.
+// PodNamespace sets the pod namespace of a PodLogBackend.
 func PodNamespace(namespace string) BackendOption {
 	return func(p Backend) {
 		pl, ok := p.(*PodLogBackend)
@@ -234,7 +161,7 @@ func PodNamespace(namespace string) BackendOption {
 	}
 }
 
-// PodClient sets the pod client of a PodLogParser.
+// PodClient sets the pod client of a PodLogBackend.
 func PodClient(client kubernetes.Interface) BackendOption {
 	return func(p Backend) {
 		pl, ok := p.(*PodLogBackend)
@@ -245,7 +172,7 @@ func PodClient(client kubernetes.Interface) BackendOption {
 	}
 }
 
-// NopBackend is a package parser that parses nothing.
+// NopBackend is a package backend with empty source.
 type NopBackend struct{}
 
 // NewNopBackend returns a new NopBackend.
@@ -258,7 +185,7 @@ func (p *NopBackend) Init(ctx context.Context, bo ...BackendOption) (io.ReadClos
 	return nil, nil
 }
 
-// FsBackend is a package parser that uses a filestystem as source.
+// FsBackend is a parser backend that uses a filestystem as source.
 type FsBackend struct {
 	fs    afero.Fs
 	dir   string
@@ -306,12 +233,12 @@ func FsFilters(skips ...FilterFn) BackendOption {
 	}
 }
 
-// EchoBackend is a package parser that uses string input as source.
+// EchoBackend is a backend parser that uses string input as source.
 type EchoBackend struct {
 	echo string
 }
 
-// NewEchoBackend returns a new EchoParser.
+// NewEchoBackend returns a new EchoBackend.
 func NewEchoBackend(echo string) Backend {
 	return &EchoBackend{
 		echo: echo,

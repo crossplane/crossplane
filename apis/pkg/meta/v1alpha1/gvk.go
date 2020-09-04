@@ -52,3 +52,7 @@ var (
 	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
 	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
 )
+
+func init() {
+	SchemeBuilder.Register(&Configuration{}, &Provider{})
+}

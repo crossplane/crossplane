@@ -21,83 +21,61 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/spf13/afero"
-	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
-
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/spf13/afero"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 )
 
-var xrd = &apiextensionsv1alpha1.CompositeResourceDefinition{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       apiextensionsv1alpha1.CompositeResourceDefinitionKind,
-		APIVersion: "apiextensions.crossplane.io/v1alpha1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "test",
-	},
-	Spec: apiextensionsv1alpha1.CompositeResourceDefinitionSpec{},
-}
+var xrd = []byte(`apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: CompositeResourceDefinition
+metadata:
+  name: test`)
 
-var comp = &apiextensionsv1alpha1.Composition{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       apiextensionsv1alpha1.CompositionKind,
-		APIVersion: "apiextensions.crossplane.io/v1alpha1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "test",
-	},
-	Spec: apiextensionsv1alpha1.CompositionSpec{},
-}
+var comp = []byte(`apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: test`)
 
-var crd = &apiextensions.CustomResourceDefinition{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "CustomResourceDefinition",
-		APIVersion: "apiextensions.k8s.io/v1beta1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "test",
-	},
-	Spec: apiextensions.CustomResourceDefinitionSpec{},
-}
+var crd = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: test`)
 
-var provider = &pkgmetav1alpha1.Provider{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       pkgmetav1alpha1.ProviderKind,
-		APIVersion: "meta.pkg.crossplane.io/v1alpha1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "test",
-	},
-}
+var provider = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: test`)
 
-var configuration = &pkgmetav1alpha1.Configuration{
-	TypeMeta: metav1.TypeMeta{
-		Kind:       pkgmetav1alpha1.ConfigurationKind,
-		APIVersion: "meta.pkg.crossplane.io/v1alpha1",
-	},
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "test",
-	},
-}
+var configuration = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: test`)
 
 func TestParser(t *testing.T) {
-	xrdBytes, _ := yaml.Marshal(xrd)
-	compBytes, _ := yaml.Marshal(comp)
-	crdBytes, _ := yaml.Marshal(crd)
-	providerBytes, _ := yaml.Marshal(provider)
-	configurationBytes, _ := yaml.Marshal(configuration)
-	allBytes := bytes.Join([][]byte{providerBytes, configurationBytes, compBytes, crdBytes, xrdBytes}, []byte("\n---\n"))
+	uXRD := &unstructured.Unstructured{}
+	_ = yaml.Unmarshal(xrd, uXRD)
+	uComp := &unstructured.Unstructured{}
+	_ = yaml.Unmarshal(comp, uComp)
+	uCRD := &unstructured.Unstructured{}
+	_ = yaml.Unmarshal(crd, uCRD)
+	uConfiguration := &unstructured.Unstructured{}
+	_ = yaml.Unmarshal(configuration, uConfiguration)
+	uProvider := &unstructured.Unstructured{}
+	_ = yaml.Unmarshal(provider, uProvider)
+	allBytes := bytes.Join([][]byte{provider, configuration, xrd, comp, crd}, []byte("\n---\n"))
 	fs := afero.NewMemMapFs()
-	_ = afero.WriteFile(fs, "xrd.yaml", xrdBytes, 0o644)
-	_ = afero.WriteFile(fs, "comp.yaml", compBytes, 0o644)
-	_ = afero.WriteFile(fs, "crd.yaml", crdBytes, 0o644)
-	_ = afero.WriteFile(fs, "provider.yaml", providerBytes, 0o644)
-	_ = afero.WriteFile(fs, "some/nested/dir/configuration.yaml", configurationBytes, 0o644)
-	_ = afero.WriteFile(fs, ".crossplane/bad.yaml", configurationBytes, 0o644)
+	_ = afero.WriteFile(fs, "xrd.yaml", xrd, 0o644)
+	_ = afero.WriteFile(fs, "comp.yaml", comp, 0o644)
+	_ = afero.WriteFile(fs, "crd.yaml", crd, 0o644)
+	_ = afero.WriteFile(fs, "provider.yaml", provider, 0o644)
+	_ = afero.WriteFile(fs, "some/nested/dir/configuration.yaml", configuration, 0o644)
+	_ = afero.WriteFile(fs, ".crossplane/bad.yaml", configuration, 0o644)
 	allFs := afero.NewMemMapFs()
 	_ = afero.WriteFile(allFs, "all.yaml", allBytes, 0o644)
 	errFs := afero.NewMemMapFs()
@@ -105,99 +83,102 @@ func TestParser(t *testing.T) {
 	emptyFs := afero.NewMemMapFs()
 	_ = afero.WriteFile(emptyFs, "empty.yaml", []byte(""), 0o644)
 	_ = afero.WriteFile(emptyFs, "bad.yam", []byte("definitely not yaml"), 0o644)
+	objScheme := runtime.NewScheme()
+	metaScheme := runtime.NewScheme()
+	_ = apiextensions.AddToScheme(objScheme)
+	_ = apiextensionsv1alpha1.SchemeBuilder.AddToScheme(objScheme)
+	_ = pkgmetav1alpha1.SchemeBuilder.AddToScheme(metaScheme)
 
 	cases := map[string]struct {
 		reason  string
 		parser  Parser
-		opts    []BackendOption
+		backend Backend
 		pkg     *Package
 		wantErr bool
 	}{
 		"EchoBackendEmpty": {
-			reason: "should have empty output with empty input",
-			parser: New(NewEchoBackend("")),
-			pkg:    NewPackage(),
+			reason:  "should have empty output with empty input",
+			parser:  New(metaScheme, objScheme),
+			backend: NewEchoBackend(""),
+			pkg:     NewPackage(),
 		},
 		"EchoBackendError": {
 			reason:  "should have error with invalid yaml",
-			parser:  New(NewEchoBackend("definitely not yaml")),
+			parser:  New(metaScheme, objScheme),
+			backend: NewEchoBackend("definitely not yaml"),
 			pkg:     NewPackage(),
 			wantErr: true,
 		},
 		"EchoBackend": {
-			reason: "should parse input stream successfully",
-			parser: New(NewEchoBackend(string(allBytes))),
+			reason:  "should parse input stream successfully",
+			parser:  New(metaScheme, objScheme),
+			backend: NewEchoBackend(string(allBytes)),
 			pkg: &Package{
-				provider:                     provider,
-				configuration:                configuration,
-				customResourceDefinitions:    map[string]*apiextensions.CustomResourceDefinition{crd.GetName(): crd},
-				compositeResourceDefinitions: map[string]*apiextensionsv1alpha1.CompositeResourceDefinition{xrd.GetName(): xrd},
-				compositions:                 map[string]*apiextensionsv1alpha1.Composition{comp.GetName(): comp},
+				meta:    []runtime.Object{uProvider, uConfiguration},
+				objects: []runtime.Object{uXRD, uComp, uCRD},
 			},
 		},
 		"NopBackend": {
-			reason: "should never parse any objects and never return an error",
-			parser: New(NewNopBackend()),
-			pkg:    NewPackage(),
+			reason:  "should never parse any objects and never return an error",
+			parser:  New(metaScheme, objScheme),
+			backend: NewNopBackend(),
+			pkg:     NewPackage(),
 		},
 		"FsBackend": {
-			reason: "should parse filesystem successfully",
-			parser: New(NewFsBackend(fs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML(), SkipPath("\\.crossplane")))),
+			reason:  "should parse filesystem successfully",
+			parser:  New(metaScheme, objScheme),
+			backend: NewFsBackend(fs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML(), SkipPath(".crossplane/*"))),
 			pkg: &Package{
-				provider:                     provider,
-				configuration:                configuration,
-				customResourceDefinitions:    map[string]*apiextensions.CustomResourceDefinition{crd.GetName(): crd},
-				compositeResourceDefinitions: map[string]*apiextensionsv1alpha1.CompositeResourceDefinition{xrd.GetName(): xrd},
-				compositions:                 map[string]*apiextensionsv1alpha1.Composition{comp.GetName(): comp},
+				meta:    []runtime.Object{uProvider, uConfiguration},
+				objects: []runtime.Object{uXRD, uComp, uCRD},
 			},
 		},
 		"FsBackendAll": {
-			reason: "should parse filesystem successfully with multiple objects in single file",
-			parser: New(NewFsBackend(allFs, FsDir("."))),
+			reason:  "should parse filesystem successfully with multiple objects in single file",
+			parser:  New(metaScheme, objScheme),
+			backend: NewFsBackend(allFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML(), SkipPath(".crossplane/*"))),
 			pkg: &Package{
-				provider:                     provider,
-				configuration:                configuration,
-				customResourceDefinitions:    map[string]*apiextensions.CustomResourceDefinition{crd.GetName(): crd},
-				compositeResourceDefinitions: map[string]*apiextensionsv1alpha1.CompositeResourceDefinition{xrd.GetName(): xrd},
-				compositions:                 map[string]*apiextensionsv1alpha1.Composition{comp.GetName(): comp},
+				meta:    []runtime.Object{uProvider, uConfiguration},
+				objects: []runtime.Object{uXRD, uComp, uCRD},
 			},
 		},
 		"FsBackendError": {
 			reason:  "should error if yaml file with invalid yaml",
-			parser:  New(NewFsBackend(fs, FsDir("."))),
+			parser:  New(metaScheme, objScheme),
+			backend: NewFsBackend(fs, FsDir(".")),
 			pkg:     NewPackage(),
 			wantErr: true,
 		},
 		"FsBackendSkip": {
-			reason: "should skip empty files and files without yaml extension",
-			parser: New(NewFsBackend(emptyFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML()))),
-			pkg:    NewPackage(),
+			reason:  "should skip empty files and files without yaml extension",
+			parser:  New(metaScheme, objScheme),
+			backend: NewFsBackend(emptyFs, FsDir("."), FsFilters(SkipDirs(), SkipNotYAML())),
+			pkg:     NewPackage(),
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			pkg, err := tc.parser.Parse(context.TODO(), tc.opts...)
+			r, err := tc.backend.Init(context.TODO())
+			if err != nil {
+				t.Errorf("backend.Init(...): unexpected error: %s", err)
+			}
+			pkg, err := tc.parser.Parse(context.TODO(), r)
 			if err != nil && !tc.wantErr {
-				t.Errorf("Parse(...): unexpected error: %s", err)
+				t.Errorf("parser.Parse(...): unexpected error: %s", err)
 			}
 			if tc.wantErr {
 				return
 			}
-			if diff := cmp.Diff(tc.pkg.GetProvider(), pkg.GetProvider()); diff != "" {
+			if diff := cmp.Diff(tc.pkg.GetObjects(), pkg.GetObjects(), cmpopts.SortSlices(func(i, j runtime.Object) bool {
+				return i.GetObjectKind().GroupVersionKind().String() > j.GetObjectKind().GroupVersionKind().String()
+			})); diff != "" {
 				t.Errorf("Provider: -want, +got:\n%s", diff)
 			}
-			if diff := cmp.Diff(tc.pkg.GetConfiguration(), pkg.GetConfiguration()); diff != "" {
-				t.Errorf("Configuration: -want, +got:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.pkg.GetCompositeResourceDefinitions(), pkg.GetCompositeResourceDefinitions()); diff != "" {
-				t.Errorf("XRDs: -want, +got:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.pkg.GetCompositions(), pkg.GetCompositions()); diff != "" {
-				t.Errorf("Compositions: -want, +got:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.pkg.GetCustomResourceDefinitions(), pkg.GetCustomResourceDefinitions()); diff != "" {
-				t.Errorf("CRDs: -want, +got:\n%s", diff)
+			if diff := cmp.Diff(tc.pkg.GetMeta(), pkg.GetMeta(), cmpopts.SortSlices(func(i, j runtime.Object) bool {
+				return i.GetObjectKind().GroupVersionKind().String() > j.GetObjectKind().GroupVersionKind().String()
+			})); diff != "" {
+				t.Errorf("Provider: -want, +got:\n%s", diff)
 			}
 		})
 	}
