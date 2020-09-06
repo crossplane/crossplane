@@ -333,7 +333,7 @@ deploymentStrategy: RollingUpdate
 
 image:
   repository: crossplane/crossplane
-  tag: master
+  tag: alpha
   pullPolicy: Always
 
 imagePullSecrets:
