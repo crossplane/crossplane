@@ -35,6 +35,9 @@ var (
 
 	// SchemeBuilder is used to add go types to the GroupVersionKind scheme
 	SchemeBuilder = &scheme.Builder{GroupVersion: SchemeGroupVersion}
+
+	// AddToScheme adds all registered types to scheme
+	AddToScheme = SchemeBuilder.AddToScheme
 )
 
 // Provider type metadata.
@@ -52,3 +55,8 @@ var (
 	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
 	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
 )
+
+func init() {
+	SchemeBuilder.Register(&Configuration{})
+	SchemeBuilder.Register(&Provider{})
+}
