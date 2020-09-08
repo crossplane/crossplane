@@ -87,6 +87,25 @@ type ComposedTemplate struct {
 	// resource to the composition instance connection secret.
 	// +optional
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
+
+	// ReadinessProbe allows users to use a custom readiness check. The default
+	// readiness probe is to have the "Ready" condition to be "True".
+	ReadinessProbe ReadinessProbe `json:"readinessProbe,omitempty"`
+}
+
+// ReadinessProbe is used to indicate how to tell whether a resource is ready
+// for consumption
+type ReadinessProbe struct {
+
+	// FieldPath shows the path of the field whose value will be used.
+	FieldPath string `json:"fieldPath,omitempty"`
+
+	// Type indicates the type of probe you'd like to use.
+	// +kubebuilder:validation:Enum="Match";"NonEmpty"
+	Type string `json:"type"`
+
+	// Match is the value you'd like to match if you're using "Match" type
+	Match string `json:"match,omitempty"`
 }
 
 // Patch is used to patch the field on the base resource at ToFieldPath

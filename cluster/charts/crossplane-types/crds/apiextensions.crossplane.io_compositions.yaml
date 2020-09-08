@@ -124,6 +124,29 @@ spec:
                       - fromFieldPath
                       type: object
                     type: array
+                  readinessProbe:
+                    description: ReadinessProbe allows users to use a custom readiness
+                      check. The default readiness probe is to have the "Ready" condition
+                      to be "True".
+                    properties:
+                      fieldPath:
+                        description: FieldPath shows the path of the field whose value
+                          will be used.
+                        type: string
+                      match:
+                        description: Match is the value you'd like to match if you're
+                          using "Match" type
+                        type: string
+                      type:
+                        description: Type indicates the type of probe you'd like to
+                          use.
+                        enum:
+                        - Match
+                        - NonEmpty
+                        type: string
+                    required:
+                    - type
+                    type: object
                 required:
                 - base
                 type: object
