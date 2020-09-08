@@ -16,7 +16,6 @@ resources:
 - charts/crossplane-types/crds/database.crossplane.io_mysqlinstances.yaml
 - charts/crossplane-types/crds/database.crossplane.io_nosqlinstances.yaml
 - charts/crossplane-types/crds/database.crossplane.io_postgresqlinstances.yaml
-- charts/crossplane-types/crds/kubernetes.crossplane.io_providerconfigs.yaml
 - charts/crossplane-types/crds/kubernetes.crossplane.io_providers.yaml
 - charts/crossplane-types/crds/packages.crossplane.io_clusterpackageinstalls.yaml
 - charts/crossplane-types/crds/packages.crossplane.io_packageinstalls.yaml

@@ -23,7 +23,8 @@ import (
 )
 
 // A ProviderSpec defines the desired state of a Provider.
-// Deprecated: Please use ProviderConfigSpec.
+// Deprecated: Please implement a ProviderConfigSpec for your Kubernetes-native
+// Provider.
 type ProviderSpec struct {
 	// A Secret containing connection credentials for a Kubernetes cluster
 	// client that will be used to authenticate to this Kubernetes Provider.
@@ -39,7 +40,8 @@ type ProviderSpec struct {
 // Kubernetes cluster using the referenced Secret.
 // +kubebuilder:printcolumn:name="SECRET-NAME",type="string",JSONPath=".spec.credentialsSecretRef.name",priority=1
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
-// Deprecated: Please use ProviderConfig.
+// Deprecated: Please implement a ProviderConfig for your Kubernetes-native
+// Provider.
 type Provider struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -50,7 +52,8 @@ type Provider struct {
 // +kubebuilder:object:root=true
 
 // ProviderList contains a list of Provider
-// Deprecated: Please use ProviderConfigList.
+// Deprecated: Please implement a ProviderConfigList for your Kubernetes-native
+// Provider.
 type ProviderList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
