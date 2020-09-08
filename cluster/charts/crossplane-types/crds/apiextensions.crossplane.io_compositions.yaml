@@ -135,7 +135,7 @@ spec:
                         type: string
                       match:
                         description: Match is the value you'd like to match if you're
-                          using "Match" type
+                          using "Match" type. Currently, only string values are supported.
                         type: string
                       type:
                         description: Type indicates the type of probe you'd like to

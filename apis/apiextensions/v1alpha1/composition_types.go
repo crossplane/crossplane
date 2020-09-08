@@ -90,7 +90,7 @@ type ComposedTemplate struct {
 
 	// ReadinessProbe allows users to use a custom readiness check. The default
 	// readiness probe is to have the "Ready" condition to be "True".
-	ReadinessProbe ReadinessProbe `json:"readinessProbe,omitempty"`
+	ReadinessProbe *ReadinessProbe `json:"readinessProbe,omitempty"`
 }
 
 // ReadinessProbe is used to indicate how to tell whether a resource is ready
@@ -104,7 +104,8 @@ type ReadinessProbe struct {
 	// +kubebuilder:validation:Enum="Match";"NonEmpty"
 	Type string `json:"type"`
 
-	// Match is the value you'd like to match if you're using "Match" type
+	// Match is the value you'd like to match if you're using "Match" type. Currently,
+	// only string values are supported.
 	Match string `json:"match,omitempty"`
 }
 

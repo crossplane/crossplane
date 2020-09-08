@@ -21,10 +21,13 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -163,4 +166,37 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	}
 
 	return conn, nil
+}
+
+// DefaultReadinessProber is a readiness prober which returns whether the composed
+// resource is ready or not.
+type DefaultReadinessProber struct{}
+
+// IsReady returns whether the composed resource is ready.
+func (*DefaultReadinessProber) IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) {
+	if t.ReadinessProbe == nil {
+		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
+	}
+	u, ok := cd.(runtime.Unstructured)
+	if !ok {
+		return false, errors.New("composed resource has to satisfy runtime.Unstructured interface")
+	}
+	paved := fieldpath.Pave(u.UnstructuredContent())
+
+	switch t.ReadinessProbe.Type {
+	case "NonEmpty":
+		_, err := paved.GetValue(t.ReadinessProbe.FieldPath)
+		if resource.Ignore(fieldpath.IsNotFound, err) != nil {
+			return false, err
+		}
+		return !fieldpath.IsNotFound(err), nil
+	case "Match":
+		val, err := paved.GetString(t.ReadinessProbe.FieldPath)
+		if err != nil {
+			return false, err
+		}
+		return val == t.ReadinessProbe.Match, nil
+	default:
+		return false, errors.New("unknown readiness probe type is chosen")
+	}
 }
