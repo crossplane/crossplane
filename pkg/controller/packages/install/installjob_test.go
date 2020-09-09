@@ -1580,13 +1580,6 @@ func TestCreateJobOutputObject(t *testing.T) {
 			jobCompleter: &packageInstallJobCompleter{
 				client: func() client.Client {
 					crd := crd(withCRDGroupKind("samples.upbound.io", "Mytype"), withCRDLabels(map[string]string{"foo": "bar"}))
-					// NOTE(muvaf): There is a bug in controller-runtime fake
-					// client where it sets the resource version to 1 even if
-					// it returns AlreadyExists error later on. So, you end up
-					// with having resource version 0 in api-server but Create
-					// changes the local object's version to 1.
-					// See https://github.com/kubernetes-sigs/controller-runtime/issues/918
-					crd.SetResourceVersion("1")
 					return fake.NewFakeClient(&crd)
 				}(),
 				log: logging.NewNopLogger(),
