@@ -34,37 +34,26 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A KubernetesApplicationResource is a resource of a Kubernetes application.
-        Each resource templates a single Kubernetes resource to be deployed to its
-        scheduled KubernetesCluster.
+      description: A KubernetesApplicationResource is a resource of a Kubernetes application. Each resource templates a single Kubernetes resource to be deployed to its scheduled KubernetesCluster.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
-          description: KubernetesApplicationResourceSpec specifies the desired state
-            of a KubernetesApplicationResource.
+          description: KubernetesApplicationResourceSpec specifies the desired state of a KubernetesApplicationResource.
           properties:
             secrets:
-              description: Secrets upon which this application resource depends. These
-                secrets will be propagated to the Kubernetes cluster to which this
-                application is scheduled.
+              description: Secrets upon which this application resource depends. These secrets will be propagated to the Kubernetes cluster to which this application is scheduled.
               items:
-                description: LocalObjectReference contains enough information to let
-                  you locate the referenced object inside the same namespace.
+                description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
                 properties:
                   name:
-                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                      TODO: Add other useful fields. apiVersion, kind, uid?'
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
                     type: string
                 type: object
               type: array
@@ -78,22 +67,16 @@ spec:
               - name
               type: object
             template:
-              description: A Template for a Kubernetes resource to be submitted to
-                the KubernetesCluster to which this application resource is scheduled.
-                The resource must be understood by the KubernetesCluster. Crossplane
-                requires only that the resource contains standard Kubernetes type
-                and object metadata.
+              description: A Template for a Kubernetes resource to be submitted to the KubernetesCluster to which this application resource is scheduled. The resource must be understood by the KubernetesCluster. Crossplane requires only that the resource contains standard Kubernetes type and object metadata.
               type: object
           required:
           - template
           type: object
         status:
-          description: KubernetesApplicationResourceStatus represents the observed
-            state of a KubernetesApplicationResource.
+          description: KubernetesApplicationResourceStatus represents the observed state of a KubernetesApplicationResource.
           properties:
             conditionedStatus:
-              description: A ConditionedStatus reflects the observed status of a resource.
-                Only one condition of each type may exist.
+              description: A ConditionedStatus reflects the observed status of a resource. Only one condition of each type may exist.
               properties:
                 conditions:
                   description: Conditions of the resource.
@@ -101,25 +84,20 @@ spec:
                     description: A Condition that may apply to a resource.
                     properties:
                       lastTransitionTime:
-                        description: LastTransitionTime is the last time this condition
-                          transitioned from one status to another.
+                        description: LastTransitionTime is the last time this condition transitioned from one status to another.
                         format: date-time
                         type: string
                       message:
-                        description: A Message containing details about this condition's
-                          last transition from one status to another, if any.
+                        description: A Message containing details about this condition's last transition from one status to another, if any.
                         type: string
                       reason:
-                        description: A Reason for this condition's last transition
-                          from one status to another.
+                        description: A Reason for this condition's last transition from one status to another.
                         type: string
                       status:
-                        description: Status of this condition; is it currently True,
-                          False, or Unknown?
+                        description: Status of this condition; is it currently True, False, or Unknown?
                         type: string
                       type:
-                        description: Type of this condition. At most one of each condition
-                          type may apply to a resource at any point in time.
+                        description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
                         type: string
                     required:
                     - lastTransitionTime
@@ -130,12 +108,10 @@ spec:
                   type: array
               type: object
             remote:
-              description: Remote status of the resource templated by this application
-                resource.
+              description: Remote status of the resource templated by this application resource.
               properties:
                 raw:
-                  description: Raw JSON representation of the remote status as a byte
-                    array.
+                  description: Raw JSON representation of the remote status as a byte array.
                   format: byte
                   type: string
               type: object

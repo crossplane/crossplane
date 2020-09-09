@@ -22,18 +22,13 @@ spec:
     status: {}
   validation:
     openAPIV3Schema:
-      description: A ManualScalerTrait determines how many replicas a workload should
-        have.
+      description: A ManualScalerTrait determines how many replicas a workload should have.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
@@ -69,8 +64,7 @@ spec:
           - workloadRef
           type: object
         status:
-          description: A ManualScalerTraitStatus represents the observed state of
-            a ManualScalerTrait.
+          description: A ManualScalerTraitStatus represents the observed state of a ManualScalerTrait.
           properties:
             conditions:
               description: Conditions of the resource.
@@ -78,25 +72,20 @@ spec:
                 description: A Condition that may apply to a resource.
                 properties:
                   lastTransitionTime:
-                    description: LastTransitionTime is the last time this condition
-                      transitioned from one status to another.
+                    description: LastTransitionTime is the last time this condition transitioned from one status to another.
                     format: date-time
                     type: string
                   message:
-                    description: A Message containing details about this condition's
-                      last transition from one status to another, if any.
+                    description: A Message containing details about this condition's last transition from one status to another, if any.
                     type: string
                   reason:
-                    description: A Reason for this condition's last transition from
-                      one status to another.
+                    description: A Reason for this condition's last transition from one status to another.
                     type: string
                   status:
-                    description: Status of this condition; is it currently True, False,
-                      or Unknown?
+                    description: Status of this condition; is it currently True, False, or Unknown?
                     type: string
                   type:
-                    description: Type of this condition. At most one of each condition
-                      type may apply to a resource at any point in time.
+                    description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
                     type: string
                 required:
                 - lastTransitionTime
