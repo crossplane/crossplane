@@ -697,7 +697,7 @@ roleRef:
   name: crossplane:provider:7f63e3661:system
 subjects:
 - kind: ServiceAccount
-  name: crossplane:provider:7f63e3661
+  name: crossplane-provider-7f63e3661
   namespace: crossplane-system
 ```
 
