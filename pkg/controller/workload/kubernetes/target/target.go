@@ -106,7 +106,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	target.SetLabels(cluster.GetLabels())
 	meta.AddLabels(target, cluster.GetLabels())
 	meta.AddLabels(target, map[string]string{LabelKeyAutoTarget: cluster.GetName()})
-	meta.AddOwnerReference(target, meta.AsController(meta.ReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)))
+	meta.AddOwnerReference(target, meta.AsController(meta.TypedReferenceTo(cluster, computev1alpha1.KubernetesClusterGroupVersionKind)))
 
 	err := r.client.Apply(ctx, target,
 		MustHaveLabel(LabelKeyAutoTarget, cluster.GetName()),
