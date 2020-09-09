@@ -177,6 +177,17 @@ rules:
   - examplemanageds
   - exampleproviderconfigs
   verbs: ["*"]
+---
+# Crossplane uses a fixed (at runtime) namespace to unpack packages and run
+# providers. This role allows it to do so. Note that it is included for
+# illustrative purposes; it is static and is thus managed by the Crossplane Helm
+# chart rather than the RBAC manager.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: crossplane-system
+  name: crossplane
+rules:
 # Crossplane uses jobs to unpack packages.
 - apiGroups: [batch, extensions]
   resources: [jobs]
