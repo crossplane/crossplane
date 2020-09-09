@@ -234,14 +234,23 @@ rules:
 ```
 
 Crossplane's user-facing cluster roles are inspired by the [user-facing roles]
-of Kubernetes - `admin`, `edit`, and `view`. Note that Kubernetes distinguishes
-the `cluster-admin` cluster role, which is intended to be granted at cluster
-scope via a cluster role binding, from the `admin`, `edit`, and `view` cluster
-roles, which are intended to be granted within a particular namespace using a
-role binding. Crossplane does not make this distinction. The `crossplane-admin`,
-`crossplane-edit`, and `crossplane-view` roles are intended to be granted at the
-cluster scope, and thus grant admin, edit, or view access at the cluster scope.
-Crossplane provides distinct edit and view roles for each namespace.
+of Kubernetes - `admin`, `edit`, and `view`, albeit with a few differences:
+
+* Kubernetes distinguishes the `cluster-admin` cluster role, which is intended
+  to be granted at cluster scope via a cluster role binding, from the `admin`,
+  `edit`, and `view` cluster roles, which are intended to be granted within a
+  particular namespace using a role binding. Crossplane does not make this
+  distinction. The `crossplane-admin`, `crossplane-edit`, and `crossplane-view`
+  roles are intended to be granted at the cluster scope, and thus grant admin,
+  edit, or view access at the cluster scope.
+* Crossplane includes a `browse` role, which grants view access to composite
+  resources and compositions (not providers and managed resources). This role
+  may be granted to subjects who can author resource claims in a namespace (or
+  namespaces), and who should be able to browse the compositions or composite
+  resources that they may reference or select.
+* Crossplane provides distinct edit and view roles for each namespace. This
+  allows the admin role (for example) to grant access to different resource
+  claims from one namespace to another.
 
 The `crossplane-admin` role is automatically bound to the `crossplane:masters`
 group for convenience. It grants the following rules:
@@ -382,6 +391,35 @@ rules:
   verbs: [get, list, watch]
 ```
 
+The `crossplane-browse` role allows read-only access to composite resources and
+compositions.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: crossplane-view
+rules:
+# Crossplane browsers have access to view events.
+- apiGroups: [""]
+  resources: [events]
+  verbs: [get, list, watch]
+# Crossplane browsers have read-only access to compositions and XRDs. This
+# allows them to discover and select an appropriate composition when creating a
+# resource claim.
+- apiGroups:
+  - apiextensions.crossplane.io
+  resources: ["*"]
+  verbs: [get, list, watch]
+# Crossplane browsers have read-only access to all of the composite resources it
+# defines. This allows them to claim a statically provisioned composite
+# resource.
+- apiGroups: [xr.example.org]
+  resources:
+  - examplecomposites
+  verbs: [get, list, watch]
+```
+
 The RBAC manager creates `edit` and `view` cluster roles for each namespace.
 These cluster roles are 'namespace aligned' - they are intended to grant access
 to a particular namespace via a `RoleBinding` - but not namespace scoped. This
@@ -423,12 +461,6 @@ rules:
 - apiGroups: [""]
   resources: [secrets]
   verbs: ["*"]
-# Crossplane editors have read-only access to composite resource definitions and
-# compositions. This allows them to discover and select an appropriate
-# composition when creating a resource claim.
-- apiGroups: [apiextensions.crossplane.io]
-  resources: ["*"]
-  verbs: [get, list, watch]
 # Crossplane editors have full access to all of the composite resource claims
 # that an admin has chosen to enable in their namespace.
 - apiGroups: [xr.example.org]
