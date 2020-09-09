@@ -247,7 +247,7 @@ in the [API Reference][api-reference] documentation.
 
 Crossplane adheres to Kubernetes conventions as much as possible and one of the
 advantages we gain is backup & restore ability with tools that work with native
-Kubernetes types, like [Verero][velero].
+Kubernetes types, like [Velero][velero].
 
 If you'd like to backup and restore manually, you can simply export them and save
 YAMLs in your file system. When you reload them, as we've discovered in import
