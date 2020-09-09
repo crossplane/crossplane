@@ -28,7 +28,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+
 	"github.com/crossplane/crossplane/pkg/packages"
 	"github.com/crossplane/crossplane/pkg/packages/truncate"
 )
@@ -59,10 +61,9 @@ func SyncImagePullSecrets(ctx context.Context, tenantKube, hostKube client.Clien
 	name := hostObj.GetName()
 	hostNS := hostObj.GetNamespace()
 
-	ref := &corev1.ObjectReference{
+	ref := &v1alpha1.TypedReference{
 		APIVersion: v,
 		Kind:       k,
-		Namespace:  hostNS,
 		Name:       name,
 		UID:        hostObj.GetUID(),
 	}
