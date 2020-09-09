@@ -732,7 +732,7 @@ the RBAC manager without compromising any core Crossplane functionality. In
 addition to completely disabling the RBAC manager it will be possible to limit
 the scope of the RBAC manager via a flag. The following levels will exist:
 
-* `--manage=all` - Include all functionality described in this design.
+* `--manage=all` - Include all functionality described in this design. (Default)
 * `--manage=serviceaccounts` - Manage only the 'software' roles - i.e. the
   `crossplane` role and the roles for each provider.
 * `--manage=basic` - Manage the software roles plus the `crossplane-admin`,
