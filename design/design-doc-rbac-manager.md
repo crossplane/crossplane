@@ -207,10 +207,11 @@ rules:
 - apiGroups: [""]
   resources: [events]
   verbs: [create]
-# Providers read their credentials from secrets.
+# Providers read their credentials from secrets. They may also create and update
+# secrets containing managed resource connection details.
 - apiGroups: [""]
   resources: [secrets]
-  verbs: [get]
+  verbs: [get, create, update]
 # Providers have access to the resources they define.
 - apiGroups: [provider.example.org]
   resources:
