@@ -68,7 +68,7 @@ func TestCompose(t *testing.T) {
 	}
 
 	boundCD := cd.DeepCopyObject().(*fake.Composed)
-	meta.AddOwnerReference(boundCD, meta.AsController(meta.ReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())))
+	meta.AddOwnerReference(boundCD, meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())))
 
 	type args struct {
 		composer *Composer
