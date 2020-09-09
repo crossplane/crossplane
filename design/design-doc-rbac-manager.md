@@ -577,7 +577,7 @@ cluster role aggregates to the `crossplane-view` cluster role, and any `view`
 role for a namespace in which the composite resource may be claimed.
 
 Composite resources may be claimed in any namespace that has an annotation with
-the key `rbac.crossplane.io/composites.example.org`, and the value `xrd-enabled`
+the key `rbac.crossplane.io/composites.example.org`, set to `xrd-claim-accepted`
 (where `composites.example.org` is the name of the XRD). When the RBAC manager
 encounters a namespace with one or more such annotations, it creates `edit` and
 `view` cluster roles for that namespace.
@@ -588,8 +588,8 @@ kind: Namespace
 metadata:
   name: example
   annotations:
-    rbac.crossplane.io/composites.example.org: xrd-enabled
-    rbac.crossplane.io/examplecomposites.xr.example.org: xrd-enabled
+    rbac.crossplane.io/composites.example.org: xrd-claim-accepted
+    rbac.crossplane.io/examplecomposites.xr.example.org: xrd-claim-accepted
 ```
 
 The above namespace, for example, will result in the creation of the following
