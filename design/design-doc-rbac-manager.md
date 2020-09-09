@@ -248,9 +248,9 @@ of Kubernetes - `admin`, `edit`, and `view`, albeit with a few differences:
   may be granted to subjects who can author resource claims in a namespace (or
   namespaces), and who should be able to browse the compositions or composite
   resources that they may reference or select.
-* Crossplane provides distinct edit and view roles for each namespace. This
-  allows the admin role (for example) to grant access to different resource
-  claims from one namespace to another.
+* Crossplane provides distinct admin, edit, and view roles for each namespace.
+  This allows one namespace's admin role (for example) to grant access to
+  different resource claims from another namespace's.
 
 The `crossplane-admin` role is automatically bound to the `crossplane:masters`
 group for convenience. It grants the following rules:
@@ -420,37 +420,60 @@ rules:
   verbs: [get, list, watch]
 ```
 
-The RBAC manager creates `edit` and `view` cluster roles for each namespace.
-These cluster roles are 'namespace aligned' - they are intended to grant access
-to a particular namespace via a `RoleBinding` - but not namespace scoped. This
-is because (while these examples are flattened into single roles) they use role
-aggregation, which is not supported by namespaced RBAC roles.
+The RBAC manager creates `admin`, `edit`, and `view` roles for each namespace.
+Maintaining roles for each namespace allows the specific access that these roles
+grant to vary from namespace to namespace. A platform operator who has been
+granted the `crossplane-admin` role may influence which resource claims are
+available to a particular namespaces by annotating the namespace (see [Composite
+Resource ClusterRole Mechanics] for details).
 
-Maintaining an `edit` and a `view` role for each namespace allows the specific
-access that these roles grant to vary from namespace to namespace. A platform
-operator who has been granted the `crossplane-admin` role may influence which
-resource claims are available to a particular namespaces by annotating the
-namespace (see [Composite Resource ClusterRole Mechanics] for details).
-
-> Note that there is no namespace aligned `admin` role. It may be desirable for
-> a subject bound to the `admin` role in a particular namespace to be able to
-> bind other subjects to that role in that namespace, but it is not possible to
-> enforce this. Kubernetes RBAC allows a subject with access to create role
-> bindings to bind any role that grants less or equal access than they have, and
-> thus a subject bound to the `crossplane-ns-example-admin` cluster role in the
-> `example` namespace could bind another subject the `crossplane-ns-other-admin`
-> cluster role in the `example` namespace as long as binding the latter role was
-> not a privilege escalation.
-
-The `crossplane-ns-${namespace}-edit` role grants full access to the resource
-claims that are available to said namespace:
+The `crossplane-admin` role grants the following rules:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
-  # This role is intended for use with the 'example' namespace.
-  name: crossplane-ns-example-edit
+  # This role applies only to the 'example' namespace.
+  namespace: example
+  name: crossplane-admin
+rules:
+# Crossplane namespace admins have access to view events.
+- apiGroups: [""]
+  resources: [events]
+  verbs: [get, list, watch]
+# Crossplane namespace admins may need to read or otherwise interact with
+# resource claim connection secrets.
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: ["*"]
+# Crossplane namespace admins have access to view the cluster roles that they
+# may be able to grant to other subjects.
+- apiGroups: [rbac.authorization.k8s.io]
+  resources: [roles]
+  verbs: [get, list, watch]
+# Crossplane namespace admins have access to grant the access they have to other
+# subjects.
+- apiGroups: [rbac.authorization.k8s.io]
+  resources: [rolebindings]
+  verbs: [*]
+# Crossplane namespace admins have full access to all of the composite resource
+# claims that an admin has chosen to enable in their namespace.
+- apiGroups: [xr.example.org]
+  resources:
+  - exampleclaims
+  verbs: ["*"]
+```
+
+The `crossplane-edit` role is identical to `crossplane-admin`, sans the ability
+to grant others access by managing role bindings.
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  # This role applies only to the 'example' namespace.
+  namespace: example
+  name: crossplane-edit
 rules:
 # Crossplane namespace editors have access to view events.
 - apiGroups: [""]
@@ -466,19 +489,19 @@ rules:
 - apiGroups: [xr.example.org]
   resources:
   - exampleclaims
-  - exampleclaims/status
   verbs: ["*"]
 ```
 
-The `crossplane-ns-${namespace}-view` role grants read-only access to the
-resource claims that are available to said namespace:
+The `crossplane-view` role grants read-only access to the resource claims that
+are available to said namespace:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
-  # This role is intended for use with the 'example' namespace.
-  name: crossplane-ns-example-view
+  # This role applies only to the 'example' namespace.
+  namespace: example
+  name: crossplane-view
 rules:
 # Crossplane namespace viewers have access to view events.
 - apiGroups: [""]
@@ -489,7 +512,6 @@ rules:
 - apiGroups: [xr.example.org]
   resources:
   - exampleclaims
-  - exampleclaims/status
   verbs: [get, list, watch]
 ```
 
@@ -499,8 +521,8 @@ Each of [the RBAC roles that Crossplane manages][Managed RBAC ClusterRoles] is
 in fact an aggregation of several cluster roles. Typically each role will be an
 aggregation of a 'base' role - a fixed set of rules - and zero or more roles
 that are created by the RBAC manager in response to the installation of a
-provider, or the definition of a composite resource. The `crossplane-admin` role
-might be an aggregation of the following roles:
+provider, or the definition of a composite resource. The `crossplane-admin`
+cluster role might be an aggregation of the following roles:
 
 * `crossplane:aggregate-to-admin`
 * `crossplane:provider:7f63e3661:aggregate-to-edit`
@@ -549,60 +571,21 @@ rules:
   verbs: ["*"]
 ```
 
-The cluster roles intended to be bound at the cluster scope (e.g.
-`crossplane-admin`) and their base roles (e.g. `crossplane:aggregate-to-admin`)
+The cluster roles intended to be bound at the cluster scope and their base roles
 can be created outside of Crossplane - typically by Crossplane's Helm chart. All
 other roles that aggregate to `crossplane-admin` are created as required by the
-RBAC manager. Cluster roles intended to be bound at the namespace scope (e.g.
-`crossplane-ns-example-admin`) on the other hand must be created by the RBAC
-manager, though their base roles can be created outside of Crossplane.
+RBAC manager. Roles that may only be bound at the namespace scope on the other
+hand must be created by the RBAC manager, though their base roles can be created
+outside of Crossplane.
 
 The naming convention established by this design is that user-facing roles use
 hyphen separated names, while system facing and aggregated roles use colon
 user-facing role. There is only one `crossplane:aggregate-to-admin` base role
-and only separated names. In the above example the base role is one-to-one with
-the one `crossplane-admin` user-facing role. In other cases one base role is
-shared by many user-facing roles - for example many user-facing namespace roles
-share one base role:
-
-```yaml
----
-# The 'user-facing' edit role for the 'example' namespace.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: crossplane-ns-example-edit
-aggregationRule:
-  clusterRoleSelectors:
-  - matchLabels:
-      rbac.crossplane.io/aggregate-to-ns-edit: "true"
-      rbac.crossplane.io/base-of-ns-edit: "true"
----
-# The 'base' role containing the fixed rules that always aggregate to all
-# namespace aligned edit cluster roles.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: crossplane:aggregate-to-ns-edit
-  labels:
-    rbac.crossplane.io/aggregate-to-ns-edit: "true"
-    rbac.crossplane.io/base-of-ns-edit: "true"
-rules:
-- apiGroups: [""]
-  resources: [events]
-  verbs: [get, list, watch]
-- apiGroups: [""]
-  resources: [secrets]
-  verbs: ["*"]
-- apiGroups: [apiextensions.crossplane.io]
-  resources: ["*"]
-  verbs: [get, list, watch]
-```
-
-Note that aggregation may be transitive. For example the `crossplane-admin` role
-is identical to the `crossplane-edit` role except for a few extra rules in its
-base role. Provider and composite resource roles can therefore aggregate only to
-`crossplane-edit`, which in turn aggregates to `crossplane-admin`.
+and only separated names. Note that aggregation may be transitive. For example
+the `crossplane-admin` role is identical to the `crossplane-edit` role except
+for a few extra rules in its base role. Provider and composite resource roles
+can therefore aggregate only to `crossplane-edit`, which in turn aggregates to
+`crossplane-admin`.
 
 ### Composite Resource ClusterRole Mechanics
 
@@ -614,56 +597,16 @@ the creation of the following roles:
 * `crossplane:composite:composites.example.org:aggregate-to-view`
 
 The `aggregate-to-edit` role aggregates to the `crossplane`, `crossplane-admin`,
-and `crossplane-edit` roles, as well as any namespace-aligned `edit` role for a
+and `crossplane-edit` cluster roles, as well as any namespaced `edit` role for a
 namespace in which the composite resource may claimed. The `aggregate-to-view`
 cluster role aggregates to the `crossplane-view` cluster role, and any `view`
-role for a namespace in which the composite resource may be claimed.
-
-Composite resources may be claimed in any namespace that has an annotation with
-the key `rbac.crossplane.io/composites.example.org`, set to `xrd-claim-accepted`
-(where `composites.example.org` is the name of the XRD). When the RBAC manager
-encounters a namespace with one or more such annotations, it creates `edit` and
-`view` cluster roles for that namespace.
+role for a namespace in which the composite resource may be claimed. Below is an
+example of an `edit` composite resource cluster role.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: example
-  annotations:
-    rbac.crossplane.io/composites.example.org: xrd-claim-accepted
-    rbac.crossplane.io/examplecomposites.xr.example.org: xrd-claim-accepted
-```
-
-The above namespace, for example, will result in the creation of the following
-cluster role. Note that the latter two role selectors are derived from the
-annotations of the namespace.
-
-```yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: crossplane-ns-example-edit
-aggregationRule:
-  clusterRoleSelectors:
-  - matchLabels:
-      rbac.crossplane.io/aggregate-to-ns-edit: "true"
-      rbac.crossplane.io/base-of-ns-edit: "true"
-  - matchLabels:
-      rbac.crossplane.io/aggregate-to-ns-edit: "true"
-      rbac.crossplane.io/xrd: composites.example.org
-  - matchLabels:
-      rbac.crossplane.io/aggregate-to-ns-edit: "true"
-      rbac.crossplane.io/xrd: examplecomposites.xr.example.org
-```
-
-Below is an example of an `edit` composite resource cluster role.
-
-```yaml
-# This composite resource role aggregates up to any namespace aligned cluster
-# role that declares compatibility by including the XRD label. The same role
-# also aggregates to the crossplane-edit role (and thus transitively to the
-# crossplane-admin role).
+# This ClusterRole aggregates up to any namespaced role that declares
+# compatibility by including the XRD label. The same role also aggregates to the
+# crossplane-edit role (and thus transitively to the crossplane-admin role).
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -685,6 +628,62 @@ rules:
   - examplecomposites/status
   verbs: ["*"]
 ```
+
+Composite resources may be claimed in any namespace that has an annotation with
+the key `rbac.crossplane.io/composites.example.org`, set to `xrd-claim-accepted`
+(where `composites.example.org` is the name of the XRD). When the RBAC manager
+encounters a namespace with one or more such annotations, it creates `admin`,
+`edit` and `view` roles in that namespace.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: example
+  annotations:
+    rbac.crossplane.io/composites.example.org: xrd-claim-accepted
+    rbac.crossplane.io/examplecomposites.xr.example.org: xrd-claim-accepted
+```
+
+The above namespace, for example, will result in the creation of the following
+role:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: crossplane-edit
+rules:
+# Crossplane namespace editors have access to view events.
+- apiGroups: [""]
+  resources: [events]
+  verbs: [get, list, watch]
+# Crossplane namespace editors may need to read or otherwise interact with
+# resource claim connection secrets.
+- apiGroups: [""]
+  resources: [secrets]
+  verbs: ["*"]
+# Crossplane editors have full access to all of the composite resource claims
+# that an admin has chosen to enable in their namespace.
+- apiGroups: [xr.example.org]
+  resources:
+  - exampleclaims
+  verbs: ["*"]
+```
+
+Note that Kubernetes only supports the aggregation of cluster roles, not of
+namespaced roles. The RBAC manager therefore uses an opinionated approximation
+of cluster role aggregation to build namespaced RBAC roles. For the namespaced
+`edit` role, for example, it:
+
+1. Copies the rules of all cluster roles that are labelled both
+   `rbac.crossplane.io/aggregate-to-ns-edit: "true"` and
+   `rbac.crossplane.io/base-of-ns-edit: "true"`
+1. Copies the rules of all cluster roles that are labelled both
+   `rbac.crossplane.io/aggregate-to-ns-edit: "true"` and
+   `rbac.crossplane.io/xrd: examplecomposites.xr.example.org`, where
+   `examplecomposites.xr.example.org` is the name of an XRD that is accepted in
+   its namespace.
 
 ### Provider ClusterRole Mechanics
 
@@ -814,6 +813,29 @@ resources to create and aggregate arbitrary RBAC rules when new Crossplane types
 (or even arbitrary types) are created. Crossplane is choosing to be opinionated
 about its RBAC roles at this time, but may explore this path in the future if
 opinionated RBAC roles prove to be insufficient.
+
+### Namespace-aligned ClusterRoles
+
+This design proposes that the RBAC manager approximate cluster role aggregation
+when managing namespaced RBAC roles. This is driven by a desire to leverage role
+aggregation at the namespace scope, which is not supported by Kubernetes. An
+alternative to this approach would be to create 'namespace-aligned' cluster
+roles for each namespace and bind them to subjects in that namespace using a
+role binding. This alternative approach is appealing in that it leverages
+'native' RBAC role aggregation, but it has a few downsides:
+
+* Nothing prevents a 'namespace-aligned' cluster role from being bound to a
+  namespace other than the one it was intended for. In particular, in the likely
+  case that namespace A's admin role granted a subset namespace B's admin role,
+  admins of namespace B would be able to bind namespace A's cluster role to
+  subjects within their namespace.
+* Namespace admins would need access to browse all cluster roles in order to
+  determine which cluster roles they may bind in their namespace.
+* Cluster roles must be manually cleaned up when a namespace is deleted.
+
+In all the difference between using namespace-aligned cluster roles and actual
+namespaced roles is neglible both in terms of functionality and complexity, so
+the decision comes down to which approach is more 'idiomatic'.
 
 [Aggregated ClusterRoles]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles
 [user-facing roles]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles
