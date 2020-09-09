@@ -89,7 +89,7 @@ func ForCompositeResource(d *v1alpha1.CompositeResourceDefinition) Option {
 		crd.SetLabels(d.GetLabels())
 		crd.SetAnnotations(d.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+			meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
 		crd.Spec.AdditionalPrinterColumns = CompositeResourcePrinterColumns()
 
@@ -130,7 +130,7 @@ func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
 		crd.SetLabels(d.GetLabels())
 		crd.SetAnnotations(d.GetAnnotations())
 		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+			meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
 		)})
 
 		crd.Spec.Names = v1beta1.CustomResourceDefinitionNames{

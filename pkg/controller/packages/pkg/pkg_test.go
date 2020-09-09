@@ -761,7 +761,7 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 						Name:      resourceName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.PackageGroupVersionKind)),
+							meta.AsOwner(meta.TypedReferenceTo(resource(), v1alpha1.PackageGroupVersionKind)),
 						},
 					},
 				},
@@ -780,7 +780,7 @@ func TestProcessRBAC_Namespaced(t *testing.T) {
 						Name:      resourceName,
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
-							meta.AsOwner(meta.ReferenceTo(resource(), v1alpha1.PackageGroupVersionKind)),
+							meta.AsOwner(meta.TypedReferenceTo(resource(), v1alpha1.PackageGroupVersionKind)),
 						},
 					},
 					RoleRef: rbac.RoleRef{
@@ -927,7 +927,7 @@ func TestProcessRBAC_Cluster(t *testing.T) {
 						Namespace: namespace,
 						OwnerReferences: []metav1.OwnerReference{
 							meta.AsOwner(
-								meta.ReferenceTo(resource(
+								meta.TypedReferenceTo(resource(
 									withPermissionScope("Cluster")),
 									v1alpha1.PackageGroupVersionKind,
 								),

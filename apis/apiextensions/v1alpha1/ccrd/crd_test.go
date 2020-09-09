@@ -113,7 +113,7 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
+				meta.AsController(meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{
@@ -447,7 +447,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.ReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
+				meta.AsController(meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: v1beta1.CustomResourceDefinitionSpec{

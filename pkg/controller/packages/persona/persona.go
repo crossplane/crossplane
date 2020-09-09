@@ -228,7 +228,7 @@ func (h *nsPersonaHandler) create(ctx context.Context) error {
 		// When the namespace is deleted, clusterroles are no longer needed.
 		// Set the owner to the Namespace for garbage collection.
 		role.SetOwnerReferences([]metav1.OwnerReference{
-			meta.AsOwner(meta.ReferenceTo(h.ns, corev1.SchemeGroupVersion.WithKind("Namespace"))),
+			meta.AsOwner(meta.TypedReferenceTo(h.ns, corev1.SchemeGroupVersion.WithKind("Namespace"))),
 		})
 
 		// Creating the clusterroles. Rules in these clusterroles are populated

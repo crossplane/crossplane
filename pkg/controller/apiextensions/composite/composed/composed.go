@@ -163,7 +163,7 @@ func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resour
 	// We use AddOwnerReference rather than AddControllerReference because we
 	// don't need the latter to check whether a controller reference is already
 	// set.
-	meta.AddOwnerReference(cd, meta.AsController(meta.ReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())))
+	meta.AddOwnerReference(cd, meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())))
 
 	// Apply should be the last operation of this function so that we can return
 	// the reference to be stored in the Composite resource immediately.

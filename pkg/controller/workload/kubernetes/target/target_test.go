@@ -212,7 +212,7 @@ func TestReconcile(t *testing.T) {
 						want.SetLabels(kubeCluster().GetLabels())
 						meta.AddLabels(want, map[string]string{"dev": "true"})
 						meta.AddLabels(want, map[string]string{LabelKeyAutoTarget: kubeCluster().GetName()})
-						meta.AddOwnerReference(want, meta.AsController(meta.ReferenceTo(kubeCluster(), computev1alpha1.KubernetesClusterGroupVersionKind)))
+						meta.AddOwnerReference(want, meta.AsController(meta.TypedReferenceTo(kubeCluster(), computev1alpha1.KubernetesClusterGroupVersionKind)))
 
 						if diff := cmp.Diff(got, want); diff != "" {
 							t.Errorf("Apply: -want, +got:\n %s", diff)

@@ -27,41 +27,28 @@ spec:
       description: An ApplicationConfiguration represents an OAM application.
       properties:
         apiVersion:
-          description: 'APIVersion defines the versioned schema of this representation
-            of an object. Servers should convert recognized schemas to the latest
-            internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
           type: string
         kind:
-          description: 'Kind is a string value representing the REST resource this
-            object represents. Servers may infer this from the endpoint the client
-            submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
           type: string
         metadata:
           type: object
         spec:
-          description: An ApplicationConfigurationSpec defines the desired state of
-            a ApplicationConfiguration.
+          description: An ApplicationConfigurationSpec defines the desired state of a ApplicationConfiguration.
           properties:
             components:
-              description: Components of which this ApplicationConfiguration consists.
-                Each component will be used to instantiate a workload.
+              description: Components of which this ApplicationConfiguration consists. Each component will be used to instantiate a workload.
               items:
-                description: An ApplicationConfigurationComponent specifies a component
-                  of an ApplicationConfiguration. Each component is used to instantiate
-                  a workload.
+                description: An ApplicationConfigurationComponent specifies a component of an ApplicationConfiguration. Each component is used to instantiate a workload.
                 properties:
                   componentName:
-                    description: ComponentName specifies a component of which an ApplicationConfiguration
-                      should consist. The named component must exist.
+                    description: ComponentName specifies a component of which an ApplicationConfiguration should consist. The named component must exist.
                     type: string
                   parameterValues:
-                    description: ParameterValues specify values for the the specified
-                      component's parameters. Any parameter required by the component
-                      must be specified.
+                    description: ParameterValues specify values for the the specified component's parameters. Any parameter required by the component must be specified.
                     items:
-                      description: A ComponentParameterValue specifies a value for
-                        a named parameter. The associated component must publish a
-                        parameter with this name.
+                      description: A ComponentParameterValue specifies a value for a named parameter. The associated component must publish a parameter with this name.
                       properties:
                         name:
                           description: Name of the component parameter to set.
@@ -80,12 +67,10 @@ spec:
                   scopes:
                     description: Scopes in which the specified component should exist.
                     items:
-                      description: A ComponentScope specifies a scope in which a component
-                        should exist.
+                      description: A ComponentScope specifies a scope in which a component should exist.
                       properties:
                         scopeRef:
-                          description: A ScopeReference must refer to an OAM scope
-                            resource.
+                          description: A ScopeReference must refer to an OAM scope resource.
                           properties:
                             apiVersion:
                               description: APIVersion of the referenced object.
@@ -111,8 +96,7 @@ spec:
                   traits:
                     description: Traits of the specified component.
                     items:
-                      description: A ComponentTrait specifies a trait that should
-                        be applied to a component.
+                      description: A ComponentTrait specifies a trait that should be applied to a component.
                       properties:
                         trait:
                           description: A Trait that will be created for the component
@@ -131,8 +115,7 @@ spec:
           - components
           type: object
         status:
-          description: An ApplicationConfigurationStatus represents the observed state
-            of a ApplicationConfiguration.
+          description: An ApplicationConfigurationStatus represents the observed state of a ApplicationConfiguration.
           properties:
             conditions:
               description: Conditions of the resource.
@@ -140,25 +123,20 @@ spec:
                 description: A Condition that may apply to a resource.
                 properties:
                   lastTransitionTime:
-                    description: LastTransitionTime is the last time this condition
-                      transitioned from one status to another.
+                    description: LastTransitionTime is the last time this condition transitioned from one status to another.
                     format: date-time
                     type: string
                   message:
-                    description: A Message containing details about this condition's
-                      last transition from one status to another, if any.
+                    description: A Message containing details about this condition's last transition from one status to another, if any.
                     type: string
                   reason:
-                    description: A Reason for this condition's last transition from
-                      one status to another.
+                    description: A Reason for this condition's last transition from one status to another.
                     type: string
                   status:
-                    description: Status of this condition; is it currently True, False,
-                      or Unknown?
+                    description: Status of this condition; is it currently True, False, or Unknown?
                     type: string
                   type:
-                    description: Type of this condition. At most one of each condition
-                      type may apply to a resource at any point in time.
+                    description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
                     type: string
                 required:
                 - lastTransitionTime
@@ -178,8 +156,7 @@ spec:
                   traits:
                     description: Traits associated with this workload.
                     items:
-                      description: A WorkloadTrait represents a trait associated with
-                        a workload.
+                      description: A WorkloadTrait represents a trait associated with a workload.
                       properties:
                         traitRef:
                           description: Reference to a trait created by an ApplicationConfiguration.

@@ -643,7 +643,7 @@ func (h *packageHandler) processRBAC(ctx context.Context) error {
 		return nil
 	}
 
-	owner := meta.AsOwner(meta.ReferenceTo(h.ext, v1alpha1.PackageGroupVersionKind))
+	owner := meta.AsOwner(meta.TypedReferenceTo(h.ext, v1alpha1.PackageGroupVersionKind))
 
 	// create service account
 	sa := &corev1.ServiceAccount{
@@ -949,7 +949,7 @@ func (h *packageHandler) finalizeAwareHostDeployment(ctx context.Context, d *app
 		return errors.Wrap(err, errFailedToSyncImagePullSecrets)
 	}
 
-	owner := meta.AsOwner(meta.ReferenceTo(d, d.GroupVersionKind()))
+	owner := meta.AsOwner(meta.TypedReferenceTo(d, d.GroupVersionKind()))
 	err = h.syncSATokenSecret(ctx, owner, saRef, saSecretRef)
 
 	return errors.Wrap(err, errFailedToSyncSASecret)
