@@ -24,7 +24,7 @@ spec:
   subresources: {}
   validation:
     openAPIV3Schema:
-      description: A KubernetesTarget is a scheduling target for a Kubernetes Application.
+      description: 'A KubernetesTarget is a scheduling target for a Kubernetes Application. Deprecated: See https://github.com/crossplane/crossplane/issues/1595'
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
