@@ -36,7 +36,7 @@ that it can reconcile.
 
 When Crossplane defines new custom resources some entities (or subjects, in
 Kubernetes RBAC terminology) must be granted access to those resources in order
-for them to be useful. These subjects can be categorised as software, or humans.
+for them to be useful. These subjects can be categorised as software, or users.
 
 Software, in this context, corresponds to the service accounts that Crossplane
 or a provider run as. When the package manager reconciles a `Provider`, it runs
@@ -45,7 +45,7 @@ managed resources unless its service account is granted access to do so.
 Furthermore, the core Crossplane controllers cannot create the provider's
 managed resources, and thus cannot compose them into a higher level resource.
 
-Humans are the people who use Crossplane to orchestrate external systems.
+Users are the people who use Crossplane to orchestrate external systems.
 Crossplane typically categorises these people into three roles, which may
 overlap:
 
@@ -64,7 +64,7 @@ able to grant this access because the API server requires that a subject be
 granted a particular RBAC role before they are able to grant that role to
 another subject.
 
-In either case - software or human - it is possible for a superuser to manually
+In either case - software or user - it is possible for a superuser to manually
 author the appropriate RBAC roles and bind them to the appropriate subjects to
 make Crossplane work. A superuser in this context is either a subject bound to
 the built in `cluster-admin` RBAC `ClusterRole`, or a subject bound to a role
@@ -233,7 +233,7 @@ rules:
   verbs: [get, list, watch, update, patch]
 ```
 
-Crossplane's human-facing cluster roles are inspired by the [user-facing roles]
+Crossplane's user-facing cluster roles are inspired by the [user-facing roles]
 of Kubernetes - `admin`, `edit`, and `view`. Note that Kubernetes distinguishes
 the `cluster-admin` cluster role, which is intended to be granted at cluster
 scope via a cluster role binding, from the `admin`, `edit`, and `view` cluster
