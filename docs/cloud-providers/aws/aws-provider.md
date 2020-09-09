@@ -41,7 +41,7 @@ resources.
 You can confirm the existense of the  AWS `ProviderConfig` by running:
 
 ```bash
-kubectl -n crossplane-system get provider/aws-provider
+kubectl get providerconfig aws-provider
 ```
 
 ## Optional: Setup AWS Provider Manually
