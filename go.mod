@@ -3,6 +3,7 @@ module github.com/crossplane/crossplane
 go 1.13
 
 require (
+	github.com/alecthomas/kong v0.2.11
 	github.com/crossplane/crossplane-runtime v0.9.1-0.20200909163703-c8aaffcea500
 	github.com/crossplane/crossplane-tools v0.0.0-20200412230150-efd0edd4565b
 	github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200426101222-2b61763c2e51
