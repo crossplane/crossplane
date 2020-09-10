@@ -122,7 +122,7 @@ func NewComposer(kube client.Client, opts ...ComposerOption) *Composer {
 		composed: composed{
 			Configurator:      &DefaultConfigurator{},
 			OverlayApplicator: &DefaultOverlayApplicator{},
-			ReadinessProber:   &DefaultReadinessProber{},
+			ReadinessProber:   &DefaultReadinessChecker{},
 		},
 		connection: connection{
 			ConnectionDetailsFetcher: &APIConnectionDetailsFetcher{client: kube},

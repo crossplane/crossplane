@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -169,12 +169,12 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	return conn, nil
 }
 
-// DefaultReadinessProber is a readiness prober which returns whether the composed
+// DefaultReadinessChecker is a readiness checker which returns whether the composed
 // resource is ready or not.
-type DefaultReadinessProber struct{}
+type DefaultReadinessChecker struct{}
 
 // IsReady returns whether the composed resource is ready.
-func (*DefaultReadinessProber) IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
+func (*DefaultReadinessChecker) IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
 	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
 	// mandatory repetitiveness of the switch clause, which is not really complex
 	// in reality. Though beware of adding additional complexity besides that.
@@ -182,33 +182,35 @@ func (*DefaultReadinessProber) IsReady(_ context.Context, cd resource.Composed, 
 	if len(t.ReadinessChecks) == 0 {
 		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
 	}
-	u, ok := cd.(runtime.Unstructured)
+	// TODO(muvaf): We can probably get rid of resource.Composed interface and fake.Composed
+	// structs and use *runtimecomposed.Unstructured everywhere including tests.
+	u, ok := cd.(*runtimecomposed.Unstructured)
 	if !ok {
-		return false, errors.New("composed resource has to satisfy runtime.Unstructured interface")
+		return false, errors.New("composed resource has to be Unstructured type")
 	}
 	paved := fieldpath.Pave(u.UnstructuredContent())
 
 	for i, check := range t.ReadinessChecks {
 		var ready bool
 		switch check.Type {
-		case "NonEmpty":
+		case v1alpha1.ReadinessCheckNonEmpty:
 			_, err := paved.GetValue(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err)
-		case "MatchString":
+		case v1alpha1.ReadinessCheckMatchString:
 			val, err := paved.GetString(check.FieldPath)
-			if err != nil {
+			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
-			ready = val == check.MatchString
-		case "MatchInteger":
+			ready = !fieldpath.IsNotFound(err) && val == check.MatchString
+		case v1alpha1.ReadinessCheckMatchInteger:
 			val, err := paved.GetInteger(check.FieldPath)
 			if err != nil {
 				return false, err
 			}
-			ready = val == check.MatchInteger
+			ready = !fieldpath.IsNotFound(err) && val == check.MatchInteger
 		default:
 			return false, errors.New(fmt.Sprintf("readiness check at index %d: an unknown type is chosen", i))
 		}

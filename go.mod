@@ -2,11 +2,9 @@ module github.com/crossplane/crossplane
 
 go 1.13
 
-replace github.com/crossplane/crossplane-runtime => github.com/muvaf/crossplane-runtime v0.0.0-20200910111027-446c12e8ee41
-
 require (
 	github.com/alecthomas/kong v0.2.11
-	github.com/crossplane/crossplane-runtime v0.9.1-0.20200909225216-9b321c2bc8e6
+	github.com/crossplane/crossplane-runtime v0.9.1-0.20200914182558-23650e1146f7
 	github.com/crossplane/crossplane-tools v0.0.0-20200412230150-efd0edd4565b
 	github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200426101222-2b61763c2e51
 	github.com/docker/distribution v2.7.1+incompatible

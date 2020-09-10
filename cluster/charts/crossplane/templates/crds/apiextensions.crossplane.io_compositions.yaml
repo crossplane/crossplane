@@ -147,6 +147,7 @@ spec:
                           - NonEmpty
                           type: string
                       required:
+                      - fieldPath
                       - type
                       type: object
                     type: array

@@ -95,21 +95,32 @@ type ComposedTemplate struct {
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
+// TypeReadinessCheck is used for readiness check types
+type TypeReadinessCheck string
+
+// The possible values for readiness check type.
+const (
+	ReadinessCheckNonEmpty     TypeReadinessCheck = "NonEmpty"
+	ReadinessCheckMatchString  TypeReadinessCheck = "MatchString"
+	ReadinessCheckMatchInteger TypeReadinessCheck = "MatchInteger"
+)
+
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
 type ReadinessCheck struct {
-
 	// FieldPath shows the path of the field whose value will be used.
-	FieldPath string `json:"fieldPath,omitempty"`
+	FieldPath string `json:"fieldPath"`
 
 	// Type indicates the type of probe you'd like to use.
 	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty"
-	Type string `json:"type"`
+	Type TypeReadinessCheck `json:"type"`
 
 	// MatchString is the value you'd like to match if you're using "MatchString" type.
+	// +optional
 	MatchString string `json:"matchString,omitempty"`
 
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
+	// +optional
 	MatchInteger int64 `json:"matchInteger,omitempty"`
 }
 

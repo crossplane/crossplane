@@ -20,6 +20,8 @@ import (
 	"context"
 	"testing"
 
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -241,6 +243,160 @@ func TestFetch(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.conn, conn); diff != "" {
 				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsReady(t *testing.T) {
+	type args struct {
+		cd *runtimecomposed.Unstructured
+		t  v1alpha1.ComposedTemplate
+	}
+	type want struct {
+		ready bool
+		err   error
+	}
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"NoCustomCheck": {
+			reason: "If no custom check is given, Ready condition should be used",
+			args: args{
+				cd: runtimecomposed.New(runtimecomposed.WithConditions(runtimev1alpha1.Available())),
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"NonEmptyErr": {
+			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata..uid"}}},
+			},
+			want: want{
+				err: errors.Wrapf(errors.New("unexpected '.' at position 9"), "cannot parse path %q", "metadata..uid"),
+			},
+		},
+		"NonEmptyFalse": {
+			reason: "If the field does not have value, NonEmpty check should return false",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"NonEmptyTrue": {
+			reason: "If the field does have a value, NonEmpty check should return true",
+			args: args{
+				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+					r.SetUID("olala")
+				}),
+				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"MatchStringErr": {
+			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata..uid"}}},
+			},
+			want: want{
+				err: errors.Wrapf(errors.New("unexpected '.' at position 9"), "cannot parse path %q", "metadata..uid"),
+			},
+		},
+		"MatchStringFalse": {
+			reason: "If the value of the field does not match, it should return false",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"MatchStringTrue": {
+			reason: "If the value of the field does match, it should return true",
+			args: args{
+				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+					r.SetUID("olala")
+				}),
+				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"MatchIntegerErr": {
+			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "metadata..uid"}}},
+			},
+			want: want{
+				err: errors.Wrapf(errors.New("unexpected '.' at position 9"), "cannot parse path %q", "metadata..uid"),
+			},
+		},
+		"MatchIntegerFalse": {
+			reason: "If the value of the field does not match, it should return false",
+			args: args{
+				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+					r.Object = map[string]interface{}{
+						"spec": map[string]interface{}{
+							"someNum": int64(6),
+						},
+					}
+				}),
+				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "spec.someNum", MatchInteger: 5}}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"MatchIntegerTrue": {
+			reason: "If the value of the field does match, it should return true",
+			args: args{
+				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+					r.Object = map[string]interface{}{
+						"spec": map[string]interface{}{
+							"someNum": int64(5),
+						},
+					}
+				}),
+				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "spec.someNum", MatchInteger: 5}}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"UnknownType": {
+			reason: "If unknown type is chosen, it should return an error",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "Olala"}}},
+			},
+			want: want{
+				err: errors.New("readiness check at index 0: an unknown type is chosen"),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &DefaultReadinessChecker{}
+			ready, err := c.IsReady(context.Background(), tc.args.cd, tc.args.t)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.ready, ready); diff != "" {
+				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
