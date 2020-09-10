@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -250,22 +249,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err != nil {
 		log.Debug(errRenderCRD, "error", err)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRenderCRD)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource claim CustomResourceDefinition"))
 
 	if meta.WasDeleted(d) {
-		d.Status.SetConditions(v1alpha1.Deleting())
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Removing support for composite resource claim"))
-
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, err))
-			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetCRD)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errGetCRD)))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
 		// The CRD has no creation timestamp, or we don't control it. Most
@@ -284,9 +278,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
-				r.record.Event(d, event.Warning(reasonDeleteXRD, err))
-				d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errRemoveFinalizer)))
-				return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+				r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errRemoveFinalizer)))
+				return reconcile.Result{RequeueAfter: shortWait}, nil
 			}
 
 			// We're all done deleting and have removed our finalizer. There's
@@ -298,9 +291,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		l.SetGroupVersionKind(d.GetClaimGroupVersionKind())
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug(errListCRs, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, err))
-			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errListCRs)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errListCRs)))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
 		// Ensure all the custom resources we defined are gone before stopping
@@ -313,9 +305,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			for i := range l.Items {
 				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
 					log.Debug(errDeleteCR, "error", err)
-					r.record.Event(d, event.Warning(reasonDeleteXRD, err))
-					d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCR)))
-					return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+					r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errDeleteCR)))
+					return reconcile.Result{RequeueAfter: shortWait}, nil
 				}
 			}
 
@@ -324,8 +315,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// because we won't be requeued implicitly when the CRs are deleted.
 			log.Debug(waitCRDelete)
 			r.record.Event(d, event.Normal(reasonDeleteXRD, waitCRDelete))
-			d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDelete))
-			return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+			return reconcile.Result{RequeueAfter: tinyWait}, nil
 		}
 
 		// The controller should be stopped before the deletion of CRD so that
@@ -336,9 +326,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, err))
-			d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errDeleteCRD)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errDeleteCRD)))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 		log.Debug("Deleted composite resource claim CustomResourceDefinition")
 		r.record.Event(d, event.Normal(reasonDeleteXRD, "Deleted composite resource claim CustomResourceDefinition"))
@@ -346,30 +335,26 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue after
 		// a tiny wait just in case the CRD isn't gone after the first requeue.
-		d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
-		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: tinyWait}, nil
 	}
 
 	if err := r.claim.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, err))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errAddFinalizer)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errAddFinalizer)))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
 		log.Debug(errApplyCRD, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, err))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errApplyCRD)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errApplyCRD)))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 	r.record.Event(d, event.Normal(reasonApplyXRD, "Applied composite resource claim CustomResourceDefinition"))
 
 	if !ccrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonApplyXRD, waitCRDEstablish))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess().WithMessage(waitCRDEstablish))
-		return reconcile.Result{RequeueAfter: tinyWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: tinyWait}, nil
 	}
 
 	o := kcontroller.Options{Reconciler: claim.NewReconciler(r.mgr,
@@ -390,13 +375,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		controller.For(cp, &EnqueueRequestForClaim{}),
 	); err != nil {
 		log.Debug(errStartController, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, err))
-		d.Status.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errStartController)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
+		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errStartController)))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 	r.record.Event(d, event.Normal(reasonApplyXRD, "(Re)started composite resource claim controller"))
 
 	d.Status.SetConditions(v1alpha1.WatchingClaim())
-	d.Status.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

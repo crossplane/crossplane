@@ -38,7 +38,6 @@ const (
 const (
 	ReasonWatchingComposite runtimev1alpha1.ConditionReason = "WatchingCompositeResource"
 	ReasonWatchingClaim     runtimev1alpha1.ConditionReason = "WatchingCompositeResourceClaim"
-	ReasonDeleting          runtimev1alpha1.ConditionReason = "DefinitionDeleted"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -60,15 +59,5 @@ func WatchingClaim() runtimev1alpha1.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWatchingClaim,
-	}
-}
-
-// Deleting returns a condition that indicates a definition is being deleted.
-func Deleting() runtimev1alpha1.Condition {
-	return runtimev1alpha1.Condition{
-		Type:               TypeEstablished,
-		Status:             corev1.ConditionFalse,
-		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonDeleting,
 	}
 }
