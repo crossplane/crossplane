@@ -174,7 +174,11 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 type DefaultReadinessProber struct{}
 
 // IsReady returns whether the composed resource is ready.
-func (*DefaultReadinessProber) IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) {
+func (*DefaultReadinessProber) IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
+	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
+	// mandatory repetitiveness of the switch clause, which is not really complex
+	// in reality. Though beware of adding additional complexity besides that.
+
 	if len(t.ReadinessChecks) == 0 {
 		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
 	}
@@ -193,14 +197,20 @@ func (*DefaultReadinessProber) IsReady(ctx context.Context, cd resource.Composed
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err)
-		case "Match":
+		case "MatchString":
 			val, err := paved.GetString(check.FieldPath)
 			if err != nil {
 				return false, err
 			}
-			ready = val == check.Match
+			ready = val == check.MatchString
+		case "MatchInteger":
+			val, err := paved.GetInteger(check.FieldPath)
+			if err != nil {
+				return false, err
+			}
+			ready = val == check.MatchInteger
 		default:
-			return false, errors.New(fmt.Sprintf("readiness check at index %d: an unknown is chosen", i))
+			return false, errors.New(fmt.Sprintf("readiness check at index %d: an unknown type is chosen", i))
 		}
 		if !ready {
 			return false, nil

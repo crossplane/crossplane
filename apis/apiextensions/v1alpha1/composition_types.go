@@ -103,12 +103,14 @@ type ReadinessCheck struct {
 	FieldPath string `json:"fieldPath,omitempty"`
 
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="Match";"NonEmpty"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty"
 	Type string `json:"type"`
 
-	// Match is the value you'd like to match if you're using "Match" type. Currently,
-	// only string values are supported.
-	Match string `json:"match,omitempty"`
+	// MatchString is the value you'd like to match if you're using "MatchString" type.
+	MatchString string `json:"matchString,omitempty"`
+
+	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
+	MatchInteger int64 `json:"matchInteger,omitempty"`
 }
 
 // Patch is used to patch the field on the base resource at ToFieldPath

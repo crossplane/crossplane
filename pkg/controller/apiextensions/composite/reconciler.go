@@ -310,17 +310,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// TODO(negz): Update status.composedResources and status.readyResources if
-	// and when https://github.com/crossplane/crossplane-runtime/pull/166 lands.
+	// TODO(muvaf): Report which resources are not ready.
 
-	// TODO(negz): Add a bespoke 'partial' TypeReady condition?
+	// TODO(muvaf): If a resource becomes Unavailable at some point, should we still
+	// report it as Creating?
 	wait := longWait
-	switch {
-	case ready == 0:
+	cr.SetConditions(runtimev1alpha1.Available())
+	if ready != len(refs) {
 		cr.SetConditions(runtimev1alpha1.Creating())
 		wait = shortWait
-	case ready == len(refs):
-		cr.SetConditions(runtimev1alpha1.Available())
 	}
 
 	r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
