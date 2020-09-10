@@ -137,11 +137,6 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 					JSONPath: ".status.conditions[?(@.type=='Ready')].status",
 				},
 				{
-					Name:     "SYNCED",
-					Type:     "string",
-					JSONPath: ".status.conditions[?(@.type=='Synced')].status",
-				},
-				{
 					Name:     "COMPOSITION",
 					Type:     "string",
 					JSONPath: ".spec.compositionRef.name",
@@ -469,11 +464,6 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 					Name:     "READY",
 					Type:     "string",
 					JSONPath: ".status.conditions[?(@.type=='Ready')].status",
-				},
-				{
-					Name:     "SYNCED",
-					Type:     "string",
-					JSONPath: ".status.conditions[?(@.type=='Synced')].status",
 				},
 				{
 					Name:     "CONNECTION-SECRET",

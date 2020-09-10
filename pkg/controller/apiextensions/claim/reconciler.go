@@ -303,8 +303,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 					// after a brief wait, in case this was a transient error.
 					log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
 					record.Event(cm, event.Warning(reasonDelete, err))
-					cm.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
-					return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+					return reconcile.Result{RequeueAfter: aShortWait}, nil
 				}
 
 				// We've successfully deleted our claim and removed our finalizer. If we
@@ -323,7 +322,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// implicitly when the composite resource we want to bind to appears.
 			log.Debug("Referenced composite resource not found", "requeue-after", time.Now().Add(aShortWait))
 			record.Event(cm, event.Warning(reasonBind, err))
-			cm.SetConditions(Waiting(), v1alpha1.ReconcileSuccess())
+			cm.SetConditions(Waiting())
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 		if err != nil {
@@ -332,8 +331,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			record.Event(cm, event.Warning(reasonBind, err))
-			cm.SetConditions(v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{RequeueAfter: aShortWait}, nil
 		}
 	}
 
@@ -346,8 +344,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot delete composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			record.Event(cm, event.Warning(reasonDelete, err))
-			cm.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{RequeueAfter: aShortWait}, nil
 		}
 
 		log.Debug("Successfully deleted composite resource")
@@ -359,8 +356,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			record.Event(cm, event.Warning(reasonDelete, err))
-			cm.SetConditions(v1alpha1.Deleting(), v1alpha1.ReconcileError(err))
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+			return reconcile.Result{RequeueAfter: aShortWait}, nil
 		}
 
 		// We've successfully deleted our claim and removed our finalizer. If we
@@ -377,7 +373,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// after a brief wait, in case this was a transient error.
 		log.Debug("Cannot add composite resource claim finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+		cm.SetConditions(v1alpha1.Creating())
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -397,7 +393,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// issue with the resource class was resolved.
 			log.Debug("Cannot configure composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			record.Event(cm, event.Warning(reasonConfigure, err))
-			cm.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+			cm.SetConditions(v1alpha1.Creating())
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
@@ -412,7 +408,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// after a brief wait, in case this was a transient error.
 			log.Debug("Cannot create composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 			record.Event(cm, event.Warning(reasonConfigure, err))
-			cm.SetConditions(v1alpha1.Creating(), v1alpha1.ReconcileError(err))
+			cm.SetConditions(v1alpha1.Creating())
 			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
@@ -426,7 +422,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		// We should be watching the composite resource and will have a request
 		// queued if it changes.
-		cm.SetConditions(Waiting(), v1alpha1.ReconcileSuccess())
+		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -436,7 +432,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// wait, in case this was a transient error.
 		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(Waiting(), v1alpha1.ReconcileError(err))
+		cm.SetConditions(Waiting())
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -450,14 +446,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// secret is created.
 		log.Debug("Cannot propagate connection details from composite resource to claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		cm.SetConditions(Waiting(), v1alpha1.ReconcileError(err))
+		cm.SetConditions(Waiting())
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	// We have a watch on both the claim and its composite, so there's no
 	// need to requeue here.
 	record.Event(cm, event.Normal(reasonPropagate, "Successfully propagated connection details from composite resource"))
-	cm.SetConditions(v1alpha1.Available(), v1alpha1.ReconcileSuccess())
+	cm.SetConditions(v1alpha1.Available())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 }
 
