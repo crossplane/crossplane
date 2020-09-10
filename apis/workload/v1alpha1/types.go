@@ -115,6 +115,7 @@ type KubernetesApplicationStatus struct {
 
 // A KubernetesApplication defines an application deployed by Crossplane to a
 // Kubernetes cluster, i.e. a portable KubernetesCluster resource claim.
+// Deprecated: See https://github.com/crossplane/crossplane/issues/1595
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.targetRef.name"
@@ -216,6 +217,7 @@ type KubernetesApplicationResourceStatus struct {
 // A KubernetesApplicationResource is a resource of a Kubernetes application.
 // Each resource templates a single Kubernetes resource to be deployed to its
 // scheduled KubernetesCluster.
+// Deprecated: See // Deprecated: See https://github.com/crossplane/crossplane/issues/1595
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="TEMPLATE-KIND",type="string",JSONPath=".spec.template.kind"
@@ -243,6 +245,7 @@ type KubernetesApplicationResourceList struct {
 // +kubebuilder:object:root=true
 
 // A KubernetesTarget is a scheduling target for a Kubernetes Application.
+// Deprecated: See https://github.com/crossplane/crossplane/issues/1595
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:printcolumn:name="CLUSTER",type="string",JSONPath=".spec.clusterRef.name"
 type KubernetesTarget struct {
