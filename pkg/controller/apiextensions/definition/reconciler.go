@@ -75,9 +75,9 @@ const (
 
 // Event reasons.
 const (
-	reasonRenderCRD event.Reason = "RenderCustomResourceDefinition"
-	reasonDeleteXRD event.Reason = "DeleteCompositeResourceDefinition"
-	reasonApplyXRD  event.Reason = "ApplyCompositeResourceDefinition"
+	reasonRenderCRD   event.Reason = "RenderCRD"
+	reasonEstablishXR event.Reason = "EstablishComposite"
+	reasonTerminateXR event.Reason = "TerminateComposite"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -257,7 +257,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if meta.WasDeleted(d) {
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errGetCRD)))
+			r.record.Event(d, event.Warning(reasonTerminateXR, errors.Wrap(err, errGetCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -273,11 +273,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// no-op if the controller was already stopped.
 			r.composite.Stop(composite.ControllerName(d.GetName()))
 			log.Debug("Stopped composite resource controller")
-			r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource controller"))
+			r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
 
 			if err := r.composite.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
-				r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errRemoveFinalizer)))
+				r.record.Event(d, event.Warning(reasonTerminateXR, errors.Wrap(err, errRemoveFinalizer)))
 				return reconcile.Result{RequeueAfter: shortWait}, nil
 			}
 
@@ -295,7 +295,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		o.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 		if err := r.client.DeleteAllOf(ctx, o); err != nil && !kmeta.IsNoMatchError(err) && !kerrors.IsNotFound(err) {
 			log.Debug(errDeleteCRs, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errDeleteCRs)))
+			r.record.Event(d, event.Warning(reasonTerminateXR, errors.Wrap(err, errDeleteCRs)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -303,7 +303,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		l.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug(errListCRs, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errListCRs)))
+			r.record.Event(d, event.Warning(reasonTerminateXR, errors.Wrap(err, errListCRs)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -311,7 +311,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// that deletion logic of the instances are processed by the controller.
 		if len(l.Items) > 0 {
 			log.Debug(waitCRDelete)
-			r.record.Event(d, event.Normal(reasonDeleteXRD, waitCRDelete))
+			r.record.Event(d, event.Normal(reasonTerminateXR, waitCRDelete))
 			return reconcile.Result{RequeueAfter: tinyWait}, nil
 		}
 
@@ -319,15 +319,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// it doesn't crash.
 		r.composite.Stop(composite.ControllerName(d.GetName()))
 		log.Debug("Stopped composite resource controller")
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource controller"))
+		r.record.Event(d, event.Normal(reasonTerminateXR, "Stopped composite resource controller"))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errDeleteCRD)))
+			r.record.Event(d, event.Warning(reasonTerminateXR, errors.Wrap(err, errDeleteCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 		log.Debug("Deleted composite resource CustomResourceDefinition")
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Deleted composite resource CustomResourceDefinition"))
+		r.record.Event(d, event.Normal(reasonTerminateXR, "Deleted composite resource CustomResourceDefinition"))
 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue after
@@ -337,20 +337,20 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if err := r.composite.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errAddFinalizer)))
+		r.record.Event(d, event.Warning(reasonEstablishXR, errors.Wrap(err, errAddFinalizer)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
 		log.Debug(errApplyCRD, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errApplyCRD)))
+		r.record.Event(d, event.Warning(reasonEstablishXR, errors.Wrap(err, errApplyCRD)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
-	r.record.Event(d, event.Normal(reasonApplyXRD, "Applied composite resource CustomResourceDefinition"))
+	r.record.Event(d, event.Normal(reasonEstablishXR, "Applied composite resource CustomResourceDefinition"))
 
 	if !ccrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
-		r.record.Event(d, event.Normal(reasonApplyXRD, waitCRDEstablish))
+		r.record.Event(d, event.Normal(reasonEstablishXR, waitCRDEstablish))
 		return reconcile.Result{RequeueAfter: tinyWait}, nil
 	}
 	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
@@ -371,11 +371,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if err := r.composite.Start(composite.ControllerName(d.GetName()), o, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
 		log.Debug(errStartController, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errStartController)))
+		r.record.Event(d, event.Warning(reasonEstablishXR, errors.Wrap(err, errStartController)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	d.Status.SetConditions(v1alpha1.WatchingComposite())
-	r.record.Event(d, event.Normal(reasonApplyXRD, "(Re)started composite resource controller"))
+	r.record.Event(d, event.Normal(reasonEstablishXR, "(Re)started composite resource controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

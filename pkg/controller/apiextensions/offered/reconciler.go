@@ -78,9 +78,9 @@ const (
 
 // Event reasons.
 const (
-	reasonRenderCRD event.Reason = "RenderCustomResourceDefinition"
-	reasonDeleteXRD event.Reason = "DeleteCompositeResourceDefinition"
-	reasonApplyXRD  event.Reason = "ApplyCompositeResourceDefinition"
+	reasonRenderCRD event.Reason = "RenderCRD"
+	reasonOfferXRC  event.Reason = "OfferClaim"
+	reasonRedactXRC event.Reason = "RedactClaim"
 )
 
 // A ControllerEngine can start and stop Kubernetes controllers on demand.
@@ -258,7 +258,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errGetCRD)))
+			r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errGetCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -274,11 +274,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// no-op if the controller was already stopped.
 			r.claim.Stop(claim.ControllerName(d.GetName()))
 			log.Debug("Stopped composite resource claim controller")
-			r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource claim controller"))
+			r.record.Event(d, event.Normal(reasonRedactXRC, "Stopped composite resource claim controller"))
 
 			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
-				r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errRemoveFinalizer)))
+				r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errRemoveFinalizer)))
 				return reconcile.Result{RequeueAfter: shortWait}, nil
 			}
 
@@ -291,7 +291,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		l.SetGroupVersionKind(d.GetClaimGroupVersionKind())
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug(errListCRs, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errListCRs)))
+			r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errListCRs)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -305,7 +305,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			for i := range l.Items {
 				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
 					log.Debug(errDeleteCR, "error", err)
-					r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errDeleteCR)))
+					r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errDeleteCR)))
 					return reconcile.Result{RequeueAfter: shortWait}, nil
 				}
 			}
@@ -314,7 +314,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// deleted are actually gone. We need to requeue after a tiny wait
 			// because we won't be requeued implicitly when the CRs are deleted.
 			log.Debug(waitCRDelete)
-			r.record.Event(d, event.Normal(reasonDeleteXRD, waitCRDelete))
+			r.record.Event(d, event.Normal(reasonRedactXRC, waitCRDelete))
 			return reconcile.Result{RequeueAfter: tinyWait}, nil
 		}
 
@@ -322,15 +322,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// it doesn't crash.
 		r.claim.Stop(claim.ControllerName(d.GetName()))
 		log.Debug("Stopped composite resource claim controller")
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Stopped composite resource claim controller"))
+		r.record.Event(d, event.Normal(reasonRedactXRC, "Stopped composite resource claim controller"))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonDeleteXRD, errors.Wrap(err, errDeleteCRD)))
+			r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errDeleteCRD)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 		log.Debug("Deleted composite resource claim CustomResourceDefinition")
-		r.record.Event(d, event.Normal(reasonDeleteXRD, "Deleted composite resource claim CustomResourceDefinition"))
+		r.record.Event(d, event.Normal(reasonRedactXRC, "Deleted composite resource claim CustomResourceDefinition"))
 
 		// We should be requeued implicitly because we're watching the
 		// CustomResourceDefinition that we just deleted, but we requeue after
@@ -340,20 +340,20 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if err := r.claim.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errAddFinalizer)))
+		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errAddFinalizer)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
 		log.Debug(errApplyCRD, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errApplyCRD)))
+		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errApplyCRD)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
-	r.record.Event(d, event.Normal(reasonApplyXRD, "Applied composite resource claim CustomResourceDefinition"))
+	r.record.Event(d, event.Normal(reasonOfferXRC, "Applied composite resource claim CustomResourceDefinition"))
 
 	if !ccrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
-		r.record.Event(d, event.Normal(reasonApplyXRD, waitCRDEstablish))
+		r.record.Event(d, event.Normal(reasonOfferXRC, waitCRDEstablish))
 		return reconcile.Result{RequeueAfter: tinyWait}, nil
 	}
 
@@ -375,10 +375,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		controller.For(cp, &EnqueueRequestForClaim{}),
 	); err != nil {
 		log.Debug(errStartController, "error", err)
-		r.record.Event(d, event.Warning(reasonApplyXRD, errors.Wrap(err, errStartController)))
+		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errStartController)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
-	r.record.Event(d, event.Normal(reasonApplyXRD, "(Re)started composite resource claim controller"))
+	r.record.Event(d, event.Normal(reasonOfferXRC, "(Re)started composite resource claim controller"))
 
 	d.Status.SetConditions(v1alpha1.WatchingClaim())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
