@@ -18,6 +18,7 @@ package composed
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -174,7 +175,7 @@ type DefaultReadinessProber struct{}
 
 // IsReady returns whether the composed resource is ready.
 func (*DefaultReadinessProber) IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) {
-	if t.ReadinessProbe == nil {
+	if len(t.ReadinessChecks) == 0 {
 		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
 	}
 	u, ok := cd.(runtime.Unstructured)
@@ -183,20 +184,27 @@ func (*DefaultReadinessProber) IsReady(ctx context.Context, cd resource.Composed
 	}
 	paved := fieldpath.Pave(u.UnstructuredContent())
 
-	switch t.ReadinessProbe.Type {
-	case "NonEmpty":
-		_, err := paved.GetValue(t.ReadinessProbe.FieldPath)
-		if resource.Ignore(fieldpath.IsNotFound, err) != nil {
-			return false, err
+	for i, check := range t.ReadinessChecks {
+		var ready bool
+		switch check.Type {
+		case "NonEmpty":
+			_, err := paved.GetValue(check.FieldPath)
+			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
+				return false, err
+			}
+			ready = !fieldpath.IsNotFound(err)
+		case "Match":
+			val, err := paved.GetString(check.FieldPath)
+			if err != nil {
+				return false, err
+			}
+			ready = val == check.Match
+		default:
+			return false, errors.New(fmt.Sprintf("readiness check at index %d: an unknown is chosen", i))
 		}
-		return !fieldpath.IsNotFound(err), nil
-	case "Match":
-		val, err := paved.GetString(t.ReadinessProbe.FieldPath)
-		if err != nil {
-			return false, err
+		if !ready {
+			return false, nil
 		}
-		return val == t.ReadinessProbe.Match, nil
-	default:
-		return false, errors.New("unknown readiness probe type is chosen")
 	}
+	return true, nil
 }

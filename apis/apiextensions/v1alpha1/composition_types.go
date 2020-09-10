@@ -88,14 +88,16 @@ type ComposedTemplate struct {
 	// +optional
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
 
-	// ReadinessProbe allows users to use a custom readiness check. The default
-	// readiness probe is to have the "Ready" condition to be "True".
-	ReadinessProbe *ReadinessProbe `json:"readinessProbe,omitempty"`
+	// ReadinessChecks allows users to define custom readiness checks. All checks
+	// have to return true in order for resource to be considered ready. The
+	// default readiness check is to have the "Ready" condition to be "True".
+	// +optional
+	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
-// ReadinessProbe is used to indicate how to tell whether a resource is ready
+// ReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
-type ReadinessProbe struct {
+type ReadinessCheck struct {
 
 	// FieldPath shows the path of the field whose value will be used.
 	FieldPath string `json:"fieldPath,omitempty"`
