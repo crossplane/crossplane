@@ -20,6 +20,7 @@ package pkg
 type Cmd struct {
 	Build BuildCmd `cmd:"" help:"Build a Crossplane package."`
 	Push  PushCmd  `cmd:"" help:"Push a Crossplane package to a registry."`
+	Print PrintCmd `cmd:"" help:"Print the output of a Crossplane package."`
 }
 
 // Run runs the package command.
@@ -50,5 +51,15 @@ type PushCmd struct {
 
 // Run runs the Push command.
 func (p *PushCmd) Run() error {
+	return nil
+}
+
+// PrintCmd prints the output of the package in the directory.
+type PrintCmd struct {
+	Path string `arg:"" name:"path" help:"The path of the package in the local file system. It is the directory where crossplane.yaml exists."`
+}
+
+// Run runs the Push command.
+func (p *PrintCmd) Run() error {
 	return nil
 }
