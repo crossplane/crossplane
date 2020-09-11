@@ -255,6 +255,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource claim CustomResourceDefinition"))
 
 	if meta.WasDeleted(d) {
+		d.Status.SetConditions(v1alpha1.TerminatingClaim())
+		if err := r.client.Status().Update(ctx, d); err != nil {
+			log.Debug(errUpdateStatus, "error", err)
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetCRD, "error", err)

@@ -102,7 +102,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"RenderCustomResourceDefinitionError": {
-			reason: "We should record any error encountered while rendering a CRD as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error rendering a CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -120,8 +120,32 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
+		"SetTerminatingConditionError": {
+			reason: "We should requeue after a short wait if we encounter an error while setting the terminating status condition.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								d := o.(*v1alpha1.CompositeResourceDefinition)
+								d.SetDeletionTimestamp(&now)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+						},
+					}),
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
+						return &v1beta1.CustomResourceDefinition{}, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
 		"GetCustomResourceDefinitionError": {
-			reason: "We should record any error encountered while getting a CRD as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error getting a CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -138,6 +162,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -150,7 +175,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"RemoveFinalizerError": {
-			reason: "We should record any error encountered while removing a finalizer as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while removing a finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -164,6 +189,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -193,6 +219,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -208,7 +235,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"DeleteAllCustomResourcesError": {
-			reason: "We should record any error encountered while deleting all defined resources as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while deleting all defined resources.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -229,7 +256,8 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(errBoom),
+							MockDeleteAllOf:  test.NewMockDeleteAllOfFn(errBoom),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -242,7 +270,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ListCustomResourcesError": {
-			reason: "We should record any error encountered while listing all defined resources as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while listing all defined resources.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -263,8 +291,9 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList:        test.NewMockListFn(errBoom),
+							MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
+							MockList:         test.NewMockListFn(errBoom),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -277,7 +306,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"WaitForDeleteAllOf": {
-			reason: "We should record the pending deletion of defined resources as a status condition.",
+			reason: "We should record the pending deletion of defined resources.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -306,6 +335,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -318,7 +348,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"DeleteCustomResourceDefinitionError": {
-			reason: "We should record any error encountered while deleting the CRD we created as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while deleting the CRD we created.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -339,9 +369,10 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
-							MockList:        test.NewMockListFn(nil),
-							MockDelete:      test.NewMockDeleteFn(errBoom),
+							MockDeleteAllOf:  test.NewMockDeleteAllOfFn(nil),
+							MockList:         test.NewMockListFn(nil),
+							MockDelete:       test.NewMockDeleteFn(errBoom),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -378,6 +409,18 @@ func TestReconcile(t *testing.T) {
 							MockDeleteAllOf: test.NewMockDeleteAllOfFn(nil),
 							MockList:        test.NewMockListFn(nil),
 							MockDelete:      test.NewMockDeleteFn(nil),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+								want := &v1alpha1.CompositeResourceDefinition{}
+								want.SetUID(owner)
+								want.SetDeletionTimestamp(&now)
+								want.Status.SetConditions(v1alpha1.TerminatingComposite())
+
+								if diff := cmp.Diff(want, got); diff != "" {
+									t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
+								}
+
+								return nil
+							}),
 						},
 					}),
 					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
@@ -390,7 +433,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"AddFinalizerError": {
-			reason: "We should record any error encountered while adding a finalizer as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while adding a finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -412,7 +455,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ApplyCustomResourceDefinitionError": {
-			reason: "We should record any error encountered while applying our CRD as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while applying our CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -462,7 +505,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"StartControllerError": {
-			reason: "We should record any error encountered while starting our controller as a status condition.",
+			reason: "We should requeue after a short wait if we encounter an error while starting our controller.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -496,7 +539,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulStart": {
-			reason: "We should not requeue if we successfully ensured our CRD exists and controller is started.",
+			reason: "We should not requeue after a short wait if we successfully ensured our CRD exists and controller is started.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{

@@ -38,6 +38,9 @@ const (
 const (
 	ReasonWatchingComposite runtimev1alpha1.ConditionReason = "WatchingCompositeResource"
 	ReasonWatchingClaim     runtimev1alpha1.ConditionReason = "WatchingCompositeResourceClaim"
+
+	ReasonTerminatingComposite runtimev1alpha1.ConditionReason = "TerminatingCompositeResource"
+	ReasonTerminatingClaim     runtimev1alpha1.ConditionReason = "TerminatingCompositeResourceClaim"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
@@ -51,6 +54,17 @@ func WatchingComposite() runtimev1alpha1.Condition {
 	}
 }
 
+// TerminatingComposite indicates that Crossplane is terminating the controller
+// for and removing the definition of a composite resource.
+func TerminatingComposite() runtimev1alpha1.Condition {
+	return runtimev1alpha1.Condition{
+		Type:               TypeEstablished,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTerminatingComposite,
+	}
+}
+
 // WatchingClaim indicates that Crossplane has defined and is watching for a
 // new kind of composite resource claim.
 func WatchingClaim() runtimev1alpha1.Condition {
@@ -59,5 +73,16 @@ func WatchingClaim() runtimev1alpha1.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWatchingClaim,
+	}
+}
+
+// TerminatingClaim indicates that Crossplane is terminating the controller and
+// removing the definition of a composite resource claim.
+func TerminatingClaim() runtimev1alpha1.Condition {
+	return runtimev1alpha1.Condition{
+		Type:               TypeOffered,
+		Status:             corev1.ConditionFalse,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonTerminatingClaim,
 	}
 }
