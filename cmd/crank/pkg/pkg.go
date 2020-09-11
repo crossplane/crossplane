@@ -16,6 +16,22 @@ limitations under the License.
 
 package pkg
 
+import (
+	"context"
+	"fmt"
+
+	"github.com/pkg/errors"
+	"github.com/spf13/afero"
+	crds "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
+
+	"github.com/crossplane/crossplane-runtime/pkg/parser"
+
+	"github.com/crossplane/crossplane/apis/apiextensions"
+	"github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+)
+
 // Cmd is the root package command.
 type Cmd struct {
 	Build BuildCmd `cmd:"" help:"Build a Crossplane package."`
@@ -56,10 +72,48 @@ func (p *PushCmd) Run() error {
 
 // PrintCmd prints the output of the package in the directory.
 type PrintCmd struct {
-	Path string `arg:"" name:"path" help:"The path of the package in the local file system. It is the directory where crossplane.yaml exists."`
+	Path string `name:"path" short:"p" type:"path" help:"The path of the package in the local file system. It is the directory where crossplane.yaml exists." default:"."`
 }
 
 // Run runs the Push command.
-func (p *PrintCmd) Run() error {
+func (c *PrintCmd) Run() error {
+	ctx := context.Background()
+	metaScheme, err := v1alpha1.SchemeBuilder.Build()
+	if err != nil {
+		return err
+	}
+	objScheme := runtime.NewScheme()
+	for _, add := range []func(*runtime.Scheme) error{
+		apiextensions.AddToScheme,
+		crds.AddToScheme,
+	} {
+		if err := add(objScheme); err != nil {
+			return err
+		}
+	}
+	p := parser.New(metaScheme, objScheme)
+
+	b := parser.NewFsBackend(afero.NewReadOnlyFs(afero.NewOsFs()), parser.FsDir(c.Path), parser.FsFilters(parser.SkipNotYAML()))
+	reader, err := b.Init(ctx)
+	if err != nil {
+		return err
+	}
+	pkg, err := p.Parse(ctx, reader)
+	if err != nil {
+		return err
+	}
+	list := append(pkg.GetMeta(), pkg.GetObjects()...)
+	for _, m := range list {
+		if m.GetObjectKind().GroupVersionKind().Empty() {
+			continue
+		}
+		out, err := yaml.Marshal(m)
+		if err != nil {
+			return errors.Wrap(err, "cannot marshall meta object into yaml")
+		}
+		// Leaving the new line character to the OS instead of one fmt.Printf.
+		fmt.Println("---")
+		fmt.Print(string(out))
+	}
 	return nil
 }
