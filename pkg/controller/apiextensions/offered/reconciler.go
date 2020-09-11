@@ -91,23 +91,25 @@ type ControllerEngine interface {
 	Stop(name string)
 }
 
-// A CRDRenderer renders an CompositeResourcePublication's corresponding
+// A CRDRenderer renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
 	Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
 }
 
-// A CRDRenderFn renders an CompositeResourcePublication's corresponding
+// A CRDRenderFn renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderFn func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
 
-// Render the supplied CompositeResourcePublication's corresponding
+// Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
-// Setup adds a controller that reconciles CompositeResourcePublications.
+// Setup adds a controller that reconciles CompositeResourceDefinitions by
+// defining a composite resource claim and starting a controller to reconcile
+// it.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
 	name := "offered/" + strings.ToLower(v1alpha1.CompositeResourceDefinitionGroupKind)
 
@@ -140,7 +142,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 }
 
 // WithFinalizer specifies how the Reconciler should finalize
-// CompositeResourcePublications and CompositeResourceDefinitions.
+// CompositeResourceDefinitions.
 func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.claim.Finalizer = f
@@ -155,8 +157,8 @@ func WithControllerEngine(c ControllerEngine) ReconcilerOption {
 	}
 }
 
-// WithCRDRenderer specifies how the Reconciler should render an
-// CompositeResourcePublication's corresponding CustomResourceDefinition.
+// WithCRDRenderer specifies how the Reconciler should render a
+// CompositeResourceDefinition's corresponding CustomResourceDefinition.
 func WithCRDRenderer(c CRDRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.claim.CRDRenderer = c
@@ -171,7 +173,7 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
-// NewReconciler returns a Reconciler of CompositeResourcePublications.
+// NewReconciler returns a Reconciler of CompositeResourceDefinitions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
@@ -187,7 +189,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 			Applicator: resource.NewAPIPatchingApplicator(kube),
 		},
 
-		claim: publication{
+		claim: definition{
 			CRDRenderer: CRDRenderFn(func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
 				return ccrd.New(ccrd.ForCompositeResourceClaim(d))
 			}),
@@ -205,24 +207,25 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	return r
 }
 
-type publication struct {
+type definition struct {
 	CRDRenderer
 	ControllerEngine
 	resource.Finalizer
 }
 
-// A Reconciler reconciles CompositeResourcePublications.
+// A Reconciler reconciles CompositeResourceDefinitions.
 type Reconciler struct {
 	mgr    manager.Manager
 	client resource.ClientApplicator
 
-	claim publication
+	claim definition
 
 	log    logging.Logger
 	record event.Recorder
 }
 
-// Reconcile an CompositeResourcePublication.
+// Reconcile a CompositeResourceDefinition by defining a new kind of composite
+// resource claim and starting a controller to reconcile it.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
 	// complexity goal. Be wary when adding branches, and look for functionality

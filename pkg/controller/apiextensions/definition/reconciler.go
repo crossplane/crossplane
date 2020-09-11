@@ -104,7 +104,8 @@ func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.
 	return fn(d)
 }
 
-// Setup adds a controller that reconciles ApplicationConfigurations.
+// Setup adds a controller that reconciles CompositeResourceDefinitions by
+// defining a composite resource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
 	name := "defined/" + strings.ToLower(v1alpha1.CompositeResourceDefinitionGroupKind)
 
