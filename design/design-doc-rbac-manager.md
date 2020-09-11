@@ -202,7 +202,11 @@ rules:
 # Crossplane uses deployments to run providers.
 - apiGroups: [extensions, apps]
   resources: [deployments]
-  verbs: [get, create, update, delete]
+  verbs: [list, watch, get, create, update, delete]
+# Crossplane manages service accounts for providers.
+- apiGroups: [""]
+  resources: [serviceaccounts]
+  verbs: [list, watch, get, create, update, delete]
 ```
 
 A Crossplane provider's `ClusterRole` is bound to the service account the
@@ -398,7 +402,7 @@ compositions.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: crossplane-view
+  name: crossplane-browse
 rules:
 # Crossplane browsers have access to view events.
 - apiGroups: [""]
