@@ -156,6 +156,8 @@ func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
 // infrastructure resources.
 func CompositeResourceStatusProps() map[string]v1beta1.JSONSchemaProps {
 	return map[string]v1beta1.JSONSchemaProps{
+		// TODO(negz): Remove composedResources, readyResources, and
+		// bindingPhase. I believe they're unused.
 		"composedResources": {
 			Type: "integer",
 		},
@@ -201,11 +203,6 @@ func CompositeResourcePrinterColumns() []v1beta1.CustomResourceColumnDefinition 
 			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
 		},
 		{
-			Name:     "SYNCED",
-			Type:     "string",
-			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
-		},
-		{
 			Name:     "COMPOSITION",
 			Type:     "string",
 			JSONPath: ".spec.compositionRef.name",
@@ -221,11 +218,6 @@ func CompositeResourceClaimPrinterColumns() []v1beta1.CustomResourceColumnDefini
 			Name:     "READY",
 			Type:     "string",
 			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
-		},
-		{
-			Name:     "SYNCED",
-			Type:     "string",
-			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
 		},
 		{
 			Name:     "CONNECTION-SECRET",

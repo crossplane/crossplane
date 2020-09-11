@@ -232,8 +232,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.composite.SelectComposition(ctx, cr); err != nil {
 		log.Debug(errSelectComp, "error", err)
 		r.record.Event(cr, event.Warning(reasonResolve, err))
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errSelectComp)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 	r.record.Event(cr, event.Normal(reasonResolve, "Successfully selected composition"))
 
@@ -243,15 +242,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
 		log.Debug(errGetComp, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errGetComp)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	if err := r.composite.Configure(ctx, cr, comp); err != nil {
 		log.Debug(errConfigure, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errConfigure)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	log = log.WithValues(
@@ -278,8 +275,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if err != nil {
 			log.Debug(errReconcile, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
-			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errReconcile)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
 		for key, val := range obs.ConnectionDetails {
@@ -304,16 +300,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		if err := r.client.Update(ctx, cr); err != nil {
 			log.Debug(errUpdate, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
-			cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errUpdate)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 	}
 
 	if err := r.composite.PublishConnection(ctx, cr, conn); err != nil {
 		log.Debug(errPublish, "error", err)
 		r.record.Event(cr, event.Warning(reasonPublish, err))
-		cr.SetConditions(runtimev1alpha1.ReconcileError(errors.Wrap(err, errPublish)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	// TODO(negz): Update status.composedResources and status.readyResources if
@@ -331,6 +325,5 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
 	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
-	cr.SetConditions(runtimev1alpha1.ReconcileSuccess())
 	return reconcile.Result{RequeueAfter: wait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 }
