@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/package/manage"
 	"github.com/crossplane/crossplane/cmd/crossplane/package/unpack"
+	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
 
 func main() {
@@ -38,6 +39,7 @@ func main() {
 	)
 
 	c := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
+	r := rbac.FromKingpin(app.Command("rbac", "Start Crossplane RBAC Manager controllers."))
 	m := manage.FromKingpin(pkg.Command("manage", "Start Crossplane Package Manager controllers"))
 	u := unpack.FromKingpin(pkg.Command("unpack", "Unpack a Package").Alias("unpackage"))
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
@@ -55,6 +57,8 @@ func main() {
 	switch cmd {
 	case c.Name:
 		kingpin.FatalIfError(c.Run(logging.NewLogrLogger(zl.WithName("crossplane"))), "cannot run crossplane")
+	case r.Name:
+		kingpin.FatalIfError(r.Run(logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
 	case m.Name:
 		kingpin.FatalIfError(m.Run(logging.NewLogrLogger(zl.WithName("package-manager"))), "cannot run package manager")
 	case u.Name:
