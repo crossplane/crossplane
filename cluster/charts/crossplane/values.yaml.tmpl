@@ -12,8 +12,14 @@ args: {}
 imagePullSecrets:
 - dockerhub
 
-personas:
+rbacManager:
   deploy: true
+  managementPolicy: All
+
+# Deprecated. Use rbacManager instead.
+# TODO(negz): Disable deployment of the (deprecated) package manager by default.
+personas:
+  deploy: false
 
 clusterPackages:
   aws:
@@ -39,6 +45,14 @@ templateStacks:
 priorityClassName: ""
 
 resourcesCrossplane:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+resourcesRBACManager:
   limits:
     cpu: 100m
     memory: 512Mi

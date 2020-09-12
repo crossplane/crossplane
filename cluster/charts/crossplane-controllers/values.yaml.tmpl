@@ -11,6 +11,10 @@ image:
 
 args: {}
 
+rbacManager:
+  deploy: true
+  managementPolicy: All
+
 imagePullSecrets:
 - dockerhub
 
@@ -21,6 +25,7 @@ hostedConfig:
   tenantKubernetesServicePort: ""
   controllerNamespace: ""
   crossplaneSATokenSecret: ""
+  rbacManagerSATokenSecret: ""
 
 templateStacks:
   enabled: true
@@ -37,6 +42,14 @@ resourcesCrossplane:
     memory: 256Mi
 
 resourcesPackageManager:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+resourcesRBACManager:
   limits:
     cpu: 100m
     memory: 512Mi

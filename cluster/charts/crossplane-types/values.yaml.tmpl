@@ -3,5 +3,11 @@ nameOverride: crossplane
 imagePullSecrets:
 - dockerhub
 
-personas:
+rbacManager:
   deploy: true
+  managementPolicy: All
+
+# Deprecated. Use rbacManager instead.
+# TODO(negz): Disable deployment of the (deprecated) package manager by default.
+personas:
+  deploy: false
