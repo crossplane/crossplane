@@ -45,13 +45,12 @@ type Command struct {
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("manage", "").Short('m').Default(ManagementPolicyAll).EnumVar(&c.ManagementPolicy, ManagementPolicyAll, ManagementPolicyBasic)
+	cmd.Flag("manage", "RBAC management policy.").Short('m').Default(ManagementPolicyAll).EnumVar(&c.ManagementPolicy, ManagementPolicyAll, ManagementPolicyBasic)
 
 	return c
 }
 
 // Run the RBAC manager.
-// nolint:gocyclo
 func (c *Command) Run(log logging.Logger) error {
 	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
 
