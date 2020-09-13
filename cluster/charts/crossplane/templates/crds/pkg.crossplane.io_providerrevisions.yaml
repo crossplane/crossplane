@@ -1,0 +1,206 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.2.4
+  creationTimestamp: null
+  name: providerrevisions.pkg.crossplane.io
+spec:
+  additionalPrinterColumns:
+  - JSONPath: .status.conditions[?(@.type=='Healthy')].status
+    name: HEALTHY
+    type: string
+  - JSONPath: .spec.revision
+    name: REVISION
+    type: string
+  - JSONPath: .spec.image
+    name: IMAGE
+    type: string
+  - JSONPath: .spec.desiredState
+    name: STATE
+    type: string
+  - JSONPath: .metadata.creationTimestamp
+    name: AGE
+    type: date
+  group: pkg.crossplane.io
+  names:
+    categories:
+    - crossplane
+    kind: ProviderRevision
+    listKind: ProviderRevisionList
+    plural: providerrevisions
+    singular: providerrevision
+  scope: Cluster
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      description: A ProviderRevision that has been added to Crossplane.
+      properties:
+        apiVersion:
+          description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+          type: string
+        kind:
+          description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+          type: string
+        metadata:
+          type: object
+        spec:
+          description: PackageRevisionSpec specifies the desired state of a PackageRevision.
+          properties:
+            desiredState:
+              description: DesiredState of the PackageRevision. Can be either Active or Inactive.
+              type: string
+            image:
+              description: Image used for install Pod to extract package contents.
+              type: string
+            installPodRef:
+              description: Reference to install Pod. PackageRevision reads logs of this Pod to create resources owned by the PackageRevision.
+              properties:
+                name:
+                  description: Name of the referenced object.
+                  type: string
+              required:
+              - name
+              type: object
+            revision:
+              description: Revision number. Indicates when the revision will be garbage collected based on the parent's RevisionHistoryLimit.
+              format: int64
+              type: integer
+          required:
+          - desiredState
+          - image
+          - installPodRef
+          - revision
+          type: object
+        status:
+          description: PackageRevisionStatus represents the observed state of a PackageRevision.
+          properties:
+            conditions:
+              description: Conditions of the resource.
+              items:
+                description: A Condition that may apply to a resource.
+                properties:
+                  lastTransitionTime:
+                    description: LastTransitionTime is the last time this condition transitioned from one status to another.
+                    format: date-time
+                    type: string
+                  message:
+                    description: A Message containing details about this condition's last transition from one status to another, if any.
+                    type: string
+                  reason:
+                    description: A Reason for this condition's last transition from one status to another.
+                    type: string
+                  status:
+                    description: Status of this condition; is it currently True, False, or Unknown?
+                    type: string
+                  type:
+                    description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
+                    type: string
+                required:
+                - lastTransitionTime
+                - reason
+                - status
+                - type
+                type: object
+              type: array
+            controllerRef:
+              description: A Reference to a named object.
+              properties:
+                name:
+                  description: Name of the referenced object.
+                  type: string
+              required:
+              - name
+              type: object
+            crossplane:
+              description: Crossplane is a semantic version for supported Crossplane version for the package.
+              type: string
+            dependsOn:
+              description: DependsOn is the list of packages and CRDs that this package depends on.
+              items:
+                description: Dependency specifies the dependency of a package.
+                properties:
+                  package:
+                    description: Package is the name of the depended upon package image .
+                    type: string
+                  version:
+                    description: Version is the semantic version range for the dependency.
+                    type: string
+                required:
+                - package
+                - version
+                type: object
+              type: array
+            objectRefs:
+              description: References to objects owned by PackageRevision.
+              items:
+                description: A TypedReference refers to an object by Name, Kind, and APIVersion. It is commonly used to reference cluster-scoped objects or objects where the namespace is already known.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the referenced object.
+                    type: string
+                  kind:
+                    description: Kind of the referenced object.
+                    type: string
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                  uid:
+                    description: UID of the referenced object.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              type: array
+            permissionRequests:
+              description: PermissionRequests are additional permissions that should be added to a packaged controller's service account.
+              items:
+                description: PolicyRule holds information that describes a policy rule, but does not contain information about who the rule applies to or which namespace the rule applies to.
+                properties:
+                  apiGroups:
+                    description: APIGroups is the name of the APIGroup that contains the resources.  If multiple API groups are specified, any action requested against one of the enumerated resources in any API group will be allowed.
+                    items:
+                      type: string
+                    type: array
+                  nonResourceURLs:
+                    description: NonResourceURLs is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for ClusterRoles referenced from a ClusterRoleBinding. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
+                    items:
+                      type: string
+                    type: array
+                  resourceNames:
+                    description: ResourceNames is an optional white list of names that the rule applies to.  An empty set means that everything is allowed.
+                    items:
+                      type: string
+                    type: array
+                  resources:
+                    description: Resources is a list of resources this rule applies to.  ResourceAll represents all resources.
+                    items:
+                      type: string
+                    type: array
+                  verbs:
+                    description: Verbs is a list of Verbs that apply to ALL the ResourceKinds and AttributeRestrictions contained in this rule.  VerbAll represents all kinds.
+                    items:
+                      type: string
+                    type: array
+                required:
+                - verbs
+                type: object
+              type: array
+          type: object
+      type: object
+  version: v1alpha1
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

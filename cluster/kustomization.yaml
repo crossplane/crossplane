@@ -21,6 +21,10 @@ resources:
 - charts/crossplane-types/crds/packages.crossplane.io_packageinstalls.yaml
 - charts/crossplane-types/crds/packages.crossplane.io_packages.yaml
 - charts/crossplane-types/crds/packages.crossplane.io_stackdefinitions.yaml
+- charts/crossplane-types/crds/pkg.crossplane.io_configurationrevisions.yaml
+- charts/crossplane-types/crds/pkg.crossplane.io_configurations.yaml
+- charts/crossplane-types/crds/pkg.crossplane.io_providerrevisions.yaml
+- charts/crossplane-types/crds/pkg.crossplane.io_providers.yaml
 - charts/crossplane-types/crds/storage.crossplane.io_buckets.yaml
 - charts/crossplane-types/crds/workload.crossplane.io_kubernetesapplicationresources.yaml
 - charts/crossplane-types/crds/workload.crossplane.io_kubernetesapplications.yaml
