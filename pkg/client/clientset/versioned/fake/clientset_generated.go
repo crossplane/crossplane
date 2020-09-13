@@ -22,6 +22,8 @@ import (
 	clientset "github.com/crossplane/crossplane/pkg/client/clientset/versioned"
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/apiextensions/v1alpha1"
 	fakeapiextensionsv1alpha1 "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/apiextensions/v1alpha1/fake"
+	pkgv1alpha1 "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
+	fakepkgv1alpha1 "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -79,4 +81,9 @@ var _ clientset.Interface = &Clientset{}
 // ApiextensionsV1alpha1 retrieves the ApiextensionsV1alpha1Client
 func (c *Clientset) ApiextensionsV1alpha1() apiextensionsv1alpha1.ApiextensionsV1alpha1Interface {
 	return &fakeapiextensionsv1alpha1.FakeApiextensionsV1alpha1{Fake: &c.Fake}
+}
+
+// PkgV1alpha1 retrieves the PkgV1alpha1Client
+func (c *Clientset) PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface {
+	return &fakepkgv1alpha1.FakePkgV1alpha1{Fake: &c.Fake}
 }
