@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/apiextensions/v1alpha1"
+	pkgv1alpha1 "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -30,6 +31,7 @@ import (
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
 	ApiextensionsV1alpha1() apiextensionsv1alpha1.ApiextensionsV1alpha1Interface
+	PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -37,11 +39,17 @@ type Interface interface {
 type Clientset struct {
 	*discovery.DiscoveryClient
 	apiextensionsV1alpha1 *apiextensionsv1alpha1.ApiextensionsV1alpha1Client
+	pkgV1alpha1           *pkgv1alpha1.PkgV1alpha1Client
 }
 
 // ApiextensionsV1alpha1 retrieves the ApiextensionsV1alpha1Client
 func (c *Clientset) ApiextensionsV1alpha1() apiextensionsv1alpha1.ApiextensionsV1alpha1Interface {
 	return c.apiextensionsV1alpha1
+}
+
+// PkgV1alpha1 retrieves the PkgV1alpha1Client
+func (c *Clientset) PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface {
+	return c.pkgV1alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -69,6 +77,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.pkgV1alpha1, err = pkgv1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
 	if err != nil {
@@ -82,6 +94,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.apiextensionsV1alpha1 = apiextensionsv1alpha1.NewForConfigOrDie(c)
+	cs.pkgV1alpha1 = pkgv1alpha1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -91,6 +104,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.apiextensionsV1alpha1 = apiextensionsv1alpha1.New(c)
+	cs.pkgV1alpha1 = pkgv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs
