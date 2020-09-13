@@ -151,7 +151,7 @@ type Reconciler struct {
 	record event.Recorder
 }
 
-// Reconcile a Namespaces by creating a series of opinionated Roles that may be
+// Reconcile a Namespace by creating a series of opinionated Roles that may be
 // bound to allow access to resources within that namespace.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 
@@ -183,7 +183,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// NOTE(negz): We don't expect there to be an unwieldy amount of roles, so
-	// we just list and pass them all.
+	// we just list and pass them all. We're listing from a cache that handles
+	// label selectors locally, so filtering with a label selector here won't
+	// meaningfully improve performance relative to filtering in RenderRoles.
+	// https://github.com/kubernetes-sigs/controller-runtime/blob/d6829e9/pkg/cache/internal/cache_reader.go#L131
 	l := &rbacv1.ClusterRoleList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListRoles, "error", err)
@@ -204,10 +207,5 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	r.record.Event(ns, event.Normal(reasonApplyRoles, "Applied RBAC Roles"))
-
-	// TODO(negz): Requeue every 30 seconds or so, in case the ClusterRoles we
-	// aggregate change? Or create an EventHandler that enqueues requests for
-	// all namespaces whenever a ClusterRole with a Crossplane RBAC label
-	// changes.
 	return reconcile.Result{Requeue: false}, nil
 }

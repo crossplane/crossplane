@@ -71,7 +71,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"GetNamespaceError": {
-			reason: "We should return any other error encountered while getting an Namespace.",
+			reason: "We should return any other error encountered while getting a Namespace.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{

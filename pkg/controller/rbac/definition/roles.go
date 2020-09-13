@@ -56,9 +56,7 @@ var (
 	verbsBrowse = []string{"get", "list", "watch"}
 )
 
-// RenderClusterRoles returns two ClusterRoles for the supplied XRD; one that
-// grants all verbs on the composite resource it defines and claim it offers (if
-// any), and one that grants "read-only" verbs.
+// RenderClusterRoles returns ClusterRoles for the supplied XRD.
 func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.ClusterRole {
 	edit := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
