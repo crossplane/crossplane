@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/offered"
 )
 
-// Setup workload controllers.
+// Setup API extensions controllers.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	for _, setup := range []func(ctrl.Manager, logging.Logger) error{
 		definition.Setup,
