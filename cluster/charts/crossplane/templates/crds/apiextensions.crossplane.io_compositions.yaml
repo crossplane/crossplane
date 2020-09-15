@@ -124,6 +124,33 @@ spec:
                       - fromFieldPath
                       type: object
                     type: array
+                  readinessChecks:
+                    description: ReadinessChecks allows users to define custom readiness checks. All checks have to return true in order for resource to be considered ready. The default readiness check is to have the "Ready" condition to be "True".
+                    items:
+                      description: ReadinessCheck is used to indicate how to tell whether a resource is ready for consumption
+                      properties:
+                        fieldPath:
+                          description: FieldPath shows the path of the field whose value will be used.
+                          type: string
+                        matchInteger:
+                          description: MatchInt is the value you'd like to match if you're using "MatchInt" type.
+                          format: int64
+                          type: integer
+                        matchString:
+                          description: MatchString is the value you'd like to match if you're using "MatchString" type.
+                          type: string
+                        type:
+                          description: Type indicates the type of probe you'd like to use.
+                          enum:
+                          - MatchString
+                          - MatchInteger
+                          - NonEmpty
+                          type: string
+                      required:
+                      - fieldPath
+                      - type
+                      type: object
+                    type: array
                 required:
                 - base
                 type: object

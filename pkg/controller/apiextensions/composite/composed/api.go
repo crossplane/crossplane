@@ -18,6 +18,7 @@ package composed
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -25,9 +26,12 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -163,4 +167,56 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	}
 
 	return conn, nil
+}
+
+// DefaultReadinessChecker is a readiness checker which returns whether the composed
+// resource is ready or not.
+type DefaultReadinessChecker struct{}
+
+// IsReady returns whether the composed resource is ready.
+func (*DefaultReadinessChecker) IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
+	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
+	// mandatory repetitiveness of the switch clause, which is not really complex
+	// in reality. Though beware of adding additional complexity besides that.
+
+	if len(t.ReadinessChecks) == 0 {
+		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
+	}
+	// TODO(muvaf): We can probably get rid of resource.Composed interface and fake.Composed
+	// structs and use *runtimecomposed.Unstructured everywhere including tests.
+	u, ok := cd.(*runtimecomposed.Unstructured)
+	if !ok {
+		return false, errors.New("composed resource has to be Unstructured type")
+	}
+	paved := fieldpath.Pave(u.UnstructuredContent())
+
+	for i, check := range t.ReadinessChecks {
+		var ready bool
+		switch check.Type {
+		case v1alpha1.ReadinessCheckNonEmpty:
+			_, err := paved.GetValue(check.FieldPath)
+			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
+				return false, err
+			}
+			ready = !fieldpath.IsNotFound(err)
+		case v1alpha1.ReadinessCheckMatchString:
+			val, err := paved.GetString(check.FieldPath)
+			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
+				return false, err
+			}
+			ready = !fieldpath.IsNotFound(err) && val == check.MatchString
+		case v1alpha1.ReadinessCheckMatchInteger:
+			val, err := paved.GetInteger(check.FieldPath)
+			if err != nil {
+				return false, err
+			}
+			ready = !fieldpath.IsNotFound(err) && val == check.MatchInteger
+		default:
+			return false, errors.New(fmt.Sprintf("readiness check at index %d: an unknown type is chosen", i))
+		}
+		if !ready {
+			return false, nil
+		}
+	}
+	return true, nil
 }

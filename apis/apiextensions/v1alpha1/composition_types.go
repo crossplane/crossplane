@@ -87,6 +87,41 @@ type ComposedTemplate struct {
 	// resource to the composition instance connection secret.
 	// +optional
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
+
+	// ReadinessChecks allows users to define custom readiness checks. All checks
+	// have to return true in order for resource to be considered ready. The
+	// default readiness check is to have the "Ready" condition to be "True".
+	// +optional
+	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
+}
+
+// TypeReadinessCheck is used for readiness check types
+type TypeReadinessCheck string
+
+// The possible values for readiness check type.
+const (
+	ReadinessCheckNonEmpty     TypeReadinessCheck = "NonEmpty"
+	ReadinessCheckMatchString  TypeReadinessCheck = "MatchString"
+	ReadinessCheckMatchInteger TypeReadinessCheck = "MatchInteger"
+)
+
+// ReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption
+type ReadinessCheck struct {
+	// FieldPath shows the path of the field whose value will be used.
+	FieldPath string `json:"fieldPath"`
+
+	// Type indicates the type of probe you'd like to use.
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty"
+	Type TypeReadinessCheck `json:"type"`
+
+	// MatchString is the value you'd like to match if you're using "MatchString" type.
+	// +optional
+	MatchString string `json:"matchString,omitempty"`
+
+	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
+	// +optional
+	MatchInteger int64 `json:"matchInteger,omitempty"`
 }
 
 // Patch is used to patch the field on the base resource at ToFieldPath

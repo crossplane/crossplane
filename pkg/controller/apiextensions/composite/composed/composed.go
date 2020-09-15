@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -37,6 +36,7 @@ const (
 	errFetchSecret = "cannot fetch connection secret"
 	errOverlay     = "cannot apply overlay"
 	errConfigure   = "cannot configure composed resource"
+	errReadiness   = "cannot check whether composed resource is ready"
 )
 
 // Configurator is used to configure the Composed resource.
@@ -52,6 +52,11 @@ type OverlayApplicator interface {
 // ConnectionDetailsFetcher fetches the connection details of the Composed resource.
 type ConnectionDetailsFetcher interface {
 	Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error)
+}
+
+// ReadinessProber returns whether composed resource is ready or not.
+type ReadinessProber interface {
+	IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error)
 }
 
 // Observation is the result of composed reconciliation.
@@ -100,6 +105,7 @@ type connection struct {
 type composed struct {
 	Configurator
 	OverlayApplicator
+	ReadinessProber
 }
 
 // ComposerOption configures the Composer object.
@@ -116,6 +122,7 @@ func NewComposer(kube client.Client, opts ...ComposerOption) *Composer {
 		composed: composed{
 			Configurator:      &DefaultConfigurator{},
 			OverlayApplicator: &DefaultOverlayApplicator{},
+			ReadinessProber:   &DefaultReadinessChecker{},
 		},
 		connection: connection{
 			ConnectionDetailsFetcher: &APIConnectionDetailsFetcher{client: kube},
@@ -171,9 +178,14 @@ func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resour
 		return Observation{}, errors.Wrap(err, errApply)
 	}
 
+	ready, err := r.composed.IsReady(ctx, cd, t)
+	if err != nil {
+		return Observation{}, errors.Wrap(err, errReadiness)
+	}
+
 	obs := Observation{
 		Ref:               *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind()),
-		Ready:             resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)),
+		Ready:             ready,
 		ConnectionDetails: conn,
 	}
 	return obs, nil
