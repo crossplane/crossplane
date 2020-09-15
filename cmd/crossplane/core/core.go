@@ -30,18 +30,21 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions"
+	"github.com/crossplane/crossplane/pkg/controller/pkg"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
 )
 
 // Command configuration for the core Crossplane controllers.
 type Command struct {
-	Name string
-	Sync time.Duration
+	Name      string
+	Namespace string
+	Sync      time.Duration
 }
 
 // FromKingpin produces the core Crossplane command from a Kingpin command.
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
+	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	return c
 }
@@ -82,6 +85,10 @@ func (c *Command) Run(log logging.Logger) error {
 
 	if err := apiextensions.Setup(mgr, log); err != nil {
 		return errors.Wrap(err, "Cannot setup API extension controllers")
+	}
+
+	if err := pkg.Setup(mgr, log, c.Namespace); err != nil {
+		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
