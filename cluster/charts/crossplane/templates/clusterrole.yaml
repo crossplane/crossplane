@@ -54,6 +54,16 @@ rules:
   - update
   - patch
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+  - create
+  - update
+  - list
+  - watch
+- apiGroups:
   - cache.crossplane.io
   - compute.crossplane.io
   - database.crossplane.io
@@ -64,7 +74,36 @@ rules:
   - workload.crossplane.io
   - core.oam.dev
   - apiextensions.crossplane.io
+  - pkg.crossplane.io
   resources:
   - "*"
   verbs:
   - "*"
+- apiGroups:
+  - extensions
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - delete
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - create
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - pods/log
+  verbs:
+  - get
