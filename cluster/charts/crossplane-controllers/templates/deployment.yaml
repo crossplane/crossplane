@@ -42,8 +42,12 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
-      {{- if .Values.hostedConfig.enabled }}
         env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+      {{- if .Values.hostedConfig.enabled }}
           - name: KUBERNETES_SERVICE_HOST
             value: {{ .Values.hostedConfig.tenantKubernetesServiceHost | quote }}
           - name: KUBERNETES_SERVICE_PORT
