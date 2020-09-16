@@ -25,7 +25,9 @@ import (
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -167,13 +169,18 @@ type Reconciler struct {
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
-func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func SetupProviderRevision(mgr ctrl.Manager, hostCfg *rest.Config, l logging.Logger, namespace string) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ProviderRevisionGroupKind)
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	clientset, err := kubernetes.NewForConfig(hostCfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, "failed to initialize host clientset with host config")
+	}
+
+	hostClient, err := client.New(hostCfg, client.Options{})
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize host client with host config")
 	}
 
 	metaScheme, err := BuildMetaScheme()
@@ -186,6 +193,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 	}
 
 	r := NewReconciler(mgr,
+		hostClient,
 		clientset,
 		WithInstallNamespace(namespace),
 		WithNewPackageRevisionFn(nr),
@@ -203,13 +211,18 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
-func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func SetupConfigurationRevision(mgr ctrl.Manager, hostCfg *rest.Config, l logging.Logger, namespace string) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ConfigurationRevisionGroupKind)
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	clientset, err := kubernetes.NewForConfig(hostCfg)
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, "failed to initialize host clientset with host config")
+	}
+
+	hostClient, err := client.New(hostCfg, client.Options{})
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize host client with host config")
 	}
 
 	metaScheme, err := BuildMetaScheme()
@@ -222,6 +235,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 	}
 
 	r := NewReconciler(mgr,
+		hostClient,
 		clientset,
 		WithInstallNamespace(namespace),
 		WithNewPackageRevisionFn(nr),
@@ -239,11 +253,11 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 }
 
 // NewReconciler creates a new package reconciler.
-func NewReconciler(mgr ctrl.Manager, clientset kubernetes.Interface, opts ...ReconcilerOption) *Reconciler {
+func NewReconciler(mgr ctrl.Manager, hostClient client.Client, clientset kubernetes.Interface, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client: resource.ClientApplicator{
-			Client:     mgr.GetClient(),
-			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
+			Client:     hostClient,
+			Applicator: resource.NewAPIUpdatingApplicator(hostClient),
 		},
 		establisher:  NewAPIEstablisher(mgr.GetClient()),
 		podLogClient: clientset,

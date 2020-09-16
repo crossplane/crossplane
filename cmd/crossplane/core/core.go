@@ -22,6 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
 	crds "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	oamapis "github.com/crossplane/oam-kubernetes-runtime/apis/core"
@@ -36,26 +38,37 @@ import (
 
 // Command configuration for the core Crossplane controllers.
 type Command struct {
-	Name      string
-	Namespace string
-	Sync      time.Duration
+	Name             string
+	Namespace        string
+	TenantKubeConfig string
+	Sync             time.Duration
 }
 
 // FromKingpin produces the core Crossplane command from a Kingpin command.
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
-	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
+	cmd.Flag("package-namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("PACKAGE_NAMESPACE").StringVar(&c.Namespace)
+	cmd.Flag("tenant-kubeconfig", "The absolute path of the kubeconfig file to Tenant Kubernetes instance (required for host aware mode, ignored otherwise).").ExistingFileVar(&c.TenantKubeConfig)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	return c
 }
 
 // Run core Crossplane controllers.
-func (c *Command) Run(log logging.Logger) error {
+func (c *Command) Run(log logging.Logger) error { // nolint:gocyclo
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
-	cfg, err := ctrl.GetConfig()
+	// If running in hosted mode, we use the mounted kubeconfig to make manager
+	// run against tenant.
+	cfg, err := getRestConfig(c.TenantKubeConfig)
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
+	}
+
+	// If running in hosted mode, we use the in-cluster config to run any
+	// workloads. If not in hosted mode, this config will match the one above.
+	hostCfg, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize host config")
 	}
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: &c.Sync})
@@ -87,9 +100,18 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot setup API extension controllers")
 	}
 
-	if err := pkg.Setup(mgr, log, c.Namespace); err != nil {
+	if err := pkg.Setup(mgr, hostCfg, log, c.Namespace); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+}
+
+func getRestConfig(kubeconfigPath string) (*rest.Config, error) {
+	if kubeconfigPath == "" {
+		return ctrl.GetConfig()
+	}
+	return clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
+		&clientcmd.ConfigOverrides{}).ClientConfig()
 }

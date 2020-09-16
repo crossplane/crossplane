@@ -17,6 +17,7 @@ limitations under the License.
 package pkg
 
 import (
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -26,14 +27,14 @@ import (
 )
 
 // Setup package controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, namespace string) error {
-	for _, setup := range []func(ctrl.Manager, logging.Logger, string) error{
+func Setup(mgr ctrl.Manager, h *rest.Config, l logging.Logger, namespace string) error {
+	for _, setup := range []func(ctrl.Manager, *rest.Config, logging.Logger, string) error{
 		manager.SetupConfiguration,
 		manager.SetupProvider,
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 	} {
-		if err := setup(mgr, l, namespace); err != nil {
+		if err := setup(mgr, h, l, namespace); err != nil {
 			return err
 		}
 	}

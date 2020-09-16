@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -124,17 +125,22 @@ type Reconciler struct {
 }
 
 // SetupProvider adds a controller that reconciles Providers.
-func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func SetupProvider(mgr ctrl.Manager, hostCfg *rest.Config, l logging.Logger, namespace string) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ProviderGroupKind)
 	np := func() v1alpha1.Package { return &v1alpha1.Provider{} }
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }
 	nrl := func() v1alpha1.PackageRevisionList { return &v1alpha1.ProviderRevisionList{} }
 
+	hostClient, err := client.New(hostCfg, client.Options{})
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize host client with host config")
+	}
+
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithPodManager(NewPackagePodManager(mgr.GetClient(), namespace)),
+		WithPodManager(NewPackagePodManager(hostClient, namespace)),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -147,17 +153,22 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
-func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func SetupConfiguration(mgr ctrl.Manager, hostCfg *rest.Config, l logging.Logger, namespace string) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ConfigurationGroupKind)
 	np := func() v1alpha1.Package { return &v1alpha1.Configuration{} }
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }
 	nrl := func() v1alpha1.PackageRevisionList { return &v1alpha1.ConfigurationRevisionList{} }
 
+	hostClient, err := client.New(hostCfg, client.Options{})
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize host client with host config")
+	}
+
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithPodManager(NewPackagePodManager(mgr.GetClient(), namespace)),
+		WithPodManager(NewPackagePodManager(hostClient, namespace)),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
