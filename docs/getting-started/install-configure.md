@@ -32,7 +32,7 @@ brew install kind
 brew install kubectl
 brew install helm
 
-kind create cluster --image kindest/node:v1.16.9 --wait 5m
+kind create cluster --image kindest/node:v1.16.15 --wait 5m
 ```
 
 </div>
@@ -224,7 +224,7 @@ PROJECT_ID=my-project
 SA_NAME=my-service-account-name
 
 # create service account
-SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" 
+SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 gcloud iam service-accounts create $SA_NAME --project $PROJECT_ID
 
 # enable cloud API

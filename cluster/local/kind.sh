@@ -40,7 +40,7 @@ function check_context() {
 }
 
 # configure kind
-KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.15.11@sha256:6cc31f3533deb138792db2c7d1ffc36f7456a06f1db5556ad3b6927641016f50"}
+KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.16.15@sha256:a89c771f7de234e6547d43695c7ab047809ffc71a0c3b65aa54eda051c45ed20"}
 KIND_NAME=${KIND_NAME:-"kind"}
 case "${1:-}" in
   up)

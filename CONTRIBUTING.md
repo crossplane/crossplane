@@ -42,7 +42,7 @@ make
 ./cluster/local/kind.sh help
 
 # Start a new kind cluster. Specifying KUBE_IMAGE is optional.
-KUBE_IMAGE=kindest/node:v1.16.9 ./cluster/local/kind.sh up
+KUBE_IMAGE=kindest/node:v1.16.15 ./cluster/local/kind.sh up
 
 # Use Helm to deploy the local build of Crossplane.
 ./cluster/local/kind.sh helm-install
