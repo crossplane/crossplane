@@ -383,7 +383,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			pr.SetConditions(v1alpha1.Unhealthy())
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
-		pr.SetControllerReference(&runtimev1alpha1.Reference{Name: d.GetName()})
+		pr.SetControllerReference(runtimev1alpha1.Reference{Name: d.GetName()})
 	}
 
 	// Update object list in package revision status and set ready condition to

@@ -479,7 +479,7 @@ func TestReconcile(t *testing.T) {
 										Name:       "test",
 									},
 								})
-								want.SetControllerReference(&runtimev1alpha1.Reference{Name: "test-providerrev"})
+								want.SetControllerReference(runtimev1alpha1.Reference{Name: "test-providerrev"})
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)

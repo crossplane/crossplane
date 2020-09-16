@@ -62,7 +62,7 @@ type Dependency struct {
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:",inline"`
-	ControllerRef                     *runtimev1alpha1.Reference `json:"controllerRef,omitempty"`
+	ControllerRef                     runtimev1alpha1.Reference `json:"controllerRef,omitempty"`
 
 	// Crossplane is a semantic version for supported Crossplane version for the
 	// package.

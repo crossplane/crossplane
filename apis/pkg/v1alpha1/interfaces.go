@@ -229,8 +229,8 @@ type PackageRevision interface {
 	GetObjects() []runtimev1alpha1.TypedReference
 	SetObjects(c []runtimev1alpha1.TypedReference)
 
-	GetControllerReference() *runtimev1alpha1.Reference
-	SetControllerReference(c *runtimev1alpha1.Reference)
+	GetControllerReference() runtimev1alpha1.Reference
+	SetControllerReference(c runtimev1alpha1.Reference)
 
 	GetSource() string
 	SetSource(s string)
@@ -266,12 +266,12 @@ func (p *ProviderRevision) SetObjects(c []runtimev1alpha1.TypedReference) {
 }
 
 // GetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) GetControllerReference() *runtimev1alpha1.Reference {
+func (p *ProviderRevision) GetControllerReference() runtimev1alpha1.Reference {
 	return p.Status.ControllerRef
 }
 
 // SetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) SetControllerReference(c *runtimev1alpha1.Reference) {
+func (p *ProviderRevision) SetControllerReference(c runtimev1alpha1.Reference) {
 	p.Status.ControllerRef = c
 }
 
@@ -336,12 +336,12 @@ func (p *ConfigurationRevision) SetObjects(c []runtimev1alpha1.TypedReference) {
 }
 
 // GetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerReference() *runtimev1alpha1.Reference {
+func (p *ConfigurationRevision) GetControllerReference() runtimev1alpha1.Reference {
 	return p.Status.ControllerRef
 }
 
 // SetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerReference(c *runtimev1alpha1.Reference) {
+func (p *ConfigurationRevision) SetControllerReference(c runtimev1alpha1.Reference) {
 	p.Status.ControllerRef = c
 }
 
