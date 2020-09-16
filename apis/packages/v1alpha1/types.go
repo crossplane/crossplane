@@ -34,6 +34,7 @@ import (
 // +kubebuilder:object:root=true
 
 // A PackageInstall requests a package be installed to Crossplane.
+// Deprecated: use configuration.pkg.crossplane.io and composition instead
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
@@ -352,6 +353,7 @@ type PackageInstaller interface {
 // +kubebuilder:object:root=true
 
 // ClusterPackageInstall is the CRD type for a request to add a package to Crossplane.
+// Deprecated: use provider.pkg.crossplane.io instead
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"
@@ -379,6 +381,8 @@ type ClusterPackageInstallList struct {
 // +kubebuilder:object:root=true
 
 // A Package that has been added to Crossplane.
+// Deprecated: use configuration.pkg.crossplane.io or provider.pkg.crossplane.io
+// instead
 // +kubebuilder:resource:categories=crossplane
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditionedStatus.conditions[?(@.type=='Ready')].status"

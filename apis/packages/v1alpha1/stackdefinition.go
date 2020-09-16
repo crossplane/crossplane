@@ -101,6 +101,7 @@ type StackDefinitionStatus struct {
 // +kubebuilder:object:root=true
 
 // StackDefinition is the Schema for the StackDefinitions API
+// Deprecated: use configuration.pkg.crossplane.io and composition instead
 // +kubebuilder:resource:categories=crossplane
 type StackDefinition struct {
 	metav1.TypeMeta   `json:",inline"`
