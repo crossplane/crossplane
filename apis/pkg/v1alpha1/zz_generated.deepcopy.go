@@ -213,11 +213,7 @@ func (in *PackageRevisionSpec) DeepCopy() *PackageRevisionSpec {
 func (in *PackageRevisionStatus) DeepCopyInto(out *PackageRevisionStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
-	if in.ControllerRef != nil {
-		in, out := &in.ControllerRef, &out.ControllerRef
-		*out = new(corev1alpha1.Reference)
-		**out = **in
-	}
+	out.ControllerRef = in.ControllerRef
 	if in.DependsOn != nil {
 		in, out := &in.DependsOn, &out.DependsOn
 		*out = make([]Dependency, len(*in))
