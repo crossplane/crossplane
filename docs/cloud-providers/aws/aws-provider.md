@@ -28,7 +28,7 @@ Run [setup.sh] script to read `aws` credentials and region, and create an `aws
 provider` instance in Crossplane:
 
 ```bash
-./cluster/examples/aws-setup-provider/setup.sh [--profile aws_profile]
+./examples/aws-setup-provider/setup.sh [--profile aws_profile]
 ```
 
 The `--profile` switch is optional and specifies the [aws named profile] that
@@ -131,7 +131,7 @@ to provide access information to the configured AWS account.
 [configured]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
 [secret]:https://kubernetes.io/docs/concepts/configuration/secret/ 
-[setup.sh]: https://github.com/crossplane/crossplane/blob/master/cluster/examples/aws-setup-provider/setup.sh
+[setup.sh]: https://github.com/crossplane/crossplane/blob/master/examples/aws-setup-provider/setup.sh
 [aws named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
