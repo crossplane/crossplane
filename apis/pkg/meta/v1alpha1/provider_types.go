@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,13 +30,6 @@ type ProviderSpec struct {
 
 	// Dependencies on other packages.
 	DependsOn []Dependency `json:"dependsOn,omitempty"`
-
-	// Requests for additional permissions other than those automatically
-	// supplied by the CRDs that the Provider installs.
-	PermissionRequests []rbac.PolicyRule `json:"permissionRequests,omitempty"`
-
-	// Paths and types to ignore when building package image.
-	Ignore []Ignore `json:"ignore,omitempty"`
 }
 
 // ControllerSpec specifies the configuration for the packaged Provider
@@ -57,12 +49,6 @@ type Dependency struct {
 
 	// Version is the semantic version of the dependency image.
 	Version string `json:"version"`
-}
-
-// Ignore contains paths and types that should be ignored during package build.
-type Ignore struct {
-	// Path is a filesystem path.
-	Path string `json:"path"`
 }
 
 // +kubebuilder:object:root=true
