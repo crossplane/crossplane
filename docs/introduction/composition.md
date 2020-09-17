@@ -21,15 +21,15 @@ their application operators, who may then declare that their application
 requires that kind of resource.
 
 Composition can be used to build a catalogue of kinds and configuration classes
-of infrastructure that fit the needs and opinions of your organisation. As an
+of infrastructure that fit the needs and opinions of your organization. As an
 infrastructure operator you might define your own `MySQLInstance` resource. This
 resource would allow your application operators to configure only the settings
-that _your_ organisation needs - perhaps engine version and storage size. All
+that _your_ organization needs - perhaps engine version and storage size. All
 other settings are deferred to a selectable composition representing a
 configuration class like "production" or "staging". Compositions can hide
 infrastructure complexity and include policy guardrails so that applications can
 easily and safely consume the infrastructure they need, while conforming to your
-organisational best-practices.
+organizational best-practices.
 
 > Note that composition is an **alpha** feature of Crossplane. Refer to [Current
 > Limitations] for information on functionality that is planned but not yet
@@ -553,7 +553,7 @@ composite that they do not wish to allow application operators to provision.
 Consider a `VPCNetwork` composite resource that creates an AWS VPC network with
 an internet gateway, route table, and several subnets. Defining this resource as
 a composite allows the infrastructure operator to easily reuse their
-configuration, but it does not make sense in their organisation to allow
+configuration, but it does not make sense in their organization to allow
 application operators to create "supporting infrastructure" like a VPC network.
 
 In both of the above scenarios the infrastructure operator may statically
