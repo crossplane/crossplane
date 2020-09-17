@@ -63,4 +63,4 @@ specializing in the following roles:
 [Azure]: https://github.com/crossplane/provider-azure
 [Alibaba]: https://github.com/crossplane/provider-alibaba
 [infrastructure resources]: https://blog.crossplane.io/crossplane-v0-10-compose-and-publish-your-own-infrastructure-crds-velero-backup-restore-compatibility-and-more/
-[OAM]: https://github.com/oam-dev/spec/releases/tag/v1.0.0-alpha.2
+[OAM]: https://github.com/oam-dev/spec/
