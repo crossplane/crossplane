@@ -389,6 +389,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// Update object list in package revision status and set ready condition to
 	// true.
 	pr.SetObjects(r.establisher.GetResourceRefs())
+
+	// Clear all objects and references cached by the establisher.
+	r.establisher.Reset()
+
 	// TODO(hasheddan): set remaining status fields (dependencies, crossplane
 	// version, permission requests)
 	r.record.Event(pr, event.Normal(reasonInstall, "Successfully installed package revision"))

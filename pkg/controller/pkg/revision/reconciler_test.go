@@ -84,6 +84,8 @@ func (e *MockEstablisher) GetResourceRefs() []runtimev1alpha1.TypedReference {
 	return e.MockGetResourceRefs()
 }
 
+func (e *MockEstablisher) Reset() {}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 

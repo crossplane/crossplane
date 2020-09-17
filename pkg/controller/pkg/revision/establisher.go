@@ -50,6 +50,9 @@ type Establisher interface {
 	// GetResourceRefs returns references to all objects that have had ownership
 	// or control established.
 	GetResourceRefs() []runtimev1alpha1.TypedReference
+
+	// Reset clears all cached objects and references.
+	Reset()
 }
 
 // APIEstablisher establishes control or ownership of resources in the API
@@ -82,13 +85,15 @@ func (e *APIEstablisher) GetResourceRefs() []runtimev1alpha1.TypedReference {
 	return e.resourceRefs
 }
 
+// Reset clears all cached objects and references.
+func (e *APIEstablisher) Reset() {
+	e.allObjs, e.resourceRefs = nil, nil
+}
+
 // Check checks that control or ownership of resources can be established by
 // parent. It seeds the object list used during establishment, so it should
 // always be called before.
 func (e *APIEstablisher) Check(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) error {
-	// Reset all objects and references.
-	e.allObjs = nil
-	e.resourceRefs = nil
 	for _, res := range objs {
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.
