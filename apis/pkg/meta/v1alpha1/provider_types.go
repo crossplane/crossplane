@@ -17,7 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	rbac "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -31,10 +30,6 @@ type ProviderSpec struct {
 
 	// Dependencies on other packages.
 	DependsOn []Dependency `json:"dependsOn,omitempty"`
-
-	// Requests for additional permissions other than those automatically
-	// supplied by the CRDs that the Provider installs.
-	PermissionRequests []rbac.PolicyRule `json:"permissionRequests,omitempty"`
 }
 
 // ControllerSpec specifies the configuration for the packaged Provider
