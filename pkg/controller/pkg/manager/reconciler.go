@@ -220,7 +220,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	p.SetConditions(v1alpha1.Unpacking())
 
-	hash, err := r.podManager.Run(ctx, p)
+	hash, err := r.podManager.Sync(ctx, p)
 	if err != nil {
 		log.Debug(errListRevisions, "error", err)
 		r.record.Event(p, event.Warning(reasonUnpack, err))

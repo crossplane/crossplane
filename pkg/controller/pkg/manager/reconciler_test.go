@@ -39,11 +39,11 @@ import (
 var _ PodManager = &MockPodManager{}
 
 type MockPodManager struct {
-	MockRun            func() (string, error)
+	MockSync           func() (string, error)
 	MockGarbageCollect func() error
 }
 
-func NewMockRunFn(hash string, err error) func() (string, error) {
+func NewMockSyncFn(hash string, err error) func() (string, error) {
 	return func() (string, error) {
 		return hash, err
 	}
@@ -53,8 +53,8 @@ func NewMockGarbageCollectFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (m *MockPodManager) Run(context.Context, v1alpha1.Package) (string, error) {
-	return m.MockRun()
+func (m *MockPodManager) Sync(context.Context, v1alpha1.Package) (string, error) {
+	return m.MockSync()
 }
 func (m *MockPodManager) GarbageCollect(context.Context, string, v1alpha1.Package) error {
 	return m.MockGarbageCollect()
@@ -165,7 +165,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun: NewMockRunFn("1234567", nil),
+						MockSync: NewMockSyncFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -211,7 +211,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun: NewMockRunFn("1234567", nil),
+						MockSync: NewMockSyncFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -269,7 +269,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun: NewMockRunFn("1234567", nil),
+						MockSync: NewMockSyncFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun: NewMockRunFn("1234567", nil),
+						MockSync: NewMockSyncFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -398,7 +398,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun: NewMockRunFn("1234567", nil),
+						MockSync: NewMockSyncFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -458,7 +458,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun: NewMockRunFn("1234567", nil),
+						MockSync: NewMockSyncFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -547,7 +547,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun:            NewMockRunFn("1234567", nil),
+						MockSync:           NewMockSyncFn("1234567", nil),
 						MockGarbageCollect: NewMockGarbageCollectFn(nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -628,7 +628,7 @@ func TestReconcile(t *testing.T) {
 						}),
 					},
 					podManager: &MockPodManager{
-						MockRun:            NewMockRunFn("1234567", nil),
+						MockSync:           NewMockSyncFn("1234567", nil),
 						MockGarbageCollect: NewMockGarbageCollectFn(nil),
 					},
 					log:    logging.NewNopLogger(),
