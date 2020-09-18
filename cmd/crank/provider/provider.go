@@ -16,10 +16,22 @@ limitations under the License.
 
 package provider
 
+import (
+	"context"
+
+	"github.com/docker/docker/client"
+
+	"github.com/crossplane/crossplane/cmd/crank/pkg"
+	"github.com/crossplane/crossplane/pkg/controller/pkg/revision"
+)
+
 // Cmd is the root command for Providers.
 type Cmd struct {
-	Get    GetCmd    `cmd:"" help:"Get installed Providers."`
-	Create CreateCmd `cmd:"" help:"Create a Provider."`
+	Build  BuildCmd    `cmd:"" help:"Build a Provider Package."`
+	Lint   LintCmd     `cmd:"" help:"Lint the contents of a Provider Package."`
+	Push   pkg.PushCmd `cmd:"" help:"Push a Provider Package."`
+	Create CreateCmd   `cmd:"" help:"Create a Provider."`
+	Get    GetCmd      `cmd:"" help:"Get installed Providers."`
 }
 
 // Run runs the Provider command.
@@ -27,16 +39,57 @@ func (r *Cmd) Run() error {
 	return nil
 }
 
-// GetCmd gets one or more Providers in the cluster.
-type GetCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of Provider."`
-
-	Revisions bool `short:"r" help:"List revisions for each Provider."`
+// BuildCmd builds a Provider.
+type BuildCmd struct {
+	pkg.BuildCmd
 }
 
-// Run the Get command.
-func (b *GetCmd) Run() error {
-	return nil
+// Run runs the provider build cmd.
+func (pbc *BuildCmd) Run() error {
+	ctx := context.Background()
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	err = pbc.BuildCmd.Build(ctx, docker)
+	if err != nil {
+		return err
+	}
+
+	if pbc.NoLint {
+		return nil
+	}
+	lc := LintCmd{
+		pkg.LintCmd{
+			Image:  pbc.FullImageName(),
+			NoPull: pbc.NoPull,
+		},
+		ctx,
+		docker,
+	}
+	return lc.Run()
+}
+
+// LintCmd lints the contents of a Provider Package.
+type LintCmd struct {
+	pkg.LintCmd
+	ctx    context.Context
+	docker *client.Client
+}
+
+// Run runs the provider lint cmd
+func (pc *LintCmd) Run() error {
+	ctx := context.Background()
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	linter := revision.NewPackageLinter(
+		revision.PackageLinterFns(revision.OneMeta),
+		revision.ObjectLinterFns(revision.IsProvider),
+		revision.ObjectLinterFns(revision.Or(revision.IsCRD, revision.IsComposition)))
+
+	return pc.LintCmd.Lint(ctx, docker, linter)
 }
 
 // CreateCmd creates a Provider in the cluster.
@@ -50,5 +103,17 @@ type CreateCmd struct {
 
 // Run the CreateCmd.
 func (p *CreateCmd) Run() error {
+	return nil
+}
+
+// GetCmd gets one or more Providers in the cluster.
+type GetCmd struct {
+	Name string `arg:"" optional:"" name:"name" help:"Name of Provider."`
+
+	Revisions bool `short:"r" help:"List revisions for each Provider."`
+}
+
+// Run the Get command.
+func (b *GetCmd) Run() error {
 	return nil
 }

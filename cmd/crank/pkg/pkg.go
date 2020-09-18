@@ -16,39 +16,34 @@ limitations under the License.
 
 package pkg
 
-// Cmd is the root package command.
-type Cmd struct {
-	Build BuildCmd `cmd:"" help:"Build a Crossplane package."`
-	Push  PushCmd  `cmd:"" help:"Push a Crossplane package to a registry."`
+import (
+	"io/ioutil"
+	"path/filepath"
+
+	"github.com/ghodss/yaml"
+)
+
+// CrossplanePackage is a minimal struct to grab the name field out of the crossplane.yaml file
+type CrossplanePackage struct {
+	Metadata struct {
+		Name string `json:"name"`
+	}
 }
 
-// Run runs the package command.
-func (r *Cmd) Run() error {
-	return nil
+func parseNameFromPackageFile(path string) (string, error) {
+	bs, err := ioutil.ReadFile(filepath.Clean(path))
+	if err != nil {
+		return "", err
+	}
+	pkgName, err := parseNameFromPackage(bs)
+	if err != nil {
+		return "", err
+	}
+	return pkgName, nil
 }
 
-// BuildCmd build a package.
-type BuildCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of the package to be built. Defaults to name in crossplane.yaml."`
-
-	Tag      string `short:"t" help:"Package version tag." default:"latest"`
-	Registry string `short:"r" help:"Package registry." default:"registry.upbound.io"`
-}
-
-// Run runs the Build command.
-func (b *BuildCmd) Run() error {
-	return nil
-}
-
-// PushCmd pushes a package to a registry.
-type PushCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of the package to be pushed. Defaults to name in crossplane.yaml."`
-
-	Tag      string `short:"t" help:"Package version tag." default:"latest"`
-	Registry string `short:"r" help:"Package registry." default:"registry.upbound.io"`
-}
-
-// Run runs the Push command.
-func (p *PushCmd) Run() error {
-	return nil
+func parseNameFromPackage(bs []byte) (string, error) {
+	p := &CrossplanePackage{}
+	err := yaml.Unmarshal(bs, p)
+	return p.Metadata.Name, err
 }

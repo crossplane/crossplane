@@ -20,14 +20,12 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/crossplane/crossplane/cmd/crank/configuration"
-	"github.com/crossplane/crossplane/cmd/crank/pkg"
 	"github.com/crossplane/crossplane/cmd/crank/provider"
 )
 
 var cli struct {
 	Configuration configuration.Cmd `cmd:"" help:"Interact with Configurations."`
 	Provider      provider.Cmd      `cmd:"" help:"Interact with Providers."`
-	Pkg           pkg.Cmd           `cmd:"" help:"Build and publish packages."`
 }
 
 func main() {
