@@ -25,8 +25,8 @@ docs](https://cloud.google.com/sdk/install).
 
 ### Using `gcp-credentials.sh`
 
-In the `cluster/examples` directory you will find a helper script,
-[`gcp-credentials.sh`](https://raw.githubusercontent.com/crossplane/crossplane/master/cluster/examples/gcp-credentials.sh).
+In the `examples` directory you will find a helper script,
+[`gcp-credentials.sh`](https://raw.githubusercontent.com/crossplane/crossplane/master/examples/gcp-credentials.sh).
 This script will prompt you for the organization, project, and billing account
 that will be used by `gcloud` when creating a project, service account, and
 credentials file (`crossplane-gcp-provider-key.json`).  The chosen project and
@@ -34,7 +34,7 @@ created service account will have access to the services and roles sufficient to
 run the Crossplane GCP examples.
 
 ```console
-$ cluster/examples/gcp-credentials.sh
+$ examples/gcp-credentials.sh
 ... EXAMPLE OUTPUT ONLY
 export ORGANIZATION_ID=987654321
 export PROJECT_ID=crossplane-example-1234

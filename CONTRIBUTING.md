@@ -150,4 +150,4 @@ us][Slack] if you have any questions about contributing!
 [test review comments]: https://github.com/golang/go/wiki/TestComments
 [crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
 [docs]: docs/
-[examples]: cluster/examples/
+[examples]: examples/

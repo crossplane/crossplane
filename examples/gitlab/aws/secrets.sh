@@ -56,7 +56,7 @@ buckets() {
   declare ${DECLARE_OPTS} buckets
 
   # use claim file names as bucket name enumerator
-  for f in ./cluster/examples/gitlab/aws/resource-claims/buckets/*; do
+  for f in ./examples/gitlab/aws/resource-claims/buckets/*; do
     bucket=$(basename ${f} .yaml)
 
     # retrieve interoperability access key and secret
