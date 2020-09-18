@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
+	crds "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -66,6 +67,10 @@ func (c *Command) Run(log logging.Logger) error {
 
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
+	}
+
+	if err := crds.AddToScheme(mgr.GetScheme()); err != nil {
+		return errors.Wrap(err, "Cannot add Kubernetes API extensions to scheme")
 	}
 
 	if err := rbac.Setup(mgr, log, rbac.ManagementPolicy(c.ManagementPolicy)); err != nil {
