@@ -23,7 +23,8 @@ import (
 
 	"github.com/crossplane/crossplane/pkg/controller/rbac/definition"
 	"github.com/crossplane/crossplane/pkg/controller/rbac/namespace"
-	"github.com/crossplane/crossplane/pkg/controller/rbac/provider"
+	"github.com/crossplane/crossplane/pkg/controller/rbac/provider/binding"
+	"github.com/crossplane/crossplane/pkg/controller/rbac/provider/roles"
 )
 
 // The ManagementPolicy specifies which roles the RBAC manager should manage.
@@ -46,7 +47,8 @@ func Setup(mgr ctrl.Manager, l logging.Logger, mp ManagementPolicy) error {
 	// Basic controllers.
 	fns := []func(ctrl.Manager, logging.Logger) error{
 		definition.Setup,
-		provider.Setup,
+		roles.Setup,
+		binding.Setup,
 	}
 
 	if mp == ManagementPolicyAll {

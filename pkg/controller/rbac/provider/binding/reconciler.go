@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package provider
+package binding
 
 import (
 	"context"
@@ -22,8 +22,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
@@ -36,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/controller/rbac/provider/roles"
 )
 
 const (
@@ -44,40 +46,28 @@ const (
 	timeout        = 2 * time.Minute
 	maxConcurrency = 5
 
-	errGetPR     = "cannot get ProviderRevision"
-	errListCRDs  = "cannot list CustomResourceDefinitions"
-	errApplyRole = "cannot apply ClusterRole"
+	errGetPR        = "cannot get ProviderRevision"
+	errListSAs      = "cannot list ServiceAccounts"
+	errApplyBinding = "cannot apply ClusterRoleBinding"
+
+	kindClusterRole = "ClusterRole"
 )
 
 // Event reasons.
 const (
-	reasonApplyRoles event.Reason = "ApplyClusterRoles"
+	reasonBind event.Reason = "BindClusterRole"
 )
 
-// A ClusterRoleRenderer renders ClusterRoles for the given CRDs.
-type ClusterRoleRenderer interface {
-	// RenderClusterRoles for the supplied CRDs.
-	RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole
-}
-
-// A ClusterRoleRenderFn renders ClusterRoles for the supplied CRDs.
-type ClusterRoleRenderFn func(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole
-
-// RenderClusterRoles renders ClusterRoles for the supplied CRDs.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
-	return fn(pr, crds)
-}
-
 // Setup adds a controller that reconciles a ProviderRevision by creating a
-// series of opinionated ClusterRoles that may be bound to allow access to the
-// resources it defines.
+// ClusterRoleBinding that binds a provider's service account to its system
+// ClusterRole.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
 	name := "rbac/" + strings.ToLower(v1alpha1.ProviderRevisionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.ProviderRevision{}).
-		Owns(&rbacv1.ClusterRole{}).
+		Owns(&rbacv1.ClusterRoleBinding{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
@@ -109,14 +99,6 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
-// WithClusterRoleRenderer specifies how the Reconciler should render RBAC
-// ClusterRoles.
-func WithClusterRoleRenderer(rr ClusterRoleRenderer) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.rbac = rr
-	}
-}
-
 // NewReconciler returns a Reconciler of ProviderRevisions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
@@ -129,8 +111,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     kube,
 			Applicator: resource.NewAPIUpdatingApplicator(kube),
 		},
-
-		rbac: ClusterRoleRenderFn(RenderClusterRoles),
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -146,15 +126,16 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 type Reconciler struct {
 	client resource.ClientApplicator
 	mgr    manager.Manager
-	rbac   ClusterRoleRenderer
 
 	log    logging.Logger
 	record event.Recorder
 }
 
-// Reconcile a ProviderRevision by creating a series of opinionated ClusterRoles
-// that may be bound to allow access to the resources it defines.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+// Reconcile a ProviderRevision by creating a ClusterRoleBinding that binds a
+// provider's service account to its system ClusterRole.
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+	// This reconciler is slightly above our cyclomatic complexity goal. Be wary
+	// of adding more.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -183,49 +164,86 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	l := &v1beta1.CustomResourceDefinitionList{}
+	// We want to bind to a ClusterRole whose name is derived from our Provider.
+	// We can infer the name of our Provider from our controller reference.
+	c := metav1.GetControllerOf(pr)
+	if c == nil {
+		// There's nothing to do if we have no controller reference. We'll be
+		// requeued if the ProviderRevision is updated (i.e. to add a controller
+		// reference).
+		log.Debug("ProviderRevision has no controller reference")
+		return reconcile.Result{Requeue: false}, nil
+	}
+	providerName := c.Name
+
+	l := &corev1.ServiceAccountList{}
 	if err := r.client.List(ctx, l); err != nil {
-		log.Debug(errListCRDs, "error", err)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errListCRDs)))
+		log.Debug(errListSAs, "error", err)
+		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errListSAs)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// Filter down to the CRDs that are controlled by this ProviderRevision -
-	// i.e. those that it is the active revision for.
-	crds := make([]v1beta1.CustomResourceDefinition, 0)
-	for _, crd := range l.Items {
-		crd := crd // Pin range variable so we can take its address.
-		if c := v1.GetControllerOf(&crd); c != nil && c.UID == pr.GetUID() {
-			crds = append(crds, crd)
+	// Filter down to the ServiceAccounts that are controlled by this
+	// ProviderRevision - only the active revision should control one.
+	subjects := make([]rbacv1.Subject, 0)
+	for _, sa := range l.Items {
+		sa := sa // Pin range variable so we can take its address.
+		if c := v1.GetControllerOf(&sa); c != nil && c.UID == pr.GetUID() {
+			subjects = append(subjects, rbacv1.Subject{
+				Kind:      rbacv1.ServiceAccountKind,
+				Namespace: sa.GetNamespace(),
+				Name:      sa.GetName(),
+			})
 		}
 	}
 
-	msg := "No ClusterRoles to apply (this revision is probably inactive)"
-	for _, cr := range r.rbac.RenderClusterRoles(pr, crds) {
-		cr := cr // Pin range variable so we can take its address.
-		log = log.WithValues("role-name", cr.GetName())
-		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID()))
-		if resource.IsNotControllable(err) {
-			// This ClusterRole exists and we don't control it. Presumably we're
-			// either not the active revision, or we just became the active
-			// revision and the outgoing revision is still in the process of
-			// relinquishing control.
-			log.Debug("Not applying RBAC ClusterRole that this ProviderRevision does not control")
-			continue
-		}
-		if err != nil {
-			log.Debug(errApplyRole, "error", err)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
-
-		msg = "Applied RBAC ClusterRoles"
-		log.Debug("Applied RBAC ClusterRole", "role-name", cr.GetName())
+	n := roles.SystemClusterRoleName(providerName)
+	ref := meta.AsOwner(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
+	// If we're an inactive PackageRevision we should relinquish control of our
+	// ClusterRoleBinding by downgrading our controller reference to an owner
+	// reference. This ensures that the newly activated revision can gain
+	// control of this binding. It also ensures that the binding is not orphaned
+	// if no other revision takes control of it.
+	if pr.Spec.DesiredState == v1alpha1.PackageRevisionActive {
+		ref = meta.AsController(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
+	}
+	rb := &rbacv1.ClusterRoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            n,
+			OwnerReferences: []metav1.OwnerReference{ref},
+		},
+		RoleRef: rbacv1.RoleRef{
+			APIGroup: rbacv1.GroupName,
+			Kind:     kindClusterRole,
+			Name:     n,
+		},
+		Subjects: subjects,
 	}
 
-	// TODO(negz): Add a condition that indicates the RBAC manager is
-	// managing cluster roles for this ProviderRevision?
-	r.record.Event(pr, event.Normal(reasonApplyRoles, msg))
+	log = log.WithValues(
+		"binding-name", n,
+		"role-name", n,
+		"subjects", subjects,
+	)
+
+	err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()))
+	if resource.IsNotControllable(err) {
+		// This ClusterRoleBinding exists and we don't control it. Presumably we're
+		// either not the active revision, or we just became the active
+		// revision and the outgoing revision is still in the process of
+		// relinquishing control.
+		log.Debug("Not applying RBAC ClusterRoleBinding that this ProviderRevision does not control")
+
+		// There's no need to requeue explicitly - we're watching all PRs.
+		return reconcile.Result{Requeue: false}, nil
+	}
+	if err != nil {
+		log.Debug(errApplyBinding, "error", err)
+		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errApplyBinding)))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+	log.Debug("Applied system ClusterRoleBinding")
+	r.record.Event(pr, event.Normal(reasonBind, "Bound system ClusterRole to provider ServiceAccount(s)"))
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
