@@ -18,7 +18,6 @@ package v1alpha1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	rbac "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -239,9 +238,6 @@ type PackageRevision interface {
 	GetDependencies() []Dependency
 	SetDependencies(d []Dependency)
 
-	GetPermissionRequests() []rbac.PolicyRule
-	SetPermissionRequests(p []rbac.PolicyRule)
-
 	GetSource() string
 	SetSource(s string)
 
@@ -303,16 +299,6 @@ func (p *ProviderRevision) GetDependencies() []Dependency {
 // SetDependencies of this ProviderRevision.
 func (p *ProviderRevision) SetDependencies(d []Dependency) {
 	p.Status.DependsOn = d
-}
-
-// GetPermissionRequests of this ProviderRevision.
-func (p *ProviderRevision) GetPermissionRequests() []rbac.PolicyRule {
-	return p.Status.PermissionRequests
-}
-
-// SetPermissionRequests of this ProviderRevision.
-func (p *ProviderRevision) SetPermissionRequests(r []rbac.PolicyRule) {
-	p.Status.PermissionRequests = r
 }
 
 // GetSource of this ProviderRevision.
@@ -403,16 +389,6 @@ func (p *ConfigurationRevision) GetDependencies() []Dependency {
 // SetDependencies of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetDependencies(d []Dependency) {
 	p.Status.DependsOn = d
-}
-
-// GetPermissionRequests of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetPermissionRequests() []rbac.PolicyRule {
-	return p.Status.PermissionRequests
-}
-
-// SetPermissionRequests of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetPermissionRequests(r []rbac.PolicyRule) {
-	p.Status.PermissionRequests = r
 }
 
 // GetSource of this ConfigurationRevision.
