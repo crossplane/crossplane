@@ -43,7 +43,7 @@ func TestHookPre(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
-		hook Hook
+		hook Hooks
 		pkg  runtime.Object
 		rev  v1alpha1.PackageRevision
 	}
@@ -61,7 +61,7 @@ func TestHookPre(t *testing.T) {
 		"ErrNotProvider": {
 			reason: "Should return error if not provider.",
 			args: args{
-				hook: &ProviderHook{},
+				hook: &ProviderHooks{},
 			},
 			want: want{
 				err: errors.New(errNotProvider),
@@ -70,7 +70,7 @@ func TestHookPre(t *testing.T) {
 		"ErrNotConfiguration": {
 			reason: "Should return error if not configuration.",
 			args: args{
-				hook: &ConfigurationHook{},
+				hook: &ConfigurationHooks{},
 			},
 			want: want{
 				err: errors.New(errNotConfiguration),
@@ -79,7 +79,7 @@ func TestHookPre(t *testing.T) {
 		"ProviderActive": {
 			reason: "Should only update status if provider revision is active.",
 			args: args{
-				hook: &ProviderHook{},
+				hook: &ProviderHooks{},
 				pkg: &pkgmeta.Provider{
 					Spec: pkgmeta.ProviderSpec{
 						Crossplane: &crossplane,
@@ -113,7 +113,7 @@ func TestHookPre(t *testing.T) {
 		"Configuration": {
 			reason: "Should always update status for configuration revisions.",
 			args: args{
-				hook: &ConfigurationHook{},
+				hook: &ConfigurationHooks{},
 				pkg: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						Crossplane: &crossplane,
@@ -147,7 +147,7 @@ func TestHookPre(t *testing.T) {
 		"ErrProviderDeleteDeployment": {
 			reason: "Should return error if we fail to delete deployment for inactive provider revision.",
 			args: args{
-				hook: &ProviderHook{
+				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockDelete: test.NewMockDeleteFn(nil, func(o runtime.Object) error {
@@ -196,7 +196,7 @@ func TestHookPre(t *testing.T) {
 		"ErrProviderDeleteSA": {
 			reason: "Should return error if we fail to delete service account for inactive provider revision.",
 			args: args{
-				hook: &ProviderHook{
+				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockDelete: test.NewMockDeleteFn(nil, func(o runtime.Object) error {
@@ -245,7 +245,7 @@ func TestHookPre(t *testing.T) {
 		"SuccessfulProviderDelete": {
 			reason: "Should update status and not return error when deployment and service account deleted successfully.",
 			args: args{
-				hook: &ProviderHook{
+				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockDelete: test.NewMockDeleteFn(nil, func(o runtime.Object) error {
@@ -304,7 +304,7 @@ func TestHookPost(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
-		hook Hook
+		hook Hooks
 		pkg  runtime.Object
 		rev  v1alpha1.PackageRevision
 	}
@@ -322,7 +322,7 @@ func TestHookPost(t *testing.T) {
 		"ErrNotProvider": {
 			reason: "Should return error if not provider.",
 			args: args{
-				hook: &ProviderHook{},
+				hook: &ProviderHooks{},
 			},
 			want: want{
 				err: errors.New(errNotProvider),
@@ -331,7 +331,7 @@ func TestHookPost(t *testing.T) {
 		"ProviderInactive": {
 			reason: "Should do nothing if provider revision is inactive.",
 			args: args{
-				hook: &ProviderHook{},
+				hook: &ProviderHooks{},
 				pkg:  &pkgmeta.Provider{},
 				rev: &v1alpha1.ProviderRevision{
 					Spec: v1alpha1.PackageRevisionSpec{
@@ -350,7 +350,7 @@ func TestHookPost(t *testing.T) {
 		"ErrProviderApplySA": {
 			reason: "Should return error if we fail to apply service account for active providerrevision.",
 			args: args{
-				hook: &ProviderHook{
+				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
 							switch o.(type) {
@@ -382,7 +382,7 @@ func TestHookPost(t *testing.T) {
 		"ErrProviderApplyDeployment": {
 			reason: "Should return error if we fail to apply deployment for active provider revision.",
 			args: args{
-				hook: &ProviderHook{
+				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
 							switch o.(type) {
@@ -414,7 +414,7 @@ func TestHookPost(t *testing.T) {
 		"SuccessfulProviderApply": {
 			reason: "Should not return error if successfully applied service account and deployment for active provider revision.",
 			args: args{
-				hook: &ProviderHook{
+				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
 							return nil

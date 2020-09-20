@@ -89,7 +89,7 @@ func (e *MockEstablisher) GetResourceRefs() []runtimev1alpha1.TypedReference {
 
 func (e *MockEstablisher) Reset() {}
 
-var _ Hook = &MockHook{}
+var _ Hooks = &MockHook{}
 
 type MockHook struct {
 	MockPre  func() error
@@ -442,7 +442,7 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					hook:        NewNopHook(),
+					hook:        NewNopHooks(),
 					establisher: NewMockEstablisher(),
 					backend:     parser.NewEchoBackend(string(providerBytes)),
 					linter:      NewPackageLinter(nil, nil, nil),
@@ -485,7 +485,7 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					hook: NewNopHook(),
+					hook: NewNopHooks(),
 					establisher: &MockEstablisher{
 						MockCheck:           NewMockCheckFn(nil),
 						MockEstablish:       NewMockEstablishFn(errBoom),
@@ -532,7 +532,7 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					hook:        NewNopHook(),
+					hook:        NewNopHooks(),
 					establisher: NewMockEstablisher(),
 					backend:     parser.NewEchoBackend(string(providerBytes)),
 					linter:      NewPackageLinter(nil, nil, nil),
@@ -575,7 +575,7 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					hook: NewNopHook(),
+					hook: NewNopHooks(),
 					establisher: &MockEstablisher{
 						MockCheck:           NewMockCheckFn(errBoom),
 						MockEstablish:       NewMockEstablishFn(nil),

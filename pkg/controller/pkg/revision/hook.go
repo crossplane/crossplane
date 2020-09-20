@@ -40,9 +40,8 @@ const (
 	errNotConfiguration = "not a configuration package"
 )
 
-// A Hook performs operations before and after a revision establishes
-// objects.
-type Hook interface {
+// A Hooks performs operations before and after a revision establishes objects.
+type Hooks interface {
 	// Pre performs operations meant to happen before establishing objects.
 	Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error
 
@@ -50,24 +49,24 @@ type Hook interface {
 	Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error
 }
 
-// ProviderHook preforms operations for a provider package that requires a
+// ProviderHooks performs operations for a provider package that requires a
 // controller before and after the revision establishes objects.
-type ProviderHook struct {
+type ProviderHooks struct {
 	client    resource.ClientApplicator
 	namespace string
 }
 
-// NewProviderHook creates a new ProviderHook.
-func NewProviderHook(client resource.ClientApplicator, namespace string) *ProviderHook {
-	return &ProviderHook{
+// NewProviderHooks creates a new ProviderHooks.
+func NewProviderHooks(client resource.ClientApplicator, namespace string) *ProviderHooks {
+	return &ProviderHooks{
 		client:    client,
 		namespace: namespace,
 	}
 }
 
-// Pre cleans up a packaged controller and service account if the
-// revision is inactive.
-func (h *ProviderHook) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
+// Pre cleans up a packaged controller and service account if the revision is
+// inactive.
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
 	pkgProvider, ok := pkg.(*pkgmeta.Provider)
 	if !ok {
 		return errors.New(errNotProvider)
@@ -92,7 +91,7 @@ func (h *ProviderHook) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHook) Post(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
 	pkgProvider, ok := pkg.(*pkgmeta.Provider)
 	if !ok {
 		return errors.New("not a provider package")
@@ -111,17 +110,17 @@ func (h *ProviderHook) Post(ctx context.Context, pkg runtime.Object, pr v1alpha1
 	return nil
 }
 
-// ConfigurationHook preforms operations for a configuration package before and
+// ConfigurationHooks performs operations for a configuration package before and
 // after the revision establishes objects.
-type ConfigurationHook struct{}
+type ConfigurationHooks struct{}
 
-// NewConfigurationHook creates a new ConfigurationHook.
-func NewConfigurationHook() *ConfigurationHook {
-	return &ConfigurationHook{}
+// NewConfigurationHooks creates a new ConfigurationHook.
+func NewConfigurationHooks() *ConfigurationHooks {
+	return &ConfigurationHooks{}
 }
 
 // Pre sets status fields based on the configuration package.
-func (h *ConfigurationHook) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
+func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
 	pkgConfig, ok := pkg.(*pkgmeta.Configuration)
 	if !ok {
 		return errors.New(errNotConfiguration)
@@ -133,25 +132,25 @@ func (h *ConfigurationHook) Pre(ctx context.Context, pkg runtime.Object, pr v1al
 }
 
 // Post is a no op for configuration packages.
-func (h *ConfigurationHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
 }
 
-// NopHook performs no operations.
-type NopHook struct{}
+// NopHooks performs no operations.
+type NopHooks struct{}
 
-// NewNopHook creates a hook that does nothing.
-func NewNopHook() *NopHook {
-	return &NopHook{}
+// NewNopHooks creates a hook that does nothing.
+func NewNopHooks() *NopHooks {
+	return &NopHooks{}
 }
 
 // Pre does nothing and returns nil.
-func (h *NopHook) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+func (h *NopHooks) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
 }
 
 // Post does nothing and returns nil.
-func (h *NopHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+func (h *NopHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
 }
 

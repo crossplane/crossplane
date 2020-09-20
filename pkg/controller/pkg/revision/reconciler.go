@@ -52,7 +52,7 @@ const (
 
 	errInitParserBackend = "cannot initialize parser backend"
 	errParseLogs         = "cannot parse pod logs"
-	errOneMeta           = "cannot install package with multiple meta types"
+	errNotOneMeta        = "cannot install package with multiple meta types"
 
 	errPreHook  = "cannot run pre establish hook for package"
 	errPostHook = "cannot run post establish hook for package"
@@ -91,9 +91,9 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
-// WithHook specifies how the Reconciler should perform pre and post object
+// WithHooks specifies how the Reconciler should perform pre and post object
 // establishment operations.
-func WithHook(h Hook) ReconcilerOption {
+func WithHooks(h Hooks) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.hook = h
 	}
@@ -153,7 +153,7 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client       client.Client
-	hook         Hook
+	hook         Hooks
 	establisher  Establisher
 	podLogClient kubernetes.Interface
 	parser       parser.Parser
@@ -186,7 +186,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 
 	r := NewReconciler(mgr,
 		clientset,
-		WithHook(NewProviderHook(resource.ClientApplicator{
+		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
 		}, namespace)),
@@ -225,7 +225,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 
 	r := NewReconciler(mgr,
 		clientset,
-		WithHook(NewConfigurationHook()),
+		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(parser.NewPodLogBackend(parser.PodNamespace(namespace))),
@@ -244,7 +244,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 func NewReconciler(mgr ctrl.Manager, clientset kubernetes.Interface, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		client:       mgr.GetClient(),
-		hook:         NewNopHook(),
+		hook:         NewNopHooks(),
 		establisher:  NewAPIEstablisher(mgr.GetClient()),
 		podLogClient: clientset,
 		parser:       parser.New(nil, nil),
@@ -316,7 +316,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// consumer forgets to pass an option to guarantee one meta object, we check
 	// here to avoid a potential panic on 0 index below.
 	if len(pkg.GetMeta()) != 1 {
-		r.record.Event(pr, event.Warning(reasonLint, errors.New(errOneMeta)))
+		r.record.Event(pr, event.Warning(reasonLint, errors.New(errNotOneMeta)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
