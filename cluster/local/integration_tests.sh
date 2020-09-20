@@ -7,33 +7,33 @@ YLW='\033[0;33m'
 GRN='\033[0;32m'
 RED='\033[0;31m'
 NOC='\033[0m' # No Color
-echo_info(){
+echo_info() {
     printf "\n${BLU}%s${NOC}" "$1"
 }
-echo_step(){
+echo_step() {
     printf "\n${BLU}>>>>>>> %s${NOC}\n" "$1"
 }
-echo_sub_step(){
+echo_sub_step() {
     printf "\n${BLU}>>> %s${NOC}\n" "$1"
 }
 
-echo_step_completed(){
-    printf "${GRN} [✔]${NOC}" 
+echo_step_completed() {
+    printf "${GRN} [✔]${NOC}"
 }
 
-echo_success(){
+echo_success() {
     printf "\n${GRN}%s${NOC}\n" "$1"
 }
-echo_warn(){
+echo_warn() {
     printf "\n${YLW}%s${NOC}" "$1"
 }
-echo_error(){
+echo_error() {
     printf "\n${RED}%s${NOC}" "$1"
     exit 1
 }
 
 # ------------------------------
-projectdir="$( cd "$( dirname "${BASH_SOURCE[0]}")"/../.. && pwd )"
+projectdir="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)"
 
 # get the build environment variables from the special build.vars target in the main makefile
 eval $(make --no-print-directory -C ${projectdir} build.vars)
@@ -49,13 +49,13 @@ CROSSPLANE_NAMESPACE="crossplane-system"
 
 # cleanup on exit
 if [ "$skipcleanup" != true ]; then
-  function cleanup {
-    echo_step "Cleaning up..."
-    export KUBECONFIG=
-    "${KIND}" delete cluster --name="${K8S_CLUSTER}"
-  }
+    function cleanup() {
+        echo_step "Cleaning up..."
+        export KUBECONFIG=
+        "${KIND}" delete cluster --name="${K8S_CLUSTER}"
+    }
 
-  trap cleanup EXIT
+    trap cleanup EXIT
 fi
 
 echo_step "creating k8s cluster using kind"
@@ -88,7 +88,7 @@ echo
 echo -------- deployments
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get deployments
 
-MUST_HAVE_DEPLOYMENTS="crossplane crossplane-package-manager"
+MUST_HAVE_DEPLOYMENTS="crossplane crossplane-rbac-manager"
 for name in $MUST_HAVE_DEPLOYMENTS; do
     echo_sub_step "inspecting deployment '${name}'"
     dep_stat=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get deployments/"${name}")
@@ -99,11 +99,11 @@ for name in $MUST_HAVE_DEPLOYMENTS; do
         exit -1
     else
         echo_step_completed
-    fi 
+    fi
 
     echo_info "check if is ready"
-    IFS='/' read -ra ready_status_parts <<< "$(echo "$dep_stat" | awk ' FNR > 1 {print $2}')"
-    if (( ${ready_status_parts[0]} < ${ready_status_parts[1]} )); then
+    IFS='/' read -ra ready_status_parts <<<"$(echo "$dep_stat" | awk ' FNR > 1 {print $2}')"
+    if ((${ready_status_parts[0]} < ${ready_status_parts[1]})); then
         echo "is not Ready"
         exit -1
     else
@@ -113,20 +113,19 @@ for name in $MUST_HAVE_DEPLOYMENTS; do
 done
 
 echo_step "check for pods statuses"
-for (( i=1; i<=5; i++ ))
-do  
+for ((i = 1; i <= 5; i++)); do
     echo_sub_step "pod check #$i"
     echo
     echo "-------- pods"
     pods=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" get pods)
     echo "$pods"
-    while read -r pod_stat; do 
+    while read -r pod_stat; do
         name=$(echo "$pod_stat" | awk '{print $1}')
         echo_sub_step "inspecting pod '${name}'"
 
         echo_info "check if is ready"
-        IFS='/' read -ra ready_status_parts <<< "$(echo "$pod_stat" | awk '{print $2}')"
-        if (( ${ready_status_parts[0]} < ${ready_status_parts[1]} )); then
+        IFS='/' read -ra ready_status_parts <<<"$(echo "$pod_stat" | awk '{print $2}')"
+        if ((${ready_status_parts[0]} < ${ready_status_parts[1]})); then
             echo_error "is not ready"
             exit -1
         else
@@ -139,19 +138,18 @@ do
             exit -1
         else
             echo_step_completed
-        fi 
+        fi
 
         echo_info "check if has restarts"
-        if (( $(echo "$pod_stat" | awk '{print $4}') > 0 )); then
+        if (($(echo "$pod_stat" | awk '{print $4}') > 0)); then
             echo_error "has restarts"
             exit -1
         else
             echo_step_completed
         fi
         echo
-    done <<< "$(echo "$pods" | awk 'FNR>1')"
+    done <<<"$(echo "$pods" | awk 'FNR>1')"
     sleep 5
 done
-
 
 echo_success "Integration tests succeeded!"
