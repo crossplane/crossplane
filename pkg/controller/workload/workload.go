@@ -24,7 +24,6 @@ import (
 	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/application"
 	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/resource"
 	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/scheduler"
-	"github.com/crossplane/crossplane/pkg/controller/workload/kubernetes/target"
 )
 
 // Setup workload controllers.
@@ -33,7 +32,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger) error {
 		application.Setup,
 		resource.Setup,
 		scheduler.Setup,
-		target.Setup,
 	} {
 		if err := setup(mgr, l); err != nil {
 			return err
