@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -52,11 +52,10 @@ const (
 
 	errInitParserBackend = "cannot initialize parser backend"
 	errParseLogs         = "cannot parse pod logs"
+	errNotOneMeta        = "cannot install package with multiple meta types"
 
-	errDeleteProviderDeployment = "cannot delete provider package deployment"
-	errDeleteProviderSA         = "cannot delete provider package service account"
-	errCreateProviderDeployment = "cannot create provider package deployment"
-	errCreateProviderSA         = "cannot create provider package service account"
+	errPreHook  = "cannot run pre establish hook for package"
+	errPostHook = "cannot run post establish hook for package"
 
 	errEstablishControl = "cannot establish control of object"
 )
@@ -70,14 +69,6 @@ const (
 
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
-
-// WithInstallNamespace determines the namespace where install jobs will be
-// created.
-func WithInstallNamespace(n string) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.namespace = n
-	}
-}
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
 func WithNewPackageRevisionFn(f func() v1alpha1.PackageRevision) ReconcilerOption {
@@ -100,10 +91,18 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithHooks specifies how the Reconciler should perform pre and post object
+// establishment operations.
+func WithHooks(h Hooks) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.hook = h
+	}
+}
+
 // WithEstablisher specifies how the Reconciler should establish package resources.
 func WithEstablisher(e Establisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.establisher = e
+		r.objects = e
 	}
 }
 
@@ -153,9 +152,9 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	namespace    string
-	client       resource.ClientApplicator
-	establisher  Establisher
+	client       client.Client
+	hook         Hooks
+	objects      Establisher
 	podLogClient kubernetes.Interface
 	parser       parser.Parser
 	linter       Linter
@@ -187,7 +186,10 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 
 	r := NewReconciler(mgr,
 		clientset,
-		WithInstallNamespace(namespace),
+		WithHooks(NewProviderHooks(resource.ClientApplicator{
+			Client:     mgr.GetClient(),
+			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
+		}, namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(parser.NewPodLogBackend(parser.PodNamespace(namespace))),
@@ -223,7 +225,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 
 	r := NewReconciler(mgr,
 		clientset,
-		WithInstallNamespace(namespace),
+		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(parser.NewPodLogBackend(parser.PodNamespace(namespace))),
@@ -241,11 +243,9 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 // NewReconciler creates a new package reconciler.
 func NewReconciler(mgr ctrl.Manager, clientset kubernetes.Interface, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
-		client: resource.ClientApplicator{
-			Client:     mgr.GetClient(),
-			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
-		},
-		establisher:  NewAPIEstablisher(mgr.GetClient()),
+		client:       mgr.GetClient(),
+		hook:         NewNopHooks(),
+		objects:      NewAPIEstablisher(mgr.GetClient()),
 		podLogClient: clientset,
 		parser:       parser.New(nil, nil),
 		linter:       NewPackageLinter(nil, nil, nil),
@@ -312,85 +312,43 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	desiredState := pr.GetDesiredState()
-
-	// If revision is inactive and is a provider, we must make sure controller
-	// is not running before we clean up resources.
-	if pr.GetObjectKind().GroupVersionKind() == v1alpha1.ProviderRevisionGroupVersionKind && desiredState == v1alpha1.PackageRevisionInactive {
-		// TODO(hasheddan): we are safe to 0 index and assert to Provider meta
-		// type here because of the linting checks we pass in for the
-		// ProviderRevision controller. Having those checks passed at controller
-		// setup and doing this assertion in the reconciler is not a great
-		// practice because it is not obvious that they are related or that
-		// changing the checks could cause panic here. It would be good to
-		// remove all conditional logic from this reconcile loop so that it is
-		// less difficult to maintain in the future.
-		pkgProvider := pkg.GetMeta()[0].(*pkgmeta.Provider)
-		s, d := buildProviderDeployment(pkgProvider, pr, r.namespace)
-		if err := r.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
-			log.Debug(errDeleteProviderDeployment, "error", err)
-			r.record.Event(pr, event.Warning(errDeleteProviderDeployment, err))
-			pr.SetConditions(v1alpha1.Unhealthy())
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
-		}
-		if err := r.client.Delete(ctx, s); resource.IgnoreNotFound(err) != nil {
-			log.Debug(errDeleteProviderSA, "error", err)
-			r.record.Event(pr, event.Warning(errDeleteProviderSA, err))
-			pr.SetConditions(v1alpha1.Unhealthy())
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
-		}
+	// NOTE(hasheddan): the linter should check this property already, but if a
+	// consumer forgets to pass an option to guarantee one meta object, we check
+	// here to avoid a potential panic on 0 index below.
+	if len(pkg.GetMeta()) != 1 {
+		r.record.Event(pr, event.Warning(reasonLint, errors.New(errNotOneMeta)))
+		pr.SetConditions(v1alpha1.Unhealthy())
+		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// NOTE(hasheddan): the following logic enforces the present guarantees of
-	// the package manager, which includes:
-	// 1. We will not create or update any objects unless we can create or
-	// update all objects
-	// 2. We will not create or update any objects unless we can gain control of
-	// all objects
-	// 3. We will only modify owner references when the package revision is
-	// inactive
-	// 4. If objects are reconciled by a packaged controller, we will not remove
-	// owner references until the controller has been stopped
-	if err := r.establisher.Check(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive); err != nil {
+	pkgMeta := pkg.GetMeta()[0]
+	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
+		log.Debug(errPreHook, "error", err)
+		r.record.Event(pr, event.Warning(errPreHook, err))
+		pr.SetConditions(v1alpha1.Unhealthy())
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
+	// Establish control or ownership of objects.
+	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive)
+	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
 		r.record.Event(pr, event.Warning(errEstablishControl, err))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	if err := r.establisher.Establish(ctx, pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive); err != nil {
-		log.Debug(errEstablishControl, "error", err)
-		r.record.Event(pr, event.Warning(errEstablishControl, err))
+	// Update object list in package revision status with objects for which
+	// ownership or control has been established.
+	pr.SetObjects(refs)
+
+	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
+		log.Debug(errPostHook, "error", err)
+		r.record.Event(pr, event.Warning(errPostHook, err))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// If package is a provider package, all resources have been created, and
-	// the revision is active, we should start the controller.
-	if pr.GetObjectKind().GroupVersionKind() == v1alpha1.ProviderRevisionGroupVersionKind && desiredState == v1alpha1.PackageRevisionActive {
-		// TODO(hasheddan): see comment on conditional logic above.
-		pkgProvider := pkg.GetMeta()[0].(*pkgmeta.Provider)
-		s, d := buildProviderDeployment(pkgProvider, pr, r.namespace)
-		if err := r.client.Apply(ctx, s); err != nil {
-			log.Debug(errCreateProviderSA, "error", err)
-			r.record.Event(pr, event.Warning(errCreateProviderSA, err))
-			pr.SetConditions(v1alpha1.Unhealthy())
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
-		}
-		if err := r.client.Apply(ctx, d); err != nil {
-			log.Debug(errCreateProviderDeployment, "error", err)
-			r.record.Event(pr, event.Warning(errCreateProviderDeployment, err))
-			pr.SetConditions(v1alpha1.Unhealthy())
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
-		}
-		pr.SetControllerReference(runtimev1alpha1.Reference{Name: d.GetName()})
-	}
-
-	// Update object list in package revision status and set ready condition to
-	// true.
-	pr.SetObjects(r.establisher.GetResourceRefs())
-	// TODO(hasheddan): set remaining status fields (dependencies, crossplane
-	// version, permission requests)
 	r.record.Event(pr, event.Normal(reasonInstall, "Successfully installed package revision"))
 	pr.SetConditions(v1alpha1.Healthy())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)

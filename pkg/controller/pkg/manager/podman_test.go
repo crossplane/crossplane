@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
-func TestPackagePodManagerRun(t *testing.T) {
+func TestPackagePodManagerSync(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type args struct {
@@ -261,14 +261,14 @@ func TestPackagePodManagerRun(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			want, err := tc.args.manager.Run(context.TODO(), tc.args.pkg)
+			want, err := tc.args.manager.Sync(context.TODO(), tc.args.pkg)
 
 			if diff := cmp.Diff(tc.want.err, err, cmpopts.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nmanager.Run(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nmanager.Sync(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.hash, want); diff != "" {
-				t.Errorf("\n%s\nmanager.Run(...): -want hash, +got hash:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nmanager.Sync(...): -want hash, +got hash:\n%s", tc.reason, diff)
 			}
 		})
 	}

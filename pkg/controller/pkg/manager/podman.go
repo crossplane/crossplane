@@ -40,7 +40,7 @@ var (
 
 // A PodManager manages pods.
 type PodManager interface {
-	Run(context.Context, v1alpha1.Package) (string, error)
+	Sync(context.Context, v1alpha1.Package) (string, error)
 	GarbageCollect(context.Context, string, v1alpha1.Package) error
 }
 
@@ -58,9 +58,9 @@ func NewPackagePodManager(client client.Client, namespace string) *PackagePodMan
 	}
 }
 
-// Run manages pods for the package. It is meant to be called repeatedly if the
+// Sync manages pods for the package. It is meant to be called repeatedly if the
 // pod is to be continuously managed.
-func (m *PackagePodManager) Run(ctx context.Context, p v1alpha1.Package) (string, error) {
+func (m *PackagePodManager) Sync(ctx context.Context, p v1alpha1.Package) (string, error) {
 	// Identify or create pod.
 	pod := &corev1.Pod{}
 	podName := imageToPod(p.GetSource())

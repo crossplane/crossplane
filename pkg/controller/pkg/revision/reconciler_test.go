@@ -17,15 +17,12 @@ limitations under the License.
 package revision
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -42,46 +39,55 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
+var _ parser.Backend = &ErrBackend{}
+
 type ErrBackend struct{}
 
 func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.ReadCloser, error) {
 	return nil, errors.New("test err")
 }
 
+var _ Establisher = &MockEstablisher{}
+
 type MockEstablisher struct {
-	MockCheck           func(context.Context, []runtime.Object, resource.Object, bool) error
-	MockEstablish       func(context.Context, resource.Object, bool) error
-	MockGetResourceRefs func() []runtimev1alpha1.TypedReference
+	MockEstablish func() ([]runtimev1alpha1.TypedReference, error)
 }
 
-func NewMockCheckFn(err error) func(context.Context, []runtime.Object, resource.Object, bool) error {
-	return func(context.Context, []runtime.Object, resource.Object, bool) error {
-		return err
+func NewMockEstablisher() *MockEstablisher {
+	return &MockEstablisher{
+		MockEstablish: NewMockEstablishFn(nil, nil),
 	}
 }
 
-func NewMockEstablishFn(err error) func(context.Context, resource.Object, bool) error {
-	return func(context.Context, resource.Object, bool) error {
-		return err
-	}
+func NewMockEstablishFn(refs []runtimev1alpha1.TypedReference, err error) func() ([]runtimev1alpha1.TypedReference, error) {
+	return func() ([]runtimev1alpha1.TypedReference, error) { return refs, err }
 }
 
-func NewMockGetResourceRefs(refs []runtimev1alpha1.TypedReference) func() []runtimev1alpha1.TypedReference {
-	return func() []runtimev1alpha1.TypedReference {
-		return refs
-	}
+func (e *MockEstablisher) Establish(context.Context, []runtime.Object, resource.Object, bool) ([]runtimev1alpha1.TypedReference, error) {
+	return e.MockEstablish()
 }
 
-func (e *MockEstablisher) Check(ctx context.Context, objects []runtime.Object, parent resource.Object, control bool) error {
-	return e.MockCheck(ctx, objects, parent, control)
+var _ Hooks = &MockHook{}
+
+type MockHook struct {
+	MockPre  func() error
+	MockPost func() error
 }
 
-func (e *MockEstablisher) Establish(ctx context.Context, parent resource.Object, control bool) error {
-	return e.MockEstablish(ctx, parent, control)
+func NewMockPreFn(err error) func() error {
+	return func() error { return err }
 }
 
-func (e *MockEstablisher) GetResourceRefs() []runtimev1alpha1.TypedReference {
-	return e.MockGetResourceRefs()
+func NewMockPostFn(err error) func() error {
+	return func() error { return err }
+}
+
+func (h *MockHook) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+	return h.MockPre()
+}
+
+func (h *MockHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+	return h.MockPost()
 }
 
 func TestReconcile(t *testing.T) {
@@ -256,54 +262,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: longWait},
 			},
 		},
-		"SuccessfulActiveConfigurationRevision": {
-			reason: "An active configuration revision should establish control of all of its resources.",
-			args: args{
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								pr := o.(*v1alpha1.ConfigurationRevision)
-								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.ConfigurationRevision{}
-								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								want.SetDesiredState(v1alpha1.PackageRevisionActive)
-								want.SetConditions(v1alpha1.Healthy())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					},
-					establisher: &MockEstablisher{
-						MockCheck:           NewMockCheckFn(nil),
-						MockEstablish:       NewMockEstablishFn(nil),
-						MockGetResourceRefs: NewMockGetResourceRefs(nil),
-					},
-					backend: parser.NewNopBackend(),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
-			},
-		},
-		"ErrEstablishActiveConfigurationRevision": {
-			reason: "An active configuration revision that fails to establish control should requeue after short wait.",
+		"ErrOneMeta": {
+			reason: "We should requeue after long wait if not exactly one meta package type.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -329,59 +289,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockDelete: test.NewMockDeleteFn(nil),
 						},
-					},
-					establisher: &MockEstablisher{
-						MockCheck:           NewMockCheckFn(nil),
-						MockEstablish:       NewMockEstablishFn(errBoom),
-						MockGetResourceRefs: NewMockGetResourceRefs(nil),
-					},
-					backend: parser.NewEchoBackend(string(compBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"SuccessfulInactiveConfigurationRevision": {
-			reason: "An inactive configuration revision should establish ownership of all of its resources.",
-			args: args{
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								pr := o.(*v1alpha1.ConfigurationRevision)
-								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.ConfigurationRevision{}
-								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
-								want.SetConditions(v1alpha1.Healthy())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					},
-					establisher: &MockEstablisher{
-						MockCheck:           NewMockCheckFn(nil),
-						MockEstablish:       NewMockEstablishFn(nil),
-						MockGetResourceRefs: NewMockGetResourceRefs(nil),
 					},
 					backend: parser.NewNopBackend(),
 					linter:  NewPackageLinter(nil, nil, nil),
@@ -394,127 +302,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: longWait},
 			},
 		},
-		"ErrEstablishInactiveConfigurationRevision": {
-			reason: "An inactive configuration revision that fails to establish ownership should requeue after short wait.",
-			args: args{
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								pr := o.(*v1alpha1.ConfigurationRevision)
-								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.ConfigurationRevision{}
-								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
-								want.SetConditions(v1alpha1.Unhealthy())
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-							MockDelete: test.NewMockDeleteFn(nil),
-						},
-					},
-					establisher: &MockEstablisher{
-						MockCheck:           NewMockCheckFn(errBoom),
-						MockEstablish:       NewMockEstablishFn(nil),
-						MockGetResourceRefs: NewMockGetResourceRefs(nil),
-					},
-					backend: parser.NewEchoBackend(string(compBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"SuccessfulActiveProviderRevision": {
-			reason: "An active provider revision should establish control of resources and start controller.",
-			args: args{
-				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} },
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								switch v := o.(type) {
-								case *v1alpha1.ProviderRevision:
-									pr := v1alpha1.ProviderRevision{}
-									pr.SetName("test-providerrev")
-									pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
-									pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-									pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-									*v = pr
-									return nil
-								case *appsv1.Deployment:
-									return nil
-								case *corev1.ServiceAccount:
-									return nil
-								}
-								return errBoom
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1alpha1.ProviderRevision{}
-								want.SetName("test-providerrev")
-								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								want.SetDesiredState(v1alpha1.PackageRevisionActive)
-								want.SetConditions(v1alpha1.Healthy())
-								want.SetObjects([]runtimev1alpha1.TypedReference{
-									{
-										APIVersion: "apiextensions.k8s.io/v1beta1",
-										Kind:       "CustomResourceDefinition",
-										Name:       "test",
-									},
-								})
-								want.SetControllerReference(runtimev1alpha1.Reference{Name: "test-providerrev"})
-
-								if diff := cmp.Diff(want, o); diff != "" {
-									t.Errorf("-want, +got:\n%s", diff)
-								}
-								return nil
-							}),
-						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
-							return nil
-						}),
-					},
-					establisher: &MockEstablisher{
-						MockCheck:     NewMockCheckFn(nil),
-						MockEstablish: NewMockEstablishFn(nil),
-						MockGetResourceRefs: NewMockGetResourceRefs([]runtimev1alpha1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1beta1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "test",
-							},
-						}),
-					},
-					backend: parser.NewEchoBackend(string(bytes.Join([][]byte{crdBytes, providerBytes}, []byte("\n---\n")))),
-					linter:  NewPackageLinter(PackageLinterFns(OneMeta), ObjectLinterFns(IsProvider), ObjectLinterFns(IsCRD)),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
-			},
-		},
-		"SuccessfulInactiveProviderRevision": {
-			reason: "An inactive provider revision should stop controller and establish ownership of resources.",
+		"ErrPreHook": {
+			reason: "We should requeue after short wait if pre establishment hook returns an error.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -524,7 +313,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ProviderRevision)
 								pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
-								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
 								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
@@ -532,15 +321,96 @@ func TestReconcile(t *testing.T) {
 								want := &v1alpha1.ProviderRevision{}
 								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
 								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
-								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
+								want.SetConditions(v1alpha1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					},
+					hook: &MockHook{
+						MockPre: NewMockPreFn(errBoom),
+					},
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ErrPostHook": {
+			reason: "We should requeue after short wait if post establishment hook returns an error.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ProviderRevision)
+								pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ProviderRevision{}
+								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
+								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
+								want.SetConditions(v1alpha1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					},
+					hook: &MockHook{
+						MockPre:  NewMockPreFn(nil),
+						MockPost: NewMockPostFn(errBoom),
+					},
+					objects: NewMockEstablisher(),
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"SuccessfulActiveRevision": {
+			reason: "An active revision should establish control of all of its resources.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Healthy())
-								want.SetObjects([]runtimev1alpha1.TypedReference{
-									{
-										APIVersion: "apiextensions.k8s.io/v1beta1",
-										Kind:       "CustomResourceDefinition",
-										Name:       "test",
-									},
-								})
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -550,19 +420,10 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					establisher: &MockEstablisher{
-						MockCheck:     NewMockCheckFn(nil),
-						MockEstablish: NewMockEstablishFn(nil),
-						MockGetResourceRefs: NewMockGetResourceRefs([]runtimev1alpha1.TypedReference{
-							{
-								APIVersion: "apiextensions.k8s.io/v1beta1",
-								Kind:       "CustomResourceDefinition",
-								Name:       "test",
-							},
-						}),
-					},
-					backend: parser.NewEchoBackend(string(bytes.Join([][]byte{crdBytes, providerBytes}, []byte("\n---\n")))),
-					linter:  NewPackageLinter(PackageLinterFns(OneMeta), ObjectLinterFns(IsProvider), ObjectLinterFns(IsCRD)),
+					hook:    NewNopHooks(),
+					objects: NewMockEstablisher(),
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
 					parser:  parser.New(metaScheme, objScheme),
 					log:     logging.NewNopLogger(),
 					record:  event.NewNopRecorder(),
@@ -570,6 +431,139 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{RequeueAfter: longWait},
+			},
+		},
+		"ErrEstablishActiveRevision": {
+			reason: "An active revision that fails to establish control should requeue after short wait.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ProviderRevision)
+								pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ProviderRevision{}
+								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
+								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
+								want.SetConditions(v1alpha1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					},
+					hook: NewNopHooks(),
+					objects: &MockEstablisher{
+						MockEstablish: NewMockEstablishFn(nil, errBoom),
+					},
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"SuccessfulInactiveRevision": {
+			reason: "An inactive revision should establish ownership of all of its resources.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								want.SetConditions(v1alpha1.Healthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					},
+					hook:    NewNopHooks(),
+					objects: NewMockEstablisher(),
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: longWait},
+			},
+		},
+		"ErrEstablishInactiveRevision": {
+			reason: "An inactive revision that fails to establish ownership should requeue after short wait.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
+								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								want.SetConditions(v1alpha1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					},
+					hook: NewNopHooks(),
+					objects: &MockEstablisher{
+						MockEstablish: NewMockEstablishFn(nil, errBoom),
+					},
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
 	}
