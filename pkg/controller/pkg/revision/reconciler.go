@@ -62,9 +62,9 @@ const (
 
 // Event reasons.
 const (
-	reasonParse   event.Reason = "ParsePackage"
-	reasonLint    event.Reason = "LintPackage"
-	reasonInstall event.Reason = "InstallPackage"
+	reasonParse  event.Reason = "ParsePackage"
+	reasonLint   event.Reason = "LintPackage"
+	reasonConfig event.Reason = "ConfigurePackage"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -286,7 +286,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	reader, err := r.backend.Init(ctx, parser.PodClient(r.podLogClient), parser.PodName(pr.GetInstallPod().Name))
 	if err != nil {
 		log.Debug(errInitParserBackend, "error", err)
-		r.record.Event(pr, event.Warning(reasonParse, err))
+		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errInitParserBackend)))
 		// Requeue after shortWait because we may be waiting for parent package
 		// controller to recreate Pod.
 		pr.SetConditions(v1alpha1.Unhealthy())
@@ -297,7 +297,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	pkg, err := r.parser.Parse(ctx, reader)
 	if err != nil {
 		log.Debug(errParseLogs, "error", err)
-		r.record.Event(pr, event.Warning(reasonParse, err))
+		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errParseLogs)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
@@ -324,7 +324,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	pkgMeta := pkg.GetMeta()[0]
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPreHook, "error", err)
-		r.record.Event(pr, event.Warning(errPreHook, err))
+		r.record.Event(pr, event.Warning(reasonConfig, errors.Wrap(err, errPreHook)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
@@ -333,7 +333,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive)
 	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
-		r.record.Event(pr, event.Warning(errEstablishControl, err))
+		r.record.Event(pr, event.Warning(reasonConfig, errors.Wrap(err, errEstablishControl)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
@@ -344,12 +344,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPostHook, "error", err)
-		r.record.Event(pr, event.Warning(errPostHook, err))
+		r.record.Event(pr, event.Warning(reasonConfig, errors.Wrap(err, errPostHook)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	r.record.Event(pr, event.Normal(reasonInstall, "Successfully installed package revision"))
+	r.record.Event(pr, event.Normal(reasonConfig, "Successfully configured package revision"))
 	pr.SetConditions(v1alpha1.Healthy())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }

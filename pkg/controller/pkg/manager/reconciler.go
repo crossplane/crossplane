@@ -48,6 +48,7 @@ const (
 const (
 	errGetPackage            = "cannot get package"
 	errListRevisions         = "cannot list revisions for package"
+	errUnpack                = "cannot unpack package"
 	errCreatePackageRevision = "cannot create package revision"
 	errGCPackageRevision     = "cannot garbage collect old package revision"
 	errGCInstallPod          = "cannot garbage collect old package revision install pod"
@@ -214,7 +215,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	prs := r.newPackageRevisionList()
 	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{parentLabel: p.GetName()})); resource.IgnoreNotFound(err) != nil {
 		log.Debug(errListRevisions, "error", err)
-		r.record.Event(p, event.Warning(reasonList, err))
+		r.record.Event(p, event.Warning(reasonList, errors.Wrap(err, errListRevisions)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
@@ -222,8 +223,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	hash, err := r.podManager.Sync(ctx, p)
 	if err != nil {
-		log.Debug(errListRevisions, "error", err)
-		r.record.Event(p, event.Warning(reasonUnpack, err))
+		log.Debug(errUnpack, "error", err)
+		r.record.Event(p, event.Warning(reasonUnpack, errors.Wrap(err, errUnpack)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
@@ -277,7 +278,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			rev.SetDesiredState(v1alpha1.PackageRevisionInactive)
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				log.Debug(errUpdateInactivePackageRevision, "error", err)
-				r.record.Event(p, event.Warning(reasonTransitionRevision, err))
+				r.record.Event(p, event.Warning(reasonTransitionRevision, errors.Wrap(err, errUpdateInactivePackageRevision)))
 				return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 			}
 		}
@@ -294,14 +295,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// Find the oldest revision and delete it.
 		if err := r.client.Delete(ctx, gcRev); err != nil {
 			log.Debug(errGCPackageRevision, "error", err)
-			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
+			r.record.Event(p, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGCPackageRevision)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 		}
 
 		// Clean up the oldest revision's Pod as well.
 		if err := r.podManager.GarbageCollect(ctx, gcRev.GetSource(), p); err != nil {
 			log.Debug(errGCInstallPod, "error", err)
-			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
+			r.record.Event(p, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGCInstallPod)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 		}
 	}
@@ -313,7 +314,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		pr.SetInstallPod(runtimev1alpha1.Reference{Name: imageToPod(p.GetSource())})
 		if err := r.client.Apply(ctx, pr); err != nil {
 			log.Debug(errUpdateActivePackageRevision, "error", err)
-			r.record.Event(p, event.Warning(reasonInstall, err))
+			r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errUpdateActivePackageRevision)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
@@ -342,7 +343,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	meta.AddOwnerReference(pr, meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind())))
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		log.Debug(errCreatePackageRevision, "error", err)
-		r.record.Event(p, event.Warning(reasonInstall, err))
+		r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errCreatePackageRevision)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
