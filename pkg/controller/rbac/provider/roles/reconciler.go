@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -190,42 +189,31 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// Filter down to the CRDs that are controlled by this ProviderRevision -
-	// i.e. those that it is the active revision for.
+	// Filter down to the CRDs that are owned by this ProviderRevision - i.e.
+	// those that it may become the active revision for.
 	crds := make([]v1beta1.CustomResourceDefinition, 0)
 	for _, crd := range l.Items {
-		crd := crd // Pin range variable so we can take its address.
-		if c := v1.GetControllerOf(&crd); c != nil && c.UID == pr.GetUID() {
-			crds = append(crds, crd)
+		for _, ref := range crd.GetOwnerReferences() {
+			if ref.UID == pr.GetUID() {
+				crds = append(crds, crd)
+			}
 		}
 	}
 
-	msg := "No ClusterRoles to apply (this revision is probably inactive)"
 	for _, cr := range r.rbac.RenderClusterRoles(pr, crds) {
 		cr := cr // Pin range variable so we can take its address.
 		log = log.WithValues("role-name", cr.GetName())
-		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID()))
-		if resource.IsNotControllable(err) {
-			// This ClusterRole exists and we don't control it. Presumably we're
-			// either not the active revision, or we just became the active
-			// revision and the outgoing revision is still in the process of
-			// relinquishing control.
-			log.Debug("Not applying RBAC ClusterRole that this ProviderRevision does not control")
-			continue
-		}
-		if err != nil {
+		if err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID())); err != nil {
 			log.Debug(errApplyRole, "error", err)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
-
-		msg = "Applied RBAC ClusterRoles"
 		log.Debug("Applied RBAC ClusterRole", "role-name", cr.GetName())
 	}
 
 	// TODO(negz): Add a condition that indicates the RBAC manager is
 	// managing cluster roles for this ProviderRevision?
-	r.record.Event(pr, event.Normal(reasonApplyRoles, msg))
+	r.record.Event(pr, event.Normal(reasonApplyRoles, "Applied RBAC ClusterRoles"))
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil

@@ -25,7 +25,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -133,9 +132,7 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a ClusterRoleBinding that binds a
 // provider's service account to its system ClusterRole.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// This reconciler is slightly above our cyclomatic complexity goal. Be wary
-	// of adding more.
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -164,18 +161,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	// We want to bind to a ClusterRole whose name is derived from our Provider.
-	// We can infer the name of our Provider from our controller reference.
-	c := metav1.GetControllerOf(pr)
-	if c == nil {
-		// There's nothing to do if we have no controller reference. We'll be
-		// requeued if the ProviderRevision is updated (i.e. to add a controller
-		// reference).
-		log.Debug("ProviderRevision has no controller reference")
-		return reconcile.Result{Requeue: false}, nil
-	}
-	providerName := c.Name
-
 	l := &corev1.ServiceAccountList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListSAs, "error", err)
@@ -183,30 +168,24 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// Filter down to the ServiceAccounts that are controlled by this
-	// ProviderRevision - only the active revision should control one.
+	// Filter down to the ServiceAccounts that are owned by this
+	// ProviderRevision. Each revision should control at most one, but it's easy
+	// and relatively harmless for us to handle there being many.
 	subjects := make([]rbacv1.Subject, 0)
 	for _, sa := range l.Items {
-		sa := sa // Pin range variable so we can take its address.
-		if c := v1.GetControllerOf(&sa); c != nil && c.UID == pr.GetUID() {
-			subjects = append(subjects, rbacv1.Subject{
-				Kind:      rbacv1.ServiceAccountKind,
-				Namespace: sa.GetNamespace(),
-				Name:      sa.GetName(),
-			})
+		for _, ref := range sa.GetOwnerReferences() {
+			if ref.UID == pr.GetUID() {
+				subjects = append(subjects, rbacv1.Subject{
+					Kind:      rbacv1.ServiceAccountKind,
+					Namespace: sa.GetNamespace(),
+					Name:      sa.GetName(),
+				})
+			}
 		}
 	}
 
-	n := roles.SystemClusterRoleName(providerName)
-	ref := meta.AsOwner(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
-	// If we're an inactive PackageRevision we should relinquish control of our
-	// ClusterRoleBinding by downgrading our controller reference to an owner
-	// reference. This ensures that the newly activated revision can gain
-	// control of this binding. It also ensures that the binding is not orphaned
-	// if no other revision takes control of it.
-	if pr.Spec.DesiredState == v1alpha1.PackageRevisionActive {
-		ref = meta.AsController(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
-	}
+	n := roles.SystemClusterRoleName(pr.GetName())
+	ref := meta.AsController(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
 	rb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            n,
@@ -226,18 +205,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"subjects", subjects,
 	)
 
-	err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()))
-	if resource.IsNotControllable(err) {
-		// This ClusterRoleBinding exists and we don't control it. Presumably we're
-		// either not the active revision, or we just became the active
-		// revision and the outgoing revision is still in the process of
-		// relinquishing control.
-		log.Debug("Not applying RBAC ClusterRoleBinding that this ProviderRevision does not control")
-
-		// There's no need to requeue explicitly - we're watching all PRs.
-		return reconcile.Result{Requeue: false}, nil
-	}
-	if err != nil {
+	if err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID())); err != nil {
 		log.Debug(errApplyBinding, "error", err)
 		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errApplyBinding)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil

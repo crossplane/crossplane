@@ -65,24 +65,12 @@ var rulesSystemExtra = []rbacv1.PolicyRule{
 
 // SystemClusterRoleName returns the name of the 'system' cluster role - i.e.
 // the role that a provider's ServiceAccount should be bound to.
-func SystemClusterRoleName(providerName string) string {
-	return namePrefix + providerName + nameSuffixSystem
+func SystemClusterRoleName(revisionName string) string {
+	return namePrefix + revisionName + nameSuffixSystem
 }
 
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
 func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
-	c := metav1.GetControllerOf(pr)
-	if c == nil {
-		// All ProviderRevisions should be controlled by a Provider. If this one
-		// is not it should be adopted by a Provider on a future reconcile.
-		return nil
-	}
-
-	// We're actually reconciling ProviderRevisions, but we want the roles to
-	// appear to be for the Provider so we extract its name from our controller
-	// reference.
-	name := c.Name
-
 	groups := make([]string, 0)            // Allows deterministic iteration over groups.
 	resources := make(map[string][]string) // Resources by group.
 	for _, crd := range crds {
@@ -106,7 +94,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomReso
 
 	edit := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namePrefix + name + nameSuffixEdit,
+			Name: namePrefix + pr.GetName() + nameSuffixEdit,
 			Labels: map[string]string{
 				// Edit rules aggregate to the Crossplane ClusterRole too.
 				// Crossplane needs access to reconcile all composite resources
@@ -125,7 +113,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomReso
 
 	view := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: namePrefix + name + nameSuffixView,
+			Name: namePrefix + pr.GetName() + nameSuffixView,
 			Labels: map[string]string{
 				keyAggregateToView: valTrue,
 			},
@@ -136,7 +124,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomReso
 	// The 'system' RBAC role does not aggregate; it is intended to be bound
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(name)},
+		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
 		// TODO(negz): Require providers to explicitly ask for access to Secrets
 		// via their permissionRequests.
 		Rules: append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
@@ -144,15 +132,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomReso
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
-		// If we're an inactive PackageRevision we should relinquish control of
-		// our ClusterRoles by downgrading our controller reference to an owner
-		// reference. This ensures that the newly activated revision can gain
-		// control of this role. It also ensures that the role is not orphaned
-		// if no other revision takes control of it.
-		ref := meta.AsOwner(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
-		if pr.Spec.DesiredState == v1alpha1.PackageRevisionActive {
-			ref = meta.AsController(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
-		}
+		ref := meta.AsController(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
 		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
 	return roles

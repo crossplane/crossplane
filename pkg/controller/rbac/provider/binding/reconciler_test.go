@@ -23,16 +23,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -42,7 +39,6 @@ import (
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
-	ctrl := true
 
 	type args struct {
 		mgr  manager.Manager
@@ -110,23 +106,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
-		"ProviderRevisionHasNoController": {
-			reason: "We should return early if the namespace was deleted.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-
 		"ListServiceAccountsError": {
 			reason: "We should requeue when an error is encountered listing ServiceAccounts.",
 			args: args{
@@ -136,7 +115,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								d := o.(*v1alpha1.ProviderRevision)
-								d.SetOwnerReferences([]metav1.OwnerReference{{Controller: &ctrl}})
+								d.SetOwnerReferences([]metav1.OwnerReference{{}})
 								return nil
 							}),
 							MockList: test.NewMockListFn(errBoom),
@@ -157,7 +136,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								d := o.(*v1alpha1.ProviderRevision)
-								d.SetOwnerReferences([]metav1.OwnerReference{{Controller: &ctrl}})
+								d.SetOwnerReferences([]metav1.OwnerReference{{}})
 								d.Spec.DesiredState = v1alpha1.PackageRevisionActive
 								return nil
 							}),
@@ -173,42 +152,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"CannotGainControl": {
-			reason: "We should not requeue if we would apply a ClusterRoleBinding that already exists, but that another revision controls.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								d := o.(*v1alpha1.ProviderRevision)
-								d.SetOwnerReferences([]metav1.OwnerReference{{Controller: &ctrl}})
-								d.Spec.DesiredState = v1alpha1.PackageRevisionActive
-								return nil
-							}),
-							MockList: test.NewMockListFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(ctx context.Context, _ runtime.Object, ao ...resource.ApplyOption) error {
-							// Invoke the supplied resource.MustBeControllableBy
-							// ApplyOption, and ensure it determines that the
-							// current ClusterRoleBinding cannot be controlled.
-							controller := &v1alpha1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{UID: types.UID("nope")}}
-							controlled := &rbacv1.ClusterRoleBinding{}
-							meta.AddOwnerReference(controlled, meta.AsController(meta.TypedReferenceTo(controller, v1alpha1.ProviderRevisionGroupVersionKind)))
-							for _, fn := range ao {
-								if err := fn(ctx, controlled, nil); err != nil {
-									return err
-								}
-							}
-							return nil
-						}),
-					}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
 		"SuccessfulApply": {
 			reason: "We should not requeue when we successfully apply our ClusterRoleBindings.",
 			args: args{
@@ -218,22 +161,20 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								d := o.(*v1alpha1.ProviderRevision)
-								d.SetOwnerReferences([]metav1.OwnerReference{{Controller: &ctrl}})
+								d.SetOwnerReferences([]metav1.OwnerReference{{}})
 								d.Spec.DesiredState = v1alpha1.PackageRevisionActive
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 								// Exercise the logic that filters out
-								// ServiceAccounts that are not controlled by
-								// the ProviderRevision. Note the
-								// ServiceAccount's controller's UID matches
-								// that of the ProviderRevision because they're
-								// both the empty string.
+								// ServiceAccounts that are not owned by the
+								// ProviderRevision. Note the ServiceAccount's
+								// owned's UID matches that of the
+								// ProviderRevision because they're both the
+								// empty string.
 								l := o.(*corev1.ServiceAccountList)
 								l.Items = []corev1.ServiceAccount{{
-									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
-										Controller: &ctrl,
-									}}},
+									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{}}},
 								}}
 								return nil
 							}),

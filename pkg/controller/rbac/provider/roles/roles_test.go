@@ -29,20 +29,10 @@ import (
 )
 
 func TestRenderClusterRoles(t *testing.T) {
-	pName := "provided"
-	pUID := types.UID("you-id")
-
 	prName := "revised"
 	prUID := types.UID("no-you-id")
 
 	ctrl := true
-	prCtrlr := metav1.OwnerReference{
-		APIVersion: v1alpha1.ProviderGroupVersionKind.GroupVersion().String(),
-		Kind:       v1alpha1.ProviderKind,
-		Name:       pName,
-		UID:        pUID,
-		Controller: &ctrl,
-	}
 	crCtrlr := metav1.OwnerReference{
 		APIVersion: v1alpha1.ProviderRevisionGroupVersionKind.GroupVersion().String(),
 		Kind:       v1alpha1.ProviderRevisionKind,
@@ -50,16 +40,10 @@ func TestRenderClusterRoles(t *testing.T) {
 		UID:        prUID,
 		Controller: &ctrl,
 	}
-	crOwner := metav1.OwnerReference{
-		APIVersion: v1alpha1.ProviderRevisionGroupVersionKind.GroupVersion().String(),
-		Kind:       v1alpha1.ProviderRevisionKind,
-		Name:       prName,
-		UID:        prUID,
-	}
 
-	nameEdit := namePrefix + pName + nameSuffixEdit
-	nameView := namePrefix + pName + nameSuffixView
-	nameSystem := SystemClusterRoleName(pName)
+	nameEdit := namePrefix + prName + nameSuffixEdit
+	nameView := namePrefix + prName + nameSuffixView
+	nameSystem := SystemClusterRoleName(prName)
 
 	groupCRDA := "example.org"
 	groupCRDB := "example.org"
@@ -79,73 +63,10 @@ func TestRenderClusterRoles(t *testing.T) {
 		args   args
 		want   []rbacv1.ClusterRole
 	}{
-		"MissingControllerRef": {
-			reason: "A ProviderRevision that has no controller reference should generate no ClusterRoles.",
+		"MergeGroups": {
+			reason: "A ProviderRevision should merge CRDs by group to produce the fewest rules possible.",
 			args: args{
-				pr: &v1alpha1.ProviderRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: prName,
-						UID:  prUID,
-					},
-				},
-			},
-			want: nil,
-		},
-		"InactiveRevision": {
-			reason: "A ProviderRevision that is inactive should control no CRDs, and thus produce (mostly) empty ClusterRoles that it owns (but does not control).",
-			args: args{
-				pr: &v1alpha1.ProviderRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            prName,
-						UID:             prUID,
-						OwnerReferences: []metav1.OwnerReference{prCtrlr},
-					},
-					Spec: v1alpha1.PackageRevisionSpec{DesiredState: v1alpha1.PackageRevisionInactive},
-				},
-			},
-			want: []rbacv1.ClusterRole{
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            nameEdit,
-						OwnerReferences: []metav1.OwnerReference{crOwner},
-						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToEdit:       valTrue,
-						},
-					},
-					Rules: []rbacv1.PolicyRule{},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            nameView,
-						OwnerReferences: []metav1.OwnerReference{crOwner},
-						Labels: map[string]string{
-							keyAggregateToView: valTrue,
-						},
-					},
-					Rules: []rbacv1.PolicyRule{},
-				},
-				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            nameSystem,
-						OwnerReferences: []metav1.OwnerReference{crOwner},
-					},
-					Rules: rulesSystemExtra,
-				},
-			},
-		},
-		"ActiveRevision": {
-			reason: "A ProviderRevision that is active should control CRDs, and thus render ClusterRoles that it controls.",
-			args: args{
-				pr: &v1alpha1.ProviderRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:            prName,
-						UID:             prUID,
-						OwnerReferences: []metav1.OwnerReference{prCtrlr},
-					},
-					Spec: v1alpha1.PackageRevisionSpec{DesiredState: v1alpha1.PackageRevisionActive},
-				},
+				pr: &v1alpha1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
 				crds: []v1beta1.CustomResourceDefinition{
 					{
 						Spec: v1beta1.CustomResourceDefinitionSpec{

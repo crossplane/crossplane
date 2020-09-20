@@ -28,11 +28,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -42,7 +40,6 @@ import (
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
-	ctrl := true
 
 	type args struct {
 		mgr  manager.Manager
@@ -150,40 +147,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"CannotGainControl": {
-			reason: "We should not requeue if we would apply ClusterRoles that already exist, but that another revision controls.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:  test.NewMockGetFn(nil),
-							MockList: test.NewMockListFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(ctx context.Context, _ runtime.Object, ao ...resource.ApplyOption) error {
-							// Invoke the supplied resource.MustBeControllableBy
-							// ApplyOption, and ensure it determines that the
-							// current ClusterRole cannot be controlled.
-							controller := &v1alpha1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{UID: types.UID("nope")}}
-							controlled := &rbacv1.ClusterRole{}
-							meta.AddOwnerReference(controlled, meta.AsController(meta.TypedReferenceTo(controller, v1alpha1.ProviderRevisionGroupVersionKind)))
-							for _, fn := range ao {
-								if err := fn(ctx, controlled, nil); err != nil {
-									return err
-								}
-							}
-							return nil
-						}),
-					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1alpha1.ProviderRevision, []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
-						return []rbacv1.ClusterRole{{}}
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: false},
-			},
-		},
 		"Successful": {
 			reason: "We should not requeue when we successfully apply our ClusterRoles.",
 			args: args{
@@ -194,15 +157,13 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
 								// Exercise the logic that filters out CRDs that
-								// are not controlled by the ProviderRevision.
-								// Note the CRD's controller's UID matches that
-								// of the ProviderRevision because they're both
-								// the empty string.
+								// are not owned by the ProviderRevision. Note
+								// the CRD's owner's UID matches that of the
+								// ProviderRevision because they're both the
+								// empty string.
 								l := o.(*v1beta1.CustomResourceDefinitionList)
 								l.Items = []v1beta1.CustomResourceDefinition{{
-									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
-										Controller: &ctrl,
-									}}},
+									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{}}},
 								}}
 								return nil
 							}),
