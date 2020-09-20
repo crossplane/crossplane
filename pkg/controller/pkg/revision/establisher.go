@@ -37,30 +37,15 @@ const (
 
 // An Establisher establishes control or ownership of a set of resources in the
 // API server by checking that control or ownership can be established for all
-// resources and establishing it.
+// resources and then establishing it.
 type Establisher interface {
-	// Check ensures that all objects can owned or controlled. It returns an
-	// error if any object cannot be owned or controlled.
-	Check(ctx context.Context, objects []runtime.Object, parent resource.Object, control bool) error
-
-	// Establish establishes ownership or control of all previously checked
-	// resources.
-	Establish(ctx context.Context, parent resource.Object, control bool) error
-
-	// GetResourceRefs returns references to all objects that have had ownership
-	// or control established.
-	GetResourceRefs() []runtimev1alpha1.TypedReference
-
-	// Reset clears all cached objects and references.
-	Reset()
+	Establish(ctx context.Context, objects []runtime.Object, parent resource.Object, control bool) ([]runtimev1alpha1.TypedReference, error)
 }
 
 // APIEstablisher establishes control or ownership of resources in the API
 // server for a parent.
 type APIEstablisher struct {
-	client       client.Client
-	allObjs      []currentDesired
-	resourceRefs []runtimev1alpha1.TypedReference
+	client client.Client
 }
 
 // NewAPIEstablisher creates a new APIEstablisher.
@@ -79,27 +64,17 @@ type currentDesired struct {
 	Exists  bool
 }
 
-// GetResourceRefs returns references to resources that have had control or
-// ownership established.
-func (e *APIEstablisher) GetResourceRefs() []runtimev1alpha1.TypedReference {
-	return e.resourceRefs
-}
-
-// Reset clears all cached objects and references.
-func (e *APIEstablisher) Reset() {
-	e.allObjs, e.resourceRefs = nil, nil
-}
-
-// Check checks that control or ownership of resources can be established by
-// parent. It seeds the object list used during establishment, so it should
-// always be called before.
-func (e *APIEstablisher) Check(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) error {
+// Establish checks that control or ownership of resources can be established by
+// parent, then establishes it.
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) ([]runtimev1alpha1.TypedReference, error) { // nolint:gocyclo
+	allObjs := []currentDesired{}
+	resourceRefs := []runtimev1alpha1.TypedReference{}
 	for _, res := range objs {
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.
 		d, ok := res.(resource.Object)
 		if !ok {
-			return errors.New(errAssertObj)
+			return nil, errors.New(errAssertObj)
 		}
 
 		// Make a copy of the desired object to be populated with existing
@@ -107,58 +82,53 @@ func (e *APIEstablisher) Check(ctx context.Context, objs []runtime.Object, paren
 		current := res.DeepCopyObject()
 		err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
 		if resource.IgnoreNotFound(err) != nil {
-			return err
+			return nil, err
 		}
 
 		// If resource does not already exist, we must attempt to dry run create
 		// it.
 		if kerrors.IsNotFound(err) {
 			// Add to objects as not existing.
-			e.allObjs = append(e.allObjs, currentDesired{
+			allObjs = append(allObjs, currentDesired{
 				Desired: d,
 				Current: nil,
 				Exists:  false,
 			})
 			if err := e.create(ctx, d, parent, control, client.DryRunAll); err != nil {
-				return err
+				return nil, err
 			}
 			continue
 		}
 
 		c := current.(resource.Object)
 		// Add to objects as existing.
-		e.allObjs = append(e.allObjs, currentDesired{
+		allObjs = append(allObjs, currentDesired{
 			Desired: d,
 			Current: c,
 			Exists:  true,
 		})
 
 		if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
-	return nil
-}
-
-// Establish establishes control or ownership of resources in the package that
-// have been previously checked as ownable or controllable.
-func (e *APIEstablisher) Establish(ctx context.Context, parent resource.Object, control bool) error {
-	for _, cd := range e.allObjs {
+	for _, cd := range allObjs {
 		if !cd.Exists {
 			if err := e.create(ctx, cd.Desired, parent, control); err != nil {
-				return err
+				return nil, err
 			}
-			e.resourceRefs = append(e.resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
+			resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
 			continue
 		}
 
 		if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
-			return err
+			return nil, err
 		}
-		e.resourceRefs = append(e.resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
+		resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
 	}
-	return nil
+
+	return resourceRefs, nil
 }
 
 func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, control bool, opts ...client.CreateOption) error {

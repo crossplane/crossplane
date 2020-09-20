@@ -50,44 +50,22 @@ func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.Read
 var _ Establisher = &MockEstablisher{}
 
 type MockEstablisher struct {
-	MockCheck           func() error
-	MockEstablish       func() error
-	MockGetResourceRefs func() []runtimev1alpha1.TypedReference
+	MockEstablish func() ([]runtimev1alpha1.TypedReference, error)
 }
 
 func NewMockEstablisher() *MockEstablisher {
 	return &MockEstablisher{
-		MockCheck:           NewMockCheckFn(nil),
-		MockEstablish:       NewMockEstablishFn(nil),
-		MockGetResourceRefs: NewMockGetResourceRefs(nil),
+		MockEstablish: NewMockEstablishFn(nil, nil),
 	}
 }
 
-func NewMockCheckFn(err error) func() error {
-	return func() error { return err }
+func NewMockEstablishFn(refs []runtimev1alpha1.TypedReference, err error) func() ([]runtimev1alpha1.TypedReference, error) {
+	return func() ([]runtimev1alpha1.TypedReference, error) { return refs, err }
 }
 
-func NewMockEstablishFn(err error) func() error {
-	return func() error { return err }
-}
-
-func NewMockGetResourceRefs(refs []runtimev1alpha1.TypedReference) func() []runtimev1alpha1.TypedReference {
-	return func() []runtimev1alpha1.TypedReference { return refs }
-}
-
-func (e *MockEstablisher) Check(context.Context, []runtime.Object, resource.Object, bool) error {
-	return e.MockCheck()
-}
-
-func (e *MockEstablisher) Establish(context.Context, resource.Object, bool) error {
+func (e *MockEstablisher) Establish(context.Context, []runtime.Object, resource.Object, bool) ([]runtimev1alpha1.TypedReference, error) {
 	return e.MockEstablish()
 }
-
-func (e *MockEstablisher) GetResourceRefs() []runtimev1alpha1.TypedReference {
-	return e.MockGetResourceRefs()
-}
-
-func (e *MockEstablisher) Reset() {}
 
 var _ Hooks = &MockHook{}
 
@@ -400,12 +378,12 @@ func TestReconcile(t *testing.T) {
 						MockPre:  NewMockPreFn(nil),
 						MockPost: NewMockPostFn(errBoom),
 					},
-					establisher: NewMockEstablisher(),
-					backend:     parser.NewEchoBackend(string(providerBytes)),
-					linter:      NewPackageLinter(nil, nil, nil),
-					parser:      parser.New(metaScheme, objScheme),
-					log:         logging.NewNopLogger(),
-					record:      event.NewNopRecorder(),
+					objects: NewMockEstablisher(),
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
 				},
 			},
 			want: want{
@@ -442,13 +420,13 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					hook:        NewNopHooks(),
-					establisher: NewMockEstablisher(),
-					backend:     parser.NewEchoBackend(string(providerBytes)),
-					linter:      NewPackageLinter(nil, nil, nil),
-					parser:      parser.New(metaScheme, objScheme),
-					log:         logging.NewNopLogger(),
-					record:      event.NewNopRecorder(),
+					hook:    NewNopHooks(),
+					objects: NewMockEstablisher(),
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
 				},
 			},
 			want: want{
@@ -486,10 +464,8 @@ func TestReconcile(t *testing.T) {
 						},
 					},
 					hook: NewNopHooks(),
-					establisher: &MockEstablisher{
-						MockCheck:           NewMockCheckFn(nil),
-						MockEstablish:       NewMockEstablishFn(errBoom),
-						MockGetResourceRefs: NewMockGetResourceRefs(nil),
+					objects: &MockEstablisher{
+						MockEstablish: NewMockEstablishFn(nil, errBoom),
 					},
 					backend: parser.NewEchoBackend(string(providerBytes)),
 					linter:  NewPackageLinter(nil, nil, nil),
@@ -532,13 +508,13 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					},
-					hook:        NewNopHooks(),
-					establisher: NewMockEstablisher(),
-					backend:     parser.NewEchoBackend(string(providerBytes)),
-					linter:      NewPackageLinter(nil, nil, nil),
-					parser:      parser.New(metaScheme, objScheme),
-					log:         logging.NewNopLogger(),
-					record:      event.NewNopRecorder(),
+					hook:    NewNopHooks(),
+					objects: NewMockEstablisher(),
+					backend: parser.NewEchoBackend(string(providerBytes)),
+					linter:  NewPackageLinter(nil, nil, nil),
+					parser:  parser.New(metaScheme, objScheme),
+					log:     logging.NewNopLogger(),
+					record:  event.NewNopRecorder(),
 				},
 			},
 			want: want{
@@ -576,10 +552,8 @@ func TestReconcile(t *testing.T) {
 						},
 					},
 					hook: NewNopHooks(),
-					establisher: &MockEstablisher{
-						MockCheck:           NewMockCheckFn(errBoom),
-						MockEstablish:       NewMockEstablishFn(nil),
-						MockGetResourceRefs: NewMockGetResourceRefs(nil),
+					objects: &MockEstablisher{
+						MockEstablish: NewMockEstablishFn(nil, errBoom),
 					},
 					backend: parser.NewEchoBackend(string(providerBytes)),
 					linter:  NewPackageLinter(nil, nil, nil),

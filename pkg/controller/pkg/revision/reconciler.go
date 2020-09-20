@@ -102,7 +102,7 @@ func WithHooks(h Hooks) ReconcilerOption {
 // WithEstablisher specifies how the Reconciler should establish package resources.
 func WithEstablisher(e Establisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.establisher = e
+		r.objects = e
 	}
 }
 
@@ -154,7 +154,7 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 type Reconciler struct {
 	client       client.Client
 	hook         Hooks
-	establisher  Establisher
+	objects      Establisher
 	podLogClient kubernetes.Interface
 	parser       parser.Parser
 	linter       Linter
@@ -245,7 +245,7 @@ func NewReconciler(mgr ctrl.Manager, clientset kubernetes.Interface, opts ...Rec
 	r := &Reconciler{
 		client:       mgr.GetClient(),
 		hook:         NewNopHooks(),
-		establisher:  NewAPIEstablisher(mgr.GetClient()),
+		objects:      NewAPIEstablisher(mgr.GetClient()),
 		podLogClient: clientset,
 		parser:       parser.New(nil, nil),
 		linter:       NewPackageLinter(nil, nil, nil),
@@ -329,29 +329,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// NOTE(hasheddan): the following logic enforces the present guarantees of
-	// the package manager, which includes:
-	// 1. We will not create or update any objects unless we can create or
-	// update all objects
-	// 2. We will not create or update any objects unless we can gain control of
-	// all objects
-	// 3. We will only modify owner references when the package revision is
-	// inactive
-	// 4. If objects are reconciled by a packaged controller, we will not remove
-	// owner references until the controller has been stopped
-	if err := r.establisher.Check(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive); err != nil {
+	// Establish control or ownership of objects.
+	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive)
+	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
 		r.record.Event(pr, event.Warning(errEstablishControl, err))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	if err := r.establisher.Establish(ctx, pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive); err != nil {
-		log.Debug(errEstablishControl, "error", err)
-		r.record.Event(pr, event.Warning(errEstablishControl, err))
-		pr.SetConditions(v1alpha1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
-	}
+	// Update object list in package revision status with objects for which
+	// ownership or control has been established.
+	pr.SetObjects(refs)
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPostHook, "error", err)
@@ -359,13 +348,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
-
-	// Update object list in package revision status and set ready condition to
-	// true.
-	pr.SetObjects(r.establisher.GetResourceRefs())
-
-	// Clear all objects and references cached by the establisher.
-	r.establisher.Reset()
 
 	r.record.Event(pr, event.Normal(reasonInstall, "Successfully installed package revision"))
 	pr.SetConditions(v1alpha1.Healthy())
