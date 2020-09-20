@@ -22,7 +22,6 @@ import (
 
 	"github.com/crossplane/crossplane/apis/apiextensions"
 	"github.com/crossplane/crossplane/apis/kubernetes"
-	"github.com/crossplane/crossplane/apis/packages"
 	"github.com/crossplane/crossplane/apis/pkg"
 	"github.com/crossplane/crossplane/apis/workload"
 )
@@ -32,7 +31,6 @@ func init() {
 	AddToSchemes = append(AddToSchemes,
 		apiextensions.AddToScheme,
 		kubernetes.AddToScheme,
-		packages.AddToScheme,
 		pkg.AddToScheme,
 		workload.AddToScheme,
 	)

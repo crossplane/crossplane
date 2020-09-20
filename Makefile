@@ -83,7 +83,7 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(KUSTOMIZE) go.vendor go.generate manifests.prepare manifests.annotate gen-kustomize-crds
+generate: $(KUSTOMIZE) go.vendor go.generate manifests.prepare gen-kustomize-crds
 	@$(OK) Finished vendoring and generating
 
 
@@ -93,7 +93,6 @@ CROSSPLANE_CHART_DIR = cluster/charts/crossplane
 
 CRD_DIR = $(CROSSPLANE_TYPES_CHART_DIR)/crds
 CROSSPLANE_CHART_HELM2_CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
-CROSSPLANE_CHART_HELM3_CRD_DIR = $(CROSSPLANE_CHART_DIR)/crds
 
 TYPE_MANIFESTS = $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/*.yaml)
 CONTROLLER_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/stack-manager-host-*.yaml), $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/*.yaml))
@@ -111,41 +110,6 @@ manifests.prepare:
 	@$(INFO) Copying type manifests to Crossplane chart
 	cp $(TYPE_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
 	@$(OK) Copied type manifests to Crossplane chart
-
-
-# Add "helm.sh/hook: crd-install" and "helm.sh/hook-delete-policy:
-# before-hook-creation" annotations for clusterpackageinstalls and packageinstalls
-# CRDs. Since Crossplane helm chart contains both CRD and ClusterPackageInstall
-# CRs, helm fails to install both together. One option was to use
-# `post-install,post-update` hooks in CR to deploy it after CRDs are installed,
-# but this didn't work reliably with "helm upgrade --install" command. Using
-# "crd-install" hook is already suggested in helm best practices doc:
-# https://helm.sh/docs/chart_best_practices/#method-2-crd-install-hooks and we
-# verified that it works reliably for all use cases. The other hook for deletion
-# policy is necessary to be able to redeploy helm chart after it is deleted
-# since CRDs with "crd-install" hooks will not be deleted with "helm delete" and
-# cause next "helm install" to fail.
-# "helm.sh/hook: crd-install" was deprecated in helm3 and CRDs with this annotation are
-# skipped. This results in the PackageInstall and ClusterPackageInstall CRDs not being
-# installed in helm3 when they have that annotation.
-# As a workaround, we first copy those CRDs under <chart>/crds directory which
-# was introduced with helm3 and ignored in helm2, then afterwards apply the annotation to
-# those CRDs under <chart>/templates/crds for helm2.
-manifests.annotate:
-	@$(INFO) Copying PackageInstall CRD manifests for helm3 compatibility
-	rm -r $(CROSSPLANE_CHART_HELM3_CRD_DIR)
-	mkdir -p $(CROSSPLANE_CHART_HELM3_CRD_DIR)
-	cp $(CRD_DIR)/packages.crossplane.io_packageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
-	cp $(CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml $(CROSSPLANE_CHART_HELM3_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
-	@$(OK) Copied PackageInstall CRD manifests for helm3 compatibility
-	@$(INFO) Annotating generated PackageInstall CRD manifests
-	$(eval TMPDIR := $(shell mktemp -d))
-	$(KUSTOMIZE) build cluster/charts -o $(TMPDIR)
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_clusterpackageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_clusterpackageinstalls.yaml
-	mv $(TMPDIR)/apiextensions.k8s.io_v1beta1_customresourcedefinition_packageinstalls.packages.crossplane.io.yaml $(CROSSPLANE_CHART_HELM2_CRD_DIR)/packages.crossplane.io_packageinstalls.yaml
-	@$(OK) Annotated generated PackageInstall CRD manifests
-	sed '1,7d' $(SOURCE_DOCS_DIR)/reference/install.md > $(CROSSPLANE_CHART_DIR)/README.md
-	@$(OK) Copied and modified chart README.md from Crossplane docs
 
 gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
