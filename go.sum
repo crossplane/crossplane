@@ -70,8 +70,6 @@ github.com/crossplane/crossplane-runtime v0.7.1-0.20200421211018-be37c50cc2ab/go
 github.com/crossplane/crossplane-runtime v0.9.1-0.20200918014829-e7742464e49b h1:SXxCTD2/JJwGa6HeigMDhJf7zix94epiQFU1vt9QzUU=
 github.com/crossplane/crossplane-runtime v0.9.1-0.20200918014829-e7742464e49b/go.mod h1:cJl5ZZONisre4v6wTmbrC8Jh3AI+erq/lNaxZzv9tnU=
 github.com/crossplane/crossplane-tools v0.0.0-20200219001116-bb8b2ce46330/go.mod h1:C735A9X0x0lR8iGVOOxb49Mt70Ua4EM2b7PGaRPBLd4=
-github.com/crossplane/crossplane-tools v0.0.0-20200412230150-efd0edd4565b h1:BqGODFDKcq4hd8RZeWmh8BsjfHS0eAtGWMLtT74rsG8=
-github.com/crossplane/crossplane-tools v0.0.0-20200412230150-efd0edd4565b/go.mod h1:C735A9X0x0lR8iGVOOxb49Mt70Ua4EM2b7PGaRPBLd4=
 github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200426101222-2b61763c2e51 h1:yhkAkXhOxSjLL8Zp63qyMqVx/5rgk7L0o3cH+w9LOsM=
 github.com/crossplane/oam-kubernetes-runtime v0.0.0-20200426101222-2b61763c2e51/go.mod h1:tY+QSJ5ebP9jKh3CW4UsyeqQflnXEtEkiLYjxqVBJtI=
 github.com/dave/jennifer v1.3.0 h1:p3tl41zjjCZTNBytMwrUuiAnherNUZktlhPTKoF/sEk=

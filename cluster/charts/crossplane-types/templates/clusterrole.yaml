@@ -62,13 +62,9 @@ rules:
   verbs:
   - "*"
 - apiGroups:
-  - cache.crossplane.io
-  - compute.crossplane.io
-  - database.crossplane.io
   - kubernetes.crossplane.io
   - core.crossplane.io
   - packages.crossplane.io
-  - storage.crossplane.io
   - workload.crossplane.io
   - core.oam.dev
   - apiextensions.crossplane.io
