@@ -9,10 +9,6 @@ metadata:
     heritage: {{ .Release.Service }}
 aggregationRule:
   clusterRoleSelectors:
-  # TODO(negz): Remove aggregate-to-crossplane-admin. The Crossplane service
-  # account should not be granted the same access as a Crossplane administrator.
-  - matchLabels:
-      rbac.crossplane.io/aggregate-to-crossplane-admin: "true"
   - matchLabels:
       rbac.crossplane.io/aggregate-to-crossplane: "true"
 rules: []
@@ -63,9 +59,7 @@ rules:
   - "*"
 - apiGroups:
   - kubernetes.crossplane.io
-  - packages.crossplane.io
   - workload.crossplane.io
-  - core.oam.dev
   - apiextensions.crossplane.io
   - pkg.crossplane.io
   resources:
