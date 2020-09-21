@@ -143,6 +143,13 @@ helm install --name crossplane --namespace crossplane-system crossplane-master/c
 </div>
 </div>
 
+## Check Crossplane Status
+```
+helm list -n crossplane-system
+
+kubectl get all -n crossplane-system
+```
+
 ## Install Crossplane CLI
 The [Crossplane CLI] adds a set of `kubectl crossplane` commands to simplify common tasks:
 ```
