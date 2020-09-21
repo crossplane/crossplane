@@ -12,6 +12,10 @@ include ../../../build/makelib/image.mk
 # ====================================================================================
 # Targets
 
+ifeq ($(PLATFORM),$(filter $(PLATFORM),darwin_amd64 windows_amd64)) 
+$(info Skipping image build for $(PLATFORM))
+img.build:
+else
 img.build:
 	@$(INFO) docker build $(IMAGE)
 	@cp Dockerfile $(IMAGE_TEMP_DIR) || $(FAIL)
@@ -23,3 +27,4 @@ img.build:
 		-t $(IMAGE) \
 		$(IMAGE_TEMP_DIR) || $(FAIL)
 	@$(OK) docker build $(IMAGE)
+endif
