@@ -231,7 +231,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if hash == "" {
-		r.record.Event(p, event.Normal(reasonUnpack, "waiting for unpack to complete"))
+		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{RequeueAfter: veryShortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
