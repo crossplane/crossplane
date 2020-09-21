@@ -207,7 +207,7 @@ func TestRenderClusterRoles(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := RenderClusterRoles(tc.d)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("RenderClusterRoles(...): -want, +got:\n%s\n", diff)
+				t.Errorf("\n%s\nRenderClusterRoles(...): -want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}

@@ -24,8 +24,6 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
-// TODO(negz): Aggregate to the crossplane service account role, too.
-
 const (
 	namePrefix       = "crossplane:composite:"
 	nameSuffixEdit   = ":aggregate-to-edit"

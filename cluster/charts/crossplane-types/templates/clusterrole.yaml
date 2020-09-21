@@ -60,11 +60,7 @@ rules:
   resources:
   - serviceaccounts
   verbs:
-  - get
-  - create
-  - update
-  - list
-  - watch
+  - "*"
 - apiGroups:
   - cache.crossplane.io
   - compute.crossplane.io

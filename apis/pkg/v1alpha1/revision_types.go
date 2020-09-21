@@ -17,8 +17,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	rbac "k8s.io/api/rbac/v1"
-
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
@@ -73,8 +71,4 @@ type PackageRevisionStatus struct {
 
 	// References to objects owned by PackageRevision.
 	ObjectRefs []runtimev1alpha1.TypedReference `json:"objectRefs,omitempty"`
-
-	// PermissionRequests are additional permissions that should be added to a
-	// packaged controller's service account.
-	PermissionRequests []rbac.PolicyRule `json:"permissionRequests,omitempty"`
 }
