@@ -56,6 +56,8 @@ const (
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
 	errUpdateActivePackageRevision   = "cannot update active package revision"
+
+	errUnhealthyPackageRevision = "current package revision is unhealthy"
 )
 
 // Event reasons.
@@ -321,8 +323,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// Update Package status to match that of revision.
 		if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionTrue {
 			p.SetConditions(v1alpha1.Healthy())
+			r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 		} else {
 			p.SetConditions(v1alpha1.Unhealthy())
+			r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
 		}
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
