@@ -62,9 +62,9 @@ const (
 
 // Event reasons.
 const (
-	reasonParse  event.Reason = "ParsePackage"
-	reasonLint   event.Reason = "LintPackage"
-	reasonConfig event.Reason = "ConfigurePackage"
+	reasonParse event.Reason = "ParsePackage"
+	reasonLint  event.Reason = "LintPackage"
+	reasonSync  event.Reason = "SyncPackage"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -324,7 +324,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	pkgMeta := pkg.GetMeta()[0]
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPreHook, "error", err)
-		r.record.Event(pr, event.Warning(reasonConfig, errors.Wrap(err, errPreHook)))
+		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPreHook)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
@@ -333,7 +333,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive)
 	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
-		r.record.Event(pr, event.Warning(reasonConfig, errors.Wrap(err, errEstablishControl)))
+		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errEstablishControl)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
@@ -344,12 +344,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPostHook, "error", err)
-		r.record.Event(pr, event.Warning(reasonConfig, errors.Wrap(err, errPostHook)))
+		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPostHook)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	r.record.Event(pr, event.Normal(reasonConfig, "Successfully configured package revision"))
+	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	pr.SetConditions(v1alpha1.Healthy())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
