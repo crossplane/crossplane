@@ -100,13 +100,6 @@ func TestHookPre(t *testing.T) {
 					Spec: v1alpha1.PackageRevisionSpec{
 						DesiredState: v1alpha1.PackageRevisionActive,
 					},
-					Status: v1alpha1.PackageRevisionStatus{
-						Crossplane: crossplane,
-						DependsOn: []v1alpha1.Dependency{{
-							Package: providerDep,
-							Version: version,
-						}},
-					},
 				},
 			},
 		},
@@ -133,13 +126,6 @@ func TestHookPre(t *testing.T) {
 				rev: &v1alpha1.ConfigurationRevision{
 					Spec: v1alpha1.PackageRevisionSpec{
 						DesiredState: v1alpha1.PackageRevisionActive,
-					},
-					Status: v1alpha1.PackageRevisionStatus{
-						Crossplane: crossplane,
-						DependsOn: []v1alpha1.Dependency{{
-							Package: providerDep,
-							Version: version,
-						}},
 					},
 				},
 			},
@@ -181,13 +167,6 @@ func TestHookPre(t *testing.T) {
 				rev: &v1alpha1.ProviderRevision{
 					Spec: v1alpha1.PackageRevisionSpec{
 						DesiredState: v1alpha1.PackageRevisionInactive,
-					},
-					Status: v1alpha1.PackageRevisionStatus{
-						Crossplane: crossplane,
-						DependsOn: []v1alpha1.Dependency{{
-							Package: providerDep,
-							Version: version,
-						}},
 					},
 				},
 				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
@@ -231,13 +210,6 @@ func TestHookPre(t *testing.T) {
 					Spec: v1alpha1.PackageRevisionSpec{
 						DesiredState: v1alpha1.PackageRevisionInactive,
 					},
-					Status: v1alpha1.PackageRevisionStatus{
-						Crossplane: crossplane,
-						DependsOn: []v1alpha1.Dependency{{
-							Package: providerDep,
-							Version: version,
-						}},
-					},
 				},
 				err: errors.Wrap(errBoom, errDeleteProviderSA),
 			},
@@ -273,13 +245,6 @@ func TestHookPre(t *testing.T) {
 				rev: &v1alpha1.ProviderRevision{
 					Spec: v1alpha1.PackageRevisionSpec{
 						DesiredState: v1alpha1.PackageRevisionInactive,
-					},
-					Status: v1alpha1.PackageRevisionStatus{
-						Crossplane: crossplane,
-						DependsOn: []v1alpha1.Dependency{{
-							Package: providerDep,
-							Version: version,
-						}},
 					},
 				},
 			},
