@@ -34,6 +34,10 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.ProviderRevisionGroupVersionKind))},
 		},
 	}
+	pullPolicy := corev1.PullIfNotPresent
+	if revision.GetPackagePullPolicy() != nil {
+		pullPolicy = *revision.GetPackagePullPolicy()
+	}
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -52,10 +56,12 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: s.GetName(),
+					ImagePullSecrets:   revision.GetPackagePullSecrets(),
 					Containers: []corev1.Container{
 						{
-							Name:  provider.GetName(),
-							Image: provider.Spec.Controller.Image,
+							Name:            provider.GetName(),
+							Image:           provider.Spec.Controller.Image,
+							ImagePullPolicy: pullPolicy,
 						},
 					},
 				},
