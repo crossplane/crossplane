@@ -41,6 +41,7 @@ type PackageSpec struct {
 	PackagePullSecrets []corev1.LocalObjectReference `json:"packagePullSecrets,omitempty"`
 
 	// PackagePullPolicy defines the pull policy for the package.
+	// Default is IfNotPresent.
 	// +optional
 	PackagePullPolicy *corev1.PullPolicy `json:"packagePullPolicy,omitempty"`
 }

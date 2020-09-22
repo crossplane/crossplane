@@ -51,7 +51,7 @@ spec:
               description: Package is the name of the package that is being requested.
               type: string
             packagePullPolicy:
-              description: PackagePullPolicy defines the pull policy for the package.
+              description: PackagePullPolicy defines the pull policy for the package. Default is IfNotPresent.
               type: string
             packagePullSecrets:
               description: PackagePullSecrets are named secrets in the same namespace that can be used to fetch packages from private registries.

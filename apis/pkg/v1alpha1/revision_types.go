@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // PackageRevisionDesiredState is the desired state of the package revision.
@@ -40,8 +41,21 @@ type PackageRevisionSpec struct {
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
 
-	// Image used for install Pod to extract package contents.
-	Image string `json:"image"`
+	// Package image used by install Pod to extract package contents.
+	Package string `json:"image"`
+
+	// PackagePullSecrets are named secrets in the same namespace that can be
+	// used to fetch packages from private registries. They are also applied to
+	// any images pulled for the package, such as a provider's controller image.
+	// +optional
+	PackagePullSecrets []corev1.LocalObjectReference `json:"packagePullSecrets,omitempty"`
+
+	// PackagePullPolicy defines the pull policy for the package. It is also
+	// applied to any images pulled for the package, such as a provider's
+	// controller image.
+	// Default is IfNotPresent.
+	// +optional
+	PackagePullPolicy *corev1.PullPolicy `json:"packagePullPolicy,omitempty"`
 
 	// Revision number. Indicates when the revision will be garbage collected
 	// based on the parent's RevisionHistoryLimit.
