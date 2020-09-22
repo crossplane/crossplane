@@ -115,25 +115,6 @@ spec:
               required:
               - name
               type: object
-            crossplane:
-              description: Crossplane is a semantic version for supported Crossplane version for the package.
-              type: string
-            dependsOn:
-              description: DependsOn is the list of packages and CRDs that this package depends on.
-              items:
-                description: Dependency specifies the dependency of a package.
-                properties:
-                  package:
-                    description: Package is the name of the depended upon package image .
-                    type: string
-                  version:
-                    description: Version is the semantic version range for the dependency.
-                    type: string
-                required:
-                - package
-                - version
-                type: object
-              type: array
             objectRefs:
               description: References to objects owned by PackageRevision.
               items:

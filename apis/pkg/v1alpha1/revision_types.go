@@ -48,26 +48,10 @@ type PackageRevisionSpec struct {
 	Revision int64 `json:"revision"`
 }
 
-// Dependency specifies the dependency of a package.
-type Dependency struct {
-	// Package is the name of the depended upon package image .
-	Package string `json:"package"`
-
-	// Version is the semantic version range for the dependency.
-	Version string `json:"version"`
-}
-
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:",inline"`
 	ControllerRef                     runtimev1alpha1.Reference `json:"controllerRef,omitempty"`
-
-	// Crossplane is a semantic version for supported Crossplane version for the
-	// package.
-	Crossplane string `json:"crossplane,omitempty"`
-
-	// DependsOn is the list of packages and CRDs that this package depends on.
-	DependsOn []Dependency `json:"dependsOn,omitempty"`
 
 	// References to objects owned by PackageRevision.
 	ObjectRefs []runtimev1alpha1.TypedReference `json:"objectRefs,omitempty"`
