@@ -1,7 +1,0 @@
-apiVersion: packages.crossplane.io/v1alpha1
-kind: PackageInstall
-metadata:
-  name: sample-stack-from-package
-spec:
-  source: registry.hub.docker.com
-  package: crossplane/sample-stack

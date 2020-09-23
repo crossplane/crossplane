@@ -1,3 +1,0 @@
-resources:
-  - cloudsql-class.yaml
-  - gke-class.yaml
