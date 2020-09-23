@@ -40,7 +40,7 @@ GO111MODULE = on
 
 HELM_BASE_URL = https://charts.crossplane.io
 HELM_S3_BUCKET = crossplane.charts
-HELM_CHARTS = crossplane crossplane-types crossplane-controllers
+HELM_CHARTS = crossplane
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/helm.mk
 
@@ -83,33 +83,11 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(KUSTOMIZE) go.vendor go.generate manifests.prepare gen-kustomize-crds
+generate: $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds
 	@$(OK) Finished vendoring and generating
 
 
-CROSSPLANE_TYPES_CHART_DIR = cluster/charts/crossplane-types
-CROSSPLANE_CONTROLLERS_CHART_DIR = cluster/charts/crossplane-controllers
-CROSSPLANE_CHART_DIR = cluster/charts/crossplane
-
-CRD_DIR = $(CROSSPLANE_TYPES_CHART_DIR)/crds
-CROSSPLANE_CHART_HELM2_CRD_DIR = $(CROSSPLANE_CHART_DIR)/templates/crds
-
-TYPE_MANIFESTS = $(wildcard $(CROSSPLANE_TYPES_CHART_DIR)/templates/*.yaml)
-CONTROLLER_MANIFESTS = $(filter-out $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/stack-manager-host-*.yaml), $(wildcard $(CROSSPLANE_CONTROLLERS_CHART_DIR)/templates/*.yaml))
-
-# This target copies manifests in crossplane-controllers and crossplane-types chart into crossplane chart.
-manifests.prepare:
-	@$(INFO) Copying CRD manifests to Crossplane chart
-	rm -r $(CROSSPLANE_CHART_HELM2_CRD_DIR)
-	mkdir $(CROSSPLANE_CHART_HELM2_CRD_DIR)
-	cp $(CRD_DIR)/* $(CROSSPLANE_CHART_HELM2_CRD_DIR)
-	@$(OK) Copied CRD manifests to Crossplane chart
-	@$(INFO) Copying controller manifests to Crossplane chart
-	cp $(CONTROLLER_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
-	@$(OK) Copied controller manifests to Crossplane chart
-	@$(INFO) Copying type manifests to Crossplane chart
-	cp $(TYPE_MANIFESTS) $(CROSSPLANE_CHART_DIR)/templates
-	@$(OK) Copied type manifests to Crossplane chart
+CRD_DIR = cluster/charts/crossplane/crds
 
 gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
