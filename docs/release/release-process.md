@@ -184,8 +184,6 @@ examples to point to the new versions that we will be releasing soon.
   [App](https://github.com/crossplane/crossplane/blob/release-0.9/docs/app.md)
   guides.
   * searching for `:master` will help a lot here
-* Examples, such as [`StackInstall` yaml
-  files](https://github.com/crossplane/crossplane/tree/release-0.9/cluster/examples/provider)
 * [Helm chart
   defaults](https://github.com/crossplane/crossplane/blob/release-0.9/cluster/charts/crossplane/values.yaml.tmpl),
   ensure all `values.yaml.tmpl` files are updated.
@@ -475,9 +473,9 @@ steps.  Please refer to details for each step in the sections above.
 * Fix any bugs in `master` first and then `cherry-pick -x` to the release branch
   * If `master` has already removed the relevant code then make your fix
     directly in the release branch
-* After all testing on the release branch look good and any docs/examples/tests
-  have been updated with the new version number, run the `tag` pipeline on the
-  release branch with the new patch version (e.g. `v0.5.1`)
+* After all testing on the release branch look good and any docs/tests have been
+  updated with the new version number, run the `tag` pipeline on the release
+  branch with the new patch version (e.g. `v0.5.1`)
 * Run the normal build pipeline on the release branch to build and publish the
   release
 * Publish release notes

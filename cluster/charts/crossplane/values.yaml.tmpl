@@ -16,31 +16,8 @@ rbacManager:
   deploy: true
   managementPolicy: All
 
-# Deprecated. Use rbacManager instead.
-# TODO(negz): Disable deployment of the (deprecated) package manager by default.
-personas:
-  deploy: false
-
-clusterPackages:
-  aws:
-    version: master
-    deploy: false
-  gcp:
-    version: master
-    deploy: false
-  azure:
-    version: master
-    deploy: false
-  rook:
-    version: master
-    deploy: false
-
 hostedConfig:
   enabled: false
-
-templateStacks:
-  enabled: true
-  controllerImage: crossplane/templating-controller:v0.2.1
 
 priorityClassName: ""
 
@@ -60,18 +37,4 @@ resourcesRBACManager:
     cpu: 100m
     memory: 256Mi
 
-resourcesPackageManager:
-  limits:
-    cpu: 100m
-    memory: 512Mi
-  requests:
-    cpu: 100m
-    memory: 256Mi
-
 forceImagePullPolicy: ""
-
-insecureAllowAllApigroups: false
-
-insecurePassFullDeployment: false
-
-insecureInstallJob: false

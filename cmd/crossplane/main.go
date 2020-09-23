@@ -26,8 +26,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
-	"github.com/crossplane/crossplane/cmd/crossplane/package/manage"
-	"github.com/crossplane/crossplane/cmd/crossplane/package/unpack"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
 
@@ -35,13 +33,10 @@ func main() {
 	var (
 		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
 		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-		pkg   = app.Command("package", "Perform operations on packages")
 	)
 
 	c := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
 	r := rbac.FromKingpin(app.Command("rbac", "Start Crossplane RBAC Manager controllers."))
-	m := manage.FromKingpin(pkg.Command("manage", "Start Crossplane Package Manager controllers"))
-	u := unpack.FromKingpin(pkg.Command("unpack", "Unpack a Package").Alias("unpackage"))
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
@@ -59,10 +54,6 @@ func main() {
 		kingpin.FatalIfError(c.Run(logging.NewLogrLogger(zl.WithName("crossplane"))), "cannot run crossplane")
 	case r.Name:
 		kingpin.FatalIfError(r.Run(logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
-	case m.Name:
-		kingpin.FatalIfError(m.Run(logging.NewLogrLogger(zl.WithName("package-manager"))), "cannot run package manager")
-	case u.Name:
-		kingpin.FatalIfError(u.Run(logging.NewLogrLogger(zl.WithName("package-unpack"))), "cannot unpack package")
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
 	}

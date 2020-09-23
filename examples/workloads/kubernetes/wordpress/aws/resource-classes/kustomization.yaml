@@ -1,3 +1,0 @@
-resources:
-  - rds-class.yaml
-  - eks-class.yaml

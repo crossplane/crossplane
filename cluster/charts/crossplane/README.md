@@ -88,166 +88,6 @@ helm install crossplane --namespace crossplane-system crossplane-master/crosspla
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel --disable-openapi-validation
 ```
 
-## Installing Infrastructure Providers
-
-You can add additional functionality to Crossplane's control plane by installing
-`providers`. For example, each supported cloud provider has its own
-corresponding Crossplane `provider` that contains all the functionality for that
-particular cloud. After a cloud provider's infrastructure `provider` is
-installed, you will be able to provision and manage resources within that cloud
-from Crossplane.
-
-### Installation with Helm
-
-You can include deployment of additional infrastructure providers into your helm
-installation by setting `clusterPackages.<provider-name>.deploy` to `true`.
-
-For example, the following will install `master` version of the GCP package.
-
-Using Helm 2:
-
-```console
-helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterPackages.gcp.deploy=true --set clusterPackages.gcp.version=master
-```
-
-Using Helm 3:
-
-```console
-kubectl create namespace crossplane-system
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --set clusterPackages.gcp.deploy=true --set clusterPackages.gcp.version=master --devel
-```
-
-See [helm configuration parameters](#configuration) for supported packages and
-parameters.
-
-### Manual Installation
-
-After Crossplane has been installed, it is possible to extend Crossplane's
-functionality by installing Crossplane providers.
-
-#### GCP Provider
-
-To get started with Google Cloud Platform (GCP), create a file named
-`provider-gcp.yaml` with the following content:
-
-```yaml
-apiVersion: packages.crossplane.io/v1alpha1
-kind: ClusterPackageInstall
-metadata:
-  name: provider-gcp
-  namespace: crossplane-system
-spec:
-  package: "crossplane/provider-gcp:master"
-```
-
-Then you can install the GCP provider into Crossplane in the `gcp` namespace
-with the following command:
-
-```console
-kubectl apply -f provider-gcp.yaml
-```
-
-#### AWS Provider
-
-To get started with Amazon Web Services (AWS), create a file named
-`provider-aws.yaml` with the following content:
-
-```yaml
-apiVersion: packages.crossplane.io/v1alpha1
-kind: ClusterPackageInstall
-metadata:
-  name: provider-aws
-  namespace: crossplane-system
-spec:
-  package: "crossplane/provider-aws:master"
-```
-
-Then you can install the AWS provider into Crossplane in the `aws` namespace
-with the following command:
-
-```console
-kubectl apply -f provider-aws.yaml
-```
-
-#### Azure Provider
-
-To get started with Microsoft Azure, create a file named `provider-azure.yaml`
-with the following content:
-
-```yaml
-apiVersion: packages.crossplane.io/v1alpha1
-kind: ClusterPackageInstall
-metadata:
-  name: provider-azure
-  namespace: crossplane-system
-spec:
-  package: "crossplane/provider-azure:master"
-```
-
-Then you can install the Azure provider into Crossplane in the `azure` namespace
-with the following command:
-
-```console
-kubectl apply -f provider-azure.yaml
-```
-
-#### Rook Provider
-
-To get started with Rook, create a file named `provider-rook.yaml` with the
-following content:
-
-```yaml
-apiVersion: packages.crossplane.io/v1alpha1
-kind: ClusterPackageInstall
-metadata:
-  name: provider-rook
-  namespace: crossplane-system
-spec:
-  package: "crossplane/provider-rook:master"
-```
-
-Then you can install the Rook provider into Crossplane in the `rook` namespace
-with the following command:
-
-```console
-kubectl apply -f provider-rook.yaml
-```
-
-### Uninstalling Infrastructure Providers
-
-The infrastructure can be uninstalled simply by deleting the provider resources
-from the cluster with a command similar to what's shown below. **Note** that
-this will also **delete** any resources that Crossplane has provisioned in the
-cloud provider if their `ReclaimPolicy` is set to `Delete`.
-
-After you have ensured that you are completely done with all your cloud provider
-resources, you can then run one of the commands below, depending on which cloud
-provider you are removing, to remove its provider from Crossplane:
-
-#### Uninstalling GCP
-
-```console
-kubectl delete -f provider-gcp.yaml
-```
-
-#### Uninstalling AWS
-
-```console
-kubectl delete -f provider-aws.yaml
-```
-
-#### Uninstalling Azure
-
-```console
-kubectl delete -f provider-azure.yaml
-```
-
-#### Uninstalling Rook
-
-```console
-kubectl delete -f provider-rook.yaml
-```
-
 ## Uninstalling the Chart
 
 To uninstall/delete the `crossplane` deployment:
@@ -272,30 +112,12 @@ and their default values.
 | `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
 | `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
 | `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `clusterPackages.aws.deploy`       | Deploy AWS package                                                | `false`
-| `clusterPackages.aws.version`      | AWS provider version to deploy                                     | `<latest released version>`
-| `clusterPackages.gcp.deploy`       | Deploy GCP package                                                | `false`
-| `clusterPackages.gcp.version`      | GCP provider version to deploy                                     | `<latest released version>`
-| `clusterPackages.azure.deploy`     | Deploy Azure package                                              | `false`
-| `clusterPackages.azure.version`    | Azure provider version to deploy                                   | `<latest released version>`
-| `clusterPackages.rook.deploy`      | Deploy Rook package                                               | `false`
-| `clusterPackages.rook.version`     | Rook provider version to deploy                                    | `<latest released version>`
-| `personas.deploy`                | Install roles and bindings for Crossplane user personas         | `true`
-| `templateStacks.enabled`         | Enable experimental template stacks support                     | `true`
-| `templateStacks.controllerImage` | Template Stack controller image                                 | `crossplane/templating-controller:v0.2.1`
-| `priorityClassName      `        | Priority class name for crossplane and package manager pods       | `""`
+| `priorityClassName`        | Priority class name for crossplane and package manager pods       | `""`
 | `resourcesCrossplane.limits.cpu`        | CPU resource limits for Crossplane                       | `100m`
 | `resourcesCrossplane.limits.memory`     | Memory resource limits for Crossplane                    | `512Mi`
 | `resourcesCrossplane.requests.cpu`      | CPU resource requests for Crossplane                     | `100m`
 | `resourcesCrossplane.requests.memory`   | Memory resource requests for Crossplane                  | `256Mi`
-| `resourcesPackageManager.limits.cpu`      | CPU resource limits for PackageManager                     | `100m`
-| `resourcesPackageManager.limits.memory`   | Memory resource limits for PackageManager                  | `512Mi`
-| `resourcesPackageManager.requests.cpu`    | CPU resource requests for PackageManager                   | `100m`
-| `resourcesPackageManager.requests.memory` | Memory resource requests for PackageManager                | `256Mi`
 | `forceImagePullPolicy`           | Force the named ImagePullPolicy on Package install and containers | `""`
-| `insecureAllowAllApigroups`      | Enable core Kubernetes API group permissions for Packages. When enabled, Packages may declare dependency on core Kubernetes API types.) | `false` |
-| `insecurePassFullDeployment`     | Enable packages to pass their full deployment, including security context. When omitted, Package controller deployments will have existing pod security context fields (excluding `fsGroup`) removed and `runAsNonRoot` set to `true`. All containers will have existing security context fields removed and replaced by `false` values for `privileged` and `allowPrivilegeEscalation` and `true` value for `runAsNonRoot`. | `false` |
-| `insecureInstallJob`     | Enable package install jobs to run as root. When omitted, Package install jobs will have existing pod security context fields removed and `runAsNonRoot` set to `true`. All containers will have existing security context fields removed and replaced by `false` values for `privileged` and `allowPrivilegeEscalation` and `true` value for `runAsNonRoot`. | `false` |
 
 ### Command Line
 

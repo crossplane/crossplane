@@ -3,7 +3,7 @@
 In this guide, we will walk through the steps necessary to configure your AWS
 account to be ready for integration with Crossplane. This will be done by adding
 an AWS `ProviderConfig` resource type, which enables Crossplane to communicate with an
-AWS account. 
+AWS account.
 
 ## Requirements
 
@@ -24,11 +24,13 @@ respectively.
 
 ## Step 2: Setup `aws` Provider
 
-Run [setup.sh] script to read `aws` credentials and region, and create an `aws
+Run `setup.sh` to read `aws` credentials and region, and create an `aws
 provider` instance in Crossplane:
 
 ```bash
-./examples/aws-setup-provider/setup.sh [--profile aws_profile]
+curl -O https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/provider.yaml
+curl -O https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/setup.sh
+./setup.sh [--profile aws_profile]
 ```
 
 The `--profile` switch is optional and specifies the [aws named profile] that
@@ -130,8 +132,7 @@ to provide access information to the configured AWS account.
 [installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
 [configured]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
-[secret]:https://kubernetes.io/docs/concepts/configuration/secret/ 
-[setup.sh]: https://github.com/crossplane/crossplane/blob/master/examples/aws-setup-provider/setup.sh
+[secret]:https://kubernetes.io/docs/concepts/configuration/secret/
 [aws named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html
 [aws user]: https://docs.aws.amazon.com/mediapackage/latest/ug/setting-up-create-iam-user.html
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
