@@ -26,6 +26,14 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
+var (
+	runAsUser                = int64(2000)
+	runAsGroup               = int64(2000)
+	allowPrivilegeEscalation = false
+	privileged               = false
+	runAsNonRoot             = true
+)
+
 func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.PackageRevision, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
@@ -33,6 +41,10 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 			Namespace:       namespace,
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.ProviderRevisionGroupVersionKind))},
 		},
+	}
+	pullPolicy := corev1.PullIfNotPresent
+	if revision.GetPackagePullPolicy() != nil {
+		pullPolicy = *revision.GetPackagePullPolicy()
 	}
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -51,11 +63,25 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 					Labels:    map[string]string{"pkg.crossplane.io/revision": revision.GetName()},
 				},
 				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: &runAsNonRoot,
+						RunAsUser:    &runAsUser,
+						RunAsGroup:   &runAsGroup,
+					},
 					ServiceAccountName: s.GetName(),
+					ImagePullSecrets:   revision.GetPackagePullSecrets(),
 					Containers: []corev1.Container{
 						{
-							Name:  provider.GetName(),
-							Image: provider.Spec.Controller.Image,
+							Name:            provider.GetName(),
+							Image:           provider.Spec.Controller.Image,
+							ImagePullPolicy: pullPolicy,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:                &runAsUser,
+								RunAsGroup:               &runAsGroup,
+								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+								Privileged:               &privileged,
+								RunAsNonRoot:             &runAsNonRoot,
+							},
 						},
 					},
 				},

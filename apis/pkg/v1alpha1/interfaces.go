@@ -232,14 +232,14 @@ type PackageRevision interface {
 	GetControllerReference() runtimev1alpha1.Reference
 	SetControllerReference(c runtimev1alpha1.Reference)
 
-	GetCrossplaneVersion() string
-	SetCrossplaneVersion(v string)
-
-	GetDependencies() []Dependency
-	SetDependencies(d []Dependency)
-
 	GetSource() string
 	SetSource(s string)
+
+	GetPackagePullSecrets() []corev1.LocalObjectReference
+	SetPackagePullSecrets(s []corev1.LocalObjectReference)
+
+	GetPackagePullPolicy() *corev1.PullPolicy
+	SetPackagePullPolicy(i *corev1.PullPolicy)
 
 	GetDesiredState() PackageRevisionDesiredState
 	SetDesiredState(d PackageRevisionDesiredState)
@@ -281,34 +281,34 @@ func (p *ProviderRevision) SetControllerReference(c runtimev1alpha1.Reference) {
 	p.Status.ControllerRef = c
 }
 
-// GetCrossplaneVersion of this ProviderRevision.
-func (p *ProviderRevision) GetCrossplaneVersion() string {
-	return p.Status.Crossplane
-}
-
-// SetCrossplaneVersion of this ProviderRevision.
-func (p *ProviderRevision) SetCrossplaneVersion(v string) {
-	p.Status.Crossplane = v
-}
-
-// GetDependencies of this ProviderRevision.
-func (p *ProviderRevision) GetDependencies() []Dependency {
-	return p.Status.DependsOn
-}
-
-// SetDependencies of this ProviderRevision.
-func (p *ProviderRevision) SetDependencies(d []Dependency) {
-	p.Status.DependsOn = d
-}
-
 // GetSource of this ProviderRevision.
 func (p *ProviderRevision) GetSource() string {
-	return p.Spec.Image
+	return p.Spec.Package
 }
 
 // SetSource of this ProviderRevision.
 func (p *ProviderRevision) SetSource(s string) {
-	p.Spec.Image = s
+	p.Spec.Package = s
+}
+
+// GetPackagePullSecrets of this ProviderRevision.
+func (p *ProviderRevision) GetPackagePullSecrets() []corev1.LocalObjectReference {
+	return p.Spec.PackagePullSecrets
+}
+
+// SetPackagePullSecrets of this ProviderRevision.
+func (p *ProviderRevision) SetPackagePullSecrets(s []corev1.LocalObjectReference) {
+	p.Spec.PackagePullSecrets = s
+}
+
+// GetPackagePullPolicy of this ProviderRevision.
+func (p *ProviderRevision) GetPackagePullPolicy() *corev1.PullPolicy {
+	return p.Spec.PackagePullPolicy
+}
+
+// SetPackagePullPolicy of this ProviderRevision.
+func (p *ProviderRevision) SetPackagePullPolicy(i *corev1.PullPolicy) {
+	p.Spec.PackagePullPolicy = i
 }
 
 // GetDesiredState of this ProviderRevision.
@@ -371,34 +371,34 @@ func (p *ConfigurationRevision) SetControllerReference(c runtimev1alpha1.Referen
 	p.Status.ControllerRef = c
 }
 
-// GetCrossplaneVersion of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetCrossplaneVersion() string {
-	return p.Status.Crossplane
-}
-
-// SetCrossplaneVersion of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetCrossplaneVersion(v string) {
-	p.Status.Crossplane = v
-}
-
-// GetDependencies of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetDependencies() []Dependency {
-	return p.Status.DependsOn
-}
-
-// SetDependencies of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetDependencies(d []Dependency) {
-	p.Status.DependsOn = d
-}
-
 // GetSource of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetSource() string {
-	return p.Spec.Image
+	return p.Spec.Package
 }
 
 // SetSource of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSource(s string) {
-	p.Spec.Image = s
+	p.Spec.Package = s
+}
+
+// GetPackagePullSecrets of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetPackagePullSecrets() []corev1.LocalObjectReference {
+	return p.Spec.PackagePullSecrets
+}
+
+// SetPackagePullSecrets of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetPackagePullSecrets(s []corev1.LocalObjectReference) {
+	p.Spec.PackagePullSecrets = s
+}
+
+// GetPackagePullPolicy of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetPackagePullPolicy() *corev1.PullPolicy {
+	return p.Spec.PackagePullPolicy
+}
+
+// SetPackagePullPolicy of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetPackagePullPolicy(i *corev1.PullPolicy) {
+	p.Spec.PackagePullPolicy = i
 }
 
 // GetDesiredState of this ConfigurationRevision.

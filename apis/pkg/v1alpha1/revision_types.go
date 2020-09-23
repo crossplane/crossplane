@@ -17,6 +17,8 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
+
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
@@ -40,34 +42,31 @@ type PackageRevisionSpec struct {
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
 
-	// Image used for install Pod to extract package contents.
-	Image string `json:"image"`
+	// Package image used by install Pod to extract package contents.
+	Package string `json:"image"`
+
+	// PackagePullSecrets are named secrets in the same namespace that can be
+	// used to fetch packages from private registries. They are also applied to
+	// any images pulled for the package, such as a provider's controller image.
+	// +optional
+	PackagePullSecrets []corev1.LocalObjectReference `json:"packagePullSecrets,omitempty"`
+
+	// PackagePullPolicy defines the pull policy for the package. It is also
+	// applied to any images pulled for the package, such as a provider's
+	// controller image.
+	// Default is IfNotPresent.
+	// +optional
+	PackagePullPolicy *corev1.PullPolicy `json:"packagePullPolicy,omitempty"`
 
 	// Revision number. Indicates when the revision will be garbage collected
 	// based on the parent's RevisionHistoryLimit.
 	Revision int64 `json:"revision"`
 }
 
-// Dependency specifies the dependency of a package.
-type Dependency struct {
-	// Package is the name of the depended upon package image .
-	Package string `json:"package"`
-
-	// Version is the semantic version range for the dependency.
-	Version string `json:"version"`
-}
-
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
 	runtimev1alpha1.ConditionedStatus `json:",inline"`
 	ControllerRef                     runtimev1alpha1.Reference `json:"controllerRef,omitempty"`
-
-	// Crossplane is a semantic version for supported Crossplane version for the
-	// package.
-	Crossplane string `json:"crossplane,omitempty"`
-
-	// DependsOn is the list of packages and CRDs that this package depends on.
-	DependsOn []Dependency `json:"dependsOn,omitempty"`
 
 	// References to objects owned by PackageRevision.
 	ObjectRefs []runtimev1alpha1.TypedReference `json:"objectRefs,omitempty"`

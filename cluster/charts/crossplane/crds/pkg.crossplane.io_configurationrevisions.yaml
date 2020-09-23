@@ -54,7 +54,7 @@ spec:
               description: DesiredState of the PackageRevision. Can be either Active or Inactive.
               type: string
             image:
-              description: Image used for install Pod to extract package contents.
+              description: Package image used by install Pod to extract package contents.
               type: string
             installPodRef:
               description: Reference to install Pod. PackageRevision reads logs of this Pod to create resources owned by the PackageRevision.
@@ -65,6 +65,19 @@ spec:
               required:
               - name
               type: object
+            packagePullPolicy:
+              description: PackagePullPolicy defines the pull policy for the package. It is also applied to any images pulled for the package, such as a provider's controller image. Default is IfNotPresent.
+              type: string
+            packagePullSecrets:
+              description: PackagePullSecrets are named secrets in the same namespace that can be used to fetch packages from private registries. They are also applied to any images pulled for the package, such as a provider's controller image.
+              items:
+                description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                properties:
+                  name:
+                    description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                    type: string
+                type: object
+              type: array
             revision:
               description: Revision number. Indicates when the revision will be garbage collected based on the parent's RevisionHistoryLimit.
               format: int64
@@ -115,25 +128,6 @@ spec:
               required:
               - name
               type: object
-            crossplane:
-              description: Crossplane is a semantic version for supported Crossplane version for the package.
-              type: string
-            dependsOn:
-              description: DependsOn is the list of packages and CRDs that this package depends on.
-              items:
-                description: Dependency specifies the dependency of a package.
-                properties:
-                  package:
-                    description: Package is the name of the depended upon package image .
-                    type: string
-                  version:
-                    description: Version is the semantic version range for the dependency.
-                    type: string
-                required:
-                - package
-                - version
-                type: object
-              type: array
             objectRefs:
               description: References to objects owned by PackageRevision.
               items:

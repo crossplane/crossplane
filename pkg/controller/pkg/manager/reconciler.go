@@ -336,6 +336,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	pr.SetLabels(map[string]string{parentLabel: p.GetName()})
 	pr.SetInstallPod(runtimev1alpha1.Reference{Name: imageToPod(p.GetSource())})
 	pr.SetSource(p.GetSource())
+	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
+	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
 
 	pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
 	p.SetConditions(v1alpha1.Inactive())

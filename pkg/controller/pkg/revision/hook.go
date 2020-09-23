@@ -23,7 +23,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/reference"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
@@ -71,9 +70,8 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1
 	if !ok {
 		return errors.New(errNotProvider)
 	}
-	// Always set revision status fields.
-	pr.SetDependencies(convertDependencies(pkgProvider.Spec.DependsOn))
-	pr.SetCrossplaneVersion(reference.FromPtrValue(pkgProvider.Spec.Crossplane))
+
+	// TODO(hasheddan): update any status fields relevant to package revisions.
 
 	// Do not clean up SA and controller if revision is not inactive.
 	if pr.GetDesiredState() != v1alpha1.PackageRevisionInactive {
@@ -121,13 +119,13 @@ func NewConfigurationHooks() *ConfigurationHooks {
 
 // Pre sets status fields based on the configuration package.
 func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
-	pkgConfig, ok := pkg.(*pkgmeta.Configuration)
+	_, ok := pkg.(*pkgmeta.Configuration)
 	if !ok {
 		return errors.New(errNotConfiguration)
 	}
-	// Always set revision status fields.
-	pr.SetDependencies(convertDependencies(pkgConfig.Spec.DependsOn))
-	pr.SetCrossplaneVersion(reference.FromPtrValue(pkgConfig.Spec.Crossplane))
+
+	// TODO(hasheddan): update any status fields relevant to package revisions
+
 	return nil
 }
 
@@ -152,26 +150,4 @@ func (h *NopHooks) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision
 // Post does nothing and returns nil.
 func (h *NopHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
-}
-
-// convertDependencies converts package meta dependencies to package revision
-// dependencies.
-func convertDependencies(deps []pkgmeta.Dependency) []v1alpha1.Dependency {
-	dependsOn := make([]v1alpha1.Dependency, len(deps))
-	for i, d := range deps {
-		// Skip dependencies that are malformed.
-		if (d.Configuration == nil && d.Provider == nil) || (d.Configuration != nil && d.Provider != nil) {
-			continue
-		}
-		p := v1alpha1.Dependency{}
-		if d.Configuration != nil {
-			p.Package = *d.Configuration
-		}
-		if d.Provider != nil {
-			p.Package = *d.Provider
-		}
-		p.Version = d.Version
-		dependsOn[i] = p
-	}
-	return dependsOn
 }
