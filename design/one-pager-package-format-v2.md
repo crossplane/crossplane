@@ -3,7 +3,14 @@
 
 * Owner: Nic Cope (@negz)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
+
+## Revisions
+
+* 1.1
+  * Removed the requirement for the `Provider` or `Configuration` metadata to be
+    the first resource in the YAML stream.
+  * Removed the `ignore` metadata field.
 
 ## Background
 
@@ -70,8 +77,8 @@ package consumers.
 All software that consumes a package must do so via its output stream - a YAML
 stream emitted to stdout when the package's OCI image entrypoint is invoked. The
 output stream will consist of a `Provider` or `Configuration` YAML document
-(described below), followed by a series of Crossplane-specific YAML documents,
-which must be either:
+(described below) and a series of Crossplane-specific YAML documents, which must
+be either:
 
 * A `CustomResourceDefinition` that defines a Crossplane managed resource.
 * A `CustomResourceDefinition` that defines a Crossplane provider configuration.
@@ -79,8 +86,7 @@ which must be either:
 * A `Composition` that configures how Crossplane should reconciles a particular
   kind of composite resource.
 
-Note that the order and length of this YAML stream is undefined, except that the
-`Provider` or `Configuration` must be the first document in the stream.
+Note that the order and length of this YAML stream is undefined.
 
 Below is an example `Provider`, at `v1alpha1`:
 
@@ -143,10 +149,6 @@ spec:
       - otherresource/status
     verbs:
       - "*"
-  # Optional. Matching paths will be omitted when rendering the output stream.
-  ignore:
-    # Required. Currently only a path is allowed.
-  - path: examples/
 ```
 
 The above `Provider` example is exhaustive - it contains all supported fields.
@@ -218,9 +220,6 @@ spec:
     # currently treated as a specific version tag.
     version: v0.2.0
   # Optional. Matching paths will be omitted when rendering the output stream.
-  ignore:
-    # Required. Currently only a path is allowed.
-  - path: examples/
 ```
 
 The above `Configuration` example is exhaustive - it contains all supported
@@ -254,9 +253,9 @@ simply copying the content of a directory into a layer of the OCI image. The
 base layer of packages that use this format should specify an entrypoint process
 that will, when invoked:
 
-1. Emit the content of `crossplane.yaml` to stdout.
-1. Discover and emit all Crossplane custom resources contained in the package to
-   stdout, with the exception of those resources ignored by the `ignore` stanza.
+* Emit the content of `crossplane.yaml` to stdout.
+* Discover and emit all Crossplane custom resources contained in the package to
+  stdout.
 
 The entrypoint may optionally decorate the YAML stream using any extended
 metadata (e.g. the contents of the `.registry` directory). Any such extended
