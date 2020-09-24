@@ -33,7 +33,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 )
 
 const (
@@ -118,15 +117,11 @@ func WithRoleRenderer(rr RoleRenderer) ReconcilerOption {
 
 // NewReconciler returns a Reconciler of Namespaces.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
-	kube := unstructured.NewClient(mgr.GetClient())
-
 	r := &Reconciler{
-		mgr: mgr,
-
 		// TODO(negz): Is Updating appropriate here? Probably.
 		client: resource.ClientApplicator{
-			Client:     kube,
-			Applicator: resource.NewAPIUpdatingApplicator(kube),
+			Client:     mgr.GetClient(),
+			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
 		},
 
 		rbac: RoleRenderFn(RenderRoles),
@@ -144,7 +139,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 // A Reconciler reconciles Namespaces.
 type Reconciler struct {
 	client resource.ClientApplicator
-	mgr    manager.Manager
 	rbac   RoleRenderer
 
 	log    logging.Logger
