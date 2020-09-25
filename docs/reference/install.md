@@ -68,20 +68,25 @@ including all the custom resources and controllers.
 The following tables lists the configurable parameters of the Crossplane chart
 and their default values.
 
-| Parameter                        | Description                                                     | Default                                                |
-| -------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
-| `image.repository`               | Image                                                           | `crossplane/crossplane`                                |
-| `image.tag`                      | Image tag                                                       | `master`                                               |
-| `image.pullPolicy`               | Image pull policy                                               | `Always`                                               |
-| `imagePullSecrets`               | Names of image pull secrets to use                              | `dockerhub`                                            |
-| `replicas`                       | The number of replicas to run for the Crossplane operator       | `1`                                                    |
-| `deploymentStrategy`             | The deployment strategy for the Crossplane operator             | `RollingUpdate`                                        |
-| `priorityClassName`        | Priority class name for crossplane and package manager pods       | `""`
-| `resourcesCrossplane.limits.cpu`        | CPU resource limits for Crossplane                       | `100m`
-| `resourcesCrossplane.limits.memory`     | Memory resource limits for Crossplane                    | `512Mi`
-| `resourcesCrossplane.requests.cpu`      | CPU resource requests for Crossplane                     | `100m`
-| `resourcesCrossplane.requests.memory`   | Memory resource requests for Crossplane                  | `256Mi`
-| `forceImagePullPolicy`           | Force the named ImagePullPolicy on Package install and containers | `""`
+| Parameter | Description | Default |
+| --- | --- | --- |
+| `image.repository` | Image | `crossplane/crossplane` |
+| `image.tag` | Image tag | `master` |
+| `image.pullPolicy` | Image pull policy | `Always` |
+| `imagePullSecrets` | Names of image pull secrets to use | `dockerhub` |
+| `replicas` | The number of replicas to run for the Crossplane and RBAC Manager (if enabled) pods | `1` |
+| `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager (if enabled) pods | `RollingUpdate` |
+| `priorityClassName` | Priority class name for Crossplane and RBAC Manager (if enabled) pods | `""` |
+| `resourcesCrossplane.limits.cpu` | CPU resource limits for Crossplane | `100m` |
+| `resourcesCrossplane.limits.memory` | Memory resource limits for Crossplane | `512Mi` |
+| `resourcesCrossplane.requests.cpu` | CPU resource requests for Crossplane | `100m` |
+| `resourcesCrossplane.requests.memory` | Memory resource requests for Crossplane | `256Mi` |
+| `resourcesRBACManager.limits.cpu` | CPU resource limits for RBAC Manager | `100m` |
+| `resourcesRBACManager.limits.memory` | Memory resource limits for RBAC Manager | `512Mi` |
+| `resourcesRBACManager.requests.cpu` | CPU resource requests for RBAC Manager | `100m` |
+| `resourcesRBACManager.requests.memory` | Memory resource requests for RBAC Manager | `256Mi` |
+| `rbacManager.deploy` | Deploy RBAC Manager and its required roles | `true` |
+| `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
 
 ### Command Line
 
