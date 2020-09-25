@@ -65,14 +65,9 @@ echo_step "creating k8s cluster using kind"
 docker tag "${BUILD_IMAGE}" "${CROSSPLANE_IMAGE}"
 "${KIND}" load docker-image "${CROSSPLANE_IMAGE}" --name="${K8S_CLUSTER}"
 
-echo_step "installing tiller"
-"${KUBECTL}" apply -f "${projectdir}/cluster/local/helm-rbac.yaml"
-"${HELM}" init --service-account tiller
-# waiting for deployment "tiller-deploy" rollout to finish
-"${KUBECTL}" -n kube-system rollout status deploy/tiller-deploy --timeout=2m
-
 echo_step "installing helm package(s) into \"${CROSSPLANE_NAMESPACE}\" namespace"
-"${HELM}" install --name "${PROJECT_NAME}" --namespace "${CROSSPLANE_NAMESPACE}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set image.pullPolicy=Never,imagePullSecrets=''
+"${KUBECTL}" create ns "${CROSSPLANE_NAMESPACE}"
+"${HELM3}" install "${PROJECT_NAME}" --namespace "${CROSSPLANE_NAMESPACE}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set image.pullPolicy=Never,imagePullSecrets=''
 
 echo_step "waiting for deployment ${PROJECT_NAME} rollout to finish"
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" rollout status "deploy/${PROJECT_NAME}" --timeout=2m
