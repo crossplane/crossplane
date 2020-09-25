@@ -36,6 +36,11 @@ GO111MODULE = on
 -include build/makelib/golang.mk
 
 # ====================================================================================
+# Setup Kubernetes tools
+
+-include build/makelib/k8s_tools.mk
+
+# ====================================================================================
 # Setup Helm
 
 HELM_BASE_URL = https://charts.crossplane.io
@@ -43,11 +48,6 @@ HELM_S3_BUCKET = crossplane.charts
 HELM_CHARTS = crossplane
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 -include build/makelib/helm.mk
-
-# ====================================================================================
-# Setup Kubernetes tools
-
--include build/makelib/k8s_tools.mk
 
 # ====================================================================================
 # Setup Images
@@ -83,7 +83,7 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds
+generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds
 	@$(OK) Finished vendoring and generating
 
 
