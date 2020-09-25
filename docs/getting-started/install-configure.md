@@ -44,9 +44,7 @@ For macOS / Linux use the following:
   * [Minikube], minimum version `v0.28+`
   * etc.
 
-* [Helm], minimum version `v2.12.0+`.
-  * For Helm 2, make sure Tiller is initialized with sufficient permissions to
-    work on `crossplane-system` namespace.
+* [Helm], minimum version `v3.0.0+`.
 
 </div>
 <div class="tab-pane fade" id="setup-windows" markdown="1">
@@ -57,9 +55,7 @@ For Windows use the following:
   * [Minikube], minimum version `v0.28+`
   * etc.
 
-* [Helm], minimum version `v2.12.0+`.
-  * For Helm 2, make sure Tiller is initialized with sufficient permissions to
-    work on `crossplane-system` namespace.
+* [Helm], minimum version `v3.0.0+`.
 
 </div>
 </div>
@@ -67,9 +63,7 @@ For Windows use the following:
 ## Install Crossplane
 <ul class="nav nav-tabs">
 <li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (alpha)</a></li>
-<li><a href="#install-tab-helm2" data-toggle="tab">Helm 2 (alpha)</a></li>
 <li><a href="#install-tab-helm3-master" data-toggle="tab">Helm 3 (master)</a></li>
-<li><a href="#install-tab-helm2-master" data-toggle="tab">Helm 2 (master)</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -81,22 +75,7 @@ kubectl create namespace crossplane-system
 
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 
-# Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
-
-# Kubernetes 1.14 and older versions
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --disable-openapi-validation
-```
-
-</div>
-<div class="tab-pane fade" id="install-tab-helm2" markdown="1">
-Use Helm 2 to install the latest official `alpha` release of Crossplane, suitable for community use and testing:
-
-```
-kubectl create namespace crossplane-system
-
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
-helm install --name crossplane --namespace crossplane-system crossplane-alpha/crossplane
 ```
 
 </div>
@@ -109,35 +88,12 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
 helm search repo crossplane-master --devel
 
-# Kubernetes 1.15 and newer versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
-
-# Kubernetes 1.14 and older versions
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --version <version> --devel --disable-openapi-validation
 ```
 
 For example:
 ```
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.11.0-rc.100.gbc5d311 --devel
-```
-
-</div>
-<div class="tab-pane fade" id="install-tab-helm2-master" markdown="1">
-Use Helm 2 to install the latest `master` pre-release version of Crossplane, which is suitable for testing pre-release versions:
-
-```
-kubectl create namespace crossplane-system
-
-helm repo add crossplane-master https://charts.crossplane.io/master/
-helm search crossplane-master
-
-helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version <version>
-```
-
-For example:
-
-```
-helm install --name crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.11.0-rc.100.gbc5d311
 ```
 
 </div>
