@@ -193,6 +193,8 @@ func (*DefaultReadinessChecker) IsReady(_ context.Context, cd resource.Composed,
 	for i, check := range t.ReadinessChecks {
 		var ready bool
 		switch check.Type {
+		case v1alpha1.ReadinessCheckNone:
+			return true, nil
 		case v1alpha1.ReadinessCheckNonEmpty:
 			_, err := paved.GetValue(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {

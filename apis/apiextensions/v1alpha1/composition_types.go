@@ -103,17 +103,19 @@ const (
 	ReadinessCheckNonEmpty     TypeReadinessCheck = "NonEmpty"
 	ReadinessCheckMatchString  TypeReadinessCheck = "MatchString"
 	ReadinessCheckMatchInteger TypeReadinessCheck = "MatchInteger"
+	ReadinessCheckNone         TypeReadinessCheck = "None"
 )
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
 type ReadinessCheck struct {
-	// FieldPath shows the path of the field whose value will be used.
-	FieldPath string `json:"fieldPath"`
-
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
 	Type TypeReadinessCheck `json:"type"`
+
+	// FieldPath shows the path of the field whose value will be used.
+	// +optional
+	FieldPath string `json:"fieldPath,omitempty"`
 
 	// MatchString is the value you'd like to match if you're using "MatchString" type.
 	// +optional

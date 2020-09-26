@@ -20,8 +20,6 @@ import (
 	"context"
 	"testing"
 
-	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -37,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -266,6 +265,16 @@ func TestIsReady(t *testing.T) {
 			reason: "If no custom check is given, Ready condition should be used",
 			args: args{
 				cd: runtimecomposed.New(runtimecomposed.WithConditions(runtimev1alpha1.Available())),
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"ExplictNone": {
+			reason: "If the only readiness check is explicitly 'None' the resource is always ready.",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: v1alpha1.ReadinessCheckNone}}},
 			},
 			want: want{
 				ready: true,
