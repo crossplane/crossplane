@@ -160,7 +160,8 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 		return errors.New(errNoCompatibleComposition)
 	}
 
-	random := rand.New(rand.NewSource(time.Now().UnixNano()))
+	// We don't need this choice to be cryptographically random.
+	random := rand.New(rand.NewSource(time.Now().UnixNano())) // nolint:gosec
 	selected := candidates[random.Intn(len(candidates))]
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: selected})
 	return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
