@@ -399,8 +399,7 @@ func TestIsReady(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &DefaultReadinessChecker{}
-			ready, err := c.IsReady(context.Background(), tc.args.cd, tc.args.t)
+			ready, err := IsReady(context.Background(), tc.args.cd, tc.args.t)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
 			}

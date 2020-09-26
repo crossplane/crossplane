@@ -169,12 +169,8 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 	return conn, nil
 }
 
-// DefaultReadinessChecker is a readiness checker which returns whether the composed
-// resource is ready or not.
-type DefaultReadinessChecker struct{}
-
 // IsReady returns whether the composed resource is ready.
-func (*DefaultReadinessChecker) IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
+func IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
 	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
 	// mandatory repetitiveness of the switch clause, which is not really complex
 	// in reality. Though beware of adding additional complexity besides that.
