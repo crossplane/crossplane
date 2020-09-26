@@ -76,7 +76,6 @@ func UpdatePredicate(event event.UpdateEvent) bool {
 	return wl.Spec.Target != nil
 }
 
-// Setup adds a controller that reconciles KubernetesApplications.
 func Setup(mgr ctrl.Manager, l logging.Logger) error {
 	name := "workload/" + strings.ToLower(v1alpha1.KubernetesApplicationGroupKind)
 
