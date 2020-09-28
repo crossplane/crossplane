@@ -24,6 +24,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	wlv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
 const (
@@ -41,7 +42,9 @@ const (
 
 	suffixStatus = "/status"
 
+	pluralEvents  = "events"
 	pluralSecrets = "secrets"
+	pluralTargets = "kubernetestargets"
 )
 
 var (
@@ -58,7 +61,14 @@ var (
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{""},
-		Resources: []string{pluralSecrets},
+		Resources: []string{pluralSecrets, pluralEvents},
+		Verbs:     verbsEdit,
+	},
+	// TODO(negz): KubernetesTarget is deprecated - this should be removed when
+	// it is per https://github.com/crossplane/crossplane/issues/1755
+	{
+		APIGroups: []string{wlv1alpha1.Group},
+		Resources: []string{pluralTargets},
 		Verbs:     verbsEdit,
 	},
 }
@@ -125,9 +135,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomReso
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		// TODO(negz): Require providers to explicitly ask for access to Secrets
-		// via their permissionRequests.
-		Rules: append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
+		Rules:      append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}

@@ -26,11 +26,12 @@ import (
 
 const (
 	namePrefix       = "crossplane:composite:"
+	nameSuffixSystem = ":aggregate-to-crossplane"
 	nameSuffixEdit   = ":aggregate-to-edit"
 	nameSuffixView   = ":aggregate-to-view"
 	nameSuffixBrowse = ":aggregate-to-browse"
 
-	keyAggregateToCrossplane = "rbac.crossplane.io/aggregate-to-crossplane"
+	keyAggregateToSystem = "rbac.crossplane.io/aggregate-to-crossplane"
 
 	keyAggregateToAdmin   = "rbac.crossplane.io/aggregate-to-admin"
 	keyAggregateToNSAdmin = "rbac.crossplane.io/aggregate-to-ns-admin"
@@ -46,6 +47,8 @@ const (
 	keyXRD = "rbac.crossplane.io/xrd"
 
 	valTrue = "true"
+
+	suffixStatus = "/status"
 )
 
 var (
@@ -56,15 +59,29 @@ var (
 
 // RenderClusterRoles returns ClusterRoles for the supplied XRD.
 func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.ClusterRole {
+	system := &rbacv1.ClusterRole{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: namePrefix + d.GetName() + nameSuffixSystem,
+			Labels: map[string]string{
+				keyAggregateToSystem: valTrue,
+			},
+		},
+		Rules: []rbacv1.PolicyRule{
+			{
+				APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
+				Resources: []string{
+					d.Spec.CRDSpecTemplate.Names.Plural,
+					d.Spec.CRDSpecTemplate.Names.Plural + suffixStatus,
+				},
+				Verbs: verbsEdit,
+			},
+		},
+	}
+
 	edit := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + d.GetName() + nameSuffixEdit,
 			Labels: map[string]string{
-				// Edit rules aggregate to the Crossplane ClusterRole too.
-				// Crossplane needs access to reconcile all composite resources
-				// and composite resource claims.
-				keyAggregateToCrossplane: valTrue,
-
 				// Edit rules aggregate to admin too. Currently edit and admin
 				// differ only in their base roles.
 				keyAggregateToAdmin:   valTrue,
@@ -123,6 +140,15 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 	}
 
 	if d.Spec.ClaimNames != nil {
+		system.Rules = append(system.Rules, rbacv1.PolicyRule{
+			APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
+			Resources: []string{
+				d.Spec.ClaimNames.Plural,
+				d.Spec.ClaimNames.Plural + suffixStatus,
+			},
+			Verbs: verbsEdit,
+		})
+
 		edit.Rules = append(edit.Rules, rbacv1.PolicyRule{
 			APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
 			Resources: []string{d.Spec.ClaimNames.Plural},
@@ -138,9 +164,9 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 		// The browse role only includes composite resources; not claims.
 	}
 
-	for _, o := range []metav1.Object{edit, view, browse} {
+	for _, o := range []metav1.Object{system, edit, view, browse} {
 		meta.AddOwnerReference(o, meta.AsController(meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)))
 	}
 
-	return []rbacv1.ClusterRole{*edit, *view, *browse}
+	return []rbacv1.ClusterRole{*system, *edit, *view, *browse}
 }

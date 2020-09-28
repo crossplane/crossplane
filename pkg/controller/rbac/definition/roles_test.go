@@ -63,15 +63,30 @@ func TestRenderClusterRoles(t *testing.T) {
 			want: []rbacv1.ClusterRole{
 				{
 					ObjectMeta: metav1.ObjectMeta{
+						Name:            namePrefix + name + nameSuffixSystem,
+						OwnerReferences: []metav1.OwnerReference{owner},
+						Labels: map[string]string{
+							keyAggregateToSystem: valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Verbs:     verbsEdit,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:            namePrefix + name + nameSuffixEdit,
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToNSAdmin:    valTrue,
-							keyAggregateToEdit:       valTrue,
-							keyAggregateToNSEdit:     valTrue,
-							keyXRD:                   name,
+							keyAggregateToAdmin:   valTrue,
+							keyAggregateToNSAdmin: valTrue,
+							keyAggregateToEdit:    valTrue,
+							keyAggregateToNSEdit:  valTrue,
+							keyXRD:                name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
@@ -134,15 +149,35 @@ func TestRenderClusterRoles(t *testing.T) {
 			want: []rbacv1.ClusterRole{
 				{
 					ObjectMeta: metav1.ObjectMeta{
+						Name:            namePrefix + name + nameSuffixSystem,
+						OwnerReferences: []metav1.OwnerReference{owner},
+						Labels: map[string]string{
+							keyAggregateToSystem: valTrue,
+						},
+					},
+					Rules: []rbacv1.PolicyRule{
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR, pluralXR + suffixStatus},
+							Verbs:     verbsEdit,
+						},
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXRC, pluralXRC + suffixStatus},
+							Verbs:     verbsEdit,
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
 						Name:            namePrefix + name + nameSuffixEdit,
 						OwnerReferences: []metav1.OwnerReference{owner},
 						Labels: map[string]string{
-							keyAggregateToCrossplane: valTrue,
-							keyAggregateToAdmin:      valTrue,
-							keyAggregateToNSAdmin:    valTrue,
-							keyAggregateToEdit:       valTrue,
-							keyAggregateToNSEdit:     valTrue,
-							keyXRD:                   name,
+							keyAggregateToAdmin:   valTrue,
+							keyAggregateToNSAdmin: valTrue,
+							keyAggregateToEdit:    valTrue,
+							keyAggregateToNSEdit:  valTrue,
+							keyXRD:                name,
 						},
 					},
 					Rules: []rbacv1.PolicyRule{
