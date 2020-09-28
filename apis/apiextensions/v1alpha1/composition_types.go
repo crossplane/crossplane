@@ -93,6 +93,10 @@ type ComposedTemplate struct {
 	// default readiness check is to have the "Ready" condition to be "True".
 	// +optional
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
+
+	// DeletionPriority specifies the deletion priority level of the resource. The
+	// deletion order is from high to low. Default deletion priority is 0.
+	DeletionPriority int64 `json:"deletionPriority,omitempty"`
 }
 
 // TypeReadinessCheck is used for readiness check types

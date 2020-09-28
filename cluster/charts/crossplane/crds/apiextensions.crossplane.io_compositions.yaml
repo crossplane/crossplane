@@ -75,6 +75,10 @@ spec:
                           type: string
                       type: object
                     type: array
+                  deletionPriority:
+                    description: DeletionPriority specifies the deletion priority level of the resource. The deletion order is from high to low. Default deletion priority is 0.
+                    format: int64
+                    type: integer
                   patches:
                     description: Patches will be applied as overlay to the base resource.
                     items:

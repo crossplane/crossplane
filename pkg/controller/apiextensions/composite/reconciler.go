@@ -50,21 +50,26 @@ const (
 
 // Error strings
 const (
-	errGet          = "cannot get composite resource"
-	errUpdate       = "cannot update composite resource"
-	errUpdateStatus = "cannot update composite resource status"
-	errSelectComp   = "cannot select Composition"
-	errGetComp      = "cannot get Composition"
-	errConfigure    = "cannot configure composite resource"
-	errReconcile    = "cannot reconcile composed infrastructure resource"
-	errPublish      = "cannot publish connection details"
+	errGet             = "cannot get composite resource"
+	errUpdate          = "cannot update composite resource"
+	errUpdateStatus    = "cannot update composite resource status"
+	errSelectComp      = "cannot select Composition"
+	errGetComp         = "cannot get Composition"
+	errConfigure       = "cannot configure composite resource"
+	errReconcile       = "cannot reconcile composed infrastructure resource"
+	errPublish         = "cannot publish connection details"
+	errDelete          = "cannot delete resources"
+	errAddFinalizer    = "cannot add finalizer to composite resource"
+	errRemoveFinalizer = "cannot remove finalizer from composite resource"
 )
 
 // Event reasons.
 const (
-	reasonResolve event.Reason = "SelectComposition"
-	reasonCompose event.Reason = "ComposeResources"
-	reasonPublish event.Reason = "PublishConnectionSecret"
+	reasonResolve   event.Reason = "SelectComposition"
+	reasonCompose   event.Reason = "ComposeResources"
+	reasonPublish   event.Reason = "PublishConnectionSecret"
+	reasonDelete    event.Reason = "DeleteResources"
+	reasonFinalizer event.Reason = "Finalizer"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -108,6 +113,11 @@ type CompositionSelector interface {
 // composition.
 type Configurator interface {
 	Configure(ctx context.Context, cr resource.Composite, cp *v1alpha1.Composition) error
+}
+
+// Deleter deletes the composed objects.
+type Deleter interface {
+	Delete(ctx context.Context, cr resource.Composite, comp *v1alpha1.Composition) ([]resource.Composed, error)
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -161,7 +171,9 @@ func WithComposer(rc Composer) ReconcilerOption {
 type compositeResource struct {
 	CompositionSelector
 	Configurator
+	Deleter
 	ConnectionPublisher
+	resource.Finalizer
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
@@ -178,7 +190,10 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		composite: compositeResource{
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
+			Deleter:             NewAPIPrioritizedDeleter(kube),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
+			// todo: find a more meaningful finalizer.
+			Finalizer: resource.NewAPIFinalizer(kube, "composite.apiextensions.crossplane.io"),
 		},
 
 		resource: composedctrl.NewComposer(kube),
@@ -256,6 +271,39 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		"composition-version", comp.GetResourceVersion(),
 		"composition-name", comp.GetName(),
 	)
+
+	if meta.WasDeleted(cr) {
+		// If the deletion of composite resource is requested, we need to start
+		// deleting the composed resource before allowing the composite resource
+		// to disappear.
+		cr.SetConditions(runtimev1alpha1.Deleting())
+		deleting, err := r.composite.Delete(ctx, cr, comp)
+		if err != nil {
+			log.Debug(errDelete, "error", err)
+			r.record.Event(cr, event.Warning(reasonDelete, err))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		// If a deletion is requested, we want to make sure all composed resources
+		// are gone before composite resource disappears.
+		if len(deleting) > 0 {
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		// At this point, we are sure that there is no remaining composed resources,
+		// so it's safe for us to remove the finalizer.
+		if err := r.composite.RemoveFinalizer(ctx, cr); err != nil {
+			log.Debug(errRemoveFinalizer, "error", err)
+			r.record.Event(cr, event.Warning(reasonFinalizer, err))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		// Composite resource should be gone at this point, no need to requeue.
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	if err := r.composite.AddFinalizer(ctx, cr); err != nil {
+		log.Debug(errAddFinalizer, "error", err)
+		r.record.Event(cr, event.Warning(reasonFinalizer, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
 
 	// TODO(muvaf): Since the composed reconciler returns only reference, it can
 	// be parallelized via go routines.

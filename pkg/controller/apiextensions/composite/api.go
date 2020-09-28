@@ -18,11 +18,14 @@ package composite
 
 import (
 	"context"
+	"math"
 	"math/rand"
 	"time"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -30,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
@@ -300,4 +304,50 @@ func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Compo
 	}
 	meta.AddLabels(cp, map[string]string{composed.LabelKeyNamePrefixForComposed: cp.GetName()})
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
+}
+
+// NewAPIPrioritizedDeleter returns a new *APIPrioritizedDeleter.
+func NewAPIPrioritizedDeleter(client client.Client) *APIPrioritizedDeleter {
+	return &APIPrioritizedDeleter{client: client}
+}
+
+// APIPrioritizedDeleter deletes the composed objects in layers that are specified
+// as deletion priority in the *Composition object. Deletion priority of a composed
+// object determines its layer and deletion waits for higher layers to complete
+// before proceeding to the lower one.
+type APIPrioritizedDeleter struct {
+	client client.Client
+}
+
+// Delete makes sure the current highest priority is deleted and the remaining
+// ojbects are returned.
+func (d *APIPrioritizedDeleter) Delete(ctx context.Context, cr resource.Composite, comp *v1alpha1.Composition) ([]resource.Composed, error) {
+	var del []resource.Composed
+	hp := int64(math.MinInt64)
+	for i, ref := range cr.GetResourceReferences() {
+		u := runtimecomposed.New(runtimecomposed.FromReference(ref))
+		nn := types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}
+		err := d.client.Get(ctx, nn, u)
+		if resource.IgnoreNotFound(err) != nil {
+			return nil, errors.Wrap(err, "cannot get resource")
+		}
+		if kerrors.IsNotFound(err) {
+			continue
+		}
+		p := comp.Spec.Resources[i].DeletionPriority
+		switch {
+		case p > hp:
+			hp = p
+			del = []resource.Composed{u}
+		case p == hp:
+			del = append(del, u)
+		}
+	}
+	for _, u := range del {
+		err := d.client.Delete(ctx, u)
+		if resource.IgnoreNotFound(err) != nil {
+			return nil, errors.Wrap(err, "cannot delete composed resource")
+		}
+	}
+	return del, nil
 }
