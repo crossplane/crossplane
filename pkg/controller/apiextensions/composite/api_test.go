@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -588,6 +590,160 @@ func TestAPINamingConfigurator(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIPrioritizedDeleter(t *testing.T) {
+	refa := corev1.ObjectReference{Name: "a"}
+	refb := corev1.ObjectReference{Name: "b"}
+	type args struct {
+		kube client.Client
+		cp   resource.Composite
+		comp *v1alpha1.Composition
+	}
+	type want struct {
+		del []resource.Composed
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"AllSamePriority": {
+			reason: "Should be deleting all resources at the same time",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockDelete: func(_ context.Context, obj runtime.Object, _ ...client.DeleteOption) error {
+						m := obj.(metav1.Object)
+						switch m.GetName() {
+						case refa.Name, refb.Name:
+							return nil
+						}
+						t.Errorf("an unnecessary deletion is called: %s", m.GetName())
+						return errBoom
+					},
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{refa, refb}},
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{
+						Resources: []v1alpha1.ComposedTemplate{
+							{
+								DeletionPriority: 1,
+							},
+							{
+								DeletionPriority: 1,
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				del: []resource.Composed{
+					runtimecomposed.New(runtimecomposed.FromReference(refa)),
+					runtimecomposed.New(runtimecomposed.FromReference(refb)),
+				},
+			},
+		},
+		"MovedToSecondLevel": {
+			reason: "Should move on to second higher priority since the ones in the highest are gone",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, _ runtime.Object) error {
+						if key.Name == refa.Name {
+							return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+						}
+						return nil
+					},
+					MockDelete: func(_ context.Context, obj runtime.Object, _ ...client.DeleteOption) error {
+						m := obj.(metav1.Object)
+						if m.GetName() == refb.Name {
+							return nil
+						}
+						t.Errorf("an unnecessary deletion is called: %s", m.GetName())
+						return errBoom
+					},
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{refa, refb}},
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{
+						Resources: []v1alpha1.ComposedTemplate{
+							{
+								DeletionPriority: 2,
+							},
+							{
+								DeletionPriority: 1,
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				del: []resource.Composed{
+					runtimecomposed.New(runtimecomposed.FromReference(refb)),
+				},
+			},
+		},
+		"GetFails": {
+			reason: "Should move on to second higher priority since the ones in the highest are gone",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, _ runtime.Object) error {
+						return errBoom
+					},
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{refa, refb}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetComposed),
+			},
+		},
+		"DeleteFails": {
+			reason: "Should be deleting all resources at the same time",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockDelete: func(_ context.Context, obj runtime.Object, _ ...client.DeleteOption) error {
+						return errBoom
+					},
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{refa}},
+				},
+				comp: &v1alpha1.Composition{
+					Spec: v1alpha1.CompositionSpec{
+						Resources: []v1alpha1.ComposedTemplate{
+							{
+								DeletionPriority: 1,
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errDeleteComposed),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := NewAPIPrioritizedDeleter(tc.args.kube)
+			del, err := d.Delete(context.Background(), tc.args.cp, tc.args.comp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nDelete(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.del, del); diff != "" {
+				t.Errorf("\n%s\nDelete(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

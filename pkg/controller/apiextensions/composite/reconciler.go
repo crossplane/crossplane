@@ -43,6 +43,7 @@ import (
 )
 
 const (
+	tinyWait  = 3 * time.Second
 	shortWait = 30 * time.Second
 	longWait  = 1 * time.Minute
 	timeout   = 2 * time.Minute
@@ -192,8 +193,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			Deleter:             NewAPIPrioritizedDeleter(kube),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
-			// todo: find a more meaningful finalizer.
-			Finalizer: resource.NewAPIFinalizer(kube, "composite.apiextensions.crossplane.io"),
+			Finalizer:           resource.NewAPIFinalizer(kube, "apiextensions.crossplane.io"),
 		},
 
 		resource: composedctrl.NewComposer(kube),
@@ -286,7 +286,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If a deletion is requested, we want to make sure all composed resources
 		// are gone before composite resource disappears.
 		if len(deleting) > 0 {
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			// TODO(muvaf): Report back which resources are blocking.
+			r.record.Event(cr, event.Normal(reasonDelete, "waiting for composed resources to be deleted"))
+			return reconcile.Result{RequeueAfter: tinyWait}, nil
 		}
 		// At this point, we are sure that there is no remaining composed resources,
 		// so it's safe for us to remove the finalizer.

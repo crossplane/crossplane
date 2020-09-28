@@ -48,6 +48,8 @@ const (
 	errUpdateComposite          = "cannot update composite resource"
 	errCompositionNotCompatible = "referenced composition is not compatible with this composite resource"
 	errGetXRD                   = "cannot get composite resource definition"
+	errGetComposed              = "cannot get composed resource"
+	errDeleteComposed           = "cannot delete composed resource"
 )
 
 // Event reasons.
@@ -329,7 +331,7 @@ func (d *APIPrioritizedDeleter) Delete(ctx context.Context, cr resource.Composit
 		nn := types.NamespacedName{Name: ref.Name, Namespace: ref.Namespace}
 		err := d.client.Get(ctx, nn, u)
 		if resource.IgnoreNotFound(err) != nil {
-			return nil, errors.Wrap(err, "cannot get resource")
+			return nil, errors.Wrap(err, errGetComposed)
 		}
 		if kerrors.IsNotFound(err) {
 			continue
@@ -346,7 +348,7 @@ func (d *APIPrioritizedDeleter) Delete(ctx context.Context, cr resource.Composit
 	for _, u := range del {
 		err := d.client.Delete(ctx, u)
 		if resource.IgnoreNotFound(err) != nil {
-			return nil, errors.Wrap(err, "cannot delete composed resource")
+			return nil, errors.Wrap(err, errDeleteComposed)
 		}
 	}
 	return del, nil
