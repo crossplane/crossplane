@@ -10,8 +10,10 @@ projectdir="${scriptdir}/../.."
 # get the build environment variables from the special build.vars target in the main makefile
 eval $(make --no-print-directory -C ${scriptdir}/../.. build.vars)
 
+# ensure the tools we need are installed
+make ${KIND} ${KUBECTL} ${HELM3}
+
 BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-amd64"
-DEPLOYMENT_IMAGE="${DOCKER_REGISTRY}/${PROJECT_NAME}:master"
 DEFAULT_NAMESPACE="crossplane-system"
 
 function copy_image_to_cluster() {
@@ -44,22 +46,10 @@ KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.16.15@sha256:a89c771f7de234e6547d43695
 KIND_NAME=${KIND_NAME:-"kind"}
 case "${1:-}" in
   up)
-    kind create cluster --name "${KIND_NAME}" --image "${KUBE_IMAGE}" --wait 5m
-
-    # We'll use locally cached image instead of having it downloaded by kind
-    # cluster.
-    docker pull "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}"
-    copy_image_to_cluster "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "gcr.io/kubernetes-helm/tiller:${HELM_VERSION}" "${KIND_NAME}"
-
-    kubectl apply -f ${scriptdir}/helm-rbac.yaml
-    ${HELM} init --service-account tiller
-    kubectl -n kube-system rollout status deploy/tiller-deploy
-
-    copy_image_to_cluster ${BUILD_IMAGE} ${DEPLOYMENT_IMAGE} "${KIND_NAME}"
+    ${KIND} create cluster --name "${KIND_NAME}" --image "${KUBE_IMAGE}" --wait 5m
     ;;
   update)
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} ${DEPLOYMENT_IMAGE} "${KIND_NAME}"
     copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
     ;;
   restart)
@@ -77,24 +67,29 @@ case "${1:-}" in
     copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
-    echo "installing helm package(s) into \"$ns\" namespace"
-    ${HELM} install --name ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
+    echo "installing helm package into \"$ns\" namespace"
+    ${KUBECTL} get namespace ${ns} 2>/dev/null||${KUBECTL} create namespace ${ns}
+    ${HELM3} install ${PROJECT_NAME} --namespace ${ns} ${projectdir}/cluster/charts/${PROJECT_NAME} --set image.pullPolicy=Never,imagePullSecrets=''
     ;;
   helm-upgrade)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
-    ${HELM} upgrade ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
+
+    [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
+    echo "upgrading helm package in \"$ns\" namespace"
+    ${HELM3} upgrade --namespace ${ns} ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME}
     ;;
   helm-delete)
-    echo "removing helm package"
-    ${HELM} del --purge ${PROJECT_NAME}
+    [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
+    echo "removing helm package from \"$ns\" namespace"
+    ${HELM3} uninstall --namespace ${ns} ${PROJECT_NAME}
     ;;
   helm-list)
-    ${HELM} list ${PROJECT_NAME} --all
+    ${HELM3} list --all --all-namespaces
     ;;
   clean)
-    kind --name "${KIND_NAME}" delete cluster
+    ${KIND} --name "${KIND_NAME}" delete cluster
     ;;
   *)
     echo "usage:" >&2
