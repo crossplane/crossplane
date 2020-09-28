@@ -114,7 +114,7 @@ Pacific Time]. Anyone who wants to discuss the direction of the project, design
 and implementation reviews, or raise general questions with the broader
 community is encouraged to join.
 
-* Meeting link: https://zoom.us/j/425148449
+* Meeting link: https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09
 * [Current agenda and past meeting notes]
 * [Past meeting recordings]
 
