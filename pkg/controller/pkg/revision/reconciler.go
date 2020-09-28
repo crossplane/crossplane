@@ -188,7 +188,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 		clientset,
 		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
-			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
+			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		}, namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
