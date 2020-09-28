@@ -54,9 +54,17 @@ type ConnectionDetailsFetcher interface {
 	Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error)
 }
 
-// ReadinessProber returns whether composed resource is ready or not.
-type ReadinessProber interface {
-	IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error)
+// A ReadinessChecker checks whether a composed resource is ready or not.
+type ReadinessChecker interface {
+	IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (ready bool, err error)
+}
+
+// A ReadinessCheckFn checks whether a composed resource is ready or not.
+type ReadinessCheckFn func(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (ready bool, err error)
+
+// IsReady reports whether a composed resource is ready or not.
+func (fn ReadinessCheckFn) IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (ready bool, err error) {
+	return fn(ctx, cd, t)
 }
 
 // Observation is the result of composed reconciliation.
@@ -105,7 +113,7 @@ type connection struct {
 type composed struct {
 	Configurator
 	OverlayApplicator
-	ReadinessProber
+	ReadinessChecker
 }
 
 // ComposerOption configures the Composer object.
@@ -122,7 +130,7 @@ func NewComposer(kube client.Client, opts ...ComposerOption) *Composer {
 		composed: composed{
 			Configurator:      &DefaultConfigurator{},
 			OverlayApplicator: &DefaultOverlayApplicator{},
-			ReadinessProber:   &DefaultReadinessChecker{},
+			ReadinessChecker:  ReadinessCheckFn(IsReady),
 		},
 		connection: connection{
 			ConnectionDetailsFetcher: &APIConnectionDetailsFetcher{client: kube},

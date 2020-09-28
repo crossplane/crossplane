@@ -20,8 +20,6 @@ import (
 	"context"
 	"testing"
 
-	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
@@ -37,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -271,6 +270,16 @@ func TestIsReady(t *testing.T) {
 				ready: true,
 			},
 		},
+		"ExplictNone": {
+			reason: "If the only readiness check is explicitly 'None' the resource is always ready.",
+			args: args{
+				cd: runtimecomposed.New(),
+				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: v1alpha1.ReadinessCheckNone}}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
 		"NonEmptyErr": {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
@@ -390,8 +399,7 @@ func TestIsReady(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &DefaultReadinessChecker{}
-			ready, err := c.IsReady(context.Background(), tc.args.cd, tc.args.t)
+			ready, err := IsReady(context.Background(), tc.args.cd, tc.args.t)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
 			}
