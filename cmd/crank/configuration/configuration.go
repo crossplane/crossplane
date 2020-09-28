@@ -16,10 +16,22 @@ limitations under the License.
 
 package configuration
 
+import (
+	"context"
+
+	"github.com/docker/docker/client"
+
+	"github.com/crossplane/crossplane/cmd/crank/pkg"
+	"github.com/crossplane/crossplane/pkg/controller/pkg/revision"
+)
+
 // Cmd is the root command for Configurations.
 type Cmd struct {
-	Get    GetCmd    `cmd:"" help:"Get installed Configurations."`
-	Create CreateCmd `cmd:"" help:"Create a Configuration."`
+	Build  BuildCmd    `cmd:"" help:"Build a Configuration."`
+	Lint   LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
+	Push   pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
+	Create CreateCmd   `cmd:"" help:"Create a Configuration."`
+	Get    GetCmd      `cmd:"" help:"Get installed Configurations."`
 }
 
 // Run runs the Configuration command.
@@ -27,16 +39,56 @@ func (r *Cmd) Run() error {
 	return nil
 }
 
-// GetCmd gets one or more Configurations in the cluster.
-type GetCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of Configuration."`
-
-	Revisions bool `short:"r" help:"List revisions for each Configuration."`
+// BuildCmd builds a Configuration.
+type BuildCmd struct {
+	pkg.BuildCmd
 }
 
-// Run the Get command.
-func (b *GetCmd) Run() error {
-	return nil
+// Run runs the configuration build cmd.
+func (pbc *BuildCmd) Run() error {
+	ctx := context.Background()
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	err = pbc.BuildCmd.Build(ctx, docker)
+	if err != nil {
+		return err
+	}
+
+	if pbc.NoLint {
+		return nil
+	}
+	lc := LintCmd{
+		pkg.LintCmd{
+			Image:  pbc.FullImageName(),
+			NoPull: pbc.NoPull,
+		},
+		ctx,
+		docker,
+	}
+	return lc.Run()
+}
+
+// LintCmd lints the contents of a Configuration Package.
+type LintCmd struct {
+	pkg.LintCmd
+	ctx    context.Context
+	docker *client.Client
+}
+
+// Run runs the configuration lint cmd
+func (pc *LintCmd) Run() error {
+	ctx := context.Background()
+	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	if err != nil {
+		return err
+	}
+	linter := revision.NewPackageLinter(
+		revision.PackageLinterFns(revision.OneMeta),
+		revision.ObjectLinterFns(revision.IsConfiguration),
+		revision.ObjectLinterFns(revision.IsXRD))
+	return pc.LintCmd.Lint(ctx, docker, linter)
 }
 
 // CreateCmd creates a Configuration in the cluster.
@@ -50,5 +102,17 @@ type CreateCmd struct {
 
 // Run the CreateCmd.
 func (p *CreateCmd) Run() error {
+	return nil
+}
+
+// GetCmd gets one or more Configurations in the cluster.
+type GetCmd struct {
+	Name string `arg:"" optional:"" name:"name" help:"Name of Configuration."`
+
+	Revisions bool `short:"r" help:"List revisions for each Configuration."`
+}
+
+// Run the Get command.
+func (b *GetCmd) Run() error {
 	return nil
 }
