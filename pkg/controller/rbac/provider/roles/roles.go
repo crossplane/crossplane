@@ -42,6 +42,7 @@ const (
 
 	suffixStatus = "/status"
 
+	pluralEvents  = "events"
 	pluralSecrets = "secrets"
 	pluralTargets = "kubernetestargets"
 )
@@ -60,7 +61,7 @@ var (
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{""},
-		Resources: []string{pluralSecrets},
+		Resources: []string{pluralSecrets, pluralEvents},
 		Verbs:     verbsEdit,
 	},
 	// TODO(negz): KubernetesTarget is deprecated - this should be removed when
@@ -134,9 +135,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomReso
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		// TODO(negz): Require providers to explicitly ask for access to Secrets
-		// via their permissionRequests.
-		Rules: append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
+		Rules:      append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
