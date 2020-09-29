@@ -80,6 +80,7 @@ and their default values.
 | `resourcesRBACManager.requests.memory` | Memory resource requests for RBAC Manager | `256Mi` |
 | `rbacManager.deploy` | Deploy RBAC Manager and its required roles | `true` |
 | `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
+| `alpha.oam.enabled` | Deploy the `crossplane/oam-kubernetes-runtime` Helm chart | `false` |
 
 ### Command Line
 
