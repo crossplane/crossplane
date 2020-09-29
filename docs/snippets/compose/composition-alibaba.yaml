@@ -26,7 +26,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: alibaba-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

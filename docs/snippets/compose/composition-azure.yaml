@@ -17,7 +17,6 @@ spec:
         kind: ResourceGroup
         spec:
           location: West US 2
-          reclaimPolicy: Delete
           providerConfigRef:
             name: azure-provider
     - base:
@@ -39,7 +38,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: azure-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -71,6 +69,5 @@ spec:
             properties:
               startIpAddress: 0.0.0.0
               endIpAddress: 255.255.255.254
-          reclaimPolicy: Delete
           providerConfigRef:
             name: azure-provider
