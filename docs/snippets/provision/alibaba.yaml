@@ -15,4 +15,3 @@ spec:
     name: alibaba-rdspostgresql-conn
   providerConfigRef:
     name: alibaba-provider
-  reclaimPolicy: Delete

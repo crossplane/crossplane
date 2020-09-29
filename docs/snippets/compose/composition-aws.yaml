@@ -28,7 +28,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

@@ -15,4 +15,3 @@ spec:
     name: cloudsqlpostgresql-conn
   providerConfigRef:
     name: gcp-provider
-  reclaimPolicy: Delete

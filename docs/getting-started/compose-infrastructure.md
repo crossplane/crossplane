@@ -167,7 +167,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -212,57 +211,57 @@ spec:
     kind: CompositePostgreSQLInstance
   resources:
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: VPC
         spec:
-          cidrBlock: 192.168.0.0/16
-          enableDnsSupport: true
-          enableDnsHostNames: true
+          forProvider:
+            cidrBlock: 192.168.0.0/16
+            enableDnsSupport: true
+            enableDnsHostNames: true
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
           labels:
             zone: us-west-2a
         spec:
-          cidrBlock: 192.168.64.0/18
-          vpcIdSelector:
-            matchControllerRef: true
-          availabilityZone: us-west-2a
+          forProvider:
+            cidrBlock: 192.168.64.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: us-west-2a
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
           labels:
             zone: us-west-2b
         spec:
-          cidrBlock: 192.168.128.0/18
-          vpcIdSelector:
-            matchControllerRef: true
-          availabilityZone: us-west-2b
+          forProvider:
+            cidrBlock: 192.168.128.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: us-west-2b
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
           labels:
             zone: us-west-2c
         spec:
-          cidrBlock: 192.168.192.0/18
-          vpcIdSelector:
-            matchControllerRef: true
-          availabilityZone: us-west-2c
+          forProvider:
+            cidrBlock: 192.168.192.0/18
+            vpcIdSelector:
+              matchControllerRef: true
+            availabilityZone: us-west-2c
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: DBSubnetGroup
@@ -273,57 +272,57 @@ spec:
               matchControllerRef: true
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: InternetGateway
         spec:
-          vpcIdSelector:
-            matchControllerRef: true
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1alpha4
         kind: RouteTable
         spec:
-          vpcIdSelector:
-            matchControllerRef: true
-          routes:
-            - destinationCidrBlock: 0.0.0.0/0
-              gatewayIdSelector:
-                matchControllerRef: true
-          associations:
-            - subnetIdSelector:
-                matchLabels:
-                  zone: us-west-2a
-            - subnetIdSelector:
-                matchLabels:
-                  zone: us-west-2b
-            - subnetIdSelector:
-                matchLabels:
-                  zone: us-west-2c
+          forProvider:
+            region: us-west-2
+            vpcIdSelector:
+              matchControllerRef: true
+            routes:
+              - destinationCidrBlock: 0.0.0.0/0
+                gatewayIdSelector:
+                  matchControllerRef: true
+            associations:
+              - subnetIdSelector:
+                  matchLabels:
+                    zone: us-west-2a
+              - subnetIdSelector:
+                  matchLabels:
+                    zone: us-west-2b
+              - subnetIdSelector:
+                  matchLabels:
+                    zone: us-west-2c
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
-        apiVersion: network.aws.crossplane.io/v1alpha3
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: SecurityGroup
         spec:
-          vpcIdSelector:
-            matchControllerRef: true
-          groupName: crossplane-getting-started
-          description: Allow access to PostgreSQL
-          ingress:
-            - fromPort: 5432
-              toPort: 5432
-              protocol: tcp
-              cidrBlocks:
-                - cidrIp: 0.0.0.0/0
-                  description: Everywhere
+          forProvider:
+            vpcIdSelector:
+              matchControllerRef: true
+            groupName: crossplane-getting-started
+            description: Allow access to PostgreSQL
+            ingress:
+              - fromPort: 5432
+                toPort: 5432
+                ipProtocol: tcp
+                ipRanges:
+                  - cidrIp: 0.0.0.0/0
+                    description: Everywhere
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
@@ -343,7 +342,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: aws-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -399,7 +397,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: gcp-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -449,7 +446,6 @@ spec:
         kind: ResourceGroup
         spec:
           location: West US 2
-          reclaimPolicy: Delete
           providerConfigRef:
             name: azure-provider
     - base:
@@ -471,7 +467,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: azure-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -503,7 +498,6 @@ spec:
             properties:
               startIpAddress: 0.0.0.0
               endIpAddress: 255.255.255.254
-          reclaimPolicy: Delete
           providerConfigRef:
             name: azure-provider
 ```
@@ -543,7 +537,6 @@ spec:
             namespace: crossplane-system
           providerConfigRef:
             name: alibaba-provider
-          reclaimPolicy: Delete
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

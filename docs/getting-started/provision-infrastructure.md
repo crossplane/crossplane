@@ -93,7 +93,6 @@ spec:
     name: cloudsqlpostgresql-conn
   providerConfigRef:
     name: gcp-provider
-  reclaimPolicy: Delete
 ```
 
 ```console
@@ -132,7 +131,6 @@ metadata:
   name: sqlserverpostgresql-rg
 spec:
   location: West US 2
-  reclaimPolicy: Delete
   providerConfigRef:
     name: azure-provider
 ---
@@ -159,7 +157,6 @@ spec:
     name: sqlserverpostgresql-conn
   providerConfigRef:
     name: azure-provider
-  reclaimPolicy: Delete
 ```
 
 ```console
@@ -206,7 +203,6 @@ spec:
     name: alibaba-rdspostgresql-conn
   providerConfigRef:
     name: alibaba-provider
-  reclaimPolicy: Delete
 ```
 
 ```console

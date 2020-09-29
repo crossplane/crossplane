@@ -4,7 +4,6 @@ metadata:
   name: sqlserverpostgresql-rg
 spec:
   location: West US 2
-  reclaimPolicy: Delete
   providerConfigRef:
     name: azure-provider
 ---
@@ -31,4 +30,3 @@ spec:
     name: sqlserverpostgresql-conn
   providerConfigRef:
     name: azure-provider
-  reclaimPolicy: Delete
