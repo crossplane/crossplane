@@ -702,10 +702,12 @@ kubectl get postgresqlinstances.database.example.org my-db
 > may want to look at other resources in your cluster. The following commands
 > will allow you to view groups of Crossplane resources:
 >
+> - `kubectl get claim`: get all resources of all claim kinds, like `PostgreSQLInstance`.
+> - `kubectl get composite`: get all resources that are of composite kind, like `CompositePostgreSQLInstance`.
 > - `kubectl get managed`: get all resources that represent a unit of external
->   infrastructure
-> - `kubectl get <name-of-provider>`: get all resources related to `<provider>`
-> - `kubectl get crossplane`: get all resources related to Crossplane
+>   infrastructure.
+> - `kubectl get <name-of-provider>`: get all resources related to `<provider>`.
+> - `kubectl get crossplane`: get all resources related to Crossplane.
 
 You should also see a `Secret` in the `default` namespace named `db-conn` that
 contains fields for `username`, `password`, and `endpoint`:
