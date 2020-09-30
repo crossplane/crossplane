@@ -146,6 +146,7 @@ spec:
         kind: RDSInstance
         spec:
           forProvider:
+            region: us-east-1
             dbInstanceClass: db.t2.small
             masterUsername: masteruser
             engine: postgres
@@ -204,6 +205,7 @@ spec:
         kind: VPC
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.0.0/16
             enableDnsSupport: true
             enableDnsHostNames: true
@@ -214,13 +216,14 @@ spec:
         kind: Subnet
         metadata:
           labels:
-            zone: us-west-2a
+            zone: us-east-1a
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.64.0/18
             vpcIdSelector:
               matchControllerRef: true
-            availabilityZone: us-west-2a
+            availabilityZone: us-east-1a
           providerConfigRef:
             name: aws-provider
     - base:
@@ -228,13 +231,14 @@ spec:
         kind: Subnet
         metadata:
           labels:
-            zone: us-west-2b
+            zone: us-east-1b
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.128.0/18
             vpcIdSelector:
               matchControllerRef: true
-            availabilityZone: us-west-2b
+            availabilityZone: us-east-1b
           providerConfigRef:
             name: aws-provider
     - base:
@@ -242,13 +246,14 @@ spec:
         kind: Subnet
         metadata:
           labels:
-            zone: us-west-2c
+            zone: us-east-1c
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.192.0/18
             vpcIdSelector:
               matchControllerRef: true
-            availabilityZone: us-west-2c
+            availabilityZone: us-east-1c
           providerConfigRef:
             name: aws-provider
     - base:
@@ -256,6 +261,7 @@ spec:
         kind: DBSubnetGroup
         spec:
           forProvider:
+            region: us-east-1
             description: An excellent formation of subnetworks.
             subnetIdSelector:
               matchControllerRef: true
@@ -266,6 +272,7 @@ spec:
         kind: InternetGateway
         spec:
           forProvider:
+            region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
           providerConfigRef:
@@ -275,7 +282,7 @@ spec:
         kind: RouteTable
         spec:
           forProvider:
-            region: us-west-2
+            region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
             routes:
@@ -285,13 +292,13 @@ spec:
             associations:
               - subnetIdSelector:
                   matchLabels:
-                    zone: us-west-2a
+                    zone: us-east-1a
               - subnetIdSelector:
                   matchLabels:
-                    zone: us-west-2b
+                    zone: us-east-1b
               - subnetIdSelector:
                   matchLabels:
-                    zone: us-west-2c
+                    zone: us-east-1c
           providerConfigRef:
             name: aws-provider
     - base:
@@ -299,6 +306,7 @@ spec:
         kind: SecurityGroup
         spec:
           forProvider:
+            region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
             groupName: crossplane-getting-started
@@ -317,6 +325,7 @@ spec:
         kind: RDSInstance
         spec:
           forProvider:
+            region: us-east-1
             dbSubnetGroupNameSelector:
               matchControllerRef: true
             vpcSecurityGroupIDSelector:
