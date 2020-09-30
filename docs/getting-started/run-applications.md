@@ -72,43 +72,6 @@ by this guide:
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/definitions.yaml
 ```
 
-Now that we've defined our workloads and traits, we must install Crossplane's OAM addon. This addon
-packages the controllers that reconcile core OAM workloads and traits.
-
-<ul class="nav nav-tabs">
-<li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3</a></li>
-<li><a href="#install-tab-helm2" data-toggle="tab">Helm 2</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="install-tab-helm3" markdown="1">
-Use Helm 3 to install the latest official `alpha` release of Crossplane OAM
-Addon, suitable for community use and testing:
-
-```console
-kubectl create namespace crossplane-system
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
-helm install addon-oam-kubernetes-local --namespace crossplane-system crossplane-alpha/oam-core-resources
-```
-
-> Note that the OAM Addon requires at least Kubernetes 1.16.
-
-</div>
-<div class="tab-pane fade" id="install-tab-helm2" markdown="1">
-Use Helm 2 to install the latest official `alpha` release of the Crossplane OAM
-Addon, suitable for community use and testing:
-
-```console
-kubectl create namespace crossplane-system
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
-helm install --name addon-oam-kubernetes-local --namespace crossplane-system crossplane-alpha/oam-core-resources
-```
-
-> Note that the OAM Addon requires at least Kubernetes 1.16.
-
-</div>
-</div>
-
 ## Application Developer
 
 ### Publish Application Components

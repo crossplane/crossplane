@@ -75,7 +75,7 @@ kubectl create namespace crossplane-system
 
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
+helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --set alpha.oam.enabled=true
 ```
 
 </div>
@@ -88,12 +88,12 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
 helm search repo crossplane-master --devel
 
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version>
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version> --set alpha.oam.enabled=true
 ```
 
 For example:
 ```
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.11.0-rc.100.gbc5d311 --devel
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.11.0-rc.100.gbc5d311 --devel --set alpha.oam.enabled=true
 ```
 
 </div>
