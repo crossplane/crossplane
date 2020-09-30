@@ -31,17 +31,6 @@ create a connection `Secret` with keys for `username`, `password`, and
 `endpoint`. We will then create a `Composition` for each provider that can
 satisfy a `PostgreSQLInstance`. Let's get started!
 
-## Grant RBAC Permissions
-
-Crossplane must be granted RBAC permissions to manage new infrastructure types
-that we define. This is covered in greater detail in the [composition] section,
-but you can easily run the following command now to grant all necessary RBAC
-permissions for the remainder of this quick start guide:
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/clusterrole.yaml
-```
-
 ## Create CompositeResourceDefinition
 
 The next step is authoring an XRD that defines a `CompositePostgreSQLInstance`:
