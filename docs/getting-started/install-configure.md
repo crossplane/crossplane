@@ -155,7 +155,6 @@ kind: ProviderConfig
 metadata:
   name: aws-provider
 spec:
-  region: us-west-2
   credentialsSecretRef:
     namespace: crossplane-system
     name: aws-creds

@@ -17,4 +17,3 @@ spec:
     namespace: crossplane-system
     name: aws-account-creds
     key: credentials
-  region: ((AWS_REGION))

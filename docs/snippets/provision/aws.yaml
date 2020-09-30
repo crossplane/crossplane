@@ -4,6 +4,7 @@ metadata:
   name: rdspostgresql
 spec:
   forProvider:
+    region: us-west-2
     dbInstanceClass: db.t2.small
     masterUsername: masteruser
     allocatedStorage: 20
