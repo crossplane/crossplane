@@ -88,7 +88,7 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
 helm search repo crossplane-master --devel
 
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version>
 ```
 
 For example:
