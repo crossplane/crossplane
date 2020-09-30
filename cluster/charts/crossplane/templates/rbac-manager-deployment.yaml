@@ -33,7 +33,7 @@ spec:
         {{- if .Values.rbacManager.managementPolicy }}
         - --manage={{ .Values.rbacManager.managementPolicy }}
         {{- end }}
-        {{- range $arg := .Values.args }}
+        {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
