@@ -811,7 +811,7 @@ alongside your [OAM] application manifests.
 
 <!-- Named Links -->
 
-[last section]: provision-infrastructure.yaml
+[last section]: provision-infrastructure.md
 [composition]: ../introduction/composition.md
 [next section]: run-applications.md
 [OAM]: https://oam.dev/

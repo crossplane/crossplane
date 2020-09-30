@@ -241,4 +241,4 @@ APIs of our choosing in the [next section].
 [Azure Database for PostgreSQL]: https://azure.microsoft.com/en-us/services/postgresql/
 [Resource Group]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal#what-is-a-resource-group
 [ApsaraDB for RDS]: https://www.alibabacloud.com/product/apsaradb-for-rds-postgresql
-[next section]: publish-infrastructure.md
+[next section]: compose-infrastructure.md
