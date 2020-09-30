@@ -31,17 +31,6 @@ create a connection `Secret` with keys for `username`, `password`, and
 `endpoint`. We will then create a `Composition` for each provider that can
 satisfy a `PostgreSQLInstance`. Let's get started!
 
-## Grant RBAC Permissions
-
-Crossplane must be granted RBAC permissions to manage new infrastructure types
-that we define. This is covered in greater detail in the [composition] section,
-but you can easily run the following command now to grant all necessary RBAC
-permissions for the remainder of this quick start guide:
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/clusterrole.yaml
-```
-
 ## Create CompositeResourceDefinition
 
 The next step is authoring an XRD that defines a `CompositePostgreSQLInstance`:
@@ -157,6 +146,7 @@ spec:
         kind: RDSInstance
         spec:
           forProvider:
+            region: us-east-1
             dbInstanceClass: db.t2.small
             masterUsername: masteruser
             engine: postgres
@@ -215,6 +205,7 @@ spec:
         kind: VPC
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.0.0/16
             enableDnsSupport: true
             enableDnsHostNames: true
@@ -225,13 +216,14 @@ spec:
         kind: Subnet
         metadata:
           labels:
-            zone: us-west-2a
+            zone: us-east-1a
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.64.0/18
             vpcIdSelector:
               matchControllerRef: true
-            availabilityZone: us-west-2a
+            availabilityZone: us-east-1a
           providerConfigRef:
             name: aws-provider
     - base:
@@ -239,13 +231,14 @@ spec:
         kind: Subnet
         metadata:
           labels:
-            zone: us-west-2b
+            zone: us-east-1b
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.128.0/18
             vpcIdSelector:
               matchControllerRef: true
-            availabilityZone: us-west-2b
+            availabilityZone: us-east-1b
           providerConfigRef:
             name: aws-provider
     - base:
@@ -253,13 +246,14 @@ spec:
         kind: Subnet
         metadata:
           labels:
-            zone: us-west-2c
+            zone: us-east-1c
         spec:
           forProvider:
+            region: us-east-1
             cidrBlock: 192.168.192.0/18
             vpcIdSelector:
               matchControllerRef: true
-            availabilityZone: us-west-2c
+            availabilityZone: us-east-1c
           providerConfigRef:
             name: aws-provider
     - base:
@@ -267,6 +261,7 @@ spec:
         kind: DBSubnetGroup
         spec:
           forProvider:
+            region: us-east-1
             description: An excellent formation of subnetworks.
             subnetIdSelector:
               matchControllerRef: true
@@ -277,6 +272,7 @@ spec:
         kind: InternetGateway
         spec:
           forProvider:
+            region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
           providerConfigRef:
@@ -286,7 +282,7 @@ spec:
         kind: RouteTable
         spec:
           forProvider:
-            region: us-west-2
+            region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
             routes:
@@ -296,13 +292,13 @@ spec:
             associations:
               - subnetIdSelector:
                   matchLabels:
-                    zone: us-west-2a
+                    zone: us-east-1a
               - subnetIdSelector:
                   matchLabels:
-                    zone: us-west-2b
+                    zone: us-east-1b
               - subnetIdSelector:
                   matchLabels:
-                    zone: us-west-2c
+                    zone: us-east-1c
           providerConfigRef:
             name: aws-provider
     - base:
@@ -310,6 +306,7 @@ spec:
         kind: SecurityGroup
         spec:
           forProvider:
+            region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
             groupName: crossplane-getting-started
@@ -328,6 +325,7 @@ spec:
         kind: RDSInstance
         spec:
           forProvider:
+            region: us-east-1
             dbSubnetGroupNameSelector:
               matchControllerRef: true
             vpcSecurityGroupIDSelector:
@@ -713,10 +711,12 @@ kubectl get postgresqlinstances.database.example.org my-db
 > may want to look at other resources in your cluster. The following commands
 > will allow you to view groups of Crossplane resources:
 >
+> - `kubectl get claim`: get all resources of all claim kinds, like `PostgreSQLInstance`.
+> - `kubectl get composite`: get all resources that are of composite kind, like `CompositePostgreSQLInstance`.
 > - `kubectl get managed`: get all resources that represent a unit of external
->   infrastructure
-> - `kubectl get <name-of-provider>`: get all resources related to `<provider>`
-> - `kubectl get crossplane`: get all resources related to Crossplane
+>   infrastructure.
+> - `kubectl get <name-of-provider>`: get all resources related to `<provider>`.
+> - `kubectl get crossplane`: get all resources related to Crossplane.
 
 You should also see a `Secret` in the `default` namespace named `db-conn` that
 contains fields for `username`, `password`, and `endpoint`:
@@ -811,7 +811,7 @@ alongside your [OAM] application manifests.
 
 <!-- Named Links -->
 
-[last section]: provision-infrastructure.yaml
+[last section]: provision-infrastructure.md
 [composition]: ../introduction/composition.md
 [next section]: run-applications.md
 [OAM]: https://oam.dev/

@@ -77,8 +77,6 @@ To store the credentials as a secret, run:
 ```bash
 # retrieve profile's credentials, save it under 'default' profile, and base64 encode it
 BASE64ENCODED_AWS_ACCOUNT_CREDS=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
-# retrieve the profile's region from config
-AWS_REGION=$(aws configure get region --profile ${aws_profile})
 ```
 
 At this point, the region and the encoded credentials are stored in respective
@@ -101,7 +99,6 @@ kind: ProviderConfig
 metadata:
   name: aws-provider
 spec:
-  region: ${AWS_REGION}
   credentialsSecretRef:
     namespace: crossplane-system
     name: aws-account-creds

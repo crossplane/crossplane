@@ -35,6 +35,12 @@ import (
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
+// Category names for generated claim and composite CRDs.
+const (
+	CategoryClaim     = "claim"
+	CategoryComposite = "composite"
+)
+
 const (
 	errNewSpec                 = "cannot generate CustomResourceDefinition from crdSpecTemplate"
 	errParseValidation         = "cannot parse validation schema"
@@ -96,6 +102,7 @@ func ForCompositeResource(d *v1alpha1.CompositeResourceDefinition) Option {
 		crd.Spec.Group = spec.Group
 		crd.Spec.Version = spec.Version
 		crd.Spec.Names = spec.Names
+		crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryComposite)
 		crd.Spec.AdditionalPrinterColumns = append(crd.Spec.AdditionalPrinterColumns, spec.AdditionalPrinterColumns...)
 		for k, v := range getSpecProps(spec) {
 			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
@@ -134,10 +141,11 @@ func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
 		)})
 
 		crd.Spec.Names = v1beta1.CustomResourceDefinitionNames{
-			Kind:     d.Spec.ClaimNames.Kind,
-			ListKind: d.Spec.ClaimNames.ListKind,
-			Singular: d.Spec.ClaimNames.Singular,
-			Plural:   d.Spec.ClaimNames.Plural,
+			Kind:       d.Spec.ClaimNames.Kind,
+			ListKind:   d.Spec.ClaimNames.ListKind,
+			Singular:   d.Spec.ClaimNames.Singular,
+			Plural:     d.Spec.ClaimNames.Plural,
+			Categories: append(d.Spec.ClaimNames.Categories, CategoryClaim),
 		}
 		crd.Spec.AdditionalPrinterColumns = CompositeResourceClaimPrinterColumns()
 

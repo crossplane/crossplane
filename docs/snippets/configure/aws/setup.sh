@@ -35,16 +35,8 @@ kubectl cluster-info > /dev/null || echo "KUBECONFIG is not configured properly"
 # if aws_profile is not provided, use default
 aws_profile="${aws_profile:-default}"
 
-# if region is not provided, retrieve aws profile region from config
-AWS_REGION=$(aws configure get region --profile $aws_profile)
-
 # retrieve aws profile credentials, save it under 'default' profile, and base64 encode it
 AWS_CREDS_BASE64=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
-
-if test -z "$AWS_REGION"; then
-  echo "error retrieving region from aws config. "
-  exit -1
-fi
 
 if test -z "$AWS_CREDS_BASE64"; then
   echo "error reading credentials from aws config"
@@ -53,6 +45,5 @@ fi
 
 # build the secret and provider objects, and then apply it
 cat provider.yaml | sed \
-  -e "s|((AWS_REGION))|"$AWS_REGION"|g" \
   -e "s|((AWS_CREDS_BASE64))|"$AWS_CREDS_BASE64"|g" \
   | kubectl apply -f -
