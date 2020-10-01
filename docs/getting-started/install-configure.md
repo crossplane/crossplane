@@ -181,13 +181,14 @@ kubectl crossplane package install --cluster --namespace crossplane-system ${PAC
 ### Get GCP Account Keyfile
 
 ```
-# replace this with your own gcp project id and service account name
+# replace this with your own gcp project id and the name of the service account
+# that will be created.
 PROJECT_ID=my-project
-SA_NAME=my-service-account-name
+NEW_SA_NAME=test-service-account-name
 
 # create service account
-SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-gcloud iam service-accounts create $SA_NAME --project $PROJECT_ID
+SA="${NEW_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create $NEW_SA_NAME --project $PROJECT_ID
 
 # enable cloud API
 SERVICE="sqladmin.googleapis.com"
