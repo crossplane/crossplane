@@ -81,12 +81,12 @@ be provided when a new version of that CRD schema is released.
 
 In general, managed resources are high fidelity resources meaning they will provide
 parameters and behaviors that are provided by the external resource API. This applies
-to grouping of resources, too. For example, `RDSInstance` appears under `database`
-API group, so, its `APIVersion` and `Kind` look like the following:
+to grouping of resources, too. For example, `Queue` appears under `sqs` API group
+in AWS,so, its `APIVersion` and `Kind` look like the following:
 
 ```yaml
-apiVersion: database.aws.crossplane.io/v1beta1
-kind: RDSInstance
+apiVersion: sqs.aws.crossplane.io/v1beta1
+kind: Queue
 ```
 
 ## Behavior
