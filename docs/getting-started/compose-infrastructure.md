@@ -704,7 +704,7 @@ database instance on your provider of choice. Once provisioning is complete, you
 should see `READY: True` in the output when you run:
 
 ```console
-kubectl get postgresqlinstances.database.example.org my-db
+kubectl get postgresqlinstance my-db
 ```
 
 > Note: while waiting for the `PostgreSQLInstance` to become ready, you
@@ -790,7 +790,7 @@ To clean up the infrastructure that was provisioned, you can delete the
 `PostgreSQLInstance`:
 
 ```console
-kubectl delete postgresqlinstances.database.example.org my-db
+kubectl delete postgresqlinstance my-db
 ```
 
 To clean up the `Pod`, run:

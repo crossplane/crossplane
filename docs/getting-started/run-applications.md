@@ -461,12 +461,6 @@ kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master
 kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/definitions.yaml
 ```
 
-To uninstall the Crossplane OAM Addon:
-
-```console
-helm delete addon-oam-kubernetes-local --namespace crossplane-system
-```
-
 [Open Application Model]: https://oam.dev/
 [composing]: compose-infrastructure.md
 [Service Tracker Diagram]: run-applications-diagram.jpg
