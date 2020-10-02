@@ -19,6 +19,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/docker/docker/client"
 	"github.com/pkg/errors"
@@ -36,7 +37,7 @@ type Cmd struct {
 	Build   BuildCmd    `cmd:"" help:"Build a Provider Package."`
 	Lint    LintCmd     `cmd:"" help:"Lint the contents of a Provider Package."`
 	Push    pkg.PushCmd `cmd:"" help:"Push a Provider Package."`
-	Install InstallCmd  `cmd:"" help:"Create a Provider."`
+	Install InstallCmd  `cmd:"" help:"Install a Provider."`
 	Get     GetCmd      `cmd:"" help:"Get installed Providers."`
 }
 
@@ -131,7 +132,7 @@ func (p *InstallCmd) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create provider")
 	}
-	fmt.Printf("%s/%s is created\n", v1alpha1.ProviderGroupKind, res.GetName())
+	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ProviderGroupKind), res.GetName())
 	// TODO(muvaf): Show nice icons and block until installation completes?
 	return nil
 }
