@@ -704,7 +704,7 @@ database instance on your provider of choice. Once provisioning is complete, you
 should see `READY: True` in the output when you run:
 
 ```console
-kubectl get postgresqlinstances.database.example.org my-db
+kubectl get postgresqlinstance my-db
 ```
 
 > Note: while waiting for the `PostgreSQLInstance` to become ready, you
@@ -719,10 +719,23 @@ kubectl get postgresqlinstances.database.example.org my-db
 > - `kubectl get crossplane`: get all resources related to Crossplane.
 
 You should also see a `Secret` in the `default` namespace named `db-conn` that
-contains fields for `username`, `password`, and `endpoint`:
+contains keys that we defined in XRD. If they are filled by the composition, then
+they should appear:
 
 ```console
-kubectl get secrets db-conn
+$ kubectl describe secrets db-conn
+Name:         db-conn
+Namespace:    default
+...
+
+Type:  connection.crossplane.io/v1alpha1
+
+Data
+====
+password:  27 bytes
+port:      4 bytes
+username:  25 bytes
+endpoint:  45 bytes
 ```
 
 ## Consume Infrastructure
@@ -786,17 +799,17 @@ should see the following output (or similar) after creating it if you run
 
 ## Clean Up
 
-To clean up the infrastructure that was provisioned, you can delete the
-`PostgreSQLInstance`:
-
-```console
-kubectl delete postgresqlinstances.database.example.org my-db
-```
-
 To clean up the `Pod`, run:
 
 ```console
 kubectl delete pod see-db
+```
+
+To clean up the infrastructure that was provisioned, you can delete the
+`PostgreSQLInstance`:
+
+```console
+kubectl delete postgresqlinstance my-db
 ```
 
 > Don't clean up your `CompositeResourceDefinition` or `Composition` just yet if

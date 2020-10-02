@@ -181,13 +181,14 @@ kubectl crossplane package install --cluster --namespace crossplane-system ${PAC
 ### Get GCP Account Keyfile
 
 ```
-# replace this with your own gcp project id and service account name
+# replace this with your own gcp project id and the name of the service account
+# that will be created.
 PROJECT_ID=my-project
-SA_NAME=my-service-account-name
+NEW_SA_NAME=test-service-account-name
 
 # create service account
-SA="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
-gcloud iam service-accounts create $SA_NAME --project $PROJECT_ID
+SA="${NEW_SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+gcloud iam service-accounts create $NEW_SA_NAME --project $PROJECT_ID
 
 # enable cloud API
 SERVICE="sqladmin.googleapis.com"
@@ -247,8 +248,13 @@ kubectl crossplane package install --cluster --namespace crossplane-system ${PAC
 # create service principal with Owner role
 az ad sp create-for-rbac --sdk-auth --role Owner > "creds.json"
 
-# add Azure Active Directory permissions
-AZURE_CLIENT_ID=$(jq -r ".clientId" < "./creds.json")
+# we need to get the clientId from the json file to add Azure Active Directory
+# permissions.
+if which jq > /dev/null 2>&1; then
+  AZURE_CLIENT_ID=$(jq -r ".clientId" < "./creds.json")
+else
+  AZURE_CLIENT_ID=$(cat creds.json | grep clientId | cut -c 16-51)
+fi
 
 RW_ALL_APPS=1cda74f2-2616-4834-b122-5cb1b07f8a59
 RW_DIR_DATA=78c8a3c8-a07e-4b9e-af1b-b5ccab50a175

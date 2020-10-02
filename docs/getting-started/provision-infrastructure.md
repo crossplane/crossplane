@@ -59,14 +59,19 @@ Creating the above instance will cause Crossplane to provision an RDS instance
 on AWS. You can view the progress with the following command:
 
 ```console
-kubectl get rdsinstances.database.aws.crossplane.io rdspostgresql
+kubectl get rdsinstance rdspostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
-can then delete the `RDSInstance`:
+can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+```console
+kubectl describe secret aws-rdspostgresql-conn -n crossplane-system -o yaml
+```
+
+You can then delete the `RDSInstance`:
 
 ```console
-kubectl delete rdsinstances.database.aws.crossplane.io rdspostgresql
+kubectl delete rdsinstance rdspostgresql
 ```
 
 </div>
@@ -103,14 +108,19 @@ Creating the above instance will cause Crossplane to provision a CloudSQL
 instance on GCP. You can view the progress with the following command:
 
 ```console
-kubectl get cloudsqlinstances.database.gcp.crossplane.io cloudsqlpostgresql
+kubectl get cloudsqlinstance cloudsqlpostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
-can then delete the `CloudSQLInstance`:
+can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+```console
+kubectl describe secret cloudsqlpostgresql-conn -n crossplane-system -o yaml
+```
+
+You can then delete the `CloudSQLInstance`:
 
 ```console
-kubectl delete cloudsqlinstances.database.gcp.crossplane.io cloudsqlpostgresql
+kubectl delete cloudsqlinstance cloudsqlpostgresql
 ```
 
 </div>
@@ -168,15 +178,20 @@ database instance on Azure. You can view the progress with the following
 command:
 
 ```console
-kubectl get postgresqlservers.database.azure.crossplane.io sqlserverpostgresql
+kubectl get postgresqlserver sqlserverpostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
-can then delete the `PostgreSQLServer`:
+can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+```console
+kubectl describe secret sqlserverpostgresql-conn -n crossplane-system
+```
+
+You can then delete the `PostgreSQLServer`:
 
 ```console
-kubectl delete postgresqlservers.database.azure.crossplane.io sqlserverpostgresql
-kubectl delete resourcegroup.azure.crossplane.io sqlserverpostgresql-rg
+kubectl delete postgresqlserver sqlserverpostgresql
+kubectl delete resourcegroup sqlserverpostgresql-rg
 ```
 
 </div>
@@ -213,14 +228,19 @@ Creating the above instance will cause Crossplane to provision an RDS instance
 on Alibaba. You can view the progress with the following command:
 
 ```console
-kubectl get rdsinstances.database.alibaba.crossplane.io rdspostgresql
+kubectl get rdsinstance rdspostgresql
 ```
 
 When provisioning is complete, you should see `READY: True` in the output. You
-can then delete the `RDSInstance`:
+can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+```console
+kubectl describe secret alibaba-rdspostgresql-conn -n crossplane-system
+```
+
+You can then delete the `RDSInstance`:
 
 ```console
-kubectl delete rdsinstances.database.alibaba.crossplane.io rdspostgresql
+kubectl delete rdsinstance rdspostgresql
 ```
 
 </div>

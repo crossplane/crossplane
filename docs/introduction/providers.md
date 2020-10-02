@@ -39,18 +39,17 @@ Here is the list of current providers:
 
 The core Crossplane controller can install provider controllers and CRDs for you
 through its own provider packaging mechanism, which is triggered by the application
-of a `ClusterPackageInstall` resource. For example, in order to request
-installation of the `provider-gcp` package, apply the following resource to the
+of a `Provider` resource. For example, in order to request
+installation of the `provider-aws` package, apply the following resource to the
 cluster where Crossplane is running:
 
 ```yaml
-apiVersion: packages.crossplane.io/v1alpha1
-kind: ClusterPackageInstall
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: Provider
 metadata:
-  name: provider-gcp
-  namespace: crossplane-system
+  name: provider-aws
 spec:
-  package: "crossplane/provider-gcp:master"
+  package: crossplane/provider-aws:master"
 ```
 
 The field `spec.package` is where you refer to the container image of the
@@ -77,18 +76,18 @@ In order to authenticate with the external provider API, the provider controller
 need to have access to credentials. It could be an IAM User for AWS, a Service
 Account for GCP or a Service Principal for Azure. Every provider has a type called
 `ProviderConfig` that has information about how to authenticate to the provider API.
-An example `ProviderConfig` resource for Azure looks like the following:
+An example `ProviderConfig` resource for AWS looks like the following:
 
 ```yaml
-apiVersion: azure.crossplane.io/v1beta1
+apiVersion: aws.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: prod-acc
+  name: aws-provider
 spec:
   credentialsSecretRef:
     namespace: crossplane-system
-    name: azure-prod-creds
-    key: credentials
+    name: aws-creds
+    key: key
 ```
 
 You can see that there is a reference to a key in a specific `Secret`. The value
@@ -96,11 +95,11 @@ of that key should contain the credentials that the controller will use. The
 documentation of each provider should give you an idea of how that credentials
 blob should look like. See [Getting Started][getting-started] guide for more details.
 
-The following is an example usage of Azure `ProviderConfig`, referenced by a `MySQLServer`:
+The following is an example usage of Azure `ProviderConfig`, referenced by a `RDSInstance`:
 
 ```yaml
-apiVersion: database.azure.crossplane.io/v1beta1
-kind: MySQLServer
+apiVersion: database.aws.crossplane.io/v1beta1
+kind: RDSInstance
 metadata:
   name: prod-sql
 spec:
@@ -108,7 +107,7 @@ spec:
   ...
 ```
 
-The Azure provider controller will use that provider for this instance of `MySQLServer`.
+The AWS provider controller will use that provider for this instance of `RDSInstance`.
 Since every resource has its own reference to a `ProviderConfig`, you can have multiple
 `ProviderConfig` resources in your cluster referenced by different resources.
 

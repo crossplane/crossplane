@@ -1,16 +1,19 @@
 ---
-title: Managed Resource Developer Guide
+title: Provider Development Guide
 toc: true
 weight: 1001
 indent: true
 ---
 
-# Managed Resource Developer Guide
+# Provider Development Guide
 
 Crossplane allows you to manage infrastructure directly from Kubernetes. Each
 infrastructure API resource that Crossplane orchestrates is known as a "managed
 resource". This guide will walk through the process of adding support for a new
-kind of managed resource to Crossplane.
+kind of managed resource to a Crossplane Provider.
+
+> You can watch [TBS Episode 18] to follow along the live implementation of GCP PubSub
+managed resource.
 
 ## What Makes a Crossplane Infrastructure Resource
 
@@ -603,15 +606,14 @@ feedback you may have about the development process!
 
 <!-- Named Links -->
 
-[What Makes a Crossplane Managed Service]: #what-makes-a-crossplane-managed-service
-[managed resource]: concepts.md#managed-resource
-[dynamic provisioning]: concepts.md#dynamic-and-static-provisioning
+[TBS Episode 18]: https://www.youtube.com/watch?v=rvQ8N0u3rkE&t=7s
+[What Makes a Crossplane Infrastructure Resource]: #what-makes-a-crossplane-infrastructure-resource
+[managed resource]: ../introduction/managed-resources.md
 [`CloudMemorystoreInstance`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
 [`ProviderConfig`]: https://github.com/crossplane/provider-gcp/blob/be5aaf6/apis/v1beta1/providerconfig_types.go#L39
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/
-[crossplane-runtime v0.9.0]: https://github.com/crossplane/crossplane-runtime/releases/tag/v0.9.0
 [golden path]: https://charity.wtf/2018/12/02/software-sprawl-the-golden-path-and-scaling-teams-with-agency/
 [API Conventions]: https://github.com/kubernetes/community/blob/c6e1e89a/contributors/devel/sig-architecture/api-conventions.md
 [kubebuilder book]: https://book.kubebuilder.io/
