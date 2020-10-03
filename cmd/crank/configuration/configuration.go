@@ -34,11 +34,10 @@ import (
 
 // Cmd is the root command for Configurations.
 type Cmd struct {
-	Build  BuildCmd    `cmd:"" help:"Build a Configuration."`
-	Lint   LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
-	Push   pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
-	Create CreateCmd   `cmd:"" help:"Install a Configuration."`
-	Get    GetCmd      `cmd:"" help:"Get installed Configurations."`
+	Build   BuildCmd    `cmd:"" help:"Build a Configuration."`
+	Lint    LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
+	Push    pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
+	Install InstallCmd  `cmd:"" help:"Install a Configuration."`
 }
 
 // Run runs the Configuration command.
@@ -98,17 +97,17 @@ func (pc *LintCmd) Run() error {
 	return pc.LintCmd.Lint(ctx, docker, linter)
 }
 
-// CreateCmd creates a Configuration in the cluster.
-type CreateCmd struct {
+// InstallCmd creates a Configuration in the cluster.
+type InstallCmd struct {
 	Name    string `arg:"" name:"name" help:"Name of Configuration."`
 	Package string `arg:"" name:"package" help:"Image containing Configuration package."`
 
-	RevisionHistoryLimit int64 `help:"Revision history limit."`
-	ManualActivation     bool  `short:"a" help:"Enable manual revision activation policy."`
+	RevisionHistoryLimit int64 `short:"rl" help:"Revision history limit."`
+	ManualActivation     bool  `help:"Enable manual revision activation policy."`
 }
 
-// Run the CreateCmd.
-func (p *CreateCmd) Run() error {
+// Run the InstallCmd.
+func (p *InstallCmd) Run() error {
 	ctx := context.TODO()
 	rap := v1alpha1.AutomaticActivation
 	if p.ManualActivation {
@@ -132,17 +131,5 @@ func (p *CreateCmd) Run() error {
 		return errors.Wrap(err, "cannot create configuration")
 	}
 	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
-	return nil
-}
-
-// GetCmd gets one or more Configurations in the cluster.
-type GetCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of Configuration."`
-
-	Revisions bool `short:"r" help:"List revisions for each Configuration."`
-}
-
-// Run the Get command.
-func (b *GetCmd) Run() error {
 	return nil
 }

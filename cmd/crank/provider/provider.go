@@ -38,7 +38,6 @@ type Cmd struct {
 	Lint    LintCmd     `cmd:"" help:"Lint the contents of a Provider Package."`
 	Push    pkg.PushCmd `cmd:"" help:"Push a Provider Package."`
 	Install InstallCmd  `cmd:"" help:"Install a Provider."`
-	Get     GetCmd      `cmd:"" help:"Get installed Providers."`
 }
 
 // Run runs the Provider command.
@@ -104,7 +103,7 @@ type InstallCmd struct {
 	Name    string `arg:"" name:"name" help:"Name of Provider."`
 	Package string `arg:"" name:"package" help:"Image containing Provider package."`
 
-	RevisionHistoryLimit int64 `help:"Revision history limit."`
+	RevisionHistoryLimit int64 `short:"rl" help:"Revision history limit."`
 	ManualActivation     bool  `help:"Enable manual revision activation policy."`
 }
 
@@ -134,17 +133,5 @@ func (p *InstallCmd) Run() error {
 	}
 	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ProviderGroupKind), res.GetName())
 	// TODO(muvaf): Show nice icons and block until installation completes?
-	return nil
-}
-
-// GetCmd gets one or more Providers in the cluster.
-type GetCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of Provider."`
-
-	Revisions bool `short:"r" help:"List revisions for each Provider."`
-}
-
-// Run the Get command.
-func (b *GetCmd) Run() error {
 	return nil
 }
