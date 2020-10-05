@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/client"
+	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -100,11 +101,11 @@ func (pc *LintCmd) Run() error {
 
 // InstallCmd creates a Provider in the cluster.
 type InstallCmd struct {
-	Name    string `arg:"" name:"name" help:"Name of Provider."`
 	Package string `arg:"" name:"package" help:"Image containing Provider package."`
 
-	RevisionHistoryLimit int64 `short:"rl" help:"Revision history limit."`
-	ManualActivation     bool  `help:"Enable manual revision activation policy."`
+	Name                 string `optional:"" name:"name" help:"Name of Provider."`
+	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
+	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
 }
 
 // Run the InstallCmd.
@@ -114,9 +115,13 @@ func (p *InstallCmd) Run() error {
 	if p.ManualActivation {
 		rap = v1alpha1.ManualActivation
 	}
+	name := petname.Generate(2, "-")
+	if p.Name != "" {
+		name = p.Name
+	}
 	cr := &v1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: p.Name,
+			Name: name,
 		},
 		Spec: v1alpha1.ProviderSpec{
 			PackageSpec: v1alpha1.PackageSpec{
