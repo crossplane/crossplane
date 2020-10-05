@@ -18,20 +18,26 @@ package configuration
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/cmd/crank/pkg"
+	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/controller/pkg/revision"
 )
 
 // Cmd is the root command for Configurations.
 type Cmd struct {
-	Build  BuildCmd    `cmd:"" help:"Build a Configuration."`
-	Lint   LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
-	Push   pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
-	Create CreateCmd   `cmd:"" help:"Create a Configuration."`
-	Get    GetCmd      `cmd:"" help:"Get installed Configurations."`
+	Build   BuildCmd    `cmd:"" help:"Build a Configuration."`
+	Lint    LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
+	Push    pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
+	Install InstallCmd  `cmd:"" help:"Install a Configuration."`
 }
 
 // Run runs the Configuration command.
@@ -91,28 +97,45 @@ func (pc *LintCmd) Run() error {
 	return pc.LintCmd.Lint(ctx, docker, linter)
 }
 
-// CreateCmd creates a Configuration in the cluster.
-type CreateCmd struct {
-	Name    string `arg:"" name:"name" help:"Name of Configuration."`
+// InstallCmd creates a Configuration in the cluster.
+type InstallCmd struct {
 	Package string `arg:"" name:"package" help:"Image containing Configuration package."`
 
-	History  int  `help:"Revision history limit."`
-	Activate bool `short:"a" help:"Enable automatic revision activation policy."`
+	Name                 string `optional:"" name:"name" help:"Name of Configuration."`
+	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
+	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
 }
 
-// Run the CreateCmd.
-func (p *CreateCmd) Run() error {
-	return nil
-}
-
-// GetCmd gets one or more Configurations in the cluster.
-type GetCmd struct {
-	Name string `arg:"" optional:"" name:"name" help:"Name of Configuration."`
-
-	Revisions bool `short:"r" help:"List revisions for each Configuration."`
-}
-
-// Run the Get command.
-func (b *GetCmd) Run() error {
+// Run the InstallCmd.
+func (p *InstallCmd) Run() error {
+	ctx := context.TODO()
+	rap := v1alpha1.AutomaticActivation
+	if p.ManualActivation {
+		rap = v1alpha1.ManualActivation
+	}
+	name := p.Name
+	if name == "" {
+		// NOTE(muvaf): "crossplane/provider-gcp:master" -> "provider-gcp"
+		woTag := strings.Split(strings.Split(p.Package, ":")[0], "/")
+		name = woTag[len(woTag)-1]
+	}
+	cr := &v1alpha1.Configuration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1alpha1.ConfigurationSpec{
+			PackageSpec: v1alpha1.PackageSpec{
+				Package:                  p.Package,
+				RevisionActivationPolicy: &rap,
+				RevisionHistoryLimit:     &p.RevisionHistoryLimit,
+			},
+		},
+	}
+	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	res, err := kube.Configurations().Create(ctx, cr, metav1.CreateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "cannot create configuration")
+	}
+	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
 	return nil
 }
