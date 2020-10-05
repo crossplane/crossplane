@@ -22,21 +22,25 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
 var _ parser.Backend = &ErrBackend{}
@@ -90,15 +94,60 @@ func (h *MockHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevisio
 	return h.MockPost()
 }
 
+var _ xpkg.Cache = &MockCache{}
+
+type MockCache struct {
+	MockGet    func() (v1.Image, error)
+	MockStore  func() error
+	MockDelete func() error
+}
+
+func NewMockCache() *MockCache {
+	return &MockCache{
+		MockGet:    NewMockCacheGetFn(nil, nil),
+		MockStore:  NewMockCacheStoreFn(nil),
+		MockDelete: NewMockCacheDeleteFn(nil),
+	}
+}
+
+func NewMockCacheGetFn(img v1.Image, err error) func() (v1.Image, error) {
+	return func() (v1.Image, error) { return img, err }
+}
+
+func NewMockCacheStoreFn(err error) func() error {
+	return func() error { return err }
+}
+
+func NewMockCacheDeleteFn(err error) func() error {
+	return func() error { return err }
+}
+
+func (c *MockCache) Get(source, id string) (v1.Image, error) {
+	return c.MockGet()
+}
+
+func (c *MockCache) Store(source, id string, img v1.Image) error {
+	return c.MockStore()
+}
+
+func (c *MockCache) Delete(id string) error {
+	return c.MockDelete()
+}
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	now := metav1.Now()
 
 	metaScheme, _ := BuildMetaScheme()
 	objScheme, _ := BuildObjectScheme()
 
 	type args struct {
+		mgr manager.Manager
+		ic  xpkg.Cache
+		cl  kubernetes.Interface
+		ns  string
 		req reconcile.Request
-		rec *Reconciler
+		rec []ReconcilerOption
 	}
 	type want struct {
 		r   reconcile.Result
@@ -113,14 +162,13 @@ func TestReconcile(t *testing.T) {
 		"PackageRevisionNotFound": {
 			reason: "We should not return and error and not requeue if package not found.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
-					},
-					log:    logging.NewNopLogger(),
-					record: event.NewNopRecorder(),
+					}),
 				},
 			},
 			want: want{
@@ -130,14 +178,13 @@ func TestReconcile(t *testing.T) {
 		"ErrGetPackageRevision": {
 			reason: "We should return an error if getting package fails.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-					},
-					log:    logging.NewNopLogger(),
-					record: event.NewNopRecorder(),
+					}),
 				},
 			},
 			want: want{
@@ -145,25 +192,98 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetPackageRevision),
 			},
 		},
-		"ErrInitParserBackend": {
-			reason: "We should requeue after short wait if fail to initialize parser backend.",
+		"ErrDeletedClearCache": {
+			reason: "We should requeue after short wait if revision is deleted and we fail to clear image cache.",
 			args: args{
+				mgr: &fake.Manager{},
+				ic: &MockCache{
+					MockDelete: NewMockCacheDeleteFn(errBoom),
+				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDeletionTimestamp(&now)
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ErrDeletedRemoveFinalizer": {
+			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
+			args: args{
+				mgr: &fake.Manager{},
+				ic:  NewMockCache(),
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDeletionTimestamp(&now)
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return errBoom
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ErrAddFinalizer": {
+			reason: "We should requeue after short wait if we fail to add finalizer.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return errBoom
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ErrInitParserBackend": {
+			reason: "We should requeue after short wait if we fail to initialize parser backend.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -173,10 +293,11 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-					},
-					backend: &ErrBackend{},
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParserBackend(&ErrBackend{}),
 				},
 			},
 			want: want{
@@ -186,22 +307,21 @@ func TestReconcile(t *testing.T) {
 		"ErrParse": {
 			reason: "We should requeue after short wait if fail to parse package.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -211,11 +331,12 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-					},
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					parser:  parser.New(runtime.NewScheme(), runtime.NewScheme()),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(runtime.NewScheme(), runtime.NewScheme())),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 				},
 			},
 			want: want{
@@ -225,22 +346,21 @@ func TestReconcile(t *testing.T) {
 		"ErrLint": {
 			reason: "We should requeue after long wait if linting returns an error.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -250,12 +370,13 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-					},
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, ObjectLinterFns(IsConfiguration), nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, ObjectLinterFns(IsConfiguration), nil)),
 				},
 			},
 			want: want{
@@ -265,22 +386,21 @@ func TestReconcile(t *testing.T) {
 		"ErrOneMeta": {
 			reason: "We should requeue after long wait if not exactly one meta package type.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -290,12 +410,13 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-					},
-					backend: parser.NewNopBackend(),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewNopBackend()),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -305,22 +426,21 @@ func TestReconcile(t *testing.T) {
 		"ErrPreHook": {
 			reason: "We should requeue after short wait if pre establishment hook returns an error.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ProviderRevision)
 								pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ProviderRevision{}
 								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -330,15 +450,16 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-					},
-					hook: &MockHook{
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(&MockHook{
 						MockPre: NewMockPreFn(errBoom),
-					},
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -348,22 +469,21 @@ func TestReconcile(t *testing.T) {
 		"ErrPostHook": {
 			reason: "We should requeue after short wait if post establishment hook returns an error.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ProviderRevision)
 								pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ProviderRevision{}
 								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -373,17 +493,18 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-					},
-					hook: &MockHook{
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(&MockHook{
 						MockPre:  NewMockPreFn(nil),
 						MockPost: NewMockPostFn(errBoom),
-					},
-					objects: NewMockEstablisher(),
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithEstablisher(NewMockEstablisher()),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -393,22 +514,21 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulActiveRevision": {
 			reason: "An active revision should establish control of all of its resources.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Healthy())
 
@@ -419,14 +539,15 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
-					},
-					hook:    NewNopHooks(),
-					objects: NewMockEstablisher(),
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(NewNopHooks()),
+					WithEstablisher(NewMockEstablisher()),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -436,22 +557,21 @@ func TestReconcile(t *testing.T) {
 		"ErrEstablishActiveRevision": {
 			reason: "An active revision that fails to establish control should requeue after short wait.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ProviderRevision)
 								pr.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ProviderRevision{}
 								want.SetGroupVersionKind(v1alpha1.ProviderRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionActive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -462,16 +582,17 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
-					},
-					hook: NewNopHooks(),
-					objects: &MockEstablisher{
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(NewNopHooks()),
+					WithEstablisher(&MockEstablisher{
 						MockEstablish: NewMockEstablishFn(nil, errBoom),
-					},
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -481,22 +602,21 @@ func TestReconcile(t *testing.T) {
 		"SuccessfulInactiveRevision": {
 			reason: "An inactive revision should establish ownership of all of its resources.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
 								want.SetConditions(v1alpha1.Healthy())
 
@@ -507,14 +627,15 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
-					},
-					hook:    NewNopHooks(),
-					objects: NewMockEstablisher(),
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(NewNopHooks()),
+					WithEstablisher(NewMockEstablisher()),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -524,22 +645,21 @@ func TestReconcile(t *testing.T) {
 		"ErrEstablishInactiveRevision": {
 			reason: "An inactive revision that fails to establish ownership should requeue after short wait.",
 			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
-				rec: &Reconciler{
-					newPackageRevision: func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
-					client: resource.ClientApplicator{
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								pr := o.(*v1alpha1.ConfigurationRevision)
 								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
-								pr.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
 								want := &v1alpha1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
-								want.SetInstallPod(runtimev1alpha1.Reference{Name: "test"})
 								want.SetDesiredState(v1alpha1.PackageRevisionInactive)
 								want.SetConditions(v1alpha1.Unhealthy())
 
@@ -550,16 +670,17 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
-					},
-					hook: NewNopHooks(),
-					objects: &MockEstablisher{
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(NewNopHooks()),
+					WithEstablisher(&MockEstablisher{
 						MockEstablish: NewMockEstablishFn(nil, errBoom),
-					},
-					backend: parser.NewEchoBackend(string(providerBytes)),
-					linter:  NewPackageLinter(nil, nil, nil),
-					parser:  parser.New(metaScheme, objScheme),
-					log:     logging.NewNopLogger(),
-					record:  event.NewNopRecorder(),
+					}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -570,7 +691,8 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.rec.Reconcile(reconcile.Request{})
+			r := NewReconciler(tc.args.mgr, tc.args.ic, tc.args.cl, tc.args.ns, tc.args.rec...)
+			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
