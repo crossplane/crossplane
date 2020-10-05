@@ -70,12 +70,19 @@ For Windows use the following:
 <div class="tab-pane fade in active" id="install-tab-helm3" markdown="1">
 Use Helm 3 to install the latest official `alpha` release of Crossplane, suitable for community use and testing:
 
+> OAM is available only for 1.16 and later versions of Kubernetes.
+
 ```
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 
+# Kubernetes 1.16 and later versions
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --set alpha.oam.enabled=true
+```
+```
+# Kubernetes 1.15 and earlier versions
+helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
 ```
 
 </div>
@@ -88,7 +95,12 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
 helm search repo crossplane-master --devel
 
+# Kubernetes 1.16 and later versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version> --set alpha.oam.enabled=true
+```
+```
+# Kubernetes 1.15 and earlier versions
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version>
 ```
 
 For example:
