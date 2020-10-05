@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	"github.com/docker/docker/client"
-	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -115,9 +114,11 @@ func (p *InstallCmd) Run() error {
 	if p.ManualActivation {
 		rap = v1alpha1.ManualActivation
 	}
-	name := petname.Generate(2, "-")
-	if p.Name != "" {
-		name = p.Name
+	name := p.Name
+	if name == "" {
+		// NOTE(muvaf): "crossplane/provider-gcp:master" -> "provider-gcp"
+		woTag := strings.Split(strings.Split(p.Package, ":")[0], "/")
+		name = woTag[len(woTag)-1]
 	}
 	cr := &v1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
