@@ -26,13 +26,29 @@ import (
 var cli struct {
 	Configuration configuration.Cmd `cmd:"" help:"Interact with Configurations."`
 	Provider      provider.Cmd      `cmd:"" help:"Interact with Providers."`
+	Build         buildCmd          `cmd:"" help:"Build Crossplane packages."`
 	Install       installCmd        `cmd:"" help:"Install Crossplane packages."`
 }
 
+// childArg is used to pass child arguments to parent commands.
+type childArg struct {
+	strVal string
+}
+
+// strChild is a string value child argument.
+type strChild string
+
+func (c strChild) AfterApply(arg *childArg) error { // nolint:unparam
+	arg.strVal = string(c)
+	return nil
+}
+
 func main() {
+	child := &childArg{}
 	ctx := kong.Parse(&cli,
 		kong.Name("crank"),
 		kong.Description("A tool for building platforms on Crossplane."),
+		kong.Bind(child),
 		kong.UsageOnError())
 	err := ctx.Run()
 	ctx.FatalIfErrorf(err)

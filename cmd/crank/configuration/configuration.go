@@ -27,45 +27,13 @@ import (
 
 // Cmd is the root command for Configurations.
 type Cmd struct {
-	Build BuildCmd    `cmd:"" help:"Build a Configuration."`
-	Lint  LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
-	Push  pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
+	Lint LintCmd     `cmd:"" help:"Lint the contents of a Configuration Package."`
+	Push pkg.PushCmd `cmd:"" help:"Push a Configuration Package."`
 }
 
 // Run runs the Configuration command.
 func (r *Cmd) Run() error {
 	return nil
-}
-
-// BuildCmd builds a Configuration.
-type BuildCmd struct {
-	pkg.BuildCmd
-}
-
-// Run runs the configuration build cmd.
-func (pbc *BuildCmd) Run() error {
-	ctx := context.Background()
-	docker, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return err
-	}
-	err = pbc.BuildCmd.Build(ctx, docker)
-	if err != nil {
-		return err
-	}
-
-	if pbc.NoLint {
-		return nil
-	}
-	lc := LintCmd{
-		pkg.LintCmd{
-			Image:  pbc.FullImageName(),
-			NoPull: pbc.NoPull,
-		},
-		ctx,
-		docker,
-	}
-	return lc.Run()
 }
 
 // LintCmd lints the contents of a Configuration Package.
