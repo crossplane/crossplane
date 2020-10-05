@@ -18,26 +18,18 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/docker/docker/client"
-	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/cmd/crank/pkg"
-	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/controller/pkg/revision"
 )
 
 // Cmd is the root command for Providers.
 type Cmd struct {
-	Build   BuildCmd    `cmd:"" help:"Build a Provider Package."`
-	Lint    LintCmd     `cmd:"" help:"Lint the contents of a Provider Package."`
-	Push    pkg.PushCmd `cmd:"" help:"Push a Provider Package."`
-	Install InstallCmd  `cmd:"" help:"Install a Provider."`
+	Build BuildCmd    `cmd:"" help:"Build a Provider Package."`
+	Lint  LintCmd     `cmd:"" help:"Lint the contents of a Provider Package."`
+	Push  pkg.PushCmd `cmd:"" help:"Push a Provider Package."`
 }
 
 // Run runs the Provider command.
@@ -96,48 +88,4 @@ func (pc *LintCmd) Run() error {
 		revision.ObjectLinterFns(revision.Or(revision.IsCRD, revision.IsComposition)))
 
 	return pc.LintCmd.Lint(ctx, docker, linter)
-}
-
-// InstallCmd creates a Provider in the cluster.
-type InstallCmd struct {
-	Package string `arg:"" name:"package" help:"Image containing Provider package."`
-
-	Name                 string `optional:"" name:"name" help:"Name of Provider."`
-	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
-	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
-}
-
-// Run the InstallCmd.
-func (p *InstallCmd) Run() error {
-	ctx := context.TODO()
-	rap := v1alpha1.AutomaticActivation
-	if p.ManualActivation {
-		rap = v1alpha1.ManualActivation
-	}
-	name := p.Name
-	if name == "" {
-		// NOTE(muvaf): "crossplane/provider-gcp:master" -> "provider-gcp"
-		woTag := strings.Split(strings.Split(p.Package, ":")[0], "/")
-		name = woTag[len(woTag)-1]
-	}
-	cr := &v1alpha1.Provider{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Spec: v1alpha1.ProviderSpec{
-			PackageSpec: v1alpha1.PackageSpec{
-				Package:                  p.Package,
-				RevisionActivationPolicy: &rap,
-				RevisionHistoryLimit:     &p.RevisionHistoryLimit,
-			},
-		},
-	}
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
-	res, err := kube.Providers().Create(ctx, cr, metav1.CreateOptions{})
-	if err != nil {
-		return errors.Wrap(err, "cannot create provider")
-	}
-	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ProviderGroupKind), res.GetName())
-	// TODO(muvaf): Show nice icons and block until installation completes?
-	return nil
 }

@@ -26,6 +26,7 @@ import (
 var cli struct {
 	Configuration configuration.Cmd `cmd:"" help:"Interact with Configurations."`
 	Provider      provider.Cmd      `cmd:"" help:"Interact with Providers."`
+	Install       installCmd        `cmd:"" help:"Install Crossplane packages."`
 }
 
 func main() {
