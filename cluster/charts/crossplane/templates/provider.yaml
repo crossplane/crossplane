@@ -1,0 +1,9 @@
+{{ if ne .Values.provider.package "" }}
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: {{ .Values.provider.package | trim | replace "/" "-" | replace ":" "-" | quote }}
+spec:
+  package: {{ .Values.provider.package | trim | quote }}
+{{ end }}
+
