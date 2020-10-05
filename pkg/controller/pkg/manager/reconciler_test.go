@@ -36,28 +36,19 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
-var _ PodManager = &MockPodManager{}
+var _ Digester = &MockDigester{}
 
-type MockPodManager struct {
-	MockSync           func() (string, error)
-	MockGarbageCollect func() error
+type MockDigester struct {
+	MockFetch func() (string, error)
 }
 
-func NewMockSyncFn(hash string, err error) func() (string, error) {
+func NewMockFetchFn(hash string, err error) func() (string, error) {
 	return func() (string, error) {
 		return hash, err
 	}
 }
-
-func NewMockGarbageCollectFn(err error) func() error {
-	return func() error { return err }
-}
-
-func (m *MockPodManager) Sync(context.Context, v1alpha1.Package) (string, error) {
-	return m.MockSync()
-}
-func (m *MockPodManager) GarbageCollect(context.Context, string, v1alpha1.Package) error {
-	return m.MockGarbageCollect()
+func (m *MockDigester) Fetch(context.Context, v1alpha1.Package) (string, error) {
+	return m.MockFetch()
 }
 
 func TestReconcile(t *testing.T) {
@@ -164,8 +155,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync: NewMockSyncFn("1234567", nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -210,8 +201,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync: NewMockSyncFn("1234567", nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -268,8 +259,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync: NewMockSyncFn("1234567", nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -330,15 +321,14 @@ func TestReconcile(t *testing.T) {
 							want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1alpha1.PackageRevisionActive)
 							want.SetConditions(v1alpha1.Healthy())
-							want.SetRevision(1)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync: NewMockSyncFn("1234567", nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -397,8 +387,8 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync: NewMockSyncFn("1234567", nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -457,8 +447,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync: NewMockSyncFn("1234567", nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -546,9 +536,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync:           NewMockSyncFn("1234567", nil),
-						MockGarbageCollect: NewMockGarbageCollectFn(nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -627,9 +616,8 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					},
-					podManager: &MockPodManager{
-						MockSync:           NewMockSyncFn("1234567", nil),
-						MockGarbageCollect: NewMockGarbageCollectFn(nil),
+					digest: &MockDigester{
+						MockFetch: NewMockFetchFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
