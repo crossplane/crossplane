@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
-// BuildCmd builds a package.
+// buildCmd builds a package.
 type buildCmd struct {
 	Configuration buildConfigCmd   `cmd:"" help:"Build a Configuration package."`
 	Provider      buildProviderCmd `cmd:"" help:"Build a Provider package."`

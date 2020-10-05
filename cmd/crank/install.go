@@ -42,9 +42,9 @@ func (c *installCmd) Run() error {
 
 // installConfigCmd installs a Configuration.
 type installConfigCmd struct {
-	Package string `help:"Image containing Configuration package."`
+	Package string `arg:"" help:"Image containing Configuration package."`
 
-	Name                 string `optional:"" help:"Name of Configuration."`
+	Name                 string `arg:"" optional:"" help:"Name of Configuration."`
 	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
 	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
 }
@@ -84,9 +84,9 @@ func (c *installConfigCmd) Run() error {
 
 // installProviderCmd install a Provider.
 type installProviderCmd struct {
-	Package string `help:"Image containing Provider package."`
+	Package string `arg:"" help:"Image containing Provider package."`
 
-	Name                 string `optional:"" help:"Name of Provider."`
+	Name                 string `arg:"" optional:"" help:"Name of Provider."`
 	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
 	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
 }
