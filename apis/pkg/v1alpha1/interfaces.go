@@ -37,6 +37,15 @@ const (
 	ManualActivation RevisionActivationPolicy = "Manual"
 )
 
+// RefNames converts a slice of LocalObjectReferences to a slice of strings.
+func RefNames(refs []corev1.LocalObjectReference) []string {
+	stringRefs := make([]string, len(refs))
+	for i, ref := range refs {
+		stringRefs[i] = ref.Name
+	}
+	return stringRefs
+}
+
 var _ Package = &Provider{}
 var _ Package = &Configuration{}
 
@@ -244,9 +253,6 @@ type PackageRevision interface {
 	GetDesiredState() PackageRevisionDesiredState
 	SetDesiredState(d PackageRevisionDesiredState)
 
-	SetInstallPod(j runtimev1alpha1.Reference)
-	GetInstallPod() runtimev1alpha1.Reference
-
 	GetRevision() int64
 	SetRevision(r int64)
 }
@@ -319,16 +325,6 @@ func (p *ProviderRevision) GetDesiredState() PackageRevisionDesiredState {
 // SetDesiredState of this ProviderRevision.
 func (p *ProviderRevision) SetDesiredState(s PackageRevisionDesiredState) {
 	p.Spec.DesiredState = s
-}
-
-// GetInstallPod of this ProviderRevision.
-func (p *ProviderRevision) GetInstallPod() runtimev1alpha1.Reference {
-	return p.Spec.InstallPodRef
-}
-
-// SetInstallPod of this ProviderRevision.
-func (p *ProviderRevision) SetInstallPod(j runtimev1alpha1.Reference) {
-	p.Spec.InstallPodRef = j
 }
 
 // GetRevision of this ProviderRevision.
@@ -409,16 +405,6 @@ func (p *ConfigurationRevision) GetDesiredState() PackageRevisionDesiredState {
 // SetDesiredState of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetDesiredState(s PackageRevisionDesiredState) {
 	p.Spec.DesiredState = s
-}
-
-// GetInstallPod of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetInstallPod() runtimev1alpha1.Reference {
-	return p.Spec.InstallPodRef
-}
-
-// SetInstallPod of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetInstallPod(j runtimev1alpha1.Reference) {
-	p.Spec.InstallPodRef = j
 }
 
 // GetRevision of this ConfigurationRevision.

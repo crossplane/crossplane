@@ -56,15 +56,6 @@ spec:
             image:
               description: Package image used by install Pod to extract package contents.
               type: string
-            installPodRef:
-              description: Reference to install Pod. PackageRevision reads logs of this Pod to create resources owned by the PackageRevision.
-              properties:
-                name:
-                  description: Name of the referenced object.
-                  type: string
-              required:
-              - name
-              type: object
             packagePullPolicy:
               description: PackagePullPolicy defines the pull policy for the package. It is also applied to any images pulled for the package, such as a provider's controller image. Default is IfNotPresent.
               type: string
@@ -85,7 +76,6 @@ spec:
           required:
           - desiredState
           - image
-          - installPodRef
           - revision
           type: object
         status:

@@ -35,10 +35,6 @@ const (
 
 // PackageRevisionSpec specifies the desired state of a PackageRevision.
 type PackageRevisionSpec struct {
-	// Reference to install Pod. PackageRevision reads logs of this Pod to
-	// create resources owned by the PackageRevision.
-	InstallPodRef runtimev1alpha1.Reference `json:"installPodRef"`
-
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
 
