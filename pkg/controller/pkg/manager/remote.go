@@ -27,12 +27,12 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
-// Digester acquires a digest for a package.
+// Digester acquires an image's digest for a package.
 type Digester interface {
 	Fetch(context.Context, v1alpha1.Package) (string, error)
 }
 
-// Remote gets image digest from a remote registry.
+// Remote gets an image's digest from a remote registry.
 type Remote struct {
 	namespace string
 	client    kubernetes.Interface
@@ -46,7 +46,7 @@ func NewRemote(client kubernetes.Interface, namespace string) *Remote {
 	}
 }
 
-// Fetch acquires image digest from a registry.
+// Fetch acquires an image's digest from a registry.
 func (d *Remote) Fetch(ctx context.Context, p v1alpha1.Package) (string, error) {
 	ref, err := name.ParseReference(p.GetSource())
 	if err != nil {
@@ -70,7 +70,7 @@ func (d *Remote) Fetch(ctx context.Context, p v1alpha1.Package) (string, error) 
 	return h.Hex, nil
 }
 
-// NopDigester returns an empty digest.
+// NopDigester returns an empty image digest.
 type NopDigester struct{}
 
 // NewNopDigester creates a NopDigester.
@@ -78,7 +78,7 @@ func NewNopDigester() *NopDigester {
 	return &NopDigester{}
 }
 
-// Fetch returns an empty digest and no error.
+// Fetch returns an empty image digest and no error.
 func (d *NopDigester) Fetch(context.Context, v1alpha1.Package) (string, error) {
 	return "", nil
 }

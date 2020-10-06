@@ -40,10 +40,7 @@ const (
 	XpkgExtension string = ".xpkg"
 
 	// XpkgMatchPattern is the match pattern for identifying compiled Crossplane packages.
-	XpkgMatchPattern string = "*.xpkg"
-
-	// DefaultRegistry is the default registry for a Crossplane package.
-	DefaultRegistry string = "registry.upbound.io"
+	XpkgMatchPattern string = "*" + XpkgExtension
 )
 
 func truncate(str string, num int) string {

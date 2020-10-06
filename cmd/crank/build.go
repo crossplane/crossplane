@@ -41,7 +41,7 @@ type buildCmd struct {
 	Configuration buildConfigCmd   `cmd:"" help:"Build a Configuration package."`
 	Provider      buildProviderCmd `cmd:"" help:"Build a Provider package."`
 
-	PackageRoot string   `short:"f" help:"Path to crossplane.yaml" default:"."`
+	PackageRoot string   `short:"f" help:"Path to package directory." default:"."`
 	Ignore      []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
 }
 
@@ -114,11 +114,6 @@ type buildConfigCmd struct {
 	Name string `optional:"" help:"Name of the package to be built. Uses name in crossplane.yaml if not specified. Does not correspond to package tag."`
 }
 
-// Run runs the Configuration build cmd.
-func (c *buildConfigCmd) Run() error {
-	return nil
-}
-
 // AfterApply sets the name and linter for the parent build command.
 func (c buildConfigCmd) AfterApply(b *buildChild) error { // nolint:unparam
 	b.name = c.Name
@@ -129,11 +124,6 @@ func (c buildConfigCmd) AfterApply(b *buildChild) error { // nolint:unparam
 // buildProviderCmd builds a Provider.
 type buildProviderCmd struct {
 	Name string `optional:"" help:"Name of the package to be built. Uses name in crossplane.yaml if not specified. Does not correspond to package tag."`
-}
-
-// Run runs the Provider build cmd.
-func (c *buildProviderCmd) Run() error {
-	return nil
 }
 
 // AfterApply sets the name and linter for the parent build command.

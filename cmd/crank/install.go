@@ -79,7 +79,7 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create configuration")
 	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
 	return err
 }
 
@@ -121,6 +121,6 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create provider")
 	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
 	return err
 }

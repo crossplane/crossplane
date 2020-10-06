@@ -93,7 +93,7 @@ func WithNewPackageRevisionListFn(f func() v1alpha1.PackageRevisionList) Reconci
 	}
 }
 
-// WithDigester specifies how the Reconciler should acquire image digest.
+// WithDigester specifies how the Reconciler should acquire an image's digest.
 func WithDigester(d Digester) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.digest = d

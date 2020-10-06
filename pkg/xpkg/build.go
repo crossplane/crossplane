@@ -59,8 +59,7 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 	if err := l.Lint(pkg); err != nil {
 		return nil, errors.Wrap(err, errLintPackage)
 	}
-	_, err = io.Copy(buf, r)
-	if err != nil {
+	if _, err = io.Copy(buf, r); err != nil {
 		return nil, errors.Wrap(err, errCopyStream)
 	}
 
@@ -76,8 +75,7 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 	if err := tw.WriteHeader(hdr); err != nil {
 		return nil, errors.Wrap(err, errTarFromStream)
 	}
-	_, err = io.Copy(tw, buf)
-	if err != nil {
+	if _, err = io.Copy(tw, buf); err != nil {
 		return nil, errors.Wrap(err, errTarFromStream)
 	}
 	if err := tw.Close(); err != nil {

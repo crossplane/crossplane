@@ -96,7 +96,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	return f, nil
 }
 
-// Fetcher is a tiny interface to allow for easier testing of the image backend.
+// Fetcher fetches package images.
 type Fetcher interface {
 	Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error)
 }

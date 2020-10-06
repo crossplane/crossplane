@@ -41,10 +41,8 @@ func FindXpkgInDir(fs afero.Fs, root string) (string, error) {
 	}
 	path := ""
 	for _, file := range files {
-		match, err := filepath.Match(XpkgMatchPattern, file.Name())
-		if err != nil {
-			return "", err
-		}
+		// Match only returns an error if XpkgMatchPattern is malformed.
+		match, _ := filepath.Match(XpkgMatchPattern, file.Name()) //nolint:errcheck
 		if !match {
 			continue
 		}

@@ -79,11 +79,6 @@ type pushConfigCmd struct {
 	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
 }
 
-// Run runs the Configuration push cmd.
-func (c *pushConfigCmd) Run() error {
-	return nil
-}
-
 // AfterApply sets the tag for the parent push command.
 func (c pushConfigCmd) AfterApply(p *pushChild) error { // nolint:unparam
 	p.tag = c.Tag
@@ -93,11 +88,6 @@ func (c pushConfigCmd) AfterApply(p *pushChild) error { // nolint:unparam
 // pushProviderCmd pushes a Provider.
 type pushProviderCmd struct {
 	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
-}
-
-// Run runs the Provider push cmd.
-func (c *pushProviderCmd) Run() error {
-	return nil
 }
 
 // AfterApply sets the tag for the parent push command.
