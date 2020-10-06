@@ -15,7 +15,7 @@ require (
 	github.com/google/go-containerregistry v0.1.3
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0 // indirect
-	github.com/spf13/afero v1.4.0
+	github.com/spf13/afero v1.4.1
 	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
 	golang.org/x/sys v0.0.0-20200831180312-196b9ba8737a // indirect
