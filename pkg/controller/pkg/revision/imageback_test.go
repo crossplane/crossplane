@@ -99,20 +99,19 @@ func TestImageBackend(t *testing.T) {
 			},
 			want: errors.Wrap(&os.PathError{Op: "open", Path: xpkg.StreamFile, Err: syscall.ENOENT}, errOpenPackageStream),
 		},
-		// TODO(hasheddan): re-enable after https://github.com/spf13/afero/pull/268 is merged.
-		// "ErrEmptyImage": {
-		// 	reason: "Should return error if image is empty.",
-		// 	args: args{
-		// 		c: xpkg.NewNopCache(),
-		// 		f: &MockFetcher{
-		// 			MockFetch: func() (v1.Image, error) {
-		// 				return empty.Image, nil
-		// 			},
-		// 		},
-		// 		opts: []parser.BackendOption{Package("test/test:latest")},
-		// 	},
-		// 	want: errors.Wrap(&os.PathError{Op: "open", Path: "package.yaml", Err: syscall.ENOENT}, errOpenPackageStream),
-		// },
+		"ErrEmptyImage": {
+			reason: "Should return error if image is empty.",
+			args: args{
+				c: xpkg.NewNopCache(),
+				f: &MockFetcher{
+					MockFetch: func() (v1.Image, error) {
+						return empty.Image, nil
+					},
+				},
+				opts: []parser.BackendOption{Package("test/test:latest")},
+			},
+			want: errors.Wrap(&os.PathError{Op: "open", Path: "package.yaml", Err: syscall.ENOENT}, errOpenPackageStream),
+		},
 		"ErrFetchPackage": {
 			reason: "Should return error if package is not in cache and we fail to fetch it.",
 			args: args{
