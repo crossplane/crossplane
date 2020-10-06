@@ -96,7 +96,7 @@ func WithNewPackageRevisionListFn(f func() v1alpha1.PackageRevisionList) Reconci
 // WithDigester specifies how the Reconciler should acquire an image's digest.
 func WithDigester(d Digester) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.digest = d
+		r.digester = d
 	}
 }
 
@@ -116,10 +116,10 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	digest Digester
-	log    logging.Logger
-	record event.Recorder
+	client   resource.ClientApplicator
+	digester Digester
+	log      logging.Logger
+	record   event.Recorder
 
 	newPackage             func() v1alpha1.Package
 	newPackageRevision     func() v1alpha1.PackageRevision
@@ -142,7 +142,7 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithDigester(NewRemote(clientset, namespace)),
+		WithDigester(NewPackageDigester(xpkg.NewK8sFetcher(clientset, namespace))),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -170,7 +170,7 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string) er
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithDigester(NewRemote(clientset, namespace)),
+		WithDigester(NewPackageDigester(xpkg.NewK8sFetcher(clientset, namespace))),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -189,9 +189,9 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		digest: NewNopDigester(),
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		digester: NewNopDigester(),
+		log:      logging.NewNopLogger(),
+		record:   event.NewNopRecorder(),
 	}
 
 	for _, f := range opts {
@@ -233,7 +233,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	p.SetConditions(v1alpha1.Unpacking())
 
-	hash, err := r.digest.Fetch(ctx, p)
+	hash, err := r.digester.Digest(ctx, p)
 	if err != nil {
 		log.Debug(errUnpack, "error", err)
 		r.record.Event(p, event.Warning(reasonUnpack, errors.Wrap(err, errUnpack)))
