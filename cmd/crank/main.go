@@ -18,6 +18,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	"github.com/spf13/afero"
 )
 
 var _ = kong.Must(&cli)
@@ -28,25 +29,19 @@ var cli struct {
 	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 }
 
-// childArg is used to pass child arguments to parent commands.
-type childArg struct {
-	strVal string
-}
-
-// strChild is a string value child argument.
-type strChild string
-
-func (c strChild) AfterApply(arg *childArg) error { // nolint:unparam
-	arg.strVal = string(c)
-	return nil
-}
-
 func main() {
-	child := &childArg{}
+	buildChild := &buildChild{
+		fs: afero.NewOsFs(),
+	}
+	pushChild := &pushChild{
+		fs: afero.NewOsFs(),
+	}
 	ctx := kong.Parse(&cli,
 		kong.Name("kubectl crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
-		kong.Bind(child),
+		// Binding a variable to kong context makes it available to all commands
+		// at runtime.
+		kong.Bind(buildChild, pushChild),
 		kong.UsageOnError())
 	err := ctx.Run()
 	ctx.FatalIfErrorf(err)
