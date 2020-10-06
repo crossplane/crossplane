@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,7 +37,7 @@ type installCmd struct {
 }
 
 // Run runs the install cmd.
-func (c *installCmd) Run() error {
+func (c *installCmd) Run(b *buildChild) error {
 	return nil
 }
 
@@ -50,7 +51,7 @@ type installConfigCmd struct {
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run() error {
+func (c *installConfigCmd) Run(k *kong.Context) error {
 	rap := v1alpha1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1alpha1.ManualActivation
@@ -78,8 +79,8 @@ func (c *installConfigCmd) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create configuration")
 	}
-	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
-	return nil
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
+	return err
 }
 
 // installProviderCmd install a Provider.
@@ -92,7 +93,7 @@ type installProviderCmd struct {
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run() error {
+func (c *installProviderCmd) Run(k *kong.Context) error {
 	rap := v1alpha1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1alpha1.ManualActivation
@@ -120,7 +121,6 @@ func (c *installProviderCmd) Run() error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create provider")
 	}
-	fmt.Printf("%s/%s is created\n", strings.ToLower(v1alpha1.ProviderGroupKind), res.GetName())
-	// TODO(muvaf): Show nice icons and block until installation completes?
-	return nil
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s is created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
+	return err
 }
