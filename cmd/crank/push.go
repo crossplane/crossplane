@@ -23,9 +23,15 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
 	"github.com/crossplane/crossplane/pkg/xpkg"
+)
+
+const (
+	errGetwd           = "failed to get working directory while searching for package"
+	errFindPackageinWd = "failed to find a package current working directory"
 )
 
 // pushCmd pushes a package.
@@ -37,8 +43,8 @@ type pushCmd struct {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(child *childArg) error {
-	tag, err := name.NewTag(child.strVal)
+func (c *pushCmd) Run(child *pushChild) error {
+	tag, err := name.NewTag(child.tag)
 	if err != nil {
 		return err
 	}
@@ -48,11 +54,11 @@ func (c *pushCmd) Run(child *childArg) error {
 	if c.Package == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			return err
+			return errors.Wrap(err, errGetwd)
 		}
-		path, err := xpkg.FindXpkgInDir(afero.NewOsFs(), wd)
+		path, err := xpkg.FindXpkgInDir(child.fs, wd)
 		if err != nil {
-			return err
+			return errors.Wrap(err, errFindPackageinWd)
 		}
 		c.Package = path
 	}
@@ -63,9 +69,14 @@ func (c *pushCmd) Run(child *childArg) error {
 	return remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 }
 
+type pushChild struct {
+	tag string
+	fs  afero.Fs
+}
+
 // pushConfigCmd pushes a Configuration.
 type pushConfigCmd struct {
-	Tag strChild `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
+	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
 }
 
 // Run runs the Configuration push cmd.
@@ -73,12 +84,24 @@ func (c *pushConfigCmd) Run() error {
 	return nil
 }
 
+// AfterApply sets the tag for the parent push command.
+func (c pushConfigCmd) AfterApply(p *pushChild) error { // nolint:unparam
+	p.tag = c.Tag
+	return nil
+}
+
 // pushProviderCmd pushes a Provider.
 type pushProviderCmd struct {
-	Tag strChild `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
+	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
 }
 
 // Run runs the Provider push cmd.
 func (c *pushProviderCmd) Run() error {
+	return nil
+}
+
+// AfterApply sets the tag for the parent push command.
+func (c pushProviderCmd) AfterApply(p *pushChild) error { // nolint:unparam
+	p.tag = c.Tag
 	return nil
 }
