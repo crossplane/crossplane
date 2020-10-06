@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,6 +39,7 @@ import (
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/xpkg"
+	xpkgfake "github.com/crossplane/crossplane/pkg/xpkg/fake"
 )
 
 var _ parser.Backend = &ErrBackend{}
@@ -91,38 +91,6 @@ func (h *MockHook) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision
 
 func (h *MockHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return h.MockPost()
-}
-
-var _ xpkg.Cache = &MockCache{}
-
-type MockCache struct {
-	MockGet    func() (v1.Image, error)
-	MockStore  func() error
-	MockDelete func() error
-}
-
-func NewMockCacheGetFn(img v1.Image, err error) func() (v1.Image, error) {
-	return func() (v1.Image, error) { return img, err }
-}
-
-func NewMockCacheStoreFn(err error) func() error {
-	return func() error { return err }
-}
-
-func NewMockCacheDeleteFn(err error) func() error {
-	return func() error { return err }
-}
-
-func (c *MockCache) Get(source, id string) (v1.Image, error) {
-	return c.MockGet()
-}
-
-func (c *MockCache) Store(source, id string, img v1.Image) error {
-	return c.MockStore()
-}
-
-func (c *MockCache) Delete(id string) error {
-	return c.MockDelete()
 }
 
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
@@ -191,8 +159,8 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
-					WithCache(&MockCache{
-						MockDelete: NewMockCacheDeleteFn(errBoom),
+					WithCache(&xpkgfake.MockCache{
+						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
 					}),
 					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{

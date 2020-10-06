@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -39,15 +38,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/pkg/xpkg"
+	"github.com/crossplane/crossplane/pkg/xpkg/fake"
 )
-
-type MockFetcher struct {
-	MockFetch func() (v1.Image, error)
-}
-
-func (m *MockFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
-	return m.MockFetch()
-}
 
 func TestImageBackend(t *testing.T) {
 	errBoom := errors.New("boom")
@@ -70,7 +62,7 @@ func TestImageBackend(t *testing.T) {
 
 	type args struct {
 		c    xpkg.Cache
-		f    Fetcher
+		f    xpkg.Fetcher
 		opts []parser.BackendOption
 	}
 
@@ -90,10 +82,8 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should return error if image with contents does not have package.yaml.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return randImg, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(randImg, nil),
 				},
 				opts: []parser.BackendOption{Package("test/test:latest")},
 			},
@@ -103,10 +93,8 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should return error if image is empty.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return empty.Image, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(empty.Image, nil),
 				},
 				opts: []parser.BackendOption{Package("test/test:latest")},
 			},
@@ -116,10 +104,8 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should return error if package is not in cache and we fail to fetch it.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return nil, errBoom
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(nil, errBoom),
 				},
 				opts: []parser.BackendOption{Package("test/test:latest")},
 			},
@@ -128,14 +114,12 @@ func TestImageBackend(t *testing.T) {
 		"ErrStorePackage": {
 			reason: "Should return error if package is not in cache, we fetch successfully, but we fail to store it in cache.",
 			args: args{
-				c: &MockCache{
-					MockGet:   NewMockCacheGetFn(nil, errBoom),
-					MockStore: NewMockCacheStoreFn(errBoom),
+				c: &fake.MockCache{
+					MockGet:   fake.NewMockCacheGetFn(nil, errBoom),
+					MockStore: fake.NewMockCacheStoreFn(errBoom),
 				},
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return packImg, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(packImg, nil),
 				},
 				opts: []parser.BackendOption{Package("test/test:latest")},
 			},
@@ -145,10 +129,8 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should not return error is package is not in cache but is fetched successfully.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return packImg, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(packImg, nil),
 				},
 				opts: []parser.BackendOption{Package("test/test:latest")},
 			},
@@ -156,8 +138,8 @@ func TestImageBackend(t *testing.T) {
 		"SuccessCachedPackage": {
 			reason: "Should not return error is package is in cached and is gotten successfully.",
 			args: args{
-				c: &MockCache{
-					MockGet: NewMockCacheGetFn(packImg, nil),
+				c: &fake.MockCache{
+					MockGet: fake.NewMockCacheGetFn(packImg, nil),
 				},
 				opts: []parser.BackendOption{Package("test/test:latest")},
 			},

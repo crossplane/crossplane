@@ -21,15 +21,12 @@ import (
 	"context"
 	"io"
 
-	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero/tarfs"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
@@ -49,12 +46,12 @@ type ImageBackend struct {
 	pkg     string
 	id      string
 	cache   xpkg.Cache
-	fetcher Fetcher
+	fetcher xpkg.Fetcher
 	secrets []string
 }
 
 // NewImageBackend creates a new image backend.
-func NewImageBackend(cache xpkg.Cache, fetcher Fetcher) *ImageBackend {
+func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher) *ImageBackend {
 	return &ImageBackend{
 		cache:   cache,
 		fetcher: fetcher,
@@ -94,37 +91,6 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		return nil, errors.Wrap(err, errOpenPackageStream)
 	}
 	return f, nil
-}
-
-// Fetcher fetches package images.
-type Fetcher interface {
-	Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error)
-}
-
-// K8sFetcher uses kubernetes credentials to fetch package images.
-type K8sFetcher struct {
-	client    kubernetes.Interface
-	namespace string
-}
-
-// NewK8sFetcher creates a new K8sFetcher.
-func NewK8sFetcher(client kubernetes.Interface, namespace string) *K8sFetcher {
-	return &K8sFetcher{
-		client:    client,
-		namespace: namespace,
-	}
-}
-
-// Fetch fetches a package image.
-func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
-	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
-		Namespace:        i.namespace,
-		ImagePullSecrets: secrets,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return remote.Image(ref, remote.WithAuthFromKeychain(auth))
 }
 
 // Package sets the name of the package image for ImageBackend.
