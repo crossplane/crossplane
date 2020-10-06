@@ -1,0 +1,257 @@
+/*
+Copyright 2020 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package xpkg
+
+import (
+	"bytes"
+	"context"
+	"io/ioutil"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
+	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
+
+	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+)
+
+var (
+	crdBytes = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: test`)
+
+	provBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: test`)
+
+	confBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: test`)
+
+	xrdBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1alpha1
+kind: CompositeResourceDefinition
+metadata:
+  name: test`)
+
+	compBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1alpha1
+kind: Composition
+metadata:
+  name: test`)
+
+	crd      = &apiextensions.CustomResourceDefinition{}
+	_        = yaml.Unmarshal(crdBytes, crd)
+	provMeta = &pkgmeta.Provider{}
+	_        = yaml.Unmarshal(provBytes, provMeta)
+	confMeta = &pkgmeta.Configuration{}
+	_        = yaml.Unmarshal(confBytes, confMeta)
+	xrd      = &apiextensionsv1alpha1.CompositeResourceDefinition{}
+	_        = yaml.Unmarshal(xrdBytes, xrd)
+	comp     = &apiextensionsv1alpha1.Composition{}
+	_        = yaml.Unmarshal(compBytes, comp)
+
+	meta, _ = BuildMetaScheme()
+	obj, _  = BuildObjectScheme()
+	p       = parser.New(meta, obj)
+)
+
+func TestOneMeta(t *testing.T) {
+	oneR := bytes.NewReader(bytes.Join([][]byte{crdBytes, provBytes}, []byte("\n---\n")))
+	oneMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(oneR))
+	noneR := bytes.NewReader(crdBytes)
+	noneMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(noneR))
+	multiR := bytes.NewReader(bytes.Join([][]byte{provBytes, provBytes}, []byte("\n---\n")))
+	multiMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(multiR))
+
+	cases := map[string]struct {
+		reason string
+		pkg    *parser.Package
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if only one meta object.",
+			pkg:    oneMeta,
+		},
+		"ErrNoMeta": {
+			reason: "Should return error if no meta objects.",
+			pkg:    noneMeta,
+			err:    errors.New(errNotExactlyOneMeta),
+		},
+		"ErrMultiMeta": {
+			reason: "Should return error if multiple meta objects.",
+			pkg:    multiMeta,
+			err:    errors.New(errNotExactlyOneMeta),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := OneMeta(tc.pkg)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nOneMeta(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsProvider(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if object is provider.",
+			obj:    provMeta,
+		},
+		"ErrNotProvider": {
+			reason: "Should return error if object is not provider.",
+			obj:    crd,
+			err:    errors.New(errNotMetaProvider),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsProvider(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsProvider(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsConfiguration(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if object is configuration.",
+			obj:    confMeta,
+		},
+		"ErrNotConfiguration": {
+			reason: "Should return error if object is not configuration.",
+			obj:    crd,
+			err:    errors.New(errNotMetaConfiguration),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsConfiguration(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsConfiguration(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsCRD(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if object is CRD.",
+			obj:    crd,
+		},
+		"ErrNotCRD": {
+			reason: "Should return error if object is not CRD.",
+			obj:    confMeta,
+			err:    errors.New(errNotCRD),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsCRD(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsCRD(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsXRD(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if object is XRD.",
+			obj:    xrd,
+		},
+		"ErrNotConfiguration": {
+			reason: "Should return error if object is not XRD.",
+			obj:    crd,
+			err:    errors.New(errNotXRD),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsXRD(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsXRD(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsComposition(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if object is composition.",
+			obj:    comp,
+		},
+		"ErrNotComposition": {
+			reason: "Should return error if object is not composition.",
+			obj:    crd,
+			err:    errors.New(errNotComposition),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsComposition(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsComposition(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}

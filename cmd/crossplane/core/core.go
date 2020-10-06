@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	crds "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,12 +30,14 @@ import (
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions"
 	"github.com/crossplane/crossplane/pkg/controller/pkg"
 	"github.com/crossplane/crossplane/pkg/controller/workload"
+	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
 // Command configuration for the core Crossplane controllers.
 type Command struct {
 	Name      string
 	Namespace string
+	CacheDir  string
 	Sync      time.Duration
 }
 
@@ -42,6 +45,7 @@ type Command struct {
 func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
+	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").ExistingDirVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	return c
 }
@@ -76,7 +80,9 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot setup API extension controllers")
 	}
 
-	if err := pkg.Setup(mgr, log, c.Namespace); err != nil {
+	pkgCache := xpkg.NewImageCache(c.CacheDir, afero.NewOsFs())
+
+	if err := pkg.Setup(mgr, log, pkgCache, c.Namespace); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 

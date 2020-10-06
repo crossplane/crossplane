@@ -18,20 +18,30 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
-
-	"github.com/crossplane/crossplane/cmd/crank/configuration"
-	"github.com/crossplane/crossplane/cmd/crank/provider"
+	"github.com/spf13/afero"
 )
 
+var _ = kong.Must(&cli)
+
 var cli struct {
-	Configuration configuration.Cmd `cmd:"" help:"Interact with Configurations."`
-	Provider      provider.Cmd      `cmd:"" help:"Interact with Providers."`
+	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
+	Install installCmd `cmd:"" help:"Install Crossplane packages."`
+	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 }
 
 func main() {
+	buildChild := &buildChild{
+		fs: afero.NewOsFs(),
+	}
+	pushChild := &pushChild{
+		fs: afero.NewOsFs(),
+	}
 	ctx := kong.Parse(&cli,
-		kong.Name("crank"),
-		kong.Description("A tool for building platforms on Crossplane."),
+		kong.Name("kubectl crossplane"),
+		kong.Description("A command line tool for interacting with Crossplane."),
+		// Binding a variable to kong context makes it available to all commands
+		// at runtime.
+		kong.Bind(buildChild, pushChild),
 		kong.UsageOnError())
 	err := ctx.Run()
 	ctx.FatalIfErrorf(err)

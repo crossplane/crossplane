@@ -24,17 +24,18 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
 const (
@@ -51,7 +52,6 @@ const (
 	errUnpack                = "cannot unpack package"
 	errCreatePackageRevision = "cannot create package revision"
 	errGCPackageRevision     = "cannot garbage collect old package revision"
-	errGCInstallPod          = "cannot garbage collect old package revision install pod"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
@@ -93,10 +93,10 @@ func WithNewPackageRevisionListFn(f func() v1alpha1.PackageRevisionList) Reconci
 	}
 }
 
-// WithPodManager specifies how the Reconciler should manage install pods.
-func WithPodManager(m PodManager) ReconcilerOption {
+// WithDigester specifies how the Reconciler should acquire an image's digest.
+func WithDigester(d Digester) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.podManager = m
+		r.digest = d
 	}
 }
 
@@ -116,10 +116,10 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client     resource.ClientApplicator
-	podManager PodManager
-	log        logging.Logger
-	record     event.Recorder
+	client resource.ClientApplicator
+	digest Digester
+	log    logging.Logger
+	record event.Recorder
 
 	newPackage             func() v1alpha1.Package
 	newPackageRevision     func() v1alpha1.PackageRevision
@@ -133,11 +133,16 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }
 	nrl := func() v1alpha1.PackageRevisionList { return &v1alpha1.ProviderRevisionList{} }
 
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize clientset")
+	}
+
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithPodManager(NewPackagePodManager(mgr.GetClient(), namespace)),
+		WithDigester(NewRemote(clientset, namespace)),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -156,11 +161,16 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string) er
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }
 	nrl := func() v1alpha1.PackageRevisionList { return &v1alpha1.ConfigurationRevisionList{} }
 
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize clientset")
+	}
+
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithPodManager(NewPackagePodManager(mgr.GetClient(), namespace)),
+		WithDigester(NewRemote(clientset, namespace)),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -179,9 +189,9 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		podManager: NewPackagePodManager(mgr.GetClient(), "crossplane-system"),
-		log:        logging.NewNopLogger(),
-		record:     event.NewNopRecorder(),
+		digest: NewNopDigester(),
+		log:    logging.NewNopLogger(),
+		record: event.NewNopRecorder(),
 	}
 
 	for _, f := range opts {
@@ -223,7 +233,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	p.SetConditions(v1alpha1.Unpacking())
 
-	hash, err := r.podManager.Sync(ctx, p)
+	hash, err := r.digest.Fetch(ctx, p)
 	if err != nil {
 		log.Debug(errUnpack, "error", err)
 		r.record.Event(p, event.Warning(reasonUnpack, errors.Wrap(err, errUnpack)))
@@ -235,8 +245,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: veryShortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	// Set the current revision to match the install job for image.
-	p.SetCurrentRevision(packNHash(p.GetName(), hash))
+	// Set the current revision name to friendly package ID.
+	p.SetCurrentRevision(xpkg.FriendlyID(p.GetName(), hash))
 
 	pr := r.newPackageRevision()
 	maxRevision := int64(0)
@@ -265,10 +275,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If current revision exists, is not active, and package has an
 			// automatic activation policy, we should set the revision to
 			// active.
-			p.SetConditions(v1alpha1.Active())
-			if p.GetActivationPolicy() == v1alpha1.AutomaticActivation {
+			if pr.GetDesiredState() == v1alpha1.PackageRevisionInactive && p.GetActivationPolicy() == v1alpha1.AutomaticActivation {
 				pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+				if err := r.client.Apply(ctx, pr); err != nil {
+					log.Debug(errUpdateActivePackageRevision, "error", err)
+					r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errUpdateActivePackageRevision)))
+					return reconcile.Result{RequeueAfter: shortWait}, nil
+				}
 			}
+			p.SetConditions(v1alpha1.Active())
 			// Finish iterating through all revisions to make sure all
 			// non-current revisions are inactive.
 			continue
@@ -300,26 +315,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			r.record.Event(p, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGCPackageRevision)))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 		}
-
-		// Clean up the oldest revision's Pod as well.
-		if err := r.podManager.GarbageCollect(ctx, gcRev.GetSource(), p); err != nil {
-			log.Debug(errGCInstallPod, "error", err)
-			r.record.Event(p, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGCInstallPod)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
-		}
 	}
 
 	// If the name of the package revision matches the current revision of the
 	// package, update and return.
 	if pr.GetName() == p.GetCurrentRevision() {
-		// Make sure install pod matches.
-		pr.SetInstallPod(runtimev1alpha1.Reference{Name: imageToPod(p.GetSource())})
-		if err := r.client.Apply(ctx, pr); err != nil {
-			log.Debug(errUpdateActivePackageRevision, "error", err)
-			r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errUpdateActivePackageRevision)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
-
 		// Update Package status to match that of revision.
 		if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionTrue {
 			p.SetConditions(v1alpha1.Healthy())
@@ -332,9 +332,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// Create the non-existent package revision.
-	pr.SetName(packNHash(p.GetName(), hash))
+	pr.SetName(xpkg.FriendlyID(p.GetName(), hash))
 	pr.SetLabels(map[string]string{parentLabel: p.GetName()})
-	pr.SetInstallPod(runtimev1alpha1.Reference{Name: imageToPod(p.GetSource())})
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())

@@ -22,21 +22,20 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
 const (
@@ -47,11 +46,18 @@ const (
 )
 
 const (
+	finalizer = "revision.pkg.crossplane.io"
+
 	errGetPackageRevision = "cannot get package revision"
 	errUpdateStatus       = "cannot update package revision status"
 
+	errDeleteCache = "cannot remove package image from cache"
+
+	errAddFinalizer    = "cannot add package revision finalizer"
+	errRemoveFinalizer = "cannot remove package revision finalizer"
+
 	errInitParserBackend = "cannot initialize parser backend"
-	errParseLogs         = "cannot parse pod logs"
+	errParsePackage      = "cannot parse package contents"
 	errNotOneMeta        = "cannot install package with multiple meta types"
 
 	errPreHook  = "cannot run pre establish hook for package"
@@ -69,6 +75,21 @@ const (
 
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
+
+// WithClientApplicator specifies how the Reconciler should interact with the
+// Kubernetes API.
+func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.client = ca
+	}
+}
+
+// WithCache specifies how the Reconcile should cache package contents.
+func WithCache(c xpkg.Cache) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.cache = c
+	}
+}
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
 func WithNewPackageRevisionFn(f func() v1alpha1.PackageRevision) ReconcilerOption {
@@ -88,6 +109,13 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
+	}
+}
+
+// WithFinalizer specifies how the Reconciler should finalize package revisions.
+func WithFinalizer(f resource.Finalizer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.revision = f
 	}
 }
 
@@ -121,52 +149,30 @@ func WithParserBackend(p parser.Backend) ReconcilerOption {
 }
 
 // WithLinter specifies how the Reconciler should parse a package.
-func WithLinter(l Linter) ReconcilerOption {
+func WithLinter(l parser.Linter) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.linter = l
 	}
 }
 
-// BuildMetaScheme builds the default scheme used for identifying metadata in a
-// Crossplane package.
-func BuildMetaScheme() (*runtime.Scheme, error) {
-	metaScheme := runtime.NewScheme()
-	if err := pkgmeta.SchemeBuilder.AddToScheme(metaScheme); err != nil {
-		return nil, err
-	}
-	return metaScheme, nil
-}
-
-// BuildObjectScheme builds the default scheme used for identifying objects in a
-// Crossplane package.
-func BuildObjectScheme() (*runtime.Scheme, error) {
-	objScheme := runtime.NewScheme()
-	if err := apiextensionsv1alpha1.AddToScheme(objScheme); err != nil {
-		return nil, err
-	}
-	if err := v1beta1.AddToScheme(objScheme); err != nil {
-		return nil, err
-	}
-	return objScheme, nil
-}
-
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client       client.Client
-	hook         Hooks
-	objects      Establisher
-	podLogClient kubernetes.Interface
-	parser       parser.Parser
-	linter       Linter
-	backend      parser.Backend
-	log          logging.Logger
-	record       event.Recorder
+	client   client.Client
+	cache    xpkg.Cache
+	revision resource.Finalizer
+	hook     Hooks
+	objects  Establisher
+	parser   parser.Parser
+	linter   parser.Linter
+	backend  parser.Backend
+	log      logging.Logger
+	record   event.Recorder
 
 	newPackageRevision func() v1alpha1.PackageRevision
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
-func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace string) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ProviderRevisionGroupKind)
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }
 
@@ -175,25 +181,25 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
 	}
 
-	metaScheme, err := BuildMetaScheme()
+	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
 		return errors.New("cannot build meta scheme for package parser")
 	}
-	objScheme, err := BuildObjectScheme()
+	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
 
 	r := NewReconciler(mgr,
-		clientset,
+		WithCache(cache),
 		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		}, namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(parser.NewPodLogBackend(parser.PodNamespace(namespace))),
-		WithLinter(NewPackageLinter([]PackageLinterFn{OneMeta}, []ObjectLinterFn{IsProvider}, []ObjectLinterFn{IsCRD})),
+		WithParserBackend(NewImageBackend(cache, NewK8sFetcher(clientset, namespace))),
+		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -205,7 +211,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, namespace string)
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
-func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace string) error {
 	name := "packages/" + strings.ToLower(v1alpha1.ConfigurationRevisionGroupKind)
 	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }
 
@@ -214,22 +220,22 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
 	}
 
-	metaScheme, err := BuildMetaScheme()
+	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
 		return errors.New("cannot build meta scheme for package parser")
 	}
-	objScheme, err := BuildObjectScheme()
+	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
 
 	r := NewReconciler(mgr,
-		clientset,
+		WithCache(cache),
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(parser.NewPodLogBackend(parser.PodNamespace(namespace))),
-		WithLinter(NewPackageLinter([]PackageLinterFn{OneMeta}, []ObjectLinterFn{IsConfiguration}, []ObjectLinterFn{Or(IsXRD, IsComposition)})),
+		WithParserBackend(NewImageBackend(cache, NewK8sFetcher(clientset, namespace))),
+		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -240,17 +246,19 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, namespace st
 		Complete(r)
 }
 
-// NewReconciler creates a new package reconciler.
-func NewReconciler(mgr ctrl.Manager, clientset kubernetes.Interface, opts ...ReconcilerOption) *Reconciler {
+// NewReconciler creates a new package revision reconciler.
+func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
+
 	r := &Reconciler{
-		client:       mgr.GetClient(),
-		hook:         NewNopHooks(),
-		objects:      NewAPIEstablisher(mgr.GetClient()),
-		podLogClient: clientset,
-		parser:       parser.New(nil, nil),
-		linter:       NewPackageLinter(nil, nil, nil),
-		log:          logging.NewNopLogger(),
-		record:       event.NewNopRecorder(),
+		client:   mgr.GetClient(),
+		cache:    xpkg.NewNopCache(),
+		revision: resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		hook:     NewNopHooks(),
+		objects:  NewAPIEstablisher(mgr.GetClient()),
+		parser:   parser.New(nil, nil),
+		linter:   parser.NewPackageLinter(nil, nil, nil),
+		log:      logging.NewNopLogger(),
+		record:   event.NewNopRecorder(),
 	}
 
 	for _, f := range opts {
@@ -276,6 +284,26 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackageRevision)
 	}
 
+	if meta.WasDeleted(pr) {
+		if err := r.cache.Delete(pr.GetName()); err != nil {
+			log.Debug(errDeleteCache, "error", err)
+			r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errDeleteCache)))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
+			log.Debug(errRemoveFinalizer, "error", err)
+			r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errRemoveFinalizer)))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
+		log.Debug(errAddFinalizer, "error", err)
+		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errAddFinalizer)))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
 	log = log.WithValues(
 		"uid", pr.GetUID(),
 		"version", pr.GetResourceVersion(),
@@ -283,7 +311,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	)
 
 	// Initialize parser backend to obtain package contents.
-	reader, err := r.backend.Init(ctx, parser.PodClient(r.podLogClient), parser.PodName(pr.GetInstallPod().Name))
+	reader, err := r.backend.Init(ctx, Identifier(pr.GetName()), Package(pr.GetSource()), Secrets(pr.GetPackagePullSecrets()))
 	if err != nil {
 		log.Debug(errInitParserBackend, "error", err)
 		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errInitParserBackend)))
@@ -296,8 +324,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// Parse package contents.
 	pkg, err := r.parser.Parse(ctx, reader)
 	if err != nil {
-		log.Debug(errParseLogs, "error", err)
-		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errParseLogs)))
+		log.Debug(errParsePackage, "error", err)
+		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errParsePackage)))
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package manager
+package xpkg
 
 import (
 	"testing"
@@ -22,7 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-func TestPackNHash(t *testing.T) {
+func TestFriendlyID(t *testing.T) {
 	type args struct {
 		pkg  string
 		hash string
@@ -69,10 +69,58 @@ func TestPackNHash(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			want := packNHash(tc.args.pkg, tc.args.hash)
+			want := FriendlyID(tc.args.pkg, tc.args.hash)
 
 			if diff := cmp.Diff(tc.want, want); diff != "" {
-				t.Errorf("\n%s\nPackNHash(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nFriendlyID(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestBuildPath(t *testing.T) {
+	type args struct {
+		path string
+		name string
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   string
+	}{
+		"NoExtension": {
+			reason: "We should append extension if it does not exist.",
+			args: args{
+				path: "path/to/somewhere",
+				name: "test",
+			},
+			want: "path/to/somewhere/test.xpkg",
+		},
+		"ReplaceExtensionName": {
+			reason: "We should replace an extension if one exists in name.",
+			args: args{
+				path: "path/to/somewhere",
+				name: "test.tar",
+			},
+			want: "path/to/somewhere/test.xpkg",
+		},
+		"ReplaceExtensionPath": {
+			reason: "We should replace an extension if one exists in path.",
+			args: args{
+				path: "path/to/somewhere.tar",
+				name: "",
+			},
+			want: "path/to/somewhere.xpkg",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			full := BuildPath(tc.args.path, tc.args.name)
+
+			if diff := cmp.Diff(tc.want, full); diff != "" {
+				t.Errorf("\n%s\nBuildPath(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

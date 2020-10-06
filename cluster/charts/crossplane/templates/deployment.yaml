@@ -45,3 +45,11 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+        volumeMounts:
+          - mountPath: /cache
+            name: package-cache
+      volumes:
+      - name: package-cache
+        emptyDir:
+          medium: {{ .Values.packageCache.medium }}
+          sizeLimit: {{ .Values.packageCache.sizeLimit }}
