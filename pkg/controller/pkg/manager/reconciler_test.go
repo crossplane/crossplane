@@ -155,7 +155,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -201,7 +201,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -259,7 +259,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -327,7 +327,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -387,7 +387,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -447,7 +447,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -536,7 +536,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
@@ -616,7 +616,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					},
-					digester: &MockDigester{
+					pkg: &MockDigester{
 						MockDigest: NewMockDigestFn("1234567", nil),
 					},
 					log:    logging.NewNopLogger(),

@@ -58,11 +58,15 @@ func NewImageCache(dir string, fs afero.Fs) *ImageCache {
 func (c *ImageCache) Get(tag, id string) (v1.Image, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	t, err := name.NewTag(tag)
-	if err != nil {
-		return nil, err
+	var t *name.Tag
+	if tag != "" {
+		nt, err := name.NewTag(tag)
+		if err != nil {
+			return nil, err
+		}
+		t = &nt
 	}
-	return tarball.ImageFromPath(BuildPath(c.dir, id), &t)
+	return tarball.ImageFromPath(BuildPath(c.dir, id), t)
 }
 
 // Store saves an image to the ImageCache.

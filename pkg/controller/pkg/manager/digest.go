@@ -19,12 +19,12 @@ package manager
 import (
 	"context"
 
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/xpkg"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/pkg/errors"
 )
 
 const (

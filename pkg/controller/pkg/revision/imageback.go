@@ -35,6 +35,7 @@ import (
 )
 
 const (
+	errPullPolicyNever   = "failed to get pre-cached package with pull policy Never"
 	errBadReference      = "package tag is not a valid reference"
 	errFetchPackage      = "failed to fetch package from remote"
 	errCachePackage      = "failed to store package in cache"
@@ -43,11 +44,9 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	pkg     string
-	id      string
+	pr      v1alpha1.PackageRevision
 	cache   xpkg.Cache
 	fetcher xpkg.Fetcher
-	secrets []string
 }
 
 // NewImageBackend creates a new image backend.
@@ -63,23 +62,34 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	for _, o := range bo {
 		o(i)
 	}
-
-	ref, err := name.ParseReference(i.pkg)
-	if err != nil {
-		return nil, errors.Wrap(err, errBadReference)
-	}
-
 	var img v1.Image
-	// Attempt to fetch image from cache.
-	img, err = i.cache.Get(i.pkg, i.id)
-	if err != nil {
-		img, err = i.fetcher.Fetch(ctx, ref, i.secrets)
+	var err error
+
+	pullPolicy := i.pr.GetPackagePullPolicy()
+	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
+		// If package is pre-cached we assume there are never multiple tags in
+		// the same image.
+		img, err = i.cache.Get("", i.pr.GetSource())
 		if err != nil {
-			return nil, errors.Wrap(err, errFetchPackage)
+			return nil, errors.Wrap(err, errPullPolicyNever)
 		}
-		// Cache image.
-		if err := i.cache.Store(i.pkg, i.id, img); err != nil {
-			return nil, errors.Wrap(err, errCachePackage)
+	} else {
+		// Ensure source is a valid image reference.
+		ref, err := name.ParseReference(i.pr.GetSource())
+		if err != nil {
+			return nil, errors.Wrap(err, errBadReference)
+		}
+		// Attempt to fetch image from cache.
+		img, err = i.cache.Get(i.pr.GetSource(), i.pr.GetName())
+		if err != nil {
+			img, err = i.fetcher.Fetch(ctx, ref, v1alpha1.RefNames(i.pr.GetPackagePullSecrets()))
+			if err != nil {
+				return nil, errors.Wrap(err, errFetchPackage)
+			}
+			// Cache image.
+			if err := i.cache.Store(i.pr.GetSource(), i.pr.GetName(), img); err != nil {
+				return nil, errors.Wrap(err, errCachePackage)
+			}
 		}
 	}
 
@@ -93,48 +103,13 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	return f, nil
 }
 
-// Package sets the name of the package image for ImageBackend.
-func Package(name string) parser.BackendOption {
+// PackageRevision sets the package revision for ImageBackend.
+func PackageRevision(pr v1alpha1.PackageRevision) parser.BackendOption {
 	return func(p parser.Backend) {
 		i, ok := p.(*ImageBackend)
 		if !ok {
 			return
 		}
-		i.pkg = name
-	}
-}
-
-// Identifier sets the name that will be used to cache the image in
-// ImageBackend.
-func Identifier(id string) parser.BackendOption {
-	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
-		if !ok {
-			return
-		}
-		i.id = id
-	}
-}
-
-// Secrets sets the secrets that will be used to fetch the package image
-// from a registry.
-func Secrets(s []corev1.LocalObjectReference) parser.BackendOption {
-	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
-		if !ok {
-			return
-		}
-		i.secrets = v1alpha1.RefNames(s)
-	}
-}
-
-// Cache sets the cache for the ImageBackend.
-func Cache(cache xpkg.Cache) parser.BackendOption {
-	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
-		if !ok {
-			return
-		}
-		i.cache = cache
+		i.pr = pr
 	}
 }
