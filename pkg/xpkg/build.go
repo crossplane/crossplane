@@ -21,29 +21,47 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
+	"github.com/pkg/errors"
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 )
 
+const (
+	errParserPackage = "failed to parse package"
+	errLintPackage   = "failed to lint package"
+	errInitBackend   = "failed to initialize package parsing backend"
+	errCopyStream    = "failed to copy stream into buffer"
+	errTarFromStream = "failed to build tarball from package stream"
+	errLayerFromTar  = "failed to convert tarball to image layer"
+)
+
 // Build compiles a Crossplane package from an on-disk package.
-func Build(ctx context.Context, b parser.Backend) (v1.Image, error) {
+func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Linter) (v1.Image, error) {
 	// Get YAML stream.
 	r, err := b.Init(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errInitBackend)
 	}
 	defer func() { _ = r.Close() }()
 
-	// Copy stream into buffer so that we know the size.
+	// Copy stream once to parse and once write to tarball.
 	buf := new(bytes.Buffer)
+	pkg, err := p.Parse(ctx, ioutil.NopCloser(io.TeeReader(r, buf)))
+	if err != nil {
+		return nil, errors.Wrap(err, errParserPackage)
+	}
+	if err := l.Lint(pkg); err != nil {
+		return nil, errors.Wrap(err, errLintPackage)
+	}
 	_, err = io.Copy(buf, r)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errCopyStream)
 	}
 
 	// Write on-disk package contents to tarball.
@@ -56,22 +74,22 @@ func Build(ctx context.Context, b parser.Backend) (v1.Image, error) {
 		Size: int64(buf.Len()),
 	}
 	if err := tw.WriteHeader(hdr); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errTarFromStream)
 	}
 	_, err = io.Copy(tw, buf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errTarFromStream)
 	}
 	if err := tw.Close(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errTarFromStream)
 	}
 
 	// Build image layer from tarball.
-	l, err := tarball.LayerFromReader(tarBuf)
+	layer, err := tarball.LayerFromReader(tarBuf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errLayerFromTar)
 	}
 
 	// Append layer to to scratch image.
-	return mutate.AppendLayers(empty.Image, l)
+	return mutate.AppendLayers(empty.Image, layer)
 }
