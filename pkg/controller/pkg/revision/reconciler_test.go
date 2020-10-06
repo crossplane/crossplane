@@ -29,7 +29,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -102,14 +101,6 @@ type MockCache struct {
 	MockDelete func() error
 }
 
-func NewMockCache() *MockCache {
-	return &MockCache{
-		MockGet:    NewMockCacheGetFn(nil, nil),
-		MockStore:  NewMockCacheStoreFn(nil),
-		MockDelete: NewMockCacheDeleteFn(nil),
-	}
-}
-
 func NewMockCacheGetFn(img v1.Image, err error) func() (v1.Image, error) {
 	return func() (v1.Image, error) { return img, err }
 }
@@ -134,18 +125,20 @@ func (c *MockCache) Delete(id string) error {
 	return c.MockDelete()
 }
 
+var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: test`)
+
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
 
-	metaScheme, _ := BuildMetaScheme()
-	objScheme, _ := BuildObjectScheme()
+	metaScheme, _ := xpkg.BuildMetaScheme()
+	objScheme, _ := xpkg.BuildObjectScheme()
 
 	type args struct {
 		mgr manager.Manager
-		ic  xpkg.Cache
-		cl  kubernetes.Interface
-		ns  string
 		req reconcile.Request
 		rec []ReconcilerOption
 	}
@@ -196,11 +189,11 @@ func TestReconcile(t *testing.T) {
 			reason: "We should requeue after short wait if revision is deleted and we fail to clear image cache.",
 			args: args{
 				mgr: &fake.Manager{},
-				ic: &MockCache{
-					MockDelete: NewMockCacheDeleteFn(errBoom),
-				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
+					WithCache(&MockCache{
+						MockDelete: NewMockCacheDeleteFn(errBoom),
+					}),
 					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
@@ -222,7 +215,32 @@ func TestReconcile(t *testing.T) {
 			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
-				ic:  NewMockCache(),
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDeletionTimestamp(&now)
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return errBoom
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"SuccessfulDeleted": {
+			reason: "We should not requeue if revision is deleted and we successfully remove finalizer.",
+			args: args{
+				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
@@ -376,7 +394,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, ObjectLinterFns(IsConfiguration), nil)),
+					WithLinter(parser.NewPackageLinter(nil, parser.ObjectLinterFns(xpkg.IsConfiguration), nil)),
 				},
 			},
 			want: want{
@@ -416,7 +434,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewNopBackend()),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -459,7 +477,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -504,7 +522,7 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -547,7 +565,7 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -592,7 +610,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -635,7 +653,7 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -680,7 +698,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(NewPackageLinter(nil, nil, nil)),
+					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
 				},
 			},
 			want: want{
@@ -691,7 +709,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			r := NewReconciler(tc.args.mgr, tc.args.ic, tc.args.cl, tc.args.ns, tc.args.rec...)
+			r := NewReconciler(tc.args.mgr, tc.args.rec...)
 			got, err := r.Reconcile(reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
