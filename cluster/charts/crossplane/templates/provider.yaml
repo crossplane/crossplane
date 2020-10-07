@@ -1,0 +1,11 @@
+{{- range $.Values.provider.packages }}
+{{ if ne . "" }}
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: {{ . | trim | replace "/" "-" | replace ":" "-" }}
+spec:
+  package: {{ . | trim }}
+---
+{{ end }}
+{{- end }}
