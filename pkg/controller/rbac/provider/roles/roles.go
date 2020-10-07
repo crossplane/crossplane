@@ -50,7 +50,7 @@ const (
 var (
 	verbsEdit   = []string{rbacv1.VerbAll}
 	verbsView   = []string{"get", "list", "watch"}
-	verbsSystem = []string{"get", "list", "watch", "update", "patch"}
+	verbsSystem = []string{"get", "list", "watch", "update", "patch", "create"}
 )
 
 // Extra rules that are granted to all provider pods.
