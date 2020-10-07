@@ -235,7 +235,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace))),
-		WithLinter(xpkg.NewProviderLinter()),
+		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
