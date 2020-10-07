@@ -21,15 +21,12 @@ import (
 	"context"
 	"io"
 
-	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero/tarfs"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
@@ -38,6 +35,7 @@ import (
 )
 
 const (
+	errPullPolicyNever   = "failed to get pre-cached package with pull policy Never"
 	errBadReference      = "package tag is not a valid reference"
 	errFetchPackage      = "failed to fetch package from remote"
 	errCachePackage      = "failed to store package in cache"
@@ -46,15 +44,13 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	pkg     string
-	id      string
+	pr      v1alpha1.PackageRevision
 	cache   xpkg.Cache
-	fetcher Fetcher
-	secrets []string
+	fetcher xpkg.Fetcher
 }
 
 // NewImageBackend creates a new image backend.
-func NewImageBackend(cache xpkg.Cache, fetcher Fetcher) *ImageBackend {
+func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher) *ImageBackend {
 	return &ImageBackend{
 		cache:   cache,
 		fetcher: fetcher,
@@ -66,23 +62,34 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	for _, o := range bo {
 		o(i)
 	}
-
-	ref, err := name.ParseReference(i.pkg)
-	if err != nil {
-		return nil, errors.Wrap(err, errBadReference)
-	}
-
 	var img v1.Image
-	// Attempt to fetch image from cache.
-	img, err = i.cache.Get(i.pkg, i.id)
-	if err != nil {
-		img, err = i.fetcher.Fetch(ctx, ref, i.secrets)
+	var err error
+
+	pullPolicy := i.pr.GetPackagePullPolicy()
+	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
+		// If package is pre-cached we assume there are never multiple tags in
+		// the same image.
+		img, err = i.cache.Get("", i.pr.GetSource())
 		if err != nil {
-			return nil, errors.Wrap(err, errFetchPackage)
+			return nil, errors.Wrap(err, errPullPolicyNever)
 		}
-		// Cache image.
-		if err := i.cache.Store(i.pkg, i.id, img); err != nil {
-			return nil, errors.Wrap(err, errCachePackage)
+	} else {
+		// Ensure source is a valid image reference.
+		ref, err := name.ParseReference(i.pr.GetSource())
+		if err != nil {
+			return nil, errors.Wrap(err, errBadReference)
+		}
+		// Attempt to fetch image from cache.
+		img, err = i.cache.Get(i.pr.GetSource(), i.pr.GetName())
+		if err != nil {
+			img, err = i.fetcher.Fetch(ctx, ref, v1alpha1.RefNames(i.pr.GetPackagePullSecrets()))
+			if err != nil {
+				return nil, errors.Wrap(err, errFetchPackage)
+			}
+			// Cache image.
+			if err := i.cache.Store(i.pr.GetSource(), i.pr.GetName(), img); err != nil {
+				return nil, errors.Wrap(err, errCachePackage)
+			}
 		}
 	}
 
@@ -96,79 +103,13 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	return f, nil
 }
 
-// Fetcher fetches package images.
-type Fetcher interface {
-	Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error)
-}
-
-// K8sFetcher uses kubernetes credentials to fetch package images.
-type K8sFetcher struct {
-	client    kubernetes.Interface
-	namespace string
-}
-
-// NewK8sFetcher creates a new K8sFetcher.
-func NewK8sFetcher(client kubernetes.Interface, namespace string) *K8sFetcher {
-	return &K8sFetcher{
-		client:    client,
-		namespace: namespace,
-	}
-}
-
-// Fetch fetches a package image.
-func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
-	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
-		Namespace:        i.namespace,
-		ImagePullSecrets: secrets,
-	})
-	if err != nil {
-		return nil, err
-	}
-	return remote.Image(ref, remote.WithAuthFromKeychain(auth))
-}
-
-// Package sets the name of the package image for ImageBackend.
-func Package(name string) parser.BackendOption {
+// PackageRevision sets the package revision for ImageBackend.
+func PackageRevision(pr v1alpha1.PackageRevision) parser.BackendOption {
 	return func(p parser.Backend) {
 		i, ok := p.(*ImageBackend)
 		if !ok {
 			return
 		}
-		i.pkg = name
-	}
-}
-
-// Identifier sets the name that will be used to cache the image in
-// ImageBackend.
-func Identifier(id string) parser.BackendOption {
-	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
-		if !ok {
-			return
-		}
-		i.id = id
-	}
-}
-
-// Secrets sets the secrets that will be used to fetch the package image
-// from a registry.
-func Secrets(s []corev1.LocalObjectReference) parser.BackendOption {
-	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
-		if !ok {
-			return
-		}
-		i.secrets = v1alpha1.RefNames(s)
-	}
-}
-
-// Cache sets the cache for the ImageBackend.
-func Cache(cache xpkg.Cache) parser.BackendOption {
-	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
-		if !ok {
-			return
-		}
-		i.cache = cache
+		i.pr = pr
 	}
 }

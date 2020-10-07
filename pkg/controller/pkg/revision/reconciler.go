@@ -198,7 +198,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 		}, namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, NewK8sFetcher(clientset, namespace))),
+		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace))),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -234,7 +234,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, NewK8sFetcher(clientset, namespace))),
+		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace))),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -285,6 +285,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	if meta.WasDeleted(pr) {
+		// NOTE(hasheddan): In the event that a pre-cached package was used for this revision,
+		// delete will not remove the pre-cached package image from the cache
+		// unless it has the same name as the provider revision. Delete will not
+		// return an error so we will remove finalizer and leave the image in
+		// the cache.
 		if err := r.cache.Delete(pr.GetName()); err != nil {
 			log.Debug(errDeleteCache, "error", err)
 			r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errDeleteCache)))
@@ -311,7 +316,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	)
 
 	// Initialize parser backend to obtain package contents.
-	reader, err := r.backend.Init(ctx, Identifier(pr.GetName()), Package(pr.GetSource()), Secrets(pr.GetPackagePullSecrets()))
+	reader, err := r.backend.Init(ctx, PackageRevision(pr))
 	if err != nil {
 		log.Debug(errInitParserBackend, "error", err)
 		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errInitParserBackend)))

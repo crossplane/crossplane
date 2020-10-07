@@ -38,6 +38,8 @@ spec:
         resources:
           {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
         securityContext:
+          runAsUser: 2000
+          runAsGroup: 2000
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
         env:
@@ -50,6 +52,12 @@ spec:
             name: package-cache
       volumes:
       - name: package-cache
+        {{- if .Values.packageCache.pvc }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.packageCache.pvc }}
+        {{- else }}
         emptyDir:
           medium: {{ .Values.packageCache.medium }}
           sizeLimit: {{ .Values.packageCache.sizeLimit }}
+        {{- end }}
+        

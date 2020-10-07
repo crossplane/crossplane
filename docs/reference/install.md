@@ -83,6 +83,7 @@ and their default values.
 | `resourcesCrossplane.requests.memory` | Memory resource requests for Crossplane | `256Mi` |
 | `packageCache.medium` | Storage medium for package cache. `Memory` means volume will be backed by tmpfs, which can be useful for development. | `""` |
 | `packageCache.sizeLimit` | Size limit for package cache. If medium is `Memory` then maximum usage would be the minimum of this value the sum of all memory limits on containers in the Crossplane pod. | `5Mi` |
+| `packageCache.pvc` | Name of the PersistentVolumeClaim to be used as the package cache. Providing a value will cause the default emptyDir volume to not be mounted. | `""` |
 | `resourcesRBACManager.limits.cpu` | CPU resource limits for RBAC Manager | `100m` |
 | `resourcesRBACManager.limits.memory` | Memory resource limits for RBAC Manager | `512Mi` |
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for RBAC Manager | `100m` |

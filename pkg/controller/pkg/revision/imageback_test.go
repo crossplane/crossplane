@@ -28,29 +28,24 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/google/go-containerregistry/pkg/v1/types"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/xpkg"
+	"github.com/crossplane/crossplane/pkg/xpkg/fake"
 )
-
-type MockFetcher struct {
-	MockFetch func() (v1.Image, error)
-}
-
-func (m *MockFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
-	return m.MockFetch()
-}
 
 func TestImageBackend(t *testing.T) {
 	errBoom := errors.New("boom")
+	pullPolicy := corev1.PullNever
 	randLayer, _ := random.Layer(int64(1000), types.DockerLayer)
 	randImg, _ := mutate.AppendLayers(empty.Image, randLayer)
 
@@ -70,7 +65,7 @@ func TestImageBackend(t *testing.T) {
 
 	type args struct {
 		c    xpkg.Cache
-		f    Fetcher
+		f    xpkg.Fetcher
 		opts []parser.BackendOption
 	}
 
@@ -82,7 +77,11 @@ func TestImageBackend(t *testing.T) {
 		"ErrBadReference": {
 			reason: "Should return error if package tag is not a valid image reference.",
 			args: args{
-				opts: []parser.BackendOption{Package(":test")},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: ":test",
+					},
+				})},
 			},
 			want: errors.Wrap(name.NewErrBadName("could not parse reference: :test"), errBadReference),
 		},
@@ -90,12 +89,14 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should return error if image with contents does not have package.yaml.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return randImg, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(randImg, nil),
 				},
-				opts: []parser.BackendOption{Package("test/test:latest")},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: "test/test:latest",
+					},
+				})},
 			},
 			want: errors.Wrap(&os.PathError{Op: "open", Path: xpkg.StreamFile, Err: syscall.ENOENT}, errOpenPackageStream),
 		},
@@ -103,12 +104,14 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should return error if image is empty.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return empty.Image, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(empty.Image, nil),
 				},
-				opts: []parser.BackendOption{Package("test/test:latest")},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: "test/test:latest",
+					},
+				})},
 			},
 			want: errors.Wrap(&os.PathError{Op: "open", Path: "package.yaml", Err: syscall.ENOENT}, errOpenPackageStream),
 		},
@@ -116,28 +119,32 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should return error if package is not in cache and we fail to fetch it.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return nil, errBoom
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(nil, errBoom),
 				},
-				opts: []parser.BackendOption{Package("test/test:latest")},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: "test/test:latest",
+					},
+				})},
 			},
 			want: errors.Wrap(errBoom, errFetchPackage),
 		},
 		"ErrStorePackage": {
 			reason: "Should return error if package is not in cache, we fetch successfully, but we fail to store it in cache.",
 			args: args{
-				c: &MockCache{
-					MockGet:   NewMockCacheGetFn(nil, errBoom),
-					MockStore: NewMockCacheStoreFn(errBoom),
+				c: &fake.MockCache{
+					MockGet:   fake.NewMockCacheGetFn(nil, errBoom),
+					MockStore: fake.NewMockCacheStoreFn(errBoom),
 				},
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return packImg, nil
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(packImg, nil),
+				},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: "test/test:latest",
 					},
-				},
-				opts: []parser.BackendOption{Package("test/test:latest")},
+				})},
 			},
 			want: errors.Wrap(errBoom, errCachePackage),
 		},
@@ -145,21 +152,56 @@ func TestImageBackend(t *testing.T) {
 			reason: "Should not return error is package is not in cache but is fetched successfully.",
 			args: args{
 				c: xpkg.NewNopCache(),
-				f: &MockFetcher{
-					MockFetch: func() (v1.Image, error) {
-						return packImg, nil
-					},
+				f: &fake.MockFetcher{
+					MockFetch: fake.NewMockFetchFn(packImg, nil),
 				},
-				opts: []parser.BackendOption{Package("test/test:latest")},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: "test/test:latest",
+					},
+				})},
 			},
 		},
 		"SuccessCachedPackage": {
-			reason: "Should not return error is package is in cached and is gotten successfully.",
+			reason: "Should not return error is package is in cache and is gotten successfully.",
 			args: args{
-				c: &MockCache{
-					MockGet: NewMockCacheGetFn(packImg, nil),
+				c: &fake.MockCache{
+					MockGet: fake.NewMockCacheGetFn(packImg, nil),
 				},
-				opts: []parser.BackendOption{Package("test/test:latest")},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package: "test/test:latest",
+					},
+				})},
+			},
+		},
+		"ErrorCachedPackageNoPull": {
+			reason: "Should return error if package is pre-cached and is not gotten successfully.",
+			args: args{
+				c: &fake.MockCache{
+					MockGet: fake.NewMockCacheGetFn(nil, errBoom),
+				},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package:           "test/test:latest",
+						PackagePullPolicy: &pullPolicy,
+					},
+				})},
+			},
+			want: errors.Wrap(errBoom, errPullPolicyNever),
+		},
+		"SuccessCachedPackageNoPull": {
+			reason: "Should not return error if package is pre-cached and is gotten successfully.",
+			args: args{
+				c: &fake.MockCache{
+					MockGet: fake.NewMockCacheGetFn(packImg, nil),
+				},
+				opts: []parser.BackendOption{PackageRevision(&v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						Package:           "test/test:latest",
+						PackagePullPolicy: &pullPolicy,
+					},
+				})},
 			},
 		},
 	}
