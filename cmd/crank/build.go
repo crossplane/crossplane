@@ -70,7 +70,7 @@ func (c *buildCmd) Run(child *buildChild) error {
 		return errors.New("cannot build object scheme for package parser")
 	}
 	img, err := xpkg.Build(context.Background(),
-		parser.NewFsBackend(child.fs, parser.FsDir(root), parser.FsFilters(buildFilters(c.Ignore)...)),
+		parser.NewFsBackend(child.fs, parser.FsDir(root), parser.FsFilters(buildFilters(root, c.Ignore)...)),
 		parser.New(metaScheme, objScheme),
 		child.linter)
 	if err != nil {
@@ -92,13 +92,13 @@ func (c *buildCmd) Run(child *buildChild) error {
 
 // default build filters skip directories and files without YAML extension in
 // addition to any paths specified.
-func buildFilters(skips []string) []parser.FilterFn {
+func buildFilters(root string, skips []string) []parser.FilterFn {
 	numOpts := len(skips) + 2
 	opts := make([]parser.FilterFn, numOpts)
 	opts[0] = parser.SkipDirs()
 	opts[1] = parser.SkipNotYAML()
 	for i, s := range skips {
-		opts[i+2] = parser.SkipPath(s)
+		opts[i+2] = parser.SkipPath(filepath.Join(root, s))
 	}
 	return opts
 }
