@@ -28,6 +28,9 @@ import (
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
+
+	// Load all the auth plugins for the cloud providers.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 // installCmd installs a package.
