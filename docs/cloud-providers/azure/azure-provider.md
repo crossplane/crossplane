@@ -53,6 +53,7 @@ Operation failed with status: 'Conflict'. Details: 409 Client Error: Conflict fo
 Finally, you need to grant admin permissions on the Azure Active Directory to
 the service principal because it will need to create other service principals
 for your `AKSCluster`:
+
 ```bash
 # grant admin consent to the service princinpal you created
 az ad app permission admin-consent --id "${AZURE_CLIENT_ID}"
@@ -99,12 +100,14 @@ data:
 apiVersion: azure.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: azure-provider
+  name: default
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: azure-account-creds
-    key: credentials
+  credentials
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: azure-account-creds
+      key: credentials
 EOF
 
 # apply it to the cluster:
@@ -118,8 +121,9 @@ The output will look like the following:
 
 ```bash
 secret/azure-user-creds created
-provider.azure.crossplane.io/azure-provider created
+provider.azure.crossplane.io/default created
 ```
 
-The `azure-provider` resource will be used in other resources that we will
-create, to provide access information to the configured Azure account.
+Crossplane resources use the `ProviderConfig` named `default` if no specific
+`ProviderConfig` is specified, so this `ProviderConfig` will be the default for
+all Azure resources.

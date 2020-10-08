@@ -28,8 +28,6 @@ spec:
                   - value: "0.0.0.0/0"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: gcp-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

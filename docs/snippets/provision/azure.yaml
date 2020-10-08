@@ -4,8 +4,6 @@ metadata:
   name: sqlserverpostgresql-rg
 spec:
   location: West US 2
-  providerConfigRef:
-    name: azure-provider
 ---
 apiVersion: database.azure.crossplane.io/v1beta1
 kind: PostgreSQLServer
@@ -28,5 +26,3 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: sqlserverpostgresql-conn
-  providerConfigRef:
-    name: azure-provider

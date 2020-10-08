@@ -13,5 +13,3 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: alibaba-rdspostgresql-conn
-  providerConfigRef:
-    name: alibaba-provider

@@ -40,10 +40,10 @@ Once the script is successfully executed, Crossplane will use the specified aws
 account and region in the given named profile to create subsequent AWS managed
 resources.
 
-You can confirm the existense of the  AWS `ProviderConfig` by running:
+You can confirm the existence of the  AWS `ProviderConfig` by running:
 
 ```bash
-kubectl get providerconfig aws-provider
+kubectl get providerconfig default
 ```
 
 ## Optional: Setup AWS Provider Manually
@@ -68,9 +68,9 @@ setup cloud provider in the next section.
 
 Crossplane uses the AWS user credentials that were configured in the previous
 step to create resources in AWS. These credentials will be stored as a
-[secret][kubernetes secret] in Kubernetes, and will be used by an AWS `ProviderConfig`
-instance. The default AWS region is also pulled from the cli configuration, and
-added to the AWS provider.
+[secret][kubernetes secret] in Kubernetes, and will be used by an AWS
+`ProviderConfig` instance. The default AWS region is also pulled from the cli
+configuration, and added to the AWS provider.
 
 To store the credentials as a secret, run:
 
@@ -79,8 +79,7 @@ To store the credentials as a secret, run:
 BASE64ENCODED_AWS_ACCOUNT_CREDS=$(echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $aws_profile)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $aws_profile)" | base64  | tr -d "\n")
 ```
 
-At this point, the region and the encoded credentials are stored in respective
-variables. Next, we'll need to create an instance of AWS provider:
+Next, we'll need to create an AWS provider configuration:
 
 ```bash
 cat > provider.yaml <<EOF
@@ -97,12 +96,14 @@ data:
 apiVersion: aws.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: aws-provider
+  name: default
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: aws-account-creds
-    key: credentials
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-account-creds
+      key: credentials
 EOF
 
 # apply it to the cluster:
@@ -116,11 +117,12 @@ The output will look like the following:
 
 ```bash
 secret/aws-user-creds created
-provider.aws.crossplane.io/aws-provider created
+provider.aws.crossplane.io/default created
 ```
 
-The `aws-provider` resource will be used in other resources that we will create,
-to provide access information to the configured AWS account.
+Crossplane resources use the `ProviderConfig` named `default` if no specific
+`ProviderConfig` is specified, so this `ProviderConfig` will be the default for
+all AWS resources.
 
 <!-- Named Links -->
 
