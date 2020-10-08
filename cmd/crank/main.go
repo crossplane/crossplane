@@ -17,13 +17,36 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 )
 
 var _ = kong.Must(&cli)
 
+// version is set at build time.
+var version string
+
+type versionFlag string
+
+// Decode overrides the default string decoder to be a no-op.
+func (v versionFlag) Decode(ctx *kong.DecodeContext) error { return nil } // nolint:unparam
+
+// IsBool indicates that this string flag should be treated as a boolean value.
+func (v versionFlag) IsBool() bool { return true }
+
+// BeforeApply indicates that we want to execute the logic before running any
+// commands.
+func (v versionFlag) BeforeApply(app *kong.Kong) error { // nolint:unparam
+	fmt.Fprintln(app.Stdout, version)
+	app.Exit(0)
+	return nil
+}
+
 var cli struct {
+	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
+
 	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
 	Install installCmd `cmd:"" help:"Install Crossplane packages."`
 	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
