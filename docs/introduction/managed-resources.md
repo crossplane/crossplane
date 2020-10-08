@@ -60,9 +60,9 @@ under `spec` should look like.
   information regarding authentication. The `providerConfigRef` is defaulted to
   a `ProviderConfig` named `default` if omitted.
 
-* `reclaimPolicy`: Enum to specify whether the actual cloud resource should be
+* `deletionPolicy`: Enum to specify whether the actual cloud resource should be
   deleted when this managed resource is deleted in Kubernetes API server.
-  Possible values are `Delete` and `Retain`.
+  Possible values are `Delete` (the default) and `Orphan`.
 
 * `forProvider`: While the rest of the fields relate to how Crossplane should
   behave, the fields under `forProvider` are solely used to configure the actual

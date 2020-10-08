@@ -307,8 +307,7 @@ spec:
   - base:
       apiVersion: azure.crossplane.io/v1alpha3
       kind: ResourceGroup
-      spec:
-        reclaimPolicy: Delete
+      spec: {}
     # Patches copy or "overlay" the value of a field path within the composite
     # resource (the CompositeMySQLInstance) to a field path within the composed
     # resource (the ResourceGroup). In the below example any labels and

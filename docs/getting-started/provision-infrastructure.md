@@ -46,7 +46,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: aws-rdspostgresql-conn
-  reclaimPolicy: Delete
 ```
 
 ```console
