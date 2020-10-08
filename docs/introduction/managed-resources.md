@@ -41,7 +41,7 @@ spec:
       name: mysql-secret
       namespace: crossplane-system
   providerConfigRef:
-    name: mycreds
+    name: default
   reclaimPolicy: Delete
 ```
 
@@ -57,7 +57,8 @@ under `spec` should look like.
 * `providerConfigRef`: Reference to the `ProviderConfig` resource that will
   provide information regarding authentication of Crossplane to the provider.
   `ProviderConfig` resources refer to `Secret` and potentially contain other
-  information regarding authentication.
+  information regarding authentication. The `providerConfigRef` is defaulted to
+  a `ProviderConfig` named `default` if omitted.
 
 * `reclaimPolicy`: Enum to specify whether the actual cloud resource should be
   deleted when this managed resource is deleted in Kubernetes API server.
@@ -238,7 +239,7 @@ metadata:
     crossplane.io/external-name: existing-network
 spec:
   providerConfigRef:
-    name: gcp-creds
+    name: default
 ```
 
 Crossplane will check whether a GCP Network called `existing-network` exists,

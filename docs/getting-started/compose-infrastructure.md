@@ -155,8 +155,6 @@ spec:
             publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: aws-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -209,8 +207,6 @@ spec:
             cidrBlock: 192.168.0.0/16
             enableDnsSupport: true
             enableDnsHostNames: true
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
@@ -224,8 +220,6 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1a
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
@@ -239,8 +233,6 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1b
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
@@ -254,8 +246,6 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1c
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: DBSubnetGroup
@@ -265,8 +255,6 @@ spec:
             description: An excellent formation of subnetworks.
             subnetIdSelector:
               matchControllerRef: true
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: InternetGateway
@@ -275,8 +263,6 @@ spec:
             region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: ec2.aws.crossplane.io/v1alpha4
         kind: RouteTable
@@ -299,8 +285,6 @@ spec:
               - subnetIdSelector:
                   matchLabels:
                     zone: us-east-1c
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: SecurityGroup
@@ -318,8 +302,6 @@ spec:
                 ipRanges:
                   - cidrIp: 0.0.0.0/0
                     description: Everywhere
-          providerConfigRef:
-            name: aws-provider
     - base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
@@ -338,8 +320,6 @@ spec:
             publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: aws-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -393,8 +373,6 @@ spec:
                   - value: "0.0.0.0/0"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: gcp-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -444,8 +422,6 @@ spec:
         kind: ResourceGroup
         spec:
           location: West US 2
-          providerConfigRef:
-            name: azure-provider
     - base:
         apiVersion: database.azure.crossplane.io/v1beta1
         kind: PostgreSQLServer
@@ -463,8 +439,6 @@ spec:
               family: Gen5
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: azure-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -496,8 +470,6 @@ spec:
             properties:
               startIpAddress: 0.0.0.0
               endIpAddress: 255.255.255.254
-          providerConfigRef:
-            name: azure-provider
 ```
 
 ```console
@@ -533,8 +505,6 @@ spec:
             masterUsername: "myuser"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: alibaba-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

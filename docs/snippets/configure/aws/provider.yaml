@@ -11,9 +11,11 @@ type: Opaque
 apiVersion: aws.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: aws-provider
+  name: default
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: aws-account-creds
-    key: credentials
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-account-creds
+      key: credentials

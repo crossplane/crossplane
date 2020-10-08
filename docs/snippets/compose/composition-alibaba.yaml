@@ -24,8 +24,6 @@ spec:
             masterUsername: "myuser"
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: alibaba-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

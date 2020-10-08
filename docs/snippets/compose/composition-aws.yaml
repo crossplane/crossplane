@@ -27,8 +27,6 @@ spec:
             publiclyAccessible: true
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: aws-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"

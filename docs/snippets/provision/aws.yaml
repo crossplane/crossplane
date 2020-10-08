@@ -14,5 +14,3 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: aws-rdspostgresql-conn
-  providerConfigRef:
-    name: aws-provider

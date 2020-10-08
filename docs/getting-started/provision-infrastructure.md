@@ -46,8 +46,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: aws-rdspostgresql-conn
-  providerConfigRef:
-    name: aws-provider
   reclaimPolicy: Delete
 ```
 
@@ -64,6 +62,7 @@ kubectl get rdsinstance rdspostgresql
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+
 ```console
 kubectl describe secret aws-rdspostgresql-conn -n crossplane-system -o yaml
 ```
@@ -96,8 +95,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: cloudsqlpostgresql-conn
-  providerConfigRef:
-    name: gcp-provider
 ```
 
 ```console
@@ -113,6 +110,7 @@ kubectl get cloudsqlinstance cloudsqlpostgresql
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+
 ```console
 kubectl describe secret cloudsqlpostgresql-conn -n crossplane-system -o yaml
 ```
@@ -141,8 +139,6 @@ metadata:
   name: sqlserverpostgresql-rg
 spec:
   location: West US 2
-  providerConfigRef:
-    name: azure-provider
 ---
 apiVersion: database.azure.crossplane.io/v1beta1
 kind: PostgreSQLServer
@@ -165,8 +161,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: sqlserverpostgresql-conn
-  providerConfigRef:
-    name: azure-provider
 ```
 
 ```console
@@ -183,6 +177,7 @@ kubectl get postgresqlserver sqlserverpostgresql
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+
 ```console
 kubectl describe secret sqlserverpostgresql-conn -n crossplane-system
 ```
@@ -216,8 +211,6 @@ spec:
   writeConnectionSecretToRef:
     namespace: crossplane-system
     name: alibaba-rdspostgresql-conn
-  providerConfigRef:
-    name: alibaba-provider
 ```
 
 ```console
@@ -233,6 +226,7 @@ kubectl get rdsinstance rdspostgresql
 
 When provisioning is complete, you should see `READY: True` in the output. You
 can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
+
 ```console
 kubectl describe secret alibaba-rdspostgresql-conn -n crossplane-system
 ```

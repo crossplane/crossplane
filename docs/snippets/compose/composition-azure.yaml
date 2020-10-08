@@ -17,8 +17,6 @@ spec:
         kind: ResourceGroup
         spec:
           location: West US 2
-          providerConfigRef:
-            name: azure-provider
     - base:
         apiVersion: database.azure.crossplane.io/v1beta1
         kind: PostgreSQLServer
@@ -36,8 +34,6 @@ spec:
               family: Gen5
           writeConnectionSecretToRef:
             namespace: crossplane-system
-          providerConfigRef:
-            name: azure-provider
       patches:
         - fromFieldPath: "metadata.uid"
           toFieldPath: "spec.writeConnectionSecretToRef.name"
@@ -69,5 +65,3 @@ spec:
             properties:
               startIpAddress: 0.0.0.0
               endIpAddress: 255.255.255.254
-          providerConfigRef:
-            name: azure-provider

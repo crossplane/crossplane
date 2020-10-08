@@ -90,10 +90,12 @@ kind: ProviderConfig
 metadata:
   name: aws-provider
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: aws-creds
-    key: key
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-creds
+      key: key
 ```
 
 You can see that there is a reference to a key in a specific `Secret`. The value
@@ -118,7 +120,8 @@ spec:
 The AWS provider controller will use that provider for this instance of
 `RDSInstance`. Since every resource has its own reference to a `ProviderConfig`,
 you can have multiple `ProviderConfig` resources in your cluster referenced by
-different resources.
+different resources. When no `providerConfigRef` is specified, the `RDSInstance`
+will attempt to use a `ProviderConfig` named `default`.
 
 <!-- Named Links -->
 
