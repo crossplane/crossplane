@@ -21,10 +21,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -235,7 +234,10 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 	default:
 		return nil, errors.New(errTypeNotSupported(string(t.Type)))
 	}
-	if transformer == nil {
+	// An interface equals nil only if both the type and value are nil. Above,
+	// even if t.<Type> is nil, its type is assigned to "transformer" but we're
+	// interested in whether only the value is nil or not.
+	if reflect.ValueOf(transformer).IsNil() {
 		return nil, errors.New(errConfigMissing(string(t.Type)))
 	}
 	out, err := transformer.Resolve(input)
