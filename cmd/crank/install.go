@@ -28,6 +28,9 @@ import (
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
+
+	// Load all the auth plugins for the cloud providers.
+	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
 // installCmd installs a package.
@@ -121,6 +124,6 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create provider")
 	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1alpha1.ProviderGroupKind), res.GetName())
 	return err
 }
