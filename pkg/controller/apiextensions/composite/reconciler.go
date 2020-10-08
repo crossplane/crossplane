@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -56,8 +57,8 @@ const (
 	errSelectComp   = "cannot select Composition"
 	errGetComp      = "cannot get Composition"
 	errConfigure    = "cannot configure composite resource"
-	errReconcile    = "cannot reconcile composed infrastructure resource"
 	errPublish      = "cannot publish connection details"
+	errFmtCompose   = "cannot compose resource at index %d"
 )
 
 // Event reasons.
@@ -273,8 +274,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 		obs, err := r.resource.Compose(ctx, cr, composed.New(composed.FromReference(ref)), tmpl)
 		if err != nil {
-			log.Debug(errReconcile, "error", err)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
+			log.Debug(fmt.Sprintf(errFmtCompose, i), "error", err)
+			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrap(err, fmt.Sprintf(errFmtCompose, i))))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
