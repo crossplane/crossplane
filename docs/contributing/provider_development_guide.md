@@ -521,7 +521,8 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 // Delete the external resource. managed.Reconciler only calls Delete
-// when a managed resource with the 'Delete' reclaim policy has been deleted.
+// when a managed resource with the 'Delete' deletion policy (the default) has
+// been deleted.
 func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
     i, ok := mg.(*v1alpha3.FavouriteDBInstance)
     if !ok {
