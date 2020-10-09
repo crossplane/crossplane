@@ -3,7 +3,7 @@
 set -eu
 
 CHANNEL=${CHANNEL:-alpha}
-VERSION=${VERSION:-v0.13.0}
+VERSION=${VERSION:-current}
 
 os=$(uname -s)
 arch=$(uname -m)
@@ -22,7 +22,7 @@ unsupported_arch() {
 
 case $OS in
   CYGWIN* | MINGW64*)
-    if [ $ARCH == "amd64" ]
+    if [ $ARCH = "amd64" ]
     then
       OS_ARCH=windows_amd64
       BIN=crank.exe
