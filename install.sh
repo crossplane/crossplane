@@ -57,5 +57,12 @@ if ! curl -sLo kubectl-crossplane "${url}"; then
   exit 1
 fi
 
-echo "Crossplane CLI installed successfully! Visit https://crossplane.io to get started. 🚀"
-echo "\n\nHave a nice day! 👋\n"
+chmod +x kubectl-crossplane
+
+echo "kubectl plugin downloaded successfully! Run the following commands to finish installing it:"
+echo 
+echo sudo mv kubectl-crossplane $(dirname $(which kubectl))
+echo kubectl crossplane --help
+echo
+echo "Visit https://crossplane.io to get started. 🚀"
+echo "Have a nice day! 👋\n"
