@@ -128,7 +128,7 @@ kubectl get all -n crossplane-system
 The Crossplane CLI extends `kubectl` with functionality to build, push, and install [Crossplane packages]:
 
 ```console
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/install.sh | sh
 ```
 
 ## Select Provider
@@ -147,7 +147,7 @@ Install and configure a provider for Crossplane to use for infrastructure provis
 ### Install AWS Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-aws:master
+kubectl crossplane install provider crossplane/provider-aws:v0.12.0
 ```
 
 ### Get AWS Account Keyfile
@@ -194,7 +194,7 @@ kubectl apply -f provider.yaml
 ### Install GCP Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-gcp:master
+kubectl crossplane install provider crossplane/provider-gcp:v0.12.0
 ```
 
 ### Get GCP Account Keyfile
@@ -259,7 +259,7 @@ kubectl apply -f provider.yaml
 ### Install Azure Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-azure:master
+kubectl crossplane install provider crossplane/provider-azure:v0.12.0
 ```
 
 ### Get Azure Principal Keyfile
@@ -321,7 +321,7 @@ kubectl apply -f provider.yaml
 ### Install Alibaba Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-alibaba:master
+kubectl crossplane install provider crossplane/provider-alibaba:v0.3.0
 ```
 
 ### Create a Provider Secret

@@ -76,7 +76,7 @@ Run the following command to add support for all the workloads and traits requir
 by this guide:
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/definitions.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/docs/snippets/run/definitions.yaml
 ```
 
 ## Application Developer
@@ -292,7 +292,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/components.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/docs/snippets/run/components.yaml
 ```
 
 Each of the above components describes a particular kind of workload. The
@@ -376,7 +376,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/appconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/docs/snippets/run/appconfig.yaml
 ```
 
 This application configuration names each of components the application
@@ -464,8 +464,8 @@ If you also wish to delete the components, workload definitions, and trait
 definitions we created in this guide, run:
 
 ```console
-kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/components.yaml
-kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/run/definitions.yaml
+kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/docs/snippets/run/components.yaml
+kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/docs/snippets/run/definitions.yaml
 ```
 
 [Open Application Model]: https://oam.dev/
