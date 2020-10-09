@@ -26,7 +26,7 @@ detailed instructions.
 <div class="tab-pane fade in active" id="setup-mac-brew" markdown="1">
 For macOS via Homebrew use the following:
 
-```
+```console
 brew upgrade
 brew install kind
 brew install kubectl
@@ -61,6 +61,7 @@ For Windows use the following:
 </div>
 
 ## Install Crossplane
+
 <ul class="nav nav-tabs">
 <li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (alpha)</a></li>
 <li><a href="#install-tab-helm3-master" data-toggle="tab">Helm 3 (master)</a></li>
@@ -72,7 +73,7 @@ Use Helm 3 to install the latest official `alpha` release of Crossplane, suitabl
 
 > OAM is available only for 1.16 and later versions of Kubernetes.
 
-```
+```console
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
@@ -80,7 +81,8 @@ helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 # Kubernetes 1.16 and later versions
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --set alpha.oam.enabled=true
 ```
-```
+
+```console
 # Kubernetes 1.15 and earlier versions
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
 ```
@@ -89,7 +91,7 @@ helm install crossplane --namespace crossplane-system crossplane-alpha/crossplan
 <div class="tab-pane fade" id="install-tab-helm3-master" markdown="1">
 Use Helm 3 to install the latest `master` pre-release version of Crossplane:
 
-```
+```console
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-master https://charts.crossplane.io/master/
@@ -98,13 +100,15 @@ helm search repo crossplane-master --devel
 # Kubernetes 1.16 and later versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version> --set alpha.oam.enabled=true
 ```
-```
+
+```console
 # Kubernetes 1.15 and earlier versions
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version>
 ```
 
 For example:
-```
+
+```console
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.11.0-rc.100.gbc5d311 --devel --set alpha.oam.enabled=true
 ```
 
@@ -112,7 +116,8 @@ helm install crossplane --namespace crossplane-system crossplane-master/crosspla
 </div>
 
 ## Check Crossplane Status
-```
+
+```console
 helm list -n crossplane-system
 
 kubectl get all -n crossplane-system
@@ -121,11 +126,13 @@ kubectl get all -n crossplane-system
 ## Install Crossplane CLI
 
 The Crossplane CLI extends `kubectl` with functionality to build, push, and install [Crossplane packages]:
-```
+
+```console
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 ```
 
 ## Select Provider
+
 Install and configure a provider for Crossplane to use for infrastructure provisioning:
 <ul class="nav nav-tabs">
 <li class="active"><a href="#provider-tab-aws" data-toggle="tab">AWS</a></li>
@@ -139,40 +146,45 @@ Install and configure a provider for Crossplane to use for infrastructure provis
 
 ### Install AWS Provider
 
-```
+```console
 kubectl crossplane install provider crossplane/provider-aws:master
 ```
 
 ### Get AWS Account Keyfile
 
 Using an AWS account with permissions to manage RDS databases:
-```
+
+```console
 AWS_PROFILE=default && echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $AWS_PROFILE)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $AWS_PROFILE)" > creds.conf
 ```
 
 ### Create a Provider Secret
 
-```
+```console
 kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./creds.conf
 ```
 
 ### Configure the Provider
+
 Create the following `provider.yaml`:
 
 ```yaml
 apiVersion: aws.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: aws-provider
+  name: default
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: aws-creds
-    key: key
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-creds
+      key: key
 ```
 
 Then apply it:
-```
+
+```console
 kubectl apply -f provider.yaml
 ```
 
@@ -181,13 +193,13 @@ kubectl apply -f provider.yaml
 
 ### Install GCP Provider
 
-```
+```console
 kubectl crossplane install provider crossplane/provider-gcp:master
 ```
 
 ### Get GCP Account Keyfile
 
-```
+```console
 # replace this with your own gcp project id and the name of the service account
 # that will be created.
 PROJECT_ID=my-project
@@ -211,29 +223,33 @@ gcloud iam service-accounts keys create creds.json --project $PROJECT_ID --iam-a
 
 ### Create a Provider Secret
 
-```
+```console
 kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./creds.json
 ```
 
 ### Configure the Provider
+
 Create the following `provider.yaml`:
 
 ```yaml
 apiVersion: gcp.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: gcp-provider
+  name: default
 spec:
   # replace this with your own gcp project id
   projectID: my-project
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: gcp-creds
-    key: key
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: gcp-creds
+      key: key
 ```
 
 Then apply it:
-```
+
+```console
 kubectl apply -f provider.yaml
 ```
 
@@ -242,13 +258,13 @@ kubectl apply -f provider.yaml
 
 ### Install Azure Provider
 
-```
+```console
 kubectl crossplane install provider crossplane/provider-azure:master
 ```
 
 ### Get Azure Principal Keyfile
 
-```
+```console
 # create service principal with Owner role
 az ad sp create-for-rbac --sdk-auth --role Owner > "creds.json"
 
@@ -271,27 +287,31 @@ az ad app permission admin-consent --id "${AZURE_CLIENT_ID}"
 
 ### Create a Provider Secret
 
-```
+```console
 kubectl create secret generic azure-creds -n crossplane-system --from-file=key=./creds.json
 ```
 
 ### Configure the Provider
+
 Create the following `provider.yaml`:
 
 ```yaml
 apiVersion: azure.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: azure-provider
+  name: default
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: azure-creds
-    key: key
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: azure-creds
+      key: key
 ```
 
 Then apply it:
-```
+
+```console
 kubectl apply -f provider.yaml
 ```
 
@@ -300,34 +320,38 @@ kubectl apply -f provider.yaml
 
 ### Install Alibaba Provider
 
-```
+```console
 kubectl crossplane install provider crossplane/provider-alibaba:master
 ```
 
 ### Create a Provider Secret
 
-```
+```console
 kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key> --from-literal=accessKeySecret=<your-secret> -n crossplane-system
 ```
 
 ### Configure the Provider
+
 Create the following `provider.yaml`:
 
 ```yaml
 apiVersion: alibaba.crossplane.io/v1alpha1
-kind: Provider
+kind: ProviderConfig
 metadata:
-  name: alibaba-provider
+  name: default
 spec:
-  credentialsSecretRef:
-    namespace: crossplane-system
-    name: alibaba-creds
-    key: credentials
   region: cn-beijing
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: alibaba-creds
+      key: credentials
 ```
 
 Then apply it:
-```
+
+```console
 kubectl apply -f provider.yaml
 ```
 
@@ -335,26 +359,31 @@ kubectl apply -f provider.yaml
 </div>
 
 ## Next Steps
+
 Now that you have a provider configured, you can [provision infrastructure].
 
 ## More Info
+
 See [Install] and [Configure] docs for installing alternate versions and more
 detailed instructions.
 
 ## Uninstall Provider
+
 Let's check whether there are any managed resources before deleting the provider.
-```
+
+```console
 kubectl get managed
 ```
 
 If there are any, please delete them first so you don't lose track of them.
 
-```
+```console
 kubectl delete -f provider.yaml
 ```
 
 ## Uninstall Crossplane
-```
+
+```console
 helm delete crossplane --namespace crossplane-system
 
 kubectl delete namespace crossplane-system

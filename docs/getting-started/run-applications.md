@@ -51,18 +51,25 @@ or deleting `WorkloadDefinitions` and `TraitDefinitions` like below:
 apiVersion: core.oam.dev/v1alpha2
 kind: WorkloadDefinition
 metadata:
-  name: containerizedworkloads.core.oam.dev
+  name: postgresqlinstances.database.example.org
 spec:
   definitionRef:
-    name: containerizedworkloads.core.oam.dev
+    name: postgresqlinstances.database.example.org
 ---
-apiVersion: core.oam.dev/v1alpha2
-kind: WorkloadDefinition
+# The OAM controller needs RBAC access to reconcile any non-core workloads.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
 metadata:
-  name: postgresqlinstanceclaims.database.example.org
-spec:
-  definitionRef:
-    name: postgresqlinstanceclaims.database.example.org
+  labels:
+    rbac.oam.dev/aggregate-to-controller: "true"
+  name: oam:claim:postgresqlinstancesdatabase.example.org:aggregate-to-controller
+rules:
+- apiGroups:
+  - database.example.org
+  resources:
+  - postgresqlinstances
+  verbs:
+  - '*'
 ```
 
 Run the following command to add support for all the workloads and traits required

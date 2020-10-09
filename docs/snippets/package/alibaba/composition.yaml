@@ -2,9 +2,9 @@
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.gcp.database.example.org
+  name: compositepostgresqlinstances.alibaba.database.example.org
   labels:
-    provider: gcp
+    provider: alibaba
     guide: quickstart
 spec:
   writeConnectionSecretsToNamespace: crossplane-system
@@ -13,19 +13,15 @@ spec:
     kind: CompositePostgreSQLInstance
   resources:
     - base:
-        apiVersion: database.gcp.crossplane.io/v1beta1
-        kind: CloudSQLInstance
+        apiVersion: database.alibaba.crossplane.io/v1alpha1
+        kind: RDSInstance
         spec:
           forProvider:
-            databaseVersion: POSTGRES_9_6
-            region: us-central1
-            settings:
-              tier: db-custom-1-3840
-              dataDiskType: PD_SSD
-              ipConfiguration:
-                ipv4Enabled: true
-                authorizedNetworks:
-                  - value: "0.0.0.0/0"
+            engine: PostgreSQL
+            engineVersion: "9.4"
+            dbInstanceClass: rds.pg.s1.small
+            securityIPList: "0.0.0.0/0"
+            masterUsername: "myuser"
           writeConnectionSecretToRef:
             namespace: crossplane-system
       patches:
@@ -36,10 +32,9 @@ spec:
               string:
                 fmt: "%s-postgresql"
         - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
+          toFieldPath: "spec.forProvider.dbInstanceStorageInGB"
       connectionDetails:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
-        - name: port
-          value: "5432"
+        - fromConnectionSecretKey: port

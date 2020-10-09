@@ -1,0 +1,7 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: getting-started-with-alibaba
+  annotations:
+    guide: quickstart
+    provider: alibaba
