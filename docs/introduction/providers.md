@@ -7,11 +7,11 @@ indent: true
 
 # Providers
 
-Providers extend Crossplane to enable infrastructure resource provisioning.
-In order to provision a resource, a Custom Resource Definition(CRD)
-needs to be registered in your Kubernetes cluster and its controller should
-be watching the Custom Resources those CRDs define. Provider packages
-contain many Custom Resource Definitions and their controllers.
+Providers extend Crossplane to enable infrastructure resource provisioning. In
+order to provision a resource, a Custom Resource Definition (CRD) needs to be
+registered in your Kubernetes cluster and its controller should be watching the
+Custom Resources those CRDs define. Provider packages contain many Custom
+Resource Definitions and their controllers.
 
 Here is the list of current providers:
 
@@ -64,13 +64,10 @@ and set up necessary RBAC rules and then start the controllers.
 There are a few other ways to to trigger the installation of provider packages:
 
 * As part of Crossplane Helm chart by adding the following statement to your
-  `helm install` command: `--set clusterPackages.gcp.deploy=true` It will
-  install the default version hard-coded in that release of Crossplane Helm
-  chart but if you'd like to specif an exact version, you can add: `--set
-  clusterPackages.gcp.version=master`.
-* Using [Crossplane kubectl plugin][crossplane-cli]: `kubectl crossplane package
-  install --cluster -n crossplane-system 'crossplane/provider-gcp:master'
-  provider-gcp`
+  `helm install` command: `--set
+  provider.packages={crossplane/provider-aws:master}`.
+* Using the Crossplane CLI: `kubectl crossplane install provider
+  crossplane/provider-aws:master`
 
 You can uninstall a provider by deleting the `ClusterPackageInstall` resource
 you've created.
@@ -136,4 +133,3 @@ will attempt to use a `ProviderConfig` named `default`.
 [provider-alibaba]: https://github.com/crossplane/provider-alibaba
 [alibaba-reference]: https://doc.crds.dev/github.com/crossplane/provider-alibaba
 [getting-started]: ../getting-started/install-configure.md
-[crossplane-cli]: https://github.com/crossplane/crossplane-cli

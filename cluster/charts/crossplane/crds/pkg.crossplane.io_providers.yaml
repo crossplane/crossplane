@@ -25,6 +25,7 @@ spec:
   names:
     categories:
     - crossplane
+    - pkg
     kind: Provider
     listKind: ProviderList
     plural: providers

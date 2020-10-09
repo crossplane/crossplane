@@ -119,9 +119,10 @@ kubectl get all -n crossplane-system
 ```
 
 ## Install Crossplane CLI
-The [Crossplane CLI] adds a set of `kubectl crossplane` commands to simplify common tasks:
+
+The Crossplane CLI extends `kubectl` with functionality to build, push, and install [Crossplane packages]:
 ```
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane-cli/master/bootstrap.sh | bash
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 ```
 
 ## Select Provider
@@ -139,10 +140,7 @@ Install and configure a provider for Crossplane to use for infrastructure provis
 ### Install AWS Provider
 
 ```
-PACKAGE=crossplane/provider-aws:master
-NAME=provider-aws
-
-kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
+kubectl crossplane install provider crossplane/provider-aws:master
 ```
 
 ### Get AWS Account Keyfile
@@ -161,7 +159,7 @@ kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./c
 ### Configure the Provider
 Create the following `provider.yaml`:
 
-```
+```yaml
 apiVersion: aws.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
@@ -184,10 +182,7 @@ kubectl apply -f provider.yaml
 ### Install GCP Provider
 
 ```
-PACKAGE=crossplane/provider-gcp:master
-NAME=provider-gcp
-
-kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
+kubectl crossplane install provider crossplane/provider-gcp:master
 ```
 
 ### Get GCP Account Keyfile
@@ -223,7 +218,7 @@ kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./c
 ### Configure the Provider
 Create the following `provider.yaml`:
 
-```
+```yaml
 apiVersion: gcp.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
@@ -248,10 +243,7 @@ kubectl apply -f provider.yaml
 ### Install Azure Provider
 
 ```
-PACKAGE=crossplane/provider-azure:master
-NAME=provider-azure
-
-kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
+kubectl crossplane install provider crossplane/provider-azure:master
 ```
 
 ### Get Azure Principal Keyfile
@@ -286,7 +278,7 @@ kubectl create secret generic azure-creds -n crossplane-system --from-file=key=.
 ### Configure the Provider
 Create the following `provider.yaml`:
 
-```
+```yaml
 apiVersion: azure.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
@@ -309,10 +301,7 @@ kubectl apply -f provider.yaml
 ### Install Alibaba Provider
 
 ```
-PACKAGE=crossplane/provider-alibaba:master
-NAME=provider-alibaba
-
-kubectl crossplane package install --cluster --namespace crossplane-system ${PACKAGE} ${NAME}
+kubectl crossplane install provider crossplane/provider-alibaba:master
 ```
 
 ### Create a Provider Secret
@@ -324,7 +313,7 @@ kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key
 ### Configure the Provider
 Create the following `provider.yaml`:
 
-```
+```yaml
 apiVersion: alibaba.crossplane.io/v1alpha1
 kind: Provider
 metadata:
@@ -380,4 +369,4 @@ kubectl delete namespace crossplane-system
 [Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
 [Helm]: https://docs.helm.sh/using_helm/
 [Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/
-[Crossplane CLI]: https://github.com/crossplane/crossplane-cli
+[Crossplane packages]: ../introduction/packages.md
