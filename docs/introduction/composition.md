@@ -361,7 +361,6 @@ spec:
             geoRedundantBackup: Disabled
         writeConnectionSecretToRef:
           namespace: crossplane-system
-        reclaimPolicy: Delete
     patches:
     - fromFieldPath: "metadata.labels"
       toFieldPath: "metadata.labels"
@@ -432,7 +431,6 @@ spec:
             endIpAddress: 10.10.255.254
             virtualNetworkSubnetIdSelector:
               name: sample-subnet
-        reclaimPolicy: Delete
     patches:
     - fromFieldPath: "metadata.labels"
       toFieldPath: "metadata.labels"

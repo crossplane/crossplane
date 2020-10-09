@@ -1,0 +1,8 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: getting-started-with-aws-with-vpc
+  annotations:
+    guide: quickstart
+    provider: aws
+    vpc: new

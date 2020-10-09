@@ -13,102 +13,48 @@ Kubernetes custom resource that offers a high fidelity representation of an
 infrastructure primitive, like an SQL instance or a firewall rule. Crossplane
 goes beyond simply modelling infrastructure primitives as custom resources - it
 enables you to define new custom resources with schemas of your choosing. These
-resources are composed of infrastructure primitives, allowing you to define and
-offer resources that group and abstract infrastructure primitives. We call these
+resources are composed of managed resources, allowing you to define and offer
+resources that group and abstract infrastructure primitives. We call these
 "composite resources" (XRs).
 
-We use two special Crossplane resources to define and configure new XRs:
+XRs are always cluster scoped - they exist outside of any namespace. This allows
+an XR to represent infrastructure that might be consumed from several different
+namespaces. This is often true for VPC networks - an infrastructure operator may
+wish to define a VPC network XR and an SQL instance XR, only the latter of which
+may be managed by application operators. The application operators are
+restricted to their team's namespace, but their SQL instances should all be
+attached to the VPC network that the infrastructure operator manages. Crossplane
+enables scenarios like this  by allowing the infrastructure operator to offer
+their application operators a _composite resource claim_ (XRC). An XRC is a
+namespaced proxy for an XR; the schema of an XRC is identical to that of its
+corresponding XR. When an application operator creates an XRC, a corresponding
+backing XR is created automatically.
 
-- A `CompositeResourceDefinition` (XRD) defines a new kind of composite
-  resource, including its schema.
-- A `Composition` specifies which managed resources a composite resource should
-  be composed of, and how they should be configured. You can create multiple
+We use two special Crossplane resources to define and configure new XRs and
+XRCs:
+
+- A `CompositeResourceDefinition` (XRD) _defines_ a new kind of composite
+  resource, including its schema. An XRD may optionally _offer_ a claim.
+- A `Composition` specifies which resources a composite resource will be
+  composed of, and how they should be configured. You can create multiple
   `Composition` options for each composite resource.
 
-In the examples below, we will define a new `CompositePostgreSQLInstance` XR
-that only takes a single `storageGB` parameter, and specifies that it will
-create a connection `Secret` with keys for `username`, `password`, and
-`endpoint`. We will then create a `Composition` for each provider that can
-satisfy a `PostgreSQLInstance`. Let's get started!
+XRDs and Compositions may be packaged and installed as a _configuration_. A
+configuration is a [package] of composition configuration that can easily be
+installed to Crossplane by creating a declarative `Configuration` resource, or
+by using `kubectl crossplane install configuration`. In the examples below we
+will install a configuration that defines a new `CompositePostgreSQLInstance` XR
+that takes a single `storageGB` parameter, and creates a connection `Secret`
+with keys for `username`, `password`, and `endpoint`. A `Configuration` exists
+for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 
-## Create CompositeResourceDefinition
+## Configure and Claim Your Infrastructure
 
-The next step is authoring an XRD that defines a `CompositePostgreSQLInstance`:
+We will now install a `Configuration` that:
 
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: CompositeResourceDefinition
-metadata:
-  name: compositepostgresqlinstances.database.example.org
-spec:
-  claimNames:
-    kind: PostgreSQLInstance
-    plural: postgresqlinstances
-  connectionSecretKeys:
-    - username
-    - password
-    - endpoint
-    - port
-  crdSpecTemplate:
-    group: database.example.org
-    version: v1alpha1
-    names:
-      kind: CompositePostgreSQLInstance
-      plural: compositepostgresqlinstances
-    validation:
-      openAPIV3Schema:
-        type: object
-        properties:
-          spec:
-            type: object
-            properties:
-              parameters:
-                type: object
-                properties:
-                  storageGB:
-                    type: integer
-                required:
-                  - storageGB
-            required:
-              - parameters
-```
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/definition.yaml
-```
-
-You might notice that the above XRD specifies both "names" and "claim names".
-This is because the composite resource it defines offers a composite resource
-claim (XRC).
-
-Composite resources are always cluster scoped - they exist outside of any
-namespace. This allows a composite resource to represent infrastructure that
-might be consumed by multiple composite resources across different namespaces.
-VPC networks are a common example of this pattern - an infrastructure operator
-may wish to define one composite resource that represents a VPC network and
-another that represents an SQL instance. The infrastructure operator may wish to
-offer the ability to manage SQL instances to their application operators. The
-application operators are restricted to their team's namespace, but their SQL
-instance should all be attached to the VPC network that the infrastructure
-operator manages. Crossplane enables scenarios like this one by allowing the
-infrastructure operator to offer their application operators a composite
-resource claim.
-
-A composite resource claim is a namespaced proxy for a composite resource. The
-schema of the composite resource claim is identical to that of its corresponding
-composite resource. In the example above `CompositePostgreSQLInstance` is the
-composite resource, while `PostgreSQLInstance` is the composite resource claim.
-When an application operator creates a `PostgreSQLinstance` a corresponding
-`CompositePostgreSQLInstance` is created. The XRD is said to _define_ the XR,
-and to _offer_ the XRC. Offering an XRC is optional; omit `spec.claimNames` to
-avoid doing so.
-
-## Create Compositions
-
-Now we'll specify which managed resources our `CompositePostgreSQLInstance` XR
-could be composed of, and how they should be configured. For each provider we
-will define a `Composition` that can satisfy the XR. In this case, each will
-result in the provisioning of a public PostgreSQL instance on the provider.
+- Defines a `CompositePostgreSQLInstance` XR.
+- Offers a `PostgreSQLInstance` claim (XRC) for said XR.
+- Creates a `Composition` that can satisfy our XR.
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
@@ -121,429 +67,56 @@ result in the provisioning of a public PostgreSQL instance on the provider.
 <div class="tab-content">
 <div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
 
-> Note that this Composition will create an RDS instance using your default VPC,
-> which may or may not allow connections from the internet depending on how it
-> is configured. Select the AWS (New VPC) Composition if you wish to create an
-> RDS instance that will allow traffic from the internet.
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Composition
-metadata:
-  name: compositepostgresqlinstances.aws.database.example.org
-  labels:
-    provider: aws
-    guide: quickstart
-    vpc: default
-spec:
-  writeConnectionSecretsToNamespace: crossplane-system
-  compositeTypeRef:
-    apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
-  resources:
-    - base:
-        apiVersion: database.aws.crossplane.io/v1beta1
-        kind: RDSInstance
-        spec:
-          forProvider:
-            region: us-east-1
-            dbInstanceClass: db.t2.small
-            masterUsername: masteruser
-            engine: postgres
-            engineVersion: "9.6"
-            skipFinalSnapshotBeforeDeletion: true
-            publiclyAccessible: true
-          writeConnectionSecretToRef:
-            namespace: crossplane-system
-      patches:
-        - fromFieldPath: "metadata.uid"
-          toFieldPath: "spec.writeConnectionSecretToRef.name"
-          transforms:
-            - type: string
-              string:
-                fmt: "%s-postgresql"
-        - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.allocatedStorage"
-      connectionDetails:
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
-        - fromConnectionSecretKey: endpoint
-        - fromConnectionSecretKey: port
-```
-
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-aws.yaml
+kubectl crossplane install configuration crossplane/getting-started-with-aws:master
 ```
 
 </div>
 <div class="tab-pane fade" id="aws-new-tab-1" markdown="1">
 
-> Note: this `Composition` for AWS also includes several networking managed
-> resources that are required to provision a publicly available PostgreSQL
-> instance. Composition enables scenarios such as this, as well as far more
-> complex ones. See the [composition] documentation for more information.
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Composition
-metadata:
-  name: vpcpostgresqlinstances.aws.database.example.org
-  labels:
-    provider: aws
-    guide: quickstart
-    vpc: new
-spec:
-  writeConnectionSecretsToNamespace: crossplane-system
-  compositeTypeRef:
-    apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
-  resources:
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: VPC
-        spec:
-          forProvider:
-            region: us-east-1
-            cidrBlock: 192.168.0.0/16
-            enableDnsSupport: true
-            enableDnsHostNames: true
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: Subnet
-        metadata:
-          labels:
-            zone: us-east-1a
-        spec:
-          forProvider:
-            region: us-east-1
-            cidrBlock: 192.168.64.0/18
-            vpcIdSelector:
-              matchControllerRef: true
-            availabilityZone: us-east-1a
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: Subnet
-        metadata:
-          labels:
-            zone: us-east-1b
-        spec:
-          forProvider:
-            region: us-east-1
-            cidrBlock: 192.168.128.0/18
-            vpcIdSelector:
-              matchControllerRef: true
-            availabilityZone: us-east-1b
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: Subnet
-        metadata:
-          labels:
-            zone: us-east-1c
-        spec:
-          forProvider:
-            region: us-east-1
-            cidrBlock: 192.168.192.0/18
-            vpcIdSelector:
-              matchControllerRef: true
-            availabilityZone: us-east-1c
-    - base:
-        apiVersion: database.aws.crossplane.io/v1beta1
-        kind: DBSubnetGroup
-        spec:
-          forProvider:
-            region: us-east-1
-            description: An excellent formation of subnetworks.
-            subnetIdSelector:
-              matchControllerRef: true
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: InternetGateway
-        spec:
-          forProvider:
-            region: us-east-1
-            vpcIdSelector:
-              matchControllerRef: true
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1alpha4
-        kind: RouteTable
-        spec:
-          forProvider:
-            region: us-east-1
-            vpcIdSelector:
-              matchControllerRef: true
-            routes:
-              - destinationCidrBlock: 0.0.0.0/0
-                gatewayIdSelector:
-                  matchControllerRef: true
-            associations:
-              - subnetIdSelector:
-                  matchLabels:
-                    zone: us-east-1a
-              - subnetIdSelector:
-                  matchLabels:
-                    zone: us-east-1b
-              - subnetIdSelector:
-                  matchLabels:
-                    zone: us-east-1c
-    - base:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: SecurityGroup
-        spec:
-          forProvider:
-            region: us-east-1
-            vpcIdSelector:
-              matchControllerRef: true
-            groupName: crossplane-getting-started
-            description: Allow access to PostgreSQL
-            ingress:
-              - fromPort: 5432
-                toPort: 5432
-                ipProtocol: tcp
-                ipRanges:
-                  - cidrIp: 0.0.0.0/0
-                    description: Everywhere
-    - base:
-        apiVersion: database.aws.crossplane.io/v1beta1
-        kind: RDSInstance
-        spec:
-          forProvider:
-            region: us-east-1
-            dbSubnetGroupNameSelector:
-              matchControllerRef: true
-            vpcSecurityGroupIDSelector:
-              matchControllerRef: true
-            dbInstanceClass: db.t2.small
-            masterUsername: masteruser
-            engine: postgres
-            engineVersion: "9.6"
-            skipFinalSnapshotBeforeDeletion: true
-            publiclyAccessible: true
-          writeConnectionSecretToRef:
-            namespace: crossplane-system
-      patches:
-        - fromFieldPath: "metadata.uid"
-          toFieldPath: "spec.writeConnectionSecretToRef.name"
-          transforms:
-            - type: string
-              string:
-                fmt: "%s-postgresql"
-        - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.allocatedStorage"
-      connectionDetails:
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
-        - fromConnectionSecretKey: endpoint
-        - fromConnectionSecretKey: port
-```
-
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-aws-with-vpc.yaml
+kubectl crossplane install configuration crossplane/getting-started-with-aws-with-vpc:master
 ```
 
 </div>
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Composition
-metadata:
-  name: compositepostgresqlinstances.gcp.database.example.org
-  labels:
-    provider: gcp
-    guide: quickstart
-spec:
-  writeConnectionSecretsToNamespace: crossplane-system
-  compositeTypeRef:
-    apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
-  resources:
-    - base:
-        apiVersion: database.gcp.crossplane.io/v1beta1
-        kind: CloudSQLInstance
-        spec:
-          forProvider:
-            databaseVersion: POSTGRES_9_6
-            region: us-central1
-            settings:
-              tier: db-custom-1-3840
-              dataDiskType: PD_SSD
-              ipConfiguration:
-                ipv4Enabled: true
-                authorizedNetworks:
-                  - value: "0.0.0.0/0"
-          writeConnectionSecretToRef:
-            namespace: crossplane-system
-      patches:
-        - fromFieldPath: "metadata.uid"
-          toFieldPath: "spec.writeConnectionSecretToRef.name"
-          transforms:
-            - type: string
-              string:
-                fmt: "%s-postgresql"
-        - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
-      connectionDetails:
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
-        - fromConnectionSecretKey: endpoint
-        - name: port
-          value: "5432"
-```
-
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-gcp.yaml
+kubectl crossplane install configuration crossplane/getting-started-with-gcp:master
 ```
 
 </div>
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
-> Note: the `Composition` for Azure also includes a `ResourceGroup` and
-> `PostgreSQLServerFirewallRule` that are required to provision a publicly
-> available PostgreSQL instance on Azure. Composition enables scenarios such as
-> this, as well as far more complex ones. See the [composition] documentation
-> for more information.
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Composition
-metadata:
-  name: compositepostgresqlinstances.azure.database.example.org
-  labels:
-    provider: azure
-    guide: quickstart
-spec:
-  writeConnectionSecretsToNamespace: crossplane-system
-  compositeTypeRef:
-    apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
-  resources:
-    - base:
-        apiVersion: azure.crossplane.io/v1alpha3
-        kind: ResourceGroup
-        spec:
-          location: West US 2
-    - base:
-        apiVersion: database.azure.crossplane.io/v1beta1
-        kind: PostgreSQLServer
-        spec:
-          forProvider:
-            administratorLogin: myadmin
-            resourceGroupNameSelector:
-              matchControllerRef: true
-            location: West US 2
-            sslEnforcement: Disabled
-            version: "9.6"
-            sku:
-              tier: GeneralPurpose
-              capacity: 2
-              family: Gen5
-          writeConnectionSecretToRef:
-            namespace: crossplane-system
-      patches:
-        - fromFieldPath: "metadata.uid"
-          toFieldPath: "spec.writeConnectionSecretToRef.name"
-          transforms:
-            - type: string
-              string:
-                fmt: "%s-postgresql"
-        - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.storageProfile.storageMB"
-          transforms:
-            - type: math
-              math:
-                multiply: 1024
-      connectionDetails:
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
-        - fromConnectionSecretKey: endpoint
-        - name: port
-          value: "5432"
-    - base:
-        apiVersion: database.azure.crossplane.io/v1alpha3
-        kind: PostgreSQLServerFirewallRule
-        spec:
-          forProvider:
-            serverNameSelector:
-              matchControllerRef: true
-            resourceGroupNameSelector:
-              matchControllerRef: true
-            properties:
-              startIpAddress: 0.0.0.0
-              endIpAddress: 255.255.255.254
-```
-
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-azure.yaml
+kubectl crossplane install configuration crossplane/getting-started-with-azure:master
 ```
 
 </div>
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Composition
-metadata:
-  name: compositepostgresqlinstances.alibaba.database.example.org
-  labels:
-    provider: alibaba
-    guide: quickstart
-spec:
-  writeConnectionSecretsToNamespace: crossplane-system
-  compositeTypeRef:
-    apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
-  resources:
-    - base:
-        apiVersion: database.alibaba.crossplane.io/v1alpha1
-        kind: RDSInstance
-        spec:
-          forProvider:
-            engine: PostgreSQL
-            engineVersion: "9.4"
-            dbInstanceClass: rds.pg.s1.small
-            securityIPList: "0.0.0.0/0"
-            masterUsername: "myuser"
-          writeConnectionSecretToRef:
-            namespace: crossplane-system
-      patches:
-        - fromFieldPath: "metadata.uid"
-          toFieldPath: "spec.writeConnectionSecretToRef.name"
-          transforms:
-            - type: string
-              string:
-                fmt: "%s-postgresql"
-        - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.dbInstanceStorageInGB"
-      connectionDetails:
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
-        - fromConnectionSecretKey: endpoint
-        - fromConnectionSecretKey: port
+```console
+kubectl crossplane install configuration crossplane/getting-started-with-alibaba:master
 ```
+
+</div>
+</div>
+
+Crossplane should now be configured to allow us to create a `PostgreSQLInstance`
+claim! You can make sure your `Configuration` installed successfully by running:
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/composition-alibaba.yaml
+kubectl describe configuration
 ```
 
-</div>
-</div>
-
-## Create a Claim
-
-We have now:
-
-- Defined a `CompositePostgreSQLInstance` composite resource.
-- Offered a `PostgreSQLInstance` composite resource claim.
-- Created at least one `Composition` that can satisfy our composite resource.
-
-This means we have everything we need to create a `PostgreSQLInstance` in the
-namespace of our choosing. Each `Composition` we created was labelled
-`provider: <name-of-provider>` label. This lets us use a `compositionSelector`
-to match our `Composition` of choice.
+Make sure you've [setup] a `ProviderConfig` named `default` for your chosen
+provider, then create your XRC to provision a PostgreSQL instance and all the
+supporting infrastructure (VPCs, firewall rules, resource groups, etc) that it
+may need!
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS (Default VPC)</a></li>
-<li><a href="#aws-tab-new-2" data-toggle="tab">AWS (New VPC)</a></li>
+<li><a href="#aws-new-tab-2" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
 <li><a href="#alibaba-tab-2" data-toggle="tab">Alibaba</a></li>
@@ -574,7 +147,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ```
 
 </div>
-<div class="tab-pane fade" id="aws-tab-new-2" markdown="1">
+<div class="tab-pane fade" id="aws-new-tab-2" markdown="1">
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
@@ -669,7 +242,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 </div>
 </div>
 
-After creating the `PostgreSQLInstance` Crossplane will provision a
+After creating the `PostgreSQLInstance` Crossplane will begin provisioning a
 database instance on your provider of choice. Once provisioning is complete, you
 should see `READY: True` in the output when you run:
 
@@ -687,6 +260,12 @@ kubectl get postgresqlinstance my-db
 >   infrastructure.
 > - `kubectl get <name-of-provider>`: get all resources related to `<provider>`.
 > - `kubectl get crossplane`: get all resources related to Crossplane.
+
+Try the following command to watch your provisioned resources become ready:
+
+```console
+kubectl get crossplane -l crossplane.io/claim-name=my-db
+```
 
 You should also see a `Secret` in the `default` namespace named `db-conn` that
 contains keys that we defined in XRD. If they are filled by the composition, then
@@ -708,7 +287,7 @@ username:  25 bytes
 endpoint:  45 bytes
 ```
 
-## Consume Infrastructure
+## Consume Your Infrastructure
 
 Because connection secrets are written as a Kubernetes `Secret` they can easily
 be consumed by Kubernetes primitives. The most basic building block in
@@ -776,15 +355,15 @@ kubectl delete pod see-db
 ```
 
 To clean up the infrastructure that was provisioned, you can delete the
-`PostgreSQLInstance`:
+`PostgreSQLInstance` XRC:
 
 ```console
 kubectl delete postgresqlinstance my-db
 ```
 
-> Don't clean up your `CompositeResourceDefinition` or `Composition` just yet if
-> you plan to continue on to the next section of the guide! We'll use them again
-> when we deploy an OAM application.
+> Don't clean up your `Configuration` just yet if you plan to continue on to the
+> next section of the guide! We'll use them again when we deploy an OAM
+> application.
 
 ## Next Steps
 
@@ -796,5 +375,7 @@ alongside your [OAM] application manifests.
 
 [last section]: provision-infrastructure.md
 [composition]: ../introduction/composition.md
+[package]: ../introduction/packages.md
+[setup]: install-configure.md
 [next section]: run-applications.md
 [OAM]: https://oam.dev/
