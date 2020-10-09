@@ -196,7 +196,7 @@ This is the package image that we built, pushed, and are asking Crossplane to
 install. The tag we specify here is important. Crossplane will periodically
 check if the installed image matches the digest of the image in the remote
 registry. If it does not, Crossplane will create a new _Revision_ (either
-`ProviderRevision` or `ConfigurationRevision`). If you do not for Crossplane to
+`ProviderRevision` or `ConfigurationRevision`). If you do not wish Crossplane to
 ever update your packages without explicitly instructing it to do so, you should
 consider specifying a tag which you know will not have the underlying contents
 change unexpectedly (e.g. a specific semantic version, such as `v0.1.0`) or, for
@@ -220,7 +220,7 @@ until the other cedes control.
 
 An `Inactive` package revision attempts to become the _owner_ of all resource it
 installs. There can be an arbitrary number of owners of a resource, so multiple
-`Inactive` revisions and a single `Active` revisions can exist for a resource.
+`Inactive` revisions and a single `Active` revision can exist for a resource.
 Importantly, an `Inactive` package revision will not perform any auxiliary
 actions (such as creating a `Deployment` in the case of a `Provider`), meaning
 we will not encounter a situation where two revisions are fighting over
@@ -245,7 +245,7 @@ become `Inactive`, and the oldest `Inactive` revision will be garbage collected.
 > enough times (but do not make `Active` the new revisions), it is possible that
 > activating a newer revision could cause the previously `Active` revision to
 > immediately be garbage collected if it is outside the
-> `spec.revisionHistoryLimit`. 
+> `spec.revisionHistoryLimit`.
 
 <!-- Named Links -->
 
