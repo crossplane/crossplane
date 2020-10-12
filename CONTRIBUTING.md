@@ -114,11 +114,11 @@ new behaviour or changes existing behaviour must include updates to any relevant
 documentation and examples. Please keep documentation and example changes in
 distinct commits.
 
-One your change is written, tested, and documented the final step is to have it
-reviewed! You'll be presented with a template and a small checklist when you
-open a PR. Please read the template and fill out the checklist. If the folks
-reviewing your PR request changes please make them in new commits. This allows
-your reviewers to see what has changed as you address their comments. Be mindful
+Once your change is written, tested, and documented the final step is to have it
+reviewed! You'll be presented with a template and a small checklist, when you
+open a PR. Please read the template and fill out the checklist. Please make all 
+PR request changes in subsequent commits. This allows your reviewers to see what
+has changed as you address their comments. Be mindful
 of  your commit history as you do this - avoid commit messages like "Address
 review feedback" if possible. If doing so is difficult a good alternative is to
 rewrite your commit history to clean them up after your PR is approved but
@@ -132,7 +132,7 @@ In summary, please:
 * Add or update tests for all changes.
 * Preempt common [code review comments] and [test review comments].
 * Update all relevant documentation and examples.
-* Don't force push to address review feedback.
+* Don't force push to address review feedback. Your commits should tell a story.
 * If necessary, tidy up your git commit history once your PR is approved.
 
 Thank you for reading through our contributing guide! We appreciate you taking
