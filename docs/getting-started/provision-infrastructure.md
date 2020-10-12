@@ -63,7 +63,7 @@ When provisioning is complete, you should see `READY: True` in the output. You
 can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
 
 ```console
-kubectl describe secret aws-rdspostgresql-conn -n crossplane-system -o yaml
+kubectl describe secret aws-rdspostgresql-conn -n crossplane-system
 ```
 
 You can then delete the `RDSInstance`:
@@ -111,7 +111,7 @@ When provisioning is complete, you should see `READY: True` in the output. You
 can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
 
 ```console
-kubectl describe secret cloudsqlpostgresql-conn -n crossplane-system -o yaml
+kubectl describe secret cloudsqlpostgresql-conn -n crossplane-system
 ```
 
 You can then delete the `CloudSQLInstance`:
