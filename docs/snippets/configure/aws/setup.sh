@@ -40,10 +40,14 @@ AWS_CREDS_BASE64=$(echo -e "[default]\naws_access_key_id = $(aws configure get a
 
 if test -z "$AWS_CREDS_BASE64"; then
   echo "error reading credentials from aws config"
-  exit -1
+  exit 1
 fi
 
-# build the secret and provider objects, and then apply it
-cat provider.yaml | sed \
-  -e "s|((AWS_CREDS_BASE64))|"$AWS_CREDS_BASE64"|g" \
-  | kubectl apply -f -
+echo "apiVersion: v1
+data:
+  key: $AWS_CREDS_BASE64
+kind: Secret
+metadata:
+  name: aws-creds
+  namespace: crossplane-system
+type: Opaque" | kubectl apply -f -
