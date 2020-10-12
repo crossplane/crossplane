@@ -31,7 +31,7 @@ purposes of Crossplane packages are as follows:
 As stated above, Crossplane packages are just opinionated OCI images, meaning
 they can be constructed using any tool that outputs files that comply the the
 OCI specification. However, constructing packages using the Crossplane CLI is a
-more streamlined experience, as it will performing build-time checks on your
+more streamlined experience, as it will perform build-time checks on your
 packages to ensure that they are compliant with the Crossplane [package format].
 
 Providers and Configurations vary in the types of resources they may contain in
@@ -53,9 +53,9 @@ spec:
     image: crossplane/provider-gcp-controller:master
 ```
 
-> Note: The `meta.pkg.crossplane.io` group does contain actual CRDs that get
-> installed into the cluster. They are strictly used as metadata in a Crossplane
-> package.
+> Note: The `meta.pkg.crossplane.io` group does contain custom resources that
+> may be installed into the cluster. They are strictly used as metadata in a
+> Crossplane package.
 
 The `spec.controller.image` fields specifies that the `Provider` desires for a
 `Deployment` to be created with the provided image. It is important to note that
@@ -126,7 +126,7 @@ kubectl crossplane push provider crossplane/provider-gcp:master
 To push a Configuration package, execute the following command:
 
 ```
-kubectl crossplane push provider crossplane/my-org-infra:master
+kubectl crossplane push configuration crossplane/my-org-infra:master
 ```
 
 > Note: Both of the above commands assume a single `.xpkg` file exists in the
@@ -178,7 +178,7 @@ spec:
 
 > Note: These types differ from the `Provider` and `Configuration` types we saw
 > earlier. They exist in the `pkg.crossplane.io` group rather than the
-> `meta.pkg.crossplane.io` group and are actual CRD types installed in the
+> `meta.pkg.crossplane.io` group and are actual custom resources created in the
 > cluster.
 
 The `spec.revisionActivationPolicy` and `spec.revisionHistoryLimit` fields are
