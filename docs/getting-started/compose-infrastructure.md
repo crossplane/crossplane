@@ -267,9 +267,9 @@ Try the following command to watch your provisioned resources become ready:
 kubectl get crossplane -l crossplane.io/claim-name=my-db
 ```
 
-You should also see a `Secret` in the `default` namespace named `db-conn` that
-contains keys that we defined in XRD. If they are filled by the composition, then
-they should appear:
+Once `PostgreSQLInstance` is ready, you should see a `Secret` in the `default`
+namespace named `db-conn` that contains keys that we defined in XRD. If they are
+filled by the composition, then they should appear:
 
 ```console
 $ kubectl describe secrets db-conn
