@@ -115,7 +115,7 @@ documentation and examples. Please keep documentation and example changes in
 distinct commits.
 
 Once your change is written, tested, and documented the final step is to have it
-reviewed! You'll be presented with a template and a small checklist, when you
+reviewed! You'll be presented with a template and a small checklist when you
 open a PR. Please read the template and fill out the checklist. Please make all 
 PR request changes in subsequent commits. This allows your reviewers to see what
 has changed as you address their comments. Be mindful
