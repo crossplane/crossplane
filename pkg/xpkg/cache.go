@@ -81,7 +81,10 @@ func (c *ImageCache) Store(tag, id string, img v1.Image) error {
 	if err != nil {
 		return err
 	}
-	return tarball.Write(ref, img, cf)
+	if err := tarball.Write(ref, img, cf); err != nil {
+		return err
+	}
+	return cf.Close()
 }
 
 // Delete removes an image from the ImageCache.
