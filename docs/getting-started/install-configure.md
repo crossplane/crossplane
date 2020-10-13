@@ -227,28 +227,24 @@ kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./c
 
 ### Configure the Provider
 
-Create the following `providerconfig.yaml`:
+We will create the following `ProviderConfig` object to configure credentials for GCP
+Provider:
 
-```yaml
-apiVersion: gcp.crossplane.io/v1beta1
+```console
+# replace this with your own gcp project id
+PROJECT_ID=my-project
+echo "apiVersion: gcp.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
 spec:
-  # replace this with your own gcp project id
-  projectID: my-project
+  projectID: ${PROJECT_ID}
   credentials:
     source: Secret
     secretRef:
       namespace: crossplane-system
       name: gcp-creds
-      key: key
-```
-
-Then apply it:
-
-```console
-kubectl apply -f providerconfig.yaml
+      key: key" | kubectl apply -f -
 ```
 
 </div>
