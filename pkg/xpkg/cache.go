@@ -17,6 +17,7 @@ limitations under the License.
 package xpkg
 
 import (
+	"io"
 	"os"
 	"sync"
 
@@ -66,7 +67,7 @@ func (c *ImageCache) Get(tag, id string) (v1.Image, error) {
 		}
 		t = &nt
 	}
-	return tarball.ImageFromPath(BuildPath(c.dir, id), t)
+	return tarball.Image(fsOpener(BuildPath(c.dir, id), c.fs), t)
 }
 
 // Store saves an image to the ImageCache.
@@ -81,7 +82,10 @@ func (c *ImageCache) Store(tag, id string, img v1.Image) error {
 	if err != nil {
 		return err
 	}
-	return tarball.Write(ref, img, cf)
+	if err := tarball.Write(ref, img, cf); err != nil {
+		return err
+	}
+	return cf.Close()
 }
 
 // Delete removes an image from the ImageCache.
@@ -93,6 +97,12 @@ func (c *ImageCache) Delete(id string) error {
 		return nil
 	}
 	return err
+}
+
+func fsOpener(path string, fs afero.Fs) tarball.Opener {
+	return func() (io.ReadCloser, error) {
+		return fs.Open(path)
+	}
 }
 
 // NopCache is a cache implementation that does not store anything and always
