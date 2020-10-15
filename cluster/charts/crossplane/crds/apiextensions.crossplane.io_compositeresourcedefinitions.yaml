@@ -9,6 +9,12 @@ metadata:
   name: compositeresourcedefinitions.apiextensions.crossplane.io
 spec:
   additionalPrinterColumns:
+  - JSONPath: .status.conditions[?(@.type=='Established')].status
+    name: ESTABLISHED
+    type: string
+  - JSONPath: .status.conditions[?(@.type=='Offered')].status
+    name: OFFERED
+    type: string
   - JSONPath: .metadata.creationTimestamp
     name: AGE
     type: date
