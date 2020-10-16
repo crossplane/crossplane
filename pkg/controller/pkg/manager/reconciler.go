@@ -337,6 +337,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
+	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 
 	pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
 	p.SetConditions(v1alpha1.Inactive())
