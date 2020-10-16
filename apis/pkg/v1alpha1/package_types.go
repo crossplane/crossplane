@@ -44,6 +44,12 @@ type PackageSpec struct {
 	// Default is IfNotPresent.
 	// +optional
 	PackagePullPolicy *corev1.PullPolicy `json:"packagePullPolicy,omitempty"`
+
+	// IgnoreCrossplaneConstraints indicates to the package manager whether to
+	// honor Crossplane version constrains specified by the package.
+	// Default is false.
+	// +optional
+	IgnoreCrossplaneConstraints *bool `json:"ignoreCrossplaneConstraints,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.

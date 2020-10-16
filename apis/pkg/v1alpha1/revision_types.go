@@ -57,6 +57,12 @@ type PackageRevisionSpec struct {
 	// Revision number. Indicates when the revision will be garbage collected
 	// based on the parent's RevisionHistoryLimit.
 	Revision int64 `json:"revision"`
+
+	// IgnoreCrossplaneConstraints indicates to the package manager whether to
+	// honor Crossplane version constrains specified by the package.
+	// Default is false.
+	// +optional
+	IgnoreCrossplaneConstraints *bool `json:"ignoreCrossplaneConstraints,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

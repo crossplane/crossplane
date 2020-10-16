@@ -70,6 +70,9 @@ type Package interface {
 	GetRevisionHistoryLimit() int64
 	SetRevisionHistoryLimit(l int64)
 
+	GetIgnoreCrossplaneConstraints() bool
+	SetIgnoreCrossplaneConstraints(b bool)
+
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
 }
@@ -138,6 +141,19 @@ func (p *Provider) GetRevisionHistoryLimit() int64 {
 // SetRevisionHistoryLimit of this Provider.
 func (p *Provider) SetRevisionHistoryLimit(l int64) {
 	p.Spec.RevisionHistoryLimit = &l
+}
+
+// GetIgnoreCrossplaneConstraints of this Provider.
+func (p *Provider) GetIgnoreCrossplaneConstraints() bool {
+	if p.Spec.IgnoreCrossplaneConstraints == nil {
+		return false
+	}
+	return *p.Spec.IgnoreCrossplaneConstraints
+}
+
+// SetIgnoreCrossplaneConstraints of this Provider.
+func (p *Provider) SetIgnoreCrossplaneConstraints(b bool) {
+	p.Spec.IgnoreCrossplaneConstraints = &b
 }
 
 // GetCurrentRevision of this Provider.
@@ -216,6 +232,19 @@ func (p *Configuration) SetRevisionHistoryLimit(l int64) {
 	p.Spec.RevisionHistoryLimit = &l
 }
 
+// GetIgnoreCrossplaneConstraints of this Configuration.
+func (p *Configuration) GetIgnoreCrossplaneConstraints() bool {
+	if p.Spec.IgnoreCrossplaneConstraints == nil {
+		return false
+	}
+	return *p.Spec.IgnoreCrossplaneConstraints
+}
+
+// SetIgnoreCrossplaneConstraints of this Configuration.
+func (p *Configuration) SetIgnoreCrossplaneConstraints(b bool) {
+	p.Spec.IgnoreCrossplaneConstraints = &b
+}
+
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
 	return p.Status.CurrentRevision
@@ -252,6 +281,9 @@ type PackageRevision interface {
 
 	GetDesiredState() PackageRevisionDesiredState
 	SetDesiredState(d PackageRevisionDesiredState)
+
+	GetIgnoreCrossplaneConstraints() bool
+	SetIgnoreCrossplaneConstraints(b bool)
 
 	GetRevision() int64
 	SetRevision(r int64)
@@ -337,6 +369,19 @@ func (p *ProviderRevision) SetRevision(r int64) {
 	p.Spec.Revision = r
 }
 
+// GetIgnoreCrossplaneConstraints of this ProviderRevision.
+func (p *ProviderRevision) GetIgnoreCrossplaneConstraints() bool {
+	if p.Spec.IgnoreCrossplaneConstraints == nil {
+		return false
+	}
+	return *p.Spec.IgnoreCrossplaneConstraints
+}
+
+// SetIgnoreCrossplaneConstraints of this ProviderRevision.
+func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b bool) {
+	p.Spec.IgnoreCrossplaneConstraints = &b
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
 	return p.Status.GetCondition(ct)
@@ -415,6 +460,19 @@ func (p *ConfigurationRevision) GetRevision() int64 {
 // SetRevision of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetRevision(r int64) {
 	p.Spec.Revision = r
+}
+
+// GetIgnoreCrossplaneConstraints of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetIgnoreCrossplaneConstraints() bool {
+	if p.Spec.IgnoreCrossplaneConstraints == nil {
+		return false
+	}
+	return *p.Spec.IgnoreCrossplaneConstraints
+}
+
+// SetIgnoreCrossplaneConstraints of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b bool) {
+	p.Spec.IgnoreCrossplaneConstraints = &b
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}
