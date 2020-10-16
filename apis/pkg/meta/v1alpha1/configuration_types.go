@@ -22,11 +22,7 @@ import (
 
 // ConfigurationSpec specifies the configuration of a Configuration.
 type ConfigurationSpec struct {
-	// Semantic version of Crossplane that Provider is compatible with.
-	Crossplane *string `json:"crossplane,omitempty"`
-
-	// Dependencies on other packages.
-	DependsOn []Dependency `json:"dependsOn,omitempty"`
+	MetaSpec `json:",inline"`
 }
 
 // +kubebuilder:object:root=true

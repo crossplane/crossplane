@@ -25,11 +25,7 @@ type ProviderSpec struct {
 	// Configuration for the packaged Provider's controller.
 	Controller ControllerSpec `json:"controller"`
 
-	// Semantic version of Crossplane that Provider is compatible with.
-	Crossplane *string `json:"crossplane,omitempty"`
-
-	// Dependencies on other packages.
-	DependsOn []Dependency `json:"dependsOn,omitempty"`
+	MetaSpec `json:",inline"`
 }
 
 // ControllerSpec specifies the configuration for the packaged Provider
@@ -37,18 +33,6 @@ type ProviderSpec struct {
 type ControllerSpec struct {
 	// Image is the packaged Provider controller image.
 	Image string `json:"image"`
-}
-
-// Dependency is a dependency on another package. One of Provider or Configuration may be supplied.
-type Dependency struct {
-	// Provider is the name of a Provider package image.
-	Provider *string `json:"provider,omitempty"`
-
-	// Configuration is the name of a Configuration package image.
-	Configuration *string `json:"configuration,omitempty"`
-
-	// Version is the semantic version of the dependency image.
-	Version string `json:"version"`
 }
 
 // +kubebuilder:object:root=true
