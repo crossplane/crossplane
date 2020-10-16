@@ -30,7 +30,7 @@ NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
-GO_LDFLAGS += -X main.version=$(VERSION)
+GO_LDFLAGS += -X $(GO_PROJECT)/pkg/version.version=$(VERSION)
 GO_SUBDIRS += cmd pkg apis
 GO111MODULE = on
 -include build/makelib/golang.mk
