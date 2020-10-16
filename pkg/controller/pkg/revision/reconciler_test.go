@@ -93,6 +93,20 @@ func (h *MockHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevisio
 	return h.MockPost()
 }
 
+var _ parser.Linter = &MockLinter{}
+
+type MockLinter struct {
+	MockLint func() error
+}
+
+func NewMockLintFn(err error) func() error {
+	return func() error { return err }
+}
+
+func (m *MockLinter) Lint(*parser.Package) error {
+	return m.MockLint()
+}
+
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Provider
 metadata:
@@ -329,7 +343,7 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"ErrLint": {
+		"ErrSpecificLint": {
 			reason: "We should requeue after long wait if linting returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
@@ -362,7 +376,48 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, parser.ObjectLinterFns(xpkg.IsConfiguration), nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: longWait},
+			},
+		},
+		"ErrGenericLint": {
+			reason: "We should requeue after long wait if linting returns an error.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
+								want.SetConditions(v1alpha1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithGeneric(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
 				},
 			},
 			want: want{
@@ -402,7 +457,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewNopBackend()),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -445,7 +500,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -490,7 +545,7 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -533,7 +588,7 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -578,7 +633,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -621,7 +676,7 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -666,7 +721,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{

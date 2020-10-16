@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/version"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
@@ -155,6 +156,13 @@ func WithLinter(l parser.Linter) ReconcilerOption {
 	}
 }
 
+// WithGeneric specifies how the Reconciler should generically parse a package.
+func WithGeneric(l parser.Linter) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.generic = l
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client   client.Client
@@ -164,6 +172,7 @@ type Reconciler struct {
 	objects  Establisher
 	parser   parser.Parser
 	linter   parser.Linter
+	generic  parser.Linter
 	backend  parser.Backend
 	log      logging.Logger
 	record   event.Recorder
@@ -257,6 +266,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		objects:  NewAPIEstablisher(mgr.GetClient()),
 		parser:   parser.New(nil, nil),
 		linter:   parser.NewPackageLinter(nil, nil, nil),
+		generic:  parser.NewPackageLinter(nil, parser.ObjectLinterFns(xpkg.PackageCrossplaneCompatible(version.New())), nil),
 		log:      logging.NewNopLogger(),
 		record:   event.NewNopRecorder(),
 	}
@@ -335,7 +345,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// Lint package.
+	// Lint package using package-specific linter.
 	if err := r.linter.Lint(pkg); err != nil {
 		r.record.Event(pr, event.Warning(reasonLint, err))
 		// NOTE(hasheddan): a failed lint typically will require manual
@@ -343,6 +353,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// which caused a linting failure, we will requeue after long wait.
 		pr.SetConditions(v1alpha1.Unhealthy())
 		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
+	// Lint Package using generic package linter if version constraints apply.
+	if !pr.GetIgnoreCrossplaneConstraints() {
+		if err := r.generic.Lint(pkg); err != nil {
+			r.record.Event(pr, event.Warning(reasonLint, err))
+			// NOTE(hasheddan): a failed lint typically will require manual
+			// intervention, but on the off chance that we read pod logs early,
+			// which caused a linting failure, we will requeue after long wait.
+			pr.SetConditions(v1alpha1.Unhealthy())
+			return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		}
 	}
 
 	// NOTE(hasheddan): the linter should check this property already, but if a
