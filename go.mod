@@ -9,7 +9,6 @@ require (
 	github.com/crossplane/crossplane-runtime v0.10.0
 	github.com/docker/cli v0.0.0-20200915230204-cd8016b6bcc5 // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200926000217-2617742802f6+incompatible // indirect
-	github.com/evanphx/json-patch v4.5.0+incompatible
 	github.com/go-logr/zapr v0.1.1 // indirect
 	github.com/google/go-cmp v0.5.0
 	github.com/google/go-containerregistry v0.1.3

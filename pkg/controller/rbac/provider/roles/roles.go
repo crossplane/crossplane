@@ -24,7 +24,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	wlv1alpha1 "github.com/crossplane/crossplane/apis/workload/v1alpha1"
 )
 
 const (
@@ -44,7 +43,6 @@ const (
 
 	pluralEvents  = "events"
 	pluralSecrets = "secrets"
-	pluralTargets = "kubernetestargets"
 )
 
 var (
@@ -62,13 +60,6 @@ var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{""},
 		Resources: []string{pluralSecrets, pluralEvents},
-		Verbs:     verbsEdit,
-	},
-	// TODO(negz): KubernetesTarget is deprecated - this should be removed when
-	// it is per https://github.com/crossplane/crossplane/issues/1755
-	{
-		APIGroups: []string{wlv1alpha1.Group},
-		Resources: []string{pluralTargets},
 		Verbs:     verbsEdit,
 	},
 }
