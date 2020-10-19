@@ -67,12 +67,22 @@ We will now install a `Configuration` that:
 <div class="tab-content">
 <div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
 
+> Note that this configuration will create an RDS instance using your default
+> VPC, which may or may not allow connections from the internet depending on how
+> it is configured. Select the AWS (New VPC) configuration if you wish to create
+> an RDS instance that will allow traffic from the internet.
+
 ```console
 kubectl crossplane install configuration crossplane/getting-started-with-aws:master
 ```
 
 </div>
 <div class="tab-pane fade" id="aws-new-tab-1" markdown="1">
+
+> Note that this configuration for AWS also includes several networking managed
+> resources that are required to provision a publicly available PostgreSQL
+> instance. Composition enables scenarios such as this, as well as far more
+> complex ones. See the [composition] documentation for more information.
 
 ```console
 kubectl crossplane install configuration crossplane/getting-started-with-aws-with-vpc:master
@@ -267,9 +277,9 @@ Try the following command to watch your provisioned resources become ready:
 kubectl get crossplane -l crossplane.io/claim-name=my-db
 ```
 
-You should also see a `Secret` in the `default` namespace named `db-conn` that
-contains keys that we defined in XRD. If they are filled by the composition, then
-they should appear:
+Once your `PostgreSQLInstance` is ready, you should see a `Secret` in the `default`
+namespace named `db-conn` that contains keys that we defined in XRD. If they were
+filled by the composition, then they should appear:
 
 ```console
 $ kubectl describe secrets db-conn

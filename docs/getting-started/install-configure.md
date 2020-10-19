@@ -166,7 +166,8 @@ kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./c
 
 ### Configure the Provider
 
-Create the following `provider.yaml`:
+We will create the following `ProviderConfig` object to configure credentials for AWS
+Provider:
 
 ```yaml
 apiVersion: aws.crossplane.io/v1beta1
@@ -181,11 +182,8 @@ spec:
       name: aws-creds
       key: key
 ```
-
-Then apply it:
-
 ```console
-kubectl apply -f provider.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
 ```
 
 </div>
@@ -229,28 +227,24 @@ kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./c
 
 ### Configure the Provider
 
-Create the following `provider.yaml`:
+We will create the following `ProviderConfig` object to configure credentials for GCP
+Provider:
 
-```yaml
-apiVersion: gcp.crossplane.io/v1beta1
+```console
+# replace this with your own gcp project id
+PROJECT_ID=my-project
+echo "apiVersion: gcp.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
   name: default
 spec:
-  # replace this with your own gcp project id
-  projectID: my-project
+  projectID: ${PROJECT_ID}
   credentials:
     source: Secret
     secretRef:
       namespace: crossplane-system
       name: gcp-creds
-      key: key
-```
-
-Then apply it:
-
-```console
-kubectl apply -f provider.yaml
+      key: key" | kubectl apply -f -
 ```
 
 </div>
@@ -293,7 +287,8 @@ kubectl create secret generic azure-creds -n crossplane-system --from-file=key=.
 
 ### Configure the Provider
 
-Create the following `provider.yaml`:
+We will create the following `ProviderConfig` object to configure credentials for
+Azure Provider:
 
 ```yaml
 apiVersion: azure.crossplane.io/v1beta1
@@ -308,11 +303,8 @@ spec:
       name: azure-creds
       key: key
 ```
-
-Then apply it:
-
 ```console
-kubectl apply -f provider.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
 ```
 
 </div>
@@ -327,12 +319,14 @@ kubectl crossplane install provider crossplane/provider-alibaba:v0.3.0
 ### Create a Provider Secret
 
 ```console
+# Replace <your-key> and <your-secret> with your actual key id and key secret.
 kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key> --from-literal=accessKeySecret=<your-secret> -n crossplane-system
 ```
 
 ### Configure the Provider
 
-Create the following `provider.yaml`:
+We will create the following `ProviderConfig` object to configure credentials for
+Alibaba Provider:
 
 ```yaml
 apiVersion: alibaba.crossplane.io/v1alpha1
@@ -346,13 +340,12 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: alibaba-creds
-      key: credentials
+      # "key" field does not have any effect right now but it has to be given.
+      # See https://github.com/crossplane/crossplane-runtime/issues/215
+      key: credentials 
 ```
-
-Then apply it:
-
 ```console
-kubectl apply -f provider.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/alibaba/providerconfig.yaml
 ```
 
 </div>
