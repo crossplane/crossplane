@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions"
 	"github.com/crossplane/crossplane/pkg/controller/pkg"
-	"github.com/crossplane/crossplane/pkg/controller/workload"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
@@ -70,10 +69,6 @@ func (c *Command) Run(log logging.Logger) error {
 
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
 		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
-	}
-
-	if err := workload.Setup(mgr, log); err != nil {
-		return errors.Wrap(err, "Cannot setup workload controllers")
 	}
 
 	if err := apiextensions.Setup(mgr, log); err != nil {

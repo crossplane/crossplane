@@ -21,18 +21,14 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane/apis/apiextensions"
-	"github.com/crossplane/crossplane/apis/kubernetes"
 	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/apis/workload"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
 		apiextensions.AddToScheme,
-		kubernetes.AddToScheme,
 		pkg.AddToScheme,
-		workload.AddToScheme,
 	)
 }
 

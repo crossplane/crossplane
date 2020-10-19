@@ -58,8 +58,6 @@ rules:
   verbs:
   - "*"
 - apiGroups:
-  - kubernetes.crossplane.io
-  - workload.crossplane.io
   - apiextensions.crossplane.io
   - pkg.crossplane.io
   resources:
