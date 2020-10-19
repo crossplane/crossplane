@@ -124,6 +124,7 @@ type CustomResourceDefinitionVersion struct {
 type CustomResourceValidation struct {
 	// openAPIV3Schema is the OpenAPI v3 schema to use for validation and pruning.
 	// +optional
+	// +kubebuilder:pruning:PreserveUnknownFields
 	OpenAPIV3Schema runtime.RawExtension `json:"openAPIV3Schema,omitempty"`
 }
 
