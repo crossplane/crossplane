@@ -151,6 +151,7 @@ spec:
                       openAPIV3Schema:
                         description: openAPIV3Schema is the OpenAPI v3 schema to use for validation and pruning.
                         type: object
+                        x-kubernetes-preserve-unknown-fields: true
                     type: object
                   version:
                     description: 'version is the API version of the defined custom resource. The custom resources are served under `/apis/<group>/<version>/...`. Must match the name of the first item in the `versions` list if `version` and `versions` are both specified. Optional if `versions` is specified. Deprecated: use `versions` instead.'

@@ -76,6 +76,7 @@ type TypeReference struct {
 // should be processed.
 type ComposedTemplate struct {
 	// Base is the target resource that the patches will be applied on.
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Base runtime.RawExtension `json:"base"`
 
 	// Patches will be applied as overlay to the base resource.
