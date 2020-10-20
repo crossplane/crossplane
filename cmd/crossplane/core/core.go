@@ -22,7 +22,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
-	crds "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -63,8 +64,18 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot create manager")
 	}
 
-	if err := crds.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add CustomResourceDefinition API to scheme")
+	// Note that the controller managers scheme must be a superset of the
+	// package manager's object scheme; it must contain all object types that
+	// may appear in a Crossplane package. This is because the package manager
+	// uses the controller manager's client (and thus scheme) to create packaged
+	// objects.
+
+	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
+		return errors.Wrap(err, "Cannot add CustomResourceDefinition v1 API to scheme")
+	}
+
+	if err := extv1beta1.AddToScheme(mgr.GetScheme()); err != nil {
+		return errors.Wrap(err, "Cannot add CustomResourceDefinition v1beta1 API to scheme")
 	}
 
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {

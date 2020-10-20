@@ -23,7 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -138,7 +138,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1alpha1.ProviderRevision, []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1alpha1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -161,8 +161,8 @@ func TestReconcile(t *testing.T) {
 								// the CRD's owner's UID matches that of the
 								// ProviderRevision because they're both the
 								// empty string.
-								l := o.(*v1beta1.CustomResourceDefinitionList)
-								l.Items = []v1beta1.CustomResourceDefinition{{
+								l := o.(*extv1.CustomResourceDefinitionList)
+								l.Items = []extv1.CustomResourceDefinition{{
 									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{}}},
 								}}
 								return nil
@@ -172,7 +172,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1alpha1.ProviderRevision, []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1alpha1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},

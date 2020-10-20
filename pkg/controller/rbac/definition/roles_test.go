@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -56,7 +56,7 @@ func TestRenderClusterRoles(t *testing.T) {
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
 					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 						Group: group,
-						Names: v1beta1.CustomResourceDefinitionNames{Plural: pluralXR},
+						Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					},
 				},
 			},
@@ -139,10 +139,10 @@ func TestRenderClusterRoles(t *testing.T) {
 			d: &v1alpha1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
-					ClaimNames: &v1beta1.CustomResourceDefinitionNames{Plural: pluralXRC},
+					ClaimNames: &extv1.CustomResourceDefinitionNames{Plural: pluralXRC},
 					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 						Group: group,
-						Names: v1beta1.CustomResourceDefinitionNames{Plural: pluralXR},
+						Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					},
 				},
 			},

@@ -16,14 +16,14 @@ limitations under the License.
 
 package ccrd
 
-import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+import v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 // TODO(negz): Add descriptions to schema fields.
 
 // BaseProps is a partial OpenAPIV3Schema for the spec fields that Crossplane
 // expects to be present for all CRDs that it creates.
-func BaseProps() map[string]v1beta1.JSONSchemaProps {
-	return map[string]v1beta1.JSONSchemaProps{
+func BaseProps() map[string]v1.JSONSchemaProps {
+	return map[string]v1.JSONSchemaProps{
 		"apiVersion": {
 			Type: "string",
 		},
@@ -37,11 +37,11 @@ func BaseProps() map[string]v1beta1.JSONSchemaProps {
 		},
 		"spec": {
 			Type:       "object",
-			Properties: map[string]v1beta1.JSONSchemaProps{},
+			Properties: map[string]v1.JSONSchemaProps{},
 		},
 		"status": {
 			Type:       "object",
-			Properties: map[string]v1beta1.JSONSchemaProps{},
+			Properties: map[string]v1.JSONSchemaProps{},
 		},
 	}
 }
@@ -49,24 +49,24 @@ func BaseProps() map[string]v1beta1.JSONSchemaProps {
 // CompositeResourceSpecProps is a partial OpenAPIV3Schema for the spec fields
 // that Crossplane expects to be present for all defined infrastructure
 // resources.
-func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
-	return map[string]v1beta1.JSONSchemaProps{
+func CompositeResourceSpecProps() map[string]v1.JSONSchemaProps {
+	return map[string]v1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
 			Required: []string{"name"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"name": {Type: "string"},
 			},
 		},
 		"compositionSelector": {
 			Type:     "object",
 			Required: []string{"matchLabels"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"matchLabels": {
 					Type: "object",
-					AdditionalProperties: &v1beta1.JSONSchemaPropsOrBool{
+					AdditionalProperties: &v1.JSONSchemaPropsOrBool{
 						Allows: true,
-						Schema: &v1beta1.JSONSchemaProps{Type: "string"},
+						Schema: &v1.JSONSchemaProps{Type: "string"},
 					},
 				},
 			},
@@ -74,7 +74,7 @@ func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
 		"claimRef": {
 			Type:     "object",
 			Required: []string{"apiVersion", "kind", "namespace", "name"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"apiVersion": {Type: "string"},
 				"kind":       {Type: "string"},
 				"namespace":  {Type: "string"},
@@ -83,10 +83,10 @@ func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
 		},
 		"resourceRefs": {
 			Type: "array",
-			Items: &v1beta1.JSONSchemaPropsOrArray{
-				Schema: &v1beta1.JSONSchemaProps{
+			Items: &v1.JSONSchemaPropsOrArray{
+				Schema: &v1.JSONSchemaProps{
 					Type: "object",
-					Properties: map[string]v1beta1.JSONSchemaProps{
+					Properties: map[string]v1.JSONSchemaProps{
 						"apiVersion": {Type: "string"},
 						"name":       {Type: "string"},
 						"kind":       {Type: "string"},
@@ -99,7 +99,7 @@ func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
 		"writeConnectionSecretToRef": {
 			Type:     "object",
 			Required: []string{"name", "namespace"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"name":      {Type: "string"},
 				"namespace": {Type: "string"},
 			},
@@ -110,24 +110,24 @@ func CompositeResourceSpecProps() map[string]v1beta1.JSONSchemaProps {
 // CompositeResourceClaimSpecProps is a partial OpenAPIV3Schema for the spec
 // fields that Crossplane expects to be present for all published infrastructure
 // resources.
-func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
-	return map[string]v1beta1.JSONSchemaProps{
+func CompositeResourceClaimSpecProps() map[string]v1.JSONSchemaProps {
+	return map[string]v1.JSONSchemaProps{
 		"compositionRef": {
 			Type:     "object",
 			Required: []string{"name"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"name": {Type: "string"},
 			},
 		},
 		"compositionSelector": {
 			Type:     "object",
 			Required: []string{"matchLabels"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"matchLabels": {
 					Type: "object",
-					AdditionalProperties: &v1beta1.JSONSchemaPropsOrBool{
+					AdditionalProperties: &v1.JSONSchemaPropsOrBool{
 						Allows: true,
-						Schema: &v1beta1.JSONSchemaProps{Type: "string"},
+						Schema: &v1.JSONSchemaProps{Type: "string"},
 					},
 				},
 			},
@@ -135,7 +135,7 @@ func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
 		"resourceRef": {
 			Type:     "object",
 			Required: []string{"apiVersion", "kind", "name"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"apiVersion": {Type: "string"},
 				"kind":       {Type: "string"},
 				"name":       {Type: "string"},
@@ -144,7 +144,7 @@ func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
 		"writeConnectionSecretToRef": {
 			Type:     "object",
 			Required: []string{"name"},
-			Properties: map[string]v1beta1.JSONSchemaProps{
+			Properties: map[string]v1.JSONSchemaProps{
 				"name": {Type: "string"},
 			},
 		},
@@ -154,8 +154,8 @@ func CompositeResourceClaimSpecProps() map[string]v1beta1.JSONSchemaProps {
 // CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
 // fields that Crossplane expects to be present for all defined or published
 // infrastructure resources.
-func CompositeResourceStatusProps() map[string]v1beta1.JSONSchemaProps {
-	return map[string]v1beta1.JSONSchemaProps{
+func CompositeResourceStatusProps() map[string]v1.JSONSchemaProps {
+	return map[string]v1.JSONSchemaProps{
 		// TODO(negz): Remove composedResources, readyResources, and
 		// bindingPhase. I believe they're unused.
 		"composedResources": {
@@ -166,7 +166,7 @@ func CompositeResourceStatusProps() map[string]v1beta1.JSONSchemaProps {
 		},
 		"bindingPhase": {
 			Type: "string",
-			Enum: []v1beta1.JSON{
+			Enum: []v1.JSON{
 				{Raw: []byte(`"Unbindable"`)},
 				{Raw: []byte(`"Unbound"`)},
 				{Raw: []byte(`"Bound"`)},
@@ -176,11 +176,11 @@ func CompositeResourceStatusProps() map[string]v1beta1.JSONSchemaProps {
 		"conditions": {
 			Description: "Conditions of the resource.",
 			Type:        "array",
-			Items: &v1beta1.JSONSchemaPropsOrArray{
-				Schema: &v1beta1.JSONSchemaProps{
+			Items: &v1.JSONSchemaPropsOrArray{
+				Schema: &v1.JSONSchemaProps{
 					Type:     "object",
 					Required: []string{"lastTransitionTime", "reason", "status", "type"},
-					Properties: map[string]v1beta1.JSONSchemaProps{
+					Properties: map[string]v1.JSONSchemaProps{
 						"lastTransitionTime": {Type: "string", Format: "date-time"},
 						"message":            {Type: "string"},
 						"reason":             {Type: "string"},
@@ -195,8 +195,8 @@ func CompositeResourceStatusProps() map[string]v1beta1.JSONSchemaProps {
 
 // CompositeResourcePrinterColumns returns the set of default printer columns
 // that should exist in all generated composite resource CRDs.
-func CompositeResourcePrinterColumns() []v1beta1.CustomResourceColumnDefinition {
-	return []v1beta1.CustomResourceColumnDefinition{
+func CompositeResourcePrinterColumns() []v1.CustomResourceColumnDefinition {
+	return []v1.CustomResourceColumnDefinition{
 		{
 			Name:     "READY",
 			Type:     "string",
@@ -212,8 +212,8 @@ func CompositeResourcePrinterColumns() []v1beta1.CustomResourceColumnDefinition 
 
 // CompositeResourceClaimPrinterColumns returns the set of default printer
 // columns that should exist in all generated composite resource claim CRDs.
-func CompositeResourceClaimPrinterColumns() []v1beta1.CustomResourceColumnDefinition {
-	return []v1beta1.CustomResourceColumnDefinition{
+func CompositeResourceClaimPrinterColumns() []v1.CustomResourceColumnDefinition {
+	return []v1.CustomResourceColumnDefinition{
 		{
 			Name:     "READY",
 			Type:     "string",

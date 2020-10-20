@@ -22,7 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -111,7 +111,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return nil, errBoom
 					})),
 				},
@@ -135,8 +135,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -157,7 +157,7 @@ func TestReconcile(t *testing.T) {
 									d := v1alpha1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
-								case *v1beta1.CustomResourceDefinition:
+								case *extv1.CustomResourceDefinition:
 									return errBoom
 								}
 								return nil
@@ -165,8 +165,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -192,8 +192,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return errBoom
@@ -222,8 +222,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
@@ -248,8 +248,8 @@ func TestReconcile(t *testing.T) {
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
-								case *v1beta1.CustomResourceDefinition:
-									crd := v1beta1.CustomResourceDefinition{}
+								case *extv1.CustomResourceDefinition:
+									crd := extv1.CustomResourceDefinition{}
 									crd.SetCreationTimestamp(now)
 									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
 									*v = crd
@@ -260,8 +260,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -283,8 +283,8 @@ func TestReconcile(t *testing.T) {
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
-								case *v1beta1.CustomResourceDefinition:
-									crd := v1beta1.CustomResourceDefinition{}
+								case *extv1.CustomResourceDefinition:
+									crd := extv1.CustomResourceDefinition{}
 									crd.SetCreationTimestamp(now)
 									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
 									*v = crd
@@ -302,8 +302,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -325,8 +325,8 @@ func TestReconcile(t *testing.T) {
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
-								case *v1beta1.CustomResourceDefinition:
-									crd := v1beta1.CustomResourceDefinition{}
+								case *extv1.CustomResourceDefinition:
+									crd := extv1.CustomResourceDefinition{}
 									crd.SetCreationTimestamp(now)
 									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
 									*v = crd
@@ -344,8 +344,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -369,8 +369,8 @@ func TestReconcile(t *testing.T) {
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
-								case *v1beta1.CustomResourceDefinition:
-									crd := v1beta1.CustomResourceDefinition{}
+								case *extv1.CustomResourceDefinition:
+									crd := extv1.CustomResourceDefinition{}
 									crd.SetCreationTimestamp(now)
 									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
 									*v = crd
@@ -382,8 +382,8 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -405,8 +405,8 @@ func TestReconcile(t *testing.T) {
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
-								case *v1beta1.CustomResourceDefinition:
-									crd := v1beta1.CustomResourceDefinition{}
+								case *extv1.CustomResourceDefinition:
+									crd := extv1.CustomResourceDefinition{}
 									crd.SetCreationTimestamp(now)
 									crd.SetOwnerReferences([]metav1.OwnerReference{{UID: owner, Controller: &ctrlr}})
 									*v = crd
@@ -429,8 +429,8 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
 			},
@@ -448,8 +448,8 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return errBoom
@@ -473,8 +473,8 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
@@ -498,8 +498,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{}, nil
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
@@ -523,11 +523,11 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{
-							Status: v1beta1.CustomResourceDefinitionStatus{
-								Conditions: []v1beta1.CustomResourceDefinitionCondition{
-									{Type: v1beta1.Established, Status: v1beta1.ConditionTrue},
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{
+							Status: extv1.CustomResourceDefinitionStatus{
+								Conditions: []extv1.CustomResourceDefinitionCondition{
+									{Type: extv1.Established, Status: extv1.ConditionTrue},
 								},
 							},
 						}, nil
@@ -566,11 +566,11 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-						return &v1beta1.CustomResourceDefinition{
-							Status: v1beta1.CustomResourceDefinitionStatus{
-								Conditions: []v1beta1.CustomResourceDefinitionCondition{
-									{Type: v1beta1.Established, Status: v1beta1.ConditionTrue},
+					WithCRDRenderer(CRDRenderFn(func(_ *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+						return &extv1.CustomResourceDefinition{
+							Status: extv1.CustomResourceDefinitionStatus{
+								Conditions: []extv1.CustomResourceDefinitionCondition{
+									{Type: extv1.Established, Status: extv1.ConditionTrue},
 								},
 							},
 						}, nil

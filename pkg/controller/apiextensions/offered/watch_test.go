@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -51,7 +51,7 @@ func TestOffersClaim(t *testing.T) {
 			obj: &v1alpha1.CompositeResourceDefinition{
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
 					// An XRD with non-nil claim names offers a claim.
-					ClaimNames: &v1beta1.CustomResourceDefinitionNames{},
+					ClaimNames: &extv1.CustomResourceDefinitionNames{},
 				},
 			},
 			want: true,

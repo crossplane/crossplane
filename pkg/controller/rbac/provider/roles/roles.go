@@ -18,7 +18,7 @@ package roles
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -71,7 +71,7 @@ func SystemClusterRoleName(revisionName string) string {
 }
 
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
-func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
+func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 	groups := make([]string, 0)            // Allows deterministic iteration over groups.
 	resources := make(map[string][]string) // Resources by group.
 	for _, crd := range crds {
