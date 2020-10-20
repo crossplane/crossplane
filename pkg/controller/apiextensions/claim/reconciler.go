@@ -432,7 +432,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// wait, in case this was a transient error.
 		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(Waiting())
+		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
@@ -446,7 +446,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// secret is created.
 		log.Debug("Cannot propagate connection details from composite resource to claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		cm.SetConditions(Waiting())
+		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
