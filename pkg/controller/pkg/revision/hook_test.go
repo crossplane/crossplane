@@ -83,7 +83,9 @@ func TestHookPre(t *testing.T) {
 				pkg: &pkgmeta.Provider{
 					Spec: pkgmeta.ProviderSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplane,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplane,
+							},
 							DependsOn: []pkgmeta.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
@@ -112,7 +114,9 @@ func TestHookPre(t *testing.T) {
 				pkg: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplane,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplane,
+							},
 							DependsOn: []pkgmeta.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
@@ -155,7 +159,9 @@ func TestHookPre(t *testing.T) {
 				pkg: &pkgmeta.Provider{
 					Spec: pkgmeta.ProviderSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplane,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplane,
+							},
 							DependsOn: []pkgmeta.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
@@ -199,7 +205,9 @@ func TestHookPre(t *testing.T) {
 				pkg: &pkgmeta.Provider{
 					Spec: pkgmeta.ProviderSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplane,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplane,
+							},
 							DependsOn: []pkgmeta.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
@@ -237,7 +245,9 @@ func TestHookPre(t *testing.T) {
 				pkg: &pkgmeta.Provider{
 					Spec: pkgmeta.ProviderSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplane,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplane,
+							},
 							DependsOn: []pkgmeta.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
