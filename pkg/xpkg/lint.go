@@ -84,14 +84,15 @@ func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 		if !ok {
 			return errors.New(errNotMeta)
 		}
-		if p.GetCrossplaneVersion() != nil {
-			in, err := v.InConstraints(*p.GetCrossplaneVersion())
-			if err != nil {
-				return errors.Wrapf(err, errCrossplaneIncompatibleFmt, v.GetVersionString())
-			}
-			if !in {
-				return errors.Errorf(errCrossplaneIncompatibleFmt, v.GetVersionString())
-			}
+		if p.GetCrossplaneConstraints() == nil {
+			return nil
+		}
+		in, err := v.InConstraints(p.GetCrossplaneConstraints().Version)
+		if err != nil {
+			return errors.Wrapf(err, errCrossplaneIncompatibleFmt, v.GetVersionString())
+		}
+		if !in {
+			return errors.Errorf(errCrossplaneIncompatibleFmt, v.GetVersionString())
 		}
 		return nil
 	}
@@ -103,11 +104,12 @@ func PackageValidSemver(o runtime.Object) error {
 	if !ok {
 		return errors.New(errNotMeta)
 	}
-	if p.GetCrossplaneVersion() != nil {
-		_, err := semver.NewConstraint(*p.GetCrossplaneVersion())
-		if err != nil {
-			return errors.Wrap(err, errBadConstraints)
-		}
+	if p.GetCrossplaneConstraints() == nil {
+		return nil
+	}
+	_, err := semver.NewConstraint(p.GetCrossplaneConstraints().Version)
+	if err != nil {
+		return errors.Wrap(err, errBadConstraints)
 	}
 	return nil
 }

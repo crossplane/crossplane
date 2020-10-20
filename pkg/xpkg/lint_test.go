@@ -23,7 +23,6 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/Masterminds/semver"
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	apiextensions "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -35,6 +34,7 @@ import (
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/version"
+	"github.com/crossplane/crossplane/pkg/version/fake"
 )
 
 var (
@@ -78,32 +78,6 @@ metadata:
 	obj, _  = BuildObjectScheme()
 	p       = parser.New(meta, obj)
 )
-
-var _ version.Operations = &MockVersioner{}
-
-type MockVersioner struct {
-	MockGetVersionString func() string
-	MockGetSemVer        func() (*semver.Version, error)
-	MockInConstraints    func() (bool, error)
-}
-
-func NewMockGetVersionStringFn(s string) func() string {
-	return func() string { return s }
-}
-
-func NewMockInConstraintsFn(b bool, err error) func() (bool, error) {
-	return func() (bool, error) { return b, err }
-}
-
-func (m *MockVersioner) GetVersionString() string {
-	return m.MockGetVersionString()
-}
-func (m *MockVersioner) GetSemVer() (*semver.Version, error) {
-	return m.MockGetSemVer()
-}
-func (m *MockVersioner) InConstraints(c string) (bool, error) {
-	return m.MockInConstraints()
-}
 
 func TestOneMeta(t *testing.T) {
 	oneR := bytes.NewReader(bytes.Join([][]byte{crdBytes, provBytes}, []byte("\n---\n")))
@@ -220,12 +194,14 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 				obj: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplaneConstraint,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplaneConstraint,
+							},
 						},
 					},
 				},
-				ver: &MockVersioner{
-					MockInConstraints: NewMockInConstraintsFn(true, nil),
+				ver: &fake.MockVersioner{
+					MockInConstraints: fake.NewMockInConstraintsFn(true, nil),
 				},
 			},
 		},
@@ -241,13 +217,15 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 				obj: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplaneConstraint,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplaneConstraint,
+							},
 						},
 					},
 				},
-				ver: &MockVersioner{
-					MockInConstraints:    NewMockInConstraintsFn(false, errBoom),
-					MockGetVersionString: NewMockGetVersionStringFn("v0.12.0"),
+				ver: &fake.MockVersioner{
+					MockInConstraints:    fake.NewMockInConstraintsFn(false, errBoom),
+					MockGetVersionString: fake.NewMockGetVersionStringFn("v0.12.0"),
 				},
 			},
 			err: errors.Wrapf(errBoom, errCrossplaneIncompatibleFmt, "v0.12.0"),
@@ -258,13 +236,15 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 				obj: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &crossplaneConstraint,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplaneConstraint,
+							},
 						},
 					},
 				},
-				ver: &MockVersioner{
-					MockInConstraints:    NewMockInConstraintsFn(false, nil),
-					MockGetVersionString: NewMockGetVersionStringFn("v0.12.0"),
+				ver: &fake.MockVersioner{
+					MockInConstraints:    fake.NewMockInConstraintsFn(false, nil),
+					MockGetVersionString: fake.NewMockGetVersionStringFn("v0.12.0"),
 				},
 			},
 			err: errors.Errorf(errCrossplaneIncompatibleFmt, "v0.12.0"),
@@ -307,7 +287,9 @@ func TestPackageValidSemver(t *testing.T) {
 				obj: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &validConstraint,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: validConstraint,
+							},
 						},
 					},
 				},
@@ -319,7 +301,9 @@ func TestPackageValidSemver(t *testing.T) {
 				obj: &pkgmeta.Configuration{
 					Spec: pkgmeta.ConfigurationSpec{
 						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &invalidConstraint,
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: invalidConstraint,
+							},
 						},
 					},
 				},
