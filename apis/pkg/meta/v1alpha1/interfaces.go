@@ -22,13 +22,13 @@ var _ Pkg = &Provider{}
 // Pkg is a description of a Crossplane package.
 // +k8s:deepcopy-gen=false
 type Pkg interface {
-	GetCrossplaneVersion() *string
+	GetCrossplaneConstraints() *CrossplaneConstraints
 	GetDependencies() []Dependency
 }
 
-// GetCrossplaneVersion gets the Configuration package's Crossplane version
+// GetCrossplaneConstraints gets the Configuration package's Crossplane version
 // constraints.
-func (c *Configuration) GetCrossplaneVersion() *string {
+func (c *Configuration) GetCrossplaneConstraints() *CrossplaneConstraints {
 	return c.Spec.MetaSpec.Crossplane
 }
 
@@ -37,9 +37,9 @@ func (c *Configuration) GetDependencies() []Dependency {
 	return c.Spec.MetaSpec.DependsOn
 }
 
-// GetCrossplaneVersion gets the Provider package's Crossplane version
+// GetCrossplaneConstraints gets the Provider package's Crossplane version
 // constraints.
-func (c *Provider) GetCrossplaneVersion() *string {
+func (c *Provider) GetCrossplaneConstraints() *CrossplaneConstraints {
 	return c.Spec.MetaSpec.Crossplane
 }
 

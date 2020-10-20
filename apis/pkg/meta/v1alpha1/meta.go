@@ -19,10 +19,16 @@ package v1alpha1
 // MetaSpec are fields that every meta package type must implement.
 type MetaSpec struct {
 	// Semantic version constraints of Crossplane that package is compatible with.
-	Crossplane *string `json:"crossplane,omitempty"`
+	Crossplane *CrossplaneConstraints `json:"crossplane,omitempty"`
 
 	// Dependencies on other packages.
 	DependsOn []Dependency `json:"dependsOn,omitempty"`
+}
+
+// CrossplaneConstraints specifies a packages compatibility with Crossplane versions.
+type CrossplaneConstraints struct {
+	// Semantic version constraints of Crossplane that package is compatible with.
+	Version string `json:"version"`
 }
 
 // Dependency is a dependency on another package. One of Provider or Configuration may be supplied.

@@ -28,7 +28,7 @@ import (
 // revisions.
 type RevisionActivationPolicy string
 
-const (
+var (
 	// AutomaticActivation indicates that package should automatically activate
 	// package revisions.
 	AutomaticActivation RevisionActivationPolicy = "Automatic"
@@ -58,8 +58,8 @@ type Package interface {
 	GetSource() string
 	SetSource(s string)
 
-	GetActivationPolicy() RevisionActivationPolicy
-	SetActivationPolicy(a RevisionActivationPolicy)
+	GetActivationPolicy() *RevisionActivationPolicy
+	SetActivationPolicy(a *RevisionActivationPolicy)
 
 	GetPackagePullSecrets() []corev1.LocalObjectReference
 	SetPackagePullSecrets(s []corev1.LocalObjectReference)
@@ -67,11 +67,11 @@ type Package interface {
 	GetPackagePullPolicy() *corev1.PullPolicy
 	SetPackagePullPolicy(i *corev1.PullPolicy)
 
-	GetRevisionHistoryLimit() int64
-	SetRevisionHistoryLimit(l int64)
+	GetRevisionHistoryLimit() *int64
+	SetRevisionHistoryLimit(l *int64)
 
-	GetIgnoreCrossplaneConstraints() bool
-	SetIgnoreCrossplaneConstraints(b bool)
+	GetIgnoreCrossplaneConstraints() *bool
+	SetIgnoreCrossplaneConstraints(b *bool)
 
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
@@ -98,16 +98,13 @@ func (p *Provider) SetSource(s string) {
 }
 
 // GetActivationPolicy of this Provider.
-func (p *Provider) GetActivationPolicy() RevisionActivationPolicy {
-	if p.Spec.RevisionActivationPolicy == nil {
-		return AutomaticActivation
-	}
-	return *p.Spec.RevisionActivationPolicy
+func (p *Provider) GetActivationPolicy() *RevisionActivationPolicy {
+	return p.Spec.RevisionActivationPolicy
 }
 
 // SetActivationPolicy of this Provider.
-func (p *Provider) SetActivationPolicy(a RevisionActivationPolicy) {
-	p.Spec.RevisionActivationPolicy = &a
+func (p *Provider) SetActivationPolicy(a *RevisionActivationPolicy) {
+	p.Spec.RevisionActivationPolicy = a
 }
 
 // GetPackagePullSecrets of this Provider.
@@ -131,29 +128,23 @@ func (p *Provider) SetPackagePullPolicy(i *corev1.PullPolicy) {
 }
 
 // GetRevisionHistoryLimit of this Provider.
-func (p *Provider) GetRevisionHistoryLimit() int64 {
-	if p.Spec.RevisionHistoryLimit == nil {
-		return 1
-	}
-	return *p.Spec.RevisionHistoryLimit
+func (p *Provider) GetRevisionHistoryLimit() *int64 {
+	return p.Spec.RevisionHistoryLimit
 }
 
 // SetRevisionHistoryLimit of this Provider.
-func (p *Provider) SetRevisionHistoryLimit(l int64) {
-	p.Spec.RevisionHistoryLimit = &l
+func (p *Provider) SetRevisionHistoryLimit(l *int64) {
+	p.Spec.RevisionHistoryLimit = l
 }
 
 // GetIgnoreCrossplaneConstraints of this Provider.
-func (p *Provider) GetIgnoreCrossplaneConstraints() bool {
-	if p.Spec.IgnoreCrossplaneConstraints == nil {
-		return false
-	}
-	return *p.Spec.IgnoreCrossplaneConstraints
+func (p *Provider) GetIgnoreCrossplaneConstraints() *bool {
+	return p.Spec.IgnoreCrossplaneConstraints
 }
 
 // SetIgnoreCrossplaneConstraints of this Provider.
-func (p *Provider) SetIgnoreCrossplaneConstraints(b bool) {
-	p.Spec.IgnoreCrossplaneConstraints = &b
+func (p *Provider) SetIgnoreCrossplaneConstraints(b *bool) {
+	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
 // GetCurrentRevision of this Provider.
@@ -187,16 +178,13 @@ func (p *Configuration) SetSource(s string) {
 }
 
 // GetActivationPolicy of this Configuration.
-func (p *Configuration) GetActivationPolicy() RevisionActivationPolicy {
-	if p.Spec.RevisionActivationPolicy == nil {
-		return AutomaticActivation
-	}
-	return *p.Spec.RevisionActivationPolicy
+func (p *Configuration) GetActivationPolicy() *RevisionActivationPolicy {
+	return p.Spec.RevisionActivationPolicy
 }
 
 // SetActivationPolicy of this Configuration.
-func (p *Configuration) SetActivationPolicy(a RevisionActivationPolicy) {
-	p.Spec.RevisionActivationPolicy = &a
+func (p *Configuration) SetActivationPolicy(a *RevisionActivationPolicy) {
+	p.Spec.RevisionActivationPolicy = a
 }
 
 // GetPackagePullSecrets of this Configuration.
@@ -220,29 +208,23 @@ func (p *Configuration) SetPackagePullPolicy(i *corev1.PullPolicy) {
 }
 
 // GetRevisionHistoryLimit of this Configuration.
-func (p *Configuration) GetRevisionHistoryLimit() int64 {
-	if p.Spec.RevisionHistoryLimit == nil {
-		return 1
-	}
-	return *p.Spec.RevisionHistoryLimit
+func (p *Configuration) GetRevisionHistoryLimit() *int64 {
+	return p.Spec.RevisionHistoryLimit
 }
 
 // SetRevisionHistoryLimit of this Configuration.
-func (p *Configuration) SetRevisionHistoryLimit(l int64) {
-	p.Spec.RevisionHistoryLimit = &l
+func (p *Configuration) SetRevisionHistoryLimit(l *int64) {
+	p.Spec.RevisionHistoryLimit = l
 }
 
 // GetIgnoreCrossplaneConstraints of this Configuration.
-func (p *Configuration) GetIgnoreCrossplaneConstraints() bool {
-	if p.Spec.IgnoreCrossplaneConstraints == nil {
-		return false
-	}
-	return *p.Spec.IgnoreCrossplaneConstraints
+func (p *Configuration) GetIgnoreCrossplaneConstraints() *bool {
+	return p.Spec.IgnoreCrossplaneConstraints
 }
 
 // SetIgnoreCrossplaneConstraints of this Configuration.
-func (p *Configuration) SetIgnoreCrossplaneConstraints(b bool) {
-	p.Spec.IgnoreCrossplaneConstraints = &b
+func (p *Configuration) SetIgnoreCrossplaneConstraints(b *bool) {
+	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
 // GetCurrentRevision of this Configuration.
@@ -282,8 +264,8 @@ type PackageRevision interface {
 	GetDesiredState() PackageRevisionDesiredState
 	SetDesiredState(d PackageRevisionDesiredState)
 
-	GetIgnoreCrossplaneConstraints() bool
-	SetIgnoreCrossplaneConstraints(b bool)
+	GetIgnoreCrossplaneConstraints() *bool
+	SetIgnoreCrossplaneConstraints(b *bool)
 
 	GetRevision() int64
 	SetRevision(r int64)
@@ -370,16 +352,13 @@ func (p *ProviderRevision) SetRevision(r int64) {
 }
 
 // GetIgnoreCrossplaneConstraints of this ProviderRevision.
-func (p *ProviderRevision) GetIgnoreCrossplaneConstraints() bool {
-	if p.Spec.IgnoreCrossplaneConstraints == nil {
-		return false
-	}
-	return *p.Spec.IgnoreCrossplaneConstraints
+func (p *ProviderRevision) GetIgnoreCrossplaneConstraints() *bool {
+	return p.Spec.IgnoreCrossplaneConstraints
 }
 
 // SetIgnoreCrossplaneConstraints of this ProviderRevision.
-func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b bool) {
-	p.Spec.IgnoreCrossplaneConstraints = &b
+func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b *bool) {
+	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
 // GetCondition of this ConfigurationRevision.
@@ -463,16 +442,13 @@ func (p *ConfigurationRevision) SetRevision(r int64) {
 }
 
 // GetIgnoreCrossplaneConstraints of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetIgnoreCrossplaneConstraints() bool {
-	if p.Spec.IgnoreCrossplaneConstraints == nil {
-		return false
-	}
-	return *p.Spec.IgnoreCrossplaneConstraints
+func (p *ConfigurationRevision) GetIgnoreCrossplaneConstraints() *bool {
+	return p.Spec.IgnoreCrossplaneConstraints
 }
 
 // SetIgnoreCrossplaneConstraints of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b bool) {
-	p.Spec.IgnoreCrossplaneConstraints = &b
+func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b *bool) {
+	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}
