@@ -275,7 +275,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// If current revision exists, is not active, and package has an
 			// automatic activation policy, we should set the revision to
 			// active.
-			if pr.GetDesiredState() == v1alpha1.PackageRevisionInactive && p.GetActivationPolicy() == v1alpha1.AutomaticActivation {
+			if pr.GetDesiredState() == v1alpha1.PackageRevisionInactive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1alpha1.AutomaticActivation) {
 				pr.SetDesiredState(v1alpha1.PackageRevisionActive)
 				if err := r.client.Apply(ctx, pr); err != nil {
 					log.Debug(errUpdateActivePackageRevision, "error", err)
@@ -307,7 +307,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// Check to see if there are revisions eligible for garbage collection.
-	if len(revisions) > (int(p.GetRevisionHistoryLimit())+1) && p.GetRevisionHistoryLimit() != 0 {
+	if p.GetRevisionHistoryLimit() != nil &&
+		*p.GetRevisionHistoryLimit() != 0 &&
+		len(revisions) > (int(*p.GetRevisionHistoryLimit())+1) {
 		gcRev := revisions[oldestRevisionIndex]
 		// Find the oldest revision and delete it.
 		if err := r.client.Delete(ctx, gcRev); err != nil {
@@ -341,7 +343,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
 	p.SetConditions(v1alpha1.Inactive())
-	if p.GetActivationPolicy() == v1alpha1.AutomaticActivation {
+	if p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1alpha1.AutomaticActivation {
 		pr.SetDesiredState(v1alpha1.PackageRevisionActive)
 		p.SetConditions(v1alpha1.Active())
 	}
