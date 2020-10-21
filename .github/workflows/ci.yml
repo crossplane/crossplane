@@ -1,0 +1,246 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - release-*
+    paths-ignore:
+      - '**.md'
+      - '**.png'
+      - '**.jpg'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+      - '**.png'
+      - '**.jpg'
+
+env:
+  # Common versions
+  GO_VERSION: '1.14'
+  GOLANGCI_VERSION: 'v1.31'
+  DOCKER_BUILDX_VERSION: 'v0.4.2'
+
+  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
+  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
+  # credentials have been provided before trying to run steps that need them.
+  DOCKER_USR: ${{ secrets.DOCKER_USR }}
+  AWS_USR: ${{ secrets.AWS_USR }}
+
+jobs:
+
+  lint:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@v2
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      # This action uses its own setup-go, which always seems to use the latest
+      # stable version of Go. We could run 'make lint' to ensure our desired Go
+      # version, but we prefer this action because it leaves 'annotations' (i.e.
+      # it comments on PRs to point out linter violations).
+      - name: Lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: ${{ env.GOLANGCI_VERSION }}
+
+  check-diff:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@v2
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Check Diff
+        run: make check-diff
+
+  unit-tests:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Fetch History
+        run: git fetch --prune --unshallow
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@v2
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Run Unit Tests
+        run: make -j2 test
+
+      - name: Publish Unit Test Coverage
+        uses: codecov/codecov-action@v1
+        with:
+          flags: unittests
+          file: _output/tests/linux_amd64/coverage.txt
+
+  e2e-tests:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          version: ${{ env.DOCKER_BUILDX_VERSION }}
+          install: true
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Fetch History
+        run: git fetch --prune --unshallow
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@v2
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Build Helm Chart
+        run: make -j2 build
+        env:
+          # We're using docker buildx, which doesn't actually load the images it
+          # builds by default. Specifying --load does so.
+          BUILD_ARGS: "--load"
+
+      - name: Run E2E Tests
+        run: make e2e USE_HELM3=true
+
+  publish-artifacts:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v1
+        with:
+          version: ${{ env.DOCKER_BUILDX_VERSION }}
+          install: true
+
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Fetch History
+        run: git fetch --prune --unshallow
+
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@v2
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
+      - name: Build Artifacts
+        run: make -j2 build.all
+        env:
+          # We're using docker buildx, which doesn't actually load the images it
+          # builds by default. Specifying --load does so.
+          BUILD_ARGS: "--load"
+      
+      - name: Publish Artifacts to GitHub
+        uses: actions/upload-artifact@v2
+        with:
+          name: output
+          path: _output/**
+      
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          username: ${{ secrets.DOCKER_USR }}
+          password: ${{ secrets.DOCKER_PSW }}
+      
+      - name: Publish Artifacts to S3 and Docker Hub
+        run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
+        if: env.AWS_USR != '' && env.DOCKER_USR != ''
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+          GIT_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Promote Artifacts in S3 and Docker Hub
+        if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != ''
+        run: make -j2 promote
+        env:
+          BRANCH_NAME: master
+          CHANNEL: master
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+        
