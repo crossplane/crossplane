@@ -1,0 +1,27 @@
+name: Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v0.1.0)'
+        required: true
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Fetch History
+        run: git fetch --prune --unshallow
+
+      - name: Create Tag
+        run: make -j2 tag
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+        
