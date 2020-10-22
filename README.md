@@ -1,4 +1,4 @@
-[![Build Status](https://jenkinsci.upbound.io/buildStatus/icon?job=crossplane/crossplane/build/master)](https://jenkinsci.upbound.io/blue/organizations/jenkins/crossplane%2Fcrossplane%2Fbuild/activity) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://img.shields.io/docker/pulls/crossplane/crossplane.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
+![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://img.shields.io/docker/pulls/crossplane/crossplane.svg) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
 ![Crossplane](docs/media/banner.png)
 
@@ -80,11 +80,11 @@ be deployed with kubectl from app delivery pipelines or with GitOps workflows.
 This team-centric approach reflects individuals often specializing in the
 following roles:
 
-*   **Infrastructure Operators** - provide infrastructure and services for apps
+* **Infrastructure Operators** - provide infrastructure and services for apps
     to consume
-*   **Application Developers** - build application components independent of
+* **Application Developers** - build application components independent of
     infrastructure
-*   **Application Operators** - compose, deploy, and run application
+* **Application Operators** - compose, deploy, and run application
     configurations
 
 This separation of concerns is core to Crossplane’s approach to infrastructure
@@ -114,7 +114,7 @@ Pacific Time]. Anyone who wants to discuss the direction of the project, design
 and implementation reviews, or raise general questions with the broader
 community is encouraged to join.
 
-* Meeting link: https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09
+* Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
 * [Current agenda and past meeting notes]
 * [Past meeting recordings]
 
