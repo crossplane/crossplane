@@ -156,23 +156,6 @@ func CompositeResourceClaimSpecProps() map[string]v1.JSONSchemaProps {
 // infrastructure resources.
 func CompositeResourceStatusProps() map[string]v1.JSONSchemaProps {
 	return map[string]v1.JSONSchemaProps{
-		// TODO(negz): Remove composedResources, readyResources, and
-		// bindingPhase. I believe they're unused.
-		"composedResources": {
-			Type: "integer",
-		},
-		"readyResources": {
-			Type: "integer",
-		},
-		"bindingPhase": {
-			Type: "string",
-			Enum: []v1.JSON{
-				{Raw: []byte(`"Unbindable"`)},
-				{Raw: []byte(`"Unbound"`)},
-				{Raw: []byte(`"Bound"`)},
-				{Raw: []byte(`"Released"`)},
-			},
-		},
 		"conditions": {
 			Description: "Conditions of the resource.",
 			Type:        "array",

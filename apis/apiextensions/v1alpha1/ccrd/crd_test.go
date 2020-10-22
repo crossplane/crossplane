@@ -233,21 +233,6 @@ func TestForCompositeResource(t *testing.T) {
 								Properties: map[string]extv1.JSONSchemaProps{
 
 									// From CompositeResourceStatusProps()
-									"composedResources": {
-										Type: "integer",
-									},
-									"readyResources": {
-										Type: "integer",
-									},
-									"bindingPhase": {
-										Type: "string",
-										Enum: []extv1.JSON{
-											{Raw: []byte(`"Unbindable"`)},
-											{Raw: []byte(`"Unbound"`)},
-											{Raw: []byte(`"Bound"`)},
-											{Raw: []byte(`"Released"`)},
-										},
-									},
 									"conditions": {
 										Description: "Conditions of the resource.",
 										Type:        "array",
@@ -551,21 +536,6 @@ func TestForCompositeResourceClaim(t *testing.T) {
 									Properties: map[string]extv1.JSONSchemaProps{
 
 										// From CompositeResourceStatusProps()
-										"composedResources": {
-											Type: "integer",
-										},
-										"readyResources": {
-											Type: "integer",
-										},
-										"bindingPhase": {
-											Type: "string",
-											Enum: []extv1.JSON{
-												{Raw: []byte(`"Unbindable"`)},
-												{Raw: []byte(`"Unbound"`)},
-												{Raw: []byte(`"Bound"`)},
-												{Raw: []byte(`"Released"`)},
-											},
-										},
 										"conditions": {
 											Description: "Conditions of the resource.",
 											Type:        "array",
