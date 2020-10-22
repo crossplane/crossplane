@@ -396,6 +396,41 @@ func TestHookPost(t *testing.T) {
 				err: errors.Wrap(errBoom, errApplyProviderDeployment),
 			},
 		},
+		"ErrProviderUnavailableDeployment": {
+			reason: "Should return error if deployment is unavailable for provider revision.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+							d, ok := o.(*appsv1.Deployment)
+							if !ok {
+								return nil
+							}
+							d.Status.Conditions = []appsv1.DeploymentCondition{{
+								Type:    appsv1.DeploymentAvailable,
+								Status:  corev1.ConditionFalse,
+								Message: errBoom.Error(),
+							}}
+							return nil
+						}),
+					},
+				},
+				pkg: &pkgmeta.Provider{},
+				rev: &v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						DesiredState: v1alpha1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				rev: &v1alpha1.ProviderRevision{
+					Spec: v1alpha1.PackageRevisionSpec{
+						DesiredState: v1alpha1.PackageRevisionActive,
+					},
+				},
+				err: errors.Errorf("%s: %s", errUnavailableProviderDeployment, errBoom.Error()),
+			},
+		},
 		"SuccessfulProviderApply": {
 			reason: "Should not return error if successfully applied service account and deployment for active provider revision.",
 			args: args{

@@ -20,6 +20,8 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -30,11 +32,12 @@ import (
 )
 
 const (
-	errNotProvider              = "not a provider package"
-	errDeleteProviderDeployment = "cannot delete provider package deployment"
-	errDeleteProviderSA         = "cannot delete provider package service account"
-	errApplyProviderDeployment  = "cannot apply provider package deployment"
-	errApplyProviderSA          = "cannot apply provider package service account"
+	errNotProvider                   = "not a provider package"
+	errDeleteProviderDeployment      = "cannot delete provider package deployment"
+	errDeleteProviderSA              = "cannot delete provider package service account"
+	errApplyProviderDeployment       = "cannot apply provider package deployment"
+	errApplyProviderSA               = "cannot apply provider package service account"
+	errUnavailableProviderDeployment = "provider package deployment is unavailable"
 
 	errNotConfiguration = "not a configuration package"
 )
@@ -105,6 +108,15 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 	pr.SetControllerReference(runtimev1alpha1.Reference{Name: d.GetName()})
+
+	for _, c := range d.Status.Conditions {
+		if c.Type == appsv1.DeploymentAvailable {
+			if c.Status == v1.ConditionTrue {
+				return nil
+			}
+			return errors.Errorf("%s: %s", errUnavailableProviderDeployment, c.Message)
+		}
+	}
 	return nil
 }
 
