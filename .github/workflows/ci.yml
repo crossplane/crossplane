@@ -31,6 +31,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           paths_ignore: '["**.md", "**.png", "**.jpg"]'
+          do_not_skip: '["workflow_dispatch", "schedule", "push"]'
+
 
   lint:
     runs-on: ubuntu-18.04
