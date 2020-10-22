@@ -21,7 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -55,7 +55,7 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	type args struct {
 		pr   *v1alpha1.ProviderRevision
-		crds []v1beta1.CustomResourceDefinition
+		crds []extv1.CustomResourceDefinition
 	}
 
 	cases := map[string]struct {
@@ -67,23 +67,23 @@ func TestRenderClusterRoles(t *testing.T) {
 			reason: "A ProviderRevision should merge CRDs by group to produce the fewest rules possible.",
 			args: args{
 				pr: &v1alpha1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
-				crds: []v1beta1.CustomResourceDefinition{
+				crds: []extv1.CustomResourceDefinition{
 					{
-						Spec: v1beta1.CustomResourceDefinitionSpec{
+						Spec: extv1.CustomResourceDefinitionSpec{
 							Group: groupCRDA,
-							Names: v1beta1.CustomResourceDefinitionNames{Plural: pluralCRDA},
+							Names: extv1.CustomResourceDefinitionNames{Plural: pluralCRDA},
 						},
 					},
 					{
-						Spec: v1beta1.CustomResourceDefinitionSpec{
+						Spec: extv1.CustomResourceDefinitionSpec{
 							Group: groupCRDB,
-							Names: v1beta1.CustomResourceDefinitionNames{Plural: pluralCRDB},
+							Names: extv1.CustomResourceDefinitionNames{Plural: pluralCRDB},
 						},
 					},
 					{
-						Spec: v1beta1.CustomResourceDefinitionSpec{
+						Spec: extv1.CustomResourceDefinitionSpec{
 							Group: groupCRDC,
-							Names: v1beta1.CustomResourceDefinitionNames{Plural: pluralCRDC},
+							Names: extv1.CustomResourceDefinitionNames{Plural: pluralCRDC},
 						},
 					},
 				},

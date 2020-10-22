@@ -19,7 +19,8 @@ package xpkg
 import (
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -116,10 +117,12 @@ func PackageValidSemver(o runtime.Object) error {
 
 // IsCRD checks that an object is a CustomResourceDefinition.
 func IsCRD(o runtime.Object) error {
-	if _, ok := o.(*v1beta1.CustomResourceDefinition); !ok {
+	switch o.(type) {
+	case *extv1beta1.CustomResourceDefinition, *extv1.CustomResourceDefinition:
+		return nil
+	default:
 		return errors.New(errNotCRD)
 	}
-	return nil
 }
 
 // IsXRD checks that an object is a CompositeResourceDefinition.

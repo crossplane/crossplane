@@ -23,7 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -55,14 +55,14 @@ const (
 // A ClusterRoleRenderer renders ClusterRoles for the given CRDs.
 type ClusterRoleRenderer interface {
 	// RenderClusterRoles for the supplied CRDs.
-	RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole
+	RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
 }
 
 // A ClusterRoleRenderFn renders ClusterRoles for the supplied CRDs.
-type ClusterRoleRenderFn func(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole
+type ClusterRoleRenderFn func(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied CRDs.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []v1beta1.CustomResourceDefinition) []rbacv1.ClusterRole {
+func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 	return fn(pr, crds)
 }
 
@@ -176,7 +176,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	l := &v1beta1.CustomResourceDefinitionList{}
+	l := &extv1.CustomResourceDefinitionList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListCRDs, "error", err)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errListCRDs)))
@@ -185,7 +185,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// Filter down to the CRDs that are owned by this ProviderRevision - i.e.
 	// those that it may become the active revision for.
-	crds := make([]v1beta1.CustomResourceDefinition, 0)
+	crds := make([]extv1.CustomResourceDefinition, 0)
 	for _, crd := range l.Items {
 		for _, ref := range crd.GetOwnerReferences() {
 			if ref.UID == pr.GetUID() {

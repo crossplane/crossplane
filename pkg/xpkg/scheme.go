@@ -17,7 +17,8 @@ limitations under the License.
 package xpkg
 
 import (
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -41,7 +42,10 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 	if err := apiextensionsv1alpha1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
-	if err := v1beta1.AddToScheme(objScheme); err != nil {
+	if err := extv1beta1.AddToScheme(objScheme); err != nil {
+		return nil, err
+	}
+	if err := extv1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
 	return objScheme, nil

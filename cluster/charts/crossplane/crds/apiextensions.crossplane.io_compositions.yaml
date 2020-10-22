@@ -59,6 +59,7 @@ spec:
                     base:
                       description: Base is the target resource that the patches will be applied on.
                       type: object
+                      x-kubernetes-embedded-resource: true
                       x-kubernetes-preserve-unknown-fields: true
                     connectionDetails:
                       description: ConnectionDetails lists the propagation secret keys from this target resource to the composition instance connection secret.

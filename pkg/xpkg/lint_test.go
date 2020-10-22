@@ -38,7 +38,12 @@ import (
 )
 
 var (
-	crdBytes = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+	v1beta1CRDBytes = []byte(`apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: test`)
+
+	v1CRDBytes = []byte(`apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: test`)
@@ -63,16 +68,18 @@ kind: Composition
 metadata:
   name: test`)
 
-	crd      = &apiextensions.CustomResourceDefinition{}
-	_        = yaml.Unmarshal(crdBytes, crd)
-	provMeta = &pkgmeta.Provider{}
-	_        = yaml.Unmarshal(provBytes, provMeta)
-	confMeta = &pkgmeta.Configuration{}
-	_        = yaml.Unmarshal(confBytes, confMeta)
-	xrd      = &apiextensionsv1alpha1.CompositeResourceDefinition{}
-	_        = yaml.Unmarshal(xrdBytes, xrd)
-	comp     = &apiextensionsv1alpha1.Composition{}
-	_        = yaml.Unmarshal(compBytes, comp)
+	v1beta1crd = &apiextensions.CustomResourceDefinition{}
+	_          = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
+	v1crd      = &apiextensions.CustomResourceDefinition{}
+	_          = yaml.Unmarshal(v1CRDBytes, v1crd)
+	provMeta   = &pkgmeta.Provider{}
+	_          = yaml.Unmarshal(provBytes, provMeta)
+	confMeta   = &pkgmeta.Configuration{}
+	_          = yaml.Unmarshal(confBytes, confMeta)
+	xrd        = &apiextensionsv1alpha1.CompositeResourceDefinition{}
+	_          = yaml.Unmarshal(xrdBytes, xrd)
+	comp       = &apiextensionsv1alpha1.Composition{}
+	_          = yaml.Unmarshal(compBytes, comp)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -80,9 +87,9 @@ metadata:
 )
 
 func TestOneMeta(t *testing.T) {
-	oneR := bytes.NewReader(bytes.Join([][]byte{crdBytes, provBytes}, []byte("\n---\n")))
+	oneR := bytes.NewReader(bytes.Join([][]byte{v1beta1CRDBytes, provBytes}, []byte("\n---\n")))
 	oneMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(oneR))
-	noneR := bytes.NewReader(crdBytes)
+	noneR := bytes.NewReader(v1beta1CRDBytes)
 	noneMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(noneR))
 	multiR := bytes.NewReader(bytes.Join([][]byte{provBytes, provBytes}, []byte("\n---\n")))
 	multiMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(multiR))
@@ -131,7 +138,7 @@ func TestIsProvider(t *testing.T) {
 		},
 		"ErrNotProvider": {
 			reason: "Should return error if object is not provider.",
-			obj:    crd,
+			obj:    v1beta1crd,
 			err:    errors.New(errNotMetaProvider),
 		},
 	}
@@ -159,7 +166,7 @@ func TestIsConfiguration(t *testing.T) {
 		},
 		"ErrNotConfiguration": {
 			reason: "Should return error if object is not configuration.",
-			obj:    crd,
+			obj:    v1beta1crd,
 			err:    errors.New(errNotMetaConfiguration),
 		},
 	}
@@ -329,9 +336,13 @@ func TestIsCRD(t *testing.T) {
 		obj    runtime.Object
 		err    error
 	}{
-		"Successful": {
-			reason: "Should not return error if object is CRD.",
-			obj:    crd,
+		"v1beta1": {
+			reason: "Should not return error if object is a v1beta1 CRD.",
+			obj:    v1beta1crd,
+		},
+		"v1": {
+			reason: "Should not return error if object is a v1 CRD.",
+			obj:    v1crd,
 		},
 		"ErrNotCRD": {
 			reason: "Should return error if object is not CRD.",
@@ -363,7 +374,7 @@ func TestIsXRD(t *testing.T) {
 		},
 		"ErrNotConfiguration": {
 			reason: "Should return error if object is not XRD.",
-			obj:    crd,
+			obj:    v1beta1crd,
 			err:    errors.New(errNotXRD),
 		},
 	}
@@ -391,7 +402,7 @@ func TestIsComposition(t *testing.T) {
 		},
 		"ErrNotComposition": {
 			reason: "Should return error if object is not composition.",
-			obj:    crd,
+			obj:    v1beta1crd,
 			err:    errors.New(errNotComposition),
 		},
 	}

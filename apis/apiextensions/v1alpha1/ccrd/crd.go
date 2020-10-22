@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package ccrd generates CustomResourceDefinitions from Crossplane definitions.
 //
-// v1beta1.JSONSchemaProps is incompatible with controller-tools (as of 0.2.4)
+// v1.JSONSchemaProps is incompatible with controller-tools (as of 0.2.4)
 // because it is missing JSON tags and uses float64, which is a disallowed type.
 // We thus copy the entire struct as CRDSpecTemplate. See the below issue:
 // https://github.com/kubernetes-sigs/controller-tools/issues/291
@@ -26,9 +26,8 @@ import (
 	"encoding/json"
 
 	"github.com/pkg/errors"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
@@ -42,130 +41,127 @@ const (
 )
 
 const (
-	errNewSpec                 = "cannot generate CustomResourceDefinition from crdSpecTemplate"
+	errGetSpecProps            = "cannot get spec properties from validation schema"
 	errParseValidation         = "cannot parse validation schema"
 	errInvalidClaimNames       = "invalid resource claim names"
 	errMissingClaimNames       = "missing names"
 	errFmtConflictingClaimName = "%q conflicts with composite resource name"
 )
 
-// NOTE(muvaf): We use v1beta1.CustomResourceDefinition for backward
-// compatibility with clusters pre-1.16
-
-// TODO(muvaf): Every field on top level spec could be a DefinitionOption that is
-// reused, although it is known that only two different kinds will be generated.
-
-// An Option configures the supplied CustomResourceDefinition.
-type Option func(*v1beta1.CustomResourceDefinition) error
-
-// New produces a new CustomResourceDefinition.
-func New(o ...Option) (*v1beta1.CustomResourceDefinition, error) {
-	crd := &v1beta1.CustomResourceDefinition{
-		Spec: v1beta1.CustomResourceDefinitionSpec{
-			PreserveUnknownFields: pointer.BoolPtr(false),
-			Subresources: &v1beta1.CustomResourceSubresources{
-				Status: &v1beta1.CustomResourceSubresourceStatus{},
-			},
-			Validation: &v1beta1.CustomResourceValidation{
-				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{
-					Type:       "object",
-					Properties: BaseProps(),
-				},
+// ForCompositeResource derives the CustomResourceDefinition for a composite
+// resource from the supplied CompositeResourceDefinition.
+func ForCompositeResource(xrd *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+	vr := extv1.CustomResourceDefinitionVersion{
+		Name:                     xrd.Spec.CRDSpecTemplate.Version,
+		Served:                   true,
+		Storage:                  true,
+		AdditionalPrinterColumns: xrd.Spec.CRDSpecTemplate.AdditionalPrinterColumns,
+		Subresources: &extv1.CustomResourceSubresources{
+			Status: &extv1.CustomResourceSubresourceStatus{},
+		},
+		Schema: &extv1.CustomResourceValidation{
+			OpenAPIV3Schema: &extv1.JSONSchemaProps{
+				Type:       "object",
+				Properties: BaseProps(),
 			},
 		},
 	}
-	for _, f := range o {
-		if err := f(crd); err != nil {
-			return nil, err
-		}
+
+	vr.AdditionalPrinterColumns = append(vr.AdditionalPrinterColumns, CompositeResourcePrinterColumns()...)
+	p, err := getSpecProps(xrd.Spec.CRDSpecTemplate.Validation)
+	if err != nil {
+		return nil, errors.Wrap(err, errGetSpecProps)
 	}
+	for k, v := range p {
+		vr.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+	}
+	for k, v := range CompositeResourceSpecProps() {
+		vr.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+	}
+	for k, v := range CompositeResourceStatusProps() {
+		vr.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
+	}
+
+	crd := &extv1.CustomResourceDefinition{
+		Spec: extv1.CustomResourceDefinitionSpec{
+			Scope:    extv1.ClusterScoped,
+			Group:    xrd.Spec.CRDSpecTemplate.Group,
+			Names:    xrd.Spec.CRDSpecTemplate.Names,
+			Versions: []extv1.CustomResourceDefinitionVersion{vr},
+		},
+	}
+
+	crd.SetName(xrd.GetName())
+	crd.SetLabels(xrd.GetLabels())
+	crd.SetAnnotations(xrd.GetAnnotations())
+	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
+		meta.TypedReferenceTo(xrd, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+	)})
+
+	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryComposite)
+
 	return crd, nil
-}
-
-// ForCompositeResource derives the CustomResourceDefinition for a composite
-// resource from the supplied CompositeResourceDefinition.
-func ForCompositeResource(d *v1alpha1.CompositeResourceDefinition) Option {
-	return func(crd *v1beta1.CustomResourceDefinition) error {
-		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
-		if err != nil {
-			return errors.Wrap(err, errNewSpec)
-		}
-
-		crd.SetName(d.GetName())
-		crd.SetLabels(d.GetLabels())
-		crd.SetAnnotations(d.GetAnnotations())
-		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
-		)})
-		crd.Spec.AdditionalPrinterColumns = CompositeResourcePrinterColumns()
-
-		crd.Spec.Group = spec.Group
-		crd.Spec.Version = spec.Version
-		crd.Spec.Names = spec.Names
-		crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryComposite)
-		crd.Spec.AdditionalPrinterColumns = append(crd.Spec.AdditionalPrinterColumns, spec.AdditionalPrinterColumns...)
-		for k, v := range getSpecProps(spec) {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
-
-		crd.Spec.Scope = v1beta1.ClusterScoped
-		for k, v := range CompositeResourceSpecProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
-		for k, v := range CompositeResourceStatusProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
-		}
-
-		return nil
-	}
 }
 
 // ForCompositeResourceClaim derives the CustomResourceDefinition for a
 // composite resource claim from the supplied CompositeResourceDefinition.
-func ForCompositeResourceClaim(d *v1alpha1.CompositeResourceDefinition) Option {
-	return func(crd *v1beta1.CustomResourceDefinition) error {
-		spec, err := NewSpec(d.Spec.CRDSpecTemplate)
-		if err != nil {
-			return errors.Wrap(err, errNewSpec)
-		}
-
-		if err := validateClaimNames(d); err != nil {
-			return errors.Wrap(err, errInvalidClaimNames)
-		}
-
-		crd.SetName(d.Spec.ClaimNames.Plural + "." + spec.Group)
-		crd.SetLabels(d.GetLabels())
-		crd.SetAnnotations(d.GetAnnotations())
-		crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-			meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
-		)})
-
-		crd.Spec.Names = v1beta1.CustomResourceDefinitionNames{
-			Kind:       d.Spec.ClaimNames.Kind,
-			ListKind:   d.Spec.ClaimNames.ListKind,
-			Singular:   d.Spec.ClaimNames.Singular,
-			Plural:     d.Spec.ClaimNames.Plural,
-			Categories: append(d.Spec.ClaimNames.Categories, CategoryClaim),
-		}
-		crd.Spec.AdditionalPrinterColumns = CompositeResourceClaimPrinterColumns()
-
-		crd.Spec.Group = spec.Group
-		crd.Spec.Version = spec.Version
-		crd.Spec.AdditionalPrinterColumns = append(crd.Spec.AdditionalPrinterColumns, spec.AdditionalPrinterColumns...)
-		for k, v := range getSpecProps(spec) {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
-
-		crd.Spec.Scope = v1beta1.NamespaceScoped
-		for k, v := range CompositeResourceClaimSpecProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
-		}
-		for k, v := range CompositeResourceStatusProps() {
-			crd.Spec.Validation.OpenAPIV3Schema.Properties["status"].Properties[k] = v
-		}
-
-		return nil
+func ForCompositeResourceClaim(xrd *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+	if err := validateClaimNames(xrd); err != nil {
+		return nil, errors.Wrap(err, errInvalidClaimNames)
 	}
+
+	vr := extv1.CustomResourceDefinitionVersion{
+		Name:                     xrd.Spec.CRDSpecTemplate.Version,
+		Served:                   true,
+		Storage:                  true,
+		AdditionalPrinterColumns: xrd.Spec.CRDSpecTemplate.AdditionalPrinterColumns,
+		Subresources: &extv1.CustomResourceSubresources{
+			Status: &extv1.CustomResourceSubresourceStatus{},
+		},
+		Schema: &extv1.CustomResourceValidation{
+			OpenAPIV3Schema: &extv1.JSONSchemaProps{
+				Type:       "object",
+				Properties: BaseProps(),
+			},
+		},
+	}
+
+	p, err := getSpecProps(xrd.Spec.CRDSpecTemplate.Validation)
+	if err != nil {
+		return nil, errors.Wrap(err, errGetSpecProps)
+	}
+
+	for k, v := range p {
+		vr.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+	}
+	for k, v := range CompositeResourceClaimSpecProps() {
+		vr.Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+	}
+	for k, v := range CompositeResourceStatusProps() {
+		vr.Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
+	}
+
+	vr.AdditionalPrinterColumns = append(vr.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...)
+
+	crd := &extv1.CustomResourceDefinition{
+		Spec: extv1.CustomResourceDefinitionSpec{
+			Scope:    extv1.NamespaceScoped,
+			Group:    xrd.Spec.CRDSpecTemplate.Group,
+			Names:    *xrd.Spec.ClaimNames,
+			Versions: []extv1.CustomResourceDefinitionVersion{vr},
+		},
+	}
+
+	crd.SetName(xrd.Spec.ClaimNames.Plural + "." + xrd.Spec.CRDSpecTemplate.Group)
+	crd.SetLabels(xrd.GetLabels())
+	crd.SetAnnotations(xrd.GetAnnotations())
+	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
+		meta.TypedReferenceTo(xrd, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+	)})
+
+	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryClaim)
+
+	return crd, nil
 }
 
 func validateClaimNames(d *v1alpha1.CompositeResourceDefinition) error {
@@ -192,44 +188,30 @@ func validateClaimNames(d *v1alpha1.CompositeResourceDefinition) error {
 	return nil
 }
 
-// NewSpec produces a CustomResourceDefinitionSpec from the supplied template.
-func NewSpec(t v1alpha1.CRDSpecTemplate) (v1beta1.CustomResourceDefinitionSpec, error) {
-	out := v1beta1.CustomResourceDefinitionSpec{
-		Group:                    t.Group,
-		Version:                  t.Version,
-		Names:                    t.Names,
-		AdditionalPrinterColumns: t.AdditionalPrinterColumns,
+func getSpecProps(v *v1alpha1.CustomResourceValidation) (map[string]extv1.JSONSchemaProps, error) {
+	if v == nil {
+		return nil, nil
 	}
-	if t.Validation != nil {
-		s := &v1beta1.JSONSchemaProps{}
-		if err := json.Unmarshal(t.Validation.OpenAPIV3Schema.Raw, s); err != nil {
-			return v1beta1.CustomResourceDefinitionSpec{}, errors.Wrap(err, errParseValidation)
-		}
-		out.Validation = &v1beta1.CustomResourceValidation{OpenAPIV3Schema: s}
-	}
-	return out, nil
-}
 
-func getSpecProps(template v1beta1.CustomResourceDefinitionSpec) map[string]v1beta1.JSONSchemaProps {
-	switch {
-	case template.Validation == nil:
-		return nil
-	case template.Validation.OpenAPIV3Schema == nil:
-		return nil
-	case len(template.Validation.OpenAPIV3Schema.Properties) == 0:
-		return nil
-	case len(template.Validation.OpenAPIV3Schema.Properties["spec"].Properties) == 0:
-		return nil
+	s := &extv1.JSONSchemaProps{}
+	if err := json.Unmarshal(v.OpenAPIV3Schema.Raw, s); err != nil {
+		return nil, errors.Wrap(err, errParseValidation)
 	}
-	return template.Validation.OpenAPIV3Schema.Properties["spec"].Properties
+
+	spec, ok := s.Properties["spec"]
+	if !ok {
+		return nil, nil
+	}
+
+	return spec.Properties, nil
 }
 
 // IsEstablished is a helper function to check whether api-server is ready
 // to accept the instances of registered CRD.
-func IsEstablished(s v1beta1.CustomResourceDefinitionStatus) bool {
+func IsEstablished(s extv1.CustomResourceDefinitionStatus) bool {
 	for _, c := range s.Conditions {
-		if c.Type == v1beta1.Established {
-			return c.Status == v1beta1.ConditionTrue
+		if c.Type == extv1.Established {
+			return c.Status == extv1.ConditionTrue
 		}
 	}
 	return false

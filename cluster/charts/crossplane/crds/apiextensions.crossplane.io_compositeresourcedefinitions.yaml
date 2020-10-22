@@ -88,14 +88,14 @@ spec:
                     items:
                       description: CustomResourceColumnDefinition specifies a column for server side printing.
                       properties:
-                        JSONPath:
-                          description: JSONPath is a simple JSON path (i.e. with array notation) which is evaluated against each custom resource to produce the value for this column.
-                          type: string
                         description:
                           description: description is a human readable description of this column.
                           type: string
                         format:
                           description: format is an optional OpenAPI type definition for this column. The 'name' format is applied to the primary identifier column to assist in clients identifying column is the resource name. See https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#data-types for details.
+                          type: string
+                        jsonPath:
+                          description: jsonPath is a simple JSON path (i.e. with array notation) which is evaluated against each custom resource to produce the value for this column.
                           type: string
                         name:
                           description: name is a human readable name for the column.
@@ -108,7 +108,7 @@ spec:
                           description: type is an OpenAPI type definition for this column. See https://github.com/OAI/OpenAPI-Specification/blob/master/versions/2.0.md#data-types for details.
                           type: string
                       required:
-                      - JSONPath
+                      - jsonPath
                       - name
                       - type
                       type: object

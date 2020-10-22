@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -90,16 +90,16 @@ type ControllerEngine interface {
 // A CRDRenderer renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
+	Render(d *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 }
 
 // A CRDRenderFn renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 
 // Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
@@ -111,7 +111,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.CompositeResourceDefinition{}).
-		Owns(&v1beta1.CustomResourceDefinition{}).
+		Owns(&extv1.CustomResourceDefinition{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
@@ -190,9 +190,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		},
 
 		composite: definition{
-			CRDRenderer: CRDRenderFn(func(d *v1alpha1.CompositeResourceDefinition) (*v1beta1.CustomResourceDefinition, error) {
-				return ccrd.New(ccrd.ForCompositeResource(d))
-			}),
+			CRDRenderer:      CRDRenderFn(ccrd.ForCompositeResource),
 			ControllerEngine: controller.NewEngine(mgr),
 			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
 		},

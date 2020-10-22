@@ -16,7 +16,7 @@ limitations under the License.
 
 // Package ccrd generates CustomResourceDefinitions from Crossplane definitions.
 //
-// v1beta1.JSONSchemaProps is incompatible with controller-tools (as of 0.2.4)
+// v1.JSONSchemaProps is incompatible with controller-tools (as of 0.2.4)
 // because it is missing JSON tags and uses float64, which is a disallowed type.
 // We thus copy the entire struct as CRDSpecTemplate. See the below issue:
 // https://github.com/kubernetes-sigs/controller-tools/issues/291
@@ -27,11 +27,10 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -41,20 +40,20 @@ import (
 
 func TestIsEstablished(t *testing.T) {
 	cases := map[string]struct {
-		s    v1beta1.CustomResourceDefinitionStatus
+		s    extv1.CustomResourceDefinitionStatus
 		want bool
 	}{
 		"IsEstablished": {
-			s: v1beta1.CustomResourceDefinitionStatus{
-				Conditions: []v1beta1.CustomResourceDefinitionCondition{{
-					Type:   v1beta1.Established,
-					Status: v1beta1.ConditionTrue,
+			s: extv1.CustomResourceDefinitionStatus{
+				Conditions: []extv1.CustomResourceDefinitionCondition{{
+					Type:   extv1.Established,
+					Status: extv1.ConditionTrue,
 				}},
 			},
 			want: true,
 		},
 		"IsNotEstablished": {
-			s:    v1beta1.CustomResourceDefinitionStatus{},
+			s:    extv1.CustomResourceDefinitionStatus{},
 			want: false,
 		},
 	}
@@ -69,7 +68,7 @@ func TestIsEstablished(t *testing.T) {
 	}
 }
 
-func TestForCompositeResourceDefinition(t *testing.T) {
+func TestForCompositeResource(t *testing.T) {
 	name := "coolcomposites.example.org"
 	labels := map[string]string{"cool": "very"}
 	annotations := map[string]string{"example.org/cool": "very"}
@@ -94,7 +93,7 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
-				Names: v1beta1.CustomResourceDefinitionNames{
+				Names: extv1.CustomResourceDefinitionNames{
 					Plural:   plural,
 					Singular: singular,
 					Kind:     kind,
@@ -107,7 +106,7 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 		},
 	}
 
-	want := &v1beta1.CustomResourceDefinition{
+	want := &extv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
@@ -116,150 +115,138 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 				meta.AsController(meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
-		Spec: v1beta1.CustomResourceDefinitionSpec{
-			Group:   group,
-			Version: version,
-			Names: v1beta1.CustomResourceDefinitionNames{
+		Spec: extv1.CustomResourceDefinitionSpec{
+			Group: group,
+			Names: extv1.CustomResourceDefinitionNames{
 				Plural:     plural,
 				Singular:   singular,
 				Kind:       kind,
 				ListKind:   listKind,
 				Categories: []string{CategoryComposite},
 			},
-			Scope:                 v1beta1.ClusterScoped,
-			PreserveUnknownFields: pointer.BoolPtr(false),
-			Subresources: &v1beta1.CustomResourceSubresources{
-				Status: &v1beta1.CustomResourceSubresourceStatus{},
-			},
-			AdditionalPrinterColumns: []v1beta1.CustomResourceColumnDefinition{
-				{
-					Name:     "READY",
-					Type:     "string",
-					JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+			Scope: extv1.ClusterScoped,
+			Versions: []extv1.CustomResourceDefinitionVersion{{
+				Name:    version,
+				Served:  true,
+				Storage: true,
+				Subresources: &extv1.CustomResourceSubresources{
+					Status: &extv1.CustomResourceSubresourceStatus{},
 				},
-				{
-					Name:     "COMPOSITION",
-					Type:     "string",
-					JSONPath: ".spec.compositionRef.name",
+				AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+					{
+						Name:     "READY",
+						Type:     "string",
+						JSONPath: ".status.conditions[?(@.type=='Ready')].status",
+					},
+					{
+						Name:     "COMPOSITION",
+						Type:     "string",
+						JSONPath: ".spec.compositionRef.name",
+					},
 				},
-			},
-			Validation: &v1beta1.CustomResourceValidation{
-				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{
-					Type: "object",
-					Properties: map[string]v1beta1.JSONSchemaProps{
-						"apiVersion": {
-							Type: "string",
-						},
-						"kind": {
-							Type: "string",
-						},
-						"metadata": {
-							// NOTE(muvaf): api-server takes care of validating
-							// metadata.
-							Type: "object",
-						},
-						"spec": {
-							Type: "object",
-							Properties: map[string]v1beta1.JSONSchemaProps{
-								// From CRDSpecTemplate.Validation
-								"storageGB": {Type: "integer"},
-								"engineVersion": {
-									Type: "string",
-									Enum: []v1beta1.JSON{
-										{Raw: []byte(`"5.6"`)},
-										{Raw: []byte(`"5.7"`)},
+				Schema: &extv1.CustomResourceValidation{
+					OpenAPIV3Schema: &extv1.JSONSchemaProps{
+						Type: "object",
+						Properties: map[string]extv1.JSONSchemaProps{
+							"apiVersion": {
+								Type: "string",
+							},
+							"kind": {
+								Type: "string",
+							},
+							"metadata": {
+								// NOTE(muvaf): api-server takes care of validating
+								// metadata.
+								Type: "object",
+							},
+							"spec": {
+								Type: "object",
+								Properties: map[string]extv1.JSONSchemaProps{
+									// From CRDSpecTemplate.Validation
+									"storageGB": {Type: "integer"},
+									"engineVersion": {
+										Type: "string",
+										Enum: []extv1.JSON{
+											{Raw: []byte(`"5.6"`)},
+											{Raw: []byte(`"5.7"`)},
+										},
 									},
-								},
 
-								// From CompositeResourceSpecProps()
-								"compositionRef": {
-									Type:     "object",
-									Required: []string{"name"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"name": {Type: "string"},
+									// From CompositeResourceSpecProps()
+									"compositionRef": {
+										Type:     "object",
+										Required: []string{"name"},
+										Properties: map[string]extv1.JSONSchemaProps{
+											"name": {Type: "string"},
+										},
 									},
-								},
-								"compositionSelector": {
-									Type:     "object",
-									Required: []string{"matchLabels"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"matchLabels": {
-											Type: "object",
-											AdditionalProperties: &v1beta1.JSONSchemaPropsOrBool{
-												Allows: true,
-												Schema: &v1beta1.JSONSchemaProps{Type: "string"},
+									"compositionSelector": {
+										Type:     "object",
+										Required: []string{"matchLabels"},
+										Properties: map[string]extv1.JSONSchemaProps{
+											"matchLabels": {
+												Type: "object",
+												AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+													Allows: true,
+													Schema: &extv1.JSONSchemaProps{Type: "string"},
+												},
 											},
 										},
 									},
-								},
-								"claimRef": {
-									Type:     "object",
-									Required: []string{"apiVersion", "kind", "namespace", "name"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"apiVersion": {Type: "string"},
-										"kind":       {Type: "string"},
-										"namespace":  {Type: "string"},
-										"name":       {Type: "string"},
-									},
-								},
-								"resourceRefs": {
-									Type: "array",
-									Items: &v1beta1.JSONSchemaPropsOrArray{
-										Schema: &v1beta1.JSONSchemaProps{
-											Type: "object",
-											Properties: map[string]v1beta1.JSONSchemaProps{
-												"apiVersion": {Type: "string"},
-												"name":       {Type: "string"},
-												"kind":       {Type: "string"},
-												"uid":        {Type: "string"},
-											},
-											Required: []string{"apiVersion", "kind", "name"},
+									"claimRef": {
+										Type:     "object",
+										Required: []string{"apiVersion", "kind", "namespace", "name"},
+										Properties: map[string]extv1.JSONSchemaProps{
+											"apiVersion": {Type: "string"},
+											"kind":       {Type: "string"},
+											"namespace":  {Type: "string"},
+											"name":       {Type: "string"},
 										},
 									},
-								},
-								"writeConnectionSecretToRef": {
-									Type:     "object",
-									Required: []string{"name", "namespace"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"name":      {Type: "string"},
-										"namespace": {Type: "string"},
+									"resourceRefs": {
+										Type: "array",
+										Items: &extv1.JSONSchemaPropsOrArray{
+											Schema: &extv1.JSONSchemaProps{
+												Type: "object",
+												Properties: map[string]extv1.JSONSchemaProps{
+													"apiVersion": {Type: "string"},
+													"name":       {Type: "string"},
+													"kind":       {Type: "string"},
+													"uid":        {Type: "string"},
+												},
+												Required: []string{"apiVersion", "kind", "name"},
+											},
+										},
+									},
+									"writeConnectionSecretToRef": {
+										Type:     "object",
+										Required: []string{"name", "namespace"},
+										Properties: map[string]extv1.JSONSchemaProps{
+											"name":      {Type: "string"},
+											"namespace": {Type: "string"},
+										},
 									},
 								},
 							},
-						},
-						"status": {
-							Type: "object",
-							Properties: map[string]v1beta1.JSONSchemaProps{
+							"status": {
+								Type: "object",
+								Properties: map[string]extv1.JSONSchemaProps{
 
-								// From CompositeResourceStatusProps()
-								"composedResources": {
-									Type: "integer",
-								},
-								"readyResources": {
-									Type: "integer",
-								},
-								"bindingPhase": {
-									Type: "string",
-									Enum: []v1beta1.JSON{
-										{Raw: []byte(`"Unbindable"`)},
-										{Raw: []byte(`"Unbound"`)},
-										{Raw: []byte(`"Bound"`)},
-										{Raw: []byte(`"Released"`)},
-									},
-								},
-								"conditions": {
-									Description: "Conditions of the resource.",
-									Type:        "array",
-									Items: &v1beta1.JSONSchemaPropsOrArray{
-										Schema: &v1beta1.JSONSchemaProps{
-											Type:     "object",
-											Required: []string{"lastTransitionTime", "reason", "status", "type"},
-											Properties: map[string]v1beta1.JSONSchemaProps{
-												"lastTransitionTime": {Type: "string", Format: "date-time"},
-												"message":            {Type: "string"},
-												"reason":             {Type: "string"},
-												"status":             {Type: "string"},
-												"type":               {Type: "string"},
+									// From CompositeResourceStatusProps()
+									"conditions": {
+										Description: "Conditions of the resource.",
+										Type:        "array",
+										Items: &extv1.JSONSchemaPropsOrArray{
+											Schema: &extv1.JSONSchemaProps{
+												Type:     "object",
+												Required: []string{"lastTransitionTime", "reason", "status", "type"},
+												Properties: map[string]extv1.JSONSchemaProps{
+													"lastTransitionTime": {Type: "string", Format: "date-time"},
+													"message":            {Type: "string"},
+													"reason":             {Type: "string"},
+													"status":             {Type: "string"},
+													"type":               {Type: "string"},
+												},
 											},
 										},
 									},
@@ -268,17 +255,17 @@ func TestForCompositeResourceDefinition(t *testing.T) {
 						},
 					},
 				},
-			},
+			}},
 		},
 	}
 
-	got, err := New(ForCompositeResource(d))
+	got, err := ForCompositeResource(d)
 	if err != nil {
-		t.Fatalf("New(ForCompositeResource(...): %s", err)
+		t.Fatalf("ForCompositeResource(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(ForCompositeResource(...): -want, +got:\n%s", diff)
+		t.Errorf("ForCompositeResource(...): -want, +got:\n%s", diff)
 	}
 }
 
@@ -294,14 +281,14 @@ func TestValidateClaimNames(t *testing.T) {
 		"KindConflict": {
 			d: &v1alpha1.CompositeResourceDefinition{
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
-					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
 						Singular: "a",
 						Plural:   "a",
 					},
 					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: v1beta1.CustomResourceDefinitionNames{
+						Names: extv1.CustomResourceDefinitionNames{
 							Kind:     "a",
 							ListKind: "b",
 							Singular: "b",
@@ -315,14 +302,14 @@ func TestValidateClaimNames(t *testing.T) {
 		"ListKindConflict": {
 			d: &v1alpha1.CompositeResourceDefinition{
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
-					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
 						Singular: "a",
 						Plural:   "a",
 					},
 					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: v1beta1.CustomResourceDefinitionNames{
+						Names: extv1.CustomResourceDefinitionNames{
 							Kind:     "b",
 							ListKind: "a",
 							Singular: "b",
@@ -336,14 +323,14 @@ func TestValidateClaimNames(t *testing.T) {
 		"SingularConflict": {
 			d: &v1alpha1.CompositeResourceDefinition{
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
-					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
 						Singular: "a",
 						Plural:   "a",
 					},
 					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: v1beta1.CustomResourceDefinitionNames{
+						Names: extv1.CustomResourceDefinitionNames{
 							Kind:     "b",
 							ListKind: "b",
 							Singular: "a",
@@ -357,14 +344,14 @@ func TestValidateClaimNames(t *testing.T) {
 		"PluralConflict": {
 			d: &v1alpha1.CompositeResourceDefinition{
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
-					ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
 						Singular: "a",
 						Plural:   "a",
 					},
 					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: v1beta1.CustomResourceDefinitionNames{
+						Names: extv1.CustomResourceDefinitionNames{
 							Kind:       "b",
 							ListKind:   "b",
 							Singular:   "b",
@@ -388,7 +375,7 @@ func TestValidateClaimNames(t *testing.T) {
 	}
 }
 
-func TestPublishesCompositeResourceDefinition(t *testing.T) {
+func TestForCompositeResourceClaim(t *testing.T) {
 	name := "coolcomposites.example.org"
 	labels := map[string]string{"cool": "very"}
 	annotations := map[string]string{"example.org/cool": "very"}
@@ -416,7 +403,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 			UID:         types.UID("you-you-eye-dee"),
 		},
 		Spec: v1alpha1.CompositeResourceDefinitionSpec{
-			ClaimNames: &v1beta1.CustomResourceDefinitionNames{
+			ClaimNames: &extv1.CustomResourceDefinitionNames{
 				Plural:   claimPlural,
 				Singular: claimSingular,
 				Kind:     claimKind,
@@ -425,7 +412,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
 				Group:   group,
 				Version: version,
-				Names: v1beta1.CustomResourceDefinitionNames{
+				Names: extv1.CustomResourceDefinitionNames{
 					Plural:   plural,
 					Singular: singular,
 					Kind:     kind,
@@ -438,7 +425,7 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 		},
 	}
 
-	want := &v1beta1.CustomResourceDefinition{
+	want := &extv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        claimPlural + "." + group,
 			Labels:      labels,
@@ -447,133 +434,123 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 				meta.AsController(meta.TypedReferenceTo(d, v1alpha1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
-		Spec: v1beta1.CustomResourceDefinitionSpec{
-			Group:   group,
-			Version: version,
-			Names: v1beta1.CustomResourceDefinitionNames{
+		Spec: extv1.CustomResourceDefinitionSpec{
+			Group: group,
+			Names: extv1.CustomResourceDefinitionNames{
 				Plural:     claimPlural,
 				Singular:   claimSingular,
 				Kind:       claimKind,
 				ListKind:   claimListKind,
 				Categories: []string{CategoryClaim},
 			},
-			Scope:                 v1beta1.NamespaceScoped,
-			PreserveUnknownFields: pointer.BoolPtr(false),
-			Subresources: &v1beta1.CustomResourceSubresources{
-				Status: &v1beta1.CustomResourceSubresourceStatus{},
-			},
-			AdditionalPrinterColumns: []v1beta1.CustomResourceColumnDefinition{
+			Scope: extv1.NamespaceScoped,
+			Versions: []extv1.CustomResourceDefinitionVersion{
 				{
-					Name:     "READY",
-					Type:     "string",
-					JSONPath: ".status.conditions[?(@.type=='Ready')].status",
-				},
-				{
-					Name:     "CONNECTION-SECRET",
-					Type:     "string",
-					JSONPath: ".spec.writeConnectionSecretToRef.name",
-				},
-			},
-			Validation: &v1beta1.CustomResourceValidation{
-				OpenAPIV3Schema: &v1beta1.JSONSchemaProps{
-					Type: "object",
-					Properties: map[string]v1beta1.JSONSchemaProps{
-						"apiVersion": {
-							Type: "string",
+					Name:    version,
+					Served:  true,
+					Storage: true,
+					Subresources: &extv1.CustomResourceSubresources{
+						Status: &extv1.CustomResourceSubresourceStatus{},
+					},
+					AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+						{
+							Name:     "READY",
+							Type:     "string",
+							JSONPath: ".status.conditions[?(@.type=='Ready')].status",
 						},
-						"kind": {
-							Type: "string",
+						{
+							Name:     "CONNECTION-SECRET",
+							Type:     "string",
+							JSONPath: ".spec.writeConnectionSecretToRef.name",
 						},
-						"metadata": {
-							// NOTE(muvaf): api-server takes care of validating
-							// metadata.
+					},
+					Schema: &extv1.CustomResourceValidation{
+						OpenAPIV3Schema: &extv1.JSONSchemaProps{
 							Type: "object",
-						},
-						"spec": {
-							Type: "object",
-							Properties: map[string]v1beta1.JSONSchemaProps{
-								// From CRDSpecTemplate.Validation
-								"storageGB": {Type: "integer"},
-								"engineVersion": {
+							Properties: map[string]extv1.JSONSchemaProps{
+								"apiVersion": {
 									Type: "string",
-									Enum: []v1beta1.JSON{
-										{Raw: []byte(`"5.6"`)},
-										{Raw: []byte(`"5.7"`)},
-									},
 								},
+								"kind": {
+									Type: "string",
+								},
+								"metadata": {
+									// NOTE(muvaf): api-server takes care of validating
+									// metadata.
+									Type: "object",
+								},
+								"spec": {
+									Type: "object",
+									Properties: map[string]extv1.JSONSchemaProps{
+										// From CRDSpecTemplate.Validation
+										"storageGB": {Type: "integer"},
+										"engineVersion": {
+											Type: "string",
+											Enum: []extv1.JSON{
+												{Raw: []byte(`"5.6"`)},
+												{Raw: []byte(`"5.7"`)},
+											},
+										},
 
-								// From CompositeResourceClaimSpecProps()
-								"compositionRef": {
-									Type:     "object",
-									Required: []string{"name"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"name": {Type: "string"},
-									},
-								},
-								"compositionSelector": {
-									Type:     "object",
-									Required: []string{"matchLabels"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"matchLabels": {
-											Type: "object",
-											AdditionalProperties: &v1beta1.JSONSchemaPropsOrBool{
-												Allows: true,
-												Schema: &v1beta1.JSONSchemaProps{Type: "string"},
+										// From CompositeResourceClaimSpecProps()
+										"compositionRef": {
+											Type:     "object",
+											Required: []string{"name"},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {Type: "string"},
+											},
+										},
+										"compositionSelector": {
+											Type:     "object",
+											Required: []string{"matchLabels"},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"matchLabels": {
+													Type: "object",
+													AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+														Allows: true,
+														Schema: &extv1.JSONSchemaProps{Type: "string"},
+													},
+												},
+											},
+										},
+										"resourceRef": {
+											Type:     "object",
+											Required: []string{"apiVersion", "kind", "name"},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"apiVersion": {Type: "string"},
+												"kind":       {Type: "string"},
+												"name":       {Type: "string"},
+											},
+										},
+										"writeConnectionSecretToRef": {
+											Type:     "object",
+											Required: []string{"name"},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"name": {Type: "string"},
 											},
 										},
 									},
 								},
-								"resourceRef": {
-									Type:     "object",
-									Required: []string{"apiVersion", "kind", "name"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"apiVersion": {Type: "string"},
-										"kind":       {Type: "string"},
-										"name":       {Type: "string"},
-									},
-								},
-								"writeConnectionSecretToRef": {
-									Type:     "object",
-									Required: []string{"name"},
-									Properties: map[string]v1beta1.JSONSchemaProps{
-										"name": {Type: "string"},
-									},
-								},
-							},
-						},
-						"status": {
-							Type: "object",
-							Properties: map[string]v1beta1.JSONSchemaProps{
+								"status": {
+									Type: "object",
+									Properties: map[string]extv1.JSONSchemaProps{
 
-								// From CompositeResourceStatusProps()
-								"composedResources": {
-									Type: "integer",
-								},
-								"readyResources": {
-									Type: "integer",
-								},
-								"bindingPhase": {
-									Type: "string",
-									Enum: []v1beta1.JSON{
-										{Raw: []byte(`"Unbindable"`)},
-										{Raw: []byte(`"Unbound"`)},
-										{Raw: []byte(`"Bound"`)},
-										{Raw: []byte(`"Released"`)},
-									},
-								},
-								"conditions": {
-									Description: "Conditions of the resource.",
-									Type:        "array",
-									Items: &v1beta1.JSONSchemaPropsOrArray{
-										Schema: &v1beta1.JSONSchemaProps{
-											Type:     "object",
-											Required: []string{"lastTransitionTime", "reason", "status", "type"},
-											Properties: map[string]v1beta1.JSONSchemaProps{
-												"lastTransitionTime": {Type: "string", Format: "date-time"},
-												"message":            {Type: "string"},
-												"reason":             {Type: "string"},
-												"status":             {Type: "string"},
-												"type":               {Type: "string"},
+										// From CompositeResourceStatusProps()
+										"conditions": {
+											Description: "Conditions of the resource.",
+											Type:        "array",
+											Items: &extv1.JSONSchemaPropsOrArray{
+												Schema: &extv1.JSONSchemaProps{
+													Type:     "object",
+													Required: []string{"lastTransitionTime", "reason", "status", "type"},
+													Properties: map[string]extv1.JSONSchemaProps{
+														"lastTransitionTime": {Type: "string", Format: "date-time"},
+														"message":            {Type: "string"},
+														"reason":             {Type: "string"},
+														"status":             {Type: "string"},
+														"type":               {Type: "string"},
+													},
+												},
 											},
 										},
 									},
@@ -586,12 +563,12 @@ func TestPublishesCompositeResourceDefinition(t *testing.T) {
 		},
 	}
 
-	got, err := New(ForCompositeResourceClaim(d))
+	got, err := ForCompositeResourceClaim(d)
 	if err != nil {
-		t.Fatalf("New(ForCompositeResourceClaim(...): %s", err)
+		t.Fatalf("ForCompositeResourceClaim(...): %s", err)
 	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("New(ForCompositeResourceClaim(...): -want, +got:\n%s", diff)
+		t.Errorf("ForCompositeResourceClaim(...): -want, +got:\n%s", diff)
 	}
 }

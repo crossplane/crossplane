@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
@@ -52,14 +52,14 @@ type CompositeResourceDefinitionSpec struct {
 	// create, update, or delete a corresponding composite resource. You may add
 	// claim names to an existing CompositeResourceDefinition, but they cannot
 	// be changed once they have been set.
-	ClaimNames *v1beta1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
+	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
 	// CRDSpecTemplate is the base CRD template. The final CRD will have additional
 	// fields to the base template to accommodate Crossplane machinery.
 	CRDSpecTemplate CRDSpecTemplate `json:"crdSpecTemplate,omitempty"`
 }
 
-// A CRDSpecTemplate is a template for a v1beta1.CustomResourceDefinitionSpec.
+// A CRDSpecTemplate is a template for a v1.CustomResourceDefinitionSpec.
 type CRDSpecTemplate struct {
 	// group is the API group of the defined custom resource.
 	// The custom resources are served under `/apis/<group>/...`.
@@ -75,7 +75,7 @@ type CRDSpecTemplate struct {
 	Version string `json:"version,omitempty"`
 
 	// names specify the resource and kind names for the custom resource.
-	Names v1beta1.CustomResourceDefinitionNames `json:"names"`
+	Names extv1.CustomResourceDefinitionNames `json:"names"`
 
 	// validation describes the schema used for validation and pruning of the custom resource.
 	// If present, this validation schema is used to validate all versions.
@@ -89,35 +89,7 @@ type CRDSpecTemplate struct {
 	// Top-level and per-version columns are mutually exclusive.
 	// If no top-level or per-version columns are specified, a single column displaying the age of the custom resource is used.
 	// +optional
-	AdditionalPrinterColumns []v1beta1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
-}
-
-// CustomResourceDefinitionVersion describes a version for CRD.
-type CustomResourceDefinitionVersion struct {
-	// name is the version name, e.g. “v1”, “v2beta1”, etc.
-	// The custom resources are served under this version at `/apis/<group>/<version>/...` if `served` is true.
-	Name string `json:"name"`
-
-	// served is a flag enabling/disabling this version from being served via REST APIs
-	Served bool `json:"served"`
-
-	// storage indicates this version should be used when persisting custom resources to storage.
-	// There must be exactly one version with storage=true.
-	Storage bool `json:"storage"`
-
-	// schema describes the schema used for validation and pruning of this version of the custom resource.
-	// Top-level and per-version schemas are mutually exclusive.
-	// Per-version schemas must not all be set to identical values (top-level validation schema should be used instead).
-	// +optional
-	Schema *CustomResourceValidation `json:"schema,omitempty"`
-
-	// additionalPrinterColumns specifies additional columns returned in Table output.
-	// See https://kubernetes.io/docs/reference/using-api/api-concepts/#receiving-resources-as-tables for details.
-	// Top-level and per-version columns are mutually exclusive.
-	// Per-version columns must not all be set to identical values (top-level columns should be used instead).
-	// If no top-level or per-version columns are specified, a single column displaying the age of the custom resource is used.
-	// +optional
-	AdditionalPrinterColumns []v1beta1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
+	AdditionalPrinterColumns []extv1.CustomResourceColumnDefinition `json:"additionalPrinterColumns,omitempty"`
 }
 
 // CustomResourceValidation is a list of validation methods for CustomResources.
