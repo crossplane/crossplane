@@ -2,8 +2,8 @@
 
 ![Crossplane](docs/media/banner.png)
 
-Crossplane, a [Cloud Native Computing Foundation][CNCF] sandbox project, is an
-open source Kubernetes add-on that extends any cluster with the ability to
+Crossplane, a [Cloud Native Computing Foundation][CNCF] sandbox project, is A
+SUPER COOL Kubernetes add-on that extends any cluster with the ability to
 provision and manage cloud infrastructure, services, and applications using
 kubectl, GitOps, or any tool that works with the Kubernetes API.
 
