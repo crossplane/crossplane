@@ -259,7 +259,7 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 		"ErrNotMeta": {
 			reason: "Should return error if object is not a meta package type.",
 			args: args{
-				obj: crd,
+				obj: v1crd,
 			},
 			err: errors.New(errNotMeta),
 		},
