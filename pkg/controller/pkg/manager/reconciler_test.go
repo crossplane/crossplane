@@ -136,6 +136,7 @@ func TestReconcile(t *testing.T) {
 								p := o.(*v1alpha1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
+								p.SetActivationPolicy(&v1alpha1.AutomaticActivation)
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
@@ -144,6 +145,7 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
+								want.SetActivationPolicy(&v1alpha1.AutomaticActivation)
 								want.SetConditions(v1alpha1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -180,7 +182,7 @@ func TestReconcile(t *testing.T) {
 								p := o.(*v1alpha1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
-								p.SetActivationPolicy(v1alpha1.ManualActivation)
+								p.SetActivationPolicy(&v1alpha1.ManualActivation)
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
@@ -188,7 +190,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1alpha1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
-								want.SetActivationPolicy(v1alpha1.ManualActivation)
+								want.SetActivationPolicy(&v1alpha1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
 								want.SetConditions(v1alpha1.Inactive())
 								if diff := cmp.Diff(want, o); diff != "" {

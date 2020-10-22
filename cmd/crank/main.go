@@ -21,12 +21,11 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
+
+	"github.com/crossplane/crossplane/pkg/version"
 )
 
 var _ = kong.Must(&cli)
-
-// version is set at build time.
-var version string
 
 type versionFlag string
 
@@ -39,7 +38,7 @@ func (v versionFlag) IsBool() bool { return true }
 // BeforeApply indicates that we want to execute the logic before running any
 // commands.
 func (v versionFlag) BeforeApply(app *kong.Kong) error { // nolint:unparam
-	fmt.Fprintln(app.Stdout, version)
+	fmt.Fprintln(app.Stdout, version.New().GetVersionString())
 	app.Exit(0)
 	return nil
 }

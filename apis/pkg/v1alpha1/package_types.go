@@ -27,12 +27,14 @@ type PackageSpec struct {
 	// update from one revision to the next. Options are Automatic or Manual.
 	// Default is Automatic.
 	// +optional
+	// +kubebuilder:default=Automatic
 	RevisionActivationPolicy *RevisionActivationPolicy `json:"revisionActivationPolicy,omitempty"`
 
 	// RevisionHistoryLimit dictates how the package controller cleans up old
 	// inactive package revisions.
 	// Defaults to 1. Can be disabled by explicitly setting to 0.
 	// +optional
+	// +kubebuilder:default=1
 	RevisionHistoryLimit *int64 `json:"revisionHistoryLimit,omitempty"`
 
 	// PackagePullSecrets are named secrets in the same namespace that can be used
@@ -43,7 +45,15 @@ type PackageSpec struct {
 	// PackagePullPolicy defines the pull policy for the package.
 	// Default is IfNotPresent.
 	// +optional
+	// +kubebuilder:default=IfNotPresent
 	PackagePullPolicy *corev1.PullPolicy `json:"packagePullPolicy,omitempty"`
+
+	// IgnoreCrossplaneConstraints indicates to the package manager whether to
+	// honor Crossplane version constrains specified by the package.
+	// Default is false.
+	// +optional
+	// +kubebuilder:default=false
+	IgnoreCrossplaneConstraints *bool `json:"ignoreCrossplaneConstraints,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.

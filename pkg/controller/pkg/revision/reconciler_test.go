@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	verfake "github.com/crossplane/crossplane/pkg/version/fake"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 	xpkgfake "github.com/crossplane/crossplane/pkg/xpkg/fake"
 )
@@ -93,14 +94,34 @@ func (h *MockHook) Post(context.Context, runtime.Object, v1alpha1.PackageRevisio
 	return h.MockPost()
 }
 
+var _ parser.Linter = &MockLinter{}
+
+type MockLinter struct {
+	MockLint func() error
+}
+
+func NewMockLintFn(err error) func() error {
+	return func() error { return err }
+}
+
+func (m *MockLinter) Lint(*parser.Package) error {
+	return m.MockLint()
+}
+
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Provider
 metadata:
-  name: test`)
+  name: test
+spec:
+  controller:
+    image: crossplane/provider-test-controller:v0.0.1
+  crossplane:
+    version: ">v0.13.0"`)
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
+	trueVal := true
 
 	metaScheme, _ := xpkg.BuildMetaScheme()
 	objScheme, _ := xpkg.BuildObjectScheme()
@@ -362,11 +383,55 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, parser.ObjectLinterFns(xpkg.IsConfiguration), nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
 				},
 			},
 			want: want{
 				r: reconcile.Result{RequeueAfter: longWait},
+			},
+		},
+		"ErrCrossplaneConstraints": {
+			reason: "We should not requeue if Crossplane version is incompatible.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
+								want.SetConditions(v1alpha1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{
+						MockInConstraints:    verfake.NewMockInConstraintsFn(false, errBoom),
+						MockGetVersionString: verfake.NewMockGetVersionStringFn("v0.11.0"),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrOneMeta": {
@@ -402,7 +467,7 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewNopBackend()),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
 			want: want{
@@ -445,7 +510,8 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
 			},
 			want: want{
@@ -490,7 +556,8 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
 			},
 			want: want{
@@ -533,7 +600,54 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: longWait},
+			},
+		},
+		"SuccessfulActiveRevisionIgnoreConstraints": {
+			reason: "An active revision with incompatible Crossplane version should install successfully when constraints ignored.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1alpha1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1alpha1.PackageRevisionActive)
+								pr.SetIgnoreCrossplaneConstraints(&trueVal)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1alpha1.PackageRevisionActive)
+								want.SetConditions(v1alpha1.Healthy())
+								want.SetIgnoreCrossplaneConstraints(&trueVal)
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithHooks(NewNopHooks()),
+					WithEstablisher(NewMockEstablisher()),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(false, nil)}),
 				},
 			},
 			want: want{
@@ -578,7 +692,8 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
 			},
 			want: want{
@@ -621,7 +736,8 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
 			},
 			want: want{
@@ -666,7 +782,8 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
-					WithLinter(parser.NewPackageLinter(nil, nil, nil)),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
 			},
 			want: want{

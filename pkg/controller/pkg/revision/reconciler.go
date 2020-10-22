@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/version"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
@@ -155,18 +156,27 @@ func WithLinter(l parser.Linter) ReconcilerOption {
 	}
 }
 
+// WithVersioner specifies how the Reconciler should fetch the current
+// Crossplane version.
+func WithVersioner(v version.Operations) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.versioner = v
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client   client.Client
-	cache    xpkg.Cache
-	revision resource.Finalizer
-	hook     Hooks
-	objects  Establisher
-	parser   parser.Parser
-	linter   parser.Linter
-	backend  parser.Backend
-	log      logging.Logger
-	record   event.Recorder
+	client    client.Client
+	cache     xpkg.Cache
+	revision  resource.Finalizer
+	hook      Hooks
+	objects   Establisher
+	parser    parser.Parser
+	linter    parser.Linter
+	versioner version.Operations
+	backend   parser.Backend
+	log       logging.Logger
+	record    event.Recorder
 
 	newPackageRevision func() v1alpha1.PackageRevision
 }
@@ -250,15 +260,16 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 	r := &Reconciler{
-		client:   mgr.GetClient(),
-		cache:    xpkg.NewNopCache(),
-		revision: resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
-		hook:     NewNopHooks(),
-		objects:  NewAPIEstablisher(mgr.GetClient()),
-		parser:   parser.New(nil, nil),
-		linter:   parser.NewPackageLinter(nil, nil, nil),
-		log:      logging.NewNopLogger(),
-		record:   event.NewNopRecorder(),
+		client:    mgr.GetClient(),
+		cache:     xpkg.NewNopCache(),
+		revision:  resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
+		hook:      NewNopHooks(),
+		objects:   NewAPIEstablisher(mgr.GetClient()),
+		parser:    parser.New(nil, nil),
+		linter:    parser.NewPackageLinter(nil, nil, nil),
+		versioner: version.New(),
+		log:       logging.NewNopLogger(),
+		record:    event.NewNopRecorder(),
 	}
 
 	for _, f := range opts {
@@ -335,7 +346,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
-	// Lint package.
+	// Lint package using package-specific linter.
 	if err := r.linter.Lint(pkg); err != nil {
 		r.record.Event(pr, event.Warning(reasonLint, err))
 		// NOTE(hasheddan): a failed lint typically will require manual
@@ -355,6 +366,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	pkgMeta := pkg.GetMeta()[0]
+	// Check Crossplane constraints if they exist.
+	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
+		if err := xpkg.PackageCrossplaneCompatible(r.versioner)(pkgMeta); err != nil {
+			r.record.Event(pr, event.Warning(reasonLint, err))
+			// No need to requeue if outside version constraints. Package will
+			// either need to be updated or ignore crossplane constraints will
+			// need to be specified, both of which will trigger a new reconcile.
+			pr.SetConditions(v1alpha1.Unhealthy())
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		}
+	}
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPreHook, "error", err)
 		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPreHook)))

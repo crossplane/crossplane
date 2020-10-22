@@ -53,10 +53,15 @@ spec:
               desiredState:
                 description: DesiredState of the PackageRevision. Can be either Active or Inactive.
                 type: string
+              ignoreCrossplaneConstraints:
+                default: false
+                description: IgnoreCrossplaneConstraints indicates to the package manager whether to honor Crossplane version constrains specified by the package. Default is false.
+                type: boolean
               image:
                 description: Package image used by install Pod to extract package contents.
                 type: string
               packagePullPolicy:
+                default: IfNotPresent
                 description: PackagePullPolicy defines the pull policy for the package. It is also applied to any images pulled for the package, such as a provider's controller image. Default is IfNotPresent.
                 type: string
               packagePullSecrets:

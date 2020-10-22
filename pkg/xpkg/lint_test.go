@@ -19,6 +19,7 @@ package xpkg
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io/ioutil"
 	"testing"
 
@@ -32,6 +33,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/version"
+	"github.com/crossplane/crossplane/pkg/version/fake"
 )
 
 var (
@@ -167,6 +170,154 @@ func TestIsConfiguration(t *testing.T) {
 
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsConfiguration(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPackageCrossplaneCompatible(t *testing.T) {
+	crossplaneConstraint := ">v0.13.0"
+	errBoom := errors.New("boom")
+
+	type args struct {
+		obj runtime.Object
+		ver version.Operations
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		err    error
+	}{
+		"Successful": {
+			reason: "Should not return error if Crossplane version within constraints.",
+			args: args{
+				obj: &pkgmeta.Configuration{
+					Spec: pkgmeta.ConfigurationSpec{
+						MetaSpec: pkgmeta.MetaSpec{
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplaneConstraint,
+							},
+						},
+					},
+				},
+				ver: &fake.MockVersioner{
+					MockInConstraints: fake.NewMockInConstraintsFn(true, nil),
+				},
+			},
+		},
+		"SuccessfulNoConstraints": {
+			reason: "Should not return error if no constraints provided.",
+			args: args{
+				obj: confMeta,
+			},
+		},
+		"ErrInvalidConstraints": {
+			reason: "Should return error if constraints are invalid.",
+			args: args{
+				obj: &pkgmeta.Configuration{
+					Spec: pkgmeta.ConfigurationSpec{
+						MetaSpec: pkgmeta.MetaSpec{
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplaneConstraint,
+							},
+						},
+					},
+				},
+				ver: &fake.MockVersioner{
+					MockInConstraints:    fake.NewMockInConstraintsFn(false, errBoom),
+					MockGetVersionString: fake.NewMockGetVersionStringFn("v0.12.0"),
+				},
+			},
+			err: errors.Wrapf(errBoom, errCrossplaneIncompatibleFmt, "v0.12.0"),
+		},
+		"ErrOutsideConstraints": {
+			reason: "Should return error if Crossplane version outside constraints.",
+			args: args{
+				obj: &pkgmeta.Configuration{
+					Spec: pkgmeta.ConfigurationSpec{
+						MetaSpec: pkgmeta.MetaSpec{
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: crossplaneConstraint,
+							},
+						},
+					},
+				},
+				ver: &fake.MockVersioner{
+					MockInConstraints:    fake.NewMockInConstraintsFn(false, nil),
+					MockGetVersionString: fake.NewMockGetVersionStringFn("v0.12.0"),
+				},
+			},
+			err: errors.Errorf(errCrossplaneIncompatibleFmt, "v0.12.0"),
+		},
+		"ErrNotMeta": {
+			reason: "Should return error if object is not a meta package type.",
+			args: args{
+				obj: crd,
+			},
+			err: errors.New(errNotMeta),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := PackageCrossplaneCompatible(tc.args.ver)(tc.args.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nPackageCrossplaneCompatible(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestPackageValidSemver(t *testing.T) {
+	validConstraint := ">v0.13.0"
+	invalidConstraint := ">a0.13.0"
+
+	type args struct {
+		obj runtime.Object
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		err    error
+	}{
+		"Valid": {
+			reason: "Should not return error if constraints are valid.",
+			args: args{
+				obj: &pkgmeta.Configuration{
+					Spec: pkgmeta.ConfigurationSpec{
+						MetaSpec: pkgmeta.MetaSpec{
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: validConstraint,
+							},
+						},
+					},
+				},
+			},
+		},
+		"ErrInvalidConstraints": {
+			reason: "Should return error if constraints are invalid.",
+			args: args{
+				obj: &pkgmeta.Configuration{
+					Spec: pkgmeta.ConfigurationSpec{
+						MetaSpec: pkgmeta.MetaSpec{
+							Crossplane: &pkgmeta.CrossplaneConstraints{
+								Version: invalidConstraint,
+							},
+						},
+					},
+				},
+			},
+			err: errors.Wrap(fmt.Errorf("improper constraint: %s", invalidConstraint), errBadConstraints),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := PackageValidSemver(tc.args.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nPackageValidSemver(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
