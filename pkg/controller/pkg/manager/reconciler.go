@@ -44,26 +44,26 @@ const (
 
 	shortWait     = 30 * time.Second
 	veryShortWait = 5 * time.Second
+	pullWait      = 1 * time.Minute
 )
 
 func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 	r := reconcile.Result{}
 	if p != nil && *p == corev1.PullAlways {
-		r.RequeueAfter = 1 * time.Minute
+		r.RequeueAfter = pullWait
 	}
 	return r
 }
 
 const (
-	errGetPackage            = "cannot get package"
-	errListRevisions         = "cannot list revisions for package"
-	errUnpack                = "cannot unpack package"
-	errCreatePackageRevision = "cannot create package revision"
-	errGCPackageRevision     = "cannot garbage collect old package revision"
+	errGetPackage           = "cannot get package"
+	errListRevisions        = "cannot list revisions for package"
+	errUnpack               = "cannot unpack package"
+	errApplyPackageRevision = "cannot apply package revision"
+	errGCPackageRevision    = "cannot garbage collect old package revision"
 
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
-	errUpdateActivePackageRevision   = "cannot update active package revision"
 
 	errUnhealthyPackageRevision = "current package revision is unhealthy"
 )
@@ -281,18 +281,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// If revision name is same as current revision, then revision already exists.
 		if rev.GetName() == p.GetCurrentRevision() {
 			pr = rev
-			// If current revision exists, is not active, and package has an
-			// automatic activation policy, we should set the revision to
-			// active.
-			if pr.GetDesiredState() == v1alpha1.PackageRevisionInactive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1alpha1.AutomaticActivation) {
-				pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-				if err := r.client.Apply(ctx, pr); err != nil {
-					log.Debug(errUpdateActivePackageRevision, "error", err)
-					r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errUpdateActivePackageRevision)))
-					return reconcile.Result{RequeueAfter: shortWait}, nil
-				}
-			}
-			p.SetConditions(v1alpha1.Active())
 			// Finish iterating through all revisions to make sure all
 			// non-current revisions are inactive.
 			continue
@@ -328,18 +316,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	// If the name of the package revision matches the current revision of the
-	// package, update and return.
-	if pr.GetName() == p.GetCurrentRevision() {
-		// Update Package status to match that of revision.
-		if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionTrue {
-			p.SetConditions(v1alpha1.Healthy())
-			r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
-		} else {
-			p.SetConditions(v1alpha1.Unhealthy())
-			r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
-		}
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionTrue {
+		p.SetConditions(v1alpha1.Healthy())
+		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
+	}
+	if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionFalse {
+		p.SetConditions(v1alpha1.Unhealthy())
+		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
 	}
 
 	// Create the non-existent package revision.
@@ -350,18 +333,24 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 
-	pr.SetDesiredState(v1alpha1.PackageRevisionInactive)
-	p.SetConditions(v1alpha1.Inactive())
-	if p.GetActivationPolicy() != nil && *p.GetActivationPolicy() == v1alpha1.AutomaticActivation {
+	// If current revision is not active and we have an automatic or undefined
+	// activation policy, always activate.
+	if pr.GetDesiredState() != v1alpha1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1alpha1.AutomaticActivation) {
 		pr.SetDesiredState(v1alpha1.PackageRevisionActive)
-		p.SetConditions(v1alpha1.Active())
 	}
 
 	meta.AddOwnerReference(pr, meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind())))
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
-		log.Debug(errCreatePackageRevision, "error", err)
-		r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errCreatePackageRevision)))
+		log.Debug(errApplyPackageRevision, "error", err)
+		r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errApplyPackageRevision)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	}
+
+	p.SetConditions(v1alpha1.Active())
+
+	// If current revision is still not active, the package is inactive.
+	if pr.GetDesiredState() != v1alpha1.PackageRevisionActive {
+		p.SetConditions(v1alpha1.Inactive())
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a
