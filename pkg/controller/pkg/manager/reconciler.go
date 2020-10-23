@@ -46,6 +46,14 @@ const (
 	veryShortWait = 5 * time.Second
 )
 
+func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
+	r := reconcile.Result{}
+	if p != nil && *p == corev1.PullAlways {
+		r.RequeueAfter = 1 * time.Minute
+	}
+	return r
+}
+
 const (
 	errGetPackage            = "cannot get package"
 	errListRevisions         = "cannot list revisions for package"
@@ -231,22 +239,23 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	p.SetConditions(v1alpha1.Unpacking())
-
-	hash, err := r.pkg.Digest(ctx, p)
+	digest, err := r.pkg.Digest(ctx, p)
 	if err != nil {
+		p.SetConditions(v1alpha1.Unpacking())
 		log.Debug(errUnpack, "error", err)
 		r.record.Event(p, event.Warning(reasonUnpack, errors.Wrap(err, errUnpack)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	if hash == "" {
+	if digest == "" {
+		p.SetConditions(v1alpha1.Unpacking())
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{RequeueAfter: veryShortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	// Set the current revision name to friendly package ID.
-	p.SetCurrentRevision(xpkg.FriendlyID(p.GetName(), hash))
+	// Set the current revision and identifier.
+	p.SetCurrentRevision(digest)
+	p.SetCurrentIdentifier(p.GetSource())
 
 	pr := r.newPackageRevision()
 	maxRevision := int64(0)
@@ -334,7 +343,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// Create the non-existent package revision.
-	pr.SetName(xpkg.FriendlyID(p.GetName(), hash))
+	pr.SetName(digest)
 	pr.SetLabels(map[string]string{parentLabel: p.GetName()})
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
@@ -359,5 +368,5 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// package, the health of the package is not set until the revision reports
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
-	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 }
