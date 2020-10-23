@@ -235,7 +235,7 @@ apiVersion: compute.gcp.crossplane.io/v1beta1
 kind: Network
 metadata:
   name: foo-network
-  annotation:
+  annotations:
     crossplane.io/external-name: existing-network
 spec:
   providerConfigRef:
