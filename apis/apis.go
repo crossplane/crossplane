@@ -32,7 +32,7 @@ func init() {
 	)
 }
 
-// AddToSchemes may be used to add all resources defined in the project to a Scheme
+// Broke test
 var AddToSchemes runtime.SchemeBuilder
 
 // AddToScheme adds all Resources to the Scheme
