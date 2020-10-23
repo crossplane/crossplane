@@ -75,6 +75,9 @@ type Package interface {
 
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
+
+	GetCurrentIdentifier() string
+	SetCurrentIdentifier(r string)
 }
 
 // GetCondition of this Provider.
@@ -157,6 +160,16 @@ func (p *Provider) SetCurrentRevision(s string) {
 	p.Status.CurrentRevision = s
 }
 
+// GetCurrentIdentifier of this Provider.
+func (p *Provider) GetCurrentIdentifier() string {
+	return p.Status.CurrentIdentifier
+}
+
+// SetCurrentIdentifier of this Provider.
+func (p *Provider) SetCurrentIdentifier(s string) {
+	p.Status.CurrentIdentifier = s
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
 	return p.Status.GetCondition(ct)
@@ -235,6 +248,16 @@ func (p *Configuration) GetCurrentRevision() string {
 // SetCurrentRevision of this Configuration.
 func (p *Configuration) SetCurrentRevision(s string) {
 	p.Status.CurrentRevision = s
+}
+
+// GetCurrentIdentifier of this Configuration.
+func (p *Configuration) GetCurrentIdentifier() string {
+	return p.Status.CurrentIdentifier
+}
+
+// SetCurrentIdentifier of this Configuration.
+func (p *Configuration) SetCurrentIdentifier(s string) {
+	p.Status.CurrentIdentifier = s
 }
 
 var _ PackageRevision = &ProviderRevision{}
