@@ -52,7 +52,12 @@ func NewPackageDigester(fetcher xpkg.Fetcher) *PackageDigester {
 func (d *PackageDigester) Digest(ctx context.Context, p v1alpha1.Package) (string, error) {
 	pullPolicy := p.GetPackagePullPolicy()
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
-		return p.GetSource(), nil
+		return xpkg.FriendlyID(p.GetName(), p.GetSource()), nil
+	}
+	if pullPolicy != nil && *pullPolicy == corev1.PullIfNotPresent {
+		if p.GetCurrentIdentifier() == p.GetSource() {
+			return p.GetCurrentRevision(), nil
+		}
 	}
 	ref, err := name.ParseReference(p.GetSource())
 	if err != nil {
@@ -66,7 +71,7 @@ func (d *PackageDigester) Digest(ctx context.Context, p v1alpha1.Package) (strin
 	if err != nil {
 		return "", err
 	}
-	return h.Hex, nil
+	return xpkg.FriendlyID(p.GetName(), h.Hex), nil
 }
 
 // NopDigester returns an empty image digest.
