@@ -112,6 +112,8 @@ spec:
                   - type
                   type: object
                 type: array
+              currentIdentifier:
+                type: string
               currentRevision:
                 type: string
             type: object

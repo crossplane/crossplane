@@ -58,5 +58,6 @@ type PackageSpec struct {
 
 // PackageStatus represents the observed state of a Package.
 type PackageStatus struct {
-	CurrentRevision string `json:"currentRevision,omitempty"`
+	CurrentRevision   string `json:"currentRevision,omitempty"`
+	CurrentIdentifier string `json:"currentIdentifier,omitempty"`
 }
