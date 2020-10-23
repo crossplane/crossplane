@@ -568,7 +568,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/do
 REG=my-package-repo
 
 kubectl crossplane build configuration
-kubectl crossplane push configuration ${REG}/getting-started-with-aws:master
+kubectl crossplane push configuration ${REG}/getting-started-with-aws:v0.13
 ```
 
 </div>
@@ -592,7 +592,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/do
 REG=my-package-repo
 
 kubectl crossplane build configuration
-kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:master
+kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:v0.13
 ```
 
 </div>
@@ -615,7 +615,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/do
 REG=my-package-repo
 
 kubectl crossplane build configuration
-kubectl crossplane push configuration ${REG}/getting-started-with-gcp:master
+kubectl crossplane push configuration ${REG}/getting-started-with-gcp:v0.13
 ```
 
 </div>
@@ -638,7 +638,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/do
 REG=my-package-repo
 
 kubectl crossplane build configuration
-kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
+kubectl crossplane push configuration ${REG}/getting-started-with-azure:v0.13
 ```
 
 </div>
@@ -661,7 +661,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-0.13/do
 REG=my-package-repo
 
 kubectl crossplane build configuration
-kubectl crossplane push configuration ${REG}/getting-started-with-alibaba:master
+kubectl crossplane push configuration ${REG}/getting-started-with-alibaba:v0.13
 ```
 
 </div>
