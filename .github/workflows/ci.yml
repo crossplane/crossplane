@@ -81,6 +81,17 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      - name: Find the Go build Cache
+        id: go
+        run: echo "::set-output name=cache::$(go env GOCACHE)"
+
+      - name: Cache the Go build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-
+
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
@@ -112,6 +123,17 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
+
+      - name: Find the Go build Cache
+        id: go
+        run: echo "::set-output name=cache::$(go env GOCACHE)"
+
+      - name: Cache the Go build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-
 
       - name: Cache Go Dependencies
         uses: actions/cache@v2
@@ -161,6 +183,17 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
+
+      - name: Find the Go build Cache
+        id: go
+        run: echo "::set-output name=cache::$(go env GOCACHE)"
+
+      - name: Cache the Go build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-
 
       - name: Cache Go Dependencies
         uses: actions/cache@v2
@@ -212,6 +245,17 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ env.GO_VERSION }}
+
+      - name: Find the Go build Cache
+        id: go
+        run: echo "::set-output name=cache::$(go env GOCACHE)"
+
+      - name: Cache the Go build Cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-
 
       - name: Cache Go Dependencies
         uses: actions/cache@v2
