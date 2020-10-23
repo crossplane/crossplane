@@ -68,10 +68,10 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
+				APIGroups: []string{d.Spec.Group},
 				Resources: []string{
-					d.Spec.CRDSpecTemplate.Names.Plural,
-					d.Spec.CRDSpecTemplate.Names.Plural + suffixStatus,
+					d.Spec.Names.Plural,
+					d.Spec.Names.Plural + suffixStatus,
 				},
 				Verbs: verbsEdit,
 			},
@@ -95,8 +95,8 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
-				Resources: []string{d.Spec.CRDSpecTemplate.Names.Plural},
+				APIGroups: []string{d.Spec.Group},
+				Resources: []string{d.Spec.Names.Plural},
 				Verbs:     verbsEdit,
 			},
 		},
@@ -114,8 +114,8 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
-				Resources: []string{d.Spec.CRDSpecTemplate.Names.Plural},
+				APIGroups: []string{d.Spec.Group},
+				Resources: []string{d.Spec.Names.Plural},
 				Verbs:     verbsView,
 			},
 		},
@@ -132,8 +132,8 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 		},
 		Rules: []rbacv1.PolicyRule{
 			{
-				APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
-				Resources: []string{d.Spec.CRDSpecTemplate.Names.Plural},
+				APIGroups: []string{d.Spec.Group},
+				Resources: []string{d.Spec.Names.Plural},
 				Verbs:     verbsBrowse,
 			},
 		},
@@ -141,7 +141,7 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 
 	if d.Spec.ClaimNames != nil {
 		system.Rules = append(system.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
+			APIGroups: []string{d.Spec.Group},
 			Resources: []string{
 				d.Spec.ClaimNames.Plural,
 				d.Spec.ClaimNames.Plural + suffixStatus,
@@ -150,13 +150,13 @@ func RenderClusterRoles(d *v1alpha1.CompositeResourceDefinition) []rbacv1.Cluste
 		})
 
 		edit.Rules = append(edit.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
+			APIGroups: []string{d.Spec.Group},
 			Resources: []string{d.Spec.ClaimNames.Plural},
 			Verbs:     verbsEdit,
 		})
 
 		view.Rules = append(view.Rules, rbacv1.PolicyRule{
-			APIGroups: []string{d.Spec.CRDSpecTemplate.Group},
+			APIGroups: []string{d.Spec.Group},
 			Resources: []string{d.Spec.ClaimNames.Plural},
 			Verbs:     verbsView,
 		})

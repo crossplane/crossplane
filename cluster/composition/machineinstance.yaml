@@ -4,14 +4,18 @@ kind: CompositeResourceDefinition
 metadata:
   name: compositemachineinstances.common.crossplane.io
 spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeMachineInstance
+    plural: compositemachineinstances
   claimNames:
+    categories:
+      - crossplane
     kind: MachineInstance
     plural: machineinstances
-  crdSpecTemplate:
-    group: common.crossplane.io
-    version: v1alpha1
-    names:
-      categories:
-        - crossplane
-      kind: CompositeMachineInstance
-      plural: compositemachineinstances
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true

@@ -4,14 +4,18 @@ kind: CompositeResourceDefinition
 metadata:
   name: compositenosqlinstances.common.crossplane.io
 spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeNoSQLInstance
+    plural: compositenosqlinstances
   claimNames:
+    categories:
+      - crossplane
     kind: NoSQLInstance
     plural: nosqlinstances
-  crdSpecTemplate:
-    group: common.crossplane.io
-    version: v1alpha1
-    names:
-      categories:
-        - crossplane
-      kind: CompositeNoSQLInstance
-      plural: compositenosqlinstances
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true

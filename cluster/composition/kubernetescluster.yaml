@@ -4,20 +4,24 @@ kind: CompositeResourceDefinition
 metadata:
   name: compositekubernetesclusters.common.crossplane.io
 spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeKubernetesCluster
+    plural: compositekubernetesclusters
   claimNames:
+    categories:
+      - crossplane
     kind: KubernetesCluster
     plural: kubernetesclusters
   connectionSecretKeys:
     - kubeconfig
-  crdSpecTemplate:
-    group: common.crossplane.io
-    version: v1alpha1
-    names:
-      categories:
-        - crossplane
-      kind: CompositeKubernetesCluster
-      plural: compositekubernetesclusters
-    validation:
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
       openAPIV3Schema:
         type: object
         properties:

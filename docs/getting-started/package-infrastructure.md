@@ -64,6 +64,10 @@ kind: CompositeResourceDefinition
 metadata:
   name: compositepostgresqlinstances.database.example.org
 spec:
+  group: database.example.org
+  names:
+    kind: CompositePostgreSQLInstance
+    plural: compositepostgresqlinstances
   claimNames:
     kind: PostgreSQLInstance
     plural: postgresqlinstances
@@ -72,13 +76,11 @@ spec:
     - password
     - endpoint
     - port
-  crdSpecTemplate:
-    group: database.example.org
-    version: v1alpha1
-    names:
-      kind: CompositePostgreSQLInstance
-      plural: compositepostgresqlinstances
-    validation:
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
       openAPIV3Schema:
         type: object
         properties:
@@ -93,7 +95,7 @@ spec:
                 required:
                   - storageGB
             required:
-              - parameters
+              - parameterss
 ```
 
 ```console
