@@ -31,6 +31,13 @@ jobs:
       - name: Fetch History
         run: git fetch --prune --unshallow
 
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          username: ${{ secrets.DOCKER_USR }}
+          password: ${{ secrets.DOCKER_PSW }}
+
       - name: Promote Artifacts in S3 and Docker Hub
         if: env.AWS_USR != '' && env.DOCKER_USR != ''
         run: make -j2 promote BRANCH_NAME=${GITHUB_REF##*/}
