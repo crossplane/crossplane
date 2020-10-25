@@ -6,6 +6,9 @@ on:
       version:
         description: 'Release version (e.g. v0.1.0)'
         required: true
+      message:
+        description: 'Tag message'
+        required: true
 
 jobs:
   create-tag:
@@ -14,14 +17,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          submodules: true
-
-      - name: Fetch History
-        run: git fetch --prune --unshallow
 
       - name: Create Tag
-        run: make -j2 tag
-        env:
-          VERSION: ${{ github.event.inputs.version }}
-        
+        uses: negz/create-tag@v1
+        with:
+          version: ${{ github.event.inputs.version }}
+          message: ${{ github.event.inputs.message }}
+          token: ${{ secrets.GITHUB_TOKEN }}
