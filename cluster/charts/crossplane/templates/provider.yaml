@@ -3,7 +3,7 @@
 apiVersion: pkg.crossplane.io/v1alpha1
 kind: Provider
 metadata:
-  name: {{ . | trim | replace "/" "-" | replace ":" "-" }}
+  name: {{ regexReplaceAll "(:|@).*" . "" | trim | replace "/" "-" }}
 spec:
   package: {{ . | trim }}
 ---
