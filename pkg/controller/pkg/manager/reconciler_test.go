@@ -37,19 +37,19 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
-var _ Digester = &MockDigester{}
+var _ Revisioner = &MockRevisioner{}
 
-type MockDigester struct {
-	MockDigest func() (string, error)
+type MockRevisioner struct {
+	MockRevision func() (string, error)
 }
 
-func NewMockDigestFn(hash string, err error) func() (string, error) {
+func NewMockRevisionFn(hash string, err error) func() (string, error) {
 	return func() (string, error) {
 		return hash, err
 	}
 }
-func (m *MockDigester) Digest(context.Context, v1alpha1.Package) (string, error) {
-	return m.MockDigest()
+func (m *MockRevisioner) Revision(context.Context, v1alpha1.Package) (string, error) {
+	return m.MockRevision()
 }
 
 func TestReconcile(t *testing.T) {
@@ -161,8 +161,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -209,8 +209,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -255,8 +255,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -313,8 +313,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -390,8 +390,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -449,8 +449,8 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -509,8 +509,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -605,8 +605,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -684,8 +684,8 @@ func TestReconcile(t *testing.T) {
 							MockDelete: test.NewMockDeleteFn(errBoom),
 						},
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("test-1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),

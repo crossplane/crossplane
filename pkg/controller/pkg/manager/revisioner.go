@@ -31,25 +31,25 @@ const (
 	errFetchPackage = "failed to fetch package from remote"
 )
 
-// Digester extracts a digest for a package source.
-type Digester interface {
-	Digest(context.Context, v1alpha1.Package) (string, error)
+// Revisioner extracts a revision name for a package source.
+type Revisioner interface {
+	Revision(context.Context, v1alpha1.Package) (string, error)
 }
 
-// PackageDigester extracts a digest for a package source.
-type PackageDigester struct {
+// PackageRevisioner extracts a revision name for a package source.
+type PackageRevisioner struct {
 	fetcher xpkg.Fetcher
 }
 
-// NewPackageDigester returns a new PackageDigester.
-func NewPackageDigester(fetcher xpkg.Fetcher) *PackageDigester {
-	return &PackageDigester{
+// NewPackageRevisioner returns a new PackageRevisioner.
+func NewPackageRevisioner(fetcher xpkg.Fetcher) *PackageRevisioner {
+	return &PackageRevisioner{
 		fetcher: fetcher,
 	}
 }
 
-// Digest extracts a digest for a package source.
-func (d *PackageDigester) Digest(ctx context.Context, p v1alpha1.Package) (string, error) {
+// Revision extracts a revision name for a package source.
+func (r *PackageRevisioner) Revision(ctx context.Context, p v1alpha1.Package) (string, error) {
 	pullPolicy := p.GetPackagePullPolicy()
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
 		return xpkg.FriendlyID(p.GetName(), p.GetSource()), nil
@@ -63,7 +63,7 @@ func (d *PackageDigester) Digest(ctx context.Context, p v1alpha1.Package) (strin
 	if err != nil {
 		return "", err
 	}
-	img, err := d.fetcher.Fetch(ctx, ref, v1alpha1.RefNames(p.GetPackagePullSecrets()))
+	img, err := r.fetcher.Fetch(ctx, ref, v1alpha1.RefNames(p.GetPackagePullSecrets()))
 	if err != nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}
@@ -74,15 +74,15 @@ func (d *PackageDigester) Digest(ctx context.Context, p v1alpha1.Package) (strin
 	return xpkg.FriendlyID(p.GetName(), h.Hex), nil
 }
 
-// NopDigester returns an empty image digest.
-type NopDigester struct{}
+// NopRevisioner returns an empty revision name.
+type NopRevisioner struct{}
 
-// NewNopDigester creates a NopDigester.
-func NewNopDigester() *NopDigester {
-	return &NopDigester{}
+// NewNopRevisioner creates a NopRevisioner.
+func NewNopRevisioner() *NopRevisioner {
+	return &NopRevisioner{}
 }
 
-// Digest returns an empty image digest and no error.
-func (d *NopDigester) Digest(context.Context, v1alpha1.Package) (string, error) {
+// Revision returns an empty revision name and no error.
+func (d *NopRevisioner) Revision(context.Context, v1alpha1.Package) (string, error) {
 	return "", nil
 }

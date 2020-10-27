@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/xpkg/fake"
 )
 
-func TestPackageDigester(t *testing.T) {
+func TestPackageRevisioner(t *testing.T) {
 	errBoom := errors.New("boom")
 	pullNever := corev1.PullNever
 	pullIfNotPresent := corev1.PullIfNotPresent
@@ -72,7 +72,7 @@ func TestPackageDigester(t *testing.T) {
 			},
 		},
 		"SuccessfulPullIfNotPresentSameSource": {
-			reason: "Should the existing package revision if identifier did not change.",
+			reason: "Should return the existing package revision if identifier did not change.",
 			args: args{
 				pkg: &v1alpha1.Provider{
 					ObjectMeta: v1.ObjectMeta{
@@ -133,14 +133,14 @@ func TestPackageDigester(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			d := NewPackageDigester(tc.args.f)
-			h, err := d.Digest(context.TODO(), tc.args.pkg)
+			r := NewPackageRevisioner(tc.args.f)
+			h, err := r.Revision(context.TODO(), tc.args.pkg)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.Name(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.digest, h, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.Name(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

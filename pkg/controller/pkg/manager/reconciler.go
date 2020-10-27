@@ -101,8 +101,9 @@ func WithNewPackageRevisionListFn(f func() v1alpha1.PackageRevisionList) Reconci
 	}
 }
 
-// WithDigester specifies how the Reconciler should acquire an image's digest.
-func WithDigester(d Digester) ReconcilerOption {
+// WithRevisioner specifies how the Reconciler should acquire a package image's
+// revision name.
+func WithRevisioner(d Revisioner) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.pkg = d
 	}
@@ -125,7 +126,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client resource.ClientApplicator
-	pkg    Digester
+	pkg    Revisioner
 	log    logging.Logger
 	record event.Recorder
 
@@ -150,7 +151,7 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithDigester(NewPackageDigester(xpkg.NewK8sFetcher(clientset, namespace))),
+		WithRevisioner(NewPackageRevisioner(xpkg.NewK8sFetcher(clientset, namespace))),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -178,7 +179,7 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string) er
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithDigester(NewPackageDigester(xpkg.NewK8sFetcher(clientset, namespace))),
+		WithRevisioner(NewPackageRevisioner(xpkg.NewK8sFetcher(clientset, namespace))),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -197,7 +198,7 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		pkg:    NewNopDigester(),
+		pkg:    NewNopRevisioner(),
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 	}
@@ -239,7 +240,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	digest, err := r.pkg.Digest(ctx, p)
+	revisionName, err := r.pkg.Revision(ctx, p)
 	if err != nil {
 		p.SetConditions(v1alpha1.Unpacking())
 		log.Debug(errUnpack, "error", err)
@@ -247,14 +248,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	if digest == "" {
+	if revisionName == "" {
 		p.SetConditions(v1alpha1.Unpacking())
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{RequeueAfter: veryShortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
 	// Set the current revision and identifier.
-	p.SetCurrentRevision(digest)
+	p.SetCurrentRevision(revisionName)
 	p.SetCurrentIdentifier(p.GetSource())
 
 	pr := r.newPackageRevision()
@@ -326,7 +327,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	// Create the non-existent package revision.
-	pr.SetName(digest)
+	pr.SetName(revisionName)
 	pr.SetLabels(map[string]string{parentLabel: p.GetName()})
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
