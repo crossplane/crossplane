@@ -52,9 +52,11 @@ func truncate(str string, num int) string {
 }
 
 // FriendlyID builds a maximum 63 character string made up of the name of a
-// package and its image digest.
+// package and its image digest. It expects the first string to be a valid DNS
+// subdomain name and the second to be a valid OCI image digest.
 func FriendlyID(name, hash string) string {
-	return strings.Join([]string{truncate(name, 50), truncate(hash, 12)}, "-")
+	id := strings.ReplaceAll(strings.Join([]string{truncate(name, 50), truncate(hash, 12)}, "-"), ".", "-")
+	return id
 }
 
 // BuildPath builds a path for a compiled Crossplane package. If file name has

@@ -65,6 +65,14 @@ func TestFriendlyID(t *testing.T) {
 			},
 			want: "provider-aws-plusabunchofothernonsensethatisgoingt-123456789123",
 		},
+		"ReplacePeriod": {
+			reason: "All period characters should be replaced with a dash.",
+			args: args{
+				pkg:  "provider.aws-plusabunchofothernonsensethatisgoingtogetslicedoff",
+				hash: "1234.567891234567",
+			},
+			want: "provider-aws-plusabunchofothernonsensethatisgoingt-1234-5678912",
+		},
 	}
 
 	for name, tc := range cases {
