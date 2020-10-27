@@ -52,7 +52,8 @@ func truncate(str string, num int) string {
 }
 
 // FriendlyID builds a maximum 63 character string made up of the name of a
-// package and its image digest.
+// package and its image digest. It expects the first string to be a valid DNS
+// subdomain name and the second to be a valid OCI image digest.
 func FriendlyID(name, hash string) string {
 	id := strings.ReplaceAll(strings.Join([]string{truncate(name, 50), truncate(hash, 12)}, "-"), ".", "-")
 	return id
