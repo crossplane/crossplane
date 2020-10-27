@@ -478,32 +478,6 @@ spec:
 > can be stored in and validated by the Kubernetes API server at authoring time
 > rather than invocation time.
 
-### Permit Crossplane to Reconcile Your Composite Resource
-
-Typically Crossplane runs using a service account that does not have access to
-reconcile arbitrary kinds of resource. A `ClusterRole` can grant Crossplane
-permission to reconcile your newly defined and published resource:
-
-```yaml
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: compositemysqlinstances.example.org
-  labels:
-    rbac.crossplane.io/aggregate-to-crossplane: "true"
-rules:
-- apiGroups:
-  - example.org
-  resources:
-  - compositemysqlinstances
-  - compositemysqlinstances/status
-  - mysqlinstances
-  - mysqlinstances/status
-  verbs:
-  - "*"
-```
-
 ## Using Composite Resources
 
 ![Infrastructure Composition Provisioning]
