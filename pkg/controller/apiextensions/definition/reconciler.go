@@ -180,13 +180,9 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
 		mgr: mgr,
 
-		// TODO(negz): We don't need to patch (it's fine to overwrite an
-		// existing CRD's fields when applying) but we can't use
-		// resource.APIUpdatingApplicator due to the below issue.
-		// https://github.com/crossplane/crossplane-runtime/issues/165
 		client: resource.ClientApplicator{
 			Client:     kube,
-			Applicator: resource.NewAPIPatchingApplicator(kube),
+			Applicator: resource.NewAPIUpdatingApplicator(kube),
 		},
 
 		composite: definition{
