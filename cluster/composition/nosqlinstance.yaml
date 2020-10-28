@@ -1,0 +1,21 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositenosqlinstances.common.crossplane.io
+spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeNoSQLInstance
+    plural: compositenosqlinstances
+  claimNames:
+    categories:
+      - crossplane
+    kind: NoSQLInstance
+    plural: nosqlinstances
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true

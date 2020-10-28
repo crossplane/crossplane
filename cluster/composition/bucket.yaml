@@ -1,0 +1,21 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositebuckets.common.crossplane.io
+spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeBucket
+    plural: compositebuckets
+  claimNames:
+    categories:
+      - crossplane
+    kind: Bucket
+    plural: buckets
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true

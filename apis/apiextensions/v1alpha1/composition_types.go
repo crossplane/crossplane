@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -70,6 +71,11 @@ type TypeReference struct {
 
 	// Kind of the type.
 	Kind string `json:"kind"`
+}
+
+// TypeReferenceTo returns a reference to the supplied GroupVersionKind
+func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
+	return TypeReference{APIVersion: gvk.GroupVersion().String(), Kind: gvk.Kind}
 }
 
 // ComposedTemplate is used to provide information about how the composed resource

@@ -1,0 +1,21 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: CompositeResourceDefinition
+metadata:
+  name: compositemachineinstances.common.crossplane.io
+spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeMachineInstance
+    plural: compositemachineinstances
+  claimNames:
+    categories:
+      - crossplane
+    kind: MachineInstance
+    plural: machineinstances
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true

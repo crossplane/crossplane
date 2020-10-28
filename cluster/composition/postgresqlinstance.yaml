@@ -4,7 +4,15 @@ kind: CompositeResourceDefinition
 metadata:
   name: compositepostgresqlinstances.common.crossplane.io
 spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositePostgreSQLInstance
+    plural: compositepostgresqlinstances
   claimNames:
+    categories:
+      - crossplane
     kind: PostgreSQLInstance
     plural: postgresqlinstances
   connectionSecretKeys:
@@ -12,15 +20,11 @@ spec:
     - password
     - endpoint
     - port
-  crdSpecTemplate:
-    group: common.crossplane.io
-    version: v1alpha1
-    names:
-      categories:
-        - crossplane
-      kind: CompositePostgreSQLInstance
-      plural: compositepostgresqlinstances
-    validation:
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
       openAPIV3Schema:
         type: object
         properties:

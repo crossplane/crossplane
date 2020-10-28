@@ -4,22 +4,26 @@ kind: CompositeResourceDefinition
 metadata:
   name: compositeredisclusters.common.crossplane.io
 spec:
+  group: common.crossplane.io
+  names:
+    categories:
+      - crossplane
+    kind: CompositeRedisCluster
+    plural: compositeredisclusters
   claimNames:
+    categories:
+      - crossplane
     kind: RedisCluster
     plural: redisclusters
   connectionSecretKeys:
     - endpoint
     - password
     - port
-  crdSpecTemplate:
-    group: common.crossplane.io
-    version: v1alpha1
-    names:
-      categories:
-        - crossplane
-      kind: CompositeRedisCluster
-      plural: compositeredisclusters
-    validation:
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
       openAPIV3Schema:
         type: object
         properties:

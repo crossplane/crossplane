@@ -103,12 +103,15 @@ spec:
   # no composition selector or reference was supplied on the Custom Resource.
   defaultCompositionRef:
     name: example-azure
-  # Enforced composition will be selected for all instances of this type and it
-  # will override the selectors and referencers that are different.
-  #
+  # An enforced composition will be selected for all instances of this type and
+  # will override any selectors and references.
   #enforcedCompositionRef:
   #  name: securemysql.acme.org
-  #
+  group: example.org
+  # The defined kind of composite resource.
+  names:
+    kind: CompositeMySQLInstance
+    plural: compositemysqlinstances
   # The kind of claim this composite resource offers. Optional - omit the claim
   # names if you don't wish to offer a claim for this composite resource. Must
   # be different from the composite resource's kind. The established convention
@@ -117,27 +120,31 @@ spec:
   claimNames:
     kind: MySQLInstance
     plural: mysqlinstances
-  # A template for the spec of a CustomResourceDefinition. Only the group,
-  # version, names, validation, and additionalPrinterColumns fields of a CRD
-  # spec are supported.
-  crdSpecTemplate:
-    group: example.org
-    version: v1alpha1
-    names:
-      kind: CompositeMySQLInstance
-      plural: compositemysqlinstances
-    validation:
-      # This schema defines the configuration fields that the composite resource
-      # supports. It uses the same structural OpenAPI schema as a Kubernetes CRD
-      # - for example, this resource supports a spec.parameters.version enum.
-      # The following fields are reserved for Crossplane's use, and will be
-      # overwritten if included in this validation schema:
-      #
-      # - spec.resourceRef
-      # - spec.resourceRefs
-      # - spec.claimRef
-      # - spec.writeConnectionSecretToRef
-      # - status.conditions
+  # A composite resource may be served at multiple versions simultaneously, but
+  # all versions must have identical schemas; Crossplane does not yet support
+  # conversion between different version schemas.
+  versions:
+  - name: v1alpha1
+    # Served specifies whether this version should be exposed via the API
+    # server's REST API.
+    served: true
+    # Referenceable specifies whether this version may be referenced by a
+    # Composition. Exactly one version may be referenceable by Compositions, and
+    # that version must be served. The referenceable version will always be the
+    # storage version of the underlying CRD.
+    referenceable: true
+    # This schema defines the configuration fields that the composite resource
+    # supports. It uses the same structural OpenAPI schema as a Kubernetes CRD
+    # - for example, this resource supports a spec.parameters.version enum.
+    # The following fields are reserved for Crossplane's use, and will be
+    # overwritten if included in this validation schema:
+    #
+    # - spec.resourceRef
+    # - spec.resourceRefs
+    # - spec.claimRef
+    # - spec.writeConnectionSecretToRef
+    # - status.conditions
+    schema:
       openAPIV3Schema:
         type: object
         properties:
@@ -193,19 +200,22 @@ Spec:
     port
   Default Composition Ref:
     Name: example-azure
+  Group:  example.org
+  Names:
+    Kind:       CompositeMySQLInstance
+    List Kind:  CompositeMySQLInstanceList
+    Plural:     compositemysqlinstances
+    Singular:   compositemysqlinstance
   Claim Names:
     Kind:       MySQLInstance
     List Kind:  MySQLInstanceList
     Plural:     mysqlinstances
     Singular:   mysqlinstance
-  Crd Spec Template:
-    Group:  example.org
-    Names:
-      Kind:       CompositeMySQLInstance
-      List Kind:  CompositeMySQLInstanceList
-      Plural:     compositemysqlinstances
-      Singular:   compositemysqlinstance
-    Validation:
+  Versions:
+    Name:          v1alpha1
+    Served:        true
+    Referenceable: true
+    Schema:
       openAPIV3Schema:
         Properties:
           Spec:
@@ -292,6 +302,8 @@ metadata:
 spec:
   # This Composition declares that it satisfies the CompositeMySQLInstance
   # resource defined above - i.e. it patches "from" a CompositeMySQLInstance.
+  # Note that the version in apiVersion must be the referenceable version of the
+  # XRD.
   compositeTypeRef:
     apiVersion: example.org/v1alpha1
     kind: CompositeMySQLInstance
@@ -477,32 +489,6 @@ spec:
 > This allows a Composition to be a schemafied Kubernetes-native resource that
 > can be stored in and validated by the Kubernetes API server at authoring time
 > rather than invocation time.
-
-### Permit Crossplane to Reconcile Your Composite Resource
-
-Typically Crossplane runs using a service account that does not have access to
-reconcile arbitrary kinds of resource. A `ClusterRole` can grant Crossplane
-permission to reconcile your newly defined and published resource:
-
-```yaml
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: compositemysqlinstances.example.org
-  labels:
-    rbac.crossplane.io/aggregate-to-crossplane: "true"
-rules:
-- apiGroups:
-  - example.org
-  resources:
-  - compositemysqlinstances
-  - compositemysqlinstances/status
-  - mysqlinstances
-  - mysqlinstances/status
-  verbs:
-  - "*"
-```
 
 ## Using Composite Resources
 

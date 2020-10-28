@@ -54,10 +54,8 @@ func TestRenderClusterRoles(t *testing.T) {
 			d: &v1alpha1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
-					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Group: group,
-						Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
-					},
+					Group: group,
+					Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 				},
 			},
 			want: []rbacv1.ClusterRole{
@@ -139,11 +137,9 @@ func TestRenderClusterRoles(t *testing.T) {
 			d: &v1alpha1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
 				Spec: v1alpha1.CompositeResourceDefinitionSpec{
+					Group:      group,
+					Names:      extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					ClaimNames: &extv1.CustomResourceDefinitionNames{Plural: pluralXRC},
-					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Group: group,
-						Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
-					},
 				},
 			},
 			want: []rbacv1.ClusterRole{

@@ -90,19 +90,21 @@ func TestForCompositeResource(t *testing.T) {
 			UID:         types.UID("you-you-eye-dee"),
 		},
 		Spec: v1alpha1.CompositeResourceDefinitionSpec{
-			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-				Group:   group,
-				Version: version,
-				Names: extv1.CustomResourceDefinitionNames{
-					Plural:   plural,
-					Singular: singular,
-					Kind:     kind,
-					ListKind: listKind,
-				},
-				Validation: &v1alpha1.CustomResourceValidation{
+			Group: group,
+			Names: extv1.CustomResourceDefinitionNames{
+				Plural:   plural,
+				Singular: singular,
+				Kind:     kind,
+				ListKind: listKind,
+			},
+			Versions: []v1alpha1.CompositeResourceDefinitionVersion{{
+				Name:          version,
+				Referenceable: true,
+				Served:        true,
+				Schema: &v1alpha1.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
-			},
+			}},
 		},
 	}
 
@@ -287,13 +289,11 @@ func TestValidateClaimNames(t *testing.T) {
 						Singular: "a",
 						Plural:   "a",
 					},
-					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind:     "a",
-							ListKind: "b",
-							Singular: "b",
-							Plural:   "b",
-						},
+					Names: extv1.CustomResourceDefinitionNames{
+						Kind:     "a",
+						ListKind: "b",
+						Singular: "b",
+						Plural:   "b",
 					},
 				},
 			},
@@ -308,13 +308,11 @@ func TestValidateClaimNames(t *testing.T) {
 						Singular: "a",
 						Plural:   "a",
 					},
-					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind:     "b",
-							ListKind: "a",
-							Singular: "b",
-							Plural:   "b",
-						},
+					Names: extv1.CustomResourceDefinitionNames{
+						Kind:     "b",
+						ListKind: "a",
+						Singular: "b",
+						Plural:   "b",
 					},
 				},
 			},
@@ -329,13 +327,11 @@ func TestValidateClaimNames(t *testing.T) {
 						Singular: "a",
 						Plural:   "a",
 					},
-					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind:     "b",
-							ListKind: "b",
-							Singular: "a",
-							Plural:   "b",
-						},
+					Names: extv1.CustomResourceDefinitionNames{
+						Kind:     "b",
+						ListKind: "b",
+						Singular: "a",
+						Plural:   "b",
 					},
 				},
 			},
@@ -350,14 +346,12 @@ func TestValidateClaimNames(t *testing.T) {
 						Singular: "a",
 						Plural:   "a",
 					},
-					CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind:       "b",
-							ListKind:   "b",
-							Singular:   "b",
-							Plural:     "a",
-							Categories: []string{CategoryClaim},
-						},
+					Names: extv1.CustomResourceDefinitionNames{
+						Kind:       "b",
+						ListKind:   "b",
+						Singular:   "b",
+						Plural:     "a",
+						Categories: []string{CategoryClaim},
 					},
 				},
 			},
@@ -403,25 +397,27 @@ func TestForCompositeResourceClaim(t *testing.T) {
 			UID:         types.UID("you-you-eye-dee"),
 		},
 		Spec: v1alpha1.CompositeResourceDefinitionSpec{
+			Group: group,
+			Names: extv1.CustomResourceDefinitionNames{
+				Plural:   plural,
+				Singular: singular,
+				Kind:     kind,
+				ListKind: listKind,
+			},
 			ClaimNames: &extv1.CustomResourceDefinitionNames{
 				Plural:   claimPlural,
 				Singular: claimSingular,
 				Kind:     claimKind,
 				ListKind: claimListKind,
 			},
-			CRDSpecTemplate: v1alpha1.CRDSpecTemplate{
-				Group:   group,
-				Version: version,
-				Names: extv1.CustomResourceDefinitionNames{
-					Plural:   plural,
-					Singular: singular,
-					Kind:     kind,
-					ListKind: listKind,
-				},
-				Validation: &v1alpha1.CustomResourceValidation{
+			Versions: []v1alpha1.CompositeResourceDefinitionVersion{{
+				Name:          version,
+				Referenceable: true,
+				Served:        true,
+				Schema: &v1alpha1.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
-			},
+			}},
 		},
 	}
 
