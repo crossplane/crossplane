@@ -123,6 +123,15 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 		if cc.Spec.RuntimeClassName != nil {
 			d.Spec.Template.Spec.RuntimeClassName = cc.Spec.RuntimeClassName
 		}
+		if cc.Spec.ResourceRequirements != nil {
+			d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
+		}
+		if len(cc.Spec.EnvFrom) > 0 {
+			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
+		}
+		if len(cc.Spec.Env) > 0 {
+			d.Spec.Template.Spec.Containers[0].Env = cc.Spec.Env
+		}
 	}
 	return s, d
 }
