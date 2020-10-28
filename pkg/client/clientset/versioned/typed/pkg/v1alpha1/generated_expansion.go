@@ -22,6 +22,8 @@ type ConfigurationExpansion interface{}
 
 type ConfigurationRevisionExpansion interface{}
 
+type ControllerConfigExpansion interface{}
+
 type ProviderExpansion interface{}
 
 type ProviderRevisionExpansion interface{}
