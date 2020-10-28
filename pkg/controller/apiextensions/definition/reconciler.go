@@ -85,6 +85,7 @@ type ControllerEngine interface {
 	IsRunning(name string) bool
 	Start(name string, o kcontroller.Options, w ...controller.Watch) error
 	Stop(name string)
+	Err(name string) error
 }
 
 // A CRDRenderer renders an CompositeResourceDefinition's corresponding
@@ -355,6 +356,23 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		r.record.Event(d, event.Normal(reasonEstablishXR, waitCRDEstablish))
 		return reconcile.Result{RequeueAfter: tinyWait}, nil
 	}
+
+	if err := r.composite.Err(composite.ControllerName(d.GetName())); err != nil {
+		log.Debug("Composite resource controller encountered an error", "error", err)
+	}
+
+	observed := d.Status.Controllers.CompositeResourceTypeRef
+	desired := v1alpha1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
+	if observed.APIVersion != "" && observed != desired {
+		r.composite.Stop(composite.ControllerName(d.GetName()))
+		log.Debug("Referenceable version changed; stopped composite resource controller",
+			"observed-version", observed.APIVersion,
+			"desired-version", desired.APIVersion)
+		r.record.Event(d, event.Normal(reasonEstablishXR, "Referenceable version changed; stopped composite resource controller",
+			"observed-version", observed.APIVersion,
+			"desired-version", desired.APIVersion))
+	}
+
 	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
 	o := kcontroller.Options{Reconciler: composite.NewReconciler(r.mgr,
 		resource.CompositeKind(d.GetCompositeGroupVersionKind()),
@@ -377,6 +395,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
+	d.Status.Controllers.CompositeResourceTypeRef = v1alpha1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	d.Status.SetConditions(v1alpha1.WatchingComposite())
 	r.record.Event(d, event.Normal(reasonEstablishXR, "(Re)started composite resource controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)

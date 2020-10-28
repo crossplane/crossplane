@@ -44,7 +44,7 @@ type CompositeResourceDefinitionSpec struct {
 	// the composite resource; creating, updating, or deleting the claim will
 	// create, update, or delete a corresponding composite resource. You may add
 	// claim names to an existing CompositeResourceDefinition, but they cannot
-	// be changed once they have been set.
+	// be changed or removed once they have been set.
 	// +optional
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
@@ -126,6 +126,28 @@ type CompositeResourceValidation struct {
 // CompositeResourceDefinitionStatus shows the observed state of the definition.
 type CompositeResourceDefinitionStatus struct {
 	v1alpha1.ConditionedStatus `json:",inline"`
+
+	// Controllers represents the status of the controllers that power this
+	// composite resource definition.
+	Controllers CompositeResourceDefinitionControllerStatus `json:"controllers,omitempty"`
+}
+
+// CompositeResourceDefinitionControllerStatus shows the observed state of the
+// controllers that power the definition.
+type CompositeResourceDefinitionControllerStatus struct {
+	// The CompositeResourceTypeRef is the type of composite resource that
+	// Crossplane is currently reconciling for this definition. Its version will
+	// eventually become consistent with the definition's referenceable version.
+	// Note that clients may interact with any served type; this is simply the
+	// type that Crossplane interacts with.
+	CompositeResourceTypeRef TypeReference `json:"compositeResourceType,omitempty"`
+
+	// The CompositeResourceClaimTypeRef is the type of composite resource claim
+	// that Crossplane is currently reconciling for this definition. Its version
+	// will eventually become consistent with the definition's referenceable
+	// version. Note that clients may interact with any served type; this is
+	// simply the type that Crossplane interacts with.
+	CompositeResourceClaimTypeRef TypeReference `json:"compositeResourceClaimType,omitempty"`
 }
 
 // +kubebuilder:object:root=true

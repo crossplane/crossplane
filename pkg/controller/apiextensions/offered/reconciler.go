@@ -88,6 +88,7 @@ type ControllerEngine interface {
 	IsRunning(name string) bool
 	Start(name string, o kcontroller.Options, w ...controller.Watch) error
 	Stop(name string)
+	Err(name string) error
 }
 
 // A CRDRenderer renders an CompositeResourceDefinition's corresponding
@@ -367,6 +368,22 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
 	)}
 
+	if err := r.claim.Err(claim.ControllerName(d.GetName())); err != nil {
+		log.Debug("Composite resource controller encountered an error", "error", err)
+	}
+
+	observed := d.Status.Controllers.CompositeResourceClaimTypeRef
+	desired := v1alpha1.TypeReferenceTo(d.GetClaimGroupVersionKind())
+	if observed.APIVersion != "" && observed != desired {
+		r.claim.Stop(claim.ControllerName(d.GetName()))
+		log.Debug("Referenceable version changed; stopped composite resource claim controller",
+			"observed-version", observed.APIVersion,
+			"desired-version", desired.APIVersion)
+		r.record.Event(d, event.Normal(reasonOfferXRC, "Referenceable version changed; stopped composite resource claim controller",
+			"observed-version", observed.APIVersion,
+			"desired-version", desired.APIVersion))
+	}
+
 	cm := &kunstructured.Unstructured{}
 	cm.SetGroupVersionKind(d.GetClaimGroupVersionKind())
 
@@ -383,6 +400,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 	r.record.Event(d, event.Normal(reasonOfferXRC, "(Re)started composite resource claim controller"))
 
+	d.Status.Controllers.CompositeResourceClaimTypeRef = v1alpha1.TypeReferenceTo(d.GetClaimGroupVersionKind())
 	d.Status.SetConditions(v1alpha1.WatchingClaim())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
