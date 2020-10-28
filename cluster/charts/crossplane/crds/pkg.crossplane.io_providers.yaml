@@ -48,6 +48,15 @@ spec:
           spec:
             description: ProviderSpec specifies details about a request to install a provider to Crossplane.
             properties:
+              controllerConfigRef:
+                description: ControllerConfigRef references a ControllerConfig resource that will be used to configure the packaged controller Deployment.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
               ignoreCrossplaneConstraints:
                 default: false
                 description: IgnoreCrossplaneConstraints indicates to the package manager whether to honor Crossplane version constrains specified by the package. Default is false.

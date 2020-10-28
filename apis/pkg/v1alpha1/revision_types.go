@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 )
 
@@ -35,6 +36,11 @@ const (
 
 // PackageRevisionSpec specifies the desired state of a PackageRevision.
 type PackageRevisionSpec struct {
+	// ControllerConfigRef references a ControllerConfig resource that will be
+	// used to configure the packaged controller Deployment.
+	// +optional
+	ControllerConfigReference *v1alpha1.Reference `json:"controllerConfigRef,omitempty"`
+
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
 

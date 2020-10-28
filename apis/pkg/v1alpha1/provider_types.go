@@ -45,6 +45,11 @@ type Provider struct {
 // Crossplane.
 type ProviderSpec struct {
 	PackageSpec `json:",inline"`
+
+	// ControllerConfigRef references a ControllerConfig resource that will be
+	// used to configure the packaged controller Deployment.
+	// +optional
+	ControllerConfigReference *v1alpha1.Reference `json:"controllerConfigRef,omitempty"`
 }
 
 // ProviderStatus represents the observed state of a Provider.

@@ -50,6 +50,15 @@ spec:
           spec:
             description: PackageRevisionSpec specifies the desired state of a PackageRevision.
             properties:
+              controllerConfigRef:
+                description: ControllerConfigRef references a ControllerConfig resource that will be used to configure the packaged controller Deployment.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
               desiredState:
                 description: DesiredState of the PackageRevision. Can be either Active or Inactive.
                 type: string
