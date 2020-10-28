@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	errFetchPackage = "failed to fetch package from remote"
+	errFetchPackage = "failed to fetch package digest from remote"
 )
 
 // Revisioner extracts a revision name for a package source.
@@ -63,15 +63,11 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1alpha1.Package) (s
 	if err != nil {
 		return "", err
 	}
-	img, err := r.fetcher.Fetch(ctx, ref, v1alpha1.RefNames(p.GetPackagePullSecrets()))
-	if err != nil {
+	d, err := r.fetcher.Head(ctx, ref, v1alpha1.RefNames(p.GetPackagePullSecrets()))
+	if err != nil || d == nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}
-	h, err := img.Digest()
-	if err != nil {
-		return "", err
-	}
-	return xpkg.FriendlyID(p.GetName(), h.Hex), nil
+	return xpkg.FriendlyID(p.GetName(), d.Digest.Hex), nil
 }
 
 // NopRevisioner returns an empty revision name.
