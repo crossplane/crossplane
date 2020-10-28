@@ -115,7 +115,7 @@ func TestPackageRevisioner(t *testing.T) {
 			reason: "Should return an error if we fail to fetch package image.",
 			args: args{
 				f: &fake.MockFetcher{
-					MockFetch: fake.NewMockFetchFn(nil, errBoom),
+					MockHead: fake.NewMockHeadFn(nil, errBoom),
 				},
 				pkg: &v1alpha1.Provider{
 					Spec: v1alpha1.ProviderSpec{

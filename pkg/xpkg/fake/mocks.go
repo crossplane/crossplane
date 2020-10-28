@@ -69,6 +69,7 @@ var _ xpkg.Fetcher = &MockFetcher{}
 // MockFetcher is a mock fetcher.
 type MockFetcher struct {
 	MockFetch func() (v1.Image, error)
+	MockHead  func() (*v1.Descriptor, error)
 }
 
 // NewMockFetchFn creates a new MockFetch function for MockFetcher.
@@ -79,4 +80,14 @@ func NewMockFetchFn(img v1.Image, err error) func() (v1.Image, error) {
 // Fetch calls the underlying MockFetch.
 func (m *MockFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
 	return m.MockFetch()
+}
+
+// NewMockHeadFn creates a new MockHead function for MockFetcher.
+func NewMockHeadFn(d *v1.Descriptor, err error) func() (*v1.Descriptor, error) {
+	return func() (*v1.Descriptor, error) { return d, err }
+}
+
+// Head calls the underlying MockHead.
+func (m *MockFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+	return m.MockHead()
 }
