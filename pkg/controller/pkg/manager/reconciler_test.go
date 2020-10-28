@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,23 +37,26 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
-var _ Digester = &MockDigester{}
+var _ Revisioner = &MockRevisioner{}
 
-type MockDigester struct {
-	MockDigest func() (string, error)
+type MockRevisioner struct {
+	MockRevision func() (string, error)
 }
 
-func NewMockDigestFn(hash string, err error) func() (string, error) {
+func NewMockRevisionFn(hash string, err error) func() (string, error) {
 	return func() (string, error) {
 		return hash, err
 	}
 }
-func (m *MockDigester) Digest(context.Context, v1alpha1.Package) (string, error) {
-	return m.MockDigest()
+func (m *MockRevisioner) Revision(context.Context, v1alpha1.Package) (string, error) {
+	return m.MockRevision()
 }
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	pullAlways := corev1.PullAlways
+	trueVal := true
+	revHistory := int64(1)
 
 	type args struct {
 		req reconcile.Request
@@ -123,7 +127,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulNoExistingRevisionsAutoActivate": {
-			reason: "We should be active not requeue on successful creation of the first revision with auto activation.",
+			reason: "We should be active and not requeue on successful creation of the first revision with auto activation.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -157,8 +161,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -166,6 +170,54 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{},
+			},
+		},
+		"SuccessfulNoExistingRevisionsAutoActivatePullAlways": {
+			reason: "We should be active and requeue after wait on successful creation of the first revision with auto activation and package pull policy Always.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackage:             func() v1alpha1.Package { return &v1alpha1.Configuration{} },
+					newPackageRevision:     func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} },
+					newPackageRevisionList: func() v1alpha1.PackageRevisionList { return &v1alpha1.ConfigurationRevisionList{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								p := o.(*v1alpha1.Configuration)
+								p.SetName("test")
+								p.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
+								p.SetActivationPolicy(&v1alpha1.AutomaticActivation)
+								p.SetPackagePullPolicy(&pullAlways)
+								return nil
+							}),
+							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1alpha1.Configuration{}
+								want.SetName("test")
+								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
+								want.SetCurrentRevision("test-1234567")
+								want.SetActivationPolicy(&v1alpha1.AutomaticActivation)
+								want.SetPackagePullPolicy(&pullAlways)
+								want.SetConditions(v1alpha1.Active())
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					},
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
+					},
+					log:    logging.NewNopLogger(),
+					record: event.NewNopRecorder(),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: pullWait},
 			},
 		},
 		"SuccessfulNoExistingRevisionsManualActivate": {
@@ -203,8 +255,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -261,8 +313,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -298,6 +350,7 @@ func TestReconcile(t *testing.T) {
 								cr.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 								cr.SetConditions(v1alpha1.Healthy())
 								cr.SetDesiredState(v1alpha1.PackageRevisionInactive)
+								cr.SetRevision(1)
 								c := v1alpha1.ConfigurationRevisionList{
 									Items: []v1alpha1.ConfigurationRevision{cr},
 								}
@@ -319,18 +372,26 @@ func TestReconcile(t *testing.T) {
 						},
 						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
 							want := &v1alpha1.ConfigurationRevision{}
+							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
 							want.SetName("test-1234567")
+							want.SetOwnerReferences([]metav1.OwnerReference{{
+								APIVersion: v1alpha1.SchemeGroupVersion.String(),
+								Kind:       v1alpha1.ConfigurationKind,
+								Name:       "test",
+								Controller: &trueVal,
+							}})
 							want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1alpha1.PackageRevisionActive)
 							want.SetConditions(v1alpha1.Healthy())
+							want.SetRevision(1)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -378,7 +439,6 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetConditions(v1alpha1.Healthy())
-								want.SetConditions(v1alpha1.Active())
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -389,8 +449,8 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -449,8 +509,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -527,7 +587,14 @@ func TestReconcile(t *testing.T) {
 						},
 						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
 							want := &v1alpha1.ConfigurationRevision{}
+							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
 							want.SetName("test-1234567")
+							want.SetOwnerReferences([]metav1.OwnerReference{{
+								APIVersion: v1alpha1.SchemeGroupVersion.String(),
+								Kind:       v1alpha1.ConfigurationKind,
+								Name:       "test",
+								Controller: &trueVal,
+							}})
 							want.SetGroupVersionKind(v1alpha1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1alpha1.PackageRevisionActive)
 							want.SetConditions(v1alpha1.Healthy())
@@ -538,8 +605,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),
@@ -549,7 +616,7 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"SuccessfulErrGC": {
+		"ErrGC": {
 			reason: "Failure to garbage collect old package revision should cause requeue after short wait.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -563,6 +630,7 @@ func TestReconcile(t *testing.T) {
 								p := o.(*v1alpha1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
+								p.SetRevisionHistoryLimit(&revHistory)
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
@@ -584,7 +652,8 @@ func TestReconcile(t *testing.T) {
 												Name: "made-the-cut",
 											},
 											Spec: v1alpha1.PackageRevisionSpec{
-												Revision: 2,
+												Revision:     2,
+												DesiredState: v1alpha1.PackageRevisionInactive,
 											},
 										},
 										{
@@ -592,7 +661,8 @@ func TestReconcile(t *testing.T) {
 												Name: "missed-the-cut",
 											},
 											Spec: v1alpha1.PackageRevisionSpec{
-												Revision: 1,
+												Revision:     1,
+												DesiredState: v1alpha1.PackageRevisionInactive,
 											},
 										},
 									},
@@ -605,21 +675,17 @@ func TestReconcile(t *testing.T) {
 								want.SetName("test")
 								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
-								want.SetConditions(v1alpha1.Healthy())
-								want.SetConditions(v1alpha1.Active())
+								want.SetRevisionHistoryLimit(&revHistory)
 								if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
 								return nil
 							}),
-							MockDelete: test.NewMockDeleteFn(nil),
+							MockDelete: test.NewMockDeleteFn(errBoom),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
-							return errBoom
-						}),
 					},
-					pkg: &MockDigester{
-						MockDigest: NewMockDigestFn("1234567", nil),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
 					log:    logging.NewNopLogger(),
 					record: event.NewNopRecorder(),

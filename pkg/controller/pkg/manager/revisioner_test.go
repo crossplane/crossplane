@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
@@ -31,9 +32,10 @@ import (
 	"github.com/crossplane/crossplane/pkg/xpkg/fake"
 )
 
-func TestPackageDigester(t *testing.T) {
+func TestPackageRevisioner(t *testing.T) {
 	errBoom := errors.New("boom")
 	pullNever := corev1.PullNever
+	pullIfNotPresent := corev1.PullIfNotPresent
 
 	type args struct {
 		f   xpkg.Fetcher
@@ -51,19 +53,47 @@ func TestPackageDigester(t *testing.T) {
 		want   want
 	}{
 		"SuccessfulPullNever": {
-			reason: "Should return the package source directly if pull policy is Never.",
+			reason: "Should return friendly identifier if pull policy is Never.",
 			args: args{
 				pkg: &v1alpha1.Provider{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "provider-aws",
+					},
 					Spec: v1alpha1.ProviderSpec{
 						PackageSpec: v1alpha1.PackageSpec{
-							Package:           "provider-aws-1234567",
+							Package:           "my-revision",
 							PackagePullPolicy: &pullNever,
 						},
 					},
 				},
 			},
 			want: want{
-				digest: "provider-aws-1234567",
+				digest: "provider-aws-my-revision",
+			},
+		},
+		"SuccessfulPullIfNotPresentSameSource": {
+			reason: "Should return the existing package revision if identifier did not change.",
+			args: args{
+				pkg: &v1alpha1.Provider{
+					ObjectMeta: v1.ObjectMeta{
+						Name: "provider-aws",
+					},
+					Spec: v1alpha1.ProviderSpec{
+						PackageSpec: v1alpha1.PackageSpec{
+							Package:           "crossplane/provider-aws:latest",
+							PackagePullPolicy: &pullIfNotPresent,
+						},
+					},
+					Status: v1alpha1.ProviderStatus{
+						PackageStatus: v1alpha1.PackageStatus{
+							CurrentRevision:   "return-me",
+							CurrentIdentifier: "crossplane/provider-aws:latest",
+						},
+					},
+				},
+			},
+			want: want{
+				digest: "return-me",
 			},
 		},
 		"ErrParseRef": {
@@ -103,14 +133,14 @@ func TestPackageDigester(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			d := NewPackageDigester(tc.args.f)
-			h, err := d.Digest(context.TODO(), tc.args.pkg)
+			r := NewPackageRevisioner(tc.args.f)
+			h, err := r.Revision(context.TODO(), tc.args.pkg)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.Name(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.digest, h, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.Name(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

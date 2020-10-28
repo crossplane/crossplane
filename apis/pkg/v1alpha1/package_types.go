@@ -58,5 +58,16 @@ type PackageSpec struct {
 
 // PackageStatus represents the observed state of a Package.
 type PackageStatus struct {
+	// CurrentRevision is the name of the current package revision. It will
+	// reflect the most up to date revision, whether it has been activated or
+	// not.
 	CurrentRevision string `json:"currentRevision,omitempty"`
+
+	// CurrentIdentifier is the most recent package source that was used to
+	// produce a revision. The package manager uses this field to determine
+	// whether to check for package updates for a given source when
+	// packagePullPolicy is set to IfNotPresent. Manually removing this field
+	// will cause the package manager to check that the current revision is
+	// correct for the given package source.
+	CurrentIdentifier string `json:"currentIdentifier,omitempty"`
 }
