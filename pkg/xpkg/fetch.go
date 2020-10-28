@@ -30,6 +30,7 @@ import (
 // Fetcher fetches package images.
 type Fetcher interface {
 	Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error)
+	Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error)
 }
 
 // K8sFetcher uses kubernetes credentials to fetch package images.
@@ -58,6 +59,18 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []st
 	return remote.Image(ref, remote.WithAuthFromKeychain(auth))
 }
 
+// Head fetches a package descriptor.
+func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
+		Namespace:        i.namespace,
+		ImagePullSecrets: secrets,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return remote.Head(ref, remote.WithAuthFromKeychain(auth))
+}
+
 // NopFetcher always returns an empty image and never returns error.
 type NopFetcher struct{}
 
@@ -69,4 +82,9 @@ func NewNopFetcher() *NopFetcher {
 // Fetch fetches an empty image and does not return error.
 func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
 	return empty.Image, nil
+}
+
+// Head returns a nil descriptor and does not return error.
+func (n *NopFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+	return nil, nil
 }
