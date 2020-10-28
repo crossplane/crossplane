@@ -17,6 +17,7 @@ limitations under the License.
 package rbac
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -39,6 +40,7 @@ const (
 type Command struct {
 	Name             string
 	Sync             time.Duration
+	LeaderElection   bool
 	ManagementPolicy string
 }
 
@@ -47,6 +49,7 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("manage", "RBAC management policy.").Short('m').Default(ManagementPolicyAll).EnumVar(&c.ManagementPolicy, ManagementPolicyAll, ManagementPolicyBasic)
+	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
 
 	return c
 }
@@ -60,7 +63,11 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot get config")
 	}
 
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: &c.Sync})
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		LeaderElection:   c.LeaderElection,
+		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
+		SyncPeriod:       &c.Sync,
+	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")
 	}

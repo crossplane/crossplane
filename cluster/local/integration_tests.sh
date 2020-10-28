@@ -67,7 +67,7 @@ docker tag "${BUILD_IMAGE}" "${CROSSPLANE_IMAGE}"
 
 echo_step "installing helm package(s) into \"${CROSSPLANE_NAMESPACE}\" namespace"
 "${KUBECTL}" create ns "${CROSSPLANE_NAMESPACE}"
-"${HELM3}" install "${PROJECT_NAME}" --namespace "${CROSSPLANE_NAMESPACE}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set image.pullPolicy=Never,imagePullSecrets='',alpha.oam.enabled=true
+"${HELM3}" install "${PROJECT_NAME}" --namespace "${CROSSPLANE_NAMESPACE}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set replicas=2,rbacManager.replicas=2,image.pullPolicy=Never,imagePullSecrets='',alpha.oam.enabled=true
 
 echo_step "waiting for deployment ${PROJECT_NAME} rollout to finish"
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" rollout status "deploy/${PROJECT_NAME}" --timeout=2m

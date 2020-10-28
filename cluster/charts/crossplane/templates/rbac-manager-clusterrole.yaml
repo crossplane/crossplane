@@ -77,4 +77,15 @@ rules:
   - clusterrolebindings
   verbs:
   - "*"
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - watch
 {{- end}}
