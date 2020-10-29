@@ -77,3 +77,14 @@ rules:
   - patch
   - delete
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - watch

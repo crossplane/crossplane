@@ -9,7 +9,7 @@ metadata:
     release: {{ .Release.Name }}
     heritage: {{ .Release.Service }}
 spec:
-  replicas: {{ .Values.replicas }}
+  replicas: {{ .Values.rbacManager.replicas }}
   selector:
     matchLabels:
       app: {{ template "name" . }}-rbac-manager
@@ -43,4 +43,7 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: true
+        env:
+          - name: LEADER_ELECTION
+            value: "{{ .Values.rbacManager.leaderElection }}"
 {{- end}}

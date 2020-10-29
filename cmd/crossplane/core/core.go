@@ -17,6 +17,7 @@ limitations under the License.
 package core
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -35,10 +36,11 @@ import (
 
 // Command configuration for the core Crossplane controllers.
 type Command struct {
-	Name      string
-	Namespace string
-	CacheDir  string
-	Sync      time.Duration
+	Name           string
+	Namespace      string
+	CacheDir       string
+	LeaderElection bool
+	Sync           time.Duration
 }
 
 // FromKingpin produces the core Crossplane command from a Kingpin command.
@@ -47,6 +49,7 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
 	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").ExistingDirVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
+	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
 	return c
 }
 
@@ -59,7 +62,11 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot get config")
 	}
 
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{SyncPeriod: &c.Sync})
+	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		LeaderElection:   c.LeaderElection,
+		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
+		SyncPeriod:       &c.Sync,
+	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")
 	}

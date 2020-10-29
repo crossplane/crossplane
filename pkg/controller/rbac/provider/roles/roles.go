@@ -41,8 +41,9 @@ const (
 
 	suffixStatus = "/status"
 
-	pluralEvents  = "events"
-	pluralSecrets = "secrets"
+	pluralEvents     = "events"
+	pluralConfigmaps = "configmaps"
+	pluralSecrets    = "secrets"
 )
 
 var (
@@ -59,7 +60,7 @@ var (
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{""},
-		Resources: []string{pluralSecrets, pluralEvents},
+		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents},
 		Verbs:     verbsEdit,
 	},
 }

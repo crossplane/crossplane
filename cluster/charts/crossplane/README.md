@@ -67,8 +67,9 @@ and their default values.
 | `image.tag` | Image tag | `master` |
 | `image.pullPolicy` | Image pull policy | `Always` |
 | `imagePullSecrets` | Names of image pull secrets to use | `dockerhub` |
-| `replicas` | The number of replicas to run for the Crossplane and RBAC Manager (if enabled) pods | `1` |
+| `replicas` | The number of replicas to run for the Crossplane pods | `1` |
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager (if enabled) pods | `RollingUpdate` |
+| `leaderElection` | Enable leader election for Crossplane Managers pod | `true` |
 | `priorityClassName` | Priority class name for Crossplane and RBAC Manager (if enabled) pods | `""` |
 | `resourcesCrossplane.limits.cpu` | CPU resource limits for Crossplane | `100m` |
 | `resourcesCrossplane.limits.memory` | Memory resource limits for Crossplane | `512Mi` |
@@ -82,6 +83,8 @@ and their default values.
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for RBAC Manager | `100m` |
 | `resourcesRBACManager.requests.memory` | Memory resource requests for RBAC Manager | `256Mi` |
 | `rbacManager.deploy` | Deploy RBAC Manager and its required roles | `true` |
+| `rbacManager.replicas` | The number of replicas to run for the RBAC Manager pods | `1` |
+| `rbacManager.leaderElection` | Enable leader election for RBAC Managers pod | `true` |
 | `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
 | `alpha.oam.enabled` | Deploy the `crossplane/oam-kubernetes-runtime` Helm chart | `false` |
 
