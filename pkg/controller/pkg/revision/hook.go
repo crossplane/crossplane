@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 
 	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -33,6 +34,7 @@ import (
 
 const (
 	errNotProvider                   = "not a provider package"
+	errControllerConfig              = "cannot get referenced controller config"
 	errDeleteProviderDeployment      = "cannot delete provider package deployment"
 	errDeleteProviderSA              = "cannot delete provider package service account"
 	errApplyProviderDeployment       = "cannot apply provider package deployment"
@@ -80,7 +82,14 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1
 	if pr.GetDesiredState() != v1alpha1.PackageRevisionInactive {
 		return nil
 	}
-	s, d := buildProviderDeployment(pkgProvider, pr, h.namespace)
+	var cc *v1alpha1.ControllerConfig
+	if pr.GetControllerConfigRef() != nil {
+		cc = &v1alpha1.ControllerConfig{}
+		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
+			return errors.Wrap(err, errControllerConfig)
+		}
+	}
+	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
@@ -100,7 +109,14 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha
 	if pr.GetDesiredState() != v1alpha1.PackageRevisionActive {
 		return nil
 	}
-	s, d := buildProviderDeployment(pkgProvider, pr, h.namespace)
+	var cc *v1alpha1.ControllerConfig
+	if pr.GetControllerConfigRef() != nil {
+		cc = &v1alpha1.ControllerConfig{}
+		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
+			return errors.Wrap(err, errControllerConfig)
+		}
+	}
+	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}

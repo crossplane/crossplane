@@ -28,6 +28,7 @@ type PkgV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	ConfigurationsGetter
 	ConfigurationRevisionsGetter
+	ControllerConfigsGetter
 	ProvidersGetter
 	ProviderRevisionsGetter
 }
@@ -43,6 +44,10 @@ func (c *PkgV1alpha1Client) Configurations() ConfigurationInterface {
 
 func (c *PkgV1alpha1Client) ConfigurationRevisions() ConfigurationRevisionInterface {
 	return newConfigurationRevisions(c)
+}
+
+func (c *PkgV1alpha1Client) ControllerConfigs() ControllerConfigInterface {
+	return newControllerConfigs(c)
 }
 
 func (c *PkgV1alpha1Client) Providers() ProviderInterface {

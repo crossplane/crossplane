@@ -36,6 +36,10 @@ func (c *FakePkgV1alpha1) ConfigurationRevisions() v1alpha1.ConfigurationRevisio
 	return &FakeConfigurationRevisions{c}
 }
 
+func (c *FakePkgV1alpha1) ControllerConfigs() v1alpha1.ControllerConfigInterface {
+	return &FakeControllerConfigs{c}
+}
+
 func (c *FakePkgV1alpha1) Providers() v1alpha1.ProviderInterface {
 	return &FakeProviders{c}
 }

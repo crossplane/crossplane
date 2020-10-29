@@ -72,9 +72,18 @@ var (
 	ProviderRevisionGroupVersionKind = SchemeGroupVersion.WithKind(ProviderRevisionKind)
 )
 
+// ControllerConfig type metadata.
+var (
+	ControllerConfigKind             = reflect.TypeOf(ControllerConfig{}).Name()
+	ControllerConfigGroupKind        = schema.GroupKind{Group: Group, Kind: ControllerConfigKind}.String()
+	ControllerConfigKindAPIVersion   = ControllerConfigKind + "." + SchemeGroupVersion.String()
+	ControllerConfigGroupVersionKind = SchemeGroupVersion.WithKind(ControllerConfigKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Configuration{}, &ConfigurationList{})
 	SchemeBuilder.Register(&ConfigurationRevision{}, &ConfigurationRevisionList{})
 	SchemeBuilder.Register(&Provider{}, &ProviderList{})
 	SchemeBuilder.Register(&ProviderRevision{}, &ProviderRevisionList{})
+	SchemeBuilder.Register(&ControllerConfig{}, &ControllerConfigList{})
 }

@@ -5,5 +5,6 @@ resources:
 - charts/crossplane/crds/apiextensions.crossplane.io_compositions.yaml
 - charts/crossplane/crds/pkg.crossplane.io_configurationrevisions.yaml
 - charts/crossplane/crds/pkg.crossplane.io_configurations.yaml
+- charts/crossplane/crds/pkg.crossplane.io_controllerconfigs.yaml
 - charts/crossplane/crds/pkg.crossplane.io_providerrevisions.yaml
 - charts/crossplane/crds/pkg.crossplane.io_providers.yaml

@@ -73,6 +73,9 @@ type Package interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
+	GetControllerConfigRef() *runtimev1alpha1.Reference
+	SetControllerConfigRef(r *runtimev1alpha1.Reference)
+
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
 
@@ -148,6 +151,16 @@ func (p *Provider) GetIgnoreCrossplaneConstraints() *bool {
 // SetIgnoreCrossplaneConstraints of this Provider.
 func (p *Provider) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
+}
+
+// GetControllerConfigRef of this Provider.
+func (p *Provider) GetControllerConfigRef() *runtimev1alpha1.Reference {
+	return p.Spec.ControllerConfigReference
+}
+
+// SetControllerConfigRef of this Provider.
+func (p *Provider) SetControllerConfigRef(r *runtimev1alpha1.Reference) {
+	p.Spec.ControllerConfigReference = r
 }
 
 // GetCurrentRevision of this Provider.
@@ -240,6 +253,14 @@ func (p *Configuration) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
+// GetControllerConfigRef of this Configuration.
+func (p *Configuration) GetControllerConfigRef() *runtimev1alpha1.Reference {
+	return nil
+}
+
+// SetControllerConfigRef of this Configuration.
+func (p *Configuration) SetControllerConfigRef(r *runtimev1alpha1.Reference) {}
+
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
 	return p.Status.CurrentRevision
@@ -289,6 +310,9 @@ type PackageRevision interface {
 
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
+
+	GetControllerConfigRef() *runtimev1alpha1.Reference
+	SetControllerConfigRef(r *runtimev1alpha1.Reference)
 
 	GetRevision() int64
 	SetRevision(r int64)
@@ -384,6 +408,16 @@ func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
 }
 
+// GetControllerConfigRef of this ProviderRevision.
+func (p *ProviderRevision) GetControllerConfigRef() *runtimev1alpha1.Reference {
+	return p.Spec.ControllerConfigReference
+}
+
+// SetControllerConfigRef of this ProviderREvsion.
+func (p *ProviderRevision) SetControllerConfigRef(r *runtimev1alpha1.Reference) {
+	p.Spec.ControllerConfigReference = r
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
 	return p.Status.GetCondition(ct)
@@ -472,6 +506,16 @@ func (p *ConfigurationRevision) GetIgnoreCrossplaneConstraints() *bool {
 // SetIgnoreCrossplaneConstraints of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 	p.Spec.IgnoreCrossplaneConstraints = b
+}
+
+// GetControllerConfigRef of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetControllerConfigRef() *runtimev1alpha1.Reference {
+	return p.Spec.ControllerConfigReference
+}
+
+// SetControllerConfigRef of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetControllerConfigRef(r *runtimev1alpha1.Reference) {
+	p.Spec.ControllerConfigReference = r
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}

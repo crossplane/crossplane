@@ -34,7 +34,7 @@ var (
 	runAsNonRoot             = true
 )
 
-func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.PackageRevision, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer
+func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -87,6 +87,51 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 				},
 			},
 		},
+	}
+	if cc != nil {
+		s.Labels = cc.Labels
+		s.Annotations = cc.Annotations
+		d.Labels = cc.Labels
+		d.Annotations = cc.Annotations
+		if cc.Spec.NodeSelector != nil {
+			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
+		}
+		if cc.Spec.ServiceAccountName != nil {
+			d.Spec.Template.Spec.ServiceAccountName = *cc.Spec.ServiceAccountName
+		}
+		if cc.Spec.NodeName != nil {
+			d.Spec.Template.Spec.NodeName = *cc.Spec.NodeName
+		}
+		if cc.Spec.PodSecurityContext != nil {
+			d.Spec.Template.Spec.SecurityContext = cc.Spec.PodSecurityContext
+		}
+		if cc.Spec.SecurityContext != nil {
+			d.Spec.Template.Spec.Containers[0].SecurityContext = cc.Spec.SecurityContext
+		}
+		if len(cc.Spec.ImagePullSecrets) > 0 {
+			d.Spec.Template.Spec.ImagePullSecrets = cc.Spec.ImagePullSecrets
+		}
+		if cc.Spec.Affinity != nil {
+			d.Spec.Template.Spec.Affinity = cc.Spec.Affinity
+		}
+		if len(cc.Spec.Tolerations) > 0 {
+			d.Spec.Template.Spec.Tolerations = cc.Spec.Tolerations
+		}
+		if cc.Spec.PriorityClassName != nil {
+			d.Spec.Template.Spec.PriorityClassName = *cc.Spec.PriorityClassName
+		}
+		if cc.Spec.RuntimeClassName != nil {
+			d.Spec.Template.Spec.RuntimeClassName = cc.Spec.RuntimeClassName
+		}
+		if cc.Spec.ResourceRequirements != nil {
+			d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
+		}
+		if len(cc.Spec.EnvFrom) > 0 {
+			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
+		}
+		if len(cc.Spec.Env) > 0 {
+			d.Spec.Template.Spec.Containers[0].Env = cc.Spec.Env
+		}
 	}
 	return s, d
 }
