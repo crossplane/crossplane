@@ -27,6 +27,7 @@ import (
 )
 
 var (
+	replicas                 = int32(1)
 	runAsUser                = int64(2000)
 	runAsGroup               = int64(2000)
 	allowPrivilegeEscalation = false
@@ -53,6 +54,7 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.ProviderRevisionGroupVersionKind))},
 		},
 		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"pkg.crossplane.io/revision": revision.GetName()},
 			},
@@ -93,6 +95,9 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 		s.Annotations = cc.Annotations
 		d.Labels = cc.Labels
 		d.Annotations = cc.Annotations
+		if cc.Spec.Replicas != nil {
+			d.Spec.Replicas = cc.Spec.Replicas
+		}
 		if cc.Spec.NodeSelector != nil {
 			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
 		}

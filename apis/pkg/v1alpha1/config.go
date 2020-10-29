@@ -25,6 +25,13 @@ import (
 // Values provided will override package manager defaults. Labels and
 // annotations are passed to both the controller Deployment and ServiceAccount.
 type ControllerConfigSpec struct {
+	// Number of desired pods. This is a pointer to distinguish between explicit
+	// zero and not specified. Defaults to 1.
+	// Note: If more than 1 replica is set and leader election is not enabled then
+	// controllers could conflict. Environment variable "LEADER_ELECTION" can be
+	// used to enable leader election process.
+	// +optional
+	Replicas *int32 `json:"replicas,omitempty"`
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
 	// Selector which must match a node's labels for the pod to be scheduled on that node.
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/

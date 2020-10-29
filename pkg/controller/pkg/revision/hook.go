@@ -82,12 +82,9 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1
 	if pr.GetDesiredState() != v1alpha1.PackageRevisionInactive {
 		return nil
 	}
-	var cc *v1alpha1.ControllerConfig
-	if pr.GetControllerConfigRef() != nil {
-		cc = &v1alpha1.ControllerConfig{}
-		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
-			return errors.Wrap(err, errControllerConfig)
-		}
+	cc, err := h.getControllerConfig(ctx, pr)
+	if err != nil {
+		return errors.Wrap(err, errControllerConfig)
 	}
 	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
@@ -109,12 +106,9 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha
 	if pr.GetDesiredState() != v1alpha1.PackageRevisionActive {
 		return nil
 	}
-	var cc *v1alpha1.ControllerConfig
-	if pr.GetControllerConfigRef() != nil {
-		cc = &v1alpha1.ControllerConfig{}
-		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
-			return errors.Wrap(err, errControllerConfig)
-		}
+	cc, err := h.getControllerConfig(ctx, pr)
+	if err != nil {
+		return errors.Wrap(err, errControllerConfig)
 	}
 	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Apply(ctx, s); err != nil {
@@ -134,6 +128,17 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha
 		}
 	}
 	return nil
+}
+
+func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1alpha1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+	var cc *v1alpha1.ControllerConfig
+	if pr.GetControllerConfigRef() != nil {
+		cc = &v1alpha1.ControllerConfig{}
+		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
+			return nil, errors.Wrap(err, errControllerConfig)
+		}
+	}
+	return cc, nil
 }
 
 // ConfigurationHooks performs operations for a configuration package before and
