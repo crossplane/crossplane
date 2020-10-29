@@ -208,11 +208,17 @@ Any dates listed below and the specific issues that will ship in a given milesto
   - Support backup and restore of all AWS managed resources [provider-aws#181](https://github.com/crossplane/provider-aws/issues/181)
   - Allow Stack, StackInstall, StackDefinition to be backed up and restored [crossplane#1389](https://github.com/crossplane/crossplane/issues/1389)
 
-* Resource composition - experimental MVP [#1343](https://github.com/crossplane/crossplane/issues/1343)
+* Composition
+   * Experimental MVP [#1343](https://github.com/crossplane/crossplane/issues/1343)
    * Defining your own claim kinds [#1106](https://github.com/crossplane/crossplane/issues/1106) 
    * Allowing a claim to be satisfied by multiple resources [#1105](https://github.com/crossplane/crossplane/issues/1105)
 
-* Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types
+* Providers
+  * Azure Provider
+    * CosmosDB Account supports MongoDB and Cassandra [provider-azure#138](https://github.com/crossplane/provider-azure/pull/138)
+
+* Open Application Model (OAM)
+  * Experimental support for [OAM](https://oam.dev/) (Open Application Model) API types
   * Revised [Kubernetes-friendly OAM spec](https://github.com/oam-dev/spec/pull/304/files)
   * OAM App Config Controller support [#1268](https://github.com/crossplane/crossplane/issues/1268)
   * Enhance Crossplane to support a choice of local and remote workload scheduling
@@ -224,33 +230,33 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## [v0.11.0 infra composition v1alpha1, OAM support, backup/restore, docs overhaul](https://github.com/crossplane/crossplane/releases/tag/v0.11.0)
 
-* Infrastructure Composition - alpha quality [#1343](https://github.com/crossplane/crossplane/issues/1343)
+* Composition
+  * enhancements for v1alpha1 quality [#1343](https://github.com/crossplane/crossplane/issues/1343)
 
-* Enhanced support for [OAM](https://oam.dev/) (Open Application Model) API types
+* Providers
+  * v1beta1 quality conformance doc [#933](https://github.com/crossplane/crossplane/issues/933)
 
-* Backup/restore support - e.g. with Velero
-  - Backup and Restore doc [crossplane#1353](https://github.com/crossplane/crossplane/issues/1353)
+  * AWS Provider
+    * Networking and VPC resources to v1beta1 [crossplane/provider-aws#145](https://github.com/crossplane/provider-aws/issues/145)
+    * more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+      - DynamoDB [crossplane/provider-aws#147](https://github.com/crossplane/provider-aws/issues/147)
+      - SQS [crossplane/provider-aws#170](https://github.com/crossplane/provider-aws/issues/170)
+      - Cert Manager [crossplane/provider-aws#171](https://github.com/crossplane/provider-aws/issues/171)
+      - DNS [crossplane/provider-aws#172](https://github.com/crossplane/provider-aws/issues/172)
 
-* v1beta1 quality conformance doc [#933](https://github.com/crossplane/crossplane/issues/933)
-* v1beta1 quality for AWS API types  
-  - Networking and VPC [crossplane/provider-aws#145](https://github.com/crossplane/provider-aws/issues/145)
+  * Azure Provider
+    * Firewall rules for MySQL and PostgreSQL [provider-azure#146](https://github.com/crossplane/provider-azure/pull/146)
 
-* AWS Provider: additional API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
-  - DynamoDB [crossplane/provider-aws#147](https://github.com/crossplane/provider-aws/issues/147)
-  - SQS [crossplane/provider-aws#170](https://github.com/crossplane/provider-aws/issues/170)
-  - Cert Manager [crossplane/provider-aws#171](https://github.com/crossplane/provider-aws/issues/171)
-  - DNS [crossplane/provider-aws#172](https://github.com/crossplane/provider-aws/issues/172)
-
+* Open Application Model (OAM)
+  * Enhanced support for [OAM](https://oam.dev/) (Open Application Model) API types
 
 * Docs overhaul (part 3/3) - https://crossplane.io/docs
+  * Backup / restore docs [crossplane#1353](https://github.com/crossplane/crossplane/issues/1353)
   * Documentation (and diagrams) about data model in Crossplane (including both application and infrastructure)
   * Updated docs sidebar
-  * Finish name refactoring e.g. StackInstall -> PackageInstall
-  * Add an experimental / deprecated section
 
-
-## [v0.12.0 infra composition enhancements towards v1beta1](https://github.com/crossplane/crossplane/releases/tag/v0.12.0)
-* Infrastructure Composition
+## [v0.12.0 upgrades claims/classes to a more powerful composition approach](https://github.com/crossplane/crossplane/releases/tag/v0.12.0)
+* Composition
   * Default composition for a definition [crossplane#1471](https://github.com/crossplane/crossplane/issues/1471)
   * Enforced composition for a definition [crossplane#1470](https://github.com/crossplane/crossplane/issues/1470)
   * Enhanced testing [crossplane#1474](https://github.com/crossplane/crossplane/issues/1474)
@@ -259,107 +265,190 @@ Any dates listed below and the specific issues that will ship in a given milesto
 * Package Manager
   * Passing non-zero fsGroup in package deployments [crossplane#1577](https://github.com/crossplane/crossplane/pull/1577)
 
-* OAM - Applications
-  * design: resource dependencies in OAM [oam-kubernetes-runtime#24](https://github.com/crossplane/oam-kubernetes-runtime/pull/24)
-  * design: versioning mechanism [oam-kubernetes-runtime#29](https://github.com/crossplane/oam-kubernetes-runtime/pull/29)
+* Providers
+  * AWS Provider: additional API types [provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+    * EKSCluster to v1beta1
+    * ACMPCA Certificate Authority [provider-aws#226](https://github.com/crossplane/provider-aws/pull/226)
+    * IAMRolePolicyAttachment to refer IAMPolicy
+    * SQS
+    * Route53
 
-## v0.13
-* Infrastructure Composition
-  * Progress towards v1beta1 quality
-  * Select random Composition when multiple match
+  * GCP Provider
+    * GKE DnsCacheConfig, GcePersistentDiskCsiDriverConfig, KalmConfig [provider-gcp#229](https://github.com/crossplane/provider-gcp/pull/229)
+    * PubSub support [provider-gcp#241](https://github.com/crossplane/provider-gcp/pull/241)
 
-* Package Manager 
-  * Simplificition, versioning & upgrade design [crossplane#1616](https://github.com/crossplane/crossplane/pull/1616)
+* Open Application Model (OAM)
+  * Design: resource dependencies in OAM [oam-kubernetes-runtime#24](https://github.com/crossplane/oam-kubernetes-runtime/pull/24)
+  * Design: versioning mechanism [oam-kubernetes-runtime#29](https://github.com/crossplane/oam-kubernetes-runtime/pull/29)
 
-* Provider Acceleration
-  * Evaluate code generation and use of Terraform providers
+## [v0.13 - paving the way for a v1.0 release of Crossplane](https://github.com/crossplane/crossplane/releases/tag/v0.13.0)
+* Composition
+  * Final type names for XRDs and XRCs:
+    [crossplane#1679](https://github.com/crossplane/crossplane/pull/1679)
+    * `CompositeResourceDefinition` (XRD) replaces InfrastructureDefinition and InfrastructurePublication types.
+    * `Composite Resource Claims` (XRCs) replace Requirements and they no longer require any specific kind suffix.
+  * Hardening and robustness enhancements towards v1beta1 quality
 
-* AWS Provider: additional API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
-  * ACMPCA Certificate Authority [provider-aws#226](https://github.com/crossplane/provider-aws/pull/226) 
-  * IAMRolePolicyAttachment to refer IAMPolicy
-  * SQS
-  * Route53
-  * EKSCluster to v1beta1
+* Package Manager
+  * Streamlined v2 design
+    [crossplane#1616](https://github.com/crossplane/crossplane/pull/1616)
+    * Supports installing and managing Crossplane `Providers` and `Configurations`
+  * Package Manager v2
+    [crossplane#1675](https://github.com/crossplane/crossplane/pull/1675)
+    * Upgrade and rollback support
+    * Faster package deploys
+    * Paves the way for automatic package dependency resolution
 
-* GCP Provider
-   * Add GKE DnsCacheConfig, GcePersistentDiskCsiDriverConfig, KalmConfig [provider-gcp#229](https://github.com/crossplane/provider-gcp/pull/229)
+* RBAC Manager
+  * Automatically manages the RBAC roles and bindings required by `Providers` and `Composite` resources
+  * An optional deployment that uses RBAC privilege escalation
+  * Crossplane no longer requires cluster-admin privileges.
 
-* Crossplane Agent - k8s-native infra API consumer UX
-  * Design [crossplane#1633](https://github.com/crossplane/crossplane/pull/1633)
+* Providers
+  * General
+    * Default `ProviderConfig` supported & migration
+    * Removed deprecated claims/classes - you can now create your own claim kinds with Composition
 
-* OAM - Applications
-  * Move out of core into separate package
-  * Updates the runtime to the latest tagged version (includes HealthScope)
-  * Support for Scope in AppConfig controller
+  * AWS Provider: more API types [provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+    * S3 Bucket to v1beta1 [#331](https://github.com/crossplane/provider-aws/pull/331)
+    * S3 Bucket Policy support [#289](https://github.com/crossplane/provider-aws/pull/289)
+    * Referencer for SubnetGroup AWS ElasticCache [#314](https://github.com/crossplane/provider-aws/pull/314)
+    * Add ARN to AtProvider for SNS Topic [#348](https://github.com/crossplane/provider-aws/pull/348)
+    * ECR support [#307](https://github.com/crossplane/provider-aws/issues/307)
+
+  * Helm Provider
+    * experimental support - for use in `Compositions`
+
+  * Code generation of Crossplane providers
+    * Evaluate generating native Crossplane providers with existing code gen pipelines
+    * Evaluate wrapping stateless Terraform providers (work-in-progress) [#262](https://github.com/crossplane/crossplane/issues/262)
+
+* Open Application Model (OAM)
+  * Moved AppConfig controller out of core
+    * Install via: `helm install crossplane` with the `--set alpha.oam.enabled=true` flag
+  * Enhance health scope with informative health condition [#194](https://github.com/crossplane/oam-kubernetes-runtime#194)
+  * Add component webhook to support workload definition type [#198](https://github.com/crossplane/oam-kubernetes-runtime#198)
+  * Add health check support for containerized.standard.oam.dev in Health [#214](https://github.com/crossplane/oam-kubernetes-runtime#214)
+  * Run with fewer privileges [#228](https://github.com/crossplane/oam-kubernetes-runtime/pull/228)
+  * Hardening and robustness enhancements towards v1beta1 quality
+
+## v0.14 - v1beta1 APIs in core, hardening, robustness (short release)
+
+* Composition
+  * APIs to v1beta1
+  * Claim update propagation to its underlying composite resource [#1649](https://github.com/crossplane/crossplane/issues/1649)
+  * Surface claim binding and secret publishing errors [#1862](https://github.com/crossplane/crossplane/pull/1862)
+  * XRDs can support defining multiple versions of an XR, using the `None` conversion strategy [#1871](https://github.com/crossplane/crossplane/issues/1871)
+  * Hardening and robustness fixes
+
+* Package Manager
+  * APIs to v1beta1
+  * `ControllerConfig` can override default values for a `Provider` [#974](https://github.com/crossplane/crossplane/issues/974)
+  * Support for Crossplane version constraints in `Provider` and `Configuration` packages [#1843](https://github.com/crossplane/crossplane/issues/1843)
+  * Hardening and robustness fixes
+
+* Providers
+  * AWS Provider: more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+    * S3 Bucket Policy to v1beta1 [#391](https://github.com/crossplane/provider-aws/pull/391)
+    * IAM User Access Key v1alpha1 [#403](https://github.com/crossplane/provider-aws/pull/403)
+
+  * Helm Provider
+    * Support installing a Helm `Release` from a Crossplane `Composition`
+    * v1alpha1 APIs [crossplane-contrib/provider-helm#38](https://github.com/crossplane-contrib/provider-helm/pull/38)
+
+  * Code Generation of Providers (work-in-progress)
+    * AWS ACK Code Generation of the Crossplane provider-aws
+      * https://github.com/jaypipes/aws-controllers-k8s/tree/crossplane
+      * https://github.com/aws/aws-controllers-k8s/pull/444
+    * Azure Code Generation of the Crossplane provider-azure
+      * https://github.com/matthchr/k8s-infra/tree/crossplane-hacking
+    * Clouds that don't have code gen pipelines
+      * Code gen with stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
+
+* Open Application Model (OAM)
+  * HealthScope support for PodSpecWorkload [#243](https://github.com/crossplane/oam-kubernetes-runtime/pull/243)
+  * Allow OAM controller to create events [#239](https://github.com/crossplane/oam-kubernetes-runtime/pull/239)
+  * RBAC rules must use plural resource names [#236](https://github.com/crossplane/oam-kubernetes-runtime/pull/236)
+  * Migrate from Jenkins pipeline to GitHub Actions [#260](https://github.com/crossplane/oam-kubernetes-runtime/pull/260)
+  * CRD discovery mechanism [#261](https://github.com/crossplane/oam-kubernetes-runtime/pull/261)
+
+* Remove deprecated `KubernetesApplication`, `KubernetesTarget`, `KubernetesCluster`
+  * replaced by Composition and provider-helm
+
+## v1.0 release candidate (Dec 2020)
+
+* Hardening and cleanup for v1.0
+  * Leader election for all controllers [#5](https://github.com/crossplane/crossplane/issues/5)
+  * Prometheus metrics for all binaries [#314](https://github.com/crossplane/crossplane/issues/314)
+  * crossplane-runtime to v1.0
+
+* Composition
+  * Revision support for incremental upgrades [#1481](https://github.com/crossplane/crossplane/issues/1481)
+  * Bi-directional patching for status [#1639](https://github.com/crossplane/crossplane/issues/1639)
+  * Support taking values from members to fill a connection secret [#1609](https://github.com/crossplane/crossplane/issues/1609)
+  * Validation webhooks
+
+* Package Manager
+  * Basic dependency resolution for packages [#1842](https://github.com/crossplane/crossplane/issues/1842)
+    * i.e. automatically install the providers a configuration needs.
+
+* Providers
+  * AWS Provider
+    * more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+  * Helm Provider
+    * v1beta1 APIs
+
+  * Code Generation of Providers (work-in-progress)
+    * AWS ACK Code Generation of the Crossplane provider-aws
+      * initial auto generated resources
+    * Azure Code Generation of the Crossplane provider-azure
+      * initial auto generated resources
+    * Clouds that don't have code gen pipelines
+      * Wrap stateless Terraform providers (work-in-progress) [#262](https://github.com/crossplane/crossplane/issues/262)
+
+* Open Application Model (OAM)
+  * APIs to v1beta1
+  * Hardening
 
 ## Roadmap
-* Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879) 
 
-* Integration testing
-  * Integration testing support [#1033](https://github.com/crossplane/crossplane/issues/1033)
-  * AWS Stack integration tests 
-  * Azure Stack integration tests 
+* Enhanced integration testing [#1033](https://github.com/crossplane/crossplane/issues/1033)
 
-* Versioning and upgrade support [#879](https://github.com/crossplane/crossplane/issues/879), [#435](https://github.com/crossplane/crossplane/issues/435)
+* Managed resources can accept an array of resource references for cross-resource references (CRR)
 
-* GCP: DNS, SSL, and Ingress support #1123 [#1123](https://github.com/crossplane/crossplane/issues/1123)
+* Per-namespace mapping of IRSA and workload identity for finer grained infra permissions in multi-tenant clusters
 
-* More real-world Stacks into multiple clouds
-  * Refresh existing GitLab Stack to use latest Crossplane [#866](https://github.com/crossplane/crossplane/issues/866)
-  * Additional real-world apps and scenarios [#868](https://github.com/crossplane/crossplane/issues/868)
-  * Stacks Manager support for private repos and robot account credentials
+* Providers
+  * Code Generation of Providers (100% coverage)
+    * AWS ACK Code Generation of the Crossplane provider-aws
+      * auto generate all available types in the [aws-sdk-go/models/apis](https://github.com/aws/aws-sdk-go/blob/master/models/apis)
+    * Azure Code Generation of the Crossplane provider-azure
+      * auto generate all available types from the Azure metadata.
+    * Clouds that don't have code gen pipelines
+      * Wrap stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
 
-* UX enhancements for debuggability and observability
-  * Visible error messages for all error cases surfaced in claims and/or eventing
-  * Static provisioning examples to highlight simplicity. 
+  * GCP Provider
+    * Explore code generation of a native Crossplane provider-gcp
+    * GCP: DNS, SSL, and Ingress support #1123 [#1123](https://github.com/crossplane/crossplane/issues/1123)
+    * GCP storage buckets to v1beta1 [crossplane/provider-gcp#130](https://github.com/crossplane/provider-gcp/issues/130)
 
- * v1beta1 Services APIs
-   * Incorporate beta1 feedback
-   * Upgrade other supported services to v1beta1 (e.g. Buckets, etc.)
-   * Code generation of API types, controller scaffolding to further streamline additional services
-   * GCP storage buckets to v1beta1 [crossplane/provider-gcp#130](https://github.com/crossplane/provider-gcp/issues/130)
-   * AWS S3 buckets [crossplane/provider-aws#99](https://github.com/crossplane/provider-aws/issues/99)
+  * Expanded Rook support
+    * Support additional Rook storage providers
+    * Install & configure Rook into a target cluster
 
-* Expanded Rook support
-  * Support additional Rook storage providers
-  * Install & configure Rook into a target cluster
+  * Additional providers being incubated in https://github.com/crossplane-contrib
 
- * GitLab Auto DevOps integration phase 2 - provision managed services from GitLab pipelines
-   * Currently the auto deploy app only supports PostgreSQL DBs
-   * Support additional managed services from GitLab ADO pipelines
-   * Add support for MySQL, Redis, Buckets, and more. (GitLab 12.6)
+* Composition
+  * Additional conversion strategies for XRDs with multiple version of an XR defined
+  * `CustomComposition` support for use with cdk8s sidecar, TYY, and others [#1678](https://github.com/crossplane/crossplane/issues/1678)
 
-* Policy-based secure connectivity & environment configuration
-  * Additional secure connectivity strategies for GCP, AWS, Azure
-  * Reuse of resource classes across environments
+* Package Manager
+  * Conversion webhooks to support installing multiple API versions at the same time
 
-* Enhanced Workload Scheduling
-  * Region and cloud provider aware scheduling [#279](https://github.com/crossplane/crossplane/issues/279)
-  * Delayed binding of resources to support co-location in same region [#156](https://github.com/crossplane/crossplane/issues/156)
-  * Workloads declare their resource usage [#115](https://github.com/crossplane/crossplane/issues/115)
-  * Optimization for many resource attributes [#287](https://github.com/crossplane/crossplane/issues/287)
-  * Extensibility points to allow external scheduler integration [#288](https://github.com/crossplane/crossplane/issues/288)
-
-* Heterogeneous application support
-  * Serverless (functions) [#285](https://github.com/crossplane/crossplane/issues/285)
-  * Containers and other Kubernetes deployment types (e.g., Helm charts) [#158](https://github.com/crossplane/crossplane/issues/158)
-  * Virtual Machines [#286](https://github.com/crossplane/crossplane/issues/286)
-
-* New Stateful managed services across AWS, Azure, and GCP
-  * MongoDB [#280](https://github.com/crossplane/crossplane/issues/280)
-  * Message Queues [#281](https://github.com/crossplane/crossplane/issues/281)
-
-* Auto-scaling
-  * Cluster auto-scaler [#159](https://github.com/crossplane/crossplane/issues/159)
-  * Node pools and worker nodes [#152](https://github.com/crossplane/crossplane/issues/152)
+* GitLab Auto DevOps Phase 2 - provision managed services from GitLab pipelines
+  * Currently the auto deploy app only supports PostgreSQL DBs
+  * Support additional managed services from GitLab ADO pipelines
+  * Add support for MySQL, Redis, Buckets, and more.
 
 * Ease-of-use and improved experience
   * Standalone mode allowing Crossplane to run in a single container or process [#274](https://github.com/crossplane/crossplane/issues/274)
-
-* [Reliability and production quality](https://github.com/crossplane/crossplane/labels/reliability)
-  * Controllers recover failure conditions [#56](https://github.com/crossplane/crossplane/issues/56)
-  * Controller High availability (HA) [#5](https://github.com/crossplane/crossplane/issues/5)
-  * Core Infrastructure Initiative (CII) best practices [#58](https://github.com/crossplane/crossplane/issues/58)
-* [Performance and Efficiency](https://github.com/crossplane/crossplane/labels/performance)
-  * 2-way reconciliation with external resources [#290](https://github.com/crossplane/crossplane/issues/290)
-  * Events/notifications from cloud provider on changes to external resources to trigger reconciliation [#289](https://github.com/crossplane/crossplane/issues/289)
