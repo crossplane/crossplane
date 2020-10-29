@@ -51,6 +51,8 @@ type ControllerConfigSpec struct {
 	// If specified, these secrets will be passed to individual puller implementations for them to use. For example,
 	// in the case of docker, only DockerConfig type secrets are honored.
 	// More info: https://kubernetes.io/docs/concepts/containers/images#specifying-imagepullsecrets-on-a-pod
+	// Setting ImagePullSecrets will replace any secrets that have been
+	// propagated to a controller Deployment, typically via packagePullSecrets.
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	// Image pull policy.
