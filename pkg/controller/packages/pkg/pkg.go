@@ -684,7 +684,7 @@ func (h *packageHandler) processRBAC(ctx context.Context) error {
 }
 
 func (h *packageHandler) isNamespaced() bool {
-	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) {
+	switch apiextensions.ResourceScope(h.ext.Spec.PermissionScope) { // nolint:exhaustive
 	case apiextensions.NamespaceScoped, apiextensions.ResourceScope(""):
 		return true
 	}

@@ -57,7 +57,7 @@ func (c *Command) Run(log logging.Logger) error {
 			return errors.Wrap(err, "Cannot create output file")
 		}
 		// https://groups.google.com/d/msg/golang-nuts/Hj7-HV-W_iU/ZqlBiz0REpIJ
-		defer f.Close() // nolint:errcheck
+		defer f.Close() // nolint:errcheck,gosec
 		outFile = f
 	}
 	log.Debug("Unpacking package", "to", outFile.Name())

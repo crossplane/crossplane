@@ -89,7 +89,7 @@ func behaviorStep(sp PackagePackager) walker.Step {
 		cleanPath := filepath.Clean(behavior.Source.Path)
 		switch cleanPath {
 		case "/", ".", "":
-			return errors.New(fmt.Sprintf("Behavior source path cannot be empty, '/', or '.'"))
+			return errors.New("Behavior source path cannot be empty, '/', or '.'")
 		}
 		behavior.Source.Path = cleanPath
 		if behavior.Engine.ControllerImage == "" {
