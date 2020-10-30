@@ -629,7 +629,7 @@ func (h *packageHandler) createClusterRoleBinding(ctx context.Context, clusterRo
 		},
 		RoleRef: rbacv1.RoleRef{APIGroup: rbacv1.GroupName, Kind: "ClusterRole", Name: clusterRoleName},
 		Subjects: []rbacv1.Subject{
-			{Name: h.ext.Name, Namespace: h.ext.Namespace, Kind: rbacv1.ServiceAccountKind},
+			{Name: strings.ReplaceAll(h.ext.Name, ".", "-"), Namespace: h.ext.Namespace, Kind: rbacv1.ServiceAccountKind},
 		},
 	}
 	if err := h.kube.Create(ctx, crb); err != nil && !kerrors.IsAlreadyExists(err) {
@@ -648,7 +648,7 @@ func (h *packageHandler) processRBAC(ctx context.Context) error {
 	// create service account
 	sa := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            h.ext.Name,
+			Name:            strings.ReplaceAll(h.ext.Name, ".", "-"),
 			Namespace:       h.ext.Namespace,
 			OwnerReferences: []metav1.OwnerReference{owner},
 			Annotations:     h.ext.Spec.ServiceAccountAnnotations(),
@@ -853,7 +853,7 @@ func (h *packageHandler) prepareDeployment(d *apps.Deployment) {
 	d.SetNamespace(h.ext.Namespace)
 	meta.AddLabels(d, labels)
 
-	d.Spec.Template.Spec.ServiceAccountName = h.ext.Name
+	d.Spec.Template.Spec.ServiceAccountName = strings.ReplaceAll(h.ext.Name, ".", "-")
 
 	if !h.allowFullDeployment {
 		d.Spec.Template.Spec.SecurityContext = &corev1.PodSecurityContext{
