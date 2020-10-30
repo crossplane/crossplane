@@ -1,0 +1,48 @@
+name: Promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v0.1.0)'
+        required: true
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'alpha'
+
+env:
+  # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
+  # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
+  # credentials have been provided before trying to run steps that need them.
+  DOCKER_USR: ${{ secrets.DOCKER_USR }}
+  AWS_USR: ${{ secrets.AWS_USR }}
+
+jobs:
+  promote-artifacts:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+
+      - name: Fetch History
+        run: git fetch --prune --unshallow
+
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          username: ${{ secrets.DOCKER_USR }}
+          password: ${{ secrets.DOCKER_PSW }}
+
+      - name: Promote Artifacts in S3 and Docker Hub
+        if: env.AWS_USR != '' && env.DOCKER_USR != ''
+        run: make -j2 promote BRANCH_NAME=${GITHUB_REF##*/}
+        env:
+          VERSION: ${{ github.event.inputs.version }}
+          CHANNEL: ${{ github.event.inputs.channel }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}

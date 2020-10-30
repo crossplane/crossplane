@@ -243,7 +243,7 @@ func (jc *packageInstallJobCompleter) readPodLogs(namespace, name string) (*byte
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get logs request stream from pod %s", name)
 	}
-	defer func() { _ = podLogs.Close() }()
+	defer func() { _ = podLogs.Close() }() // nolint:gosec
 
 	b := new(bytes.Buffer)
 	if _, err = io.Copy(b, podLogs); err != nil {
