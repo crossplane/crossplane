@@ -108,6 +108,7 @@ Kubernetes API.
 * Discuss Crossplane on [Slack] or our [developer mailing list].
 * Follow us on [Twitter], or contact us via [Email].
 * Join our regular community meetings.
+* Provide feedback on our [roadmap](ROADMAP.md).
 
 The Crossplane community meeting takes place every other [Monday at 10:00am
 Pacific Time]. Anyone who wants to discuss the direction of the project, design
