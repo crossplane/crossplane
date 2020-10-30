@@ -13,7 +13,7 @@ resources and controllers needed to deploy and configure Crossplane.
 
 ## Pre-requisites
 
-* [Kubernetes cluster], minimum version `v1.15.0+`
+* [Kubernetes cluster], minimum version `v1.16.0+`
 * [Helm], minimum version `v3.0.0+`.
 
 ## Installation
