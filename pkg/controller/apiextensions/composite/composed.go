@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composed
+package composite
 
 import (
 	"context"
@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -31,15 +32,20 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
+// Error strings
 const (
-	errUnmarshal  = "cannot unmarshal base template"
-	errFmtPatch   = "cannot apply the patch at index %d"
-	errGetSecret  = "cannot get connection secret of composed resource"
-	errNamePrefix = "name prefix is not found in labels"
+	errApply       = "cannot apply composed resource"
+	errFetchSecret = "cannot fetch connection secret"
+	errReadiness   = "cannot check whether composed resource is ready"
+	errUnmarshal   = "cannot unmarshal base template"
+	errFmtPatch    = "cannot apply the patch at index %d"
+	errGetSecret   = "cannot get connection secret of composed resource"
+	errNamePrefix  = "name prefix is not found in labels"
+	errName        = "cannot use dry-run create to name composed resource"
 )
 
 // Label keys.
@@ -49,20 +55,39 @@ const (
 	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
-// ConfigureFn is a function that implements Configurator interface.
-type ConfigureFn func(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
+// Observation is the result of composed reconciliation.
+type Observation struct {
+	Ref               corev1.ObjectReference
+	ConnectionDetails managed.ConnectionDetails
+	Ready             bool
+}
 
-// Configure calls ConfigureFn.
-func (c ConfigureFn) Configure(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
+// A RenderFn renders the supplied composed resource.
+type RenderFn func(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
+
+// Render calls RenderFn.
+func (c RenderFn) Render(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	return c(cp, cd, t)
 }
 
-// DefaultConfigurator configures the composed resource with given raw template
-// and metadata information from composite resource.
-type DefaultConfigurator struct{}
+// An APIDryRunRenderer renders composed resources. It may perform a dry-run
+// create against an API server in order to name and validate the rendered
+// resource.
+type APIDryRunRenderer struct {
+	client client.Client
+}
 
-// Configure applies the raw template and sets name and generateName.
-func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
+// NewAPIDryRunRenderer returns a Renderer of composed resources that may
+// perform a dry-run create against an API server in order to name and validate
+// it.
+func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
+	return &APIDryRunRenderer{client: c}
+}
+
+// Render the supplied composed resource using the supplied composite resource
+// and template. The rendered resource may be submitted to an API server via a
+// dry run create in order to name and validate it.
+func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	// Any existing name will be overwritten when we unmarshal the template. We
 	// store it here so that we can reset it after unmarshalling.
 	name := cd.GetName()
@@ -85,47 +110,49 @@ func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Compose
 	cd.SetGenerateName(cp.GetLabels()[LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
 	cd.SetNamespace(namespace)
-	return nil
-}
-
-// OverlayFn is a function that implements OverlayApplicator interface.
-type OverlayFn func(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
-
-// Overlay calls OverlayFn.
-func (o OverlayFn) Overlay(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
-	return o(cp, cd, t)
-}
-
-// DefaultOverlayApplicator applies patches to the composed resource using the
-// values on Composite resource and field bindings in ComposedTemplate.
-type DefaultOverlayApplicator struct{}
-
-// Overlay applies patches to composed resource.
-func (*DefaultOverlayApplicator) Overlay(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	for i, p := range t.Patches {
 		if err := p.Apply(cp, cd); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}
-	return nil
+
+	// We do this last to ensure that a Composition cannot influence owner (and
+	// especially controller) references.
+	or := meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind()))
+	cd.SetOwnerReferences([]v1.OwnerReference{or})
+
+	// We don't want to dry-run create a resource that can't be named by the API
+	// server due to a missing generate name. We also don't want to create one
+	// that is already named, because doing so will result in an error. The API
+	// server seems to respond with a 500 ServerTimeout error for all dry-run
+	// failures, so we can't just perform a dry-run and ignore 409 Conflicts for
+	// resources that are already named.
+	if cd.GetName() != "" || cd.GetGenerateName() == "" {
+		return nil
+	}
+
+	// The API server returns an available name derived from generateName when
+	// we perform a dry-run create. This name is likely (but not guaranteed) to
+	// be available when we create the composed resource. If the API server
+	// generates a name that is unavailable it will return a 500 ServerTimeout
+	// error.
+	return errors.Wrap(r.client.Create(ctx, cd, client.DryRunAll), errName)
 }
 
-// FetchFn is a function that implements the ConnectionDetailsFetcher interface.
-type FetchFn func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error)
-
-// Fetch calls FetchFn.
-func (f FetchFn) Fetch(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
-	return f(ctx, cd, t)
-}
-
-// APIConnectionDetailsFetcher fetches the connection secret of given composed
-// resource if it has a connection secret reference.
+// An APIConnectionDetailsFetcher may use the API server to read connection
+// details from a Secret.
 type APIConnectionDetailsFetcher struct {
 	client client.Client
 }
 
-// Fetch returns the connection secret details of composed resource.
-func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
+// NewAPIConnectionDetailsFetcher returns a ConnectionDetailsFetcher that may
+// use the API server to read connection details from a Secret.
+func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetcher {
+	return &APIConnectionDetailsFetcher{client: c}
+}
+
+// FetchConnectionDetails of the supplied composed resource, if any.
+func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
 	sref := cd.GetWriteConnectionSecretToReference()
 	if sref == nil {
 		return nil, nil
@@ -178,8 +205,8 @@ func IsReady(_ context.Context, cd resource.Composed, t v1beta1.ComposedTemplate
 		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
 	}
 	// TODO(muvaf): We can probably get rid of resource.Composed interface and fake.Composed
-	// structs and use *runtimecomposed.Unstructured everywhere including tests.
-	u, ok := cd.(*runtimecomposed.Unstructured)
+	// structs and use *composed.Unstructured everywhere including tests.
+	u, ok := cd.(*composed.Unstructured)
 	if !ok {
 		return false, errors.New("composed resource has to be Unstructured type")
 	}
