@@ -150,6 +150,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1alpha1.AutomaticActivation)
+								want.SetConditions(v1alpha1.UnknownHealth())
 								want.SetConditions(v1alpha1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -198,6 +199,7 @@ func TestReconcile(t *testing.T) {
 								want.SetCurrentRevision("test-1234567")
 								want.SetActivationPolicy(&v1alpha1.AutomaticActivation)
 								want.SetPackagePullPolicy(&pullAlways)
+								want.SetConditions(v1alpha1.UnknownHealth())
 								want.SetConditions(v1alpha1.Active())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -244,6 +246,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1alpha1.ConfigurationGroupVersionKind)
 								want.SetActivationPolicy(&v1alpha1.ManualActivation)
 								want.SetCurrentRevision("test-1234567")
+								want.SetConditions(v1alpha1.UnknownHealth())
 								want.SetConditions(v1alpha1.Inactive())
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
