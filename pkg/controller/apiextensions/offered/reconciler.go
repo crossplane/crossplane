@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -393,6 +394,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.claim.Start(claim.ControllerName(d.GetName()), o,
 		controller.For(cm, &handler.EnqueueRequestForObject{}),
 		controller.For(cp, &EnqueueRequestForClaim{}),
+		controller.For(&corev1.Secret{}, &EnqueueRequestForControllersClaim{r.client}),
 	); err != nil {
 		log.Debug(errStartController, "error", err)
 		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errStartController)))

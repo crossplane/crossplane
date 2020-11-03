@@ -20,14 +20,19 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
@@ -106,5 +111,90 @@ func TestAddClaim(t *testing.T) {
 
 	for _, tc := range cases {
 		addClaim(tc.obj, tc.queue)
+	}
+}
+
+func TestAddControllersClaim(t *testing.T) {
+	errBoom := errors.New("boom")
+	ctrl := true
+	ns := "coolns"
+	name := "coolname"
+
+	cases := map[string]struct {
+		client client.Reader
+		obj    runtime.Object
+		queue  adder
+	}{
+		"ObjectIsNotASecret": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+		},
+		"ObjectIsNotAConnectioNSecret": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			obj:   &corev1.Secret{},
+		},
+		"ObjectHasNoController": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			obj:   &corev1.Secret{Type: resource.SecretTypeConnection},
+		},
+		"GetControllerError": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(errBoom),
+			},
+			obj: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: "v",
+					Kind:       "k",
+					Name:       "n",
+					Controller: &ctrl,
+				}}},
+				Type: resource.SecretTypeConnection,
+			},
+		},
+		"ControllerHasNilClaimReference": {
+			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil),
+			},
+			obj: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: "v",
+					Kind:       "k",
+					Name:       "n",
+					Controller: &ctrl,
+				}}},
+				Type: resource.SecretTypeConnection,
+			},
+		},
+		"ControllerHasClaimReference": {
+			queue: addFn(func(got interface{}) {
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
+				if diff := cmp.Diff(want, got); diff != "" {
+					t.Errorf("-want, +got:\n%s", diff)
+				}
+			}),
+			client: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+					cp := composite.New()
+					cp.SetClaimReference(&corev1.ObjectReference{Namespace: ns, Name: name})
+					*obj.(*composite.Unstructured) = *cp
+					return nil
+				}),
+			},
+			obj: &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: "v",
+					Kind:       "k",
+					Name:       "n",
+					Controller: &ctrl,
+				}}},
+				Type: resource.SecretTypeConnection,
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		e := &EnqueueRequestForControllersClaim{client: tc.client}
+		e.addClaim(tc.obj, tc.queue)
 	}
 }
