@@ -34,11 +34,12 @@ const (
 
 // Reasons a package is or is not installed.
 const (
-	ReasonUnpacking runtimev1alpha1.ConditionReason = "UnpackingPackage"
-	ReasonInactive  runtimev1alpha1.ConditionReason = "InactivePackageRevision"
-	ReasonActive    runtimev1alpha1.ConditionReason = "ActivePackageRevision"
-	ReasonUnhealthy runtimev1alpha1.ConditionReason = "UnhealthyPackageRevision"
-	ReasonHealthy   runtimev1alpha1.ConditionReason = "HealthyPackageRevision"
+	ReasonUnpacking     runtimev1alpha1.ConditionReason = "UnpackingPackage"
+	ReasonInactive      runtimev1alpha1.ConditionReason = "InactivePackageRevision"
+	ReasonActive        runtimev1alpha1.ConditionReason = "ActivePackageRevision"
+	ReasonUnhealthy     runtimev1alpha1.ConditionReason = "UnhealthyPackageRevision"
+	ReasonHealthy       runtimev1alpha1.ConditionReason = "HealthyPackageRevision"
+	ReasonUnknownHealth runtimev1alpha1.ConditionReason = "UnknownPackageRevisionHealth"
 )
 
 // Unpacking indicates that the package manager is waiting for a package
@@ -91,5 +92,15 @@ func Healthy() runtimev1alpha1.Condition {
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonHealthy,
+	}
+}
+
+// UnknownHealth indicates that the health of the current revision is unknown.
+func UnknownHealth() runtimev1alpha1.Condition {
+	return runtimev1alpha1.Condition{
+		Type:               TypeHealthy,
+		Status:             corev1.ConditionUnknown,
+		LastTransitionTime: metav1.Now(),
+		Reason:             ReasonUnknownHealth,
 	}
 }

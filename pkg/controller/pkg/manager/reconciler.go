@@ -65,7 +65,8 @@ const (
 	errUpdateStatus                  = "cannot update package status"
 	errUpdateInactivePackageRevision = "cannot update inactive package revision"
 
-	errUnhealthyPackageRevision = "current package revision is unhealthy"
+	errUnhealthyPackageRevision     = "current package revision is unhealthy"
+	errUnknownPackageRevisionHealth = "current package revision health is unknown"
 )
 
 // Event reasons.
@@ -324,6 +325,10 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionFalse {
 		p.SetConditions(v1alpha1.Unhealthy())
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
+	}
+	if pr.GetCondition(v1alpha1.TypeHealthy).Status == corev1.ConditionUnknown {
+		p.SetConditions(v1alpha1.UnknownHealth())
+		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
 	// Create the non-existent package revision.
