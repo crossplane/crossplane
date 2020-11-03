@@ -26,8 +26,10 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -76,6 +78,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		Named(name).
 		For(&v1alpha1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
+		Watches(&source.Kind{Type: &extv1.CustomResourceDefinition{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ProviderRevision{}}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
