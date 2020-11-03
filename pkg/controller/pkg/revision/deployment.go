@@ -131,6 +131,9 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1alpha1.
 		if cc.Spec.ResourceRequirements != nil {
 			d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
 		}
+		if len(cc.Spec.Args) > 0 {
+			d.Spec.Template.Spec.Containers[0].Args = cc.Spec.Args
+		}
 		if len(cc.Spec.EnvFrom) > 0 {
 			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
 		}

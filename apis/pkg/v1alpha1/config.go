@@ -96,6 +96,16 @@ type ControllerConfigSpec struct {
 	// More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
 	// +optional
 	ResourceRequirements *corev1.ResourceRequirements `json:"resources,omitempty"`
+	// Arguments to the entrypoint.
+	// The docker image's CMD is used if this is not provided.
+	// Variable references $(VAR_NAME) are expanded using the container's environment. If a variable
+	// cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax
+	// can be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded,
+	// regardless of whether the variable exists or not.
+	// Cannot be updated.
+	// More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell
+	// +optional
+	Args []string `json:"args,omitempty"`
 	// List of sources to populate environment variables in the container.
 	// The keys defined within a source must be a C_IDENTIFIER. All invalid keys
 	// will be reported as an event when the container is starting. When a key exists in multiple
