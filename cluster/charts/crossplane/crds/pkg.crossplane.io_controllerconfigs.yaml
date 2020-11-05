@@ -377,6 +377,11 @@ spec:
                         type: array
                     type: object
                 type: object
+              args:
+                description: 'Arguments to the entrypoint. The docker image''s CMD is used if this is not provided. Variable references $(VAR_NAME) are expanded using the container''s environment. If a variable cannot be resolved, the reference in the input string will be unchanged. The $(VAR_NAME) syntax can be escaped with a double $$, ie: $$(VAR_NAME). Escaped references will never be expanded, regardless of whether the variable exists or not. Cannot be updated. More info: https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/#running-a-command-in-a-shell'
+                items:
+                  type: string
+                type: array
               env:
                 description: List of environment variables to set in the container. Cannot be updated.
                 items:
@@ -584,6 +589,10 @@ spec:
               priorityClassName:
                 description: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.
                 type: string
+              replicas:
+                description: 'Number of desired pods. This is a pointer to distinguish between explicit zero and not specified. Defaults to 1. Note: If more than 1 replica is set and leader election is not enabled then controllers could conflict. Environment variable "LEADER_ELECTION" can be used to enable leader election process.'
+                format: int32
+                type: integer
               resources:
                 description: 'Compute Resources required by this container. Cannot be updated. More info: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/'
                 properties:
