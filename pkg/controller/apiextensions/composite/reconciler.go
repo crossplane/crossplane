@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -83,10 +84,11 @@ type ConnectionSecretFilterer interface {
 // supplied resource. Publishers must handle the case in which
 // the supplied ConnectionDetails are empty.
 type ConnectionPublisher interface {
-	// PublishConnection details for the supplied resource. Publishing
-	// must be additive; i.e. if details (a, b, c) are published, subsequently
+	// PublishConnection details for the supplied resource. Publishing must be
+	// additive; i.e. if details (a, b, c) are published, subsequently
 	// publishing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+	// Returns 'published' if the publish was not a no-op.
+	PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
 
 	// UnpublishConnection details for the supplied resource.
 	UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
@@ -305,10 +307,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	if err := r.composite.PublishConnection(ctx, cr, conn); err != nil {
+	published, err := r.composite.PublishConnection(ctx, cr, conn)
+	if err != nil {
 		log.Debug(errPublish, "error", err)
 		r.record.Event(cr, event.Warning(reasonPublish, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+	if published {
+		cr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 	}
 
 	// TODO(muvaf): Report which resources are not ready.

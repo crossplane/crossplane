@@ -131,6 +131,12 @@ func (b BinderFns) Unbind(ctx context.Context, cm resource.CompositeClaim, cp re
 	return b.UnbindFn(ctx, cm, cp)
 }
 
+// A ConnectionPropagator is responsible for propagating information required to
+// connect to a resource.
+type ConnectionPropagator interface {
+	PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+}
+
 // A Reconciler reconciles composite resource claims by creating exactly one kind of
 // concrete composite resource. Each composite resource claim kind should create an instance
 // of this controller for each composite resource kind they can bind to, using
@@ -156,7 +162,7 @@ type crComposite struct {
 	CompositeConfigurator
 	CompositeCreator
 	CompositeDeleter
-	resource.ConnectionPropagator
+	ConnectionPropagator
 }
 
 func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
@@ -164,7 +170,7 @@ func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
 		CompositeConfigurator: CompositeConfiguratorFn(Configure),
 		CompositeCreator:      NewAPICompositeCreator(c, t),
 		CompositeDeleter:      NewAPICompositeDeleter(c),
-		ConnectionPropagator:  resource.NewAPIConnectionPropagator(c, t),
+		ConnectionPropagator:  NewAPIConnectionPropagator(c, t),
 	}
 }
 
@@ -193,7 +199,7 @@ func WithCompositeCreator(c CompositeCreator) ReconcilerOption {
 
 // WithConnectionPropagator specifies which ConnectionPropagator should be used
 // to propagate resource connection details to their claim.
-func WithConnectionPropagator(p resource.ConnectionPropagator) ReconcilerOption {
+func WithConnectionPropagator(p ConnectionPropagator) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.composite.ConnectionPropagator = p
 	}
@@ -439,7 +445,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log.Debug("Successfully bound composite resource")
 	record.Event(cm, event.Normal(reasonBind, "Successfully bound composite resource"))
 
-	if err := r.composite.PropagateConnection(ctx, cm, cp); err != nil {
+	propagated, err := r.composite.PropagateConnection(ctx, cm, cp)
+	if err != nil {
 		// If we didn't hit this error last time we'll be requeued implicitly
 		// due to the status update. Otherwise we want to retry after a brief
 		// wait in case this was a transient error, or the resource connection
@@ -448,6 +455,9 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		record.Event(cm, event.Warning(reasonPropagate, err))
 		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+	if propagated {
+		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 	}
 
 	// We have a watch on both the claim and its composite, so there's no

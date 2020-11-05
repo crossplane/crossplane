@@ -173,6 +173,12 @@ func CompositeResourceStatusProps() map[string]v1.JSONSchemaProps {
 				},
 			},
 		},
+		"connectionDetails": {
+			Type: "object",
+			Properties: map[string]v1.JSONSchemaProps{
+				"lastPublishedTime": {Type: "string", Format: "date-time"},
+			},
+		},
 	}
 }
 

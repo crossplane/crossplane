@@ -28,6 +28,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -250,6 +251,12 @@ func TestForCompositeResource(t *testing.T) {
 													"type":               {Type: "string"},
 												},
 											},
+										},
+									},
+									"connectionDetails": {
+										Type: "object",
+										Properties: map[string]v1.JSONSchemaProps{
+											"lastPublishedTime": {Type: "string", Format: "date-time"},
 										},
 									},
 								},
@@ -547,6 +554,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 														"type":               {Type: "string"},
 													},
 												},
+											},
+										},
+										"connectionDetails": {
+											Type: "object",
+											Properties: map[string]v1.JSONSchemaProps{
+												"lastPublishedTime": {Type: "string", Format: "date-time"},
 											},
 										},
 									},
