@@ -458,11 +458,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 	if propagated {
 		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
+		log.Debug("Successfully propagated connection details from composite resource")
+		record.Event(cm, event.Normal(reasonPropagate, "Successfully propagated connection details from composite resource"))
 	}
 
 	// We have a watch on both the claim and its composite, so there's no
 	// need to requeue here.
-	record.Event(cm, event.Normal(reasonPropagate, "Successfully propagated connection details from composite resource"))
 	cm.SetConditions(v1alpha1.Available())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 }

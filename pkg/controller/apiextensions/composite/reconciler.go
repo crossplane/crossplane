@@ -315,6 +315,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 	if published {
 		cr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
+		log.Debug("Successfully published connection details")
+		r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
 	// TODO(muvaf): Report which resources are not ready.
@@ -328,7 +330,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		wait = shortWait
 	}
 
-	r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
 	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
 	return reconcile.Result{RequeueAfter: wait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 }
