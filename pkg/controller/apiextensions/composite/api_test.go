@@ -57,11 +57,15 @@ func TestPublishConnection(t *testing.T) {
 		filter     []string
 		c          managed.ConnectionDetails
 	}
+	type want struct {
+		published bool
+		err       error
+	}
 
 	cases := map[string]struct {
 		reason string
 		args   args
-		err    error
+		want   want
 	}{
 		"ResourceDoesNotPublishSecret": {
 			reason: "A managed resource with a nil GetWriteConnectionSecretToReference should not publish a secret",
@@ -75,10 +79,27 @@ func TestPublishConnection(t *testing.T) {
 				applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
 				o:          owner,
 			},
-			err: errors.Wrap(errBoom, errApplySecret),
+			want: want{
+				err: errors.Wrap(errBoom, errApplySecret),
+			},
 		},
-		"Success": {
-			reason: "A successful application of the connection secret should result in no error",
+		"SuccessfulNoOp": {
+			reason: "If application would be a no-op we should not publish a secret.",
+			args: args{
+				applicator: resource.ApplyFn(func(ctx context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+					// Simulate a no-op change by not allowing the update.
+					return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
+				}),
+				o:      owner,
+				c:      managed.ConnectionDetails{"cool": {42}, "onlyme": {41}},
+				filter: []string{"onlyme"},
+			},
+			want: want{
+				published: false,
+			},
+		},
+		"SuccessfulPublish": {
+			reason: "if the secret changed we should publish it.",
 			args: args{
 				applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
 					want := resource.ConnectionSecretFor(owner, owner.GetObjectKind().GroupVersionKind())
@@ -92,15 +113,21 @@ func TestPublishConnection(t *testing.T) {
 				c:      managed.ConnectionDetails{"cool": {42}, "onlyme": {41}},
 				filter: []string{"onlyme"},
 			},
+			want: want{
+				published: true,
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := &APIFilteredSecretPublisher{tc.args.applicator, tc.args.filter}
-			got := a.PublishConnection(context.Background(), tc.args.o, tc.args.c)
-			if diff := cmp.Diff(tc.err, got, test.EquateErrors()); diff != "" {
+			got, err := a.PublishConnection(context.Background(), tc.args.o, tc.args.c)
+			if diff := cmp.Diff(tc.want.published, got); diff != "" {
 				t.Errorf("\n%s\nPublish(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nPublish(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

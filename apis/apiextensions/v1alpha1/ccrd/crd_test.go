@@ -252,6 +252,12 @@ func TestForCompositeResource(t *testing.T) {
 											},
 										},
 									},
+									"connectionDetails": {
+										Type: "object",
+										Properties: map[string]extv1.JSONSchemaProps{
+											"lastPublishedTime": {Type: "string", Format: "date-time"},
+										},
+									},
 								},
 							},
 						},
@@ -547,6 +553,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 														"type":               {Type: "string"},
 													},
 												},
+											},
+										},
+										"connectionDetails": {
+											Type: "object",
+											Properties: map[string]extv1.JSONSchemaProps{
+												"lastPublishedTime": {Type: "string", Format: "date-time"},
 											},
 										},
 									},

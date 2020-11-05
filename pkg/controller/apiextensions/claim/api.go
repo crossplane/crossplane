@@ -19,8 +19,12 @@ package claim
 import (
 	"context"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -29,11 +33,14 @@ import (
 
 // Error strings.
 const (
-	errCreateComposite = "cannot create composite resource"
-	errUpdateClaim     = "cannot update composite resource claim"
-	errUpdateComposite = "cannot update composite resource"
-	errDeleteComposite = "cannot delete composite resource"
-	errBindConflict    = "cannot bind composite resource that references a different claim"
+	errCreateComposite      = "cannot create composite resource"
+	errUpdateClaim          = "cannot update composite resource claim"
+	errUpdateComposite      = "cannot update composite resource"
+	errDeleteComposite      = "cannot delete composite resource"
+	errBindConflict         = "cannot bind composite resource that references a different claim"
+	errGetSecret            = "cannot get composite resource's connection secret"
+	errSecretConflict       = "cannot establish control of existing connection secret"
+	errCreateOrUpdateSecret = "cannot create or update connection secret"
 )
 
 // An APICompositeCreator creates resources by submitting them to a Kubernetes
@@ -116,4 +123,64 @@ func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp res
 	// Propagate back the final name of the composite resource to the claim.
 	meta.SetExternalName(cm, meta.GetExternalName(cp))
 	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
+}
+
+// An APIConnectionPropagator propagates connection details by reading
+// them from and writing them to a Kubernetes API server.
+type APIConnectionPropagator struct {
+	client resource.ClientApplicator
+	typer  runtime.ObjectTyper
+}
+
+// NewAPIConnectionPropagator returns a new APIConnectionPropagator.
+func NewAPIConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIConnectionPropagator {
+	return &APIConnectionPropagator{
+		client: resource.ClientApplicator{Client: c, Applicator: resource.NewAPIUpdatingApplicator(c)},
+		typer:  t,
+	}
+}
+
+// PropagateConnection details from the supplied resource.
+func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (bool, error) {
+	// Either from does not expose a connection secret, or to does not want one.
+	if from.GetWriteConnectionSecretToReference() == nil || to.GetWriteConnectionSecretToReference() == nil {
+		return false, nil
+	}
+
+	n := types.NamespacedName{
+		Namespace: from.GetWriteConnectionSecretToReference().Namespace,
+		Name:      from.GetWriteConnectionSecretToReference().Name,
+	}
+	fs := &corev1.Secret{}
+	if err := a.client.Get(ctx, n, fs); err != nil {
+		return false, errors.Wrap(err, errGetSecret)
+	}
+
+	// Make sure 'from' is the controller of the connection secret it references
+	// before we propagate it. This ensures a resource cannot use Crossplane to
+	// circumvent RBAC by propagating a secret it does not own.
+	if c := metav1.GetControllerOf(fs); c == nil || c.UID != from.GetUID() {
+		return false, errors.New(errSecretConflict)
+	}
+
+	ts := resource.LocalConnectionSecretFor(to, resource.MustGetKind(to, a.typer))
+	ts.Data = fs.Data
+
+	err := a.client.Apply(ctx, ts,
+		resource.ConnectionSecretMustBeControllableBy(to.GetUID()),
+		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
+			// We consider the update to be a no-op and don't allow it if the
+			// current and existing secret data are identical.
+			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data)
+		}),
+	)
+	if resource.IsNotAllowed(err) {
+		// The update was not allowed because it was a no-op.
+		return false, nil
+	}
+	if err != nil {
+		return false, errors.Wrap(err, errCreateOrUpdateSecret)
+	}
+
+	return true, nil
 }
