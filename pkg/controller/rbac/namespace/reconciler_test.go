@@ -146,7 +146,31 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"Successful": {
+		"SuccessfulNoOp": {
+			reason: "We should not requeue when no Roles need applying.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:  test.NewMockGetFn(nil),
+							MockList: test.NewMockListFn(nil),
+						},
+						Applicator: resource.ApplyFn(func(ctx context.Context, o runtime.Object, ao ...resource.ApplyOption) error {
+							// Simulate a no-op change by not allowing the update.
+							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
+						}),
+					}),
+					WithRoleRenderer(RoleRenderFn(func(*corev1.Namespace, []rbacv1.ClusterRole) []rbacv1.Role {
+						return []rbacv1.Role{{}}
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulApply": {
 			reason: "We should not requeue when we successfully apply our Roles.",
 			args: args{
 				mgr: &fake.Manager{},
@@ -181,6 +205,68 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestRolesDiffer(t *testing.T) {
+	cases := map[string]struct {
+		current runtime.Object
+		desired runtime.Object
+		want    bool
+	}{
+		"Equal": {
+			current: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			want: false,
+		},
+		"AnnotationsDiffer": {
+			current: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"b": "b"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			want: true,
+		},
+		"RulesDiffer": {
+			current: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"a": "a"},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RolesDiffer(tc.current, tc.desired)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("RolesDiffer(...): -want, +got\n:%s", diff)
 			}
 		})
 	}

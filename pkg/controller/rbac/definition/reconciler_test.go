@@ -129,7 +129,30 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"Successful": {
+		"SuccessfulNoOp": {
+			reason: "We should not requeue when no ClusterRoles need applying.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil),
+						},
+						Applicator: resource.ApplyFn(func(ctx context.Context, o runtime.Object, ao ...resource.ApplyOption) error {
+							// Simulate a no-op change by not allowing the update.
+							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
+						}),
+					}),
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1alpha1.CompositeResourceDefinition) []rbacv1.ClusterRole {
+						return []rbacv1.ClusterRole{{}}
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulApply": {
 			reason: "We should not requeue when we successfully apply our ClusterRoles.",
 			args: args{
 				mgr: &fake.Manager{},
@@ -163,6 +186,68 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestClusterRolesDiffer(t *testing.T) {
+	cases := map[string]struct {
+		current runtime.Object
+		desired runtime.Object
+		want    bool
+	}{
+		"Equal": {
+			current: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			want: false,
+		},
+		"LabelsDiffer": {
+			current: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"b": "b"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			want: true,
+		},
+		"RulesDiffer": {
+			current: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.ClusterRole{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"a": "a"},
+				},
+			},
+			want: true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := ClusterRolesDiffer(tc.current, tc.desired)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("ClusterRolesDiffer(...): -want, +got\n:%s", diff)
 			}
 		})
 	}

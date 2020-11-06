@@ -21,8 +21,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -177,14 +179,18 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	for _, cr := range r.rbac.RenderClusterRoles(d) {
 		cr := cr // Pin range variable so we can take its address.
-
-		if err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(d.GetUID())); err != nil {
+		log = log.WithValues("role-name", cr.GetName())
+		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(d.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
+		if resource.IsNotAllowed(err) {
+			log.Debug("Skipped no-op RBAC ClusterRole apply")
+			continue
+		}
+		if err != nil {
 			log.Debug(errApplyRole, "error", err)
 			r.record.Event(d, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
-
-		log.Debug("Applied RBAC ClusterRole", "role-name", cr.GetName())
+		log.Debug("Applied RBAC ClusterRole")
 	}
 
 	// TODO(negz): Add a condition that indicates the RBAC manager is managing
@@ -193,4 +199,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// There's no need to requeue explicitly - we're watching all XRDs.
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// ClusterRolesDiffer returns true if the supplied objects are different
+// ClusterRoles. We consider ClusterRoles to be different if their labels and
+// rules do not match.
+func ClusterRolesDiffer(current, desired runtime.Object) bool {
+	c := current.(*rbacv1.ClusterRole)
+	d := desired.(*rbacv1.ClusterRole)
+	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }
