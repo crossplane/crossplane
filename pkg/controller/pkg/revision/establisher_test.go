@@ -39,6 +39,7 @@ var _ Establisher = &APIEstablisher{}
 
 func TestAPIEstablisherEstablish(t *testing.T) {
 	errBoom := errors.New("boom")
+	trueVal := true
 
 	type args struct {
 		est     *APIEstablisher
@@ -74,6 +75,92 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				parent:  &v1alpha1.ProviderRevision{},
+				control: true,
+			},
+			want: want{
+				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+			},
+		},
+		"SuccessfulExistsAlreadyControlled": {
+			reason: "Establishment should be successful if objects exist and are already controlled.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							crd := &apiextensions.CustomResourceDefinition{}
+							crd.SetName("ref-me")
+							crd.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: v1alpha1.SchemeGroupVersion.String(),
+									Kind:       v1alpha1.ProviderRevisionKind,
+									Name:       "test-pr",
+									Controller: &trueVal,
+								},
+							})
+							*o.(*apiextensions.CustomResourceDefinition) = *crd
+							return nil
+						}),
+					},
+				},
+				objs: []runtime.Object{
+					&apiextensions.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1alpha1.ProviderRevision{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						Kind:       v1alpha1.ProviderRevisionKind,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-pr",
+					},
+				},
+				control: true,
+			},
+			want: want{
+				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+			},
+		},
+		"SuccessfulExistsOwnToControl": {
+			reason: "Establishment should be successful if an owned object is successfully transitioned to controlled.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							crd := &apiextensions.CustomResourceDefinition{}
+							crd.SetName("ref-me")
+							crd.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: v1alpha1.SchemeGroupVersion.String(),
+									Kind:       v1alpha1.ProviderRevisionKind,
+									Name:       "test-pr",
+								},
+							})
+							*o.(*apiextensions.CustomResourceDefinition) = *crd
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				objs: []runtime.Object{
+					&apiextensions.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1alpha1.ProviderRevision{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						Kind:       v1alpha1.ProviderRevisionKind,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-pr",
+					},
+				},
 				control: true,
 			},
 			want: want{
@@ -120,6 +207,92 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				parent:  &v1alpha1.ProviderRevision{},
+				control: false,
+			},
+			want: want{
+				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+			},
+		},
+		"SuccessfulExistsAlreadyOwned": {
+			reason: "Establishment should be successful if objects exist and are already owned.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							crd := &apiextensions.CustomResourceDefinition{}
+							crd.SetName("ref-me")
+							crd.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: v1alpha1.SchemeGroupVersion.String(),
+									Kind:       v1alpha1.ProviderRevisionKind,
+									Name:       "test-pr",
+								},
+							})
+							*o.(*apiextensions.CustomResourceDefinition) = *crd
+							return nil
+						}),
+					},
+				},
+				objs: []runtime.Object{
+					&apiextensions.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1alpha1.ProviderRevision{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						Kind:       v1alpha1.ProviderRevisionKind,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-pr",
+					},
+				},
+				control: false,
+			},
+			want: want{
+				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+			},
+		},
+		"SuccessfulExistsControlToOwn": {
+			reason: "Establishment should be successful if a controlled object is successfully transitioned to owned.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							crd := &apiextensions.CustomResourceDefinition{}
+							crd.SetName("ref-me")
+							crd.SetOwnerReferences([]metav1.OwnerReference{
+								{
+									APIVersion: v1alpha1.SchemeGroupVersion.String(),
+									Kind:       v1alpha1.ProviderRevisionKind,
+									Name:       "test-pr",
+									Controller: &trueVal,
+								},
+							})
+							*o.(*apiextensions.CustomResourceDefinition) = *crd
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				objs: []runtime.Object{
+					&apiextensions.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+					},
+				},
+				parent: &v1alpha1.ProviderRevision{
+					TypeMeta: metav1.TypeMeta{
+						APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						Kind:       v1alpha1.ProviderRevisionKind,
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test-pr",
+					},
+				},
 				control: false,
 			},
 			want: want{
