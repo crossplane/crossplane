@@ -17,6 +17,7 @@ limitations under the License.
 package namespace
 
 import (
+	"sort"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -53,6 +54,10 @@ const (
 // RenderRoles for the supplied namespace by aggregating rules from the supplied
 // cluster roles.
 func RenderRoles(ns *corev1.Namespace, crs []rbacv1.ClusterRole) []rbacv1.Role {
+	// Our list of CRs has no guaranteed order, so we sort them in order to
+	// ensure we don't reorder our RBAC rules on each update.
+	sort.Slice(crs, func(i, j int) bool { return crs[i].GetName() < crs[j].GetName() })
+
 	admin := &rbacv1.Role{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   ns.GetName(),
