@@ -22,11 +22,17 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -34,6 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/pkg/version"
 	"github.com/crossplane/crossplane/pkg/xpkg"
@@ -217,6 +224,10 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.ProviderRevision{}).
+		Watches(&source.Kind{Type: &extv1.CustomResourceDefinition{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ProviderRevision{}}).
+		Watches(&source.Kind{Type: &extv1beta1.CustomResourceDefinition{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ProviderRevision{}}).
+		Watches(&source.Kind{Type: &appsv1.Deployment{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ProviderRevision{}}).
+		Watches(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ProviderRevision{}}).
 		Complete(r)
 }
 
@@ -253,6 +264,8 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.ConfigurationRevision{}).
+		Watches(&source.Kind{Type: &apiextensionsv1alpha1.CompositeResourceDefinition{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ConfigurationRevision{}}).
+		Watches(&source.Kind{Type: &apiextensionsv1alpha1.Composition{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1alpha1.ConfigurationRevision{}}).
 		Complete(r)
 }
 
@@ -406,5 +419,5 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	pr.SetConditions(v1alpha1.Healthy())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
