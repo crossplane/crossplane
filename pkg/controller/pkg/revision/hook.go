@@ -29,6 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
@@ -130,10 +131,10 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1beta1
 	return nil
 }
 
-func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1beta1.PackageRevision) (*v1beta1.ControllerConfig, error) {
-	var cc *v1beta1.ControllerConfig
+func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1beta1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+	var cc *v1alpha1.ControllerConfig
 	if pr.GetControllerConfigRef() != nil {
-		cc = &v1beta1.ControllerConfig{}
+		cc = &v1alpha1.ControllerConfig{}
 		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
 			return nil, errors.Wrap(err, errControllerConfig)
 		}
