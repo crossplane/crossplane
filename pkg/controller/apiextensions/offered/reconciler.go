@@ -41,8 +41,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1/ccrd"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/claim"
+	"github.com/crossplane/crossplane/pkg/xcrd"
 )
 
 const (
@@ -186,7 +186,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		},
 
 		claim: definition{
-			CRDRenderer:      CRDRenderFn(ccrd.ForCompositeResourceClaim),
+			CRDRenderer:      CRDRenderFn(xcrd.ForCompositeResourceClaim),
 			ControllerEngine: controller.NewEngine(mgr),
 			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
 		},
@@ -355,7 +355,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 	r.record.Event(d, event.Normal(reasonOfferXRC, "Applied composite resource claim CustomResourceDefinition"))
 
-	if !ccrd.IsEstablished(crd.Status) {
+	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonOfferXRC, waitCRDEstablish))
 		return reconcile.Result{RequeueAfter: tinyWait}, nil

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ccrd
+package xcrd
 
 import extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
