@@ -24,8 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 const (
@@ -74,7 +73,7 @@ func SystemClusterRoleName(revisionName string) string {
 }
 
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
-func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+func RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 	// Our list of CRDs has no guaranteed order, so we sort them in order to
 	// ensure we don't reorder our RBAC rules on each update.
 	sort.Slice(crds, func(i, j int) bool { return crds[i].GetName() < crds[j].GetName() })
@@ -138,7 +137,7 @@ func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResour
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
 	for i := range roles {
-		ref := meta.AsController(meta.TypedReferenceTo(pr, v1alpha1.ProviderRevisionGroupVersionKind))
+		ref := meta.AsController(meta.TypedReferenceTo(pr, v1beta1.ProviderRevisionGroupVersionKind))
 		roles[i].SetOwnerReferences([]metav1.OwnerReference{ref})
 	}
 	return roles
