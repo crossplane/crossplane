@@ -49,7 +49,7 @@ installation of the `provider-aws` package, apply the following resource to the
 cluster where Crossplane is running:
 
 ```yaml
-apiVersion: pkg.crossplane.io/v1alpha1
+apiVersion: pkg.crossplane.io/v1beta1
 kind: Provider
 metadata:
   name: provider-aws
