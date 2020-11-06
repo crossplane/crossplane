@@ -26,8 +26,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1beta1"
 
 	// Load all the auth plugins for the cloud providers.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -55,9 +55,9 @@ type installConfigCmd struct {
 
 // Run runs the Configuration install cmd.
 func (c *installConfigCmd) Run(k *kong.Context) error {
-	rap := v1alpha1.AutomaticActivation
+	rap := v1beta1.AutomaticActivation
 	if c.ManualActivation {
-		rap = v1alpha1.ManualActivation
+		rap = v1beta1.ManualActivation
 	}
 	name := c.Name
 	if name == "" {
@@ -65,12 +65,12 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 		woTag := strings.Split(strings.Split(c.Package, ":")[0], "/")
 		name = woTag[len(woTag)-1]
 	}
-	cr := &v1alpha1.Configuration{
+	cr := &v1beta1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1alpha1.ConfigurationSpec{
-			PackageSpec: v1alpha1.PackageSpec{
+		Spec: v1beta1.ConfigurationSpec{
+			PackageSpec: v1beta1.PackageSpec{
 				Package:                  c.Package,
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
@@ -82,7 +82,7 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create configuration")
 	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1alpha1.ConfigurationGroupKind), res.GetName())
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1beta1.ConfigurationGroupKind), res.GetName())
 	return err
 }
 
@@ -97,9 +97,9 @@ type installProviderCmd struct {
 
 // Run runs the Provider install cmd.
 func (c *installProviderCmd) Run(k *kong.Context) error {
-	rap := v1alpha1.AutomaticActivation
+	rap := v1beta1.AutomaticActivation
 	if c.ManualActivation {
-		rap = v1alpha1.ManualActivation
+		rap = v1beta1.ManualActivation
 	}
 	name := c.Name
 	if name == "" {
@@ -107,12 +107,12 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 		woTag := strings.Split(strings.Split(c.Package, ":")[0], "/")
 		name = woTag[len(woTag)-1]
 	}
-	cr := &v1alpha1.Provider{
+	cr := &v1beta1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: v1alpha1.ProviderSpec{
-			PackageSpec: v1alpha1.PackageSpec{
+		Spec: v1beta1.ProviderSpec{
+			PackageSpec: v1beta1.PackageSpec{
 				Package:                  c.Package,
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
@@ -124,6 +124,6 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create provider")
 	}
-	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1alpha1.ProviderGroupKind), res.GetName())
+	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1beta1.ProviderGroupKind), res.GetName())
 	return err
 }
