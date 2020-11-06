@@ -19,6 +19,8 @@ package revision
 import (
 	"context"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -131,30 +133,42 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	return resourceRefs, nil
 }
 
-func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, control bool, opts ...client.CreateOption) error {
+func (e *APIEstablisher) create(ctx context.Context, obj runtime.Object, parent resource.Object, control bool, opts ...client.CreateOption) error {
+	o := obj.DeepCopyObject().(resource.Object)
 	ref := meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
 	if !control {
 		ref = meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
 	}
 	// Overwrite any owner references on the desired object.
-	obj.SetOwnerReferences([]metav1.OwnerReference{ref})
+	o.SetOwnerReferences([]metav1.OwnerReference{ref})
 	return e.client.Create(ctx, obj, opts...)
 }
 
-func (e *APIEstablisher) update(ctx context.Context, current, desired resource.Object, parent resource.Object, control bool, opts ...client.UpdateOption) error {
+func (e *APIEstablisher) update(ctx context.Context, current, desired runtime.Object, parent resource.Object, control bool, opts ...client.UpdateOption) error {
+	c := current.DeepCopyObject().(resource.Object)
+	d := desired.DeepCopyObject().(resource.Object)
 	if !control {
-		meta.AddOwnerReference(current, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
-		return e.client.Update(ctx, current, opts...)
+		ownerRef := meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
+		for _, ref := range c.GetOwnerReferences() {
+			if ref == ownerRef {
+				return nil
+			}
+		}
+		meta.AddOwnerReference(c, ownerRef)
+		return e.client.Update(ctx, c, opts...)
 	}
 
 	// If desire is to control object, we attempt to update the object by
 	// setting the desired owner references equal to that of the current, adding
 	// a controller reference to the parent, and setting the desired resource
 	// version to that of the current.
-	desired.SetOwnerReferences(current.GetOwnerReferences())
-	if err := meta.AddControllerReference(desired, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
+	d.SetOwnerReferences(c.GetOwnerReferences())
+	if err := meta.AddControllerReference(d, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
 		return err
 	}
-	desired.SetResourceVersion(current.GetResourceVersion())
-	return e.client.Update(ctx, desired, opts...)
+	d.SetResourceVersion(c.GetResourceVersion())
+	if !cmp.Equal(current, d, cmpopts.IgnoreFields(metav1.ObjectMeta{}, "ManagedFields")) {
+		return e.client.Update(ctx, desired, opts...)
+	}
+	return nil
 }
