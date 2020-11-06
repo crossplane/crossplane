@@ -114,7 +114,7 @@ kubectl get all -n crossplane-system
 The Crossplane CLI extends `kubectl` with functionality to build, push, and install [Crossplane packages]:
 
 ```console
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/release-0.14/install.sh | sh
 ```
 
 ## Select Provider
@@ -169,7 +169,7 @@ spec:
       key: key
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.14/docs/snippets/configure/aws/providerconfig.yaml
 ```
 
 </div>
@@ -290,7 +290,7 @@ spec:
       key: key
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.14/docs/snippets/configure/azure/providerconfig.yaml
 ```
 
 </div>
@@ -331,7 +331,7 @@ spec:
       key: credentials 
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/alibaba/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-0.14/docs/snippets/configure/alibaba/providerconfig.yaml
 ```
 
 </div>
