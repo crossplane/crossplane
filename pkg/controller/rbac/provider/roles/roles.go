@@ -17,6 +17,8 @@ limitations under the License.
 package roles
 
 import (
+	"sort"
+
 	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -73,6 +75,10 @@ func SystemClusterRoleName(revisionName string) string {
 
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
 func RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+	// Our list of CRDs has no guaranteed order, so we sort them in order to
+	// ensure we don't reorder our RBAC rules on each update.
+	sort.Slice(crds, func(i, j int) bool { return crds[i].GetName() < crds[j].GetName() })
+
 	groups := make([]string, 0)            // Allows deterministic iteration over groups.
 	resources := make(map[string][]string) // Resources by group.
 	for _, crd := range crds {

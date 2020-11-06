@@ -21,9 +21,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -150,7 +152,9 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a series of opinionated ClusterRoles
 // that may be bound to allow access to the resources it defines.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
+	// NOTE(negz): This reconciler is a tiny bit over our desired cyclomatic
+	// complexity score. Be wary of adding additional complexity.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -200,12 +204,17 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	for _, cr := range r.rbac.RenderClusterRoles(pr, crds) {
 		cr := cr // Pin range variable so we can take its address.
 		log = log.WithValues("role-name", cr.GetName())
-		if err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID())); err != nil {
+		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
+		if resource.IsNotAllowed(err) {
+			log.Debug("Skipped no-op RBAC ClusterRole apply")
+			continue
+		}
+		if err != nil {
 			log.Debug(errApplyRole, "error", err)
 			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
-		log.Debug("Applied RBAC ClusterRole", "role-name", cr.GetName())
+		log.Debug("Applied RBAC ClusterRole")
 	}
 
 	// TODO(negz): Add a condition that indicates the RBAC manager is
@@ -214,4 +223,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// ClusterRolesDiffer returns true if the supplied objects are different
+// ClusterRoles. We consider ClusterRoles to be different if their labels and
+// rules do not match.
+func ClusterRolesDiffer(current, desired runtime.Object) bool {
+	c := current.(*rbacv1.ClusterRole)
+	d := desired.(*rbacv1.ClusterRole)
+	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
 }

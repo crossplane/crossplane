@@ -20,9 +20,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -189,17 +191,31 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	for _, rl := range r.rbac.RenderRoles(ns, l.Items) {
+		log = log.WithValues("role-name", rl.GetName())
 		rl := rl // Pin range variable so we can take its address.
 
-		if err := r.client.Apply(ctx, &rl, resource.MustBeControllableBy(ns.GetUID())); err != nil {
+		err := r.client.Apply(ctx, &rl, resource.MustBeControllableBy(ns.GetUID()), resource.AllowUpdateIf(RolesDiffer))
+		if resource.IsNotAllowed(err) {
+			log.Debug("Skipped no-op RBAC Role apply")
+			continue
+		}
+		if err != nil {
 			log.Debug(errApplyRole, "error", err)
 			r.record.Event(ns, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
-		log.Debug("Applied RBAC Role", "role-name", rl.GetName())
+		log.Debug("Applied RBAC Role", "role-name")
 	}
 
 	r.record.Event(ns, event.Normal(reasonApplyRoles, "Applied RBAC Roles"))
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// RolesDiffer returns true if the supplied objects are different Roles. We
+// consider Roles to be different if their annotations and rules do not match.
+func RolesDiffer(current, desired runtime.Object) bool {
+	c := current.(*rbacv1.Role)
+	d := desired.(*rbacv1.Role)
+	return !cmp.Equal(c.GetAnnotations(), d.GetAnnotations()) || !cmp.Equal(c.Rules, d.Rules)
 }
