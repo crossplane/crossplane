@@ -52,15 +52,6 @@ func (c *buildCmd) Run(child *buildChild) error {
 		return err
 	}
 
-	pkgName := child.name
-	if pkgName == "" {
-		metaPath := filepath.Join(root, xpkg.MetaFile)
-		pkgName, err = xpkg.ParseNameFromMeta(child.fs, metaPath)
-		if err != nil {
-			return errors.Wrap(err, errGetNameFromMeta)
-		}
-	}
-
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
 		return errors.New("cannot build meta scheme for package parser")
@@ -82,7 +73,17 @@ func (c *buildCmd) Run(child *buildChild) error {
 		return errors.Wrap(err, errImageDigest)
 	}
 
-	f, err := child.fs.Create(xpkg.BuildPath(root, xpkg.FriendlyID(pkgName, hash.Hex)))
+	pkgName := child.name
+	if pkgName == "" {
+		metaPath := filepath.Join(root, xpkg.MetaFile)
+		pkgName, err = xpkg.ParseNameFromMeta(child.fs, metaPath)
+		if err != nil {
+			return errors.Wrap(err, errGetNameFromMeta)
+		}
+		pkgName = xpkg.FriendlyID(pkgName, hash.Hex)
+	}
+
+	f, err := child.fs.Create(xpkg.BuildPath(root, pkgName))
 	if err != nil {
 		return errors.Wrap(err, errCreatePackage)
 	}
