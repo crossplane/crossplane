@@ -23,7 +23,11 @@ limitations under the License.
 //go:generate rm -rf ../cluster/charts/crossplane/crds
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./... crd:trivialVersions=true,crdVersions=v1 output:artifacts:config=../cluster/charts/crossplane/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./apiextensions/... crd:trivialVersions=true,crdVersions=v1 output:artifacts:config=../cluster/charts/crossplane/crds
+
+// NOTE(hasheddan): we generate the meta.pkg.crossplane.io types separately as
+// the generated CRDs are never installed, only used for API documentation.
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/... crd:trivialVersions=true,crdVersions=v1 output:artifacts:config=../docs/api-docs/crds
 
 // Generate clientset for types.
 //go:generate rm -rf ../pkg/client

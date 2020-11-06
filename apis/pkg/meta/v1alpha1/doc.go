@@ -18,7 +18,4 @@ limitations under the License.
 // +kubebuilder:object:generate=true
 // +groupName=meta.pkg.crossplane.io
 // +versionName=v1alpha1
-// NOTE(hasheddan): This causes kubebuilder to skip CRD generation for these
-// types. Do not remove.
-// +kubebuilder:skip
 package v1alpha1
