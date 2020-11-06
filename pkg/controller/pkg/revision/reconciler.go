@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/pkg/version"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
@@ -93,7 +93,7 @@ func WithCache(c xpkg.Cache) ReconcilerOption {
 }
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
-func WithNewPackageRevisionFn(f func() v1alpha1.PackageRevision) ReconcilerOption {
+func WithNewPackageRevisionFn(f func() v1beta1.PackageRevision) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackageRevision = f
 	}
@@ -178,13 +178,13 @@ type Reconciler struct {
 	log       logging.Logger
 	record    event.Recorder
 
-	newPackageRevision func() v1alpha1.PackageRevision
+	newPackageRevision func() v1beta1.PackageRevision
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
 func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace string) error {
-	name := "packages/" + strings.ToLower(v1alpha1.ProviderRevisionGroupKind)
-	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }
+	name := "packages/" + strings.ToLower(v1beta1.ProviderRevisionGroupKind)
+	nr := func() v1beta1.PackageRevision { return &v1beta1.ProviderRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -216,14 +216,14 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.ProviderRevision{}).
+		For(&v1beta1.ProviderRevision{}).
 		Complete(r)
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
 func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace string) error {
-	name := "packages/" + strings.ToLower(v1alpha1.ConfigurationRevisionGroupKind)
-	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }
+	name := "packages/" + strings.ToLower(v1beta1.ConfigurationRevisionGroupKind)
+	nr := func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -252,7 +252,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.ConfigurationRevision{}).
+		For(&v1beta1.ConfigurationRevision{}).
 		Complete(r)
 }
 
@@ -333,7 +333,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errInitParserBackend)))
 		// Requeue after shortWait because we may be waiting for parent package
 		// controller to recreate Pod.
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -342,7 +342,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err != nil {
 		log.Debug(errParsePackage, "error", err)
 		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errParsePackage)))
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -352,7 +352,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// NOTE(hasheddan): a failed lint typically will require manual
 		// intervention, but on the off chance that we read pod logs early,
 		// which caused a linting failure, we will requeue after long wait.
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -361,7 +361,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// here to avoid a potential panic on 0 index below.
 	if len(pkg.GetMeta()) != 1 {
 		r.record.Event(pr, event.Warning(reasonLint, errors.New(errNotOneMeta)))
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -373,23 +373,23 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// No need to requeue if outside version constraints. Package will
 			// either need to be updated or ignore crossplane constraints will
 			// need to be specified, both of which will trigger a new reconcile.
-			pr.SetConditions(v1alpha1.Unhealthy())
+			pr.SetConditions(v1beta1.Unhealthy())
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 	}
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPreHook, "error", err)
 		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPreHook)))
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive)
+	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1beta1.PackageRevisionActive)
 	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
 		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errEstablishControl)))
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
@@ -400,11 +400,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPostHook, "error", err)
 		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPostHook)))
-		pr.SetConditions(v1alpha1.Unhealthy())
+		pr.SetConditions(v1beta1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
-	pr.SetConditions(v1alpha1.Healthy())
+	pr.SetConditions(v1beta1.Healthy())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
