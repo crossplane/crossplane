@@ -205,7 +205,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
-		log.Debug("Applied RBAC Role", "role-name")
+		log.Debug("Applied RBAC Role")
 	}
 
 	r.record.Event(ns, event.Normal(reasonApplyRoles, "Applied RBAC Roles"))
