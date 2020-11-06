@@ -40,7 +40,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	composedctrl "github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
@@ -99,7 +99,7 @@ type ConnectionPublisher interface {
 
 // A Composer composes infrastructure resources.
 type Composer interface {
-	Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (composedctrl.Observation, error)
+	Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) (composedctrl.Observation, error)
 }
 
 // CompositionSelector selects a composition reference.
@@ -110,7 +110,7 @@ type CompositionSelector interface {
 // A Configurator configures a composite resource using its
 // composition.
 type Configurator interface {
-	Configure(ctx context.Context, cr resource.Composite, cp *v1alpha1.Composition) error
+	Configure(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -241,7 +241,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// TODO(muvaf): We should lock the deletion of Composition via finalizer
 	// because its deletion will break the field propagation.
-	comp := &v1alpha1.Composition{}
+	comp := &v1beta1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
 		log.Debug(errGetComp, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))

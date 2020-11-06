@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
 )
 
@@ -159,7 +159,7 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	if sel != nil {
 		labels = sel.MatchLabels
 	}
-	list := &v1alpha1.CompositionList{}
+	list := &v1beta1.CompositionList{}
 	if err := r.client.List(ctx, list, client.MatchingLabels(labels)); err != nil {
 		return errors.Wrap(err, errListCompositions)
 	}
@@ -205,7 +205,7 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 	if cp.GetCompositionReference() != nil || cp.GetCompositionSelector() != nil {
 		return nil
 	}
-	def := &v1alpha1.CompositeResourceDefinition{}
+	def := &v1beta1.CompositeResourceDefinition{}
 	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
 		return errors.Wrap(err, errGetXRD)
 	}
@@ -218,14 +218,14 @@ func (s *APIDefaultCompositionSelector) SelectComposition(ctx context.Context, c
 }
 
 // NewEnforcedCompositionSelector returns a EnforcedCompositionSelector.
-func NewEnforcedCompositionSelector(def v1alpha1.CompositeResourceDefinition, r event.Recorder) *EnforcedCompositionSelector {
+func NewEnforcedCompositionSelector(def v1beta1.CompositeResourceDefinition, r event.Recorder) *EnforcedCompositionSelector {
 	return &EnforcedCompositionSelector{def: def, recorder: r}
 }
 
 // EnforcedCompositionSelector , if it's given, selects the enforced composition
 // on the definition for all composite instances.
 type EnforcedCompositionSelector struct {
-	def      v1alpha1.CompositeResourceDefinition
+	def      v1beta1.CompositeResourceDefinition
 	recorder event.Recorder
 }
 
@@ -258,7 +258,7 @@ type ConfiguratorChain struct {
 }
 
 // Configure calls Configure function of every Configurator in the list.
-func (cc *ConfiguratorChain) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
+func (cc *ConfiguratorChain) Configure(ctx context.Context, cp resource.Composite, comp *v1beta1.Composition) error {
 	for _, c := range cc.list {
 		if err := c.Configure(ctx, cp, comp); err != nil {
 			return err
@@ -281,7 +281,7 @@ type APIConfigurator struct {
 
 // Configure any required fields that were omitted from the composite resource
 // by copying them from its composition.
-func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1alpha1.Composition) error {
+func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1beta1.Composition) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if comp.Spec.CompositeTypeRef.APIVersion != apiVersion || comp.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
@@ -312,7 +312,7 @@ type APINamingConfigurator struct {
 }
 
 // Configure the supplied composite resource's root name prefix.
-func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1alpha1.Composition) error {
+func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1beta1.Composition) error {
 	if cp.GetLabels()[composed.LabelKeyNamePrefixForComposed] != "" {
 		return nil
 	}

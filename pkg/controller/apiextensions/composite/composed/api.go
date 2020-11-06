@@ -32,8 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 const (
@@ -51,10 +50,10 @@ const (
 )
 
 // ConfigureFn is a function that implements Configurator interface.
-type ConfigureFn func(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error
+type ConfigureFn func(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
 
 // Configure calls ConfigureFn.
-func (c ConfigureFn) Configure(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error {
+func (c ConfigureFn) Configure(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	return c(cp, cd, t)
 }
 
@@ -63,7 +62,7 @@ func (c ConfigureFn) Configure(cp resource.Composite, cd resource.Composed, t v1
 type DefaultConfigurator struct{}
 
 // Configure applies the raw template and sets name and generateName.
-func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error {
+func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	// Any existing name will be overwritten when we unmarshal the template. We
 	// store it here so that we can reset it after unmarshalling.
 	name := cd.GetName()
@@ -90,10 +89,10 @@ func (*DefaultConfigurator) Configure(cp resource.Composite, cd resource.Compose
 }
 
 // OverlayFn is a function that implements OverlayApplicator interface.
-type OverlayFn func(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error
+type OverlayFn func(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
 
 // Overlay calls OverlayFn.
-func (o OverlayFn) Overlay(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error {
+func (o OverlayFn) Overlay(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	return o(cp, cd, t)
 }
 
@@ -102,7 +101,7 @@ func (o OverlayFn) Overlay(cp resource.Composite, cd resource.Composed, t v1alph
 type DefaultOverlayApplicator struct{}
 
 // Overlay applies patches to composed resource.
-func (*DefaultOverlayApplicator) Overlay(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error {
+func (*DefaultOverlayApplicator) Overlay(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 	for i, p := range t.Patches {
 		if err := p.Apply(cp, cd); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
@@ -112,10 +111,10 @@ func (*DefaultOverlayApplicator) Overlay(cp resource.Composite, cd resource.Comp
 }
 
 // FetchFn is a function that implements the ConnectionDetailsFetcher interface.
-type FetchFn func(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error)
+type FetchFn func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error)
 
 // Fetch calls FetchFn.
-func (f FetchFn) Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
+func (f FetchFn) Fetch(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
 	return f(ctx, cd, t)
 }
 
@@ -126,7 +125,7 @@ type APIConnectionDetailsFetcher struct {
 }
 
 // Fetch returns the connection secret details of composed resource.
-func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
+func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
 	sref := cd.GetWriteConnectionSecretToReference()
 	if sref == nil {
 		return nil, nil
@@ -170,7 +169,7 @@ func (cdf *APIConnectionDetailsFetcher) Fetch(ctx context.Context, cd resource.C
 }
 
 // IsReady returns whether the composed resource is ready.
-func IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (bool, error) { // nolint:gocyclo
+func IsReady(_ context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (bool, error) { // nolint:gocyclo
 	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
 	// mandatory repetitiveness of the switch clause, which is not really complex
 	// in reality. Though beware of adding additional complexity besides that.
@@ -189,21 +188,21 @@ func IsReady(_ context.Context, cd resource.Composed, t v1alpha1.ComposedTemplat
 	for i, check := range t.ReadinessChecks {
 		var ready bool
 		switch check.Type {
-		case v1alpha1.ReadinessCheckNone:
+		case v1beta1.ReadinessCheckNone:
 			return true, nil
-		case v1alpha1.ReadinessCheckNonEmpty:
+		case v1beta1.ReadinessCheckNonEmpty:
 			_, err := paved.GetValue(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err)
-		case v1alpha1.ReadinessCheckMatchString:
+		case v1beta1.ReadinessCheckMatchString:
 			val, err := paved.GetString(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err) && val == check.MatchString
-		case v1alpha1.ReadinessCheckMatchInteger:
+		case v1beta1.ReadinessCheckMatchInteger:
 			val, err := paved.GetInteger(check.FieldPath)
 			if err != nil {
 				return false, err

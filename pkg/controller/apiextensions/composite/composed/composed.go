@@ -26,8 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 // Error strings
@@ -41,29 +40,29 @@ const (
 
 // Configurator is used to configure the Composed resource.
 type Configurator interface {
-	Configure(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error
+	Configure(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
 }
 
 // OverlayApplicator is used to apply an overlay at each reconcile.
 type OverlayApplicator interface {
-	Overlay(cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) error
+	Overlay(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
 }
 
 // ConnectionDetailsFetcher fetches the connection details of the Composed resource.
 type ConnectionDetailsFetcher interface {
-	Fetch(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error)
+	Fetch(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error)
 }
 
 // A ReadinessChecker checks whether a composed resource is ready or not.
 type ReadinessChecker interface {
-	IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (ready bool, err error)
+	IsReady(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error)
 }
 
 // A ReadinessCheckFn checks whether a composed resource is ready or not.
-type ReadinessCheckFn func(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (ready bool, err error)
+type ReadinessCheckFn func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error)
 
 // IsReady reports whether a composed resource is ready or not.
-func (fn ReadinessCheckFn) IsReady(ctx context.Context, cd resource.Composed, t v1alpha1.ComposedTemplate) (ready bool, err error) {
+func (fn ReadinessCheckFn) IsReady(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error) {
 	return fn(ctx, cd, t)
 }
 
@@ -152,7 +151,7 @@ type Composer struct {
 
 // Compose the supplied Composed resource into the supplied Composite resource
 // using the supplied CompositeTemplate.
-func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1alpha1.ComposedTemplate) (Observation, error) {
+func (r *Composer) Compose(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) (Observation, error) {
 
 	// Doing the configuration only once or continuously is subject to discussion
 	// in https://github.com/crossplane/crossplane/issues/1481

@@ -37,8 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 var errBoom = errors.New("boom")
@@ -50,7 +49,7 @@ func TestConfigure(t *testing.T) {
 	type args struct {
 		cp resource.Composite
 		cd resource.Composed
-		t  v1alpha1.ComposedTemplate
+		t  v1beta1.ComposedTemplate
 	}
 	type want struct {
 		cd  resource.Composed
@@ -65,7 +64,7 @@ func TestConfigure(t *testing.T) {
 			reason: "Invalid template should not be accepted",
 			args: args{
 				cd: &fake.Composed{},
-				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("olala")}},
+				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("olala")}},
 			},
 			want: want{
 				cd:  &fake.Composed{},
@@ -77,7 +76,7 @@ func TestConfigure(t *testing.T) {
 			args: args{
 				cp: &fake.Composite{},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
 			},
 			want: want{
 				cd:  &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
@@ -93,7 +92,7 @@ func TestConfigure(t *testing.T) {
 					LabelKeyClaimNamespace:        "rolans",
 				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1alpha1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
 			},
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "ola-", Labels: map[string]string{
@@ -131,7 +130,7 @@ func TestFetch(t *testing.T) {
 	type args struct {
 		kube client.Client
 		cd   resource.Composed
-		t    v1alpha1.ComposedTemplate
+		t    v1beta1.ComposedTemplate
 	}
 	type want struct {
 		conn managed.ConnectionDetails
@@ -155,7 +154,7 @@ func TestFetch(t *testing.T) {
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
-				t: v1alpha1.ComposedTemplate{ConnectionDetails: []v1alpha1.ConnectionDetail{
+				t: v1beta1.ComposedTemplate{ConnectionDetails: []v1beta1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
 					},
@@ -199,7 +198,7 @@ func TestFetch(t *testing.T) {
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
-				t: v1alpha1.ComposedTemplate{ConnectionDetails: []v1alpha1.ConnectionDetail{
+				t: v1beta1.ComposedTemplate{ConnectionDetails: []v1beta1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
 					},
@@ -250,7 +249,7 @@ func TestFetch(t *testing.T) {
 func TestIsReady(t *testing.T) {
 	type args struct {
 		cd *runtimecomposed.Unstructured
-		t  v1alpha1.ComposedTemplate
+		t  v1beta1.ComposedTemplate
 	}
 	type want struct {
 		ready bool
@@ -274,7 +273,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the only readiness check is explicitly 'None' the resource is always ready.",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: v1alpha1.ReadinessCheckNone}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: v1beta1.ReadinessCheckNone}}},
 			},
 			want: want{
 				ready: true,
@@ -284,7 +283,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata..uid"}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata..uid"}}},
 			},
 			want: want{
 				err: errors.Wrapf(errors.New("unexpected '.' at position 9"), "cannot parse path %q", "metadata..uid"),
@@ -294,7 +293,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the field does not have value, NonEmpty check should return false",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
 			},
 			want: want{
 				ready: false,
@@ -306,7 +305,7 @@ func TestIsReady(t *testing.T) {
 				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
 					r.SetUID("olala")
 				}),
-				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
+				t: v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
 			},
 			want: want{
 				ready: true,
@@ -316,7 +315,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata..uid"}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata..uid"}}},
 			},
 			want: want{
 				err: errors.Wrapf(errors.New("unexpected '.' at position 9"), "cannot parse path %q", "metadata..uid"),
@@ -326,7 +325,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the value of the field does not match, it should return false",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
 			},
 			want: want{
 				ready: false,
@@ -338,7 +337,7 @@ func TestIsReady(t *testing.T) {
 				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
 					r.SetUID("olala")
 				}),
-				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
+				t: v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
 			},
 			want: want{
 				ready: true,
@@ -348,7 +347,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "metadata..uid"}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "metadata..uid"}}},
 			},
 			want: want{
 				err: errors.Wrapf(errors.New("unexpected '.' at position 9"), "cannot parse path %q", "metadata..uid"),
@@ -364,7 +363,7 @@ func TestIsReady(t *testing.T) {
 						},
 					}
 				}),
-				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "spec.someNum", MatchInteger: 5}}},
+				t: v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "spec.someNum", MatchInteger: 5}}},
 			},
 			want: want{
 				ready: false,
@@ -380,7 +379,7 @@ func TestIsReady(t *testing.T) {
 						},
 					}
 				}),
-				t: v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "spec.someNum", MatchInteger: 5}}},
+				t: v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "spec.someNum", MatchInteger: 5}}},
 			},
 			want: want{
 				ready: true,
@@ -390,7 +389,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If unknown type is chosen, it should return an error",
 			args: args{
 				cd: runtimecomposed.New(),
-				t:  v1alpha1.ComposedTemplate{ReadinessChecks: []v1alpha1.ReadinessCheck{{Type: "Olala"}}},
+				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "Olala"}}},
 			},
 			want: want{
 				err: errors.New("readiness check at index 0: an unknown type is chosen"),

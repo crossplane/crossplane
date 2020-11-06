@@ -31,18 +31,17 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 var (
-	NopConfigure = ConfigureFn(func(_ resource.Composite, _ resource.Composed, _ v1alpha1.ComposedTemplate) error {
+	NopConfigure = ConfigureFn(func(_ resource.Composite, _ resource.Composed, _ v1beta1.ComposedTemplate) error {
 		return nil
 	})
-	NopOverlay = OverlayFn(func(_ resource.Composite, _ resource.Composed, _ v1alpha1.ComposedTemplate) error {
+	NopOverlay = OverlayFn(func(_ resource.Composite, _ resource.Composed, _ v1beta1.ComposedTemplate) error {
 		return nil
 	})
-	NopFetcher = FetchFn(func(_ context.Context, _ resource.Composed, _ v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
+	NopFetcher = FetchFn(func(_ context.Context, _ resource.Composed, _ v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
 		return nil, nil
 	})
 )
@@ -74,7 +73,7 @@ func TestCompose(t *testing.T) {
 		composer *Composer
 		cp       resource.Composite
 		cd       resource.Composed
-		t        v1alpha1.ComposedTemplate
+		t        v1beta1.ComposedTemplate
 	}
 	type want struct {
 		err error
@@ -91,7 +90,7 @@ func TestCompose(t *testing.T) {
 			reason: "Failure of configuration should return error",
 			args: args{
 				composer: NewComposer(&test.MockClient{},
-					WithConfigurator(ConfigureFn(func(_ resource.Composite, _ resource.Composed, _ v1alpha1.ComposedTemplate) error {
+					WithConfigurator(ConfigureFn(func(_ resource.Composite, _ resource.Composed, _ v1beta1.ComposedTemplate) error {
 						return errBoom
 					}))),
 				cd: &fake.Composed{},
@@ -105,7 +104,7 @@ func TestCompose(t *testing.T) {
 			args: args{
 				composer: NewComposer(&test.MockClient{},
 					WithConfigurator(NopConfigure),
-					WithOverlayApplicator(OverlayFn(func(_ resource.Composite, _ resource.Composed, _ v1alpha1.ComposedTemplate) error {
+					WithOverlayApplicator(OverlayFn(func(_ resource.Composite, _ resource.Composed, _ v1beta1.ComposedTemplate) error {
 						return errBoom
 					}))),
 				cd: &fake.Composed{},
@@ -120,7 +119,7 @@ func TestCompose(t *testing.T) {
 				composer: NewComposer(&test.MockClient{},
 					WithConfigurator(NopConfigure),
 					WithOverlayApplicator(NopOverlay),
-					WithConnectionDetailFetcher(FetchFn(func(_ context.Context, _ resource.Composed, _ v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailFetcher(FetchFn(func(_ context.Context, _ resource.Composed, _ v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					}))),
 				cd: &fake.Composed{},
@@ -155,7 +154,7 @@ func TestCompose(t *testing.T) {
 				composer: NewComposer(nil,
 					WithConfigurator(NopConfigure),
 					WithOverlayApplicator(NopOverlay),
-					WithConnectionDetailFetcher(FetchFn(func(_ context.Context, _ resource.Composed, _ v1alpha1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailFetcher(FetchFn(func(_ context.Context, _ resource.Composed, _ v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return conn, nil
 					})),
 					WithClientApplicator(resource.ClientApplicator{

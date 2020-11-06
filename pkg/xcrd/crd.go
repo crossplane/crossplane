@@ -31,7 +31,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 // Category names for generated claim and composite CRDs.
@@ -50,7 +50,7 @@ const (
 
 // ForCompositeResource derives the CustomResourceDefinition for a composite
 // resource from the supplied CompositeResourceDefinition.
-func ForCompositeResource(xrd *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func ForCompositeResource(xrd *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	crd := &extv1.CustomResourceDefinition{
 		Spec: extv1.CustomResourceDefinitionSpec{
 			Scope:    extv1.ClusterScoped,
@@ -64,7 +64,7 @@ func ForCompositeResource(xrd *v1alpha1.CompositeResourceDefinition) (*extv1.Cus
 	crd.SetLabels(xrd.GetLabels())
 	crd.SetAnnotations(xrd.GetAnnotations())
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-		meta.TypedReferenceTo(xrd, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+		meta.TypedReferenceTo(xrd, v1beta1.CompositeResourceDefinitionGroupVersionKind),
 	)})
 
 	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryComposite)
@@ -106,7 +106,7 @@ func ForCompositeResource(xrd *v1alpha1.CompositeResourceDefinition) (*extv1.Cus
 
 // ForCompositeResourceClaim derives the CustomResourceDefinition for a
 // composite resource claim from the supplied CompositeResourceDefinition.
-func ForCompositeResourceClaim(xrd *v1alpha1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func ForCompositeResourceClaim(xrd *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	if err := validateClaimNames(xrd); err != nil {
 		return nil, errors.Wrap(err, errInvalidClaimNames)
 	}
@@ -124,7 +124,7 @@ func ForCompositeResourceClaim(xrd *v1alpha1.CompositeResourceDefinition) (*extv
 	crd.SetLabels(xrd.GetLabels())
 	crd.SetAnnotations(xrd.GetAnnotations())
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
-		meta.TypedReferenceTo(xrd, v1alpha1.CompositeResourceDefinitionGroupVersionKind),
+		meta.TypedReferenceTo(xrd, v1beta1.CompositeResourceDefinitionGroupVersionKind),
 	)})
 
 	crd.Spec.Names.Categories = append(crd.Spec.Names.Categories, CategoryClaim)
@@ -164,7 +164,7 @@ func ForCompositeResourceClaim(xrd *v1alpha1.CompositeResourceDefinition) (*extv
 	return crd, nil
 }
 
-func validateClaimNames(d *v1alpha1.CompositeResourceDefinition) error {
+func validateClaimNames(d *v1beta1.CompositeResourceDefinition) error {
 	if d.Spec.ClaimNames == nil {
 		return errors.New(errMissingClaimNames)
 	}
@@ -188,7 +188,7 @@ func validateClaimNames(d *v1alpha1.CompositeResourceDefinition) error {
 	return nil
 }
 
-func getSpecProps(v *v1alpha1.CompositeResourceValidation) (map[string]extv1.JSONSchemaProps, error) {
+func getSpecProps(v *v1beta1.CompositeResourceValidation) (map[string]extv1.JSONSchemaProps, error) {
 	if v == nil {
 		return nil, nil
 	}
