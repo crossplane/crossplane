@@ -59,7 +59,7 @@ First we'll create a `CompositeResourceDefinition` (XRD) to define the schema of
 our `CompositePostgreSQLInstance` and its `PostgreSQLInstance` resource claim.
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: CompositeResourceDefinition
 metadata:
   name: compositepostgresqlinstances.database.example.org
@@ -131,7 +131,7 @@ instance on the chosen provider.
 > RDS instance that will allow traffic from the internet.
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: compositepostgresqlinstances.aws.database.example.org
@@ -188,7 +188,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/sni
 > complex ones. See the [composition] documentation for more information.
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: vpcpostgresqlinstances.aws.database.example.org
@@ -348,7 +348,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/sni
 <div class="tab-pane fade" id="gcp-tab-2" markdown="1">
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: compositepostgresqlinstances.gcp.database.example.org
@@ -408,7 +408,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/sni
 > for more information.
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: compositepostgresqlinstances.azure.database.example.org
@@ -484,7 +484,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/sni
 <div class="tab-pane fade" id="alibaba-tab-2" markdown="1">
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: compositepostgresqlinstances.alibaba.database.example.org
@@ -553,7 +553,7 @@ so that Crossplane users may install it.
 <div class="tab-pane fade in active" id="aws-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Configuration
 metadata:
   name: getting-started-with-aws
@@ -577,7 +577,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-aws:master
 <div class="tab-pane fade" id="aws-new-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Configuration
 metadata:
   name: getting-started-with-aws-with-vpc
@@ -601,7 +601,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:m
 <div class="tab-pane fade" id="gcp-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Configuration
 metadata:
   name: getting-started-with-gcp
@@ -624,7 +624,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-gcp:master
 <div class="tab-pane fade" id="azure-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Configuration
 metadata:
   name: getting-started-with-azure
@@ -647,7 +647,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
 <div class="tab-pane fade" id="alibaba-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1alpha1
+apiVersion: meta.pkg.crossplane.io/v1beta1
 kind: Configuration
 metadata:
   name: getting-started-with-alibaba

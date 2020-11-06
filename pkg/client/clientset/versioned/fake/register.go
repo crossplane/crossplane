@@ -20,7 +20,9 @@ package fake
 
 import (
 	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	apiextensionsv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -33,7 +35,9 @@ var codecs = serializer.NewCodecFactory(scheme)
 var parameterCodec = runtime.NewParameterCodec(scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
 	apiextensionsv1alpha1.AddToScheme,
+	apiextensionsv1beta1.AddToScheme,
 	pkgv1alpha1.AddToScheme,
+	pkgv1beta1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

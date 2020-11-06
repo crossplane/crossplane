@@ -80,7 +80,7 @@ There are three steps to this process:
 Composite resources are defined by a `CompositeResourceDefinition`:
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: CompositeResourceDefinition
 metadata:
   # XRDs follow the constraints of CRD names. They must be named
@@ -184,13 +184,13 @@ $ kubectl describe xrd compositemysqlinstances.example.org
 Name:         compositemysqlinstances.example.org
 Namespace:
 Labels:       <none>
-Annotations:  API Version:  apiextensions.crossplane.io/v1alpha1
+Annotations:  API Version:  apiextensions.crossplane.io/v1beta1
 Kind:         CompositeResourceDefinition
 Metadata:
   Creation Timestamp:  2020-05-15T05:30:44Z
   Generation:        1
   Resource Version:  1418120
-  Self Link:         /apis/apiextensions.crossplane.io/v1alpha1/compositeresourcedefinitions/compositemysqlinstances.example.org
+  Self Link:         /apis/apiextensions.crossplane.io/v1beta1/compositeresourcedefinitions/compositemysqlinstances.example.org
   UID:               f8fedfaf-4dfd-4b8a-8228-6af0f4abd7a0
 Spec:
   Connection Secret Keys:
@@ -292,7 +292,7 @@ previous section by composing an Azure SQL server, firewall rule, and resource
 group:
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: example-azure

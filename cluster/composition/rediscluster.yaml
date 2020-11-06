@@ -1,5 +1,5 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1alpha1
+apiVersion: apiextensions.crossplane.io/v1beta1
 kind: CompositeResourceDefinition
 metadata:
   name: compositeredisclusters.common.crossplane.io

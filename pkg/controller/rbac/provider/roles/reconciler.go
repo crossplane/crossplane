@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 const (
@@ -57,14 +57,14 @@ const (
 // A ClusterRoleRenderer renders ClusterRoles for the given CRDs.
 type ClusterRoleRenderer interface {
 	// RenderClusterRoles for the supplied CRDs.
-	RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
+	RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
 }
 
 // A ClusterRoleRenderFn renders ClusterRoles for the supplied CRDs.
-type ClusterRoleRenderFn func(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
+type ClusterRoleRenderFn func(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied CRDs.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1alpha1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 	return fn(pr, crds)
 }
 
@@ -72,11 +72,11 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1alpha1.ProviderRevision, 
 // series of opinionated ClusterRoles that may be bound to allow access to the
 // resources it defines.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "rbac/" + strings.ToLower(v1alpha1.ProviderRevisionGroupKind)
+	name := "rbac/" + strings.ToLower(v1beta1.ProviderRevisionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1alpha1.ProviderRevision{}).
+		For(&v1beta1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
@@ -159,7 +159,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	pr := &v1alpha1.ProviderRevision{}
+	pr := &v1beta1.ProviderRevision{}
 	if err := r.client.Get(ctx, req.NamespacedName, pr); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We

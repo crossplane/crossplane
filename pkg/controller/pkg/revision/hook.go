@@ -30,6 +30,7 @@ import (
 
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 const (
@@ -47,10 +48,10 @@ const (
 // A Hooks performs operations before and after a revision establishes objects.
 type Hooks interface {
 	// Pre performs operations meant to happen before establishing objects.
-	Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error
+	Pre(context.Context, runtime.Object, v1beta1.PackageRevision) error
 
 	// Post performs operations meant to happen after establishing objects.
-	Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error
+	Post(context.Context, runtime.Object, v1beta1.PackageRevision) error
 }
 
 // ProviderHooks performs operations for a provider package that requires a
@@ -70,7 +71,7 @@ func NewProviderHooks(client resource.ClientApplicator, namespace string) *Provi
 
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) error {
 	pkgProvider, ok := pkg.(*pkgmeta.Provider)
 	if !ok {
 		return errors.New(errNotProvider)
@@ -79,7 +80,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 
 	// Do not clean up SA and controller if revision is not inactive.
-	if pr.GetDesiredState() != v1alpha1.PackageRevisionInactive {
+	if pr.GetDesiredState() != v1beta1.PackageRevisionInactive {
 		return nil
 	}
 	cc, err := h.getControllerConfig(ctx, pr)
@@ -98,12 +99,12 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) error {
 	pkgProvider, ok := pkg.(*pkgmeta.Provider)
 	if !ok {
 		return errors.New("not a provider package")
 	}
-	if pr.GetDesiredState() != v1alpha1.PackageRevisionActive {
+	if pr.GetDesiredState() != v1beta1.PackageRevisionActive {
 		return nil
 	}
 	cc, err := h.getControllerConfig(ctx, pr)
@@ -130,7 +131,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha
 	return nil
 }
 
-func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1alpha1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1beta1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
 	var cc *v1alpha1.ControllerConfig
 	if pr.GetControllerConfigRef() != nil {
 		cc = &v1alpha1.ControllerConfig{}
@@ -151,7 +152,7 @@ func NewConfigurationHooks() *ConfigurationHooks {
 }
 
 // Pre sets status fields based on the configuration package.
-func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
+func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) error {
 	_, ok := pkg.(*pkgmeta.Configuration)
 	if !ok {
 		return errors.New(errNotConfiguration)
@@ -163,7 +164,7 @@ func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1a
 }
 
 // Post is a no op for configuration packages.
-func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1beta1.PackageRevision) error {
 	return nil
 }
 
@@ -176,11 +177,11 @@ func NewNopHooks() *NopHooks {
 }
 
 // Pre does nothing and returns nil.
-func (h *NopHooks) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+func (h *NopHooks) Pre(context.Context, runtime.Object, v1beta1.PackageRevision) error {
 	return nil
 }
 
 // Post does nothing and returns nil.
-func (h *NopHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
+func (h *NopHooks) Post(context.Context, runtime.Object, v1beta1.PackageRevision) error {
 	return nil
 }

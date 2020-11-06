@@ -55,7 +55,7 @@ func Configure(_ context.Context, cm resource.CompositeClaim, cp resource.Compos
 		return errors.New("composite resource claim spec was not an object")
 	}
 
-	// TODO(negz): Make these filtered keys constants in the ccrds package?
+	// TODO(negz): Make these filtered keys constants in the xcrds package?
 	_ = fieldpath.Pave(ucp.Object).SetValue("spec", filter(spec, "resourceRef", "writeConnectionSecretToRef"))
 	meta.AddAnnotations(ucp, ucm.GetAnnotations())
 	meta.AddLabels(ucp, ucm.GetLabels())

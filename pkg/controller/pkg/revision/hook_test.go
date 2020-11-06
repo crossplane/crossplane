@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 var (
@@ -45,12 +45,12 @@ func TestHookPre(t *testing.T) {
 	type args struct {
 		hook Hooks
 		pkg  runtime.Object
-		rev  v1alpha1.PackageRevision
+		rev  v1beta1.PackageRevision
 	}
 
 	type want struct {
 		err error
-		rev v1alpha1.PackageRevision
+		rev v1beta1.PackageRevision
 	}
 
 	cases := map[string]struct {
@@ -93,16 +93,16 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
@@ -124,16 +124,16 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1alpha1.ConfigurationRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ConfigurationRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ConfigurationRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ConfigurationRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
@@ -169,16 +169,16 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 				err: errors.Wrap(errBoom, errDeleteProviderDeployment),
@@ -215,16 +215,16 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 				err: errors.Wrap(errBoom, errDeleteProviderSA),
@@ -255,16 +255,16 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 			},
@@ -291,12 +291,12 @@ func TestHookPost(t *testing.T) {
 	type args struct {
 		hook Hooks
 		pkg  runtime.Object
-		rev  v1alpha1.PackageRevision
+		rev  v1beta1.PackageRevision
 	}
 
 	type want struct {
 		err error
-		rev v1alpha1.PackageRevision
+		rev v1beta1.PackageRevision
 	}
 
 	cases := map[string]struct {
@@ -318,16 +318,16 @@ func TestHookPost(t *testing.T) {
 			args: args{
 				hook: &ProviderHooks{},
 				pkg:  &pkgmeta.Provider{},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionInactive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionInactive,
 					},
 				},
 			},
@@ -349,16 +349,16 @@ func TestHookPost(t *testing.T) {
 					},
 				},
 				pkg: &pkgmeta.Provider{},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 				err: errors.Wrap(errBoom, errApplyProviderSA),
@@ -381,16 +381,16 @@ func TestHookPost(t *testing.T) {
 					},
 				},
 				pkg: &pkgmeta.Provider{},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 				err: errors.Wrap(errBoom, errApplyProviderDeployment),
@@ -416,16 +416,16 @@ func TestHookPost(t *testing.T) {
 					},
 				},
 				pkg: &pkgmeta.Provider{},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 				err: errors.Errorf("%s: %s", errUnavailableProviderDeployment, errBoom.Error()),
@@ -442,16 +442,16 @@ func TestHookPost(t *testing.T) {
 					},
 				},
 				pkg: &pkgmeta.Provider{},
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},
 			want: want{
-				rev: &v1alpha1.ProviderRevision{
-					Spec: v1alpha1.PackageRevisionSpec{
-						DesiredState: v1alpha1.PackageRevisionActive,
+				rev: &v1beta1.ProviderRevision{
+					Spec: v1beta1.PackageRevisionSpec{
+						DesiredState: v1beta1.PackageRevisionActive,
 					},
 				},
 			},

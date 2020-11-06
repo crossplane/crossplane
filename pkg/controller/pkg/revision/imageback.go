@@ -30,7 +30,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
 
@@ -44,7 +44,7 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	pr      v1alpha1.PackageRevision
+	pr      v1beta1.PackageRevision
 	cache   xpkg.Cache
 	fetcher xpkg.Fetcher
 }
@@ -82,7 +82,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		// Attempt to fetch image from cache.
 		img, err = i.cache.Get(i.pr.GetSource(), i.pr.GetName())
 		if err != nil {
-			img, err = i.fetcher.Fetch(ctx, ref, v1alpha1.RefNames(i.pr.GetPackagePullSecrets()))
+			img, err = i.fetcher.Fetch(ctx, ref, v1beta1.RefNames(i.pr.GetPackagePullSecrets()))
 			if err != nil {
 				return nil, errors.Wrap(err, errFetchPackage)
 			}
@@ -104,7 +104,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 }
 
 // PackageRevision sets the package revision for ImageBackend.
-func PackageRevision(pr v1alpha1.PackageRevision) parser.BackendOption {
+func PackageRevision(pr v1beta1.PackageRevision) parser.BackendOption {
 	return func(p parser.Backend) {
 		i, ok := p.(*ImageBackend)
 		if !ok {
