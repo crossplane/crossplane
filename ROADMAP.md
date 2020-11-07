@@ -8,11 +8,11 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * [What's next](#whats-next)
 
-  * [v0.14.0 Hardening, robustness, v1beta1 APIs in core (short release)](#v0140---hardening-robustness-v1beta1-apis-in-core-short-release)
   * [v1.0.0 Release Candidate (Dec 2020)](#v100-release-candidate-dec-2020)
   * [Under Consideration](#under-consideration)
 
 * [Released](#released)
+  * [v0.14.0 Hardening, robustness, v1beta1 APIs in core](#v0140---hardening-robustness-v1beta1-apis-in-core)
   * [v0.13.0 Paving the way for a v1.0 release of Crossplane](#v0130-paving-the-way-for-a-v10-release-of-crossplane)
   * [v0.12.0 Upgrade claims/classes to a more powerful composition approach](#v0120-upgrade-claimsclasses-to-a-more-powerful-composition-approach)
   * [v0.11.0 Composition v1alpha1, OAM support, backup/restore, docs overhaul](#v0110-infra-composition-v1alpha1-oam-support-backuprestore-docs-overhaul)
@@ -29,52 +29,9 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## What's Next
 
-### v0.14.0 - Hardening, robustness, v1beta1 APIs in core (short release)
-
-* Composition
-  * APIs to v1beta1
-  * Surface claim binding and secret publishing errors [#1862](https://github.com/crossplane/crossplane/pull/1862)
-  * XRDs can support defining multiple versions of an XR, using the `None` conversion strategy [#1871](https://github.com/crossplane/crossplane/issues/1871)
-  * Hardening and robustness fixes
-
-* Package Manager
-  * APIs to v1beta1
-  * `ControllerConfig` can override default values for a `Provider` [#974](https://github.com/crossplane/crossplane/issues/974)
-  * Support for Crossplane version constraints in `Provider` and `Configuration` packages [#1843](https://github.com/crossplane/crossplane/issues/1843)
-  * Hardening and robustness fixes
-
-* Providers
-  * AWS Provider: more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
-    * S3 Bucket Policy to v1beta1 [#391](https://github.com/crossplane/provider-aws/pull/391)
-    * IAM User Access Key v1alpha1 [#403](https://github.com/crossplane/provider-aws/pull/403)
-
-  * Helm Provider
-    * Support installing a Helm `Release` from a Crossplane `Composition`
-    * v1alpha1 APIs [crossplane-contrib/provider-helm#38](https://github.com/crossplane-contrib/provider-helm/pull/38)
-
-  * Code Generation of Providers (work-in-progress)
-    * AWS ACK Code Generation of the Crossplane provider-aws
-      * https://github.com/jaypipes/aws-controllers-k8s/tree/crossplane
-      * https://github.com/aws/aws-controllers-k8s/pull/444
-    * Azure Code Generation of the Crossplane provider-azure
-      * https://github.com/matthchr/k8s-infra/tree/crossplane-hacking
-    * Clouds that don't have code gen pipelines
-      * Code gen with stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
-
-* Open Application Model (OAM)
-  * HealthScope support for PodSpecWorkload [#243](https://github.com/crossplane/oam-kubernetes-runtime/pull/243)
-  * Allow OAM controller to create events [#239](https://github.com/crossplane/oam-kubernetes-runtime/pull/239)
-  * RBAC rules must use plural resource names [#236](https://github.com/crossplane/oam-kubernetes-runtime/pull/236)
-  * Migrate from Jenkins pipeline to GitHub Actions [#260](https://github.com/crossplane/oam-kubernetes-runtime/pull/260)
-  * CRD discovery mechanism [#261](https://github.com/crossplane/oam-kubernetes-runtime/pull/261)
-
-* Remove deprecated `KubernetesApplication`, `KubernetesTarget`, `KubernetesCluster`
-  * replaced by Composition and provider-helm
-
 ### v1.0.0 Release Candidate (Dec 2020)
 
 * Hardening and cleanup for v1.0
-  * Leader election for all controllers [#5](https://github.com/crossplane/crossplane/issues/5)
   * Prometheus metrics for all binaries [#314](https://github.com/crossplane/crossplane/issues/314)
   * crossplane-runtime to v1.0
 
@@ -97,11 +54,12 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
   * Code Generation of Providers (work-in-progress)
     * AWS ACK Code Generation of the Crossplane provider-aws
-      * initial auto generated resources
+      * [initial auto generated resources](https://github.com/crossplane/provider-aws/issues/149#issuecomment-718208201)
     * Azure Code Generation of the Crossplane provider-azure
-      * initial auto generated resources
+      * [initial auto generated resources](https://github.com/matthchr/k8s-infra/tree/crossplane-hacking)
     * Clouds that don't have code gen pipelines
       * Wrap stateless Terraform providers (work-in-progress) [#262](https://github.com/crossplane/crossplane/issues/262)
+      * [initial auto generated resources](https://github.com/kasey/provider-terraform-aws/tree/master/generated/resources)
 
 * Open Application Model (OAM)
   * APIs to v1beta1
@@ -151,6 +109,52 @@ Any dates listed below and the specific issues that will ship in a given milesto
   * Standalone mode allowing Crossplane to run in a single container or process [#274](https://github.com/crossplane/crossplane/issues/274)
 
 ## Released
+
+### [v0.14.0 - Hardening, robustness, v1beta1 APIs in core](https://github.com/crossplane/crossplane/releases/tag/v0.14.0)
+
+* Hardening and cleanup for v1.0
+  * Leader election for all controllers [#5](https://github.com/crossplane/crossplane/issues/5)
+
+* Composition
+  * APIs to v1beta1
+  * Surface claim binding and secret publishing errors [#1862](https://github.com/crossplane/crossplane/pull/1862)
+  * XRDs can support defining multiple versions of an XR, using the `None` conversion strategy [#1871](https://github.com/crossplane/crossplane/issues/1871)
+  * Hardening and robustness fixes
+
+* Package Manager
+  * APIs to v1beta1
+  * `ControllerConfig` can override default values for a `Provider` [#974](https://github.com/crossplane/crossplane/issues/974)
+  * Support for Crossplane version constraints in `Provider` and `Configuration` packages [#1843](https://github.com/crossplane/crossplane/issues/1843)
+  * Hardening and robustness fixes
+
+* Providers
+  * AWS Provider: more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+    * S3 Bucket Policy to v1beta1 [#391](https://github.com/crossplane/provider-aws/pull/391)
+    * IAM User Access Key v1alpha1 [#403](https://github.com/crossplane/provider-aws/pull/403)
+
+  * Helm Provider
+    * Support installing a Helm `Release` from a Crossplane `Composition`
+    * v1alpha1 APIs [crossplane-contrib/provider-helm#38](https://github.com/crossplane-contrib/provider-helm/pull/38)
+
+  * Code Generation of Providers (work-in-progress)
+    * AWS ACK Code Generation of the Crossplane provider-aws
+      * https://github.com/jaypipes/aws-controllers-k8s/tree/crossplane
+      * https://github.com/crossplane/provider-aws/issues/149#issuecomment-718208201
+    * Azure Code Generation of the Crossplane provider-azure
+      * https://github.com/matthchr/k8s-infra/tree/crossplane-hacking
+    * Clouds that don't have code gen pipelines
+      * Code gen with stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
+      * https://github.com/kasey/provider-terraform-aws/tree/master/generated/resources
+
+* Open Application Model (OAM)
+  * HealthScope support for PodSpecWorkload [#243](https://github.com/crossplane/oam-kubernetes-runtime/pull/243)
+  * Allow OAM controller to create events [#239](https://github.com/crossplane/oam-kubernetes-runtime/pull/239)
+  * RBAC rules must use plural resource names [#236](https://github.com/crossplane/oam-kubernetes-runtime/pull/236)
+  * Migrate from Jenkins pipeline to GitHub Actions [#260](https://github.com/crossplane/oam-kubernetes-runtime/pull/260)
+  * CRD discovery mechanism [#261](https://github.com/crossplane/oam-kubernetes-runtime/pull/261)
+
+* Remove deprecated `KubernetesApplication`, `KubernetesTarget`, `KubernetesCluster`
+  * replaced by Composition and provider-helm
 
 ### [v0.13.0 Paving the way for a v1.0 release of Crossplane](https://github.com/crossplane/crossplane/releases/tag/v0.13.0)
 * Composition
