@@ -109,11 +109,10 @@ cobertura:
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
 # Ensure a PR is ready for review.
-reviewable: generate lint
-	@go mod tidy
+reviewable: generate lint go.vendor.tidy
 
 # Ensure branch is clean.
-check-diff: reviewable
+check-diff: generate go.vendor.tidy
 	@$(INFO) checking that branch is clean
 	@test -z "$$(git status --porcelain)" || $(FAIL)
 	@$(OK) branch is clean

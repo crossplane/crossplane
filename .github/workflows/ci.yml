@@ -35,7 +35,6 @@ jobs:
           do_not_skip: '["workflow_dispatch", "schedule", "push"]'
           concurrent_skipping: false
 
-
   lint:
     runs-on: ubuntu-18.04
     needs: detect-noop
@@ -68,11 +67,14 @@ jobs:
       - name: Vendor Dependencies
         run: make vendor vendor.check
 
+      - name: Lint Helm Chart
+        run: make helm.lint
+
       # This action uses its own setup-go, which always seems to use the latest
       # stable version of Go. We could run 'make lint' to ensure our desired Go
       # version, but we prefer this action because it leaves 'annotations' (i.e.
       # it comments on PRs to point out linter violations).
-      - name: Lint
+      - name: Lint Go
         uses: golangci/golangci-lint-action@v2
         with:
           version: ${{ env.GOLANGCI_VERSION }}
