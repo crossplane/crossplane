@@ -133,7 +133,7 @@ Install and configure a provider for Crossplane to use for infrastructure provis
 ### Install AWS Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-aws:master
+kubectl crossplane install provider crossplane/provider-aws:alpha
 ```
 
 ### Get AWS Account Keyfile
@@ -178,7 +178,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ### Install GCP Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-gcp:master
+kubectl crossplane install provider crossplane/provider-gcp:alpha
 ```
 
 ### Get GCP Account Keyfile
@@ -239,7 +239,7 @@ spec:
 ### Install Azure Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-azure:master
+kubectl crossplane install provider crossplane/provider-azure:alpha
 ```
 
 ### Get Azure Principal Keyfile
@@ -299,7 +299,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ### Install Alibaba Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-alibaba:master
+kubectl crossplane install provider crossplane/provider-alibaba:alpha
 ```
 
 ### Create a Provider Secret
