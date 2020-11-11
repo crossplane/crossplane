@@ -237,10 +237,12 @@ metadata:
 spec:
   # replace this with your own gcp project id
   projectID: ${PROJECT_ID}
-  credentialsSecretRef:
-    namespace: ${PROVIDER_SECRET_NAMESPACE}
-    name: gcp-account-creds
-    key: credentials
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: ${PROVIDER_SECRET_NAMESPACE}
+      name: gcp-account-creds
+      key: credentials
 EOF
 
 # apply it to the cluster:
