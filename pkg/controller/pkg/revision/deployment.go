@@ -99,6 +99,9 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1beta1.P
 		if cc.Spec.Replicas != nil {
 			d.Spec.Replicas = cc.Spec.Replicas
 		}
+		if cc.Spec.Image != nil {
+			d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
+		}
 		if cc.Spec.NodeSelector != nil {
 			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
 		}

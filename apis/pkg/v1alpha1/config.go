@@ -32,6 +32,12 @@ type ControllerConfigSpec struct {
 	// used to enable leader election process.
 	// +optional
 	Replicas *int32 `json:"replicas,omitempty"`
+	// Docker image name.
+	// More info: https://kubernetes.io/docs/concepts/containers/images
+	// This field is optional to allow higher level config management to default or override
+	// container images in workload controllers like Deployments and StatefulSets.
+	// +optional
+	Image *string `json:"image,omitempty"`
 	// NodeSelector is a selector which must be true for the pod to fit on a node.
 	// Selector which must match a node's labels for the pod to be scheduled on that node.
 	// More info: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
