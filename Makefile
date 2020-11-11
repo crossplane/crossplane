@@ -69,6 +69,11 @@ DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/cr
 -include build/makelib/docs.mk
 
 # ====================================================================================
+# Setup Local development tools
+
+-include build/makelib/local.mk
+
+# ====================================================================================
 # Targets
 
 # run `make help` to see the targets and options

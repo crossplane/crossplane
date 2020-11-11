@@ -21,6 +21,13 @@ gitlab/
 # helm chart dependencies
 **/charts/*.tgz
 **/charts/**/requirements.lock
+**/charts/**/charts
+**/charts/**/tmpcharts
 
 # Crossplane packages
 *.xpkg
+
+# Tilt
+tilt-providers.json
+tild.d/
+tilt_modules/

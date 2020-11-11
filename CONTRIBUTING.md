@@ -64,6 +64,34 @@ kubectl -n crossplane-system scale deploy crossplane --replicas=0
 make run
 ```
 
+Alternatively you can use [Tilt] to automate almost all of the tasks needed for
+local developement. Note that you'd still need to have a local cluster ('kind' is
+still recommended here). The `Tiltfile` contains all the steps to watch and run TODO:
+
+```bash
+# Prepare local '.work/' folder required by local toolings
+make local.prepare
+
+# Start a new kind cluster. Customized to be used with Tilt.
+USE_TILT=true make kind.up
+
+# Update helm chart dependency. This is needed once or when
+# 'cluster/charts/crossplane/charts' folder is missing or
+# any of the dependencies of Crossplane chart have been changed.
+#
+# Note that this has to be done outside of Tilt:
+# https://docs.tilt.dev/helm.html#sub-charts-and-requirementstxt
+make local.helmdep
+
+# Start Tilt and open its UI http://localhost:10350/ in your browser.
+# At this point Tilt starts watching your local folder for any changes
+# and executes required tasks (building Crossplane, creating a docker
+# image, deploying to kind cluster, etc). You can just go back and forth
+# between your editor and the Tilt UI to get immediate and fast feedback
+# of result of your changes.
+make tilt.up
+```
+
 > Note that local development using minikube and microk8s is also possible.
 > Simply use the `minikube.sh` or `microk8s.sh` variants of the above `kind.sh`
 > script to do so. Their arguments and functionality are identical.
@@ -150,6 +178,7 @@ us][Slack] if you have any questions about contributing!
 [code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 [build submodule]: https://github.com/upbound/build/
 [`kind`]: https://kind.sigs.k8s.io/
+[Tilt]: https://tilt.dev/
 [Crossplane release cycle]: docs/reference/release-cycle.md
 [good git commit hygiene]: https://www.futurelearn.com/info/blog/telling-stories-with-your-git-history
 [Developer Certificate of Origin]: https://github.com/apps/dco
