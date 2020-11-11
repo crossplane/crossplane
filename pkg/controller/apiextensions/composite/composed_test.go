@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composed
+package composite
 
 import (
 	"context"
@@ -35,21 +35,20 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	runtimecomposed "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
-var errBoom = errors.New("boom")
-
-func TestConfigure(t *testing.T) {
-
+func TestRender(t *testing.T) {
+	ctrl := true
 	tmpl, _ := json.Marshal(&fake.Managed{})
 
 	type args struct {
-		cp resource.Composite
-		cd resource.Composed
-		t  v1beta1.ComposedTemplate
+		ctx context.Context
+		cp  resource.Composite
+		cd  resource.Composed
+		t   v1beta1.ComposedTemplate
 	}
 	type want struct {
 		cd  resource.Composed
@@ -57,6 +56,7 @@ func TestConfigure(t *testing.T) {
 	}
 	cases := map[string]struct {
 		reason string
+		client client.Client
 		args
 		want
 	}{
@@ -83,8 +83,34 @@ func TestConfigure(t *testing.T) {
 				err: errors.New(errNamePrefix),
 			},
 		},
+		"DryRunError": {
+			reason: "Errors dry-run creating the rendered resource to name it should be returned",
+			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
+			args: args{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					LabelKeyNamePrefixForComposed: "ola",
+					LabelKeyClaimName:             "rola",
+					LabelKeyClaimNamespace:        "rolans",
+				}}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{}},
+				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					GenerateName: "ola-",
+					Labels: map[string]string{
+						LabelKeyNamePrefixForComposed: "ola",
+						LabelKeyClaimName:             "rola",
+						LabelKeyClaimNamespace:        "rolans",
+					},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
+				}},
+				err: errors.Wrap(errBoom, errName),
+			},
+		},
 		"Success": {
 			reason: "Configuration should result in the right object with correct generateName",
+			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
 			args: args{
 				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
 					LabelKeyNamePrefixForComposed: "ola",
@@ -95,23 +121,28 @@ func TestConfigure(t *testing.T) {
 				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
 			},
 			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd", GenerateName: "ola-", Labels: map[string]string{
-					LabelKeyNamePrefixForComposed: "ola",
-					LabelKeyClaimName:             "rola",
-					LabelKeyClaimNamespace:        "rolans",
-				}}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					Name:         "cd",
+					GenerateName: "ola-",
+					Labels: map[string]string{
+						LabelKeyNamePrefixForComposed: "ola",
+						LabelKeyClaimName:             "rola",
+						LabelKeyClaimNamespace:        "rolans",
+					},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
+				}},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &DefaultConfigurator{}
-			err := c.Configure(tc.args.cp, tc.args.cd, tc.args.t)
+			r := NewAPIDryRunRenderer(tc.client)
+			err := r.Render(tc.args.ctx, tc.args.cp, tc.args.cd, tc.args.t)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
-				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -235,7 +266,7 @@ func TestFetch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := &APIConnectionDetailsFetcher{client: tc.args.kube}
-			conn, err := c.Fetch(context.Background(), tc.args.cd, tc.args.t)
+			conn, err := c.FetchConnectionDetails(context.Background(), tc.args.cd, tc.args.t)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -248,7 +279,7 @@ func TestFetch(t *testing.T) {
 
 func TestIsReady(t *testing.T) {
 	type args struct {
-		cd *runtimecomposed.Unstructured
+		cd *composed.Unstructured
 		t  v1beta1.ComposedTemplate
 	}
 	type want struct {
@@ -263,7 +294,7 @@ func TestIsReady(t *testing.T) {
 		"NoCustomCheck": {
 			reason: "If no custom check is given, Ready condition should be used",
 			args: args{
-				cd: runtimecomposed.New(runtimecomposed.WithConditions(runtimev1alpha1.Available())),
+				cd: composed.New(composed.WithConditions(runtimev1alpha1.Available())),
 			},
 			want: want{
 				ready: true,
@@ -272,7 +303,7 @@ func TestIsReady(t *testing.T) {
 		"ExplictNone": {
 			reason: "If the only readiness check is explicitly 'None' the resource is always ready.",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: v1beta1.ReadinessCheckNone}}},
 			},
 			want: want{
@@ -282,7 +313,7 @@ func TestIsReady(t *testing.T) {
 		"NonEmptyErr": {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata..uid"}}},
 			},
 			want: want{
@@ -292,7 +323,7 @@ func TestIsReady(t *testing.T) {
 		"NonEmptyFalse": {
 			reason: "If the field does not have value, NonEmpty check should return false",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
 			},
 			want: want{
@@ -302,7 +333,7 @@ func TestIsReady(t *testing.T) {
 		"NonEmptyTrue": {
 			reason: "If the field does have a value, NonEmpty check should return true",
 			args: args{
-				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+				cd: composed.New(func(r *composed.Unstructured) {
 					r.SetUID("olala")
 				}),
 				t: v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "NonEmpty", FieldPath: "metadata.uid"}}},
@@ -314,7 +345,7 @@ func TestIsReady(t *testing.T) {
 		"MatchStringErr": {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata..uid"}}},
 			},
 			want: want{
@@ -324,7 +355,7 @@ func TestIsReady(t *testing.T) {
 		"MatchStringFalse": {
 			reason: "If the value of the field does not match, it should return false",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
 			},
 			want: want{
@@ -334,7 +365,7 @@ func TestIsReady(t *testing.T) {
 		"MatchStringTrue": {
 			reason: "If the value of the field does match, it should return true",
 			args: args{
-				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+				cd: composed.New(func(r *composed.Unstructured) {
 					r.SetUID("olala")
 				}),
 				t: v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchString", FieldPath: "metadata.uid", MatchString: "olala"}}},
@@ -346,7 +377,7 @@ func TestIsReady(t *testing.T) {
 		"MatchIntegerErr": {
 			reason: "If the value cannot be fetched due to fieldPath being misconfigured, error should be returned",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "MatchInteger", FieldPath: "metadata..uid"}}},
 			},
 			want: want{
@@ -356,7 +387,7 @@ func TestIsReady(t *testing.T) {
 		"MatchIntegerFalse": {
 			reason: "If the value of the field does not match, it should return false",
 			args: args{
-				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+				cd: composed.New(func(r *composed.Unstructured) {
 					r.Object = map[string]interface{}{
 						"spec": map[string]interface{}{
 							"someNum": int64(6),
@@ -372,7 +403,7 @@ func TestIsReady(t *testing.T) {
 		"MatchIntegerTrue": {
 			reason: "If the value of the field does match, it should return true",
 			args: args{
-				cd: runtimecomposed.New(func(r *runtimecomposed.Unstructured) {
+				cd: composed.New(func(r *composed.Unstructured) {
 					r.Object = map[string]interface{}{
 						"spec": map[string]interface{}{
 							"someNum": int64(5),
@@ -388,7 +419,7 @@ func TestIsReady(t *testing.T) {
 		"UnknownType": {
 			reason: "If unknown type is chosen, it should return an error",
 			args: args{
-				cd: runtimecomposed.New(),
+				cd: composed.New(),
 				t:  v1beta1.ComposedTemplate{ReadinessChecks: []v1beta1.ReadinessCheck{{Type: "Olala"}}},
 			},
 			want: want{

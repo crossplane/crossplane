@@ -26,8 +26,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+)
 
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions/composite/composed"
+// Label keys.
+const (
+	LabelKeyNamePrefixForComposed = "crossplane.io/composite"
+	LabelKeyClaimName             = "crossplane.io/claim-name"
+	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
 // Configure the supplied composite resource. The composite resource name is
@@ -64,8 +69,8 @@ func Configure(_ context.Context, cm resource.CompositeClaim, cp resource.Compos
 		meta.SetExternalName(ucp, meta.GetExternalName(cm))
 	}
 	meta.AddLabels(ucp, map[string]string{
-		composed.LabelKeyClaimName:      cm.GetName(),
-		composed.LabelKeyClaimNamespace: cm.GetNamespace(),
+		LabelKeyClaimName:      cm.GetName(),
+		LabelKeyClaimNamespace: cm.GetNamespace(),
 	})
 	return nil
 }
