@@ -102,7 +102,7 @@ kind: ProviderConfig
 metadata:
   name: default
 spec:
-  credentials
+  credentials:
     source: Secret
     secretRef:
       namespace: crossplane-system
