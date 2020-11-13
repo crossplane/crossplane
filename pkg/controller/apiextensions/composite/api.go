@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/pkg/xcrd"
 )
 
 // Error strings.
@@ -313,9 +314,9 @@ type APINamingConfigurator struct {
 
 // Configure the supplied composite resource's root name prefix.
 func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1beta1.Composition) error {
-	if cp.GetLabels()[LabelKeyNamePrefixForComposed] != "" {
+	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 		return nil
 	}
-	meta.AddLabels(cp, map[string]string{LabelKeyNamePrefixForComposed: cp.GetName()})
+	meta.AddLabels(cp, map[string]string{xcrd.LabelKeyNamePrefixForComposed: cp.GetName()})
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }

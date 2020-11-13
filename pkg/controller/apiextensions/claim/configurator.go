@@ -18,14 +18,16 @@ package claim
 
 import (
 	"context"
-	"errors"
 	"fmt"
+
+	"github.com/pkg/errors"
 
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+	"github.com/crossplane/crossplane/pkg/xcrd"
 )
 
 // Label keys.
@@ -35,10 +37,20 @@ const (
 	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
+const errUnsupportedClaimSpec = "composite resource claim spec was not an object"
+
 // Configure the supplied composite resource. The composite resource name is
 // derived from the supplied claim, as {name}-{random-string}. The claim's
 // external name annotation, if any, is propagated to the composite resource.
 func Configure(_ context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+	cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+	meta.AddAnnotations(cp, cm.GetAnnotations())
+	meta.AddLabels(cp, cm.GetLabels())
+	meta.AddLabels(cp, map[string]string{
+		xcrd.LabelKeyClaimName:      cm.GetName(),
+		xcrd.LabelKeyClaimNamespace: cm.GetNamespace(),
+	})
+
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -57,21 +69,11 @@ func Configure(_ context.Context, cm resource.CompositeClaim, cp resource.Compos
 	i, _ := fieldpath.Pave(ucm.Object).GetValue("spec")
 	spec, ok := i.(map[string]interface{})
 	if !ok {
-		return errors.New("composite resource claim spec was not an object")
+		return errors.New(errUnsupportedClaimSpec)
 	}
 
-	// TODO(negz): Make these filtered keys constants in the xcrds package?
-	_ = fieldpath.Pave(ucp.Object).SetValue("spec", filter(spec, "resourceRef", "writeConnectionSecretToRef"))
-	meta.AddAnnotations(ucp, ucm.GetAnnotations())
-	meta.AddLabels(ucp, ucm.GetLabels())
-	ucp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-	if meta.GetExternalName(cm) != "" {
-		meta.SetExternalName(ucp, meta.GetExternalName(cm))
-	}
-	meta.AddLabels(ucp, map[string]string{
-		LabelKeyClaimName:      cm.GetName(),
-		LabelKeyClaimNamespace: cm.GetNamespace(),
-	})
+	_ = fieldpath.Pave(ucp.Object).SetValue("spec", filter(spec, xcrd.FilterClaimSpecProps...))
+
 	return nil
 }
 

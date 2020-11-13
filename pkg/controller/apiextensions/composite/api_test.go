@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/pkg/xcrd"
 )
 
 var errBoom = errors.New("boom")
@@ -586,10 +587,10 @@ func TestAPINamingConfigurator(t *testing.T) {
 		"LabelAlreadyExists": {
 			reason: "No operation should be done if the name prefix is already given",
 			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{LabelKeyNamePrefixForComposed: "given"}}},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "given"}}},
 			},
 			want: want{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{LabelKeyNamePrefixForComposed: "given"}}},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "given"}}},
 			},
 		},
 		"AssignedName": {
@@ -601,7 +602,7 @@ func TestAPINamingConfigurator(t *testing.T) {
 				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp"}},
 			},
 			want: want{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp", Labels: map[string]string{LabelKeyNamePrefixForComposed: "cp"}}},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "cp", Labels: map[string]string{xcrd.LabelKeyNamePrefixForComposed: "cp"}}},
 			},
 		},
 	}

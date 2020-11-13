@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/pkg/xcrd"
 )
 
 // Error strings
@@ -46,13 +47,6 @@ const (
 	errGetSecret   = "cannot get connection secret of composed resource"
 	errNamePrefix  = "name prefix is not found in labels"
 	errName        = "cannot use dry-run create to name composed resource"
-)
-
-// Label keys.
-const (
-	LabelKeyNamePrefixForComposed = "crossplane.io/composite"
-	LabelKeyClaimName             = "crossplane.io/claim-name"
-	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
 // Observation is the result of composed reconciliation.
@@ -95,19 +89,19 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	if err := json.Unmarshal(t.Base.Raw, cd); err != nil {
 		return errors.Wrap(err, errUnmarshal)
 	}
-	if cp.GetLabels()[LabelKeyNamePrefixForComposed] == "" {
+	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] == "" {
 		return errors.New(errNamePrefix)
 	}
 	// This label will be used if composed resource is yet another composite.
 	meta.AddLabels(cd, map[string]string{
-		LabelKeyNamePrefixForComposed: cp.GetLabels()[LabelKeyNamePrefixForComposed],
-		LabelKeyClaimName:             cp.GetLabels()[LabelKeyClaimName],
-		LabelKeyClaimNamespace:        cp.GetLabels()[LabelKeyClaimNamespace],
+		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
+		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
+		xcrd.LabelKeyClaimNamespace:        cp.GetLabels()[xcrd.LabelKeyClaimNamespace],
 	})
 	// Unmarshalling the template will overwrite any existing fields, so we must
 	// restore the existing name, if any. We also set generate name in case we
 	// haven't yet named this composed resource.
-	cd.SetGenerateName(cp.GetLabels()[LabelKeyNamePrefixForComposed] + "-")
+	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
 	cd.SetNamespace(namespace)
 	for i, p := range t.Patches {

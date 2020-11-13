@@ -25,6 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -32,7 +33,153 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var _ ConnectionPropagator = &APIConnectionPropagator{}
+var (
+	_ Binder               = &APIBinder{}
+	_ ConnectionPropagator = &APIConnectionPropagator{}
+)
+
+func TestBind(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type fields struct {
+		c client.Client
+		t runtime.ObjectTyper
+	}
+
+	type args struct {
+		ctx context.Context
+		cm  resource.CompositeClaim
+		cp  resource.Composite
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields fields
+		args   args
+		want   error
+	}{
+		"CompositeRefConflict": {
+			reason: "An error should be returned if the claim is bound to another composite resource",
+			fields: fields{
+				t: fake.SchemeWith(&fake.Composite{}),
+			},
+			args: args{
+				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{
+							APIVersion: fake.GVK(&fake.Composite{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Composite{}).Kind,
+							Name:       "who",
+						},
+					},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "wat",
+					},
+				},
+			},
+			want: errors.New(errBindClaimConflict),
+		},
+		"UpdateClaimError": {
+			reason: "Errors updating the claim should be returned",
+			fields: fields{
+				c: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				},
+				t: fake.SchemeWith(&fake.Composite{}),
+			},
+			args: args{
+				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{
+							APIVersion: fake.GVK(&fake.Composite{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Composite{}).Kind,
+						},
+					},
+				},
+				cp: &fake.Composite{},
+			},
+			want: errors.Wrap(errBoom, errUpdateClaim),
+		},
+		"ClaimRefConflict": {
+			reason: "An error should be returned if the composite resource is bound to another claim",
+			fields: fields{
+				c: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+				t: fake.SchemeWith(&fake.Composite{}, &fake.CompositeClaim{}),
+			},
+			args: args{
+				cm: &fake.CompositeClaim{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "wat",
+					},
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{
+							APIVersion: fake.GVK(&fake.Composite{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Composite{}).Kind,
+						},
+					},
+				},
+				cp: &fake.Composite{
+					ClaimReferencer: fake.ClaimReferencer{
+						Ref: &corev1.ObjectReference{
+							APIVersion: fake.GVK(&fake.CompositeClaim{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.CompositeClaim{}).Kind,
+							Name:       "who",
+						},
+					},
+				},
+			},
+			want: errors.New(errBindCompositeConflict),
+		},
+		"UpdateCompositeError": {
+			reason: "Errors updating the composite resource should be returned",
+			fields: fields{
+				c: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+						if _, ok := obj.(*fake.Composite); ok {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+				t: fake.SchemeWith(&fake.Composite{}, &fake.CompositeClaim{}),
+			},
+			args: args{
+				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{
+							APIVersion: fake.GVK(&fake.Composite{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.Composite{}).Kind,
+						},
+					},
+				},
+				cp: &fake.Composite{
+					ClaimReferencer: fake.ClaimReferencer{
+						Ref: &corev1.ObjectReference{
+							APIVersion: fake.GVK(&fake.CompositeClaim{}).GroupVersion().String(),
+							Kind:       fake.GVK(&fake.CompositeClaim{}).Kind,
+						},
+					},
+				},
+			},
+			want: errors.Wrap(errBoom, errUpdateComposite),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			b := NewAPIBinder(tc.fields.c, tc.fields.t)
+			got := b.Bind(tc.args.ctx, tc.args.cm, tc.args.cp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("b.Bind(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+
+}
 
 func TestPropagateConnection(t *testing.T) {
 	errBoom := errors.New("boom")
