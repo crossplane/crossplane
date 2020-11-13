@@ -553,7 +553,7 @@ so that Crossplane users may install it.
 <div class="tab-pane fade in active" id="aws-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: getting-started-with-aws
@@ -577,7 +577,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-aws:master
 <div class="tab-pane fade" id="aws-new-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: getting-started-with-aws-with-vpc
@@ -601,7 +601,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:m
 <div class="tab-pane fade" id="gcp-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: getting-started-with-gcp
@@ -624,7 +624,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-gcp:master
 <div class="tab-pane fade" id="azure-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: getting-started-with-azure
@@ -647,7 +647,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
 <div class="tab-pane fade" id="alibaba-tab-3" markdown="1">
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: getting-started-with-alibaba
