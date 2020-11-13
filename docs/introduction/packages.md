@@ -44,7 +44,7 @@ metadata, which governs how Crossplane will install the package.
 A Provider package contains a `crossplane.yaml` with the following format:
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Provider
 metadata:
   name: provider-gcp
@@ -86,7 +86,7 @@ extension.
 A Configuration package contains a `crossplane.yaml` with the following format:
 
 ```yaml
-apiVersion: meta.pkg.crossplane.io/v1beta1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: my-org-infra
