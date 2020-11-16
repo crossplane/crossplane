@@ -75,6 +75,7 @@ Use Helm 3 to install the latest official `alpha` release of Crossplane, suitabl
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+helm repo update
 
 helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --set alpha.oam.enabled=true
 ```
@@ -87,6 +88,7 @@ Use Helm 3 to install the latest `master` pre-release version of Crossplane:
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-master https://charts.crossplane.io/master/
+helm repo update
 helm search repo crossplane-master --devel
 
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version> --set alpha.oam.enabled=true
