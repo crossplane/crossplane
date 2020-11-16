@@ -95,7 +95,7 @@ spec:
                 required:
                   - storageGB
             required:
-              - parameterss
+              - parameters
 ```
 
 ```console
