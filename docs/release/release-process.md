@@ -20,10 +20,10 @@ Actions](https://github.com/features/actions) for pipelines.
    branch (typically documentation).
 1. **tag release**: Run the `Tag` action on the _release branch_ with the
    desired version (e.g. `v0.14.0`).
-1. **tag next pre-release**: Run the `tag` action on the `master` branch with
-   the `rc.0` for the next release (e.g. `v0.15.0-rc.0`).
 1. **build/publish**: Run the `CI` action on the release branch with the version
    that was just tagged.
+1. **tag next pre-release**: Run the `tag` action on the `master` branch with
+   the `rc.0` for the next release (e.g. `v0.15.0-rc.0`).
 1. **verify**: Verify all artifacts have been published successfully, perform
    sanity testing.
 1. **promote**: Run the `Promote` action to promote release to desired
@@ -130,6 +130,36 @@ Run the tag action by going to the repo's "Actions" tab in the Github UI. You
 will be prompted for the desired branch and the version you are tagging. The
 latest commit on the selected branch will be the commit that is tagged. 
 
+### Draft Release Notes
+
+We're getting close to starting the official release, so you should take this
+opportunity to draft up the release notes. You can create a [new release draft
+here](https://github.com/crossplane/crossplane/releases/new).  Make sure you
+select "This is a pre-release" and hit "Save draft" when you are ready to share
+and collect feedback.  Do **not** hit "Publish release" yet.
+
+You can see and follow the template and structure from [previous
+releases](https://github.com/crossplane/crossplane/releases).
+
+### Build and Publish
+
+Run the `CI` action on the release branch. This will build and publish the
+official release with the correct version tag and all of its release artifacts
+will be published.
+
+After the pipeline runs successfully, you should verify that all artifacts have
+been published to:
+
+For all repos:
+* [Docker Hub](https://hub.docker.com/repository/docker/crossplane)
+
+For all repos with Helm charts:
+* [S3 releases bucket](https://releases.crossplane.io/)
+* [Helm chart repository](https://charts.crossplane.io/)
+
+For crossplane/crossplane:
+* [Docs website](https://crossplane.io/docs/latest)
+
 ### Tag Next Pre-release
 
 The next step is to create the pre-release tag for the `HEAD` commit in
@@ -164,36 +194,6 @@ applied to the correct commit.
 The `master` branch can now be opened for new features since we have a safe
 release branch to continue bug fixes and improvements for the release itself.
 Essentially, `master` is free to now diverge from the release branch.
-
-### Draft Release Notes
-
-We're getting close to starting the official release, so you should take this
-opportunity to draft up the release notes. You can create a [new release draft
-here](https://github.com/crossplane/crossplane/releases/new).  Make sure you
-select "This is a pre-release" and hit "Save draft" when you are ready to share
-and collect feedback.  Do **not** hit "Publish release" yet.
-
-You can see and follow the template and structure from [previous
-releases](https://github.com/crossplane/crossplane/releases).
-
-### Build and Publish
-
-Run the `CI` action on the release branch. This will build and publish the
-official release with the correct version tag and all of its release artifacts
-will be published.
-
-After the pipeline runs successfully, you should verify that all artifacts have
-been published to:
-
-For all repos:
-* [Docker Hub](https://hub.docker.com/repository/docker/crossplane)
-
-For all repos with Helm charts:
-* [S3 releases bucket](https://releases.crossplane.io/)
-* [Helm chart repository](https://charts.crossplane.io/)
-
-For crossplane/crossplane:
-* [Docs website](https://crossplane.io/docs/latest)
 
 ### Promote
 
