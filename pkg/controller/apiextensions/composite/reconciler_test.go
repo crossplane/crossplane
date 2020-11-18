@@ -38,6 +38,7 @@ import (
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	cd := managed.ConnectionDetails{"a": []byte("b")}
 
 	type args struct {
 		mgr  manager.Manager
@@ -434,8 +435,8 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return managed.ConnectionDetails{"a": []byte("b")}, nil
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return cd, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error) {
 						// Our one resource is ready.
@@ -444,7 +445,11 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error {
 						return nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+						want := cd
+						if diff := cmp.Diff(want, got); diff != "" {
+							t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
+						}
 						return true, nil
 					})),
 				},
