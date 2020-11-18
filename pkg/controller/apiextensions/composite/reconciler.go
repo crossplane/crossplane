@@ -395,14 +395,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// Connection details are fetched in all cases in a best-effort mode,
 		// i.e. it doesn't return error if the secret does not exist or the
 		// resource does not publish a secret at all.
-		conn, err := r.composed.FetchConnectionDetails(ctx, cd, comp.Spec.Resources[i])
+		c, err := r.composed.FetchConnectionDetails(ctx, cd, comp.Spec.Resources[i])
 		if err != nil {
 			log.Debug(errFetchSecret, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
-		for key, val := range conn {
+		for key, val := range c {
 			conn[key] = val
 		}
 
