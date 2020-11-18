@@ -20,6 +20,7 @@ import (
 	"context"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -171,7 +172,7 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to re
 		resource.AllowUpdateIf(func(current, desired runtime.Object) bool {
 			// We consider the update to be a no-op and don't allow it if the
 			// current and existing secret data are identical.
-			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data)
+			return !cmp.Equal(current.(*corev1.Secret).Data, desired.(*corev1.Secret).Data, cmpopts.EquateEmpty())
 		}),
 	)
 	if resource.IsNotAllowed(err) {
