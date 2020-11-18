@@ -378,10 +378,11 @@ func TestReconcile(t *testing.T) {
 							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
 							want.SetName("test-1234567")
 							want.SetOwnerReferences([]metav1.OwnerReference{{
-								APIVersion: v1beta1.SchemeGroupVersion.String(),
-								Kind:       v1beta1.ConfigurationKind,
-								Name:       "test",
-								Controller: &trueVal,
+								APIVersion:         v1beta1.SchemeGroupVersion.String(),
+								Kind:               v1beta1.ConfigurationKind,
+								Name:               "test",
+								Controller:         &trueVal,
+								BlockOwnerDeletion: &trueVal,
 							}})
 							want.SetGroupVersionKind(v1beta1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1beta1.PackageRevisionActive)
@@ -593,10 +594,11 @@ func TestReconcile(t *testing.T) {
 							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
 							want.SetName("test-1234567")
 							want.SetOwnerReferences([]metav1.OwnerReference{{
-								APIVersion: v1beta1.SchemeGroupVersion.String(),
-								Kind:       v1beta1.ConfigurationKind,
-								Name:       "test",
-								Controller: &trueVal,
+								APIVersion:         v1beta1.SchemeGroupVersion.String(),
+								Kind:               v1beta1.ConfigurationKind,
+								Name:               "test",
+								Controller:         &trueVal,
+								BlockOwnerDeletion: &trueVal,
 							}})
 							want.SetGroupVersionKind(v1beta1.ConfigurationRevisionGroupVersionKind)
 							want.SetDesiredState(v1beta1.PackageRevisionActive)
