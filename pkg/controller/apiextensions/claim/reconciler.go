@@ -22,6 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -281,13 +282,24 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
-		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); resource.IgnoreNotFound(err) != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(cm, event.Warning(reasonBind, err))
-			return reconcile.Result{RequeueAfter: aShortWait}, nil
+		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); err != nil {
+			// If our referenced composite doesn't exist and we're not being
+			// deleted we want to requeue after a short wait for someone to
+			// (re)create it. We must explicitly requeue because our
+			// EnqueueRequestForClaim handler can only enqueue reconciles for
+			// composite resources that have their claim reference set, so we
+			// can't expect to be queued implicitly when the composite resource
+			// we want to bind to appears. If the error was anything other than
+			// NotFound we want to retry after a short wait, too. If our
+			// referenced composite resource doesn't exist and we're being
+			// deleted we want to fall through to the below meta.WasDeleted
+			// block, where we can safely 'delete' the non-existent composite
+			// and remove our finalizer.
+			if !kerrors.IsNotFound(err) || !meta.WasDeleted(cm) {
+				log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+				record.Event(cm, event.Warning(reasonBind, err))
+				return reconcile.Result{RequeueAfter: aShortWait}, nil
+			}
 		}
 	}
 
