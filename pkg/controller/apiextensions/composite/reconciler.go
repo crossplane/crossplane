@@ -418,6 +418,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
+	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
+
 	published, err := r.composite.PublishConnection(ctx, cr, conn)
 	if err != nil {
 		log.Debug(errPublish, "error", err)
@@ -430,17 +432,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
-	// TODO(muvaf): Report which resources are not ready.
-
-	// TODO(muvaf): If a resource becomes Unavailable at some point, should we still
-	// report it as Creating?
-	wait := longWait
-	cr.SetConditions(runtimev1alpha1.Available())
+	// TODO(muvaf):
+	// * Report which resources are not ready.
+	// * If a resource becomes Unavailable at some point, should we still report
+	//   it as Creating?
 	if ready != len(refs) {
 		cr.SetConditions(runtimev1alpha1.Creating())
-		wait = shortWait
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
-	return reconcile.Result{RequeueAfter: wait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	cr.SetConditions(runtimev1alpha1.Available())
+	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 }

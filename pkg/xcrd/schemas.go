@@ -18,6 +18,17 @@ package xcrd
 
 import extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
+// Label keys.
+const (
+	LabelKeyNamePrefixForComposed = "crossplane.io/composite"
+	LabelKeyClaimName             = "crossplane.io/claim-name"
+	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
+)
+
+// FilterClaimSpecProps is the list of XRC resource spec properties to filter
+// out when translating an XRC into an XR.
+var FilterClaimSpecProps = []string{"resourceRef", "writeConnectionSecretToRef"}
+
 // TODO(negz): Add descriptions to schema fields.
 
 // BaseProps is a partial OpenAPIV3Schema for the spec fields that Crossplane
@@ -90,7 +101,6 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 						"apiVersion": {Type: "string"},
 						"name":       {Type: "string"},
 						"kind":       {Type: "string"},
-						"uid":        {Type: "string"},
 					},
 					Required: []string{"apiVersion", "kind", "name"},
 				},

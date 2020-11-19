@@ -72,41 +72,21 @@ func ControllerName(name string) string {
 	return "claim/" + name
 }
 
-// A CompositeConfigurator configures a resource, typically by converting it to
-// a known type and populating its spec.
+// A CompositeConfigurator configures the supplied composite resource, typically
+// by converting it to a known type and populating its spec to reflect the
+// supplied composite resource claim.
 type CompositeConfigurator interface {
 	Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 }
 
-// A CompositeConfiguratorFn is a function that satisfies the
-// CompositeConfigurator interface.
+// A CompositeConfiguratorFn configures the supplied composite resource,
+// typically by converting it to a known type and populating its spec to reflect
+// the supplied composite resource claim.
 type CompositeConfiguratorFn func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 
 // Configure the supplied resource using the supplied claim.
 func (fn CompositeConfiguratorFn) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 	return fn(ctx, cm, cp)
-}
-
-// A CompositeCreator creates a resource, typically by submitting it to an API
-// server. CompositeCreators must not modify the supplied resource class, but are
-// responsible for final modifications to the claim and resource, for example
-// ensuring resource, claim, and owner references are set.
-type CompositeCreator interface {
-	Create(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
-}
-
-// A CompositeCreatorFn is a function that satisfies the CompositeCreator interface.
-type CompositeCreatorFn func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
-
-// Create the supplied resource.
-func (fn CompositeCreatorFn) Create(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-	return fn(ctx, cm, cp)
-}
-
-// A CompositeDeleter deletes a composite resource.
-type CompositeDeleter interface {
-	// Delete the supplied Claim to the supplied Composite resource.
-	Delete(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 }
 
 // A Binder binds a composite resource claim to a composite resource.
@@ -115,26 +95,27 @@ type Binder interface {
 	Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 }
 
-// BinderFns satisfy the Binder interface.
-type BinderFns struct {
-	BindFn   func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
-	UnbindFn func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
-}
+// A BinderFn binds a composite resource claim to a composite resource.
+type BinderFn func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 
 // Bind the supplied Claim to the supplied Composite resource.
-func (b BinderFns) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-	return b.BindFn(ctx, cm, cp)
-}
-
-// Unbind the supplied Claim from the supplied Composite resource.
-func (b BinderFns) Unbind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-	return b.UnbindFn(ctx, cm, cp)
+func (fn BinderFn) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+	return fn(ctx, cm, cp)
 }
 
 // A ConnectionPropagator is responsible for propagating information required to
 // connect to a resource.
 type ConnectionPropagator interface {
 	PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+}
+
+// A ConnectionPropagatorFn is responsible for propagating information required
+// to connect to a resource.
+type ConnectionPropagatorFn func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error)
+
+// PropagateConnection details from one resource to the other.
+func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+	return fn(ctx, to, from)
 }
 
 // A Reconciler reconciles composite resource claims by creating exactly one kind of
@@ -144,7 +125,7 @@ type ConnectionPropagator interface {
 // type of resource class provisioner. Each controller must watch its subset of
 // composite resource claims and any composite resources they control.
 type Reconciler struct {
-	client       client.Client
+	client       resource.ClientApplicator
 	newClaim     func() resource.CompositeClaim
 	newComposite func() resource.Composite
 
@@ -160,16 +141,12 @@ type Reconciler struct {
 
 type crComposite struct {
 	CompositeConfigurator
-	CompositeCreator
-	CompositeDeleter
 	ConnectionPropagator
 }
 
 func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
 	return crComposite{
 		CompositeConfigurator: CompositeConfiguratorFn(Configure),
-		CompositeCreator:      NewAPICompositeCreator(c, t),
-		CompositeDeleter:      NewAPICompositeDeleter(c),
 		ConnectionPropagator:  NewAPIConnectionPropagator(c, t),
 	}
 }
@@ -189,11 +166,19 @@ func defaultCRClaim(c client.Client, t runtime.ObjectTyper) crClaim {
 // A ReconcilerOption configures a Reconciler.
 type ReconcilerOption func(*Reconciler)
 
-// WithCompositeCreator specifies which CompositeCreator should be used to create
-// composite resources.
-func WithCompositeCreator(c CompositeCreator) ReconcilerOption {
+// WithClientApplicator specifies how the Reconciler should interact with the
+// Kubernetes API.
+func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.CompositeCreator = c
+		r.client = ca
+	}
+}
+
+// WithCompositeConfigurator specifies how the Reconciler should configure the bound
+// composite resource.
+func WithCompositeConfigurator(cf CompositeConfigurator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.CompositeConfigurator = cf
 	}
 }
 
@@ -243,7 +228,10 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resource.CompositeKind, o ...ReconcilerOption) *Reconciler {
 	c := unstructured.NewClient(m.GetClient())
 	r := &Reconciler{
-		client: c,
+		client: resource.ClientApplicator{
+			Client:     c,
+			Applicator: resource.NewAPIPatchingApplicator(c),
+		},
 		newClaim: func() resource.CompositeClaim {
 			return claim.New(claim.WithGroupVersionKind(schema.GroupVersionKind(of)))
 		},
@@ -294,57 +282,34 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
-		err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp)
-		if kerrors.IsNotFound(err) {
-
-			// Our composite was not found, but we're being deleted too. There's
-			// nothing to finalize.
-			if meta.WasDeleted(cm) {
-				// TODO(negz): Can we refactor to avoid this deletion logic that
-				// is almost identical to the meta.WasDeleted block below?
-				log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
-				if err := r.claim.RemoveFinalizer(ctx, cm); err != nil {
-					// If we didn't hit this error last time we'll be requeued
-					// implicitly due to the status update. Otherwise we want to retry
-					// after a brief wait, in case this was a transient error.
-					log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
-					record.Event(cm, event.Warning(reasonDelete, err))
-					return reconcile.Result{RequeueAfter: aShortWait}, nil
-				}
-
-				// We've successfully deleted our claim and removed our finalizer. If we
-				// assume we were the only controller that added a finalizer to this
-				// claim then it should no longer exist and thus there is no point
-				// trying to update its status.
-				log.Debug("Successfully deleted composite resource claim")
-				return reconcile.Result{Requeue: false}, nil
+		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); err != nil {
+			// If our referenced composite doesn't exist and we're not being
+			// deleted we want to requeue after a short wait for someone to
+			// (re)create it. We must explicitly requeue because our
+			// EnqueueRequestForClaim handler can only enqueue reconciles for
+			// composite resources that have their claim reference set, so we
+			// can't expect to be queued implicitly when the composite resource
+			// we want to bind to appears. If the error was anything other than
+			// NotFound we want to retry after a short wait, too. If our
+			// referenced composite resource doesn't exist and we're being
+			// deleted we want to fall through to the below meta.WasDeleted
+			// block, where we can safely 'delete' the non-existent composite
+			// and remove our finalizer.
+			if !kerrors.IsNotFound(err) || !meta.WasDeleted(cm) {
+				log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+				record.Event(cm, event.Warning(reasonBind, err))
+				return reconcile.Result{RequeueAfter: aShortWait}, nil
 			}
-
-			// If the composite resource we explicitly reference doesn't exist yet
-			// we want to retry after a brief wait, in case it is created. We
-			// must explicitly requeue because our EnqueueRequestForClaim
-			// handler can only enqueue reconciles for composite resources that
-			// have their claim reference set, so we can't expect to be queued
-			// implicitly when the composite resource we want to bind to appears.
-			log.Debug("Referenced composite resource not found", "requeue-after", time.Now().Add(aShortWait))
-			record.Event(cm, event.Warning(reasonBind, err))
-			cm.SetConditions(Waiting())
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-		}
-		if err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(cm, event.Warning(reasonBind, err))
-			return reconcile.Result{RequeueAfter: aShortWait}, nil
 		}
 	}
 
 	if meta.WasDeleted(cm) {
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
-		if err := r.composite.Delete(ctx, cm, cp); err != nil {
+		// TODO(negz): We should make sure the composite resource references the
+		// claim before we try to delete it.
+
+		if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
 			// If we didn't hit this error last time we'll be requeued
 			// implicitly due to the status update. Otherwise we want to retry
 			// after a brief wait, in case this was a transient error.
@@ -379,47 +344,44 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// after a brief wait, in case this was a transient error.
 		log.Debug("Cannot add composite resource claim finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(v1alpha1.Creating())
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{RequeueAfter: aShortWait}, nil
 	}
 
-	// Claim reconcilers (should) watch for either claims with a resource ref,
-	// claims with a class ref, or composite resources with a claim ref. In the
-	// first case the composite resource always exists by the time we get here. In
-	// the second case the class reference is set. The third case exposes us to
-	// a pathological scenario in which a composite resource references a claim
-	// that has no resource ref or class ref, so we can't assume the class ref
-	// is always set at this point.
-	if !meta.WasCreated(cp) {
+	if err := r.composite.Configure(ctx, cm, cp); err != nil {
+		// If we didn't hit this error last time we'll be requeued
+		// implicitly due to the status update. Otherwise we want to retry
+		// after a brief wait, in case this was a transient error or some
+		// issue with the resource class was resolved.
+		log.Debug("Cannot configure composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(cm, event.Warning(reasonConfigure, err))
+		return reconcile.Result{RequeueAfter: aShortWait}, nil
+	}
 
-		if err := r.composite.Configure(ctx, cm, cp); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error or some
-			// issue with the resource class was resolved.
-			log.Debug("Cannot configure composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(cm, event.Warning(reasonConfigure, err))
-			cm.SetConditions(v1alpha1.Creating())
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-		}
+	// We'll know our composite resource's name at this point because it was
+	// set by the above configure step.
+	record = record.WithAnnotations("composite-name", cp.GetName())
+	log = log.WithValues("composite-name", cp.GetName())
 
-		// We'll know our composite resource's name at this point because it was
-		// set by the above configure step.
-		record = record.WithAnnotations("composite-name", cp.GetName())
-		log = log.WithValues("composite-name", cp.GetName())
+	if err := r.client.Apply(ctx, cp); err != nil {
+		// If we didn't hit this error last time we'll be requeued
+		// implicitly due to the status update. Otherwise we want to retry
+		// after a brief wait, in case this was a transient error.
+		log.Debug("Cannot apply composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(cm, event.Warning(reasonConfigure, err))
+		return reconcile.Result{RequeueAfter: aShortWait}, nil
+	}
 
-		if err := r.composite.Create(ctx, cm, cp); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot create composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(cm, event.Warning(reasonConfigure, err))
-			cm.SetConditions(v1alpha1.Creating())
-			return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-		}
+	log.Debug("Successfully applied composite resource")
+	record.Event(cm, event.Normal(reasonConfigure, "Successfully applied composite resource"))
 
-		log.Debug("Successfully created composite resource")
-		record.Event(cm, event.Normal(reasonConfigure, "Successfully configured composite resource"))
+	if err := r.claim.Bind(ctx, cm, cp); err != nil {
+		// If we didn't hit this error last time we'll be requeued implicitly
+		// due to the status update. Otherwise we want to retry after a brief
+		// wait, in case this was a transient error.
+		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(cm, event.Warning(reasonBind, err))
+		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	if !resource.IsConditionTrue(cp.GetCondition(v1alpha1.TypeReady)) {
@@ -430,16 +392,6 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// queued if it changes.
 		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-	}
-
-	if err := r.claim.Bind(ctx, cm, cp); err != nil {
-		// If we didn't hit this error last time we'll be requeued implicitly
-		// due to the status update. Otherwise we want to retry after a brief
-		// wait, in case this was a transient error.
-		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	log.Debug("Successfully bound composite resource")

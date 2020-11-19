@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/pkg/xcrd"
 )
 
 func TestRender(t *testing.T) {
@@ -88,9 +89,9 @@ func TestRender(t *testing.T) {
 			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
 			args: args{
 				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					LabelKeyNamePrefixForComposed: "ola",
-					LabelKeyClaimName:             "rola",
-					LabelKeyClaimNamespace:        "rolans",
+					xcrd.LabelKeyNamePrefixForComposed: "ola",
+					xcrd.LabelKeyClaimName:             "rola",
+					xcrd.LabelKeyClaimNamespace:        "rolans",
 				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{}},
 				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
@@ -99,9 +100,9 @@ func TestRender(t *testing.T) {
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					GenerateName: "ola-",
 					Labels: map[string]string{
-						LabelKeyNamePrefixForComposed: "ola",
-						LabelKeyClaimName:             "rola",
-						LabelKeyClaimNamespace:        "rolans",
+						xcrd.LabelKeyNamePrefixForComposed: "ola",
+						xcrd.LabelKeyClaimName:             "rola",
+						xcrd.LabelKeyClaimNamespace:        "rolans",
 					},
 					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
 				}},
@@ -113,9 +114,9 @@ func TestRender(t *testing.T) {
 			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
 			args: args{
 				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					LabelKeyNamePrefixForComposed: "ola",
-					LabelKeyClaimName:             "rola",
-					LabelKeyClaimNamespace:        "rolans",
+					xcrd.LabelKeyNamePrefixForComposed: "ola",
+					xcrd.LabelKeyClaimName:             "rola",
+					xcrd.LabelKeyClaimNamespace:        "rolans",
 				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
 				t:  v1beta1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
@@ -125,9 +126,9 @@ func TestRender(t *testing.T) {
 					Name:         "cd",
 					GenerateName: "ola-",
 					Labels: map[string]string{
-						LabelKeyNamePrefixForComposed: "ola",
-						LabelKeyClaimName:             "rola",
-						LabelKeyClaimNamespace:        "rolans",
+						xcrd.LabelKeyNamePrefixForComposed: "ola",
+						xcrd.LabelKeyClaimName:             "rola",
+						xcrd.LabelKeyClaimNamespace:        "rolans",
 					},
 					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
 				}},

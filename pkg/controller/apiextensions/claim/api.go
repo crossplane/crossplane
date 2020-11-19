@@ -34,65 +34,17 @@ import (
 
 // Error strings.
 const (
-	errCreateComposite      = "cannot create composite resource"
-	errUpdateClaim          = "cannot update composite resource claim"
-	errUpdateComposite      = "cannot update composite resource"
-	errDeleteComposite      = "cannot delete composite resource"
-	errBindConflict         = "cannot bind composite resource that references a different claim"
-	errGetSecret            = "cannot get composite resource's connection secret"
-	errSecretConflict       = "cannot establish control of existing connection secret"
-	errCreateOrUpdateSecret = "cannot create or update connection secret"
+	errUpdateClaim           = "cannot update composite resource claim"
+	errUpdateComposite       = "cannot update composite resource"
+	errBindClaimConflict     = "cannot bind claim that references a different composite resource"
+	errBindCompositeConflict = "cannot bind composite resource that references a different claim"
+	errGetSecret             = "cannot get composite resource's connection secret"
+	errSecretConflict        = "cannot establish control of existing connection secret"
+	errCreateOrUpdateSecret  = "cannot create or update connection secret"
 )
 
-// An APICompositeCreator creates resources by submitting them to a Kubernetes
-// API server.
-type APICompositeCreator struct {
-	client client.Client
-	typer  runtime.ObjectTyper
-}
-
-// NewAPICompositeCreator returns a new APICompositeCreator.
-func NewAPICompositeCreator(c client.Client, t runtime.ObjectTyper) *APICompositeCreator {
-	return &APICompositeCreator{client: c, typer: t}
-}
-
-// TODO(negz): We should render and patch a composite resource on each
-// reconcile, rather than just creating it once.
-
-// Create the supplied composite using the supplied claim.
-func (a *APICompositeCreator) Create(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-
-	cp.SetClaimReference(meta.ReferenceTo(cm, resource.MustGetKind(cm, a.typer)))
-	if err := a.client.Create(ctx, cp); err != nil {
-		return errors.Wrap(err, errCreateComposite)
-	}
-	// Since we use GenerateName feature of ObjectMeta, final name of the
-	// resource is calculated during the creation of the resource. So, we
-	// can generate a complete reference only after the creation.
-	cpr := meta.ReferenceTo(cp, resource.MustGetKind(cp, a.typer))
-	cm.SetResourceReference(cpr)
-
-	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
-}
-
-// An APICompositeDeleter deletes composite resources from the API server.
-type APICompositeDeleter struct {
-	client client.Client
-}
-
-// NewAPICompositeDeleter returns a new APICompositeDeleter.
-func NewAPICompositeDeleter(c client.Client) *APICompositeDeleter {
-	return &APICompositeDeleter{client: c}
-}
-
-// Delete the supplied composite resource from the API server.
-func (a *APICompositeDeleter) Delete(ctx context.Context, _ resource.CompositeClaim, cp resource.Composite) error {
-	return errors.Wrap(resource.IgnoreNotFound(a.client.Delete(ctx, cp)), errDeleteComposite)
-}
-
 // An APIBinder binds claims to composites by updating them in a Kubernetes API
-// server. Note that APIBinder does not support objects that do not use the
-// status subresource; such objects should use APIBinder.
+// server.
 type APIBinder struct {
 	client client.Client
 	typer  runtime.ObjectTyper
@@ -105,25 +57,32 @@ func NewAPIBinder(c client.Client, t runtime.ObjectTyper) *APIBinder {
 
 // Bind the supplied claim to the supplied composite.
 func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-	existing := cp.GetClaimReference()
-	proposed := meta.ReferenceTo(cm, resource.MustGetKind(cm, a.typer))
+	existing := cm.GetResourceReference()
+	proposed := meta.ReferenceTo(cp, resource.MustGetKind(cp, a.typer))
+	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+		return errors.New(errBindClaimConflict)
+	}
 
-	if existing != nil && (existing.Namespace != proposed.Namespace || existing.Name != proposed.Name) {
-		return errors.New(errBindConflict)
+	// Propagate the actual external name back from the composite to the claim.
+	meta.SetExternalName(cm, meta.GetExternalName(cp))
+
+	// We set the claim's resource reference first in order to reduce the chance
+	// of leaking newly created composite resources. We want as few calls that
+	// could fail and trigger a requeue between composite creation and reference
+	// persistence as possible.
+	cm.SetResourceReference(proposed)
+	if err := a.client.Update(ctx, cm); err != nil {
+		return errors.Wrap(err, errUpdateClaim)
+	}
+
+	existing = cp.GetClaimReference()
+	proposed = meta.ReferenceTo(cm, resource.MustGetKind(cm, a.typer))
+	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+		return errors.New(errBindCompositeConflict)
 	}
 
 	cp.SetClaimReference(proposed)
-	if err := a.client.Update(ctx, cp); err != nil {
-		return errors.Wrap(err, errUpdateComposite)
-	}
-
-	if meta.GetExternalName(cp) == "" {
-		return nil
-	}
-
-	// Propagate back the final name of the composite resource to the claim.
-	meta.SetExternalName(cm, meta.GetExternalName(cp))
-	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
+	return errors.Wrap(a.client.Update(ctx, cp), errUpdateComposite)
 }
 
 // An APIConnectionPropagator propagates connection details by reading
