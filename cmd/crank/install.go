@@ -23,6 +23,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -48,9 +49,10 @@ func (c *installCmd) Run(b *buildChild) error {
 type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
-	Name                 string `arg:"" optional:"" help:"Name of Configuration."`
-	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
-	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
+	Name                 string   `arg:"" optional:"" help:"Name of Configuration."`
+	RevisionHistoryLimit int64    `short:"rl" help:"Revision history limit."`
+	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
+	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
 }
 
 // Run runs the Configuration install cmd.
@@ -65,6 +67,12 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 		woTag := strings.Split(strings.Split(c.Package, ":")[0], "/")
 		name = woTag[len(woTag)-1]
 	}
+	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
+	for i, s := range c.PackagePullSecrets {
+		packagePullSecrets[i] = corev1.LocalObjectReference{
+			Name: s,
+		}
+	}
 	cr := &v1beta1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
@@ -74,6 +82,7 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 				Package:                  c.Package,
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
+				PackagePullSecrets:       packagePullSecrets,
 			},
 		},
 	}
