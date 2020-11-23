@@ -41,8 +41,7 @@ spec:
         resources:
           {{- toYaml .Values.resourcesRBACManager | nindent 12 }}
         securityContext:
-          allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: true
+          {{- toYaml .Values.securityContextRBACManager | nindent 12 }}
         env:
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
