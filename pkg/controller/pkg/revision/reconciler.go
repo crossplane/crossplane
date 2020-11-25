@@ -320,7 +320,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 		// NOTE(hasheddan): if we were previously marked as inactive, we likely
-		// already removed self.
+		// already removed self. If we skipped dependency resolution, we will
+		// not be present in the lock.
 		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
 			pr.SetConditions(v1alpha1.Unhealthy())
 			r.record.Event(pr, event.Warning(reasonLint, err))
@@ -398,13 +399,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	// Check status of package dependencies.
-	total, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
-	pr.SetDependencyStatus(int64(total), int64(installed), int64(invalid))
-	if err != nil {
-		pr.SetConditions(v1alpha1.UnknownHealth())
-		r.record.Event(pr, event.Warning(reasonDependencies, err))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	// Check status of package dependencies unless package specifies to skip
+	// resolution.
+	if pr.GetSkipDependencyResolution() != nil && !*pr.GetSkipDependencyResolution() {
+		total, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
+		pr.SetDependencyStatus(int64(total), int64(installed), int64(invalid))
+		if err != nil {
+			pr.SetConditions(v1alpha1.UnknownHealth())
+			r.record.Event(pr, event.Warning(reasonDependencies, err))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		}
 	}
 
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
