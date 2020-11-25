@@ -18,6 +18,7 @@ package claim
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -37,6 +38,7 @@ import (
 func TestConfigure(t *testing.T) {
 	ns := "spacename"
 	name := "cool"
+	now := metav1.Now()
 
 	type args struct {
 		ctx context.Context
@@ -211,6 +213,10 @@ func TestConfigure(t *testing.T) {
 						Object: map[string]interface{}{
 							"metadata": map[string]interface{}{
 								"name": name,
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
 								"labels": map[string]interface{}{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
@@ -235,6 +241,10 @@ func TestConfigure(t *testing.T) {
 						Object: map[string]interface{}{
 							"metadata": map[string]interface{}{
 								"name": name,
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
 								"labels": map[string]interface{}{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
