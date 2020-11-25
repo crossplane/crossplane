@@ -786,10 +786,6 @@ Events:
 Composite resources are an alpha feature of Crossplane. At present the below
 functionality is planned but not yet implemented:
 
-* Updates to a composite resource are immediately applied to the resources it
-  composes, but updates to a claim are not yet applied to the composite resource
-  that was allocated to satisfy the claim. In a future release of Crossplane
-  updating a claim will update its allocated composite resource.
 * Only three transforms are currently supported - string format, multiplication,
   and map. Crossplane intends to limit the set of supported transforms, and will
   add more as clear use cases appear.
