@@ -34,7 +34,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/pkg/dag"
 	"github.com/crossplane/crossplane/pkg/version"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
@@ -69,9 +71,10 @@ const (
 
 // Event reasons.
 const (
-	reasonParse event.Reason = "ParsePackage"
-	reasonLint  event.Reason = "LintPackage"
-	reasonSync  event.Reason = "SyncPackage"
+	reasonParse        event.Reason = "ParsePackage"
+	reasonLint         event.Reason = "LintPackage"
+	reasonDependencies event.Reason = "ResolveDependencies"
+	reasonSync         event.Reason = "SyncPackage"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -117,6 +120,13 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.revision = f
+	}
+}
+
+// WithDependencyManager specifies how the Reconciler should manage dependencies.
+func WithDependencyManager(m DependencyManager) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.lock = m
 	}
 }
 
@@ -169,6 +179,7 @@ type Reconciler struct {
 	client    client.Client
 	cache     xpkg.Cache
 	revision  resource.Finalizer
+	lock      DependencyManager
 	hook      Hooks
 	objects   Establisher
 	parser    parser.Parser
@@ -202,6 +213,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 
 	r := NewReconciler(mgr,
 		WithCache(cache),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1alpha1.ProviderPackageType)),
 		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
@@ -241,6 +253,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 
 	r := NewReconciler(mgr,
 		WithCache(cache),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1alpha1.ConfigurationPackageType)),
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -305,6 +318,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			log.Debug(errDeleteCache, "error", err)
 			r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errDeleteCache)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		// NOTE(hasheddan): if we were previously marked as inactive, we likely
+		// already removed self.
+		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
+			pr.SetConditions(v1alpha1.Unhealthy())
+			r.record.Event(pr, event.Warning(reasonLint, err))
+			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
@@ -377,6 +397,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 	}
+
+	// Check status of package dependencies.
+	total, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
+	pr.SetDependencyStatus(int64(total), int64(installed), int64(invalid))
+	if err != nil {
+		pr.SetConditions(v1alpha1.UnknownHealth())
+		r.record.Event(pr, event.Warning(reasonDependencies, err))
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
 		log.Debug(errPreHook, "error", err)
 		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPreHook)))

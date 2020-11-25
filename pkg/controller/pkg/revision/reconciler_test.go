@@ -108,6 +108,27 @@ func (m *MockLinter) Lint(*parser.Package) error {
 	return m.MockLint()
 }
 
+type MockDependencyManager struct {
+	MockResolve    func() (int, int, int, error)
+	MockRemoveSelf func() error
+}
+
+func NewMockResolveFn(total, installed, invalid int, err error) func() (int, int, int, error) {
+	return func() (int, int, int, error) { return total, installed, invalid, err }
+}
+
+func NewMockRemoveSelfFn(err error) func() error {
+	return func() error { return err }
+}
+
+func (m *MockDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (int, int, int, error) {
+	return m.MockResolve()
+}
+
+func (m *MockDependencyManager) RemoveSelf(ctx context.Context, pr v1beta1.PackageRevision) error {
+	return m.MockRemoveSelf()
+}
+
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Provider
 metadata:
@@ -200,6 +221,43 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
+		"ErrDeletedRemoveSelf": {
+			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockRemoveSelf: NewMockRemoveSelfFn(errBoom),
+					}),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1beta1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1beta1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDeletionTimestamp(&now)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1beta1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1beta1.ConfigurationRevisionGroupVersionKind)
+								want.SetDeletionTimestamp(&now)
+								want.SetConditions(v1beta1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
 		"ErrDeletedRemoveFinalizer": {
 			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
 			args: args{
@@ -207,6 +265,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockRemoveSelf: NewMockRemoveSelfFn(nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -233,6 +294,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockRemoveSelf: NewMockRemoveSelfFn(nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -481,6 +545,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ProviderRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -525,6 +592,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ProviderRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -571,6 +641,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -615,6 +688,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -661,6 +737,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ProviderRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -707,6 +786,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -751,6 +833,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
