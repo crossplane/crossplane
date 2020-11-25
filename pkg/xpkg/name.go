@@ -59,6 +59,24 @@ func FriendlyID(name, hash string) string {
 	return id
 }
 
+// ToDNSLabel converts the string to a valid DNS label.
+func ToDNSLabel(s string) string { // nolint:gocyclo
+	var cut strings.Builder
+	for i := range s {
+		b := s[i]
+		if ('a' <= b && b <= 'z') || ('0' <= b && b <= '9') {
+			cut.WriteByte(b)
+		}
+		if (b == '.' || b == '/' || b == ':' || b == '-') && (i != 0 && i != 62 && i != len(s)-1) {
+			cut.WriteByte('-')
+		}
+		if i == 62 {
+			break
+		}
+	}
+	return strings.Trim(cut.String(), "-")
+}
+
 // BuildPath builds a path for a compiled Crossplane package. If file name has
 // extension it will be replaced.
 func BuildPath(path, name string) string {

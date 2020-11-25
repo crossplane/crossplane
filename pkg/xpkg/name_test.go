@@ -86,6 +86,40 @@ func TestFriendlyID(t *testing.T) {
 	}
 }
 
+func TestToDNSLabel(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		arg    string
+		want   string
+	}{
+		"ReplaceAll": {
+			reason: "All valid symbols should be replaced with dash.",
+			arg:    "-hi/my.name/is-",
+			want:   "hi-my-name-is",
+		},
+		"TrimTo63": {
+			reason: "A string longer than 63 valid or replaceable characters should be truncated.",
+			arg:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			want:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+		"TrimTo63MinusDashes": {
+			reason: "A string longer than 63 valid or replaceable characters should be truncated with trailing symbol removed.",
+			arg:    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa----",
+			want:   "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			want := ToDNSLabel(tc.arg)
+
+			if diff := cmp.Diff(tc.want, want); diff != "" {
+				t.Errorf("\n%s\nToDNSLabel(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestBuildPath(t *testing.T) {
 	type args struct {
 		path string
