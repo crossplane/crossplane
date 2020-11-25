@@ -31,6 +31,7 @@ import (
 type Fetcher interface {
 	Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error)
 	Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error)
+	Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error)
 }
 
 // K8sFetcher uses kubernetes credentials to fetch package images.
@@ -71,6 +72,18 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets []str
 	return remote.Head(ref, remote.WithAuthFromKeychain(auth))
 }
 
+// Tags fetches a package's tags.
+func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error) {
+	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
+		Namespace:        i.namespace,
+		ImagePullSecrets: secrets,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return remote.List(ref.Context(), remote.WithAuthFromKeychain(auth))
+}
+
 // NopFetcher always returns an empty image and never returns error.
 type NopFetcher struct{}
 
@@ -86,5 +99,10 @@ func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []st
 
 // Head returns a nil descriptor and does not return error.
 func (n *NopFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+	return nil, nil
+}
+
+// Tags returns a nil slice and does not return error.
+func (n *NopFetcher) Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error) {
 	return nil, nil
 }
