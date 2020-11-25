@@ -1,0 +1,352 @@
+/*
+Copyright 2020 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package resolver
+
+import (
+	"context"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/pkg/dag"
+	fakedag "github.com/crossplane/crossplane/pkg/dag/fake"
+	fakexpkg "github.com/crossplane/crossplane/pkg/xpkg/fake"
+)
+
+func TestReconcile(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type args struct {
+		mgr manager.Manager
+		req reconcile.Request
+		rec []ReconcilerOption
+	}
+	type want struct {
+		r   reconcile.Result
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"LockNotFound": {
+			reason: "We should not return and error and not requeue if lock not found.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"ErrGetLock": {
+			reason: "We should return an error if getting lock fails.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: errors.Wrap(errBoom, errGetLock),
+			},
+		},
+		"ErrAddFinalizer": {
+			reason: "We should requeue after short wait if we fail to add finalizer.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return errBoom
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ErrInitDag": {
+			reason: "We should not requeue if we fail to initialize DAG.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return nil, errBoom
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{Requeue: false},
+				err: errors.Wrap(errBoom, errBuildDAG),
+			},
+		},
+		"ErrSortDag": {
+			reason: "We should not requeue if we fail to sort DAG.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return nil, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, errBoom
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r:   reconcile.Result{Requeue: false},
+				err: errors.Wrap(errBoom, errSortDAG),
+			},
+		},
+		"SuccessfulNoMissing": {
+			reason: "We should not return error and not requeue if no missing dependencies.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return nil, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ErrorInvalidDependency": {
+			reason: "We should not requeue if dependency is invalid.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1alpha1.Dependency{
+										Package: "not.a.valid.package",
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ErrorFetchTags": {
+			reason: "We should requeue after short wait if fail to fetch tags to account for network issues.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1alpha1.Dependency{
+										Package:     "hasheddan/config-nop-b",
+										Constraints: "*",
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn(nil, errBoom),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ErrorNoValidVersion": {
+			reason: "We should not requeue if valid version does not exist for dependency.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1alpha1.Dependency{
+										Package:     "hasheddan/config-nop-b",
+										Constraints: ">v1.0.0",
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ErrorCreateMissingDependency": {
+			reason: "We should requeue after short wait if unable to create missing dependency.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(nil),
+						MockCreate: test.NewMockCreateFn(errBoom),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1alpha1.Dependency{
+										Package:     "hasheddan/config-nop-c",
+										Constraints: ">v1.0.0",
+										Type:        v1alpha1.ConfigurationPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"SuccessfulCreateMissingDependency": {
+			reason: "We should not requeue if able to create missing dependency.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(nil),
+						MockCreate: test.NewMockCreateFn(nil),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewDagFn(func() dag.DAG {
+						return &fakedag.MockDag{
+							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+								return []dag.Node{
+									&v1alpha1.Dependency{
+										Package:     "hasheddan/config-nop-c",
+										Constraints: ">v1.0.0",
+										Type:        v1alpha1.ConfigurationPackageType,
+									},
+								}, nil
+							},
+							MockSort: func() ([]string, error) {
+								return nil, nil
+							},
+						}
+					}),
+					WithFetcher(&fakexpkg.MockFetcher{
+						MockTags: fakexpkg.NewMockTagsFn([]string{"v0.2.0", "v0.3.0", "v1.0.0", "v1.2.0"}, nil),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			r := NewReconciler(tc.args.mgr, tc.args.rec...)
+			got, err := r.Reconcile(reconcile.Request{})
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
