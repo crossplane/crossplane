@@ -21,6 +21,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/pkg/controller/pkg/manager"
+	"github.com/crossplane/crossplane/pkg/controller/pkg/resolver"
 	"github.com/crossplane/crossplane/pkg/controller/pkg/revision"
 	"github.com/crossplane/crossplane/pkg/xpkg"
 )
@@ -30,6 +31,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace string) e
 	for _, setup := range []func(ctrl.Manager, logging.Logger, string) error{
 		manager.SetupConfiguration,
 		manager.SetupProvider,
+		resolver.Setup,
 	} {
 		if err := setup(mgr, l, namespace); err != nil {
 			return err
