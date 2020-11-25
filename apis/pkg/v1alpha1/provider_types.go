@@ -77,6 +77,8 @@ type ProviderList struct {
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
 // +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.image"
 // +kubebuilder:printcolumn:name="STATE",type="string",JSONPath=".spec.desiredState"
+// +kubebuilder:printcolumn:name="DEP-FOUND",type="string",JSONPath=".status.totalDependencies"
+// +kubebuilder:printcolumn:name="DEP-INSTALLED",type="string",JSONPath=".status.installedDependencies"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories={crossplane}
 type ProviderRevision struct {
