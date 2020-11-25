@@ -29,6 +29,7 @@ type PkgV1alpha1Interface interface {
 	ConfigurationsGetter
 	ConfigurationRevisionsGetter
 	ControllerConfigsGetter
+	LocksGetter
 	ProvidersGetter
 	ProviderRevisionsGetter
 }
@@ -48,6 +49,10 @@ func (c *PkgV1alpha1Client) ConfigurationRevisions() ConfigurationRevisionInterf
 
 func (c *PkgV1alpha1Client) ControllerConfigs() ControllerConfigInterface {
 	return newControllerConfigs(c)
+}
+
+func (c *PkgV1alpha1Client) Locks() LockInterface {
+	return newLocks(c)
 }
 
 func (c *PkgV1alpha1Client) Providers() ProviderInterface {
