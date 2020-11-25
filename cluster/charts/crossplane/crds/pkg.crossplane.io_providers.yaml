@@ -87,6 +87,10 @@ spec:
                 description: RevisionHistoryLimit dictates how the package controller cleans up old inactive package revisions. Defaults to 1. Can be disabled by explicitly setting to 0.
                 format: int64
                 type: integer
+              skipDependencyResolution:
+                default: false
+                description: SkipDependencyResolution indicates to the package manager whether to skip resolving dependencies for a package. Setting this value to true may have unintended consequences. Default is false.
+                type: boolean
             required:
             - package
             type: object
@@ -201,6 +205,10 @@ spec:
                 description: RevisionHistoryLimit dictates how the package controller cleans up old inactive package revisions. Defaults to 1. Can be disabled by explicitly setting to 0.
                 format: int64
                 type: integer
+              skipDependencyResolution:
+                default: false
+                description: SkipDependencyResolution indicates to the package manager whether to skip resolving dependencies for a package. Setting this value to true may have unintended consequences. Default is false.
+                type: boolean
             required:
             - package
             type: object
