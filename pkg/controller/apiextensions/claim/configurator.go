@@ -43,13 +43,27 @@ const errUnsupportedClaimSpec = "composite resource claim spec was not an object
 // derived from the supplied claim, as {name}-{random-string}. The claim's
 // external name annotation, if any, is propagated to the composite resource.
 func Configure(_ context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-	cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+	// It's possible we're being asked to configure a statically provisioned
+	// composite resource in which case we should respect its existing name and
+	// external name.
+	en := meta.GetExternalName(cp)
+	if !meta.WasCreated(cp) {
+		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+	}
+
 	meta.AddAnnotations(cp, cm.GetAnnotations())
 	meta.AddLabels(cp, cm.GetLabels())
 	meta.AddLabels(cp, map[string]string{
 		xcrd.LabelKeyClaimName:      cm.GetName(),
 		xcrd.LabelKeyClaimNamespace: cm.GetNamespace(),
 	})
+
+	// If our composite resource already exists we want to restore its original
+	// external name (even if that external name was empty) in order to ensure
+	// we don't try to rename anything after the fact.
+	if meta.WasCreated(cp) {
+		meta.SetExternalName(cp, en)
+	}
 
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
