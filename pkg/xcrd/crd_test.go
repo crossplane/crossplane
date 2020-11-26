@@ -145,6 +145,11 @@ func TestForCompositeResource(t *testing.T) {
 						Type:     "string",
 						JSONPath: ".spec.compositionRef.name",
 					},
+					{
+						Name:     "AGE",
+						Type:     "Date",
+						JSONPath: ".metadata.creationTimestamp",
+					},
 				},
 				Schema: &extv1.CustomResourceValidation{
 					OpenAPIV3Schema: &extv1.JSONSchemaProps{
@@ -463,6 +468,11 @@ func TestForCompositeResourceClaim(t *testing.T) {
 							Name:     "CONNECTION-SECRET",
 							Type:     "string",
 							JSONPath: ".spec.writeConnectionSecretToRef.name",
+						},
+						{
+							Name:     "AGE",
+							Type:     "Date",
+							JSONPath: ".metadata.creationTimestamp",
 						},
 					},
 					Schema: &extv1.CustomResourceValidation{
