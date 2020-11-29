@@ -343,8 +343,8 @@ type PackageRevision interface {
 	GetSkipDependencyResolution() *bool
 	SetSkipDependencyResolution(*bool)
 
-	GetDependencyStatus() (total int64, installed int64, invalid int64)
-	SetDependencyStatus(total int64, installed int64, invalid int64)
+	GetDependencyStatus() (found, installed, invalid int64)
+	SetDependencyStatus(found, installed, invalid int64)
 }
 
 // GetCondition of this ProviderRevision.
@@ -428,13 +428,13 @@ func (p *ProviderRevision) SetRevision(r int64) {
 }
 
 // GetDependencyStatus of this ProviderRevision.
-func (p *ProviderRevision) GetDependencyStatus() (total int64, installed int64, invalid int64) {
-	return p.Status.TotalDependencies, p.Status.InstalledDependencies, p.Status.InvalidDependencies
+func (p *ProviderRevision) GetDependencyStatus() (found, installed, invalid int64) {
+	return p.Status.FoundDependencies, p.Status.InstalledDependencies, p.Status.InvalidDependencies
 }
 
 // SetDependencyStatus of this ProviderRevision.
-func (p *ProviderRevision) SetDependencyStatus(total int64, installed int64, invalid int64) {
-	p.Status.TotalDependencies = total
+func (p *ProviderRevision) SetDependencyStatus(found, installed, invalid int64) {
+	p.Status.FoundDependencies = found
 	p.Status.InstalledDependencies = installed
 	p.Status.InvalidDependencies = invalid
 }
@@ -550,13 +550,13 @@ func (p *ConfigurationRevision) SetRevision(r int64) {
 }
 
 // GetDependencyStatus of this v.
-func (p *ConfigurationRevision) GetDependencyStatus() (total int64, installed int64, invalid int64) {
-	return p.Status.TotalDependencies, p.Status.InstalledDependencies, p.Status.InvalidDependencies
+func (p *ConfigurationRevision) GetDependencyStatus() (found, installed, invalid int64) {
+	return p.Status.FoundDependencies, p.Status.InstalledDependencies, p.Status.InvalidDependencies
 }
 
 // SetDependencyStatus of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetDependencyStatus(total int64, installed int64, invalid int64) {
-	p.Status.TotalDependencies = total
+func (p *ConfigurationRevision) SetDependencyStatus(found, installed, invalid int64) {
+	p.Status.FoundDependencies = found
 	p.Status.InstalledDependencies = installed
 	p.Status.InvalidDependencies = invalid
 }

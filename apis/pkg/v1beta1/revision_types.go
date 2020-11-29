@@ -90,7 +90,7 @@ type PackageRevisionStatus struct {
 	ObjectRefs []runtimev1alpha1.TypedReference `json:"objectRefs,omitempty"`
 
 	// Dependency information.
-	TotalDependencies     int64 `json:"totalDependencies"`
+	FoundDependencies     int64 `json:"foundDependencies"`
 	InstalledDependencies int64 `json:"installedDependencies"`
 	InvalidDependencies   int64 `json:"invalidDependencies"`
 }

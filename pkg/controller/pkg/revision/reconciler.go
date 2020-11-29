@@ -402,8 +402,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// Check status of package dependencies unless package specifies to skip
 	// resolution.
 	if pr.GetSkipDependencyResolution() != nil && !*pr.GetSkipDependencyResolution() {
-		total, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
-		pr.SetDependencyStatus(int64(total), int64(installed), int64(invalid))
+		found, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
+		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
 		if err != nil {
 			pr.SetConditions(v1alpha1.UnknownHealth())
 			r.record.Event(pr, event.Warning(reasonDependencies, err))

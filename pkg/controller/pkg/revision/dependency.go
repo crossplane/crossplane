@@ -45,7 +45,7 @@ const (
 
 // DependencyManager is a lock on packages.
 type DependencyManager interface {
-	Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (total, installed, invalid int, err error)
+	Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (found, installed, invalid int, err error)
 	RemoveSelf(ctx context.Context, pr v1beta1.PackageRevision) error
 }
 
@@ -66,10 +66,10 @@ func NewPackageDependencyManager(client client.Client, nd dag.NewDAGFn, packageT
 }
 
 // Resolve resolves package dependencies.
-func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (total, installed, invalid int, err error) { // nolint:gocyclo
+func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (found, installed, invalid int, err error) { // nolint:gocyclo
 	pack, ok := pkg.(pkgmeta.Pkg)
 	if !ok {
-		return total, installed, invalid, errors.New(errNotMeta)
+		return found, installed, invalid, errors.New(errNotMeta)
 	}
 
 	// Copy package dependencies into Lock Dependencies.
@@ -87,33 +87,33 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		sources[i] = pdep
 	}
 
-	total = len(sources)
+	found = len(sources)
 
 	// Get the lock.
 	lock := &v1alpha1.Lock{}
 	if err := m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock); err != nil {
-		return total, installed, invalid, errors.Wrap(err, errGetLock)
+		return found, installed, invalid, errors.Wrap(err, errGetLock)
 	}
 
 	prRef, err := name.ParseReference(pr.GetSource())
 	if err != nil {
-		return total, installed, invalid, err
+		return found, installed, invalid, err
 	}
 
 	selfIndex := intPointer(-1)
 	d := m.newDag()
 	implied, err := d.Init(v1alpha1.ToNodes(lock.Packages), dag.FindIndex(prRef.Context().String(), selfIndex))
 	if err != nil {
-		return total, installed, invalid, err
+		return found, installed, invalid, err
 	}
 
 	// If we are inactive, all we want to do is remove self.
 	if pr.GetDesiredState() == v1beta1.PackageRevisionInactive {
 		if *selfIndex >= 0 {
 			lock.Packages = append(lock.Packages[:*selfIndex], lock.Packages[*selfIndex+1:]...)
-			return total, installed, invalid, m.client.Update(ctx, lock)
+			return found, installed, invalid, m.client.Update(ctx, lock)
 		}
-		return total, installed, invalid, nil
+		return found, installed, invalid, nil
 	}
 
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
@@ -133,7 +133,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	if *selfIndex == -1 {
 		lock.Packages = append(lock.Packages, self)
 		if err := m.client.Update(ctx, lock); err != nil {
-			return total, installed, invalid, err
+			return found, installed, invalid, err
 		}
 		// Package may exist in the graph as a dependency, or may not exist at
 		// all. We need to either convert it to a full node or add it.
@@ -149,17 +149,17 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			}
 			missing = append(missing, dep.Identifier())
 		}
-		if installed != total {
-			return total, installed, invalid, errors.Errorf(errMissingDependenciesFmt, missing)
+		if installed != found {
+			return found, installed, invalid, errors.Errorf(errMissingDependenciesFmt, missing)
 		}
 	}
 
 	tree := map[string]dag.Node{}
 	if err := d.TraceNode(prRef.Context().String(), tree); err != nil {
-		return total, installed, invalid, err
+		return found, installed, invalid, err
 	}
-	total = len(tree)
-	installed = total
+	found = len(tree)
+	installed = found
 	// Check if any dependencies or transitive dependencies are missing (implied).
 	var missing []string
 	for _, imp := range implied {
@@ -169,7 +169,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		}
 	}
 	if len(missing) != 0 {
-		return total, installed, invalid, errors.Errorf(errMissingDependenciesFmt, missing)
+		return found, installed, invalid, errors.Errorf(errMissingDependenciesFmt, missing)
 	}
 
 	// All of our dependencies and transitive dependencies must exist. Check
@@ -178,19 +178,19 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	for _, dep := range self.Dependencies {
 		n, err := d.GetNode(dep.Package)
 		if err != nil {
-			return total, installed, invalid, errors.New(errDependencyNotInGraph)
+			return found, installed, invalid, errors.New(errDependencyNotInGraph)
 		}
 		lp, ok := n.(*v1alpha1.LockPackage)
 		if !ok {
-			return total, installed, invalid, errors.New(errDependencyNotLockPackage)
+			return found, installed, invalid, errors.New(errDependencyNotLockPackage)
 		}
 		c, err := semver.NewConstraint(dep.Constraints)
 		if err != nil {
-			return total, installed, invalid, err
+			return found, installed, invalid, err
 		}
 		v, err := semver.NewVersion(lp.Version)
 		if err != nil {
-			return total, installed, invalid, err
+			return found, installed, invalid, err
 		}
 		if !c.Check(v) {
 			invalidDeps = append(invalidDeps, lp.Identifier())
@@ -198,9 +198,9 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	}
 	invalid = len(invalidDeps)
 	if invalid > 0 {
-		return total, installed, invalid, errors.Errorf(errIncompatibleDependencyFmt, invalidDeps)
+		return found, installed, invalid, errors.Errorf(errIncompatibleDependencyFmt, invalidDeps)
 	}
-	return total, installed, invalid, nil
+	return found, installed, invalid, nil
 }
 
 // RemoveSelf removes a package from the lock.

@@ -142,6 +142,10 @@ spec:
                 required:
                 - name
                 type: object
+              foundDependencies:
+                description: Dependency information.
+                format: int64
+                type: integer
               installedDependencies:
                 format: int64
                 type: integer
@@ -171,10 +175,6 @@ spec:
                   - name
                   type: object
                 type: array
-              totalDependencies:
-                description: Dependency information.
-                format: int64
-                type: integer
             type: object
         type: object
     served: true
@@ -305,6 +305,10 @@ spec:
                 required:
                 - name
                 type: object
+              foundDependencies:
+                description: Dependency information.
+                format: int64
+                type: integer
               installedDependencies:
                 format: int64
                 type: integer
@@ -334,14 +338,10 @@ spec:
                   - name
                   type: object
                 type: array
-              totalDependencies:
-                description: Dependency information.
-                format: int64
-                type: integer
             required:
+            - foundDependencies
             - installedDependencies
             - invalidDependencies
-            - totalDependencies
             type: object
         type: object
     served: true
