@@ -57,11 +57,11 @@ type PackageDependencyManager struct {
 }
 
 // NewPackageDependencyManager creates a new PackageDependencyManager.
-func NewPackageDependencyManager(client client.Client, nd dag.NewDAGFn, packageType v1alpha1.PackageType) *PackageDependencyManager {
+func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1alpha1.PackageType) *PackageDependencyManager {
 	return &PackageDependencyManager{
-		client:      client,
+		client:      c,
 		newDag:      nd,
-		packageType: packageType,
+		packageType: t,
 	}
 }
 

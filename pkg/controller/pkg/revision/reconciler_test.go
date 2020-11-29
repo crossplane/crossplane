@@ -223,7 +223,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrDeletedRemoveSelf": {
-			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
+			reason: "We should requeue after short wait if revision is deleted and we fail to remove it from package Lock.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},

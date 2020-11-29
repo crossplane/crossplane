@@ -199,84 +199,87 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, errors.Wrap(err, errSortDAG)
 	}
 
-	// If we are missing a node, we want to create it. We only create the first
-	// implied node as we will be requeued when it adds itself to the lock, at
-	// which point we will check for missing nodes again.
-	if len(implied) > 0 {
-		dep, ok := implied[0].(*v1alpha1.Dependency)
-		if !ok {
-			log.Debug(errInvalidDependency, "error", errors.Errorf(errMissingDependencyFmt, dep.Identifier()))
-			return reconcile.Result{}, nil
-		}
-		c, err := semver.NewConstraint(dep.Constraints)
+	if len(implied) == 0 {
+		return reconcile.Result{}, nil
+	}
+
+	// If we are missing a node, we want to create it. The resolver never
+	// modifies the Lock. We only create the first implied node as we will be
+	// requeued when it adds itself to the Lock, at which point we will check
+	// for missing nodes again.
+	dep, ok := implied[0].(*v1alpha1.Dependency)
+	if !ok {
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errMissingDependencyFmt, dep.Identifier()))
+		return reconcile.Result{}, nil
+	}
+	c, err := semver.NewConstraint(dep.Constraints)
+	if err != nil {
+		log.Debug(errInvalidConstraint, "error", err)
+		return reconcile.Result{}, nil
+	}
+	ref, err := name.ParseReference(dep.Package)
+	if err != nil {
+		log.Debug(errInvalidDependency, "error", err)
+		return reconcile.Result{}, nil
+	}
+
+	// NOTE(hasheddan): we will be unable to fetch tags for private
+	// dependencies because we do not attach any secrets. Consider copying
+	// secrets from parent dependencies.
+	tags, err := r.fetcher.Tags(ctx, ref, []string{})
+	if err != nil {
+		log.Debug(errFetchTags, "error", err)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
+	vs := []*semver.Version{}
+	for _, r := range tags {
+		v, err := semver.NewVersion(r)
 		if err != nil {
-			log.Debug(errInvalidConstraint, "error", err)
-			return reconcile.Result{}, nil
+			// We skip any tags that are not valid semantic versions.
+			continue
 		}
-		ref, err := name.ParseReference(dep.Package)
-		if err != nil {
-			log.Debug(errInvalidDependency, "error", err)
-			return reconcile.Result{}, nil
-		}
+		vs = append(vs, v)
+	}
 
-		// NOTE(hasheddan): we will be unable to fetch tags for private
-		// dependencies because we do not attach any secrets. Consider copying
-		// secrets from parent dependencies.
-		tags, err := r.fetcher.Tags(ctx, ref, []string{})
-		if err != nil {
-			log.Debug(errFetchTags, "error", err)
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+	sort.Sort(semver.Collection(vs))
+	var addVer string
+	for _, v := range vs {
+		if c.Check(v) {
+			addVer = v.Original()
 		}
+	}
 
-		vs := []*semver.Version{}
-		for _, r := range tags {
-			v, err := semver.NewVersion(r)
-			if err != nil {
-				// We skip any tags that are not valid semantic versions.
-				continue
-			}
-			vs = append(vs, v)
-		}
+	// NOTE(hasheddan): consider creating event on package revision
+	// dictating constraints.
+	if addVer == "" {
+		log.Debug(errNoValidVersion, errors.Errorf(errNoValidVersionFmt, dep.Identifier(), dep.Constraints))
+		return reconcile.Result{}, nil
+	}
 
-		sort.Sort(semver.Collection(vs))
-		var addVer string
-		for _, v := range vs {
-			if c.Check(v) {
-				addVer = v.Original()
-			}
-		}
+	var pack v1alpha1.Package
+	switch dep.Type {
+	case v1alpha1.ConfigurationPackageType:
+		pack = &v1alpha1.Configuration{}
+	case v1alpha1.ProviderPackageType:
+		pack = &v1alpha1.Provider{}
+	default:
+		log.Debug(errInvalidPackageType)
+		return reconcile.Result{}, nil
+	}
 
-		// NOTE(hasheddan): consider creating event on package revision
-		// dictating constraints.
-		if addVer == "" {
-			log.Debug(errNoValidVersion, errors.Errorf(errNoValidVersionFmt, dep.Identifier(), dep.Constraints))
-			return reconcile.Result{}, nil
-		}
+	// NOTE(hasheddan): packages are currently created with default
+	// settings. This means that a dependency must be publicly available as
+	// no packagePullSecrets are set. Settings can be modified manually
+	// after dependency creation to address this.
+	pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
+	pack.SetSource(fmt.Sprintf(packageTagFmt, ref.String(), addVer))
 
-		var pack v1alpha1.Package
-		switch dep.Type {
-		case v1alpha1.ConfigurationPackageType:
-			pack = &v1alpha1.Configuration{}
-		case v1alpha1.ProviderPackageType:
-			pack = &v1alpha1.Provider{}
-		default:
-			log.Debug(errInvalidPackageType)
-			return reconcile.Result{}, nil
-		}
-
-		// NOTE(hasheddan): packages are currently created with default
-		// settings. This means that a dependency must be publicly available as
-		// no packagePullSecrets are set. Settings can be modified manually
-		// after dependency creation to address this.
-		pack.SetName(xpkg.ToDNSLabel(ref.Context().RepositoryStr()))
-		pack.SetSource(fmt.Sprintf(packageTagFmt, ref.String(), addVer))
-
-		// NOTE(hasheddan): consider making the lock the controller of packages
-		// it creates.
-		if err := r.client.Create(ctx, pack); err != nil {
-			log.Debug(errCreateDependency, "error", err)
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
+	// NOTE(hasheddan): consider making the lock the controller of packages
+	// it creates.
+	if err := r.client.Create(ctx, pack); err != nil {
+		log.Debug(errCreateDependency, "error", err)
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	return reconcile.Result{}, nil
