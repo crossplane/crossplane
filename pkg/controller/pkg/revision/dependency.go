@@ -154,8 +154,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		}
 	}
 
-	tree := map[string]dag.Node{}
-	if err := d.TraceNode(prRef.Context().String(), tree); err != nil {
+	tree, err := d.TraceNode(prRef.Context().String())
+	if err != nil {
 		return found, installed, invalid, err
 	}
 	found = len(tree)

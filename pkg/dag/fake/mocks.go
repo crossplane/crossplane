@@ -33,7 +33,7 @@ type MockDag struct {
 	MockAddEdges         func(edges map[string][]dag.Node) ([]dag.Node, error)
 	MockNodeExists       func(identifier string) bool
 	MockNodeNeighbors    func(identifier string) ([]dag.Node, error)
-	MockTraceNode        func(identifier string, tree map[string]dag.Node) error
+	MockTraceNode        func(identifier string) (map[string]dag.Node, error)
 	MockSort             func() ([]string, error)
 }
 
@@ -83,8 +83,8 @@ func (d *MockDag) NodeNeighbors(i string) ([]dag.Node, error) {
 }
 
 // TraceNode calls the underlying MockTraceNode.
-func (d *MockDag) TraceNode(i string, t map[string]dag.Node) error {
-	return d.MockTraceNode(i, t)
+func (d *MockDag) TraceNode(i string) (map[string]dag.Node, error) {
+	return d.MockTraceNode(i)
 }
 
 // Sort calls the underlying MockSort.

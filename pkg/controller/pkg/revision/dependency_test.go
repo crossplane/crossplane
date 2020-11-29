@@ -241,8 +241,8 @@ func TestResolve(t *testing.T) {
 								}
 								return nil, nil
 							},
-							MockTraceNode: func(_ string, _ map[string]dag.Node) error {
-								return nil
+							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
+								return nil, nil
 							},
 						}
 					},
@@ -376,11 +376,12 @@ func TestResolve(t *testing.T) {
 									},
 								}, nil
 							},
-							MockTraceNode: func(_ string, tree map[string]dag.Node) error {
-								tree["not-here-1"] = &v1alpha1.Dependency{}
-								tree["not-here-2"] = &v1alpha1.Dependency{}
-								tree["not-here-3"] = &v1alpha1.Dependency{}
-								return nil
+							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
+								return map[string]dag.Node{
+									"not-here-1": &v1alpha1.Dependency{},
+									"not-here-2": &v1alpha1.Dependency{},
+									"not-here-3": &v1alpha1.Dependency{},
+								}, nil
 							},
 						}
 					},
@@ -457,11 +458,12 @@ func TestResolve(t *testing.T) {
 								}
 								return nil, nil
 							},
-							MockTraceNode: func(_ string, tree map[string]dag.Node) error {
-								tree["not-here-1"] = &v1alpha1.Dependency{}
-								tree["not-here-2"] = &v1alpha1.Dependency{}
-								tree["not-here-3"] = &v1alpha1.Dependency{}
-								return nil
+							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
+								return map[string]dag.Node{
+									"not-here-1": &v1alpha1.Dependency{},
+									"not-here-2": &v1alpha1.Dependency{},
+									"not-here-3": &v1alpha1.Dependency{},
+								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
 								if s == "not-here-1" {
@@ -556,11 +558,12 @@ func TestResolve(t *testing.T) {
 								}
 								return nil, nil
 							},
-							MockTraceNode: func(_ string, tree map[string]dag.Node) error {
-								tree["not-here-1"] = &v1alpha1.Dependency{}
-								tree["not-here-2"] = &v1alpha1.Dependency{}
-								tree["not-here-3"] = &v1alpha1.Dependency{}
-								return nil
+							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
+								return map[string]dag.Node{
+									"not-here-1": &v1alpha1.Dependency{},
+									"not-here-2": &v1alpha1.Dependency{},
+									"not-here-3": &v1alpha1.Dependency{},
+								}, nil
 							},
 							MockGetNode: func(s string) (dag.Node, error) {
 								if s == "not-here-1" {

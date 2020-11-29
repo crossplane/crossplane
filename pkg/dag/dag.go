@@ -25,8 +25,9 @@ type Node interface {
 	Identifier() string
 	Neighbors() []Node
 
-	// Depending on how the node is implemented, it may be necessary to check
-	// against duplicates.
+	// Node implementations should be careful to establish uniqueness of
+	// neighbors in their AddNeighbors method or risk counting a neighbor
+	// multiple times.
 	AddNeighbors(...Node) error
 }
 
@@ -41,7 +42,7 @@ type DAG interface {
 	AddEdges(edges map[string][]Node) ([]Node, error)
 	NodeExists(identifier string) bool
 	NodeNeighbors(identifier string) ([]Node, error)
-	TraceNode(identifier string, tree map[string]Node) error
+	TraceNode(identifier string) (map[string]Node, error)
 	Sort() ([]string, error)
 }
 
@@ -54,7 +55,9 @@ type MapDag struct {
 // NodeFn performs executes a function on each node.
 type NodeFn func(int, Node)
 
-// FindIndex searches for the index of a specific node.
+// FindIndex searches for the index of a specific node. The passed index
+// parameter will be updated to the index of the node if found, or left
+// unchanged if not.
 func FindIndex(identifier string, index *int) NodeFn {
 	return func(i int, n Node) {
 		if n.Identifier() == identifier {
@@ -68,7 +71,7 @@ type NewDAGFn func() DAG
 
 // NewMapDag creates a new MapDag.
 func NewMapDag() DAG {
-	return &MapDag{}
+	return &MapDag{nodes: map[string]Node{}}
 }
 
 // Init initializes a MapDag and implies missing destination nodes. Any implied
@@ -126,10 +129,8 @@ func (d *MapDag) AddOrUpdateNodes(nodes ...Node) {
 
 // NodeExists checks whether a node exists.
 func (d *MapDag) NodeExists(identifier string) bool {
-	if _, ok := d.nodes[identifier]; !ok {
-		return false
-	}
-	return true
+	_, exists := d.nodes[identifier]
+	return exists
 }
 
 // NodeNeighbors returns a node's neighbors.
@@ -142,7 +143,15 @@ func (d *MapDag) NodeNeighbors(identifier string) ([]Node, error) {
 
 // TraceNode returns a node's neighbors and all transitive neighbors using depth
 // first search.
-func (d *MapDag) TraceNode(identifier string, tree map[string]Node) error {
+func (d *MapDag) TraceNode(identifier string) (map[string]Node, error) {
+	tree := map[string]Node{}
+	if err := d.traceNode(identifier, tree); err != nil {
+		return nil, err
+	}
+	return tree, nil
+}
+
+func (d *MapDag) traceNode(identifier string, tree map[string]Node) error {
 	if d.nodes[identifier] == nil {
 		return errors.New("missing node in tree")
 	}
@@ -153,7 +162,7 @@ func (d *MapDag) TraceNode(identifier string, tree map[string]Node) error {
 			continue
 		}
 		tree[n.Identifier()] = n
-		if err := d.TraceNode(n.Identifier(), tree); err != nil {
+		if err := d.traceNode(n.Identifier(), tree); err != nil {
 			return err
 		}
 	}

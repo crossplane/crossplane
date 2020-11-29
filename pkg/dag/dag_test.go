@@ -231,11 +231,15 @@ func TestSort(t *testing.T) {
 			if err := tc.want.sortedFn(tc.nodes, sorted); err != nil {
 				t.Errorf("\n%s\nsorted(...): %s", tc.reason, err)
 			}
-			tree := map[string]Node{}
-			_ = dag.TraceNode(tc.nodes[0].Identifier(), tree)
+			tree, _ := dag.TraceNode(tc.nodes[0].Identifier())
 			if diff := cmp.Diff(tc.want.numDeps, len(tree)); diff != "" {
 				t.Errorf("\n%s\\TraceNode(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
+}
+
+func TestDag(t *testing.T) {
+	d := NewMapDag()
+	d.AddNode(&simpleNode{identifier: "hi"})
 }
