@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -106,6 +107,27 @@ func NewMockLintFn(err error) func() error {
 
 func (m *MockLinter) Lint(*parser.Package) error {
 	return m.MockLint()
+}
+
+type MockDependencyManager struct {
+	MockResolve    func() (int, int, int, error)
+	MockRemoveSelf func() error
+}
+
+func NewMockResolveFn(total, installed, invalid int, err error) func() (int, int, int, error) {
+	return func() (int, int, int, error) { return total, installed, invalid, err }
+}
+
+func NewMockRemoveSelfFn(err error) func() error {
+	return func() error { return err }
+}
+
+func (m *MockDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (int, int, int, error) {
+	return m.MockResolve()
+}
+
+func (m *MockDependencyManager) RemoveSelf(ctx context.Context, pr v1beta1.PackageRevision) error {
+	return m.MockRemoveSelf()
 }
 
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
@@ -200,6 +222,43 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
+		"ErrDeletedRemoveSelf": {
+			reason: "We should requeue after short wait if revision is deleted and we fail to remove it from package Lock.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockRemoveSelf: NewMockRemoveSelfFn(errBoom),
+					}),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1beta1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1beta1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDeletionTimestamp(&now)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1beta1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1beta1.ConfigurationRevisionGroupVersionKind)
+								want.SetDeletionTimestamp(&now)
+								want.SetConditions(v1beta1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
 		"ErrDeletedRemoveFinalizer": {
 			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
 			args: args{
@@ -207,6 +266,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockRemoveSelf: NewMockRemoveSelfFn(nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -233,6 +295,9 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
 					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockRemoveSelf: NewMockRemoveSelfFn(nil),
+					}),
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
@@ -472,6 +537,52 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{RequeueAfter: longWait},
+			},
+		},
+		"ErrResolveDependencies": {
+			reason: "We should requeue after short wait if we fail to resolve dependencies.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1beta1.PackageRevision { return &v1beta1.ProviderRevision{} }),
+					WithDependencyManager(&MockDependencyManager{
+						MockResolve: NewMockResolveFn(0, 0, 0, errBoom),
+					}),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+								pr := o.(*v1beta1.ProviderRevision)
+								pr.SetGroupVersionKind(v1beta1.ProviderRevisionGroupVersionKind)
+								pr.SetDesiredState(v1beta1.PackageRevisionActive)
+								pr.SetSkipDependencyResolution(pointer.BoolPtr(false))
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+								want := &v1beta1.ProviderRevision{}
+								want.SetGroupVersionKind(v1beta1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1beta1.PackageRevisionActive)
+								want.SetSkipDependencyResolution(pointer.BoolPtr(false))
+								want.SetConditions(v1beta1.UnknownHealth())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
 		"ErrPreHook": {

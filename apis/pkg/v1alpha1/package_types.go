@@ -54,6 +54,15 @@ type PackageSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	IgnoreCrossplaneConstraints *bool `json:"ignoreCrossplaneConstraints,omitempty"`
+
+	// SkipDependencyResolution indicates to the package manager whether to skip
+	// resolving dependencies for a package. Setting this value to true may have
+	// unintended consequences, such as a package not functioning properly
+	// because of missing dependencies.
+	// Default is false.
+	// +optional
+	// +kubebuilder:default=false
+	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.

@@ -40,6 +40,10 @@ func (c *FakePkgV1alpha1) ControllerConfigs() v1alpha1.ControllerConfigInterface
 	return &FakeControllerConfigs{c}
 }
 
+func (c *FakePkgV1alpha1) Locks() v1alpha1.LockInterface {
+	return &FakeLocks{c}
+}
+
 func (c *FakePkgV1alpha1) Providers() v1alpha1.ProviderInterface {
 	return &FakeProviders{c}
 }

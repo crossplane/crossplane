@@ -82,7 +82,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		// Attempt to fetch image from cache.
 		img, err = i.cache.Get(i.pr.GetSource(), i.pr.GetName())
 		if err != nil {
-			img, err = i.fetcher.Fetch(ctx, ref, v1beta1.RefNames(i.pr.GetPackagePullSecrets()))
+			img, err = i.fetcher.Fetch(ctx, ref, v1beta1.RefNames(i.pr.GetPackagePullSecrets())...)
 			if err != nil {
 				return nil, errors.Wrap(err, errFetchPackage)
 			}

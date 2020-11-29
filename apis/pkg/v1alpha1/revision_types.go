@@ -71,6 +71,14 @@ type PackageRevisionSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	IgnoreCrossplaneConstraints *bool `json:"ignoreCrossplaneConstraints,omitempty"`
+
+	// SkipDependencyResolution indicates to the package manager whether to skip
+	// resolving dependencies for a package. Setting this value to true may have
+	// unintended consequences.
+	// Default is false.
+	// +optional
+	// +kubebuilder:default=false
+	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
@@ -80,4 +88,9 @@ type PackageRevisionStatus struct {
 
 	// References to objects owned by PackageRevision.
 	ObjectRefs []runtimev1alpha1.TypedReference `json:"objectRefs,omitempty"`
+
+	// Dependency information.
+	FoundDependencies     int64 `json:"foundDependencies,omitempty"`
+	InstalledDependencies int64 `json:"installedDependencies,omitempty"`
+	InvalidDependencies   int64 `json:"invalidDependencies,omitempty"`
 }

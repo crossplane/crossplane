@@ -1,0 +1,90 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: locks.pkg.crossplane.io
+spec:
+  group: pkg.crossplane.io
+  names:
+    kind: Lock
+    listKind: LockList
+    plural: locks
+    singular: lock
+  scope: Cluster
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: Lock is the CRD type that tracks package dependencies.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          packages:
+            items:
+              description: LockPackage is a package that is in the lock.
+              properties:
+                dependencies:
+                  description: Dependencies are the list of dependencies of this package. The order of the dependencies will dictate the order in which they are resolved.
+                  items:
+                    description: A Dependency is a dependency of a package in the lock.
+                    properties:
+                      constraints:
+                        description: Constraints is a valid semver range, which will be used to select a valid dependency version.
+                        type: string
+                      package:
+                        description: Package is the OCI image name without a tag or digest.
+                        type: string
+                      type:
+                        description: Type is the type of package. Can be either Configuration or Provider.
+                        type: string
+                    required:
+                    - constraints
+                    - package
+                    - type
+                    type: object
+                  type: array
+                name:
+                  description: Name corresponds to the name of the package revision for this package.
+                  type: string
+                source:
+                  description: Source is the OCI image name without a tag or digest.
+                  type: string
+                type:
+                  description: Type is the type of package. Can be either Configuration or Provider.
+                  type: string
+                version:
+                  description: Version is the tag or digest of the OCI image.
+                  type: string
+              required:
+              - dependencies
+              - name
+              - source
+              - type
+              - version
+              type: object
+            type: array
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
