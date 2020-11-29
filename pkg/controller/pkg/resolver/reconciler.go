@@ -226,7 +226,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	// NOTE(hasheddan): we will be unable to fetch tags for private
 	// dependencies because we do not attach any secrets. Consider copying
 	// secrets from parent dependencies.
-	tags, err := r.fetcher.Tags(ctx, ref, []string{})
+	tags, err := r.fetcher.Tags(ctx, ref)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
 		return reconcile.Result{RequeueAfter: shortWait}, nil

@@ -29,9 +29,9 @@ import (
 
 // Fetcher fetches package images.
 type Fetcher interface {
-	Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error)
-	Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error)
-	Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error)
+	Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error)
+	Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error)
+	Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error)
 }
 
 // K8sFetcher uses kubernetes credentials to fetch package images.
@@ -49,7 +49,7 @@ func NewK8sFetcher(client kubernetes.Interface, namespace string) *K8sFetcher {
 }
 
 // Fetch fetches a package image.
-func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
+func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
 		Namespace:        i.namespace,
 		ImagePullSecrets: secrets,
@@ -61,7 +61,7 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []st
 }
 
 // Head fetches a package descriptor.
-func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
 		Namespace:        i.namespace,
 		ImagePullSecrets: secrets,
@@ -73,7 +73,7 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets []str
 }
 
 // Tags fetches a package's tags.
-func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error) {
+func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
 		Namespace:        i.namespace,
 		ImagePullSecrets: secrets,
@@ -93,16 +93,16 @@ func NewNopFetcher() *NopFetcher {
 }
 
 // Fetch fetches an empty image and does not return error.
-func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
+func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
 	return empty.Image, nil
 }
 
 // Head returns a nil descriptor and does not return error.
-func (n *NopFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+func (n *NopFetcher) Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error) {
 	return nil, nil
 }
 
 // Tags returns a nil slice and does not return error.
-func (n *NopFetcher) Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error) {
+func (n *NopFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error) {
 	return nil, nil
 }

@@ -63,7 +63,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1beta1.Package) (st
 	if err != nil {
 		return "", err
 	}
-	d, err := r.fetcher.Head(ctx, ref, v1beta1.RefNames(p.GetPackagePullSecrets()))
+	d, err := r.fetcher.Head(ctx, ref, v1beta1.RefNames(p.GetPackagePullSecrets())...)
 	if err != nil || d == nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}

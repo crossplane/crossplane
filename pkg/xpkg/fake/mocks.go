@@ -79,7 +79,7 @@ func NewMockFetchFn(img v1.Image, err error) func() (v1.Image, error) {
 }
 
 // Fetch calls the underlying MockFetch.
-func (m *MockFetcher) Fetch(ctx context.Context, ref name.Reference, secrets []string) (v1.Image, error) {
+func (m *MockFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
 	return m.MockFetch()
 }
 
@@ -89,7 +89,7 @@ func NewMockHeadFn(d *v1.Descriptor, err error) func() (*v1.Descriptor, error) {
 }
 
 // Head calls the underlying MockHead.
-func (m *MockFetcher) Head(ctx context.Context, ref name.Reference, secrets []string) (*v1.Descriptor, error) {
+func (m *MockFetcher) Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error) {
 	return m.MockHead()
 }
 
@@ -99,6 +99,6 @@ func NewMockTagsFn(tags []string, err error) func() ([]string, error) {
 }
 
 // Tags calls the underlying MockTags.
-func (m *MockFetcher) Tags(ctx context.Context, ref name.Reference, secrets []string) ([]string, error) {
+func (m *MockFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error) {
 	return m.MockTags()
 }
