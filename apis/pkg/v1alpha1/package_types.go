@@ -57,7 +57,8 @@ type PackageSpec struct {
 
 	// SkipDependencyResolution indicates to the package manager whether to skip
 	// resolving dependencies for a package. Setting this value to true may have
-	// unintended consequences.
+	// unintended consequences, such as a package not functioning properly
+	// because of missing dependencies.
 	// Default is false.
 	// +optional
 	// +kubebuilder:default=false

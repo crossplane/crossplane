@@ -36,15 +36,25 @@ const (
 
 // LockPackage is a package that is in the lock.
 type LockPackage struct {
-	Name         string       `json:"name"`
-	Type         PackageType  `json:"type"`
-	Source       string       `json:"source"`
-	Version      string       `json:"version"`
+	// Name corresponds to the name of the package revision for this package.
+	Name string `json:"name"`
+
+	// Type is the type of package. Can be either Configuration or Provider.
+	Type PackageType `json:"type"`
+
+	// Source is the OCI image name without a tag or digest.
+	Source string `json:"source"`
+
+	// Version is the tag or digest of the OCI image.
+	Version string `json:"version"`
+
+	// Dependencies are the list of dependencies of this package. The order of
+	// the dependencies will dictate the order in which they are resolved.
 	Dependencies []Dependency `json:"dependencies"`
 }
 
 // ToNodes converts LockPackages to DAG nodes.
-func ToNodes(pkgs []LockPackage) []dag.Node {
+func ToNodes(pkgs ...LockPackage) []dag.Node {
 	nodes := make([]dag.Node, len(pkgs))
 	for i, r := range pkgs {
 		r := r // Pin range variable so we can take its address.
@@ -68,18 +78,24 @@ func (l *LockPackage) Neighbors() []dag.Node {
 	return nodes
 }
 
-// AddNeighbors adds dependencies to a LockPackage.
-// NOTE(hasheddan): a LockPackage should always have all dependencies declared,
-// so we no-op when adding a neighbor.
+// AddNeighbors adds dependencies to a LockPackage. A LockPackage should always
+// have all dependencies declared before being added to the Lock, so we no-op
+// when adding a neighbor.
 func (l *LockPackage) AddNeighbors(nodes ...dag.Node) error {
 	return nil
 }
 
 // A Dependency is a dependency of a package in the lock.
 type Dependency struct {
-	Package     string      `json:"package"`
-	Type        PackageType `json:"type"`
-	Constraints string      `json:"constraints"`
+	// Package is the OCI image name without a tag or digest.
+	Package string `json:"package"`
+
+	// Type is the type of package. Can be either Configuration or Provider.
+	Type PackageType `json:"type"`
+
+	// Constraints is a valid semver range, which will be used to select a valid
+	// dependency version.
+	Constraints string `json:"constraints"`
 }
 
 // Identifier returns a dependency's source.

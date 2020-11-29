@@ -187,7 +187,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	)
 
 	dag := r.newDag()
-	implied, err := dag.Init(v1alpha1.ToNodes(lock.Packages))
+	implied, err := dag.Init(v1alpha1.ToNodes(lock.Packages...))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
 	}

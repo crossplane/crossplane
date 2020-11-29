@@ -89,7 +89,7 @@ spec:
                 type: integer
               skipDependencyResolution:
                 default: false
-                description: SkipDependencyResolution indicates to the package manager whether to skip resolving dependencies for a package. Setting this value to true may have unintended consequences. Default is false.
+                description: SkipDependencyResolution indicates to the package manager whether to skip resolving dependencies for a package. Setting this value to true may have unintended consequences, such as a package not functioning properly because of missing dependencies. Default is false.
                 type: boolean
             required:
             - package

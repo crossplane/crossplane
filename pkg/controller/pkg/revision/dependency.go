@@ -102,7 +102,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 
 	selfIndex := intPointer(-1)
 	d := m.newDag()
-	implied, err := d.Init(v1alpha1.ToNodes(lock.Packages), dag.FindIndex(prRef.Context().String(), selfIndex))
+	implied, err := d.Init(v1alpha1.ToNodes(lock.Packages...), dag.FindIndex(prRef.Context().String(), selfIndex))
 	if err != nil {
 		return found, installed, invalid, err
 	}
