@@ -206,6 +206,11 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 			Type:     "string",
 			JSONPath: ".spec.compositionRef.name",
 		},
+		{
+			Name:     "AGE",
+			Type:     "Date",
+			JSONPath: ".metadata.creationTimestamp",
+		},
 	}
 }
 
@@ -222,6 +227,11 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 			Name:     "CONNECTION-SECRET",
 			Type:     "string",
 			JSONPath: ".spec.writeConnectionSecretToRef.name",
+		},
+		{
+			Name:     "AGE",
+			Type:     "Date",
+			JSONPath: ".metadata.creationTimestamp",
 		},
 	}
 }
