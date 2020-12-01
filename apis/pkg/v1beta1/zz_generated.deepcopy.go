@@ -21,7 +21,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -182,7 +182,7 @@ func (in *PackageRevisionSpec) DeepCopyInto(out *PackageRevisionSpec) {
 	*out = *in
 	if in.ControllerConfigReference != nil {
 		in, out := &in.ControllerConfigReference, &out.ControllerConfigReference
-		*out = new(v1alpha1.Reference)
+		*out = new(commonv1.Reference)
 		**out = **in
 	}
 	if in.PackagePullSecrets != nil {
@@ -224,7 +224,7 @@ func (in *PackageRevisionStatus) DeepCopyInto(out *PackageRevisionStatus) {
 	out.ControllerRef = in.ControllerRef
 	if in.ObjectRefs != nil {
 		in, out := &in.ObjectRefs, &out.ObjectRefs
-		*out = make([]v1alpha1.TypedReference, len(*in))
+		*out = make([]commonv1.TypedReference, len(*in))
 		copy(*out, *in)
 	}
 }
@@ -423,7 +423,7 @@ func (in *ProviderSpec) DeepCopyInto(out *ProviderSpec) {
 	in.PackageSpec.DeepCopyInto(&out.PackageSpec)
 	if in.ControllerConfigReference != nil {
 		in, out := &in.ControllerConfigReference, &out.ControllerConfigReference
-		*out = new(v1alpha1.Reference)
+		*out = new(commonv1.Reference)
 		**out = **in
 	}
 }

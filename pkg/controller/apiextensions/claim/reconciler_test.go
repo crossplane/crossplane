@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
@@ -325,7 +325,7 @@ func TestReconcile(t *testing.T) {
 								case *claim.Unstructured:
 									o.SetResourceReference(&corev1.ObjectReference{})
 								case *composite.Unstructured:
-									o.SetConditions(v1alpha1.Available())
+									o.SetConditions(xpv1.Available())
 								}
 								return nil
 							}),
@@ -361,7 +361,7 @@ func TestReconcile(t *testing.T) {
 								case *claim.Unstructured:
 									o.SetResourceReference(&corev1.ObjectReference{})
 								case *composite.Unstructured:
-									o.SetConditions(v1alpha1.Available())
+									o.SetConditions(xpv1.Available())
 								}
 								return nil
 							}),

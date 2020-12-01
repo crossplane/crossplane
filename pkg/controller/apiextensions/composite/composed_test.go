@@ -31,7 +31,7 @@ import (
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -151,7 +151,7 @@ func TestRender(t *testing.T) {
 
 func TestFetch(t *testing.T) {
 
-	sref := &runtimev1alpha1.SecretReference{Name: "foo", Namespace: "bar"}
+	sref := &xpv1.SecretReference{Name: "foo", Namespace: "bar"}
 	s := &v1.Secret{
 		Data: map[string][]byte{
 			"foo": []byte("a"),
@@ -295,7 +295,7 @@ func TestIsReady(t *testing.T) {
 		"NoCustomCheck": {
 			reason: "If no custom check is given, Ready condition should be used",
 			args: args{
-				cd: composed.New(composed.WithConditions(runtimev1alpha1.Available())),
+				cd: composed.New(composed.WithConditions(xpv1.Available())),
 			},
 			want: want{
 				ready: true,

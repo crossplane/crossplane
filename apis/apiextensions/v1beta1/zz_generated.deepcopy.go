@@ -21,7 +21,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -153,12 +153,12 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	}
 	if in.DefaultCompositionRef != nil {
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
-		*out = new(v1alpha1.Reference)
+		*out = new(commonv1.Reference)
 		**out = **in
 	}
 	if in.EnforcedCompositionRef != nil {
 		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
-		*out = new(v1alpha1.Reference)
+		*out = new(commonv1.Reference)
 		**out = **in
 	}
 	if in.Versions != nil {

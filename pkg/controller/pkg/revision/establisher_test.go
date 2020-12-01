@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
@@ -48,7 +48,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 
 	type want struct {
 		err  error
-		refs []runtimev1alpha1.TypedReference
+		refs []xpv1.TypedReference
 	}
 
 	cases := map[string]struct {
@@ -76,7 +76,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"SuccessfulNotExistsEstablishControl": {
@@ -99,7 +99,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: true,
 			},
 			want: want{
-				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"SuccessfulExistsEstablishOwnership": {
@@ -122,7 +122,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: false,
 			},
 			want: want{
-				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"SuccessfulNotExistsEstablishOwnership": {
@@ -145,7 +145,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				control: false,
 			},
 			want: want{
-				refs: []runtimev1alpha1.TypedReference{{Name: "ref-me"}},
+				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
 		"FailedCreate": {

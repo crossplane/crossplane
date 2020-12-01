@@ -308,7 +308,7 @@ type ServiceAccountOptions struct {
 
 // PackageInstallStatus represents the observed state of a PackageInstall.
 type PackageInstallStatus struct {
-  runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+  xpv1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
   InstallJob    *corev1.ObjectReference `json:"installJob,omitempty"`
   PackageRecord *corev1.ObjectReference `json:"packageRecord,omitempty"`
@@ -417,7 +417,7 @@ type ServiceAccountOptions struct {
 
 // PackageInstallStatus represents the observed state of a PackageInstall.
 type PackageInstallStatus struct {
-  runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+  xpv1.ConditionedStatus `json:"conditionedStatus,omitempty"`
 
   CurrentRevision string `json:"currentRevision,omitempty"`
 }
@@ -544,7 +544,7 @@ type PermissionsSpec struct {
 
 // PackageStatus represents the observed state of a Package.
 type PackageStatus struct {
-  runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+  xpv1.ConditionedStatus `json:"conditionedStatus,omitempty"`
   ControllerRef                     *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 ```
@@ -688,7 +688,7 @@ type PermissionsSpec struct {
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
-  runtimev1alpha1.ConditionedStatus `json:"conditionedStatus,omitempty"`
+  xpv1.ConditionedStatus `json:"conditionedStatus,omitempty"`
   ControllerRef                     *corev1.ObjectReference `json:"controllerRef,omitempty"`
 }
 ```

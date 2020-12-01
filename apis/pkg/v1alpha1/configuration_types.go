@@ -19,7 +19,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -49,8 +49,8 @@ type ConfigurationSpec struct {
 
 // ConfigurationStatus represents the observed state of a Configuration.
 type ConfigurationStatus struct {
-	v1alpha1.ConditionedStatus `json:",inline"`
-	PackageStatus              `json:",inline"`
+	xpv1.ConditionedStatus `json:",inline"`
+	PackageStatus          `json:",inline"`
 }
 
 // +kubebuilder:object:root=true

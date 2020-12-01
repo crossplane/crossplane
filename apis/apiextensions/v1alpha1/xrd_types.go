@@ -23,7 +23,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
@@ -56,13 +56,13 @@ type CompositeResourceDefinitionSpec struct {
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
 	// +optional
-	DefaultCompositionRef *v1alpha1.Reference `json:"defaultCompositionRef,omitempty"`
+	DefaultCompositionRef *xpv1.Reference `json:"defaultCompositionRef,omitempty"`
 
 	// EnforcedCompositionRef refers to the Composition resource that will be used
 	// by all composite instances whose schema is defined by this definition.
 	// +optional
 	// +immutable
-	EnforcedCompositionRef *v1alpha1.Reference `json:"enforcedCompositionRef,omitempty"`
+	EnforcedCompositionRef *xpv1.Reference `json:"enforcedCompositionRef,omitempty"`
 
 	// Versions is the list of all API versions of the defined composite
 	// resource. Version names are used to compute the order in which served
@@ -125,7 +125,7 @@ type CompositeResourceValidation struct {
 
 // CompositeResourceDefinitionStatus shows the observed state of the definition.
 type CompositeResourceDefinitionStatus struct {
-	v1alpha1.ConditionedStatus `json:",inline"`
+	xpv1.ConditionedStatus `json:",inline"`
 
 	// Controllers represents the status of the controllers that power this
 	// composite resource definition.

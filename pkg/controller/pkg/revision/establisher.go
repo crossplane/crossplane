@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -39,7 +39,7 @@ const (
 // API server by checking that control or ownership can be established for all
 // resources and then establishing it.
 type Establisher interface {
-	Establish(ctx context.Context, objects []runtime.Object, parent resource.Object, control bool) ([]runtimev1alpha1.TypedReference, error)
+	Establish(ctx context.Context, objects []runtime.Object, parent resource.Object, control bool) ([]xpv1.TypedReference, error)
 }
 
 // APIEstablisher establishes control or ownership of resources in the API
@@ -66,9 +66,9 @@ type currentDesired struct {
 
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) ([]runtimev1alpha1.TypedReference, error) { // nolint:gocyclo
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
 	allObjs := []currentDesired{}
-	resourceRefs := []runtimev1alpha1.TypedReference{}
+	resourceRefs := []xpv1.TypedReference{}
 	for _, res := range objs {
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.

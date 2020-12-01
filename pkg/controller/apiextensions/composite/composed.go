@@ -27,7 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -196,7 +196,7 @@ func IsReady(_ context.Context, cd resource.Composed, t v1beta1.ComposedTemplate
 	// in reality. Though beware of adding additional complexity besides that.
 
 	if len(t.ReadinessChecks) == 0 {
-		return resource.IsConditionTrue(cd.GetCondition(runtimev1alpha1.TypeReady)), nil
+		return resource.IsConditionTrue(cd.GetCondition(xpv1.TypeReady)), nil
 	}
 	// TODO(muvaf): We can probably get rid of resource.Composed interface and fake.Composed
 	// structs and use *composed.Unstructured everywhere including tests.

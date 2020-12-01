@@ -218,9 +218,9 @@ func TestThis(t *testing.T) {
                         Name: "gcp-provider",
                     },
                     Spec: v1alpha3.ProviderSpec{
-                        Secret: runtimev1alpha1.SecretKeySelector{
+                        Secret: xpv1.SecretKeySelector{
                             Key: "credentials.json",
-                            SecretReference: runtimev1alpha1.SecretReference{
+                            SecretReference: xpv1.SecretReference{
                                 Name:      "example-provider-gcp",
                                 Namespace: "crossplane-system",
                             },

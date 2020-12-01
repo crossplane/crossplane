@@ -28,7 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -292,7 +292,7 @@ func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, 
 		return nil
 	}
 
-	cp.SetWriteConnectionSecretToReference(&runtimev1alpha1.SecretReference{
+	cp.SetWriteConnectionSecretToReference(&xpv1.SecretReference{
 		Name:      string(cp.GetUID()),
 		Namespace: *comp.Spec.WriteConnectionSecretsToNamespace,
 	})

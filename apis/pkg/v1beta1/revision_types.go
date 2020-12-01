@@ -19,8 +19,7 @@ package v1beta1
 import (
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // PackageRevisionDesiredState is the desired state of the package revision.
@@ -39,7 +38,7 @@ type PackageRevisionSpec struct {
 	// ControllerConfigRef references a ControllerConfig resource that will be
 	// used to configure the packaged controller Deployment.
 	// +optional
-	ControllerConfigReference *v1alpha1.Reference `json:"controllerConfigRef,omitempty"`
+	ControllerConfigReference *xpv1.Reference `json:"controllerConfigRef,omitempty"`
 
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
@@ -83,11 +82,11 @@ type PackageRevisionSpec struct {
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
-	runtimev1alpha1.ConditionedStatus `json:",inline"`
-	ControllerRef                     runtimev1alpha1.Reference `json:"controllerRef,omitempty"`
+	xpv1.ConditionedStatus `json:",inline"`
+	ControllerRef          xpv1.Reference `json:"controllerRef,omitempty"`
 
 	// References to objects owned by PackageRevision.
-	ObjectRefs []runtimev1alpha1.TypedReference `json:"objectRefs,omitempty"`
+	ObjectRefs []xpv1.TypedReference `json:"objectRefs,omitempty"`
 
 	// Dependency information.
 	FoundDependencies     int64 `json:"foundDependencies"`
