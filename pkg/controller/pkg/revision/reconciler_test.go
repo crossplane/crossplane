@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -55,7 +55,7 @@ func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.Read
 var _ Establisher = &MockEstablisher{}
 
 type MockEstablisher struct {
-	MockEstablish func() ([]runtimev1alpha1.TypedReference, error)
+	MockEstablish func() ([]xpv1.TypedReference, error)
 }
 
 func NewMockEstablisher() *MockEstablisher {
@@ -64,11 +64,11 @@ func NewMockEstablisher() *MockEstablisher {
 	}
 }
 
-func NewMockEstablishFn(refs []runtimev1alpha1.TypedReference, err error) func() ([]runtimev1alpha1.TypedReference, error) {
-	return func() ([]runtimev1alpha1.TypedReference, error) { return refs, err }
+func NewMockEstablishFn(refs []xpv1.TypedReference, err error) func() ([]xpv1.TypedReference, error) {
+	return func() ([]xpv1.TypedReference, error) { return refs, err }
 }
 
-func (e *MockEstablisher) Establish(context.Context, []runtime.Object, resource.Object, bool) ([]runtimev1alpha1.TypedReference, error) {
+func (e *MockEstablisher) Establish(context.Context, []runtime.Object, resource.Object, bool) ([]xpv1.TypedReference, error) {
 	return e.MockEstablish()
 }
 

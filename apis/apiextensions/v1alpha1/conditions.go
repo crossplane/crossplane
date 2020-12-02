@@ -20,33 +20,33 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // Condition types.
 const (
 	// A TypeEstablished XRD has created the CRD for its composite resource and
 	// started a controller to reconcile instances of said resource.
-	TypeEstablished runtimev1alpha1.ConditionType = "Established"
+	TypeEstablished xpv1.ConditionType = "Established"
 
 	// A TypeOffered XRD has created the CRD for its composite resource claim
 	// and started a controller to reconcile instances of said claim.
-	TypeOffered runtimev1alpha1.ConditionType = "Offered"
+	TypeOffered xpv1.ConditionType = "Offered"
 )
 
 // Reasons a resource is or is not established or offered.
 const (
-	ReasonWatchingComposite runtimev1alpha1.ConditionReason = "WatchingCompositeResource"
-	ReasonWatchingClaim     runtimev1alpha1.ConditionReason = "WatchingCompositeResourceClaim"
+	ReasonWatchingComposite xpv1.ConditionReason = "WatchingCompositeResource"
+	ReasonWatchingClaim     xpv1.ConditionReason = "WatchingCompositeResourceClaim"
 
-	ReasonTerminatingComposite runtimev1alpha1.ConditionReason = "TerminatingCompositeResource"
-	ReasonTerminatingClaim     runtimev1alpha1.ConditionReason = "TerminatingCompositeResourceClaim"
+	ReasonTerminatingComposite xpv1.ConditionReason = "TerminatingCompositeResource"
+	ReasonTerminatingClaim     xpv1.ConditionReason = "TerminatingCompositeResourceClaim"
 )
 
 // WatchingComposite indicates that Crossplane has defined and is watching for a
 // new kind of composite resource.
-func WatchingComposite() runtimev1alpha1.Condition {
-	return runtimev1alpha1.Condition{
+func WatchingComposite() xpv1.Condition {
+	return xpv1.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -56,8 +56,8 @@ func WatchingComposite() runtimev1alpha1.Condition {
 
 // TerminatingComposite indicates that Crossplane is terminating the controller
 // for and removing the definition of a composite resource.
-func TerminatingComposite() runtimev1alpha1.Condition {
-	return runtimev1alpha1.Condition{
+func TerminatingComposite() xpv1.Condition {
+	return xpv1.Condition{
 		Type:               TypeEstablished,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
@@ -67,8 +67,8 @@ func TerminatingComposite() runtimev1alpha1.Condition {
 
 // WatchingClaim indicates that Crossplane has defined and is watching for a
 // new kind of composite resource claim.
-func WatchingClaim() runtimev1alpha1.Condition {
-	return runtimev1alpha1.Condition{
+func WatchingClaim() xpv1.Condition {
+	return xpv1.Condition{
 		Type:               TypeOffered,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
@@ -78,8 +78,8 @@ func WatchingClaim() runtimev1alpha1.Condition {
 
 // TerminatingClaim indicates that Crossplane is terminating the controller and
 // removing the definition of a composite resource claim.
-func TerminatingClaim() runtimev1alpha1.Condition {
-	return runtimev1alpha1.Condition{
+func TerminatingClaim() xpv1.Condition {
+	return xpv1.Condition{
 		Type:               TypeOffered,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),

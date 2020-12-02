@@ -19,7 +19,7 @@ package v1beta1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -50,13 +50,13 @@ type ProviderSpec struct {
 	// ControllerConfigRef references a ControllerConfig resource that will be
 	// used to configure the packaged controller Deployment.
 	// +optional
-	ControllerConfigReference *v1alpha1.Reference `json:"controllerConfigRef,omitempty"`
+	ControllerConfigReference *xpv1.Reference `json:"controllerConfigRef,omitempty"`
 }
 
 // ProviderStatus represents the observed state of a Provider.
 type ProviderStatus struct {
-	v1alpha1.ConditionedStatus `json:",inline"`
-	PackageStatus              `json:",inline"`
+	xpv1.ConditionedStatus `json:",inline"`
+	PackageStatus          `json:",inline"`
 }
 
 // +kubebuilder:object:root=true

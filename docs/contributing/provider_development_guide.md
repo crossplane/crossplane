@@ -190,14 +190,14 @@ type FavouriteDBInstanceParameters struct {
 
 // A FavouriteDBInstanceSpec defines the desired state of a FavouriteDBInstance.
 type FavouriteDBInstanceSpec struct {
-    runtimev1alpha1.ResourceSpec  `json:",inline"`
+    xpv1.ResourceSpec  `json:",inline"`
     ForProvider FavouriteDBInstanceParameters `json:"forProvider"`
 }
 
 // A FavouriteDBInstanceStatus represents the observed state of a
 // FavouriteDBInstance.
 type FavouriteDBInstanceStatus struct {
-    runtimev1alpha1.ResourceStatus `json:",inline"`
+    xpv1.ResourceStatus `json:",inline"`
 
     // Note that we add the three "output only" fields here in the status,
     // instead of the parameters. We want this representation to be high
@@ -249,10 +249,10 @@ would be `favouritecloud.crossplane.io/v1alpha1` or similar.
 ```go
 // A ProviderSpec defines the desired state of a Provider.
 type ProviderSpec struct {
-    runtimev1alpha1.ProviderSpec `json:",inline"`
+    xpv1.ProviderSpec `json:",inline"`
 
     // Information required outside of the Secret referenced in the embedded
-    // runtimev1alpha1.ProviderSpec that is required to authenticate to the provider.
+    // xpv1.ProviderSpec that is required to authenticate to the provider.
     // ProjectID is used as an example here.
     ProjectID string `json:"projectID"`
 }
@@ -347,7 +347,7 @@ import (
     // An API client of the hypothetical FavouriteDB service.
     "github.com/fcp-sdk/v1/services/database"
 
-    runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+    xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
     "github.com/crossplane/crossplane-runtime/pkg/meta"
     "github.com/crossplane/crossplane-runtime/pkg/resource"
     "github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
@@ -448,11 +448,11 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
     switch i.Status.Status {
     case database.StatusOnline:
         resource.SetBindable(i)
-        i.SetConditions(runtimev1alpha1.Available())
+        i.SetConditions(xpv1.Available())
     case database.StatusCreating:
-        i.SetConditions(runtimev1alpha1.Creating())
+        i.SetConditions(xpv1.Creating())
     case database.StatusDeleting:
-        i.SetConditions(runtimev1alpha1.Deleting())
+        i.SetConditions(xpv1.Deleting())
     }
 
     // Finally, we report what we know about the external resource. In this
@@ -465,8 +465,8 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
         ResourceExists:   true,
         ResourceUpToDate: existing.GetFancinessLevel == i.Spec.FancinessLevel,
         ConnectionDetails: managed.ConnectionDetails{
-            runtimev1alpha1.ResourceCredentialsSecretUserKey:     []byte(existing.GetUsername()),
-            runtimev1alpha1.ResourceCredentialsSecretEndpointKey: []byte(existing.GetHostname()),
+            xpv1.ResourceCredentialsSecretUserKey:     []byte(existing.GetUsername()),
+            xpv1.ResourceCredentialsSecretEndpointKey: []byte(existing.GetHostname()),
         },
     }
 
@@ -484,13 +484,13 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
     // Indicate that we're about to create the instance. Remember ExternalClient
     // authors can use a bespoke condition reason here in cases where Creating
     // doesn't make sense.
-    i.SetConditions(runtimev1alpha1.Creating())
+    i.SetConditions(xpv1.Creating())
 
     // Create must return any connection details that are set or returned only
     // at creation time. The managed.Reconciler will merge any details
     // with those returned during the Observe phase.
     password := database.GeneratePassword()
-    cd := managed.ConnectionDetails{runtimev1alpha1.ResourceCredentialsSecretPasswordKey: []byte(password)}
+    cd := managed.ConnectionDetails{xpv1.ResourceCredentialsSecretPasswordKey: []byte(password)}
 
     // Create a new instance.
     new := database.Instance{Name: i.Name, FancinessLevel: i.FancinessLevel, Version: i.Version}
@@ -529,7 +529,7 @@ func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
         return errors.New("managed resource is not a FavouriteDBInstance")
     }
     // Indicate that we're about to delete the instance.
-    i.SetConditions(runtimev1alpha1.Deleting())
+    i.SetConditions(xpv1.Deleting())
 
     // Delete the instance.
     err := e.client.DeleteInstance(ctx, i.Spec.Name)
@@ -628,9 +628,9 @@ feedback you may have about the development process!
 [`managed.NewReconciler`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#NewReconciler
 [`managed.ExternalConnecter`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
 [`managed.ExternalClient`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalClient
-[`ResourceSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ResourceSpec
-[`ResourceStatus`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ResourceStatus
-[`ProviderSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/core/v1alpha1#ProviderSpec
+[`ResourceSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/common/v1#ResourceSpec
+[`ResourceStatus`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/common/v1#ResourceStatus
+[`ProviderSpec`]: https://godoc.org/github.com/crossplane/crossplane-runtime/apis/common/v1#ProviderSpec
 ['managed.ExternalConnecter`]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/reconciler/managed#ExternalConnecter
 [opening a Crossplane issue]: https://github.com/crossplane/crossplane/issues/new/choose
 [`GroupVersionKind`]: https://godoc.org/k8s.io/apimachinery/pkg/runtime/schema#GroupVersionKind

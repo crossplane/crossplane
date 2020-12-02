@@ -364,7 +364,7 @@ reference at runtime, while others may want to set a value for the field
 directly, or rely on composition to fill in a value. The existing resource
 reference design requires 2 accessory fields for every field which needs to
 support references, ie `FieldName` must also include a `FieldNameRef` with type
-of `*runtimev1alpha1.Reference`. This poses special challenges for code
+of `*xpv1.Reference`. This poses special challenges for code
 generation since Terraform does not provide any additional metadata indicating
 which fields need reference support at code generation time. We need to choose
 between:

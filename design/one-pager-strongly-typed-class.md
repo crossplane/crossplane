@@ -100,8 +100,8 @@ Looking at the `NewRDSInstanceSpec()` function reveals how the parameters are be
 // NewRDSInstanceSpec from properties map
 func NewRDSInstanceSpec(properties map[string]string) *RDSInstanceSpec {
 	spec := &RDSInstanceSpec{
-		ResourceSpec: corev1alpha1.ResourceSpec{
-			ReclaimPolicy: corev1alpha1.ReclaimRetain,
+		ResourceSpec: xpv1.ResourceSpec{
+			ReclaimPolicy: xpv1.ReclaimRetain,
 		},
 	}
 

@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -380,11 +380,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// wait, in case this was a transient error.
 		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
+		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
-	if !resource.IsConditionTrue(cp.GetCondition(v1alpha1.TypeReady)) {
+	if !resource.IsConditionTrue(cp.GetCondition(xpv1.TypeReady)) {
 		log.Debug("Composite resource is not yet ready")
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
@@ -405,7 +405,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// secret is created.
 		log.Debug("Cannot propagate connection details from composite resource to claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		cm.SetConditions(v1alpha1.Unavailable().WithMessage(err.Error()))
+		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 	if propagated {
@@ -416,15 +416,15 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// We have a watch on both the claim and its composite, so there's no
 	// need to requeue here.
-	cm.SetConditions(v1alpha1.Available())
+	cm.SetConditions(xpv1.Available())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 }
 
 // Waiting returns a condition that indicates the composite resource claim is
 // currently waiting for its composite resource to become ready.
-func Waiting() v1alpha1.Condition {
-	return v1alpha1.Condition{
-		Type:               v1alpha1.TypeReady,
+func Waiting() xpv1.Condition {
+	return xpv1.Condition{
+		Type:               xpv1.TypeReady,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
 		Reason:             ReasonWaiting,

@@ -26,7 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
@@ -352,7 +352,7 @@ type ConnectionDetail struct {
 
 // CompositionStatus shows the observed state of the composition.
 type CompositionStatus struct {
-	v1alpha1.ConditionedStatus `json:",inline"`
+	xpv1.ConditionedStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true

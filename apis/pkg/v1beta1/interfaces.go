@@ -20,7 +20,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	runtimev1alpha1 "github.com/crossplane/crossplane-runtime/apis/core/v1alpha1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -73,8 +73,8 @@ type Package interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *runtimev1alpha1.Reference
-	SetControllerConfigRef(r *runtimev1alpha1.Reference)
+	GetControllerConfigRef() *xpv1.Reference
+	SetControllerConfigRef(r *xpv1.Reference)
 
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
@@ -87,12 +87,12 @@ type Package interface {
 }
 
 // GetCondition of this Provider.
-func (p *Provider) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+func (p *Provider) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this Provider.
-func (p *Provider) SetConditions(c ...runtimev1alpha1.Condition) {
+func (p *Provider) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
@@ -157,12 +157,12 @@ func (p *Provider) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this Provider.
-func (p *Provider) GetControllerConfigRef() *runtimev1alpha1.Reference {
+func (p *Provider) GetControllerConfigRef() *xpv1.Reference {
 	return p.Spec.ControllerConfigReference
 }
 
 // SetControllerConfigRef of this Provider.
-func (p *Provider) SetControllerConfigRef(r *runtimev1alpha1.Reference) {
+func (p *Provider) SetControllerConfigRef(r *xpv1.Reference) {
 	p.Spec.ControllerConfigReference = r
 }
 
@@ -197,12 +197,12 @@ func (p *Provider) SetCurrentIdentifier(s string) {
 }
 
 // GetCondition of this Configuration.
-func (p *Configuration) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this Configuration.
-func (p *Configuration) SetConditions(c ...runtimev1alpha1.Condition) {
+func (p *Configuration) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
@@ -267,12 +267,12 @@ func (p *Configuration) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this Configuration.
-func (p *Configuration) GetControllerConfigRef() *runtimev1alpha1.Reference {
+func (p *Configuration) GetControllerConfigRef() *xpv1.Reference {
 	return nil
 }
 
 // SetControllerConfigRef of this Configuration.
-func (p *Configuration) SetControllerConfigRef(r *runtimev1alpha1.Reference) {}
+func (p *Configuration) SetControllerConfigRef(r *xpv1.Reference) {}
 
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
@@ -313,11 +313,11 @@ type PackageRevision interface {
 	resource.Object
 	resource.Conditioned
 
-	GetObjects() []runtimev1alpha1.TypedReference
-	SetObjects(c []runtimev1alpha1.TypedReference)
+	GetObjects() []xpv1.TypedReference
+	SetObjects(c []xpv1.TypedReference)
 
-	GetControllerReference() runtimev1alpha1.Reference
-	SetControllerReference(c runtimev1alpha1.Reference)
+	GetControllerReference() xpv1.Reference
+	SetControllerReference(c xpv1.Reference)
 
 	GetSource() string
 	SetSource(s string)
@@ -334,8 +334,8 @@ type PackageRevision interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *runtimev1alpha1.Reference
-	SetControllerConfigRef(r *runtimev1alpha1.Reference)
+	GetControllerConfigRef() *xpv1.Reference
+	SetControllerConfigRef(r *xpv1.Reference)
 
 	GetRevision() int64
 	SetRevision(r int64)
@@ -348,32 +348,32 @@ type PackageRevision interface {
 }
 
 // GetCondition of this ProviderRevision.
-func (p *ProviderRevision) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+func (p *ProviderRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this ProviderRevision.
-func (p *ProviderRevision) SetConditions(c ...runtimev1alpha1.Condition) {
+func (p *ProviderRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
 // GetObjects of this ProviderRevision.
-func (p *ProviderRevision) GetObjects() []runtimev1alpha1.TypedReference {
+func (p *ProviderRevision) GetObjects() []xpv1.TypedReference {
 	return p.Status.ObjectRefs
 }
 
 // SetObjects of this ProviderRevision.
-func (p *ProviderRevision) SetObjects(c []runtimev1alpha1.TypedReference) {
+func (p *ProviderRevision) SetObjects(c []xpv1.TypedReference) {
 	p.Status.ObjectRefs = c
 }
 
 // GetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) GetControllerReference() runtimev1alpha1.Reference {
+func (p *ProviderRevision) GetControllerReference() xpv1.Reference {
 	return p.Status.ControllerRef
 }
 
 // SetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) SetControllerReference(c runtimev1alpha1.Reference) {
+func (p *ProviderRevision) SetControllerReference(c xpv1.Reference) {
 	p.Status.ControllerRef = c
 }
 
@@ -450,12 +450,12 @@ func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this ProviderRevision.
-func (p *ProviderRevision) GetControllerConfigRef() *runtimev1alpha1.Reference {
+func (p *ProviderRevision) GetControllerConfigRef() *xpv1.Reference {
 	return p.Spec.ControllerConfigReference
 }
 
 // SetControllerConfigRef of this ProviderREvsion.
-func (p *ProviderRevision) SetControllerConfigRef(r *runtimev1alpha1.Reference) {
+func (p *ProviderRevision) SetControllerConfigRef(r *xpv1.Reference) {
 	p.Spec.ControllerConfigReference = r
 }
 
@@ -470,32 +470,32 @@ func (p *ProviderRevision) SetSkipDependencyResolution(b *bool) {
 }
 
 // GetCondition of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetCondition(ct runtimev1alpha1.ConditionType) runtimev1alpha1.Condition {
+func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
 }
 
 // SetConditions of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetConditions(c ...runtimev1alpha1.Condition) {
+func (p *ConfigurationRevision) SetConditions(c ...xpv1.Condition) {
 	p.Status.SetConditions(c...)
 }
 
 // GetObjects of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetObjects() []runtimev1alpha1.TypedReference {
+func (p *ConfigurationRevision) GetObjects() []xpv1.TypedReference {
 	return p.Status.ObjectRefs
 }
 
 // SetObjects of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetObjects(c []runtimev1alpha1.TypedReference) {
+func (p *ConfigurationRevision) SetObjects(c []xpv1.TypedReference) {
 	p.Status.ObjectRefs = c
 }
 
 // GetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerReference() runtimev1alpha1.Reference {
+func (p *ConfigurationRevision) GetControllerReference() xpv1.Reference {
 	return p.Status.ControllerRef
 }
 
 // SetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerReference(c runtimev1alpha1.Reference) {
+func (p *ConfigurationRevision) SetControllerReference(c xpv1.Reference) {
 	p.Status.ControllerRef = c
 }
 
@@ -572,12 +572,12 @@ func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerConfigRef() *runtimev1alpha1.Reference {
+func (p *ConfigurationRevision) GetControllerConfigRef() *xpv1.Reference {
 	return p.Spec.ControllerConfigReference
 }
 
 // SetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerConfigRef(r *runtimev1alpha1.Reference) {
+func (p *ConfigurationRevision) SetControllerConfigRef(r *xpv1.Reference) {
 	p.Spec.ControllerConfigReference = r
 }
 
