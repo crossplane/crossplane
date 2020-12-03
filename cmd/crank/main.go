@@ -22,7 +22,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane/pkg/version"
+	"github.com/crossplane/crossplane/internal/version"
 )
 
 var _ = kong.Must(&cli)
