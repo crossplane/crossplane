@@ -27,7 +27,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/pkg/controller/rbac"
+	"github.com/crossplane/crossplane/internal/controller/rbac"
 )
 
 // Available RBAC management policies.

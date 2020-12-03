@@ -29,9 +29,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
-	"github.com/crossplane/crossplane/pkg/controller/apiextensions"
-	"github.com/crossplane/crossplane/pkg/controller/pkg"
-	"github.com/crossplane/crossplane/pkg/xpkg"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions"
+	"github.com/crossplane/crossplane/internal/controller/pkg"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 // Command configuration for the core Crossplane controllers.

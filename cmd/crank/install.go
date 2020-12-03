@@ -28,7 +28,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	typedclient "github.com/crossplane/crossplane/pkg/client/clientset/versioned/typed/pkg/v1beta1"
+	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
 
 	// Load all the auth plugins for the cloud providers.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"

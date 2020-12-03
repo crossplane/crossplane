@@ -26,7 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
-	"github.com/crossplane/crossplane/pkg/xpkg"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
