@@ -7,6 +7,15 @@ indent: true
 
 # Composing Infrastructure
 
+## Revisions
+
+* 1.1 - Ben Agricola (@benagricola)
+  * Updated [Specify How Your Resource May Be Composed](
+    #specify-how-your-resource-may-be-composed) with examples outlining how to
+  define and consume patch sets.
+
+## Composition
+
 Crossplane allows infrastructure operators to define and compose new kinds of
 infrastructure resources then offer them for the application operators they
 support to use, all without writing any code.
@@ -307,6 +316,17 @@ spec:
   compositeTypeRef:
     apiVersion: example.org/v1alpha1
     kind: CompositeMySQLInstance
+
+  # This Composition defines a patch set with the name "Metadata", which consists
+  # of 2 individual patches. Patch sets can be referenced from any of the base
+  # resources within the Composition to avoid having to repeat patch definitions.
+  # A PatchSet can contain any of the other patch types, except another PatchSet.
+  patchSets:
+  - name: Metadata
+    patches:
+    - fromFieldPath: metadata.labels
+    - fromFieldPath: metadata.annotations
+
   # This Composition reconciles a CompositeMySQLInstance by patching from
   # the CompositeMySQLInstance "to" new instances of the infrastructure
   # resources below. These resources may be the managed resources of an
@@ -324,14 +344,15 @@ spec:
     # resource (the CompositeMySQLInstance) to a field path within the composed
     # resource (the ResourceGroup). In the below example any labels and
     # annotations will be propagated from the CompositeMySQLInstance to the
-    # ResourceGroup, as will the location.
+    # ResourceGroup (referencing the "Metadata" patch set defined on the
+    # Composition), as will the location, using the default patch type
+    # FromCompositeFieldPath.
     patches:
-    - fromFieldPath: "metadata.labels"
-      toFieldPath: "metadata.labels"
-    - fromFieldPath: "metadata.annotations"
-      toFieldPath: "metadata.annotations"
+    - type: PatchSet
+      patchSetName: Metadata
     - fromFieldPath: "spec.parameters.location"
       toFieldPath: "spec.location"
+
       # Sometimes it is necessary to "transform" the value from the composite
       # resource into a value suitable for the composed resource, for example an
       # Azure based composition may represent geographical locations differently
@@ -374,10 +395,10 @@ spec:
         writeConnectionSecretToRef:
           namespace: crossplane-system
     patches:
-    - fromFieldPath: "metadata.labels"
-      toFieldPath: "metadata.labels"
-    - fromFieldPath: "metadata.annotations"
-      toFieldPath: "metadata.annotations"
+    # This resource also uses the "Metadata" patch set defined on the
+    # Composition.
+    - type: PatchSet
+      patchSetName: Metadata
     - fromFieldPath: "metadata.uid"
       toFieldPath: "spec.writeConnectionSecretToRef.name"
       transforms:
@@ -444,10 +465,9 @@ spec:
             virtualNetworkSubnetIdSelector:
               name: sample-subnet
     patches:
-    - fromFieldPath: "metadata.labels"
-      toFieldPath: "metadata.labels"
-    - fromFieldPath: "metadata.annotations"
-      toFieldPath: "metadata.annotations"
+    - type: PatchSet
+      patchSetName: Metadata
+
   # Some composite resources may be "dynamically provisioned" - i.e. provisioned
   # on-demand to satisfy an application's claim for infrastructure. The
   # writeConnectionSecretsToNamespace field configures the default value used
