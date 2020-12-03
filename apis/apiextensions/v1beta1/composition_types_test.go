@@ -18,12 +18,233 @@ package v1beta1
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"k8s.io/utils/pointer"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+func TestPatchTypeReplacement(t *testing.T) {
+	type args struct {
+		comp CompositionSpec
+	}
+
+	type want struct {
+		resources []ComposedTemplate
+		err       error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"NoCompositionPatchSets": {
+			reason: "Patches defined on a composite resource should be applied correctly if no PatchSets are defined on the composition",
+			args: args{
+				comp: CompositionSpec{
+					Resources: []ComposedTemplate{
+						{
+							Patches: []Patch{
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("metadata.name"),
+								},
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("metadata.namespace"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				resources: []ComposedTemplate{
+					{
+						Patches: []Patch{
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.name"),
+							},
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.namespace"),
+							},
+						},
+					},
+				},
+			},
+		},
+		"UndefinedPatchSet": {
+			reason: "Should return error and not modify the patches field when referring to an undefined PatchSet",
+			args: args{
+				comp: CompositionSpec{
+					Resources: []ComposedTemplate{{
+						Patches: []Patch{
+							{
+								Type:         PatchTypePatchSet,
+								PatchSetName: pointer.StringPtr("patch-set-1"),
+							},
+						},
+					}},
+				},
+			},
+			want: want{
+				resources: []ComposedTemplate{{
+					Patches: []Patch{
+						{
+							Type:         PatchTypePatchSet,
+							PatchSetName: pointer.StringPtr("patch-set-1"),
+						},
+					},
+				}},
+				err: errors.Errorf(errUndefinedPatchSet, "patch-set-1"),
+			},
+		},
+		"DefinedPatchSets": {
+			reason: "Should de-reference PatchSets defined on the Composition when referenced in a composed resource",
+			args: args{
+				comp: CompositionSpec{
+					// PatchSets, existing patches and references
+					// should output in the correct order.
+					PatchSets: []PatchSet{
+						{
+							Name: "patch-set-1",
+							Patches: []Patch{
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("metadata.namespace"),
+								},
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("spec.parameters.test"),
+								},
+							},
+						},
+						{
+							Name: "patch-set-2",
+							Patches: []Patch{
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-1"),
+								},
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-2"),
+									Transforms: []Transform{{
+										Type: TransformTypeMap,
+										Map: &MapTransform{
+											Pairs: map[string]string{
+												"k-1": "v-1",
+												"k-2": "v-2",
+											},
+										},
+									}},
+								},
+							},
+						},
+					},
+					Resources: []ComposedTemplate{
+						{
+							Patches: []Patch{
+								{
+									Type:         PatchTypePatchSet,
+									PatchSetName: pointer.StringPtr("patch-set-2"),
+								},
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.StringPtr("metadata.name"),
+								},
+								{
+									Type:         PatchTypePatchSet,
+									PatchSetName: pointer.StringPtr("patch-set-1"),
+								},
+							},
+						},
+						{
+							Patches: []Patch{
+								{
+									Type:         PatchTypePatchSet,
+									PatchSetName: pointer.StringPtr("patch-set-1"),
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: nil,
+				resources: []ComposedTemplate{
+					{
+						Patches: []Patch{
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-1"),
+							},
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-2"),
+								Transforms: []Transform{{
+									Type: TransformTypeMap,
+									Map: &MapTransform{
+										Pairs: map[string]string{
+											"k-1": "v-1",
+											"k-2": "v-2",
+										},
+									},
+								}},
+							},
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.name"),
+							},
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.namespace"),
+							},
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("spec.parameters.test"),
+							},
+						},
+					},
+					{
+						Patches: []Patch{
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("metadata.namespace"),
+							},
+							{
+								Type:          PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.StringPtr("spec.parameters.test"),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := tc.args.comp.InlinePatchSets()
+
+			if diff := cmp.Diff(tc.want.resources, tc.args.comp.Resources); diff != "" {
+				t.Errorf("\n%s\nInlinePatchSets(b): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nInlinePatchSets(b): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestMapResolve(t *testing.T) {
 	type args struct {
@@ -188,6 +409,139 @@ func TestStringResolve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+func TestPatchApply(t *testing.T) {
+	now := metav1.NewTime(time.Unix(0, 0))
+	lpt := fake.ConnectionDetailsLastPublishedTimer{
+		Time: &now,
+	}
+
+	type args struct {
+		patch Patch
+		cp    *fake.Composite
+		cd    *fake.Composed
+	}
+	type want struct {
+		cp  *fake.Composite
+		cd  *fake.Composed
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"InvalidCompositeFieldPathPatch": {
+			reason: "Should return error when required fields not passed to applyFromCompositeFieldPatch",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeFromCompositeFieldPath,
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+			},
+			want: want{
+				err: errors.Errorf(errRequiredField, "FromFieldPath", PatchTypeFromCompositeFieldPath),
+			},
+		},
+		"InvalidPatchType": {
+			reason: "Should return an error if an invalid patch type is specified",
+			args: args{
+				patch: Patch{
+					Type: "invalid-patchtype",
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+			},
+			want: want{
+				err: errors.Errorf(errInvalidPatchType, "invalid-patchtype"),
+			},
+		},
+		"ValidCompositeFieldPathPatch": {
+			reason: "Should correctly apply a CompositeFieldPathPatch with valid settings",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd", Labels: map[string]string{
+						"Test": "blah",
+					}},
+				},
+				err: nil,
+			},
+		},
+		"DefaultToFieldCompositeFieldPathPatch": {
+			reason: "Should correctly default the ToFieldPath value if not specified.",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd", Labels: map[string]string{
+						"Test": "blah",
+					}},
+				},
+				err: nil,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			ncp := tc.args.cp.DeepCopyObject()
+			err := tc.args.patch.Apply(ncp, tc.args.cd)
+
+			if tc.want.cp != nil {
+				if diff := cmp.Diff(tc.want.cp, ncp); diff != "" {
+					t.Errorf("\n%s\nApply(cp): -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+			if tc.want.cd != nil {
+				if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
+					t.Errorf("\n%s\nApply(cd): -want, +got:\n%s", tc.reason, diff)
+				}
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nApply(err): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

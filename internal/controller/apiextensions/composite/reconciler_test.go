@@ -26,6 +26,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -148,6 +149,54 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error {
 						return errBoom
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"InlinePatchSetsError": {
+			reason: "We should requeue after a short wait if we encounter an error while inlining patchSets on a composition.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+								if comp, ok := obj.(*v1beta1.Composition); ok {
+									comp.Spec.Resources = []v1beta1.ComposedTemplate{{
+										Patches: []v1beta1.Patch{{
+											Type:         v1beta1.PatchTypePatchSet,
+											PatchSetName: pointer.StringPtr("nonexistent-patchset"),
+										}},
+									}}
+								}
+								return nil
+							}),
+							MockUpdate:       test.NewMockUpdateFn(nil),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						},
+						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+							return nil
+						}),
+					}),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
+						return nil
+					})),
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return cd, nil
+					})),
+					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error) {
+						// Our one resource is ready.
+						return true, nil
+					})),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error {
+						return nil
 					})),
 				},
 			},
