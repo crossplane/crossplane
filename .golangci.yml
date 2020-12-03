@@ -3,9 +3,6 @@ run:
 
   skip-files:
   - "zz_generated\\..+\\.go$"
-  
-  skip-dirs:
-  - "pkg/client/clientset"
 
 output:
   # colored-line-number|line-number|json|tab|checkstyle|code-climate, default is "colored-line-number"
