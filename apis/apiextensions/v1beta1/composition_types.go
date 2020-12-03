@@ -33,6 +33,10 @@ import (
 const (
 	errMathNoMultiplier   = "no input is given"
 	errMathInputNonNumber = "input is required to be a number for math transformer"
+	errPatchSetType       = "a patch in a PatchSet cannot be of type PatchSet"
+	errRequiredField      = "%s is required by type %s"
+	errUndefinedPatchSet  = "cannot find PatchSet by name %s"
+	errInvalidPatchType   = "patch type %s is unsupported"
 )
 
 var (
@@ -53,6 +57,12 @@ type CompositionSpec struct {
 	// +immutable
 	CompositeTypeRef TypeReference `json:"compositeTypeRef"`
 
+	// PatchSets define a named set of patches that may be included by
+	// any resource in this Composition.
+	// PatchSets cannot themselves refer to other PatchSets.
+	// +optional
+	PatchSets []PatchSet `json:"patchSets,omitempty"`
+
 	// Resources is the list of resource templates that will be used when a
 	// composite resource referring to this composition is created.
 	Resources []ComposedTemplate `json:"resources"`
@@ -62,6 +72,50 @@ type CompositionSpec struct {
 	// this composition will be created.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
+}
+
+// InlinePatchSets dereferences PatchSets and includes their patches inline. The
+// updated CompositionSpec should not be persisted to the API server.
+func (cs *CompositionSpec) InlinePatchSets() error {
+	pn := make(map[string][]Patch)
+	for _, s := range cs.PatchSets {
+		for _, p := range s.Patches {
+			if p.Type == PatchTypePatchSet {
+				return errors.New(errPatchSetType)
+			}
+		}
+		pn[s.Name] = s.Patches
+	}
+
+	for i, r := range cs.Resources {
+		po := []Patch{}
+		for _, p := range r.Patches {
+			if p.Type != PatchTypePatchSet {
+				po = append(po, p)
+				continue
+			}
+			if p.PatchSetName == nil {
+				return errors.Errorf(errRequiredField, "PatchSetName", p.Type)
+			}
+			ps, ok := pn[*p.PatchSetName]
+			if !ok {
+				return errors.Errorf(errUndefinedPatchSet, *p.PatchSetName)
+			}
+			po = append(po, ps...)
+		}
+		cs.Resources[i].Patches = po
+	}
+	return nil
+}
+
+// A PatchSet is a set of patches that can be reused from all resources within
+// a Composition.
+type PatchSet struct {
+	// Name of this PatchSet.
+	Name string `json:"name"`
+
+	// Patches will be applied as an overlay to the base resource.
+	Patches []Patch `json:"patches"`
 }
 
 // TypeReference is used to refer to a type for declaring compatibility.
@@ -102,7 +156,7 @@ type ComposedTemplate struct {
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
-// TypeReadinessCheck is used for readiness check types
+// TypeReadinessCheck is used for readiness check types.
 type TypeReadinessCheck string
 
 // The possible values for readiness check type.
@@ -133,20 +187,41 @@ type ReadinessCheck struct {
 	MatchInteger int64 `json:"matchInteger,omitempty"`
 }
 
-// Patch is used to patch the field on the base resource at ToFieldPath
-// after piping the value that is at FromFieldPath of the target resource through
-// transformers.
+// A PatchType is a type of patch.
+type PatchType string
+
+// Patch types.
+const (
+	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
+	PatchTypePatchSet               PatchType = "PatchSet"
+)
+
+// Patch objects are applied between composite and composed resources. Their
+// behaviour depends on the Type selected. The default Type,
+// FromCompositeFieldPath, copies a value from the composite resource to
+// the composed resource, applying any defined transformers.
 type Patch struct {
+	// Type sets the patching behaviour to be used. Each patch type may require
+	// its' own fields to be set on the Patch object.
+	// +optional
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet
+	// +kubebuilder:default=FromCompositeFieldPath
+	Type PatchType `json:"type,omitempty"`
 
 	// FromFieldPath is the path of the field on the upstream resource whose value
-	// to be used as input.
-	FromFieldPath string `json:"fromFieldPath"`
+	// to be used as input. Required when type is FromCompositeFieldPath.
+	// +optional
+	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
 	// ToFieldPath is the path of the field on the base resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
 	// propagate to the same path on the target resource.
 	// +optional
-	ToFieldPath string `json:"toFieldPath,omitempty"`
+	ToFieldPath *string `json:"toFieldPath,omitempty"`
+
+	// PatchSetName to include patches from. Required when type is PatchSet.
+	// +optional
+	PatchSetName *string `json:"patchSetName,omitempty"`
 
 	// Transforms are the list of functions that are used as a FIFO pipe for the
 	// input to be transformed.
@@ -154,14 +229,41 @@ type Patch struct {
 	Transforms []Transform `json:"transforms,omitempty"`
 }
 
-// Apply runs transformers and patches the target resource.
+// Apply executes a patching operation between the from and to resources.
 func (c *Patch) Apply(from, to runtime.Object) error {
+	switch c.Type {
+	case PatchTypeFromCompositeFieldPath:
+		return c.applyFromCompositeFieldPatch(from, to)
+	case PatchTypePatchSet:
+		// Already resolved - nothing to do.
+	}
+	return errors.Errorf(errInvalidPatchType, c.Type)
+}
+
+// applyFromCompositeFieldPatch patches the composed resource, using a source field
+// on the composite resource. Values may be transformed if any are defined on
+// the patch.
+func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { // nolint:gocyclo
+	// NOTE(benagricola): The cyclomatic complexity here is from error checking
+	// at each stage of the patching process, in addition to Apply methods now
+	// being responsible for checking the validity of their input fields
+	// (necessary because with multiple patch types, the input fields
+	// must be +optional).
+	if c.FromFieldPath == nil {
+		return errors.Errorf(errRequiredField, "FromFieldPath", c.Type)
+	}
+
+	// Default to patching the same field on the composed resource.
+	if c.ToFieldPath == nil {
+		c.ToFieldPath = c.FromFieldPath
+	}
+
 	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
 	if err != nil {
 		return err
 	}
 
-	in, err := fieldpath.Pave(fromMap).GetValue(c.FromFieldPath)
+	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
 	if fieldpath.IsNotFound(err) {
 		// A composition may want to opportunistically patch from a field path
 		// that may or may not exist in the composite, for example by patching
@@ -182,14 +284,14 @@ func (c *Patch) Apply(from, to runtime.Object) error {
 	}
 
 	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
-		return fieldpath.Pave(u.UnstructuredContent()).SetValue(c.ToFieldPath, out)
+		return fieldpath.Pave(u.UnstructuredContent()).SetValue(*c.ToFieldPath, out)
 	}
 
 	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
 	if err != nil {
 		return err
 	}
-	if err := fieldpath.Pave(toMap).SetValue(c.ToFieldPath, out); err != nil {
+	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, out); err != nil {
 		return err
 	}
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
