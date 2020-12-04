@@ -97,11 +97,11 @@ jobs:
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.1.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
         uses: crossplane-contrib/xpkg-action@v0.1.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp
+          command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp
   
   getting-started-with-azure:
     runs-on: ubuntu-18.04
@@ -127,11 +127,11 @@ jobs:
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.1.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
         uses: crossplane-contrib/xpkg-action@v0.1.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure
+          command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure
   
   getting-started-with-alibaba:
     runs-on: ubuntu-18.04
@@ -157,8 +157,8 @@ jobs:
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.1.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f docs/snippets/package/alibaba/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
         uses: crossplane-contrib/xpkg-action@v0.1.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba
+          command: push configuration -f docs/snippets/package/alibaba/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba
