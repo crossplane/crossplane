@@ -363,6 +363,13 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	refs := make([]corev1.ObjectReference, len(comp.Spec.Resources))
 	copy(refs, cr.GetResourceReferences())
 
+	// Inline PatchSets from Composition Spec before rendering
+	if err := comp.Spec.InlinePatchSets(); err != nil {
+		log.Debug(errRender, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
 	cds := make([]*composed.Unstructured, len(refs))
 	for i := range refs {
 		cd := composed.New(composed.FromReference(refs[i]))
