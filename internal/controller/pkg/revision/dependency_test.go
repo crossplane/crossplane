@@ -143,7 +143,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a:v0.0.1",
+									Source: "hasheddan/config-nop-a:v0.0.1",
 								},
 							}
 							return nil
@@ -184,7 +184,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a",
+									Source: "hasheddan/config-nop-a",
 								},
 							}
 							return nil
@@ -225,7 +225,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a",
+									Source: "hasheddan/config-nop-a",
 								},
 							}
 							return nil
@@ -266,7 +266,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a",
+									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1alpha1.Dependency{
 										{
 											Package: "not-here-1",
@@ -333,7 +333,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a",
+									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1alpha1.Dependency{
 										{
 											Package: "not-here-1",
@@ -422,7 +422,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a",
+									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1alpha1.Dependency{
 										{
 											Package: "not-here-1",
@@ -522,7 +522,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
-									Source: "index.docker.io/hasheddan/config-nop-a",
+									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1alpha1.Dependency{
 										{
 											Package: "not-here-1",
