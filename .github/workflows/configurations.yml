@@ -1,0 +1,164 @@
+name: Configurations
+
+on:
+  push:
+    branches:
+      - master
+      - release-*
+  workflow_dispatch: {}
+
+env:
+  DOCKER_USR: ${{ secrets.UPBOUND_ROBOT_USR }}
+
+jobs:
+  getting-started-with-aws:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      # The tagger step uses the same logic in the build submodule to generate package tag
+      # https://github.com/upbound/build/blob/4f64913157a952dbe77cd9e05457d9abe695a1d4/makelib/common.mk#L193
+      - name: Set tag
+        run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
+        id: tagger
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          registry: registry.upbound.io
+          username: ${{ secrets.UPBOUND_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+      - name: Build
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: build configuration -f docs/snippets/package/aws --name=getting-started-with-aws.xpkg
+      - name: Push
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
+      - name: Push Latest
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws
+  
+  getting-started-with-aws-with-vpc:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set tag
+        run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
+        id: tagger
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          registry: registry.upbound.io
+          username: ${{ secrets.UPBOUND_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+      - name: Build
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: build configuration -f docs/snippets/package/aws-with-vpc --name=getting-started-with-aws-with-vpc.xpkg
+      - name: Push
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
+      - name: Push Latest
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc
+  
+  getting-started-with-gcp:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set tag
+        run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
+        id: tagger
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          registry: registry.upbound.io
+          username: ${{ secrets.UPBOUND_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+      - name: Build
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: build configuration -f docs/snippets/package/gcp --name=getting-started-with-gcp.xpkg
+      - name: Push
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
+      - name: Push Latest
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp
+  
+  getting-started-with-azure:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set tag
+        run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
+        id: tagger
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          registry: registry.upbound.io
+          username: ${{ secrets.UPBOUND_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+      - name: Build
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: build configuration -f docs/snippets/package/azure --name=getting-started-with-azure.xpkg
+      - name: Push
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
+      - name: Push Latest
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure
+  
+  getting-started-with-alibaba:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: Set tag
+        run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
+        id: tagger
+      - name: Login to Docker
+        uses: docker/login-action@v1
+        if: env.DOCKER_USR != ''
+        with:
+          registry: registry.upbound.io
+          username: ${{ secrets.UPBOUND_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+      - name: Build
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: build configuration -f docs/snippets/package/alibaba --name=getting-started-with-alibaba.xpkg
+      - name: Push
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba:${{ steps.tagger.outputs.VERSION_TAG }}
+      - name: Push Latest
+        uses: crossplane-contrib/xpkg-action@v0.1.0
+        with:
+          command: push configuration -f docs/snippets/package/aws/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba

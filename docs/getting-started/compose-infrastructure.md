@@ -73,7 +73,7 @@ We will now install a `Configuration` that:
 > an RDS instance that will allow traffic from the internet.
 
 ```console
-kubectl crossplane install configuration crossplane/getting-started-with-aws:master
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:latest
 ```
 
 </div>
@@ -85,28 +85,28 @@ kubectl crossplane install configuration crossplane/getting-started-with-aws:mas
 > complex ones. See the [composition] documentation for more information.
 
 ```console
-kubectl crossplane install configuration crossplane/getting-started-with-aws-with-vpc:master
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:latest
 ```
 
 </div>
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration crossplane/getting-started-with-gcp:master
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:latest
 ```
 
 </div>
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration crossplane/getting-started-with-azure:master
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:latest
 ```
 
 </div>
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration crossplane/getting-started-with-alibaba:master
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:latest
 ```
 
 </div>
