@@ -208,7 +208,7 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 		},
 		{
 			Name:     "AGE",
-			Type:     "Date",
+			Type:     "date",
 			JSONPath: ".metadata.creationTimestamp",
 		},
 	}
@@ -230,7 +230,7 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 		},
 		{
 			Name:     "AGE",
-			Type:     "Date",
+			Type:     "date",
 			JSONPath: ".metadata.creationTimestamp",
 		},
 	}

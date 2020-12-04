@@ -147,7 +147,7 @@ func TestForCompositeResource(t *testing.T) {
 					},
 					{
 						Name:     "AGE",
-						Type:     "Date",
+						Type:     "date",
 						JSONPath: ".metadata.creationTimestamp",
 					},
 				},
@@ -471,7 +471,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 						},
 						{
 							Name:     "AGE",
-							Type:     "Date",
+							Type:     "date",
 							JSONPath: ".metadata.creationTimestamp",
 						},
 					},
