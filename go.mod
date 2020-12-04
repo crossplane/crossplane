@@ -12,11 +12,10 @@ require (
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200926000217-2617742802f6+incompatible // indirect
 	github.com/go-logr/zapr v0.1.1 // indirect
 	github.com/google/go-cmp v0.5.0
-	github.com/google/go-containerregistry v0.1.3
+	github.com/google/go-containerregistry v0.2.1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.1.0 // indirect
 	github.com/spf13/afero v1.4.1
-	golang.org/x/crypto v0.0.0-20200820211705-5c72a883971a // indirect
 	golang.org/x/net v0.0.0-20200904194848-62affa334b73 // indirect
 	golang.org/x/sys v0.0.0-20200831180312-196b9ba8737a // indirect
 	google.golang.org/protobuf v1.25.0 // indirect

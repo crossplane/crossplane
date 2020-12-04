@@ -95,7 +95,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		return found, installed, invalid, errors.Wrap(err, errGetLock)
 	}
 
-	prRef, err := name.ParseReference(pr.GetSource())
+	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(""))
 	if err != nil {
 		return found, installed, invalid, err
 	}
@@ -119,11 +119,8 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	// NOTE(hasheddan): consider adding health of package to lock so that it can
 	// be rolled up to any dependent packages.
 	self := v1alpha1.LockPackage{
-		Name: pr.GetName(),
-		Type: m.packageType,
-		// NOTE(hasheddan): go-containerregistry appends default registry if
-		// none is provided. Make sure to use the same method to add a package
-		// to the lock as is used to identify its index above.
+		Name:         pr.GetName(),
+		Type:         m.packageType,
 		Source:       prRef.Context().String(),
 		Version:      prRef.Identifier(),
 		Dependencies: sources,
@@ -205,7 +202,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 
 // RemoveSelf removes a package from the lock.
 func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1beta1.PackageRevision) error {
-	prRef, err := name.ParseReference(pr.GetSource())
+	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(""))
 	if err != nil {
 		return err
 	}
