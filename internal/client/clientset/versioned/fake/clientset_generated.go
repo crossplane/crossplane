@@ -20,8 +20,6 @@ package fake
 
 import (
 	clientset "github.com/crossplane/crossplane/internal/client/clientset/versioned"
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1alpha1"
-	fakeapiextensionsv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1alpha1/fake"
 	apiextensionsv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1"
 	fakeapiextensionsv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1/fake"
 	pkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1"
@@ -81,11 +79,6 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 }
 
 var _ clientset.Interface = &Clientset{}
-
-// ApiextensionsV1alpha1 retrieves the ApiextensionsV1alpha1Client
-func (c *Clientset) ApiextensionsV1alpha1() apiextensionsv1alpha1.ApiextensionsV1alpha1Interface {
-	return &fakeapiextensionsv1alpha1.FakeApiextensionsV1alpha1{Fake: &c.Fake}
-}
 
 // ApiextensionsV1beta1 retrieves the ApiextensionsV1beta1Client
 func (c *Clientset) ApiextensionsV1beta1() apiextensionsv1beta1.ApiextensionsV1beta1Interface {
