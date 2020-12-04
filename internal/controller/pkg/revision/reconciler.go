@@ -323,7 +323,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		// already removed self. If we skipped dependency resolution, we will
 		// not be present in the lock.
 		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
-			pr.SetConditions(v1alpha1.Unhealthy())
+			pr.SetConditions(v1beta1.Unhealthy())
 			r.record.Event(pr, event.Warning(reasonLint, err))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
@@ -405,7 +405,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		found, installed, invalid, err := r.lock.Resolve(ctx, pkgMeta, pr)
 		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
 		if err != nil {
-			pr.SetConditions(v1alpha1.UnknownHealth())
+			pr.SetConditions(v1beta1.UnknownHealth())
 			r.record.Event(pr, event.Warning(reasonDependencies, err))
 			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}

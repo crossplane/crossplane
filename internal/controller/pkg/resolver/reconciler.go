@@ -257,12 +257,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, nil
 	}
 
-	var pack v1alpha1.Package
+	var pack v1beta1.Package
 	switch dep.Type {
 	case v1alpha1.ConfigurationPackageType:
-		pack = &v1alpha1.Configuration{}
+		pack = &v1beta1.Configuration{}
 	case v1alpha1.ProviderPackageType:
-		pack = &v1alpha1.Provider{}
+		pack = &v1beta1.Provider{}
 	default:
 		log.Debug(errInvalidPackageType)
 		return reconcile.Result{}, nil

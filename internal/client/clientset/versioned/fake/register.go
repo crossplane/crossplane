@@ -19,7 +19,6 @@ limitations under the License.
 package fake
 
 import (
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionsv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
@@ -34,7 +33,6 @@ var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
 var parameterCodec = runtime.NewParameterCodec(scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	apiextensionsv1alpha1.AddToScheme,
 	apiextensionsv1beta1.AddToScheme,
 	pkgv1alpha1.AddToScheme,
 	pkgv1beta1.AddToScheme,

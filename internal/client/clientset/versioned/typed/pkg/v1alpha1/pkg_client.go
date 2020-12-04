@@ -26,25 +26,13 @@ import (
 
 type PkgV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	ConfigurationsGetter
-	ConfigurationRevisionsGetter
 	ControllerConfigsGetter
 	LocksGetter
-	ProvidersGetter
-	ProviderRevisionsGetter
 }
 
 // PkgV1alpha1Client is used to interact with features provided by the pkg.crossplane.io group.
 type PkgV1alpha1Client struct {
 	restClient rest.Interface
-}
-
-func (c *PkgV1alpha1Client) Configurations() ConfigurationInterface {
-	return newConfigurations(c)
-}
-
-func (c *PkgV1alpha1Client) ConfigurationRevisions() ConfigurationRevisionInterface {
-	return newConfigurationRevisions(c)
 }
 
 func (c *PkgV1alpha1Client) ControllerConfigs() ControllerConfigInterface {
@@ -53,14 +41,6 @@ func (c *PkgV1alpha1Client) ControllerConfigs() ControllerConfigInterface {
 
 func (c *PkgV1alpha1Client) Locks() LockInterface {
 	return newLocks(c)
-}
-
-func (c *PkgV1alpha1Client) Providers() ProviderInterface {
-	return newProviders(c)
-}
-
-func (c *PkgV1alpha1Client) ProviderRevisions() ProviderRevisionInterface {
-	return newProviderRevisions(c)
 }
 
 // NewForConfig creates a new PkgV1alpha1Client for the given config.

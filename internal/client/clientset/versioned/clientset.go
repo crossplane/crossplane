@@ -21,7 +21,6 @@ package versioned
 import (
 	"fmt"
 
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1alpha1"
 	apiextensionsv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
@@ -32,7 +31,6 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	ApiextensionsV1alpha1() apiextensionsv1alpha1.ApiextensionsV1alpha1Interface
 	ApiextensionsV1beta1() apiextensionsv1beta1.ApiextensionsV1beta1Interface
 	PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface
 	PkgV1beta1() pkgv1beta1.PkgV1beta1Interface
@@ -42,15 +40,9 @@ type Interface interface {
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	apiextensionsV1alpha1 *apiextensionsv1alpha1.ApiextensionsV1alpha1Client
-	apiextensionsV1beta1  *apiextensionsv1beta1.ApiextensionsV1beta1Client
-	pkgV1alpha1           *pkgv1alpha1.PkgV1alpha1Client
-	pkgV1beta1            *pkgv1beta1.PkgV1beta1Client
-}
-
-// ApiextensionsV1alpha1 retrieves the ApiextensionsV1alpha1Client
-func (c *Clientset) ApiextensionsV1alpha1() apiextensionsv1alpha1.ApiextensionsV1alpha1Interface {
-	return c.apiextensionsV1alpha1
+	apiextensionsV1beta1 *apiextensionsv1beta1.ApiextensionsV1beta1Client
+	pkgV1alpha1          *pkgv1alpha1.PkgV1alpha1Client
+	pkgV1beta1           *pkgv1beta1.PkgV1beta1Client
 }
 
 // ApiextensionsV1beta1 retrieves the ApiextensionsV1beta1Client
@@ -89,10 +81,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.apiextensionsV1alpha1, err = apiextensionsv1alpha1.NewForConfig(&configShallowCopy)
-	if err != nil {
-		return nil, err
-	}
 	cs.apiextensionsV1beta1, err = apiextensionsv1beta1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -117,7 +105,6 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.apiextensionsV1alpha1 = apiextensionsv1alpha1.NewForConfigOrDie(c)
 	cs.apiextensionsV1beta1 = apiextensionsv1beta1.NewForConfigOrDie(c)
 	cs.pkgV1alpha1 = pkgv1alpha1.NewForConfigOrDie(c)
 	cs.pkgV1beta1 = pkgv1beta1.NewForConfigOrDie(c)
@@ -129,7 +116,6 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.apiextensionsV1alpha1 = apiextensionsv1alpha1.New(c)
 	cs.apiextensionsV1beta1 = apiextensionsv1beta1.New(c)
 	cs.pkgV1alpha1 = pkgv1alpha1.New(c)
 	cs.pkgV1beta1 = pkgv1beta1.New(c)

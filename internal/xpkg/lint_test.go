@@ -31,7 +31,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionsv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/internal/version"
@@ -59,42 +58,28 @@ kind: Configuration
 metadata:
   name: test`)
 
-	v1alpha1xrdBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1alpha1
-kind: CompositeResourceDefinition
-metadata:
-  name: test`)
-
 	v1beta1xrdBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1beta1
 kind: CompositeResourceDefinition
 metadata:
   name: test`)
 
-	v1alpha1compBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1alpha1
+	v1beta1compBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1beta1
 kind: Composition
 metadata:
   name: test`)
 
-	v1beta1compBytes = []byte(`apiVersion: apiextentions.crossplane.io/v1alpha1
-kind: Composition
-metadata:
-  name: test`)
-
-	v1beta1crd   = &apiextensions.CustomResourceDefinition{}
-	_            = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
-	v1crd        = &apiextensions.CustomResourceDefinition{}
-	_            = yaml.Unmarshal(v1CRDBytes, v1crd)
-	provMeta     = &pkgmeta.Provider{}
-	_            = yaml.Unmarshal(provBytes, provMeta)
-	confMeta     = &pkgmeta.Configuration{}
-	_            = yaml.Unmarshal(confBytes, confMeta)
-	v1alpha1xrd  = &apiextensionsv1alpha1.CompositeResourceDefinition{}
-	_            = yaml.Unmarshal(v1alpha1xrdBytes, v1alpha1xrd)
-	v1beta1xrd   = &apiextensionsv1beta1.CompositeResourceDefinition{}
-	_            = yaml.Unmarshal(v1beta1xrdBytes, v1alpha1xrd)
-	v1alpha1comp = &apiextensionsv1alpha1.Composition{}
-	_            = yaml.Unmarshal(v1alpha1compBytes, v1alpha1comp)
-	v1beta1comp  = &apiextensionsv1alpha1.Composition{}
-	_            = yaml.Unmarshal(v1beta1compBytes, v1alpha1comp)
+	v1beta1crd  = &apiextensions.CustomResourceDefinition{}
+	_           = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
+	v1crd       = &apiextensions.CustomResourceDefinition{}
+	_           = yaml.Unmarshal(v1CRDBytes, v1crd)
+	provMeta    = &pkgmeta.Provider{}
+	_           = yaml.Unmarshal(provBytes, provMeta)
+	confMeta    = &pkgmeta.Configuration{}
+	_           = yaml.Unmarshal(confBytes, confMeta)
+	v1beta1xrd  = &apiextensionsv1beta1.CompositeResourceDefinition{}
+	_           = yaml.Unmarshal(v1beta1xrdBytes, v1beta1xrd)
+	v1beta1comp = &apiextensionsv1beta1.Composition{}
+	_           = yaml.Unmarshal(v1beta1compBytes, v1beta1comp)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -383,10 +368,6 @@ func TestIsXRD(t *testing.T) {
 		obj    runtime.Object
 		err    error
 	}{
-		"v1alpha1": {
-			reason: "Should not return error if object is XRD.",
-			obj:    v1alpha1xrd,
-		},
 		"v1beta1": {
 			reason: "Should not return error if object is XRD.",
 			obj:    v1beta1xrd,
@@ -415,10 +396,6 @@ func TestIsComposition(t *testing.T) {
 		obj    runtime.Object
 		err    error
 	}{
-		"v1alpha1": {
-			reason: "Should not return error if object is composition.",
-			obj:    v1alpha1comp,
-		},
 		"v1beta1": {
 			reason: "Should not return error if object is composition.",
 			obj:    v1beta1comp,

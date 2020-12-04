@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
-	apiextensionsv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionsv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/internal/version"
@@ -129,7 +128,7 @@ func IsCRD(o runtime.Object) error {
 // IsXRD checks that an object is a CompositeResourceDefinition.
 func IsXRD(o runtime.Object) error {
 	switch o.(type) {
-	case *apiextensionsv1alpha1.CompositeResourceDefinition, *apiextensionsv1beta1.CompositeResourceDefinition:
+	case *apiextensionsv1beta1.CompositeResourceDefinition:
 		return nil
 	default:
 		return errors.New(errNotXRD)
@@ -139,7 +138,7 @@ func IsXRD(o runtime.Object) error {
 // IsComposition checks that an object is a Composition.
 func IsComposition(o runtime.Object) error {
 	switch o.(type) {
-	case *apiextensionsv1alpha1.Composition, *apiextensionsv1beta1.Composition:
+	case *apiextensionsv1beta1.Composition:
 		return nil
 	default:
 		return errors.New(errNotComposition)
