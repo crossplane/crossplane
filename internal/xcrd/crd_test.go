@@ -153,7 +153,8 @@ func TestForCompositeResource(t *testing.T) {
 				},
 				Schema: &extv1.CustomResourceValidation{
 					OpenAPIV3Schema: &extv1.JSONSchemaProps{
-						Type: "object",
+						Type:     "object",
+						Required: []string{"spec"},
 						Properties: map[string]extv1.JSONSchemaProps{
 							"apiVersion": {
 								Type: "string",
@@ -477,7 +478,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					},
 					Schema: &extv1.CustomResourceValidation{
 						OpenAPIV3Schema: &extv1.JSONSchemaProps{
-							Type: "object",
+							Type:     "object",
+							Required: []string{"spec"},
 							Properties: map[string]extv1.JSONSchemaProps{
 								"apiVersion": {
 									Type: "string",

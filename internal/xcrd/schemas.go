@@ -33,26 +33,30 @@ var FilterClaimSpecProps = []string{"resourceRef", "writeConnectionSecretToRef"}
 
 // BaseProps is a partial OpenAPIV3Schema for the spec fields that Crossplane
 // expects to be present for all CRDs that it creates.
-func BaseProps() map[string]extv1.JSONSchemaProps {
-	return map[string]extv1.JSONSchemaProps{
-		"apiVersion": {
-			Type: "string",
-		},
-		"kind": {
-			Type: "string",
-		},
-		"metadata": {
-			// NOTE(muvaf): api-server takes care of validating
-			// metadata.
-			Type: "object",
-		},
-		"spec": {
-			Type:       "object",
-			Properties: map[string]extv1.JSONSchemaProps{},
-		},
-		"status": {
-			Type:       "object",
-			Properties: map[string]extv1.JSONSchemaProps{},
+func BaseProps() *extv1.JSONSchemaProps {
+	return &extv1.JSONSchemaProps{
+		Type:     "object",
+		Required: []string{"spec"},
+		Properties: map[string]extv1.JSONSchemaProps{
+			"apiVersion": {
+				Type: "string",
+			},
+			"kind": {
+				Type: "string",
+			},
+			"metadata": {
+				// NOTE(muvaf): api-server takes care of validating
+				// metadata.
+				Type: "object",
+			},
+			"spec": {
+				Type:       "object",
+				Properties: map[string]extv1.JSONSchemaProps{},
+			},
+			"status": {
+				Type:       "object",
+				Properties: map[string]extv1.JSONSchemaProps{},
+			},
 		},
 	}
 }

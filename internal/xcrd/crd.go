@@ -76,10 +76,7 @@ func ForCompositeResource(xrd *v1beta1.CompositeResourceDefinition) (*extv1.Cust
 			Storage:                  vr.Referenceable,
 			AdditionalPrinterColumns: append(vr.AdditionalPrinterColumns, CompositeResourcePrinterColumns()...),
 			Schema: &extv1.CustomResourceValidation{
-				OpenAPIV3Schema: &extv1.JSONSchemaProps{
-					Type:       "object",
-					Properties: BaseProps(),
-				},
+				OpenAPIV3Schema: BaseProps(),
 			},
 			Subresources: &extv1.CustomResourceSubresources{
 				Status: &extv1.CustomResourceSubresourceStatus{},
@@ -136,10 +133,7 @@ func ForCompositeResourceClaim(xrd *v1beta1.CompositeResourceDefinition) (*extv1
 			Storage:                  vr.Referenceable,
 			AdditionalPrinterColumns: append(vr.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...),
 			Schema: &extv1.CustomResourceValidation{
-				OpenAPIV3Schema: &extv1.JSONSchemaProps{
-					Type:       "object",
-					Properties: BaseProps(),
-				},
+				OpenAPIV3Schema: BaseProps(),
 			},
 			Subresources: &extv1.CustomResourceSubresources{
 				Status: &extv1.CustomResourceSubresourceStatus{},
