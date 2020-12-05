@@ -73,6 +73,14 @@ func TestFriendlyID(t *testing.T) {
 			},
 			want: "provider-aws-plusabunchofothernonsensethatisgoingt-1234-5678912",
 		},
+		"DigestIsName": {
+			reason: "A valid DNS label should be returned when package digest is a name.",
+			args: args{
+				pkg:  "provider-in-cluster",
+				hash: "provider-in-cluster",
+			},
+			want: "provider-in-cluster-provider-in",
+		},
 	}
 
 	for name, tc := range cases {
