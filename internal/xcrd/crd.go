@@ -83,16 +83,19 @@ func ForCompositeResource(xrd *v1beta1.CompositeResourceDefinition) (*extv1.Cust
 			},
 		}
 
-		p, err := getSpecProps(vr.Schema)
+		p, required, err := getSpecProps(vr.Schema)
 		if err != nil {
 			return nil, errors.Wrap(err, errGetSpecProps)
 		}
+		specProps := crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"]
+		specProps.Required = append(specProps.Required, required...)
 		for k, v := range p {
-			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+			specProps.Properties[k] = v
 		}
 		for k, v := range CompositeResourceSpecProps() {
-			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+			specProps.Properties[k] = v
 		}
+		crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"] = specProps
 		for k, v := range CompositeResourceStatusProps() {
 			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
@@ -140,16 +143,19 @@ func ForCompositeResourceClaim(xrd *v1beta1.CompositeResourceDefinition) (*extv1
 			},
 		}
 
-		p, err := getSpecProps(vr.Schema)
+		p, required, err := getSpecProps(vr.Schema)
 		if err != nil {
 			return nil, errors.Wrap(err, errGetSpecProps)
 		}
+		specProps := crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"]
+		specProps.Required = append(specProps.Required, required...)
 		for k, v := range p {
-			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+			specProps.Properties[k] = v
 		}
 		for k, v := range CompositeResourceClaimSpecProps() {
-			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"].Properties[k] = v
+			specProps.Properties[k] = v
 		}
+		crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"] = specProps
 		for k, v := range CompositeResourceStatusProps() {
 			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
 		}
@@ -182,22 +188,22 @@ func validateClaimNames(d *v1beta1.CompositeResourceDefinition) error {
 	return nil
 }
 
-func getSpecProps(v *v1beta1.CompositeResourceValidation) (map[string]extv1.JSONSchemaProps, error) {
+func getSpecProps(v *v1beta1.CompositeResourceValidation) (map[string]extv1.JSONSchemaProps, []string, error) {
 	if v == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	s := &extv1.JSONSchemaProps{}
 	if err := json.Unmarshal(v.OpenAPIV3Schema.Raw, s); err != nil {
-		return nil, errors.Wrap(err, errParseValidation)
+		return nil, nil, errors.Wrap(err, errParseValidation)
 	}
 
 	spec, ok := s.Properties["spec"]
 	if !ok {
-		return nil, nil
+		return nil, nil, nil
 	}
 
-	return spec.Properties, nil
+	return spec.Properties, spec.Required, nil
 }
 
 // IsEstablished is a helper function to check whether api-server is ready

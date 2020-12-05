@@ -80,7 +80,7 @@ func TestForCompositeResource(t *testing.T) {
 	singular := "coolcomposite"
 	plural := "coolcomposites"
 
-	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
+	schema := `{"required":["spec"],"properties":{"spec":{"required":["storageGB","engineVersion"],"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
 	d := &v1beta1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -168,7 +168,8 @@ func TestForCompositeResource(t *testing.T) {
 								Type: "object",
 							},
 							"spec": {
-								Type: "object",
+								Type:     "object",
+								Required: []string{"storageGB", "engineVersion"},
 								Properties: map[string]extv1.JSONSchemaProps{
 									// From CRDSpecTemplate.Validation
 									"storageGB": {Type: "integer"},
@@ -398,7 +399,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 	claimSingular := "coolclaim"
 	claimPlural := "coolclaims"
 
-	schema := `{"properties":{"spec":{"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
+	schema := `{"properties":{"spec":{"required":["storageGB","engineVersion"],"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
 	d := &v1beta1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
@@ -493,7 +494,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 									Type: "object",
 								},
 								"spec": {
-									Type: "object",
+									Type:     "object",
+									Required: []string{"storageGB", "engineVersion"},
 									Properties: map[string]extv1.JSONSchemaProps{
 										// From CRDSpecTemplate.Validation
 										"storageGB": {Type: "integer"},
