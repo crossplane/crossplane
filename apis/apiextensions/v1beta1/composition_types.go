@@ -446,19 +446,19 @@ const (
 
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
-	// InputType is the type of the input to this transform. Default is string.
+	// FromType is the type of the input to this transform. Default is string.
 	// +optional
-	InputType *string `json:"inputType,omitempty"`
+	FromType *string `json:"fromType,omitempty"`
 
-	// OutputType is the type of the output of this transform.
-	OutputType string `json:"outputType"`
+	// ToType is the type of the output of this transform.
+	ToType string `json:"toType"`
 }
 
 // Resolve runs the String transform.
 func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // nolint:gocyclo
 	it := ConvertTransformTypeString
-	if s.InputType != nil {
-		it = *s.InputType
+	if s.FromType != nil {
+		it = *s.FromType
 	}
 	switch it {
 	case ConvertTransformTypeString:
@@ -466,7 +466,7 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		if !ok {
 			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
-		switch s.OutputType {
+		switch s.ToType {
 		case ConvertTransformTypeString:
 			return i, nil
 		case ConvertTransformTypeBool:
@@ -476,14 +476,14 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		case ConvertTransformTypeFloat64:
 			return strconv.ParseFloat(i, 64)
 		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
 		}
 	case ConvertTransformTypeBool:
 		i, ok := input.(bool)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
-		switch s.OutputType {
+		switch s.ToType {
 		case ConvertTransformTypeString:
 			return strconv.FormatBool(i), nil
 		case ConvertTransformTypeBool:
@@ -499,14 +499,14 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 			}
 			return float64(0), nil
 		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
 		}
 	case ConvertTransformTypeInt:
 		i, ok := input.(int)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
-		switch s.OutputType {
+		switch s.ToType {
 		case ConvertTransformTypeString:
 			return strconv.Itoa(i), nil
 		case ConvertTransformTypeBool:
@@ -516,14 +516,14 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		case ConvertTransformTypeFloat64:
 			return float64(i), nil
 		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
 		}
 	case ConvertTransformTypeFloat64:
 		i, ok := input.(float64)
 		if !ok {
 			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
-		switch s.OutputType {
+		switch s.ToType {
 		case ConvertTransformTypeString:
 			return strconv.FormatFloat(i, 'f', -1, 64), nil
 		case ConvertTransformTypeBool:
@@ -533,7 +533,7 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		case ConvertTransformTypeFloat64:
 			return i, nil
 		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
 		}
 	default:
 		return nil, errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, it))

@@ -494,7 +494,7 @@ func TestConveretResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&ConvertTransform{InputType: tc.args.it, OutputType: tc.args.ot}).Resolve(tc.i)
+			got, err := (&ConvertTransform{FromType: tc.args.it, ToType: tc.args.ot}).Resolve(tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
