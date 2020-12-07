@@ -414,6 +414,98 @@ func TestStringResolve(t *testing.T) {
 		})
 	}
 }
+
+func TestConveretResolve(t *testing.T) {
+	type args struct {
+		it *string
+		ot string
+		i  interface{}
+	}
+	type want struct {
+		o   interface{}
+		err error
+	}
+	stringVal := ConvertTransformTypeString
+	intVal := ConvertTransformTypeInt
+	arrIntVal := "[]int"
+
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"StringToBool": {
+			args: args{
+				i:  "true",
+				ot: ConvertTransformTypeBool,
+			},
+			want: want{
+				o: true,
+			},
+		},
+		"StringToInt": {
+			args: args{
+				i:  "64",
+				it: &stringVal,
+				ot: ConvertTransformTypeInt,
+			},
+			want: want{
+				o: 64,
+			},
+		},
+		"StringToFloat64": {
+			args: args{
+				i:  "64",
+				ot: ConvertTransformTypeFloat64,
+			},
+			want: want{
+				o: float64(64),
+			},
+		},
+		"IntToString": {
+			args: args{
+				i:  64,
+				it: &intVal,
+				ot: ConvertTransformTypeString,
+			},
+			want: want{
+				o: "64",
+			},
+		},
+		"InputTypeNotSupported": {
+			args: args{
+				i:  []int{64},
+				it: &arrIntVal,
+				ot: ConvertTransformTypeString,
+			},
+			want: want{
+				err: errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, arrIntVal)),
+			},
+		},
+		"OutputTypeNotSupported": {
+			args: args{
+				i:  "[64]",
+				it: &stringVal,
+				ot: arrIntVal,
+			},
+			want: want{
+				err: errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, arrIntVal)),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := (&ConvertTransform{InputType: tc.args.it, OutputType: tc.args.ot}).Resolve(tc.i)
+
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestPatchApply(t *testing.T) {
 	now := metav1.NewTime(time.Unix(0, 0))
 	lpt := fake.ConnectionDetailsLastPublishedTimer{
