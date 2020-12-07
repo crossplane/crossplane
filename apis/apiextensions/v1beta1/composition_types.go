@@ -38,17 +38,16 @@ const (
 	errRequiredField      = "%s is required by type %s"
 	errUndefinedPatchSet  = "cannot find PatchSet by name %s"
 	errInvalidPatchType   = "patch type %s is unsupported"
-)
 
-var (
-	errTransformAtIndex    = func(i int) string { return fmt.Sprintf("transform at index %d returned error", i) }
-	errTypeNotSupported    = func(s string) string { return fmt.Sprintf("transform type %s is not supported", s) }
-	errConfigMissing       = func(s string) string { return fmt.Sprintf("given type %s requires configuration", s) }
-	errTransformWithType   = func(s string) string { return fmt.Sprintf("%s transform could not resolve", s) }
-	errMapTypeNotSupported = func(s string) string { return fmt.Sprintf("type %s is not supported for map transform", s) }
-	errMapNotFound         = func(s string, m map[string]string) string {
-		return fmt.Sprintf("given value %s is not found in %v", s, m)
-	}
+	errFmtConvertInputType              = "input is not of type %s"
+	errFmtConvertInputTypeNotSupported  = "input type %s is not supported"
+	errFmtConvertOutputTypeNotSupported = "output type %s is not supported"
+	errFmtTransformAtIndex              = "transform at index %d returned error"
+	errFmtTypeNotSupported              = "transform type %s is not supported"
+	errFmtConfigMissing                 = "given type %s requires configuration"
+	errFmtTransformTypeFailed           = "%s transform could not resolve"
+	errFmtMapTypeNotSupported           = "type %s is not supported for map transform"
+	errFmtMapNotFound                   = "key %s is not found in map"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -280,7 +279,7 @@ func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { //
 	out := in
 	for i, f := range c.Transforms {
 		if out, err = f.Transform(out); err != nil {
-			return errors.Wrap(err, errTransformAtIndex(i))
+			return errors.Wrap(err, fmt.Sprintf(errFmtTransformAtIndex, i))
 		}
 	}
 
@@ -303,9 +302,10 @@ type TransformType string
 
 // Accepted TransformTypes.
 const (
-	TransformTypeMap    TransformType = "map"
-	TransformTypeMath   TransformType = "math"
-	TransformTypeString TransformType = "string"
+	TransformTypeMap     TransformType = "map"
+	TransformTypeMath    TransformType = "math"
+	TransformTypeString  TransformType = "string"
+	TransformTypeConvert TransformType = "convert"
 )
 
 // Transform is a unit of process whose input is transformed into an output with
@@ -346,17 +346,19 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 		transformer = t.Map
 	case TransformTypeString:
 		transformer = t.String
+	case TransformTypeConvert:
+		transformer = t.Convert
 	default:
-		return nil, errors.New(errTypeNotSupported(string(t.Type)))
+		return nil, errors.New(fmt.Sprintf(errFmtTypeNotSupported, string(t.Type)))
 	}
 	// An interface equals nil only if both the type and value are nil. Above,
 	// even if t.<Type> is nil, its type is assigned to "transformer" but we're
 	// interested in whether only the value is nil or not.
 	if reflect.ValueOf(transformer).IsNil() {
-		return nil, errors.New(errConfigMissing(string(t.Type)))
+		return nil, errors.New(fmt.Sprintf(errFmtConfigMissing, string(t.Type)))
 	}
 	out, err := transformer.Resolve(input)
-	return out, errors.Wrap(err, errTransformWithType(string(t.Type)))
+	return out, errors.Wrap(err, fmt.Sprintf(errFmtTransformTypeFailed, string(t.Type)))
 }
 
 // MathTransform conducts mathematical operations on the input with the given
@@ -414,11 +416,11 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	case string:
 		val, ok := m.Pairs[i]
 		if !ok {
-			return nil, errors.New(errMapNotFound(i, m.Pairs))
+			return nil, errors.New(fmt.Sprintf(errFmtMapNotFound, i))
 		}
 		return val, nil
 	default:
-		return nil, errors.New(errMapTypeNotSupported(reflect.TypeOf(input).String()))
+		return nil, errors.New(fmt.Sprintf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String()))
 	}
 }
 
@@ -462,7 +464,7 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 	case ConvertTransformTypeString:
 		i, ok := input.(string)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
 		switch s.OutputType {
 		case ConvertTransformTypeString:
@@ -474,12 +476,12 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		case ConvertTransformTypeFloat64:
 			return strconv.ParseFloat(i, 64)
 		default:
-			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
 		}
 	case ConvertTransformTypeBool:
 		i, ok := input.(bool)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
 		switch s.OutputType {
 		case ConvertTransformTypeString:
@@ -497,12 +499,12 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 			}
 			return float64(0), nil
 		default:
-			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
 		}
 	case ConvertTransformTypeInt:
 		i, ok := input.(int)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
 		switch s.OutputType {
 		case ConvertTransformTypeString:
@@ -514,12 +516,12 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		case ConvertTransformTypeFloat64:
 			return float64(i), nil
 		default:
-			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
 		}
 	case ConvertTransformTypeFloat64:
 		i, ok := input.(float64)
 		if !ok {
-			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
 		}
 		switch s.OutputType {
 		case ConvertTransformTypeString:
@@ -531,10 +533,10 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // 
 		case ConvertTransformTypeFloat64:
 			return i, nil
 		default:
-			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.OutputType))
 		}
 	default:
-		return nil, errors.New(fmt.Sprintf("input type %s is not supported", it))
+		return nil, errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, it))
 	}
 }
 

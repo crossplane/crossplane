@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -265,7 +266,7 @@ func TestMapResolve(t *testing.T) {
 				i: 5,
 			},
 			want: want{
-				err: errors.New(errMapTypeNotSupported("int")),
+				err: errors.New(fmt.Sprintf(errFmtMapTypeNotSupported, "int")),
 			},
 		},
 		"KeyNotFound": {
@@ -273,7 +274,7 @@ func TestMapResolve(t *testing.T) {
 				i: "ola",
 			},
 			want: want{
-				err: errors.New(errMapNotFound("ola", map[string]string{})),
+				err: errors.New(fmt.Sprintf(errFmtMapNotFound, "ola")),
 			},
 		},
 		"Success": {
