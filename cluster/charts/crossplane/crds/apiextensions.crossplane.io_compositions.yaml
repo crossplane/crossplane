@@ -78,6 +78,18 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
+                                convert:
+                                  description: Convert is used to cast the input into the given output type.
+                                  properties:
+                                    inputType:
+                                      description: InputType is the type of the input to this transform. Default is string.
+                                      type: string
+                                    outputType:
+                                      description: OutputType is the type of the output of this transform.
+                                      type: string
+                                  required:
+                                  - outputType
+                                  type: object
                                 map:
                                   additionalProperties:
                                     type: string
@@ -166,6 +178,18 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
+                                convert:
+                                  description: Convert is used to cast the input into the given output type.
+                                  properties:
+                                    inputType:
+                                      description: InputType is the type of the input to this transform. Default is string.
+                                      type: string
+                                    outputType:
+                                      description: OutputType is the type of the output of this transform.
+                                      type: string
+                                  required:
+                                  - outputType
+                                  type: object
                                 map:
                                   additionalProperties:
                                     type: string

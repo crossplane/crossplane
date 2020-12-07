@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -327,6 +328,10 @@ type Transform struct {
 	// of string. Note that the input does not necessarily need to be a string.
 	// +optional
 	String *StringTransform `json:"string,omitempty"`
+
+	// Convert is used to cast the input into the given output type.
+	// +optional
+	Convert *ConvertTransform `json:"convert,omitempty"`
 }
 
 // Transform calls the appropriate Transformer.
@@ -427,6 +432,110 @@ type StringTransform struct {
 // Resolve runs the String transform.
 func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 	return fmt.Sprintf(s.Format, input), nil
+}
+
+// The list of supported ConvertTransform input and output types.
+const (
+	ConvertTransformTypeString  = "string"
+	ConvertTransformTypeBool    = "bool"
+	ConvertTransformTypeInt     = "int"
+	ConvertTransformTypeFloat64 = "float64"
+)
+
+// A ConvertTransform converts the input into a new object whose type is supplied.
+type ConvertTransform struct {
+	// InputType is the type of the input to this transform. Default is string.
+	// +optional
+	InputType *string `json:"inputType,omitempty"`
+
+	// OutputType is the type of the output of this transform.
+	OutputType string `json:"outputType"`
+}
+
+// Resolve runs the String transform.
+func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // nolint:gocyclo
+	it := ConvertTransformTypeString
+	if s.InputType != nil {
+		it = *s.InputType
+	}
+	switch it {
+	case ConvertTransformTypeString:
+		i, ok := input.(string)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+		}
+		switch s.OutputType {
+		case ConvertTransformTypeString:
+			return i, nil
+		case ConvertTransformTypeBool:
+			return strconv.ParseBool(i)
+		case ConvertTransformTypeInt:
+			return strconv.Atoi(i)
+		case ConvertTransformTypeFloat64:
+			return strconv.ParseFloat(i, 64)
+		default:
+			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+		}
+	case ConvertTransformTypeBool:
+		i, ok := input.(bool)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+		}
+		switch s.OutputType {
+		case ConvertTransformTypeString:
+			return strconv.FormatBool(i), nil
+		case ConvertTransformTypeBool:
+			return i, nil
+		case ConvertTransformTypeInt:
+			if i {
+				return 1, nil
+			}
+			return 0, nil
+		case ConvertTransformTypeFloat64:
+			if i {
+				return float64(1), nil
+			}
+			return float64(0), nil
+		default:
+			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+		}
+	case ConvertTransformTypeInt:
+		i, ok := input.(int)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+		}
+		switch s.OutputType {
+		case ConvertTransformTypeString:
+			return strconv.Itoa(i), nil
+		case ConvertTransformTypeBool:
+			return i == 1, nil
+		case ConvertTransformTypeInt:
+			return i, nil
+		case ConvertTransformTypeFloat64:
+			return float64(i), nil
+		default:
+			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+		}
+	case ConvertTransformTypeFloat64:
+		i, ok := input.(float64)
+		if !ok {
+			return nil, errors.New(fmt.Sprintf("input is not of type %s", it))
+		}
+		switch s.OutputType {
+		case ConvertTransformTypeString:
+			return strconv.FormatFloat(i, 'f', -1, 64), nil
+		case ConvertTransformTypeBool:
+			return i == 1, nil
+		case ConvertTransformTypeInt:
+			return i, nil
+		case ConvertTransformTypeFloat64:
+			return i, nil
+		default:
+			return nil, errors.New(fmt.Sprintf("output type %s is not supported", s.OutputType))
+		}
+	default:
+		return nil, errors.New(fmt.Sprintf("input type %s is not supported", it))
+	}
 }
 
 // ConnectionDetail includes the information about the propagation of the connection
