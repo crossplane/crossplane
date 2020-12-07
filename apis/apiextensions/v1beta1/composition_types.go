@@ -39,15 +39,14 @@ const (
 	errUndefinedPatchSet  = "cannot find PatchSet by name %s"
 	errInvalidPatchType   = "patch type %s is unsupported"
 
-	errFmtConvertInputType              = "input is not of type %s"
-	errFmtConvertInputTypeNotSupported  = "input type %s is not supported"
-	errFmtConvertOutputTypeNotSupported = "output type %s is not supported"
-	errFmtTransformAtIndex              = "transform at index %d returned error"
-	errFmtTypeNotSupported              = "transform type %s is not supported"
-	errFmtConfigMissing                 = "given type %s requires configuration"
-	errFmtTransformTypeFailed           = "%s transform could not resolve"
-	errFmtMapTypeNotSupported           = "type %s is not supported for map transform"
-	errFmtMapNotFound                   = "key %s is not found in map"
+	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
+	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
+	errFmtTransformAtIndex             = "transform at index %d returned error"
+	errFmtTypeNotSupported             = "transform type %s is not supported"
+	errFmtConfigMissing                = "given type %s requires configuration"
+	errFmtTransformTypeFailed          = "%s transform could not resolve"
+	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
+	errFmtMapNotFound                  = "key %s is not found in map"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -444,100 +443,88 @@ const (
 	ConvertTransformTypeFloat64 = "float64"
 )
 
+var (
+	conversions = map[string]func(interface{}) (interface{}, error){
+		"string.string": func(i interface{}) (interface{}, error) {
+			return i, nil
+		},
+		"string.int": func(i interface{}) (interface{}, error) {
+			return strconv.Atoi(i.(string))
+		},
+		"string.bool": func(i interface{}) (interface{}, error) {
+			return strconv.ParseBool(i.(string))
+		},
+		"string.float64": func(i interface{}) (interface{}, error) {
+			return strconv.ParseFloat(i.(string), 64)
+		},
+
+		"int.string": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return strconv.Itoa(i.(int)), nil
+		},
+		"int.int": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return i.(int), nil
+		},
+		"int.bool": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return i.(int) == 1, nil
+		},
+		"int.float64": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return float64(i.(int)), nil
+		},
+
+		"bool.string": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return strconv.FormatBool(i.(bool)), nil
+		},
+		"bool.int": func(i interface{}) (interface{}, error) { // nolint:unparam
+			if i.(bool) {
+				return 1, nil
+			}
+			return 0, nil
+		},
+		"bool.bool": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return i.(bool), nil
+		},
+		"bool.float64": func(i interface{}) (interface{}, error) { // nolint:unparam
+			if i.(bool) {
+				return float64(1), nil
+			}
+			return float64(0), nil
+		},
+
+		"float64.string": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
+		},
+		"float64.int": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return int(i.(float64)), nil
+		},
+		"float64.bool": func(i interface{}) (interface{}, error) { // nolint:unparam
+			return i.(float64) == float64(1), nil
+		},
+		"float64.float64": func(i interface{}) (interface{}, error) {
+			return strconv.ParseFloat(i.(string), 64)
+		},
+	}
+)
+
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
-	// FromType is the type of the input to this transform. Default is string.
-	// +optional
-	FromType *string `json:"fromType,omitempty"`
-
 	// ToType is the type of the output of this transform.
+	// +kubebuilder:validation:Enum=string;int;bool;float64
 	ToType string `json:"toType"`
 }
 
 // Resolve runs the String transform.
-func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) { // nolint:gocyclo
-	it := ConvertTransformTypeString
-	if s.FromType != nil {
-		it = *s.FromType
-	}
-	switch it {
-	case ConvertTransformTypeString:
-		i, ok := input.(string)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
-		}
-		switch s.ToType {
-		case ConvertTransformTypeString:
-			return i, nil
-		case ConvertTransformTypeBool:
-			return strconv.ParseBool(i)
-		case ConvertTransformTypeInt:
-			return strconv.Atoi(i)
-		case ConvertTransformTypeFloat64:
-			return strconv.ParseFloat(i, 64)
-		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
-		}
-	case ConvertTransformTypeBool:
-		i, ok := input.(bool)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
-		}
-		switch s.ToType {
-		case ConvertTransformTypeString:
-			return strconv.FormatBool(i), nil
-		case ConvertTransformTypeBool:
-			return i, nil
-		case ConvertTransformTypeInt:
-			if i {
-				return 1, nil
-			}
-			return 0, nil
-		case ConvertTransformTypeFloat64:
-			if i {
-				return float64(1), nil
-			}
-			return float64(0), nil
-		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
-		}
-	case ConvertTransformTypeInt:
-		i, ok := input.(int)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
-		}
-		switch s.ToType {
-		case ConvertTransformTypeString:
-			return strconv.Itoa(i), nil
-		case ConvertTransformTypeBool:
-			return i == 1, nil
-		case ConvertTransformTypeInt:
-			return i, nil
-		case ConvertTransformTypeFloat64:
-			return float64(i), nil
-		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
-		}
-	case ConvertTransformTypeFloat64:
-		i, ok := input.(float64)
-		if !ok {
-			return nil, errors.New(fmt.Sprintf(errFmtConvertInputType, it))
-		}
-		switch s.ToType {
-		case ConvertTransformTypeString:
-			return strconv.FormatFloat(i, 'f', -1, 64), nil
-		case ConvertTransformTypeBool:
-			return i == 1, nil
-		case ConvertTransformTypeInt:
-			return i, nil
-		case ConvertTransformTypeFloat64:
-			return i, nil
-		default:
-			return nil, errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, s.ToType))
-		}
+func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
+	switch reflect.TypeOf(input).Kind().String() {
+	case ConvertTransformTypeString, ConvertTransformTypeBool, ConvertTransformTypeInt, ConvertTransformTypeFloat64:
+		break
 	default:
-		return nil, errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, it))
+		return nil, errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String()))
 	}
+	f, ok := conversions[fmt.Sprintf("%s.%s", reflect.TypeOf(input).Kind().String(), s.ToType)]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf(errFmtConversionPairNotSupported, reflect.TypeOf(input).Kind().String(), s.ToType))
+	}
+	return f(input)
 }
 
 // ConnectionDetail includes the information about the propagation of the connection

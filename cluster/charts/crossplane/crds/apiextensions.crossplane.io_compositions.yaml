@@ -81,11 +81,13 @@ spec:
                                 convert:
                                   description: Convert is used to cast the input into the given output type.
                                   properties:
-                                    fromType:
-                                      description: FromType is the type of the input to this transform. Default is string.
-                                      type: string
                                     toType:
                                       description: ToType is the type of the output of this transform.
+                                      enum:
+                                      - string
+                                      - int
+                                      - bool
+                                      - float64
                                       type: string
                                   required:
                                   - toType
@@ -181,11 +183,13 @@ spec:
                                 convert:
                                   description: Convert is used to cast the input into the given output type.
                                   properties:
-                                    fromType:
-                                      description: FromType is the type of the input to this transform. Default is string.
-                                      type: string
                                     toType:
                                       description: ToType is the type of the output of this transform.
+                                      enum:
+                                      - string
+                                      - int
+                                      - bool
+                                      - float64
                                       type: string
                                   required:
                                   - toType

@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -415,9 +416,8 @@ func TestStringResolve(t *testing.T) {
 	}
 }
 
-func TestConveretResolve(t *testing.T) {
+func TestConvertResolve(t *testing.T) {
 	type args struct {
-		it *string
 		ot string
 		i  interface{}
 	}
@@ -425,9 +425,6 @@ func TestConveretResolve(t *testing.T) {
 		o   interface{}
 		err error
 	}
-	stringVal := ConvertTransformTypeString
-	intVal := ConvertTransformTypeInt
-	arrIntVal := "[]int"
 
 	cases := map[string]struct {
 		args
@@ -442,59 +439,28 @@ func TestConveretResolve(t *testing.T) {
 				o: true,
 			},
 		},
-		"StringToInt": {
-			args: args{
-				i:  "64",
-				it: &stringVal,
-				ot: ConvertTransformTypeInt,
-			},
-			want: want{
-				o: 64,
-			},
-		},
-		"StringToFloat64": {
-			args: args{
-				i:  "64",
-				ot: ConvertTransformTypeFloat64,
-			},
-			want: want{
-				o: float64(64),
-			},
-		},
-		"IntToString": {
-			args: args{
-				i:  64,
-				it: &intVal,
-				ot: ConvertTransformTypeString,
-			},
-			want: want{
-				o: "64",
-			},
-		},
 		"InputTypeNotSupported": {
 			args: args{
 				i:  []int{64},
-				it: &arrIntVal,
 				ot: ConvertTransformTypeString,
 			},
 			want: want{
-				err: errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, arrIntVal)),
+				err: errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String())),
 			},
 		},
-		"OutputTypeNotSupported": {
+		"ConversionPairNotSupported": {
 			args: args{
 				i:  "[64]",
-				it: &stringVal,
-				ot: arrIntVal,
+				ot: "[]int",
 			},
 			want: want{
-				err: errors.New(fmt.Sprintf(errFmtConvertOutputTypeNotSupported, arrIntVal)),
+				err: errors.New(fmt.Sprintf(errFmtConversionPairNotSupported, "string", "[]int")),
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&ConvertTransform{FromType: tc.args.it, ToType: tc.args.ot}).Resolve(tc.i)
+			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve(tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
