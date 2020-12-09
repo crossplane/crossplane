@@ -36,7 +36,6 @@ const (
 	errParserPackage = "failed to parse package"
 	errLintPackage   = "failed to lint package"
 	errInitBackend   = "failed to initialize package parsing backend"
-	errCopyStream    = "failed to copy stream into buffer"
 	errTarFromStream = "failed to build tarball from package stream"
 	errLayerFromTar  = "failed to convert tarball to image layer"
 )
@@ -58,9 +57,6 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 	}
 	if err := l.Lint(pkg); err != nil {
 		return nil, errors.Wrap(err, errLintPackage)
-	}
-	if _, err = io.Copy(buf, r); err != nil {
-		return nil, errors.Wrap(err, errCopyStream)
 	}
 
 	// Write on-disk package contents to tarball.
