@@ -31,7 +31,7 @@ spec:
     - jsonPath: .spec.desiredState
       name: STATE
       type: string
-    - jsonPath: .status.totalDependencies
+    - jsonPath: .status.foundDependencies
       name: DEP-FOUND
       type: string
     - jsonPath: .status.installedDependencies

@@ -449,85 +449,49 @@ type conversionPair struct {
 }
 
 var conversions = map[conversionPair]func(interface{}) (interface{}, error){
-	conversionPair{
-		From: ConvertTransformTypeString,
-		To:   ConvertTransformTypeInt,
-	}: func(i interface{}) (interface{}, error) {
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) {
 		return strconv.Atoi(i.(string))
 	},
-	conversionPair{
-		From: ConvertTransformTypeString,
-		To:   ConvertTransformTypeBool,
-	}: func(i interface{}) (interface{}, error) {
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) {
 		return strconv.ParseBool(i.(string))
 	},
-	conversionPair{
-		From: ConvertTransformTypeString,
-		To:   ConvertTransformTypeFloat64,
-	}: func(i interface{}) (interface{}, error) {
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) {
 		return strconv.ParseFloat(i.(string), 64)
 	},
 
-	conversionPair{
-		From: ConvertTransformTypeInt,
-		To:   ConvertTransformTypeString,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeInt, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return strconv.Itoa(i.(int)), nil
 	},
-	conversionPair{
-		From: ConvertTransformTypeInt,
-		To:   ConvertTransformTypeBool,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeInt, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return i.(int) == 1, nil
 	},
-	conversionPair{
-		From: ConvertTransformTypeInt,
-		To:   ConvertTransformTypeFloat64,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeInt, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return float64(i.(int)), nil
 	},
 
-	conversionPair{
-		From: ConvertTransformTypeBool,
-		To:   ConvertTransformTypeString,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return strconv.FormatBool(i.(bool)), nil
 	},
-	conversionPair{
-		From: ConvertTransformTypeBool,
-		To:   ConvertTransformTypeInt,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		if i.(bool) {
 			return 1, nil
 		}
 		return 0, nil
 	},
-	conversionPair{
-		From: ConvertTransformTypeBool,
-		To:   ConvertTransformTypeFloat64,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		if i.(bool) {
 			return float64(1), nil
 		}
 		return float64(0), nil
 	},
 
-	conversionPair{
-		From: ConvertTransformTypeFloat64,
-		To:   ConvertTransformTypeString,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
 	},
-	conversionPair{
-		From: ConvertTransformTypeFloat64,
-		To:   ConvertTransformTypeInt,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return int(i.(float64)), nil
 	},
-	conversionPair{
-		From: ConvertTransformTypeFloat64,
-		To:   ConvertTransformTypeBool,
-	}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return i.(float64) == float64(1), nil
 	},
 }
