@@ -138,7 +138,7 @@ func TestRenderClusterRoles(t *testing.T) {
 						Name:            nameSystem,
 						OwnerReferences: []metav1.OwnerReference{crCtrlr},
 					},
-					Rules: append([]rbacv1.PolicyRule{
+					Rules: []rbacv1.PolicyRule{
 						{
 							APIGroups: []string{groupCRDA},
 							Resources: []string{pluralCRDA, pluralCRDA + suffixStatus, pluralCRDB, pluralCRDB + suffixStatus},
@@ -149,7 +149,7 @@ func TestRenderClusterRoles(t *testing.T) {
 							Resources: []string{pluralCRDC, pluralCRDC + suffixStatus},
 							Verbs:     verbsSystem,
 						},
-					}, rulesSystemExtra...),
+					},
 				},
 			},
 		},

@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -33,6 +34,13 @@ type ProviderSpec struct {
 type ControllerSpec struct {
 	// Image is the packaged Provider controller image.
 	Image string `json:"image"`
+
+	// PermissionRequests for RBAC rules required for this provider's controller
+	// to function. The RBAC manager is responsible for granting requested
+	// permissions. It uses a whitelist to determine what permissions a provider
+	// may be granted.
+	// +optional
+	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 }
 
 // +kubebuilder:object:root=true

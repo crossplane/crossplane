@@ -41,10 +41,6 @@ const (
 	valTrue = "true"
 
 	suffixStatus = "/status"
-
-	pluralEvents     = "events"
-	pluralConfigmaps = "configmaps"
-	pluralSecrets    = "secrets"
 )
 
 var (
@@ -52,19 +48,6 @@ var (
 	verbsView   = []string{"get", "list", "watch"}
 	verbsSystem = []string{"get", "list", "watch", "update", "patch", "create"}
 )
-
-// Extra rules that are granted to all provider pods.
-// TODO(negz): Extra rules should be requested via a ProviderRevision's (as yet
-// unimplemented) PermissionRequests field. In order to do so we must allow the
-// RBAC manager to be configured such that it knows which rules may and may not
-// be requested.
-var rulesSystemExtra = []rbacv1.PolicyRule{
-	{
-		APIGroups: []string{""},
-		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents},
-		Verbs:     verbsEdit,
-	},
-}
 
 // SystemClusterRoleName returns the name of the 'system' cluster role - i.e.
 // the role that a provider's ServiceAccount should be bound to.
@@ -132,7 +115,7 @@ func RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourc
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		Rules:      append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
+		Rules:      append(withVerbs(rules, verbsSystem), pr.Spec.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}

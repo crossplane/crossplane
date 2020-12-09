@@ -18,6 +18,7 @@ package v1beta1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
@@ -78,6 +79,13 @@ type PackageRevisionSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
+
+	// PermissionRequests for RBAC rules required for this provider's controller
+	// to function. The RBAC manager is responsible for granting requested
+	// permissions. It uses a whitelist to determine what permissions a provider
+	// may be granted.
+	// +optional
+	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

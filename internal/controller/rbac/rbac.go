@@ -43,11 +43,10 @@ const (
 )
 
 // Setup RBAC manager controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, mp ManagementPolicy) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, mp ManagementPolicy, allowClusterRole string) error {
 	// Basic controllers.
 	fns := []func(ctrl.Manager, logging.Logger) error{
 		definition.Setup,
-		roles.Setup,
 		binding.Setup,
 	}
 
@@ -60,5 +59,6 @@ func Setup(mgr ctrl.Manager, l logging.Logger, mp ManagementPolicy) error {
 			return err
 		}
 	}
-	return nil
+
+	return roles.Setup(mgr, l, allowClusterRole)
 }

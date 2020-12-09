@@ -30,6 +30,7 @@ import (
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -44,15 +45,35 @@ const (
 	timeout        = 2 * time.Minute
 	maxConcurrency = 5
 
-	errGetPR     = "cannot get ProviderRevision"
-	errListCRDs  = "cannot list CustomResourceDefinitions"
-	errApplyRole = "cannot apply ClusterRole"
+	errGetPR               = "cannot get ProviderRevision"
+	errListCRDs            = "cannot list CustomResourceDefinitions"
+	errApplyRole           = "cannot apply ClusterRole"
+	errValidatePermissions = "cannot validate permission requests"
+	errRejectedPermission  = "refusing to apply any RBAC roles due to request for disallowed permission"
 )
 
 // Event reasons.
 const (
 	reasonApplyRoles event.Reason = "ApplyClusterRoles"
 )
+
+// A PermissionRequestsValidator validates requested RBAC rules.
+type PermissionRequestsValidator interface {
+	// ValidatePermissionRequests validates the supplied slice of RBAC rules. It
+	// returns a slice of any rejected (i.e. disallowed) rules. It returns an
+	// error if it is unable to validate permission requests.
+	ValidatePermissionRequests(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error)
+}
+
+// A PermissionRequestsValidatorFn validates requested RBAC rules.
+type PermissionRequestsValidatorFn func(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error)
+
+// ValidatePermissionRequests validates the supplied slice of RBAC rules. It
+// returns a slice of any rejected (i.e. disallowed) rules. It returns an error
+// if it is unable to validate permission requests.
+func (fn PermissionRequestsValidatorFn) ValidatePermissionRequests(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error) {
+	return fn(ctx, requested...)
+}
 
 // A ClusterRoleRenderer renders ClusterRoles for the given CRDs.
 type ClusterRoleRenderer interface {
@@ -71,8 +92,22 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1beta1.ProviderRevision, c
 // Setup adds a controller that reconciles a ProviderRevision by creating a
 // series of opinionated ClusterRoles that may be bound to allow access to the
 // resources it defines.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, log logging.Logger, allowClusterRole string) error {
 	name := "rbac/" + strings.ToLower(v1beta1.ProviderRevisionGroupKind)
+
+	if allowClusterRole != "" {
+		return ctrl.NewControllerManagedBy(mgr).
+			Named(name).
+			For(&v1beta1.ProviderRevision{}).
+			Owns(&rbacv1.ClusterRole{}).
+			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, &EnqueueRequestIfNamed{Name: allowClusterRole}).
+			WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
+			Complete(NewReconciler(mgr,
+				WithLogger(log.WithValues("controller", name)),
+				WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+				WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), allowClusterRole)),
+			))
+	}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -81,7 +116,8 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
+			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -113,7 +149,15 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 // ClusterRoles.
 func WithClusterRoleRenderer(rr ClusterRoleRenderer) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.rbac = rr
+		r.rbac.ClusterRoleRenderer = rr
+	}
+}
+
+// WithPermissionRequestsValidator specifies how the Reconciler should validate
+// requests for extra RBAC permissions.
+func WithPermissionRequestsValidator(rv PermissionRequestsValidator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.rbac.PermissionRequestsValidator = rv
 	}
 }
 
@@ -126,7 +170,10 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
 		},
 
-		rbac: ClusterRoleRenderFn(RenderClusterRoles),
+		rbac: rbac{
+			PermissionRequestsValidator: PermissionRequestsValidatorFn(VerySecureValidator),
+			ClusterRoleRenderer:         ClusterRoleRenderFn(RenderClusterRoles),
+		},
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -138,10 +185,15 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	return r
 }
 
+type rbac struct {
+	PermissionRequestsValidator
+	ClusterRoleRenderer
+}
+
 // A Reconciler reconciles ProviderRevisions.
 type Reconciler struct {
 	client resource.ClientApplicator
-	rbac   ClusterRoleRenderer
+	rbac   rbac
 
 	log    logging.Logger
 	record event.Recorder
@@ -150,7 +202,7 @@ type Reconciler struct {
 // Reconcile a ProviderRevision by creating a series of opinionated ClusterRoles
 // that may be bound to allow access to the resources it defines.
 func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
-	// NOTE(negz): This reconciler is a tiny bit over our desired cyclomatic
+	// NOTE(negz): This reconciler is a little over our desired cyclomatic
 	// complexity score. Be wary of adding additional complexity.
 
 	log := r.log.WithValues("request", req)
@@ -196,6 +248,28 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 				crds = append(crds, crd)
 			}
 		}
+	}
+
+	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Spec.PermissionRequests...)
+	if err != nil {
+		log.Debug(errValidatePermissions, "error", err)
+		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errValidatePermissions)))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
+	for _, rule := range rejected {
+		log.Debug(errRejectedPermission, "rule", rule)
+		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Errorf("%s %s", errRejectedPermission, rule)))
+	}
+
+	// We return early and don't grant _any_ RBAC permissions if we would reject
+	// any requested permission. It's better for the provider to be completely
+	// and obviously broken than for it to be subtly broken in a way that may
+	// not surface immediately, i.e. due to missing an RBAC permission it only
+	// occasionally needs. There's no need to requeue - the revisions requests
+	// won't change, and we're watching the ClusterRole of allowed requests.
+	if len(rejected) > 0 {
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	for _, cr := range r.rbac.RenderClusterRoles(pr, crds) {
