@@ -41,6 +41,10 @@ const (
 	valTrue = "true"
 
 	suffixStatus = "/status"
+
+	pluralEvents     = "events"
+	pluralConfigmaps = "configmaps"
+	pluralSecrets    = "secrets"
 )
 
 var (
@@ -48,6 +52,21 @@ var (
 	verbsView   = []string{"get", "list", "watch"}
 	verbsSystem = []string{"get", "list", "watch", "update", "patch", "create"}
 )
+
+// Extra rules that are granted to all provider pods.
+// TODO(negz): Should we require providers to ask for these explicitly? The vast
+// majority of providers will need them:
+//
+// * Secrets for provider credentials and connection secrets.
+// * ConfigMaps for leader election.
+// * Events for debugging.
+var rulesSystemExtra = []rbacv1.PolicyRule{
+	{
+		APIGroups: []string{""},
+		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents},
+		Verbs:     verbsEdit,
+	},
+}
 
 // SystemClusterRoleName returns the name of the 'system' cluster role - i.e.
 // the role that a provider's ServiceAccount should be bound to.
@@ -115,7 +134,7 @@ func RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourc
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		Rules:      append(withVerbs(rules, verbsSystem), pr.Spec.PermissionRequests...),
+		Rules:      append(append(withVerbs(rules, verbsSystem), rulesSystemExtra...), pr.Spec.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}
