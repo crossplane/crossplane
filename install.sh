@@ -2,7 +2,7 @@
 
 set -eu
 
-CHANNEL=${CHANNEL:-alpha}
+CHANNEL=${CHANNEL:-stable}
 VERSION=${VERSION:-current}
 
 os=$(uname -s)
