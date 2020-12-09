@@ -21,7 +21,6 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"io/ioutil"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -40,6 +39,45 @@ const (
 	errLayerFromTar  = "failed to convert tarball to image layer"
 )
 
+// annotatedTeeReadCloser is a copy of io.TeeReader that implements
+// parser.AnnotatedReadCloser. It returns a Reader that writes to w what it
+// reads from r. All reads from r performed through it are matched with
+// corresponding writes to w. There is no internal buffering - the write must
+// complete before the read completes. Any error encountered while writing is
+// reported as a read error. If the underling reader is a
+// parser.AnnotatedReadCloser the tee reader will invoke its Annotate function.
+// Otherwise it will return nil. Closing is always a no-op.
+func annotatedTeeReadCloser(r io.Reader, w io.Writer) *teeReader {
+	return &teeReader{r, w}
+}
+
+type teeReader struct {
+	r io.Reader
+	w io.Writer
+}
+
+func (t *teeReader) Read(p []byte) (n int, err error) {
+	n, err = t.r.Read(p)
+	if n > 0 {
+		if n, err := t.w.Write(p[:n]); err != nil {
+			return n, err
+		}
+	}
+	return
+}
+
+func (t *teeReader) Close() error {
+	return nil
+}
+
+func (t *teeReader) Annotate() interface{} {
+	anno, ok := t.r.(parser.AnnotatedReadCloser)
+	if !ok {
+		return nil
+	}
+	return anno.Annotate()
+}
+
 // Build compiles a Crossplane package from an on-disk package.
 func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Linter) (v1.Image, error) {
 	// Get YAML stream.
@@ -51,7 +89,7 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 
 	// Copy stream once to parse and once write to tarball.
 	buf := new(bytes.Buffer)
-	pkg, err := p.Parse(ctx, ioutil.NopCloser(io.TeeReader(r, buf)))
+	pkg, err := p.Parse(ctx, annotatedTeeReadCloser(r, buf))
 	if err != nil {
 		return nil, errors.Wrap(err, errParserPackage)
 	}
