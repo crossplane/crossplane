@@ -17,7 +17,6 @@ limitations under the License.
 package v1beta1
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -267,7 +266,7 @@ func TestMapResolve(t *testing.T) {
 				i: 5,
 			},
 			want: want{
-				err: errors.New(fmt.Sprintf(errFmtMapTypeNotSupported, "int")),
+				err: errors.Errorf(errFmtMapTypeNotSupported, "int"),
 			},
 		},
 		"KeyNotFound": {
@@ -275,7 +274,7 @@ func TestMapResolve(t *testing.T) {
 				i: "ola",
 			},
 			want: want{
-				err: errors.New(fmt.Sprintf(errFmtMapNotFound, "ola")),
+				err: errors.Errorf(errFmtMapNotFound, "ola"),
 			},
 		},
 		"Success": {
@@ -445,7 +444,7 @@ func TestConvertResolve(t *testing.T) {
 				ot: ConvertTransformTypeString,
 			},
 			want: want{
-				err: errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String())),
+				err: errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String()),
 			},
 		},
 		"ConversionPairNotSupported": {
@@ -454,7 +453,7 @@ func TestConvertResolve(t *testing.T) {
 				ot: "[]int",
 			},
 			want: want{
-				err: errors.New(fmt.Sprintf(errFmtConversionPairNotSupported, "string", "[]int")),
+				err: errors.Errorf(errFmtConversionPairNotSupported, "string", "[]int"),
 			},
 		},
 	}

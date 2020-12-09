@@ -278,7 +278,7 @@ func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { //
 	out := in
 	for i, f := range c.Transforms {
 		if out, err = f.Transform(out); err != nil {
-			return errors.Wrap(err, fmt.Sprintf(errFmtTransformAtIndex, i))
+			return errors.Wrapf(err, errFmtTransformAtIndex, i)
 		}
 	}
 
@@ -348,16 +348,16 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 	case TransformTypeConvert:
 		transformer = t.Convert
 	default:
-		return nil, errors.New(fmt.Sprintf(errFmtTypeNotSupported, string(t.Type)))
+		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
 	}
 	// An interface equals nil only if both the type and value are nil. Above,
 	// even if t.<Type> is nil, its type is assigned to "transformer" but we're
 	// interested in whether only the value is nil or not.
 	if reflect.ValueOf(transformer).IsNil() {
-		return nil, errors.New(fmt.Sprintf(errFmtConfigMissing, string(t.Type)))
+		return nil, errors.Errorf(errFmtConfigMissing, string(t.Type))
 	}
 	out, err := transformer.Resolve(input)
-	return out, errors.Wrap(err, fmt.Sprintf(errFmtTransformTypeFailed, string(t.Type)))
+	return out, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
 }
 
 // MathTransform conducts mathematical operations on the input with the given
@@ -415,11 +415,11 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	case string:
 		val, ok := m.Pairs[i]
 		if !ok {
-			return nil, errors.New(fmt.Sprintf(errFmtMapNotFound, i))
+			return nil, errors.Errorf(errFmtMapNotFound, i)
 		}
 		return val, nil
 	default:
-		return nil, errors.New(fmt.Sprintf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String()))
+		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
 	}
 }
 
@@ -518,11 +518,11 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
 	case ConvertTransformTypeString, ConvertTransformTypeBool, ConvertTransformTypeInt, ConvertTransformTypeFloat64:
 		break
 	default:
-		return nil, errors.New(fmt.Sprintf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String()))
+		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String())
 	}
 	f, ok := conversions[fmt.Sprintf("%s.%s", reflect.TypeOf(input).Kind().String(), s.ToType)]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(errFmtConversionPairNotSupported, reflect.TypeOf(input).Kind().String(), s.ToType))
+		return nil, errors.Errorf(errFmtConversionPairNotSupported, reflect.TypeOf(input).Kind().String(), s.ToType)
 	}
 	return f(input)
 }
