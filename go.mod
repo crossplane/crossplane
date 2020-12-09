@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/kong v0.2.11
 	github.com/alecthomas/template v0.0.0-20190718012654-fb15b899a751 // indirect
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
-	github.com/crossplane/crossplane-runtime v0.11.1-0.20201120062856-57ef784bfe43
+	github.com/crossplane/crossplane-runtime v0.11.1-0.20201208222033-479dbc8a4560
 	github.com/docker/cli v0.0.0-20200915230204-cd8016b6bcc5 // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200926000217-2617742802f6+incompatible // indirect
 	github.com/go-logr/zapr v0.1.1 // indirect
