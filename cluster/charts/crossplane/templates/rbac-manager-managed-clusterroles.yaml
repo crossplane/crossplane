@@ -200,6 +200,7 @@ rules:
   resources: ["*"]
   verbs: [get, list, watch]
 {{- if .Values.rbacManager.managementPolicy }}
+---
 # The below ClusterRoles are aggregated to the namespaced RBAC roles created by
 # the Crossplane RBAC manager when it is running in --manage=All mode.
 apiVersion: rbac.authorization.k8s.io/v1
