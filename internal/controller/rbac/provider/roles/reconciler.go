@@ -96,11 +96,16 @@ func Setup(mgr ctrl.Manager, log logging.Logger, allowClusterRole string) error 
 	name := "rbac/" + strings.ToLower(v1beta1.ProviderRevisionGroupKind)
 
 	if allowClusterRole != "" {
+
+		h := &EnqueueRequestForAllRevisionsWithRequests{
+			client:          mgr.GetClient(),
+			clusterRoleName: allowClusterRole}
+
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
 			For(&v1beta1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
-			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, &EnqueueRequestIfNamed{Name: allowClusterRole}).
+			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, h).
 			WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 			Complete(NewReconciler(mgr,
 				WithLogger(log.WithValues("controller", name)),

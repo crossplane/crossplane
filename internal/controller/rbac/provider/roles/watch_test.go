@@ -19,17 +19,23 @@ package roles
 import (
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/pkg/errors"
+
+	"github.com/crossplane/crossplane-runtime/pkg/test"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 var (
-	_ handler.EventHandler = &EnqueueRequestIfNamed{}
+	_ handler.EventHandler = &EnqueueRequestForAllRevisionsWithRequests{}
 )
 
 type addFn func(item interface{})
@@ -39,26 +45,52 @@ func (fn addFn) Add(item interface{}) {
 }
 
 func TestAdd(t *testing.T) {
+	errBoom := errors.New("boom")
 	name := "coolname"
+	prName := "coolpr"
 
 	cases := map[string]struct {
-		obj   runtime.Object
-		name  string
-		queue adder
+		obj             runtime.Object
+		client          client.Client
+		clusterRoleName string
+		queue           adder
 	}{
-		"ObjectIsNotAMetaObject": {
+		"ObjectIsNotAClusterRole": {
 			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"WrongName": {
-			obj:   &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "wat"}},
-			name:  name,
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			obj:             &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "wat"}},
+			clusterRoleName: name,
+			queue:           addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+		},
+		"ListError": {
+			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
+			client: &test.MockClient{
+				MockList: test.NewMockListFn(errBoom),
+			},
+			clusterRoleName: name,
+			queue:           addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"SuccessfulEnqueue": {
-			obj:  &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
-			name: name,
+			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
+			client: &test.MockClient{
+				MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
+					l := obj.(*v1beta1.ProviderRevisionList)
+					l.Items = []v1beta1.ProviderRevision{
+						{
+							ObjectMeta: metav1.ObjectMeta{Name: prName},
+							Spec: v1beta1.PackageRevisionSpec{
+								PermissionRequests: []rbacv1.PolicyRule{{}},
+							},
+						},
+						{}, // A ProviderRevision with no permission requests.
+					}
+					return nil
+				}),
+			},
+			clusterRoleName: name,
 			queue: addFn(func(got interface{}) {
-				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name}}
+				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: prName}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s\n", diff)
 				}
@@ -67,7 +99,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		e := &EnqueueRequestIfNamed{Name: tc.name}
+		e := &EnqueueRequestForAllRevisionsWithRequests{client: tc.client, clusterRoleName: tc.clusterRoleName}
 		e.add(tc.obj, tc.queue)
 	}
 }
