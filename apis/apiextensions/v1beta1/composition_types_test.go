@@ -17,6 +17,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -265,7 +266,7 @@ func TestMapResolve(t *testing.T) {
 				i: 5,
 			},
 			want: want{
-				err: errors.New(errMapTypeNotSupported("int")),
+				err: errors.Errorf(errFmtMapTypeNotSupported, "int"),
 			},
 		},
 		"KeyNotFound": {
@@ -273,7 +274,7 @@ func TestMapResolve(t *testing.T) {
 				i: "ola",
 			},
 			want: want{
-				err: errors.New(errMapNotFound("ola", map[string]string{})),
+				err: errors.Errorf(errFmtMapNotFound, "ola"),
 			},
 		},
 		"Success": {
@@ -413,6 +414,63 @@ func TestStringResolve(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertResolve(t *testing.T) {
+	type args struct {
+		ot string
+		i  interface{}
+	}
+	type want struct {
+		o   interface{}
+		err error
+	}
+
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"StringToBool": {
+			args: args{
+				i:  "true",
+				ot: ConvertTransformTypeBool,
+			},
+			want: want{
+				o: true,
+			},
+		},
+		"InputTypeNotSupported": {
+			args: args{
+				i:  []int{64},
+				ot: ConvertTransformTypeString,
+			},
+			want: want{
+				err: errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String()),
+			},
+		},
+		"ConversionPairNotSupported": {
+			args: args{
+				i:  "[64]",
+				ot: "[]int",
+			},
+			want: want{
+				err: errors.Errorf(errFmtConversionPairNotSupported, "string", "[]int"),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve(tc.i)
+
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestPatchApply(t *testing.T) {
 	now := metav1.NewTime(time.Unix(0, 0))
 	lpt := fake.ConnectionDetailsLastPublishedTimer{

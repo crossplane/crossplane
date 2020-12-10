@@ -78,6 +78,20 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
+                                convert:
+                                  description: Convert is used to cast the input into the given output type.
+                                  properties:
+                                    toType:
+                                      description: ToType is the type of the output of this transform.
+                                      enum:
+                                      - string
+                                      - int
+                                      - bool
+                                      - float64
+                                      type: string
+                                  required:
+                                  - toType
+                                  type: object
                                 map:
                                   additionalProperties:
                                     type: string
@@ -166,6 +180,20 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
+                                convert:
+                                  description: Convert is used to cast the input into the given output type.
+                                  properties:
+                                    toType:
+                                      description: ToType is the type of the output of this transform.
+                                      enum:
+                                      - string
+                                      - int
+                                      - bool
+                                      - float64
+                                      type: string
+                                  required:
+                                  - toType
+                                  type: object
                                 map:
                                   additionalProperties:
                                     type: string

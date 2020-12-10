@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -37,17 +38,15 @@ const (
 	errRequiredField      = "%s is required by type %s"
 	errUndefinedPatchSet  = "cannot find PatchSet by name %s"
 	errInvalidPatchType   = "patch type %s is unsupported"
-)
 
-var (
-	errTransformAtIndex    = func(i int) string { return fmt.Sprintf("transform at index %d returned error", i) }
-	errTypeNotSupported    = func(s string) string { return fmt.Sprintf("transform type %s is not supported", s) }
-	errConfigMissing       = func(s string) string { return fmt.Sprintf("given type %s requires configuration", s) }
-	errTransformWithType   = func(s string) string { return fmt.Sprintf("%s transform could not resolve", s) }
-	errMapTypeNotSupported = func(s string) string { return fmt.Sprintf("type %s is not supported for map transform", s) }
-	errMapNotFound         = func(s string, m map[string]string) string {
-		return fmt.Sprintf("given value %s is not found in %v", s, m)
-	}
+	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
+	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
+	errFmtTransformAtIndex             = "transform at index %d returned error"
+	errFmtTypeNotSupported             = "transform type %s is not supported"
+	errFmtConfigMissing                = "given type %s requires configuration"
+	errFmtTransformTypeFailed          = "%s transform could not resolve"
+	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
+	errFmtMapNotFound                  = "key %s is not found in map"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -279,7 +278,7 @@ func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { //
 	out := in
 	for i, f := range c.Transforms {
 		if out, err = f.Transform(out); err != nil {
-			return errors.Wrap(err, errTransformAtIndex(i))
+			return errors.Wrapf(err, errFmtTransformAtIndex, i)
 		}
 	}
 
@@ -302,9 +301,10 @@ type TransformType string
 
 // Accepted TransformTypes.
 const (
-	TransformTypeMap    TransformType = "map"
-	TransformTypeMath   TransformType = "math"
-	TransformTypeString TransformType = "string"
+	TransformTypeMap     TransformType = "map"
+	TransformTypeMath    TransformType = "math"
+	TransformTypeString  TransformType = "string"
+	TransformTypeConvert TransformType = "convert"
 )
 
 // Transform is a unit of process whose input is transformed into an output with
@@ -327,6 +327,10 @@ type Transform struct {
 	// of string. Note that the input does not necessarily need to be a string.
 	// +optional
 	String *StringTransform `json:"string,omitempty"`
+
+	// Convert is used to cast the input into the given output type.
+	// +optional
+	Convert *ConvertTransform `json:"convert,omitempty"`
 }
 
 // Transform calls the appropriate Transformer.
@@ -341,17 +345,19 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 		transformer = t.Map
 	case TransformTypeString:
 		transformer = t.String
+	case TransformTypeConvert:
+		transformer = t.Convert
 	default:
-		return nil, errors.New(errTypeNotSupported(string(t.Type)))
+		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
 	}
 	// An interface equals nil only if both the type and value are nil. Above,
 	// even if t.<Type> is nil, its type is assigned to "transformer" but we're
 	// interested in whether only the value is nil or not.
 	if reflect.ValueOf(transformer).IsNil() {
-		return nil, errors.New(errConfigMissing(string(t.Type)))
+		return nil, errors.Errorf(errFmtConfigMissing, string(t.Type))
 	}
 	out, err := transformer.Resolve(input)
-	return out, errors.Wrap(err, errTransformWithType(string(t.Type)))
+	return out, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
 }
 
 // MathTransform conducts mathematical operations on the input with the given
@@ -409,11 +415,11 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	case string:
 		val, ok := m.Pairs[i]
 		if !ok {
-			return nil, errors.New(errMapNotFound(i, m.Pairs))
+			return nil, errors.Errorf(errFmtMapNotFound, i)
 		}
 		return val, nil
 	default:
-		return nil, errors.New(errMapTypeNotSupported(reflect.TypeOf(input).String()))
+		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
 	}
 }
 
@@ -427,6 +433,91 @@ type StringTransform struct {
 // Resolve runs the String transform.
 func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 	return fmt.Sprintf(s.Format, input), nil
+}
+
+// The list of supported ConvertTransform input and output types.
+const (
+	ConvertTransformTypeString  = "string"
+	ConvertTransformTypeBool    = "bool"
+	ConvertTransformTypeInt     = "int"
+	ConvertTransformTypeFloat64 = "float64"
+)
+
+type conversionPair struct {
+	From string
+	To   string
+}
+
+var conversions = map[conversionPair]func(interface{}) (interface{}, error){
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) {
+		return strconv.Atoi(i.(string))
+	},
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) {
+		return strconv.ParseBool(i.(string))
+	},
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) {
+		return strconv.ParseFloat(i.(string), 64)
+	},
+
+	{From: ConvertTransformTypeInt, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return strconv.Itoa(i.(int)), nil
+	},
+	{From: ConvertTransformTypeInt, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return i.(int) == 1, nil
+	},
+	{From: ConvertTransformTypeInt, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return float64(i.(int)), nil
+	},
+
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return strconv.FormatBool(i.(bool)), nil
+	},
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		if i.(bool) {
+			return 1, nil
+		}
+		return 0, nil
+	},
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		if i.(bool) {
+			return float64(1), nil
+		}
+		return float64(0), nil
+	},
+
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
+	},
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return int(i.(float64)), nil
+	},
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return i.(float64) == float64(1), nil
+	},
+}
+
+// A ConvertTransform converts the input into a new object whose type is supplied.
+type ConvertTransform struct {
+	// ToType is the type of the output of this transform.
+	// +kubebuilder:validation:Enum=string;int;bool;float64
+	ToType string `json:"toType"`
+}
+
+// Resolve runs the String transform.
+func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
+	switch reflect.TypeOf(input).Kind().String() {
+	case s.ToType:
+		return input, nil
+	case ConvertTransformTypeString, ConvertTransformTypeBool, ConvertTransformTypeInt, ConvertTransformTypeFloat64:
+		break
+	default:
+		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String())
+	}
+	f, ok := conversions[conversionPair{From: reflect.TypeOf(input).Kind().String(), To: s.ToType}]
+	if !ok {
+		return nil, errors.Errorf(errFmtConversionPairNotSupported, reflect.TypeOf(input).Kind().String(), s.ToType)
+	}
+	return f(input)
 }
 
 // ConnectionDetail includes the information about the propagation of the connection
