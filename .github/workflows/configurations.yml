@@ -32,15 +32,17 @@ jobs:
           username: ${{ secrets.UPBOUND_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/aws --name=getting-started-with-aws.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws
   
@@ -63,15 +65,17 @@ jobs:
           username: ${{ secrets.UPBOUND_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/aws-with-vpc --name=getting-started-with-aws-with-vpc.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc
   
@@ -94,15 +98,17 @@ jobs:
           username: ${{ secrets.UPBOUND_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/gcp --name=getting-started-with-gcp.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp
   
@@ -125,15 +131,17 @@ jobs:
           username: ${{ secrets.UPBOUND_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/azure --name=getting-started-with-azure.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure
   
@@ -156,14 +164,16 @@ jobs:
           username: ${{ secrets.UPBOUND_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/alibaba --name=getting-started-with-alibaba.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/alibaba/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba:${{ steps.tagger.outputs.VERSION_TAG }}
       - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.1.0
+        uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/alibaba/getting-started-with-alibaba.xpkg registry.upbound.io/xp/getting-started-with-alibaba
