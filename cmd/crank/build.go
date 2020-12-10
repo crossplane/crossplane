@@ -94,12 +94,15 @@ func (c *buildCmd) Run(child *buildChild) error {
 // default build filters skip directories, empty files, and files without YAML
 // extension in addition to any paths specified.
 func buildFilters(root string, skips []string) []parser.FilterFn {
-	opts := make([]parser.FilterFn, len(skips)+3)
-	opts[0] = parser.SkipDirs()
-	opts[1] = parser.SkipNotYAML()
-	opts[2] = parser.SkipEmpty()
+	defaultFns := []parser.FilterFn{
+		parser.SkipDirs(),
+		parser.SkipNotYAML(),
+		parser.SkipEmpty(),
+	}
+	opts := make([]parser.FilterFn, len(skips)+len(defaultFns))
+	copy(opts, defaultFns)
 	for i, s := range skips {
-		opts[i+2] = parser.SkipPath(filepath.Join(root, s))
+		opts[i+len(defaultFns)] = parser.SkipPath(filepath.Join(root, s))
 	}
 	return opts
 }
