@@ -84,7 +84,7 @@ func (e *EnqueueRequestForAllRevisionsWithRequests) add(obj runtime.Object, queu
 	}
 
 	for _, pr := range l.Items {
-		if len(pr.Spec.PermissionRequests) == 0 {
+		if len(pr.Status.PermissionRequests) == 0 {
 			// We only need to requeue so that revisions with permission
 			// requests that were denied may now be approved.
 			continue

@@ -19,7 +19,6 @@ package revision
 import (
 	"context"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,7 +36,6 @@ import (
 const (
 	errNotProvider                   = "not a provider package"
 	errNotProviderRevision           = "not a provider revision"
-	errUpdateProviderRevision        = "cannot update provider revision"
 	errControllerConfig              = "cannot get referenced controller config"
 	errDeleteProviderDeployment      = "cannot delete provider package deployment"
 	errDeleteProviderSA              = "cannot delete provider package service account"
@@ -85,12 +83,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1beta1.
 		return errors.New(errNotProviderRevision)
 	}
 
-	if !cmp.Equal(provRev.Spec.PermissionRequests, pkgProvider.Spec.Controller.PermissionRequests) {
-		provRev.Spec.PermissionRequests = pkgProvider.Spec.Controller.PermissionRequests
-		if err := h.client.Update(ctx, provRev); err != nil {
-			return errors.Wrap(err, errUpdateProviderRevision)
-		}
-	}
+	provRev.Status.PermissionRequests = pkgProvider.Spec.Controller.PermissionRequests
 
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 

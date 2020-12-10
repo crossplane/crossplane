@@ -79,13 +79,6 @@ type PackageRevisionSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
-
-	// PermissionRequests for RBAC rules required for this provider's controller
-	// to function. The RBAC manager is responsible for granting requested
-	// permissions. It uses a whitelist to determine what permissions a provider
-	// may be granted.
-	// +optional
-	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
@@ -100,4 +93,9 @@ type PackageRevisionStatus struct {
 	FoundDependencies     int64 `json:"foundDependencies"`
 	InstalledDependencies int64 `json:"installedDependencies"`
 	InvalidDependencies   int64 `json:"invalidDependencies"`
+
+	// PermissionRequests made by this package. The package declares that its
+	// controller needs these permissions to run. The RBAC manager is
+	// responsible for granting them.
+	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 }

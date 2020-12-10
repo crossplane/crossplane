@@ -134,7 +134,7 @@ func RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourc
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		Rules:      append(append(withVerbs(rules, verbsSystem), rulesSystemExtra...), pr.Spec.PermissionRequests...),
+		Rules:      append(append(withVerbs(rules, verbsSystem), rulesSystemExtra...), pr.Status.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}

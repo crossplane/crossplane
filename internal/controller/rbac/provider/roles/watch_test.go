@@ -79,7 +79,7 @@ func TestAdd(t *testing.T) {
 					l.Items = []v1beta1.ProviderRevision{
 						{
 							ObjectMeta: metav1.ObjectMeta{Name: prName},
-							Spec: v1beta1.PackageRevisionSpec{
+							Status: v1beta1.PackageRevisionStatus{
 								PermissionRequests: []rbacv1.PolicyRule{{}},
 							},
 						},

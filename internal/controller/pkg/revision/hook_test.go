@@ -24,7 +24,6 @@ import (
 	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -85,36 +84,6 @@ func TestHookPre(t *testing.T) {
 			},
 			want: want{
 				err: errors.New(errNotConfiguration),
-			},
-		},
-		"ErrUpdateProviderRevision": {
-			reason: "Should return error if we can't update a provider revision to set its permission requests.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockUpdate: test.NewMockUpdateFn(errBoom),
-						},
-					},
-				},
-				pkg: &pkgmeta.Provider{
-					Spec: pkgmeta.ProviderSpec{
-						Controller: pkgmeta.ControllerSpec{
-							PermissionRequests: []rbacv1.PolicyRule{{}},
-						},
-					},
-				},
-				rev: &v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{},
-				},
-			},
-			want: want{
-				rev: &v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
-						PermissionRequests: []rbacv1.PolicyRule{{}},
-					},
-				},
-				err: errors.Wrap(errBoom, errUpdateProviderRevision),
 			},
 		},
 		"ProviderActive": {

@@ -255,7 +255,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Spec.PermissionRequests...)
+	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
 	if err != nil {
 		log.Debug(errValidatePermissions, "error", err)
 		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errValidatePermissions)))
