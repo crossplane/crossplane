@@ -34,6 +34,8 @@ jobs:
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/aws --name=getting-started-with-aws.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
@@ -65,6 +67,8 @@ jobs:
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/aws-with-vpc --name=getting-started-with-aws-with-vpc.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
@@ -96,6 +100,8 @@ jobs:
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/gcp --name=getting-started-with-gcp.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
@@ -127,6 +133,8 @@ jobs:
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/azure --name=getting-started-with-azure.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
@@ -158,6 +166,8 @@ jobs:
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
+          channel: master
+          version: current
           command: build configuration -f docs/snippets/package/alibaba --name=getting-started-with-alibaba.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
