@@ -91,13 +91,13 @@ func (c *buildCmd) Run(child *buildChild) error {
 	return tarball.Write(nil, img, f)
 }
 
-// default build filters skip directories and files without YAML extension in
-// addition to any paths specified.
+// default build filters skip directories, empty files, and files without YAML
+// extension in addition to any paths specified.
 func buildFilters(root string, skips []string) []parser.FilterFn {
-	numOpts := len(skips) + 2
-	opts := make([]parser.FilterFn, numOpts)
+	opts := make([]parser.FilterFn, len(skips)+3)
 	opts[0] = parser.SkipDirs()
 	opts[1] = parser.SkipNotYAML()
+	opts[2] = parser.SkipEmpty()
 	for i, s := range skips {
 		opts[i+2] = parser.SkipPath(filepath.Join(root, s))
 	}
