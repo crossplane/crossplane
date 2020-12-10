@@ -42,6 +42,7 @@ spec:
         {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
+        - --provider-clusterrole={{ template "name" .}}:allowed-provider-permissions
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}
         resources:
