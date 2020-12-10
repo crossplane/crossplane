@@ -36,9 +36,8 @@ type ControllerSpec struct {
 	Image string `json:"image"`
 
 	// PermissionRequests for RBAC rules required for this provider's controller
-	// to function. The RBAC manager is responsible for granting requested
-	// permissions. It uses a whitelist to determine what permissions a provider
-	// may be granted.
+	// to function. The RBAC manager is responsible for assessing the requested
+	// permissions.
 	// +optional
 	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 }

@@ -39,7 +39,7 @@ spec:
                     description: Image is the packaged Provider controller image.
                     type: string
                   permissionRequests:
-                    description: PermissionRequests for RBAC rules required for this provider's controller to function. The RBAC manager is responsible for granting requested permissions. It uses a whitelist to determine what permissions a provider may be granted.
+                    description: PermissionRequests for RBAC rules required for this provider's controller to function. The RBAC manager is responsible for assessing the requested permissions.
                     items:
                       description: PolicyRule holds information that describes a policy rule, but does not contain information about who the rule applies to or which namespace the rule applies to.
                       properties:

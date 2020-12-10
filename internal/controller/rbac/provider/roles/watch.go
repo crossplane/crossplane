@@ -35,34 +35,34 @@ type adder interface {
 }
 
 // EnqueueRequestForAllRevisionsWithRequests enqueues a request for all provider
-// revisions with permission requests when the ClusterRole that whitelists
-// permissions changes.
+// revisions with permission requests when the ClusterRole that enumerates
+// allowed permissions changes.
 type EnqueueRequestForAllRevisionsWithRequests struct {
 	client          client.Client
 	clusterRoleName string
 }
 
 // Create enqueues a request for all provider revisions with permission requests
-// if the event pertains to the whitelist ClusterRole.
+// if the event pertains to the ClusterRole.
 func (e *EnqueueRequestForAllRevisionsWithRequests) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions with permission requests
-// if the event pertains to the whitelist ClusterRole.
+// if the event pertains to the ClusterRole.
 func (e *EnqueueRequestForAllRevisionsWithRequests) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.ObjectOld, q)
 	e.add(evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions with permission requests
-// if the event pertains to the whitelist ClusterRole.
+// if the event pertains to the ClusterRole.
 func (e *EnqueueRequestForAllRevisionsWithRequests) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions with permission
-// requests if the event pertains to the whitelist ClusterRole.
+// requests if the event pertains to the ClusterRole.
 func (e *EnqueueRequestForAllRevisionsWithRequests) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	e.add(evt.Object, q)
 }
