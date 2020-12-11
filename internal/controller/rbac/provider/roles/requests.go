@@ -38,23 +38,23 @@ const (
 	pathPrefixResource = "resource"
 )
 
-// A Path represents a rule within the rule tree.
-type Path []string
+// A path represents a rule within the rule tree.
+type path []string
 
-// A Node within the rule tree. Each node indicates whether the path should be
+// A node within the rule tree. Each node indicates whether the path should be
 // allowed. In practice only leaves (i.e. Verbs) should have this set.
-type Node struct {
+type node struct {
 	allowed  bool
-	children map[string]*Node
+	children map[string]*node
 }
 
-// NewNode initialises and returns a Node.
-func NewNode() *Node {
-	return &Node{children: map[string]*Node{}}
+// newNode initialises and returns a Node.
+func newNode() *node {
+	return &node{children: map[string]*node{}}
 }
 
 // Allow the supplied path.
-func (n *Node) Allow(p Path) {
+func (n *node) Allow(p path) {
 	if len(p) == 0 {
 		n.allowed = true
 		return
@@ -62,13 +62,13 @@ func (n *Node) Allow(p Path) {
 
 	k := p[0]
 	if _, ok := n.children[k]; !ok {
-		n.children[k] = NewNode()
+		n.children[k] = newNode()
 	}
 	n.children[k].Allow(p[1:])
 }
 
 // Allowed returns true if the supplied path is allowed.
-func (n *Node) Allowed(p Path) bool {
+func (n *node) Allowed(p path) bool {
 	if len(p) == 0 {
 		return false
 	}
@@ -116,30 +116,30 @@ func (r Rule) String() string {
 	return fmt.Sprintf("{apiGroup: %q, resource: %q, resourceName: %q, verb: %q}", r.APIGroup, r.Resource, r.ResourceName, r.Verb)
 }
 
-// Path of the rule, for use in a tree.
-func (r Rule) Path() Path {
+// path of the rule, for use in a tree.
+func (r Rule) path() path {
 	if r.NonResourceURL != "" {
-		return Path{pathPrefixURL, r.NonResourceURL, r.Verb}
+		return path{pathPrefixURL, r.NonResourceURL, r.Verb}
 	}
-	return Path{pathPrefixResource, r.APIGroup, r.Resource, r.ResourceName, r.Verb}
+	return path{pathPrefixResource, r.APIGroup, r.Resource, r.ResourceName, r.Verb}
 }
 
 // Expand RBAC policy rules into our granular rules.
 func Expand(rs ...rbacv1.PolicyRule) []Rule {
 	out := make([]Rule, 0, len(rs))
 	for _, r := range rs {
-		if len(r.NonResourceURLs) > 0 {
-			for _, u := range r.NonResourceURLs {
-				for _, v := range r.Verbs {
-					out = append(out, Rule{NonResourceURL: u, Verb: v})
-				}
+		for _, u := range r.NonResourceURLs {
+			for _, v := range r.Verbs {
+				out = append(out, Rule{NonResourceURL: u, Verb: v})
 			}
-			continue
 		}
 
+		// ResourceNames are somewhat unique in rbacv1.PolicyRule in that no
+		// names means all names. APIGroups and Resources use the wildcard to
+		// represent that. We use the wildcard here too to simplify our logic.
 		names := r.ResourceNames
 		if len(names) < 1 {
-			names = []string{"*"}
+			names = []string{wildcard}
 		}
 
 		for _, g := range r.APIGroups {
@@ -176,14 +176,14 @@ func (v *ClusterRoleBackedValidator) ValidatePermissionRequests(ctx context.Cont
 		return nil, errors.Wrap(err, errGetClusterRole)
 	}
 
-	t := NewNode()
+	t := newNode()
 	for _, rule := range Expand(cr.Rules...) {
-		t.Allow(rule.Path())
+		t.Allow(rule.path())
 	}
 
 	rejected := make([]Rule, 0)
 	for _, rule := range Expand(requests...) {
-		if !t.Allowed(rule.Path()) {
+		if !t.Allowed(rule.path()) {
 			rejected = append(rejected, rule)
 		}
 	}

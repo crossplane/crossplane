@@ -70,11 +70,11 @@ func TestAllowed(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			n := NewNode()
+			n := newNode()
 			for _, a := range tc.allow {
-				n.Allow(a.Path())
+				n.Allow(a.path())
 			}
-			got := n.Allowed(tc.check.Path())
+			got := n.Allowed(tc.check.path())
 
 			if got != tc.want {
 				t.Errorf("\n%s\nn.Allowed(...): got %t, want %t", tc.reason, got, tc.want)
@@ -128,6 +128,27 @@ func TestExpand(t *testing.T) {
 				{APIGroup: "example", Resource: "examples", ResourceName: "hank", Verb: "get"},
 				{APIGroup: "example", Resource: "others", ResourceName: "barry", Verb: "get"},
 				{APIGroup: "example", Resource: "others", ResourceName: "hank", Verb: "get"},
+			},
+		},
+		"Combo": {
+			reason: "We should faithfully expand a rule with both URLs and resources. This is invalid, but we let Kubernetes police that.",
+			rs: []rbacv1.PolicyRule{{
+				APIGroups:       []string{""},
+				Resources:       []string{"*"},
+				NonResourceURLs: []string{"/api"},
+				Verbs:           []string{"get"},
+			}},
+			want: []Rule{
+				{
+					NonResourceURL: "/api",
+					Verb:           "get",
+				},
+				{
+					APIGroup:     "",
+					Resource:     "*",
+					ResourceName: "*",
+					Verb:         "get",
+				},
 			},
 		},
 	}
