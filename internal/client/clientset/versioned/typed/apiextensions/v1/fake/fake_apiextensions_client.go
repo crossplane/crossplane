@@ -19,26 +19,26 @@ limitations under the License.
 package fake
 
 import (
-	v1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
 
-type FakeApiextensionsV1beta1 struct {
+type FakeApiextensionsV1 struct {
 	*testing.Fake
 }
 
-func (c *FakeApiextensionsV1beta1) CompositeResourceDefinitions() v1beta1.CompositeResourceDefinitionInterface {
+func (c *FakeApiextensionsV1) CompositeResourceDefinitions() v1.CompositeResourceDefinitionInterface {
 	return &FakeCompositeResourceDefinitions{c}
 }
 
-func (c *FakeApiextensionsV1beta1) Compositions() v1beta1.CompositionInterface {
+func (c *FakeApiextensionsV1) Compositions() v1.CompositionInterface {
 	return &FakeCompositions{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
-func (c *FakeApiextensionsV1beta1) RESTClient() rest.Interface {
+func (c *FakeApiextensionsV1) RESTClient() rest.Interface {
 	var ret *rest.RESTClient
 	return ret
 }

@@ -27,8 +27,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 )
 
@@ -45,8 +45,8 @@ const (
 
 // DependencyManager is a lock on packages.
 type DependencyManager interface {
-	Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (found, installed, invalid int, err error)
-	RemoveSelf(ctx context.Context, pr v1beta1.PackageRevision) error
+	Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error)
+	RemoveSelf(ctx context.Context, pr v1.PackageRevision) error
 }
 
 // PackageDependencyManager is a resolver for packages.
@@ -66,7 +66,7 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1alpha1.Pa
 }
 
 // Resolve resolves package dependencies.
-func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1beta1.PackageRevision) (found, installed, invalid int, err error) { // nolint:gocyclo
+func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { // nolint:gocyclo
 	pack, ok := pkg.(pkgmeta.Pkg)
 	if !ok {
 		return found, installed, invalid, errors.New(errNotMeta)
@@ -108,7 +108,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	}
 
 	// If we are inactive, all we want to do is remove self.
-	if pr.GetDesiredState() == v1beta1.PackageRevisionInactive {
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
 		if *selfIndex >= 0 {
 			lock.Packages = append(lock.Packages[:*selfIndex], lock.Packages[*selfIndex+1:]...)
 			return found, installed, invalid, m.client.Update(ctx, lock)
@@ -201,7 +201,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 }
 
 // RemoveSelf removes a package from the lock.
-func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1beta1.PackageRevision) error {
+func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRevision) error {
 	prRef, err := name.ParseReference(pr.GetSource(), name.WithDefaultRegistry(""))
 	if err != nil {
 		return err

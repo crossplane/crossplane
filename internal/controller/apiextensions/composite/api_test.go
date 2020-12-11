@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -146,7 +146,7 @@ func TestConfigure(t *testing.T) {
 	type args struct {
 		kube client.Client
 		cp   resource.Composite
-		comp *v1beta1.Composition
+		comp *v1.Composition
 	}
 	type want struct {
 		cp  resource.Composite
@@ -160,9 +160,9 @@ func TestConfigure(t *testing.T) {
 		"NotCompatible": {
 			reason: "Should return error if given composition is not compatible",
 			args: args{
-				comp: &v1beta1.Composition{
-					Spec: v1beta1.CompositionSpec{
-						CompositeTypeRef: v1beta1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{
+						CompositeTypeRef: v1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
 					},
 				},
 				cp: &fake.Composite{},
@@ -174,7 +174,7 @@ func TestConfigure(t *testing.T) {
 		},
 		"AlreadyFilled": {
 			reason: "Should be no-op if connection secret namespace is already filled",
-			args:   args{cp: cp, comp: &v1beta1.Composition{}},
+			args:   args{cp: cp, comp: &v1.Composition{}},
 			want:   want{cp: cp},
 		},
 		"ConnectionSecretRefMissing": {
@@ -184,8 +184,8 @@ func TestConfigure(t *testing.T) {
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
-				comp: &v1beta1.Composition{
-					Spec: v1beta1.CompositionSpec{WriteConnectionSecretsToNamespace: &cs.Ref.Namespace},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{WriteConnectionSecretsToNamespace: &cs.Ref.Namespace},
 				},
 			},
 			want: want{cp: cp},
@@ -197,8 +197,8 @@ func TestConfigure(t *testing.T) {
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
-				comp: &v1beta1.Composition{
-					Spec: v1beta1.CompositionSpec{},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{},
 				},
 			},
 			want: want{cp: &fake.Composite{
@@ -212,8 +212,8 @@ func TestConfigure(t *testing.T) {
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
-				comp: &v1beta1.Composition{
-					Spec: v1beta1.CompositionSpec{
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{
 						WriteConnectionSecretsToNamespace: &cs.Ref.Namespace,
 					},
 				},
@@ -240,13 +240,13 @@ func TestConfigure(t *testing.T) {
 
 func TestSelectorResolver(t *testing.T) {
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
-	tref := v1beta1.TypeReference{APIVersion: a, Kind: k}
-	comp := &v1beta1.Composition{
+	tref := v1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "foo",
 			Namespace: "bar",
 		},
-		Spec: v1beta1.CompositionSpec{
+		Spec: v1.CompositionSpec{
 			CompositeTypeRef: tref,
 		},
 	}
@@ -311,17 +311,17 @@ func TestSelectorResolver(t *testing.T) {
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
 					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
-						compList := &v1beta1.CompositionList{
-							Items: []v1beta1.Composition{
+						compList := &v1.CompositionList{
+							Items: []v1.Composition{
 								{
-									Spec: v1beta1.CompositionSpec{
-										CompositeTypeRef: v1beta1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+									Spec: v1.CompositionSpec{
+										CompositeTypeRef: v1.TypeReference{APIVersion: "foreign", Kind: "tome"},
 									},
 								},
 								*comp,
 							},
 						}
-						if list, ok := obj.(*v1beta1.CompositionList); ok {
+						if list, ok := obj.(*v1.CompositionList); ok {
 							compList.DeepCopyInto(list)
 							return nil
 						}
@@ -356,12 +356,12 @@ func TestSelectorResolver(t *testing.T) {
 
 func TestAPIDefaultCompositionSelector(t *testing.T) {
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
-	tref := v1beta1.TypeReference{APIVersion: a, Kind: k}
-	comp := &v1beta1.Composition{
+	tref := v1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo",
 		},
-		Spec: v1beta1.CompositionSpec{
+		Spec: v1.CompositionSpec{
 			CompositeTypeRef: tref,
 		},
 	}
@@ -439,11 +439,11 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
 						switch cr := obj.(type) {
-						case *v1beta1.CompositeResourceDefinition:
-							withRef := &v1beta1.CompositeResourceDefinition{Spec: v1beta1.CompositeResourceDefinitionSpec{DefaultCompositionRef: &xpv1.Reference{Name: comp.Name}}}
+						case *v1.CompositeResourceDefinition:
+							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRef: &xpv1.Reference{Name: comp.Name}}}
 							withRef.DeepCopyInto(cr)
 							return nil
-						case *v1beta1.Composition:
+						case *v1.Composition:
 							comp.DeepCopyInto(cr)
 							return nil
 						}
@@ -475,17 +475,17 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 
 func TestAPIEnforcedCompositionSelector(t *testing.T) {
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
-	tref := v1beta1.TypeReference{APIVersion: a, Kind: k}
-	comp := &v1beta1.Composition{
+	tref := v1.TypeReference{APIVersion: a, Kind: k}
+	comp := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "foo",
 		},
-		Spec: v1beta1.CompositionSpec{
+		Spec: v1.CompositionSpec{
 			CompositeTypeRef: tref,
 		},
 	}
 	type args struct {
-		def v1beta1.CompositeResourceDefinition
+		def v1.CompositeResourceDefinition
 		cp  resource.Composite
 	}
 	type want struct {
@@ -501,7 +501,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"NoEnforced": {
 			reason: "Should be no-op if no enforced composition ref is given in definition",
 			args: args{
-				def: v1beta1.CompositeResourceDefinition{},
+				def: v1.CompositeResourceDefinition{},
 				cp:  &fake.Composite{},
 			},
 			want: want{
@@ -511,8 +511,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"EnforcedAlreadySet": {
 			reason: "Should be no-op if enforced composition reference is already set",
 			args: args{
-				def: v1beta1.CompositeResourceDefinition{
-					Spec: v1beta1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
+				def: v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
@@ -527,8 +527,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"Success": {
 			reason: "Successfully set the default composition reference",
 			args: args{
-				def: v1beta1.CompositeResourceDefinition{
-					Spec: v1beta1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
+				def: v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{},
 			},
@@ -541,8 +541,8 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 		"SuccessOverride": {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
-				def: v1beta1.CompositeResourceDefinition{
-					Spec: v1beta1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
+				def: v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: "ola"}},

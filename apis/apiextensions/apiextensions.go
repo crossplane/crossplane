@@ -20,12 +20,14 @@ package apiextensions
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
+		v1.AddToScheme,
 		v1beta1.AddToScheme,
 	)
 }

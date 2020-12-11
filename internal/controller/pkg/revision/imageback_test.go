@@ -38,7 +38,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/fake"
 )
@@ -77,8 +77,8 @@ func TestImageBackend(t *testing.T) {
 		"ErrBadReference": {
 			reason: "Should return error if package tag is not a valid image reference.",
 			args: args{
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: ":test",
 					},
 				})},
@@ -92,8 +92,8 @@ func TestImageBackend(t *testing.T) {
 				f: &fake.MockFetcher{
 					MockFetch: fake.NewMockFetchFn(randImg, nil),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "test/test:latest",
 					},
 				})},
@@ -107,8 +107,8 @@ func TestImageBackend(t *testing.T) {
 				f: &fake.MockFetcher{
 					MockFetch: fake.NewMockFetchFn(empty.Image, nil),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "test/test:latest",
 					},
 				})},
@@ -122,8 +122,8 @@ func TestImageBackend(t *testing.T) {
 				f: &fake.MockFetcher{
 					MockFetch: fake.NewMockFetchFn(nil, errBoom),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "test/test:latest",
 					},
 				})},
@@ -140,8 +140,8 @@ func TestImageBackend(t *testing.T) {
 				f: &fake.MockFetcher{
 					MockFetch: fake.NewMockFetchFn(packImg, nil),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "test/test:latest",
 					},
 				})},
@@ -155,8 +155,8 @@ func TestImageBackend(t *testing.T) {
 				f: &fake.MockFetcher{
 					MockFetch: fake.NewMockFetchFn(packImg, nil),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "test/test:latest",
 					},
 				})},
@@ -168,8 +168,8 @@ func TestImageBackend(t *testing.T) {
 				c: &fake.MockCache{
 					MockGet: fake.NewMockCacheGetFn(packImg, nil),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "test/test:latest",
 					},
 				})},
@@ -181,8 +181,8 @@ func TestImageBackend(t *testing.T) {
 				c: &fake.MockCache{
 					MockGet: fake.NewMockCacheGetFn(nil, errBoom),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:           "test/test:latest",
 						PackagePullPolicy: &pullPolicy,
 					},
@@ -196,8 +196,8 @@ func TestImageBackend(t *testing.T) {
 				c: &fake.MockCache{
 					MockGet: fake.NewMockCacheGetFn(packImg, nil),
 				},
-				opts: []parser.BackendOption{PackageRevision(&v1beta1.ProviderRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				opts: []parser.BackendOption{PackageRevision(&v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:           "test/test:latest",
 						PackagePullPolicy: &pullPolicy,
 					},

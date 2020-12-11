@@ -23,8 +23,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	metav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 var (
@@ -36,12 +36,12 @@ var (
 	runAsNonRoot             = true
 )
 
-func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1beta1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
+func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1beta1.ProviderRevisionGroupVersionKind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
 		},
 	}
 	pullPolicy := corev1.PullIfNotPresent
@@ -52,7 +52,7 @@ func buildProviderDeployment(provider *metav1alpha1.Provider, revision v1beta1.P
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1beta1.ProviderRevisionGroupVersionKind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
 		},
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,

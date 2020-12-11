@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 func TestIsEstablished(t *testing.T) {
@@ -74,7 +74,7 @@ func TestForCompositeResource(t *testing.T) {
 	annotations := map[string]string{"example.org/cool": "very"}
 
 	group := "example.org"
-	version := "v1beta1"
+	version := "v1"
 	kind := "CoolComposite"
 	listKind := "CoolCompositeList"
 	singular := "coolcomposite"
@@ -82,14 +82,14 @@ func TestForCompositeResource(t *testing.T) {
 
 	schema := `{"required":["spec"],"properties":{"spec":{"required":["storageGB","engineVersion"],"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	d := &v1beta1.CompositeResourceDefinition{
+	d := &v1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1beta1.CompositeResourceDefinitionSpec{
+		Spec: v1.CompositeResourceDefinitionSpec{
 			Group: group,
 			Names: extv1.CustomResourceDefinitionNames{
 				Plural:   plural,
@@ -97,11 +97,11 @@ func TestForCompositeResource(t *testing.T) {
 				Kind:     kind,
 				ListKind: listKind,
 			},
-			Versions: []v1beta1.CompositeResourceDefinitionVersion{{
+			Versions: []v1.CompositeResourceDefinitionVersion{{
 				Name:          version,
 				Referenceable: true,
 				Served:        true,
-				Schema: &v1beta1.CompositeResourceValidation{
+				Schema: &v1.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
 			}},
@@ -114,7 +114,7 @@ func TestForCompositeResource(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.TypedReferenceTo(d, v1beta1.CompositeResourceDefinitionGroupVersionKind)),
+				meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: extv1.CustomResourceDefinitionSpec{
@@ -285,16 +285,16 @@ func TestForCompositeResource(t *testing.T) {
 
 func TestValidateClaimNames(t *testing.T) {
 	cases := map[string]struct {
-		d    *v1beta1.CompositeResourceDefinition
+		d    *v1.CompositeResourceDefinition
 		want error
 	}{
 		"MissingClaimNames": {
-			d:    &v1beta1.CompositeResourceDefinition{},
+			d:    &v1.CompositeResourceDefinition{},
 			want: errors.New(errMissingClaimNames),
 		},
 		"KindConflict": {
-			d: &v1beta1.CompositeResourceDefinition{
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+			d: &v1.CompositeResourceDefinition{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -312,8 +312,8 @@ func TestValidateClaimNames(t *testing.T) {
 			want: errors.Errorf(errFmtConflictingClaimName, "a"),
 		},
 		"ListKindConflict": {
-			d: &v1beta1.CompositeResourceDefinition{
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+			d: &v1.CompositeResourceDefinition{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -331,8 +331,8 @@ func TestValidateClaimNames(t *testing.T) {
 			want: errors.Errorf(errFmtConflictingClaimName, "a"),
 		},
 		"SingularConflict": {
-			d: &v1beta1.CompositeResourceDefinition{
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+			d: &v1.CompositeResourceDefinition{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -350,8 +350,8 @@ func TestValidateClaimNames(t *testing.T) {
 			want: errors.Errorf(errFmtConflictingClaimName, "a"),
 		},
 		"PluralConflict": {
-			d: &v1beta1.CompositeResourceDefinition{
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+			d: &v1.CompositeResourceDefinition{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					ClaimNames: &extv1.CustomResourceDefinitionNames{
 						Kind:     "a",
 						ListKind: "a",
@@ -387,7 +387,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 	annotations := map[string]string{"example.org/cool": "very"}
 
 	group := "example.org"
-	version := "v1beta1"
+	version := "v1"
 
 	kind := "CoolComposite"
 	listKind := "CoolCompositeList"
@@ -401,14 +401,14 @@ func TestForCompositeResourceClaim(t *testing.T) {
 
 	schema := `{"properties":{"spec":{"required":["storageGB","engineVersion"],"properties":{"engineVersion":{"enum":["5.6","5.7"],"type":"string"},"storageGB":{"type":"integer"}},"type":"object"}},"type":"object"}`
 
-	d := &v1beta1.CompositeResourceDefinition{
+	d := &v1.CompositeResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        name,
 			Labels:      labels,
 			Annotations: annotations,
 			UID:         types.UID("you-you-eye-dee"),
 		},
-		Spec: v1beta1.CompositeResourceDefinitionSpec{
+		Spec: v1.CompositeResourceDefinitionSpec{
 			Group: group,
 			Names: extv1.CustomResourceDefinitionNames{
 				Plural:   plural,
@@ -422,11 +422,11 @@ func TestForCompositeResourceClaim(t *testing.T) {
 				Kind:     claimKind,
 				ListKind: claimListKind,
 			},
-			Versions: []v1beta1.CompositeResourceDefinitionVersion{{
+			Versions: []v1.CompositeResourceDefinitionVersion{{
 				Name:          version,
 				Referenceable: true,
 				Served:        true,
-				Schema: &v1beta1.CompositeResourceValidation{
+				Schema: &v1.CompositeResourceValidation{
 					OpenAPIV3Schema: runtime.RawExtension{Raw: []byte(schema)},
 				},
 			}},
@@ -439,7 +439,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 			Labels:      labels,
 			Annotations: annotations,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.TypedReferenceTo(d, v1beta1.CompositeResourceDefinitionGroupVersionKind)),
+				meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
 			},
 		},
 		Spec: extv1.CustomResourceDefinitionSpec{

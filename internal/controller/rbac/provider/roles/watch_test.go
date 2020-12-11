@@ -31,7 +31,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 var (
@@ -75,11 +75,11 @@ func TestAdd(t *testing.T) {
 			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
 			client: &test.MockClient{
 				MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
-					l := obj.(*v1beta1.ProviderRevisionList)
-					l.Items = []v1beta1.ProviderRevision{
+					l := obj.(*v1.ProviderRevisionList)
+					l.Items = []v1.ProviderRevision{
 						{
 							ObjectMeta: metav1.ObjectMeta{Name: prName},
-							Status: v1beta1.PackageRevisionStatus{
+							Status: v1.PackageRevisionStatus{
 								PermissionRequests: []rbacv1.PolicyRule{{}},
 							},
 						},

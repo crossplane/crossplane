@@ -19,7 +19,8 @@ limitations under the License.
 package scheme
 
 import (
-	apiextensionsv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,9 +34,10 @@ var Scheme = runtime.NewScheme()
 var Codecs = serializer.NewCodecFactory(Scheme)
 var ParameterCodec = runtime.NewParameterCodec(Scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	apiextensionsv1beta1.AddToScheme,
+	apiextensionsv1.AddToScheme,
 	pkgv1alpha1.AddToScheme,
 	pkgv1beta1.AddToScheme,
+	pkgv1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

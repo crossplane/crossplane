@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 var (
@@ -44,12 +44,12 @@ func TestOffersClaim(t *testing.T) {
 			want: false,
 		},
 		"DoesNotOfferClaim": {
-			obj:  &v1beta1.CompositeResourceDefinition{},
+			obj:  &v1.CompositeResourceDefinition{},
 			want: false,
 		},
 		"OffersClaim": {
-			obj: &v1beta1.CompositeResourceDefinition{
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+			obj: &v1.CompositeResourceDefinition{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					// An XRD with non-nil claim names offers a claim.
 					ClaimNames: &extv1.CustomResourceDefinitionNames{},
 				},
