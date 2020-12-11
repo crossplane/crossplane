@@ -259,5 +259,6 @@ secret/gcp-account-creds created
 provider.gcp.crossplane.io/default created
 ```
 
-The `gcp-provider` resource will be used in other resources that we will create,
-to provide access information to the configured GCP account.
+Crossplane resources use the `ProviderConfig` named `default` if no specific
+`ProviderConfig` is specified, so this `ProviderConfig` will be the default for
+all GCP resources.
