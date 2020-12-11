@@ -17,36 +17,11 @@ limitations under the License.
 package v1beta1
 
 import (
-	"encoding/json"
-	"fmt"
-	"reflect"
-	"strconv"
-
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-)
-
-const (
-	errMathNoMultiplier   = "no input is given"
-	errMathInputNonNumber = "input is required to be a number for math transformer"
-	errPatchSetType       = "a patch in a PatchSet cannot be of type PatchSet"
-	errRequiredField      = "%s is required by type %s"
-	errUndefinedPatchSet  = "cannot find PatchSet by name %s"
-	errInvalidPatchType   = "patch type %s is unsupported"
-
-	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
-	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
-	errFmtTransformAtIndex             = "transform at index %d returned error"
-	errFmtTypeNotSupported             = "transform type %s is not supported"
-	errFmtConfigMissing                = "given type %s requires configuration"
-	errFmtTransformTypeFailed          = "%s transform could not resolve"
-	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
-	errFmtMapNotFound                  = "key %s is not found in map"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -71,40 +46,6 @@ type CompositionSpec struct {
 	// this composition will be created.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
-}
-
-// InlinePatchSets dereferences PatchSets and includes their patches inline. The
-// updated CompositionSpec should not be persisted to the API server.
-func (cs *CompositionSpec) InlinePatchSets() error {
-	pn := make(map[string][]Patch)
-	for _, s := range cs.PatchSets {
-		for _, p := range s.Patches {
-			if p.Type == PatchTypePatchSet {
-				return errors.New(errPatchSetType)
-			}
-		}
-		pn[s.Name] = s.Patches
-	}
-
-	for i, r := range cs.Resources {
-		po := []Patch{}
-		for _, p := range r.Patches {
-			if p.Type != PatchTypePatchSet {
-				po = append(po, p)
-				continue
-			}
-			if p.PatchSetName == nil {
-				return errors.Errorf(errRequiredField, "PatchSetName", p.Type)
-			}
-			ps, ok := pn[*p.PatchSetName]
-			if !ok {
-				return errors.Errorf(errUndefinedPatchSet, *p.PatchSetName)
-			}
-			po = append(po, ps...)
-		}
-		cs.Resources[i].Patches = po
-	}
-	return nil
 }
 
 // A PatchSet is a set of patches that can be reused from all resources within
@@ -228,74 +169,6 @@ type Patch struct {
 	Transforms []Transform `json:"transforms,omitempty"`
 }
 
-// Apply executes a patching operation between the from and to resources.
-func (c *Patch) Apply(from, to runtime.Object) error {
-	switch c.Type {
-	case PatchTypeFromCompositeFieldPath:
-		return c.applyFromCompositeFieldPatch(from, to)
-	case PatchTypePatchSet:
-		// Already resolved - nothing to do.
-	}
-	return errors.Errorf(errInvalidPatchType, c.Type)
-}
-
-// applyFromCompositeFieldPatch patches the composed resource, using a source field
-// on the composite resource. Values may be transformed if any are defined on
-// the patch.
-func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { // nolint:gocyclo
-	// NOTE(benagricola): The cyclomatic complexity here is from error checking
-	// at each stage of the patching process, in addition to Apply methods now
-	// being responsible for checking the validity of their input fields
-	// (necessary because with multiple patch types, the input fields
-	// must be +optional).
-	if c.FromFieldPath == nil {
-		return errors.Errorf(errRequiredField, "FromFieldPath", c.Type)
-	}
-
-	// Default to patching the same field on the composed resource.
-	if c.ToFieldPath == nil {
-		c.ToFieldPath = c.FromFieldPath
-	}
-
-	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
-	if err != nil {
-		return err
-	}
-
-	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
-	if fieldpath.IsNotFound(err) {
-		// A composition may want to opportunistically patch from a field path
-		// that may or may not exist in the composite, for example by patching
-		// {fromFieldPath: metadata.labels, toFieldPath: metadata.labels}. We
-		// don't consider a reference to a non-existent path to be an issue; if
-		// the relevant toFieldPath is required by the composed resource we'll
-		// report that fact when we attempt to reconcile the composite.
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	out := in
-	for i, f := range c.Transforms {
-		if out, err = f.Transform(out); err != nil {
-			return errors.Wrapf(err, errFmtTransformAtIndex, i)
-		}
-	}
-
-	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
-		return fieldpath.Pave(u.UnstructuredContent()).SetValue(*c.ToFieldPath, out)
-	}
-
-	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
-	if err != nil {
-		return err
-	}
-	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, out); err != nil {
-		return err
-	}
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
-}
-
 // TransformType is type of the transform function to be chosen.
 type TransformType string
 
@@ -333,54 +206,12 @@ type Transform struct {
 	Convert *ConvertTransform `json:"convert,omitempty"`
 }
 
-// Transform calls the appropriate Transformer.
-func (t *Transform) Transform(input interface{}) (interface{}, error) {
-	var transformer interface {
-		Resolve(input interface{}) (interface{}, error)
-	}
-	switch t.Type {
-	case TransformTypeMath:
-		transformer = t.Math
-	case TransformTypeMap:
-		transformer = t.Map
-	case TransformTypeString:
-		transformer = t.String
-	case TransformTypeConvert:
-		transformer = t.Convert
-	default:
-		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
-	}
-	// An interface equals nil only if both the type and value are nil. Above,
-	// even if t.<Type> is nil, its type is assigned to "transformer" but we're
-	// interested in whether only the value is nil or not.
-	if reflect.ValueOf(transformer).IsNil() {
-		return nil, errors.Errorf(errFmtConfigMissing, string(t.Type))
-	}
-	out, err := transformer.Resolve(input)
-	return out, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
-}
-
 // MathTransform conducts mathematical operations on the input with the given
 // configuration in its properties.
 type MathTransform struct {
 	// Multiply the value.
 	// +optional
 	Multiply *int64 `json:"multiply,omitempty"`
-}
-
-// Resolve runs the Math transform.
-func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
-	if m.Multiply == nil {
-		return nil, errors.New(errMathNoMultiplier)
-	}
-	switch i := input.(type) {
-	case int64:
-		return *m.Multiply * i, nil
-	case int:
-		return *m.Multiply * int64(i), nil
-	default:
-		return nil, errors.New(errMathInputNonNumber)
-	}
 }
 
 // MapTransform returns a value for the input from the given map.
@@ -392,37 +223,6 @@ type MapTransform struct {
 	Pairs map[string]string `json:",inline"`
 }
 
-// NOTE(negz): The Kubernetes JSON decoder doesn't seem to like inlining a map
-// into a struct - doing so results in a seemingly successful unmarshal of the
-// data, but an empty map. We must keep the ,inline tag nevertheless in order to
-// trick the CRD generator into thinking MapTransform is an arbitrary map (i.e.
-// generating a validation schema with string additionalProperties), but the
-// actual marshalling is handled by the marshal methods below.
-
-// UnmarshalJSON into this MapTransform.
-func (m *MapTransform) UnmarshalJSON(b []byte) error {
-	return json.Unmarshal(b, &m.Pairs)
-}
-
-// MarshalJSON from this MapTransform.
-func (m MapTransform) MarshalJSON() ([]byte, error) {
-	return json.Marshal(m.Pairs)
-}
-
-// Resolve runs the Map transform.
-func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
-	switch i := input.(type) {
-	case string:
-		val, ok := m.Pairs[i]
-		if !ok {
-			return nil, errors.Errorf(errFmtMapNotFound, i)
-		}
-		return val, nil
-	default:
-		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
-	}
-}
-
 // A StringTransform returns a string given the supplied input.
 type StringTransform struct {
 	// Format the input using a Go format string. See
@@ -430,94 +230,11 @@ type StringTransform struct {
 	Format string `json:"fmt"`
 }
 
-// Resolve runs the String transform.
-func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
-	return fmt.Sprintf(s.Format, input), nil
-}
-
-// The list of supported ConvertTransform input and output types.
-const (
-	ConvertTransformTypeString  = "string"
-	ConvertTransformTypeBool    = "bool"
-	ConvertTransformTypeInt     = "int"
-	ConvertTransformTypeFloat64 = "float64"
-)
-
-type conversionPair struct {
-	From string
-	To   string
-}
-
-var conversions = map[conversionPair]func(interface{}) (interface{}, error){
-	{From: ConvertTransformTypeString, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) {
-		return strconv.Atoi(i.(string))
-	},
-	{From: ConvertTransformTypeString, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) {
-		return strconv.ParseBool(i.(string))
-	},
-	{From: ConvertTransformTypeString, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) {
-		return strconv.ParseFloat(i.(string), 64)
-	},
-
-	{From: ConvertTransformTypeInt, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return strconv.Itoa(i.(int)), nil
-	},
-	{From: ConvertTransformTypeInt, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return i.(int) == 1, nil
-	},
-	{From: ConvertTransformTypeInt, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return float64(i.(int)), nil
-	},
-
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return strconv.FormatBool(i.(bool)), nil
-	},
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		if i.(bool) {
-			return 1, nil
-		}
-		return 0, nil
-	},
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		if i.(bool) {
-			return float64(1), nil
-		}
-		return float64(0), nil
-	},
-
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
-	},
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return int(i.(float64)), nil
-	},
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return i.(float64) == float64(1), nil
-	},
-}
-
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
 	// ToType is the type of the output of this transform.
 	// +kubebuilder:validation:Enum=string;int;bool;float64
 	ToType string `json:"toType"`
-}
-
-// Resolve runs the String transform.
-func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
-	switch reflect.TypeOf(input).Kind().String() {
-	case s.ToType:
-		return input, nil
-	case ConvertTransformTypeString, ConvertTransformTypeBool, ConvertTransformTypeInt, ConvertTransformTypeFloat64:
-		break
-	default:
-		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String())
-	}
-	f, ok := conversions[conversionPair{From: reflect.TypeOf(input).Kind().String(), To: s.ToType}]
-	if !ok {
-		return nil, errors.Errorf(errFmtConversionPairNotSupported, reflect.TypeOf(input).Kind().String(), s.ToType)
-	}
-	return f(input)
 }
 
 // ConnectionDetail includes the information about the propagation of the connection

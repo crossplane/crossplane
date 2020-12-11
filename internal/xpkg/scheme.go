@@ -21,7 +21,8 @@ import (
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 )
 
@@ -39,7 +40,10 @@ func BuildMetaScheme() (*runtime.Scheme, error) {
 // Crossplane package.
 func BuildObjectScheme() (*runtime.Scheme, error) {
 	objScheme := runtime.NewScheme()
-	if err := apiextensionsv1.AddToScheme(objScheme); err != nil {
+	if err := v1beta1.AddToScheme(objScheme); err != nil {
+		return nil, err
+	}
+	if err := v1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
 	if err := extv1beta1.AddToScheme(objScheme); err != nil {
