@@ -144,7 +144,11 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 
 ## Select Provider
 
-Install and configure a provider for Crossplane to use for infrastructure provisioning:
+If you've decided to use a Hosted Crossplane from Upbound Cloud, make sure you've gone ahead and 
+[connected locally](https://cloud.upbound.io/docs/getting-started/connect-to-your-platform) to the remote 
+cluster. 
+
+Now from your terminal, install and configure a provider for Crossplane to use for infrastructure provisioning:
 <ul class="nav nav-tabs">
 <li class="active"><a href="#provider-tab-aws" data-toggle="tab">AWS</a></li>
 <li><a href="#provider-tab-gcp" data-toggle="tab">GCP</a></li>
