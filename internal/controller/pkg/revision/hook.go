@@ -35,6 +35,7 @@ import (
 
 const (
 	errNotProvider                   = "not a provider package"
+	errNotProviderRevision           = "not a provider revision"
 	errControllerConfig              = "cannot get referenced controller config"
 	errDeleteProviderDeployment      = "cannot delete provider package deployment"
 	errDeleteProviderSA              = "cannot delete provider package service account"
@@ -76,6 +77,13 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1beta1.
 	if !ok {
 		return errors.New(errNotProvider)
 	}
+
+	provRev, ok := pr.(*v1beta1.ProviderRevision)
+	if !ok {
+		return errors.New(errNotProviderRevision)
+	}
+
+	provRev.Status.PermissionRequests = pkgProvider.Spec.Controller.PermissionRequests
 
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 

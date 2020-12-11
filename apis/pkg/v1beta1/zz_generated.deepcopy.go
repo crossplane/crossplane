@@ -23,6 +23,7 @@ package v1beta1
 import (
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -226,6 +227,13 @@ func (in *PackageRevisionStatus) DeepCopyInto(out *PackageRevisionStatus) {
 		in, out := &in.ObjectRefs, &out.ObjectRefs
 		*out = make([]commonv1.TypedReference, len(*in))
 		copy(*out, *in)
+	}
+	if in.PermissionRequests != nil {
+		in, out := &in.PermissionRequests, &out.PermissionRequests
+		*out = make([]rbacv1.PolicyRule, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
 	}
 }
 

@@ -54,10 +54,12 @@ var (
 )
 
 // Extra rules that are granted to all provider pods.
-// TODO(negz): Extra rules should be requested via a ProviderRevision's (as yet
-// unimplemented) PermissionRequests field. In order to do so we must allow the
-// RBAC manager to be configured such that it knows which rules may and may not
-// be requested.
+// TODO(negz): Should we require providers to ask for these explicitly? The vast
+// majority of providers will need them:
+//
+// * Secrets for provider credentials and connection secrets.
+// * ConfigMaps for leader election.
+// * Events for debugging.
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
 		APIGroups: []string{""},
@@ -132,7 +134,7 @@ func RenderClusterRoles(pr *v1beta1.ProviderRevision, crds []extv1.CustomResourc
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		Rules:      append(withVerbs(rules, verbsSystem), rulesSystemExtra...),
+		Rules:      append(append(withVerbs(rules, verbsSystem), rulesSystemExtra...), pr.Status.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}

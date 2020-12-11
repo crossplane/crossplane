@@ -67,6 +67,16 @@ func TestHookPre(t *testing.T) {
 				err: errors.New(errNotProvider),
 			},
 		},
+		"ErrNotProviderRevision": {
+			reason: "Should return error if the supplied package revision is not a provider revision.",
+			args: args{
+				hook: &ProviderHooks{},
+				pkg:  &pkgmeta.Provider{},
+			},
+			want: want{
+				err: errors.New(errNotProviderRevision),
+			},
+		},
 		"ErrNotConfiguration": {
 			reason: "Should return error if not configuration.",
 			args: args{

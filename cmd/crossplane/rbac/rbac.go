@@ -38,10 +38,11 @@ const (
 
 // Command configuration for the RBAC manager.
 type Command struct {
-	Name             string
-	Sync             time.Duration
-	LeaderElection   bool
-	ManagementPolicy string
+	Name                string
+	Sync                time.Duration
+	LeaderElection      bool
+	ManagementPolicy    string
+	ProviderClusterRole string
 }
 
 // FromKingpin produces the RBAC manager command from a Kingpin command.
@@ -49,6 +50,7 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	c := &Command{Name: cmd.FullCommand()}
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("manage", "RBAC management policy.").Short('m').Default(ManagementPolicyAll).EnumVar(&c.ManagementPolicy, ManagementPolicyAll, ManagementPolicyBasic)
+	cmd.Flag("provider-clusterrole", "A ClusterRole enumerating the permissions provider packages may request.").StringVar(&c.ProviderClusterRole)
 	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
 
 	return c
@@ -80,7 +82,7 @@ func (c *Command) Run(log logging.Logger) error {
 		return errors.Wrap(err, "Cannot add Kubernetes API extensions to scheme")
 	}
 
-	if err := rbac.Setup(mgr, log, rbac.ManagementPolicy(c.ManagementPolicy)); err != nil {
+	if err := rbac.Setup(mgr, log, rbac.ManagementPolicy(c.ManagementPolicy), c.ProviderClusterRole); err != nil {
 		return errors.Wrap(err, "Cannot add RBAC controllers to manager")
 	}
 

@@ -124,6 +124,46 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
+		"ValidatePermissionRequestsError": {
+			reason: "We should requeue when an error is encountered validating permission requests.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:  test.NewMockGetFn(nil),
+							MockList: test.NewMockListFn(nil),
+						},
+					}),
+					WithPermissionRequestsValidator(PermissionRequestsValidatorFn(func(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"PermissionRequestRejected": {
+			reason: "We should return early without requeuing when a permission request is rejected.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:  test.NewMockGetFn(nil),
+							MockList: test.NewMockListFn(nil),
+						},
+					}),
+					WithPermissionRequestsValidator(PermissionRequestsValidatorFn(func(ctx context.Context, requested ...rbacv1.PolicyRule) ([]Rule, error) {
+						return []Rule{{}}, nil
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"ApplyClusterRoleError": {
 			reason: "We should requeue when an error is encountered applying a ClusterRole.",
 			args: args{
