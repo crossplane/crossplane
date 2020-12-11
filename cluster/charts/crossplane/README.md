@@ -63,6 +63,7 @@ and their default values.
 
 | Parameter | Description | Default |
 | --- | --- | --- |
+| `debug` | Enable debug mode for Crossplane and RBAC Manager | `false` |
 | `image.repository` | Image | `crossplane/crossplane` |
 | `image.tag` | Image tag | `master` |
 | `image.pullPolicy` | Image pull policy | `Always` |

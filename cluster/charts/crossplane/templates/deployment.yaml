@@ -33,11 +33,14 @@ spec:
       serviceAccountName: {{ template "name" . }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-        {{- if .Values.args }}
+        {{- if or (.Values.args) (.Values.debug) }}
         args:
+        {{- end }}
+        {{- if or .Values.debug }}
+        - --debug
+        {{- end }}
         {{- range $arg := .Values.args }}
         - {{ $arg }}
-        {{- end }}
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}

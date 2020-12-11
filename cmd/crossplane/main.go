@@ -25,6 +25,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/pprof"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
@@ -47,6 +48,12 @@ func main() {
 		// *very* verbose even at info level, so we only provide it a real
 		// logger when we're running in debug mode.
 		ctrl.SetLogger(zl)
+	}
+
+	if *debug {
+		server := pprof.NewServer(logging.NewLogrLogger(zl.WithName("pprof-server")))
+		server.Start()
+		defer server.Stop()
 	}
 
 	switch cmd {

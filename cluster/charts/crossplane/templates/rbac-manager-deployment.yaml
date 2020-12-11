@@ -36,6 +36,9 @@ spec:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
         - rbac
+        {{- if or .Values.debug }}
+        - --debug
+        {{- end }}
         {{- if .Values.rbacManager.managementPolicy }}
         - --manage={{ .Values.rbacManager.managementPolicy }}
         {{- end }}
