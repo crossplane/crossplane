@@ -31,7 +31,7 @@ Once you've completed thse two steps, skip down to
 
 <i>Want see another hosted Crossplane service listed? Please 
 <a href="http://slack.crossplane.io/">reach out on Slack</a> and our community will 
-highlight it here!</a>
+highlight it here!</a></i>
 
 ## Start with a Self-Hosted Crossplane
 Installing Crossplane into an existing Kubernetes cluster will require a bit more
