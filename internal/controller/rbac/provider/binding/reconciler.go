@@ -36,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/rbac/provider/roles"
 )
 
@@ -62,13 +62,13 @@ const (
 // ClusterRoleBinding that binds a provider's service account to its system
 // ClusterRole.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "rbac/" + strings.ToLower(v1beta1.ProviderRevisionGroupKind)
+	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1beta1.ProviderRevision{}).
+		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
-		Watches(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1beta1.ProviderRevision{}}).
+		Watches(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1.ProviderRevision{}}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
@@ -137,7 +137,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	pr := &v1beta1.ProviderRevision{}
+	pr := &v1.ProviderRevision{}
 	if err := r.client.Get(ctx, req.NamespacedName, pr); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
@@ -182,7 +182,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	n := roles.SystemClusterRoleName(pr.GetName())
-	ref := meta.AsController(meta.TypedReferenceTo(pr, v1beta1.ProviderRevisionGroupVersionKind))
+	ref := meta.AsController(meta.TypedReferenceTo(pr, v1.ProviderRevisionGroupVersionKind))
 	rb := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            n,

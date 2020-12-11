@@ -22,7 +22,7 @@ import (
 	"io"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
+	regv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero/tarfs"
@@ -30,7 +30,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -44,7 +44,7 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	pr      v1beta1.PackageRevision
+	pr      v1.PackageRevision
 	cache   xpkg.Cache
 	fetcher xpkg.Fetcher
 }
@@ -62,7 +62,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	for _, o := range bo {
 		o(i)
 	}
-	var img v1.Image
+	var img regv1.Image
 	var err error
 
 	pullPolicy := i.pr.GetPackagePullPolicy()
@@ -82,7 +82,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		// Attempt to fetch image from cache.
 		img, err = i.cache.Get(i.pr.GetSource(), i.pr.GetName())
 		if err != nil {
-			img, err = i.fetcher.Fetch(ctx, ref, v1beta1.RefNames(i.pr.GetPackagePullSecrets())...)
+			img, err = i.fetcher.Fetch(ctx, ref, v1.RefNames(i.pr.GetPackagePullSecrets())...)
 			if err != nil {
 				return nil, errors.Wrap(err, errFetchPackage)
 			}
@@ -104,7 +104,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 }
 
 // PackageRevision sets the package revision for ImageBackend.
-func PackageRevision(pr v1beta1.PackageRevision) parser.BackendOption {
+func PackageRevision(pr v1.PackageRevision) parser.BackendOption {
 	return func(p parser.Backend) {
 		i, ok := p.(*ImageBackend)
 		if !ok {

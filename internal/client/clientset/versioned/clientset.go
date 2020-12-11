@@ -21,7 +21,8 @@ package versioned
 import (
 	"fmt"
 
-	apiextensionsv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1"
+	apiextensionsv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
 	discovery "k8s.io/client-go/discovery"
@@ -31,23 +32,25 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	ApiextensionsV1beta1() apiextensionsv1beta1.ApiextensionsV1beta1Interface
+	ApiextensionsV1() apiextensionsv1.ApiextensionsV1Interface
 	PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface
 	PkgV1beta1() pkgv1beta1.PkgV1beta1Interface
+	PkgV1() pkgv1.PkgV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	apiextensionsV1beta1 *apiextensionsv1beta1.ApiextensionsV1beta1Client
-	pkgV1alpha1          *pkgv1alpha1.PkgV1alpha1Client
-	pkgV1beta1           *pkgv1beta1.PkgV1beta1Client
+	apiextensionsV1 *apiextensionsv1.ApiextensionsV1Client
+	pkgV1alpha1     *pkgv1alpha1.PkgV1alpha1Client
+	pkgV1beta1      *pkgv1beta1.PkgV1beta1Client
+	pkgV1           *pkgv1.PkgV1Client
 }
 
-// ApiextensionsV1beta1 retrieves the ApiextensionsV1beta1Client
-func (c *Clientset) ApiextensionsV1beta1() apiextensionsv1beta1.ApiextensionsV1beta1Interface {
-	return c.apiextensionsV1beta1
+// ApiextensionsV1 retrieves the ApiextensionsV1Client
+func (c *Clientset) ApiextensionsV1() apiextensionsv1.ApiextensionsV1Interface {
+	return c.apiextensionsV1
 }
 
 // PkgV1alpha1 retrieves the PkgV1alpha1Client
@@ -58,6 +61,11 @@ func (c *Clientset) PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface {
 // PkgV1beta1 retrieves the PkgV1beta1Client
 func (c *Clientset) PkgV1beta1() pkgv1beta1.PkgV1beta1Interface {
 	return c.pkgV1beta1
+}
+
+// PkgV1 retrieves the PkgV1Client
+func (c *Clientset) PkgV1() pkgv1.PkgV1Interface {
+	return c.pkgV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -81,7 +89,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.apiextensionsV1beta1, err = apiextensionsv1beta1.NewForConfig(&configShallowCopy)
+	cs.apiextensionsV1, err = apiextensionsv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +98,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 		return nil, err
 	}
 	cs.pkgV1beta1, err = pkgv1beta1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
+	cs.pkgV1, err = pkgv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -105,9 +117,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.apiextensionsV1beta1 = apiextensionsv1beta1.NewForConfigOrDie(c)
+	cs.apiextensionsV1 = apiextensionsv1.NewForConfigOrDie(c)
 	cs.pkgV1alpha1 = pkgv1alpha1.NewForConfigOrDie(c)
 	cs.pkgV1beta1 = pkgv1beta1.NewForConfigOrDie(c)
+	cs.pkgV1 = pkgv1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -116,9 +129,10 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.apiextensionsV1beta1 = apiextensionsv1beta1.New(c)
+	cs.apiextensionsV1 = apiextensionsv1.New(c)
 	cs.pkgV1alpha1 = pkgv1alpha1.New(c)
 	cs.pkgV1beta1 = pkgv1beta1.New(c)
+	cs.pkgV1 = pkgv1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

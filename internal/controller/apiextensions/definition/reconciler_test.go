@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 type MockEngine struct {
@@ -121,7 +121,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return nil, errBoom
 					})),
 				},
@@ -138,14 +138,14 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								d := o.(*v1beta1.CompositeResourceDefinition)
+								d := o.(*v1.CompositeResourceDefinition)
 								d.SetDeletionTimestamp(&now)
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -163,8 +163,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1beta1.CompositeResourceDefinition:
-									d := v1beta1.CompositeResourceDefinition{}
+								case *v1.CompositeResourceDefinition:
+									d := v1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
 								case *extv1.CustomResourceDefinition:
@@ -175,7 +175,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -192,8 +192,8 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								if v, ok := o.(*v1beta1.CompositeResourceDefinition); ok {
-									d := v1beta1.CompositeResourceDefinition{}
+								if v, ok := o.(*v1.CompositeResourceDefinition); ok {
+									d := v1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
 								}
@@ -202,7 +202,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -222,8 +222,8 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								if v, ok := o.(*v1beta1.CompositeResourceDefinition); ok {
-									d := v1beta1.CompositeResourceDefinition{}
+								if v, ok := o.(*v1.CompositeResourceDefinition); ok {
+									d := v1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
 									*v = d
 								}
@@ -232,7 +232,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -253,8 +253,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1beta1.CompositeResourceDefinition:
-									d := v1beta1.CompositeResourceDefinition{}
+								case *v1.CompositeResourceDefinition:
+									d := v1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -270,7 +270,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -288,8 +288,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1beta1.CompositeResourceDefinition:
-									d := v1beta1.CompositeResourceDefinition{}
+								case *v1.CompositeResourceDefinition:
+									d := v1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -306,7 +306,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -324,8 +324,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1beta1.CompositeResourceDefinition:
-									d := v1beta1.CompositeResourceDefinition{}
+								case *v1.CompositeResourceDefinition:
+									d := v1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -348,7 +348,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -366,8 +366,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1beta1.CompositeResourceDefinition:
-									d := v1beta1.CompositeResourceDefinition{}
+								case *v1.CompositeResourceDefinition:
+									d := v1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -385,7 +385,7 @@ func TestReconcile(t *testing.T) {
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -403,8 +403,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 								switch v := o.(type) {
-								case *v1beta1.CompositeResourceDefinition:
-									d := v1beta1.CompositeResourceDefinition{}
+								case *v1.CompositeResourceDefinition:
+									d := v1.CompositeResourceDefinition{}
 									d.SetUID(owner)
 									d.SetDeletionTimestamp(&now)
 									*v = d
@@ -420,10 +420,10 @@ func TestReconcile(t *testing.T) {
 							MockList:        test.NewMockListFn(nil),
 							MockDelete:      test.NewMockDeleteFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
-								want := &v1beta1.CompositeResourceDefinition{}
+								want := &v1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
-								want.Status.SetConditions(v1beta1.TerminatingComposite())
+								want.Status.SetConditions(v1.TerminatingComposite())
 
 								if diff := cmp.Diff(want, got); diff != "" {
 									t.Errorf("MockStatusUpdate: -want, +got:\n%s\n", diff)
@@ -433,7 +433,7 @@ func TestReconcile(t *testing.T) {
 							}),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 				},
@@ -452,7 +452,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -477,7 +477,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -502,7 +502,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{}, nil
 					})),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -527,7 +527,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
 								Conditions: []extv1.CustomResourceDefinitionCondition{
@@ -558,8 +558,8 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1beta1.CompositeResourceDefinition{}
-								want.Status.SetConditions(v1beta1.WatchingComposite())
+								want := &v1.CompositeResourceDefinition{}
+								want.Status.SetConditions(v1.WatchingComposite())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -571,7 +571,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
 								Conditions: []extv1.CustomResourceDefinitionCondition{
@@ -601,22 +601,22 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
-								d := obj.(*v1beta1.CompositeResourceDefinition)
-								d.Spec.Versions = []v1beta1.CompositeResourceDefinitionVersion{
+								d := obj.(*v1.CompositeResourceDefinition)
+								d.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
 									{Name: "old", Referenceable: false},
 									{Name: "new", Referenceable: true},
 								}
-								d.Status.Controllers.CompositeResourceTypeRef = v1beta1.TypeReference{APIVersion: "old"}
+								d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "old"}
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
-								want := &v1beta1.CompositeResourceDefinition{}
-								want.Spec.Versions = []v1beta1.CompositeResourceDefinitionVersion{
+								want := &v1.CompositeResourceDefinition{}
+								want.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
 									{Name: "old", Referenceable: false},
 									{Name: "new", Referenceable: true},
 								}
-								want.Status.Controllers.CompositeResourceTypeRef = v1beta1.TypeReference{APIVersion: "new"}
-								want.Status.SetConditions(v1beta1.WatchingComposite())
+								want.Status.Controllers.CompositeResourceTypeRef = v1.TypeReference{APIVersion: "new"}
+								want.Status.SetConditions(v1.WatchingComposite())
 
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
@@ -628,7 +628,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithCRDRenderer(CRDRenderFn(func(_ *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+					WithCRDRenderer(CRDRenderFn(func(_ *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 						return &extv1.CustomResourceDefinition{
 							Status: extv1.CustomResourceDefinitionStatus{
 								Conditions: []extv1.CustomResourceDefinitionCondition{

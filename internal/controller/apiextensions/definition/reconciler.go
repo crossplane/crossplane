@@ -41,7 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -91,27 +91,27 @@ type ControllerEngine interface {
 // A CRDRenderer renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
-	Render(d *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+	Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 }
 
 // A CRDRenderFn renders an CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-type CRDRenderFn func(d *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
+type CRDRenderFn func(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 
 // Render the supplied CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
-func (fn CRDRenderFn) Render(d *v1beta1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
+func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	return fn(d)
 }
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "defined/" + strings.ToLower(v1beta1.CompositeResourceDefinitionGroupKind)
+	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1beta1.CompositeResourceDefinition{}).
+		For(&v1.CompositeResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
@@ -226,7 +226,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	d := &v1beta1.CompositeResourceDefinition{}
+	d := &v1.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We
@@ -251,7 +251,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource CustomResourceDefinition"))
 
 	if meta.WasDeleted(d) {
-		d.Status.SetConditions(v1beta1.TerminatingComposite())
+		d.Status.SetConditions(v1.TerminatingComposite())
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
 			return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -362,7 +362,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	}
 
 	observed := d.Status.Controllers.CompositeResourceTypeRef
-	desired := v1beta1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
+	desired := v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	if observed.APIVersion != "" && observed != desired {
 		r.composite.Stop(composite.ControllerName(d.GetName()))
 		log.Debug("Referenceable version changed; stopped composite resource controller",
@@ -379,7 +379,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, recorder),
-			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1beta1.CompositeResourceDefinitionGroupVersionKind), recorder),
+			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), recorder),
 			composite.NewAPILabelSelectorResolver(r.client),
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
@@ -395,8 +395,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	d.Status.Controllers.CompositeResourceTypeRef = v1beta1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
-	d.Status.SetConditions(v1beta1.WatchingComposite())
+	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
+	d.Status.SetConditions(v1.WatchingComposite())
 	r.record.Event(d, event.Normal(reasonEstablishXR, "(Re)started composite resource controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }

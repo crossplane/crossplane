@@ -28,8 +28,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	dagfake "github.com/crossplane/crossplane/internal/dag/fake"
 )
@@ -42,7 +42,7 @@ func TestResolve(t *testing.T) {
 	type args struct {
 		dep  *PackageDependencyManager
 		meta runtime.Object
-		pr   v1beta1.PackageRevision
+		pr   v1.PackageRevision
 	}
 
 	type want struct {
@@ -61,7 +61,7 @@ func TestResolve(t *testing.T) {
 			reason: "Should return error if not a valid package meta type.",
 			args: args{
 				dep:  &PackageDependencyManager{},
-				meta: &v1beta1.Configuration{},
+				meta: &v1.Configuration{},
 			},
 			want: want{
 				err: errors.New(errNotMeta),
@@ -97,8 +97,8 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				meta: &pkgmeta.Configuration{},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package: "hasheddan/config-nop-a:v0.0.1",
 					},
 				},
@@ -123,10 +123,10 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				meta: &pkgmeta.Configuration{},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionInactive,
+						DesiredState: v1.PackageRevisionInactive,
 					},
 				},
 			},
@@ -164,10 +164,10 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				meta: &pkgmeta.Configuration{},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionInactive,
+						DesiredState: v1.PackageRevisionInactive,
 					},
 				},
 			},
@@ -205,10 +205,10 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				meta: &pkgmeta.Configuration{},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionInactive,
+						DesiredState: v1.PackageRevisionInactive,
 					},
 				},
 			},
@@ -248,10 +248,10 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				meta: &pkgmeta.Configuration{},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionActive,
+						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},
@@ -312,10 +312,10 @@ func TestResolve(t *testing.T) {
 						},
 					},
 				},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionActive,
+						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},
@@ -400,10 +400,10 @@ func TestResolve(t *testing.T) {
 						},
 					},
 				},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionActive,
+						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},
@@ -499,10 +499,10 @@ func TestResolve(t *testing.T) {
 						},
 					},
 				},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionActive,
+						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},
@@ -599,10 +599,10 @@ func TestResolve(t *testing.T) {
 						},
 					},
 				},
-				pr: &v1beta1.ConfigurationRevision{
-					Spec: v1beta1.PackageRevisionSpec{
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1beta1.PackageRevisionActive,
+						DesiredState: v1.PackageRevisionActive,
 					},
 				},
 			},

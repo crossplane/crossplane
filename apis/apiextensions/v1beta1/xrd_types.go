@@ -151,7 +151,6 @@ type CompositeResourceDefinitionControllerStatus struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +genclient
 // +genclient:nonNamespaced
 

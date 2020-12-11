@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 const (
@@ -55,14 +55,14 @@ const (
 // A ClusterRoleRenderer renders ClusterRoles for a given XRD.
 type ClusterRoleRenderer interface {
 	// RenderClusterRoles for the supplied XRD.
-	RenderClusterRoles(d *v1beta1.CompositeResourceDefinition) []rbacv1.ClusterRole
+	RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole
 }
 
 // A ClusterRoleRenderFn renders ClusterRoles for the supplied XRD.
-type ClusterRoleRenderFn func(d *v1beta1.CompositeResourceDefinition) []rbacv1.ClusterRole
+type ClusterRoleRenderFn func(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied XRD.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(d *v1beta1.CompositeResourceDefinition) []rbacv1.ClusterRole {
+func (fn ClusterRoleRenderFn) RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole {
 	return fn(d)
 }
 
@@ -70,11 +70,11 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(d *v1beta1.CompositeResourceDef
 // creating a series of opinionated ClusterRoles that may be bound to allow
 // access to the resources it defines.
 func Setup(mgr ctrl.Manager, log logging.Logger) error {
-	name := "rbac/" + strings.ToLower(v1beta1.CompositeResourceDefinitionGroupKind)
+	name := "rbac/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1beta1.CompositeResourceDefinition{}).
+		For(&v1.CompositeResourceDefinition{}).
 		Owns(&rbacv1.ClusterRole{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
@@ -155,7 +155,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	d := &v1beta1.CompositeResourceDefinition{}
+	d := &v1.CompositeResourceDefinition{}
 	if err := r.client.Get(ctx, req.NamespacedName, d); err != nil {
 		// In case object is not found, most likely the object was deleted and
 		// then disappeared while the event was in the processing queue. We

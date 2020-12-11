@@ -28,7 +28,6 @@ import (
 
 // Configuration is the CRD type for a request to add a configuration to Crossplane.
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
@@ -69,7 +68,6 @@ type ConfigurationList struct {
 
 // A ConfigurationRevision that has been added to Crossplane.
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
 // +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.image"

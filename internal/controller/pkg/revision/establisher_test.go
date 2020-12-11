@@ -31,7 +31,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 var _ Establisher = &APIEstablisher{}
@@ -72,7 +72,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent:  &v1beta1.ProviderRevision{},
+				parent:  &v1.ProviderRevision{},
 				control: true,
 			},
 			want: want{
@@ -95,7 +95,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent:  &v1beta1.ProviderRevision{},
+				parent:  &v1.ProviderRevision{},
 				control: true,
 			},
 			want: want{
@@ -118,7 +118,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent:  &v1beta1.ProviderRevision{},
+				parent:  &v1.ProviderRevision{},
 				control: false,
 			},
 			want: want{
@@ -141,7 +141,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent:  &v1beta1.ProviderRevision{},
+				parent:  &v1.ProviderRevision{},
 				control: false,
 			},
 			want: want{
@@ -164,7 +164,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent: &v1beta1.ProviderRevision{
+				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
@@ -191,7 +191,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent: &v1beta1.ProviderRevision{
+				parent: &v1.ProviderRevision{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},

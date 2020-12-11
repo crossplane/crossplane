@@ -37,7 +37,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 const (
@@ -113,55 +113,55 @@ func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resour
 
 // A Configurator configures a composite resource using its composition.
 type Configurator interface {
-	Configure(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error
+	Configure(ctx context.Context, cr resource.Composite, cp *v1.Composition) error
 }
 
 // A ConfiguratorFn configures a composite resource using its composition.
-type ConfiguratorFn func(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error
+type ConfiguratorFn func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error
 
 // Configure the supplied composite resource using its composition.
-func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, cp *v1beta1.Composition) error {
+func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 	return fn(ctx, cr, cp)
 }
 
 // A Renderer is used to render a composed resource.
 type Renderer interface {
-	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
+	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
 }
 
 // A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
+type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
 
 // Render the supplied composed resource using the supplied composite resource
 // and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
+func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 	return fn(ctx, cp, cd, t)
 }
 
 // ConnectionDetailsFetcher fetches the connection details of the Composed resource.
 type ConnectionDetailsFetcher interface {
-	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error)
+	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
 }
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
 // composed resource, if any.
-type ConnectionDetailsFetcherFn func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error)
+type ConnectionDetailsFetcherFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
 
 // FetchConnectionDetails calls the FetchConnectionDetailsFn.
-func (f ConnectionDetailsFetcherFn) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
+func (f ConnectionDetailsFetcherFn) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 	return f(ctx, cd, t)
 }
 
 // A ReadinessChecker checks whether a composed resource is ready or not.
 type ReadinessChecker interface {
-	IsReady(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error)
+	IsReady(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error)
 }
 
 // A ReadinessCheckerFn checks whether a composed resource is ready or not.
-type ReadinessCheckerFn func(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error)
+type ReadinessCheckerFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error)
 
 // IsReady reports whether a composed resource is ready or not.
-func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (ready bool, err error) {
+func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
 	return fn(ctx, cd, t)
 }
 
@@ -330,7 +330,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// TODO(muvaf): We should lock the deletion of Composition via finalizer
 	// because its deletion will break the field propagation.
-	comp := &v1beta1.Composition{}
+	comp := &v1.Composition{}
 	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
 		log.Debug(errGetComp, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))

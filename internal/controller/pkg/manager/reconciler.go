@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -83,21 +83,21 @@ const (
 type ReconcilerOption func(*Reconciler)
 
 // WithNewPackageFn determines the type of package being reconciled.
-func WithNewPackageFn(f func() v1beta1.Package) ReconcilerOption {
+func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackage = f
 	}
 }
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
-func WithNewPackageRevisionFn(f func() v1beta1.PackageRevision) ReconcilerOption {
+func WithNewPackageRevisionFn(f func() v1.PackageRevision) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackageRevision = f
 	}
 }
 
 // WithNewPackageRevisionListFn determines the type of package being reconciled.
-func WithNewPackageRevisionListFn(f func() v1beta1.PackageRevisionList) ReconcilerOption {
+func WithNewPackageRevisionListFn(f func() v1.PackageRevisionList) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackageRevisionList = f
 	}
@@ -132,17 +132,17 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	newPackage             func() v1beta1.Package
-	newPackageRevision     func() v1beta1.PackageRevision
-	newPackageRevisionList func() v1beta1.PackageRevisionList
+	newPackage             func() v1.Package
+	newPackageRevision     func() v1.PackageRevision
+	newPackageRevisionList func() v1.PackageRevisionList
 }
 
 // SetupProvider adds a controller that reconciles Providers.
 func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
-	name := "packages/" + strings.ToLower(v1beta1.ProviderGroupKind)
-	np := func() v1beta1.Package { return &v1beta1.Provider{} }
-	nr := func() v1beta1.PackageRevision { return &v1beta1.ProviderRevision{} }
-	nrl := func() v1beta1.PackageRevisionList { return &v1beta1.ProviderRevisionList{} }
+	name := "packages/" + strings.ToLower(v1.ProviderGroupKind)
+	np := func() v1.Package { return &v1.Provider{} }
+	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
+	nrl := func() v1.PackageRevisionList { return &v1.ProviderRevisionList{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -160,17 +160,17 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1beta1.Provider{}).
-		Owns(&v1beta1.ProviderRevision{}).
+		For(&v1.Provider{}).
+		Owns(&v1.ProviderRevision{}).
 		Complete(r)
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
 func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string) error {
-	name := "packages/" + strings.ToLower(v1beta1.ConfigurationGroupKind)
-	np := func() v1beta1.Package { return &v1beta1.Configuration{} }
-	nr := func() v1beta1.PackageRevision { return &v1beta1.ConfigurationRevision{} }
-	nrl := func() v1beta1.PackageRevisionList { return &v1beta1.ConfigurationRevisionList{} }
+	name := "packages/" + strings.ToLower(v1.ConfigurationGroupKind)
+	np := func() v1.Package { return &v1.Configuration{} }
+	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
+	nrl := func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -188,8 +188,8 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string) er
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
-		For(&v1beta1.Configuration{}).
-		Owns(&v1beta1.ConfigurationRevision{}).
+		For(&v1.Configuration{}).
+		Owns(&v1.ConfigurationRevision{}).
 		Complete(r)
 }
 
@@ -244,14 +244,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	revisionName, err := r.pkg.Revision(ctx, p)
 	if err != nil {
-		p.SetConditions(v1beta1.Unpacking())
+		p.SetConditions(v1.Unpacking())
 		log.Debug(errUnpack, "error", err)
 		r.record.Event(p, event.Warning(reasonUnpack, errors.Wrap(err, errUnpack)))
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
 	if revisionName == "" {
-		p.SetConditions(v1beta1.Unpacking())
+		p.SetConditions(v1.Unpacking())
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
 		return reconcile.Result{RequeueAfter: veryShortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
@@ -288,11 +288,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 			// non-current revisions are inactive.
 			continue
 		}
-		if rev.GetDesiredState() == v1beta1.PackageRevisionActive {
+		if rev.GetDesiredState() == v1.PackageRevisionActive {
 			// If revision is not the current revision, set to inactive. This
 			// should always be done, regardless of the package's revision
 			// activation policy.
-			rev.SetDesiredState(v1beta1.PackageRevisionInactive)
+			rev.SetDesiredState(v1.PackageRevisionInactive)
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				log.Debug(errUpdateInactivePackageRevision, "error", err)
 				r.record.Event(p, event.Warning(reasonTransitionRevision, errors.Wrap(err, errUpdateInactivePackageRevision)))
@@ -319,16 +319,16 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		}
 	}
 
-	if pr.GetCondition(v1beta1.TypeHealthy).Status == corev1.ConditionTrue {
-		p.SetConditions(v1beta1.Healthy())
+	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionTrue {
+		p.SetConditions(v1.Healthy())
 		r.record.Event(p, event.Normal(reasonInstall, "Successfully installed package revision"))
 	}
-	if pr.GetCondition(v1beta1.TypeHealthy).Status == corev1.ConditionFalse {
-		p.SetConditions(v1beta1.Unhealthy())
+	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionFalse {
+		p.SetConditions(v1.Unhealthy())
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnhealthyPackageRevision)))
 	}
-	if pr.GetCondition(v1beta1.TypeHealthy).Status == corev1.ConditionUnknown {
-		p.SetConditions(v1beta1.UnknownHealth())
+	if pr.GetCondition(v1.TypeHealthy).Status == corev1.ConditionUnknown {
+		p.SetConditions(v1.UnknownHealth())
 		r.record.Event(p, event.Warning(reasonInstall, errors.New(errUnknownPackageRevisionHealth)))
 	}
 
@@ -344,8 +344,8 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 
 	// If current revision is not active and we have an automatic or undefined
 	// activation policy, always activate.
-	if pr.GetDesiredState() != v1beta1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1beta1.AutomaticActivation) {
-		pr.SetDesiredState(v1beta1.PackageRevisionActive)
+	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
+		pr.SetDesiredState(v1.PackageRevisionActive)
 	}
 
 	controlRef := meta.AsController(meta.TypedReferenceTo(p, p.GetObjectKind().GroupVersionKind()))
@@ -357,11 +357,11 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
-	p.SetConditions(v1beta1.Active())
+	p.SetConditions(v1.Active())
 
 	// If current revision is still not active, the package is inactive.
-	if pr.GetDesiredState() != v1beta1.PackageRevisionActive {
-		p.SetConditions(v1beta1.Inactive())
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		p.SetConditions(v1.Inactive())
 	}
 
 	// NOTE(hasheddan): when the first package revision is created for a

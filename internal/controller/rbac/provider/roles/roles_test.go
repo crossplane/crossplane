@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 func TestRenderClusterRoles(t *testing.T) {
@@ -34,8 +34,8 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	ctrl := true
 	crCtrlr := metav1.OwnerReference{
-		APIVersion: v1beta1.ProviderRevisionGroupVersionKind.GroupVersion().String(),
-		Kind:       v1beta1.ProviderRevisionKind,
+		APIVersion: v1.ProviderRevisionGroupVersionKind.GroupVersion().String(),
+		Kind:       v1.ProviderRevisionKind,
 		Name:       prName,
 		UID:        prUID,
 		Controller: &ctrl,
@@ -54,7 +54,7 @@ func TestRenderClusterRoles(t *testing.T) {
 	pluralCRDC := "examples"
 
 	type args struct {
-		pr   *v1beta1.ProviderRevision
+		pr   *v1.ProviderRevision
 		crds []extv1.CustomResourceDefinition
 	}
 
@@ -66,7 +66,7 @@ func TestRenderClusterRoles(t *testing.T) {
 		"MergeGroups": {
 			reason: "A ProviderRevision should merge CRDs by group to produce the fewest rules possible.",
 			args: args{
-				pr: &v1beta1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
+				pr: &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
 				crds: []extv1.CustomResourceDefinition{
 					{
 						Spec: extv1.CustomResourceDefinitionSpec{

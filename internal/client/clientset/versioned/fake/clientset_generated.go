@@ -20,8 +20,10 @@ package fake
 
 import (
 	clientset "github.com/crossplane/crossplane/internal/client/clientset/versioned"
-	apiextensionsv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1"
-	fakeapiextensionsv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1beta1/fake"
+	apiextensionsv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1"
+	fakeapiextensionsv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/apiextensions/v1/fake"
+	pkgv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
+	fakepkgv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1/fake"
 	pkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1"
 	fakepkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1/fake"
 	pkgv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
@@ -80,9 +82,9 @@ func (c *Clientset) Tracker() testing.ObjectTracker {
 
 var _ clientset.Interface = &Clientset{}
 
-// ApiextensionsV1beta1 retrieves the ApiextensionsV1beta1Client
-func (c *Clientset) ApiextensionsV1beta1() apiextensionsv1beta1.ApiextensionsV1beta1Interface {
-	return &fakeapiextensionsv1beta1.FakeApiextensionsV1beta1{Fake: &c.Fake}
+// ApiextensionsV1 retrieves the ApiextensionsV1Client
+func (c *Clientset) ApiextensionsV1() apiextensionsv1.ApiextensionsV1Interface {
+	return &fakeapiextensionsv1.FakeApiextensionsV1{Fake: &c.Fake}
 }
 
 // PkgV1alpha1 retrieves the PkgV1alpha1Client
@@ -93,4 +95,9 @@ func (c *Clientset) PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface {
 // PkgV1beta1 retrieves the PkgV1beta1Client
 func (c *Clientset) PkgV1beta1() pkgv1beta1.PkgV1beta1Interface {
 	return &fakepkgv1beta1.FakePkgV1beta1{Fake: &c.Fake}
+}
+
+// PkgV1 retrieves the PkgV1Client
+func (c *Clientset) PkgV1() pkgv1.PkgV1Interface {
+	return &fakepkgv1.FakePkgV1{Fake: &c.Fake}
 }

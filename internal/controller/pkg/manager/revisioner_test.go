@@ -24,10 +24,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/fake"
 )
@@ -39,7 +39,7 @@ func TestPackageRevisioner(t *testing.T) {
 
 	type args struct {
 		f   xpkg.Fetcher
-		pkg v1beta1.Package
+		pkg v1.Package
 	}
 
 	type want struct {
@@ -55,12 +55,12 @@ func TestPackageRevisioner(t *testing.T) {
 		"SuccessfulPullNever": {
 			reason: "Should return friendly identifier if pull policy is Never.",
 			args: args{
-				pkg: &v1beta1.Provider{
-					ObjectMeta: v1.ObjectMeta{
+				pkg: &v1.Provider{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "provider-aws",
 					},
-					Spec: v1beta1.ProviderSpec{
-						PackageSpec: v1beta1.PackageSpec{
+					Spec: v1.ProviderSpec{
+						PackageSpec: v1.PackageSpec{
 							Package:           "my-revision",
 							PackagePullPolicy: &pullNever,
 						},
@@ -74,18 +74,18 @@ func TestPackageRevisioner(t *testing.T) {
 		"SuccessfulPullIfNotPresentSameSource": {
 			reason: "Should return the existing package revision if identifier did not change.",
 			args: args{
-				pkg: &v1beta1.Provider{
-					ObjectMeta: v1.ObjectMeta{
+				pkg: &v1.Provider{
+					ObjectMeta: metav1.ObjectMeta{
 						Name: "provider-aws",
 					},
-					Spec: v1beta1.ProviderSpec{
-						PackageSpec: v1beta1.PackageSpec{
+					Spec: v1.ProviderSpec{
+						PackageSpec: v1.PackageSpec{
 							Package:           "crossplane/provider-aws:latest",
 							PackagePullPolicy: &pullIfNotPresent,
 						},
 					},
-					Status: v1beta1.ProviderStatus{
-						PackageStatus: v1beta1.PackageStatus{
+					Status: v1.ProviderStatus{
+						PackageStatus: v1.PackageStatus{
 							CurrentRevision:   "return-me",
 							CurrentIdentifier: "crossplane/provider-aws:latest",
 						},
@@ -99,9 +99,9 @@ func TestPackageRevisioner(t *testing.T) {
 		"ErrParseRef": {
 			reason: "Should return an error if we cannot parse reference from package source image.",
 			args: args{
-				pkg: &v1beta1.Provider{
-					Spec: v1beta1.ProviderSpec{
-						PackageSpec: v1beta1.PackageSpec{
+				pkg: &v1.Provider{
+					Spec: v1.ProviderSpec{
+						PackageSpec: v1.PackageSpec{
 							Package: "*THISISNOTVALID",
 						},
 					},
@@ -117,9 +117,9 @@ func TestPackageRevisioner(t *testing.T) {
 				f: &fake.MockFetcher{
 					MockHead: fake.NewMockHeadFn(nil, errBoom),
 				},
-				pkg: &v1beta1.Provider{
-					Spec: v1beta1.ProviderSpec{
-						PackageSpec: v1beta1.PackageSpec{
+				pkg: &v1.Provider{
+					Spec: v1.ProviderSpec{
+						PackageSpec: v1.PackageSpec{
 							Package: "test/test:test",
 						},
 					},

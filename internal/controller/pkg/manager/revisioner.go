@@ -23,7 +23,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -33,7 +33,7 @@ const (
 
 // Revisioner extracts a revision name for a package source.
 type Revisioner interface {
-	Revision(context.Context, v1beta1.Package) (string, error)
+	Revision(context.Context, v1.Package) (string, error)
 }
 
 // PackageRevisioner extracts a revision name for a package source.
@@ -49,7 +49,7 @@ func NewPackageRevisioner(fetcher xpkg.Fetcher) *PackageRevisioner {
 }
 
 // Revision extracts a revision name for a package source.
-func (r *PackageRevisioner) Revision(ctx context.Context, p v1beta1.Package) (string, error) {
+func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string, error) {
 	pullPolicy := p.GetPackagePullPolicy()
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
 		return xpkg.FriendlyID(p.GetName(), p.GetSource()), nil
@@ -63,7 +63,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1beta1.Package) (st
 	if err != nil {
 		return "", err
 	}
-	d, err := r.fetcher.Head(ctx, ref, v1beta1.RefNames(p.GetPackagePullSecrets())...)
+	d, err := r.fetcher.Head(ctx, ref, v1.RefNames(p.GetPackagePullSecrets())...)
 	if err != nil || d == nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}
@@ -79,6 +79,6 @@ func NewNopRevisioner() *NopRevisioner {
 }
 
 // Revision returns an empty revision name and no error.
-func (d *NopRevisioner) Revision(context.Context, v1beta1.Package) (string, error) {
+func (d *NopRevisioner) Revision(context.Context, v1.Package) (string, error) {
 	return "", nil
 }

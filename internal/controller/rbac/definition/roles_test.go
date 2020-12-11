@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 func TestRenderClusterRoles(t *testing.T) {
@@ -37,8 +37,8 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	ctrl := true
 	owner := metav1.OwnerReference{
-		APIVersion: v1beta1.CompositeResourceDefinitionGroupVersionKind.GroupVersion().String(),
-		Kind:       v1beta1.CompositeResourceDefinitionKind,
+		APIVersion: v1.CompositeResourceDefinitionGroupVersionKind.GroupVersion().String(),
+		Kind:       v1.CompositeResourceDefinitionKind,
 		Name:       name,
 		UID:        uid,
 		Controller: &ctrl,
@@ -46,14 +46,14 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		d      *v1beta1.CompositeResourceDefinition
+		d      *v1.CompositeResourceDefinition
 		want   []rbacv1.ClusterRole
 	}{
 		"DoesNotOfferClaim": {
 			reason: "An XRD that does not offer a claim should produce ClusterRoles that grant access to only the composite",
-			d: &v1beta1.CompositeResourceDefinition{
+			d: &v1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					Group: group,
 					Names: extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 				},
@@ -134,9 +134,9 @@ func TestRenderClusterRoles(t *testing.T) {
 		},
 		"OffersClaim": {
 			reason: "An XRD that offers a claim should produce ClusterRoles that grant access to that claim",
-			d: &v1beta1.CompositeResourceDefinition{
+			d: &v1.CompositeResourceDefinition{
 				ObjectMeta: metav1.ObjectMeta{Name: name, UID: uid},
-				Spec: v1beta1.CompositeResourceDefinitionSpec{
+				Spec: v1.CompositeResourceDefinitionSpec{
 					Group:      group,
 					Names:      extv1.CustomResourceDefinitionNames{Plural: pluralXR},
 					ClaimNames: &extv1.CustomResourceDefinitionNames{Plural: pluralXRC},

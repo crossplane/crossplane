@@ -22,7 +22,7 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -57,10 +57,10 @@ type Observation struct {
 }
 
 // A RenderFn renders the supplied composed resource.
-type RenderFn func(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error
+type RenderFn func(cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
 
 // Render calls RenderFn.
-func (c RenderFn) Render(cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
+func (c RenderFn) Render(cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 	return c(cp, cd, t)
 }
 
@@ -81,7 +81,7 @@ func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
 // Render the supplied composed resource using the supplied composite resource
 // and template. The rendered resource may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1beta1.ComposedTemplate) error {
+func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 	// Any existing name will be overwritten when we unmarshal the template. We
 	// store it here so that we can reset it after unmarshalling.
 	name := cd.GetName()
@@ -113,7 +113,7 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	// We do this last to ensure that a Composition cannot influence owner (and
 	// especially controller) references.
 	or := meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind()))
-	cd.SetOwnerReferences([]v1.OwnerReference{or})
+	cd.SetOwnerReferences([]metav1.OwnerReference{or})
 
 	// We don't want to dry-run create a resource that can't be named by the API
 	// server due to a missing generate name. We also don't want to create one
@@ -146,7 +146,7 @@ func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetche
 }
 
 // FetchConnectionDetails of the supplied composed resource, if any.
-func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (managed.ConnectionDetails, error) {
+func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 	sref := cd.GetWriteConnectionSecretToReference()
 	if sref == nil {
 		return nil, nil
@@ -190,7 +190,7 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 }
 
 // IsReady returns whether the composed resource is ready.
-func IsReady(_ context.Context, cd resource.Composed, t v1beta1.ComposedTemplate) (bool, error) { // nolint:gocyclo
+func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bool, error) { // nolint:gocyclo
 	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
 	// mandatory repetitiveness of the switch clause, which is not really complex
 	// in reality. Though beware of adding additional complexity besides that.
@@ -209,21 +209,21 @@ func IsReady(_ context.Context, cd resource.Composed, t v1beta1.ComposedTemplate
 	for i, check := range t.ReadinessChecks {
 		var ready bool
 		switch check.Type {
-		case v1beta1.ReadinessCheckNone:
+		case v1.ReadinessCheckNone:
 			return true, nil
-		case v1beta1.ReadinessCheckNonEmpty:
+		case v1.ReadinessCheckNonEmpty:
 			_, err := paved.GetValue(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err)
-		case v1beta1.ReadinessCheckMatchString:
+		case v1.ReadinessCheckMatchString:
 			val, err := paved.GetString(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err) && val == check.MatchString
-		case v1beta1.ReadinessCheckMatchInteger:
+		case v1.ReadinessCheckMatchInteger:
 			val, err := paved.GetInteger(check.FieldPath)
 			if err != nil {
 				return false, err

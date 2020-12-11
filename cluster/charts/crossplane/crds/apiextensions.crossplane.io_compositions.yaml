@@ -22,7 +22,7 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
-    name: v1beta1
+    name: v1
     schema:
       openAPIV3Schema:
         description: Composition defines the group of resources to be created when a compatible type is created with reference to the composition.
@@ -305,6 +305,295 @@ spec:
         type: object
     served: true
     storage: true
+    subresources:
+      status: {}
+  - additionalPrinterColumns:
+    - jsonPath: .metadata.creationTimestamp
+      name: AGE
+      type: date
+    name: v1beta1
+    schema:
+      openAPIV3Schema:
+        description: Composition defines the group of resources to be created when a compatible type is created with reference to the composition.
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: CompositionSpec specifies the desired state of the definition.
+            properties:
+              compositeTypeRef:
+                description: CompositeTypeRef specifies the type of composite resource that this composition is compatible with.
+                properties:
+                  apiVersion:
+                    description: APIVersion of the type.
+                    type: string
+                  kind:
+                    description: Kind of the type.
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                type: object
+              patchSets:
+                description: PatchSets define a named set of patches that may be included by any resource in this Composition. PatchSets cannot themselves refer to other PatchSets.
+                items:
+                  description: A PatchSet is a set of patches that can be reused from all resources within a Composition.
+                  properties:
+                    name:
+                      description: Name of this PatchSet.
+                      type: string
+                    patches:
+                      description: Patches will be applied as an overlay to the base resource.
+                      items:
+                        description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
+                        properties:
+                          fromFieldPath:
+                            description: FromFieldPath is the path of the field on the upstream resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            type: string
+                          patchSetName:
+                            description: PatchSetName to include patches from. Required when type is PatchSet.
+                            type: string
+                          toFieldPath:
+                            description: ToFieldPath is the path of the field on the base resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path on the target resource.
+                            type: string
+                          transforms:
+                            description: Transforms are the list of functions that are used as a FIFO pipe for the input to be transformed.
+                            items:
+                              description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
+                              properties:
+                                convert:
+                                  description: Convert is used to cast the input into the given output type.
+                                  properties:
+                                    toType:
+                                      description: ToType is the type of the output of this transform.
+                                      enum:
+                                      - string
+                                      - int
+                                      - bool
+                                      - float64
+                                      type: string
+                                  required:
+                                  - toType
+                                  type: object
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Map uses the input as a key in the given map and returns the value.
+                                  type: object
+                                math:
+                                  description: Math is used to transform the input via mathematical operations such as multiplication.
+                                  properties:
+                                    multiply:
+                                      description: Multiply the value.
+                                      format: int64
+                                      type: integer
+                                  type: object
+                                string:
+                                  description: String is used to transform the input into a string or a different kind of string. Note that the input does not necessarily need to be a string.
+                                  properties:
+                                    fmt:
+                                      description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                      type: string
+                                  required:
+                                  - fmt
+                                  type: object
+                                type:
+                                  description: Type of the transform to be run.
+                                  type: string
+                              required:
+                              - type
+                              type: object
+                            type: array
+                          type:
+                            default: FromCompositeFieldPath
+                            description: Type sets the patching behaviour to be used. Each patch type may require its' own fields to be set on the Patch object.
+                            enum:
+                            - FromCompositeFieldPath
+                            - PatchSet
+                            type: string
+                        type: object
+                      type: array
+                  required:
+                  - name
+                  - patches
+                  type: object
+                type: array
+              resources:
+                description: Resources is the list of resource templates that will be used when a composite resource referring to this composition is created.
+                items:
+                  description: ComposedTemplate is used to provide information about how the composed resource should be processed.
+                  properties:
+                    base:
+                      description: Base is the target resource that the patches will be applied on.
+                      type: object
+                      x-kubernetes-embedded-resource: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    connectionDetails:
+                      description: ConnectionDetails lists the propagation secret keys from this target resource to the composition instance connection secret.
+                      items:
+                        description: ConnectionDetail includes the information about the propagation of the connection information from one secret to another.
+                        properties:
+                          fromConnectionSecretKey:
+                            description: FromConnectionSecretKey is the key that will be used to fetch the value from the given target resource.
+                            type: string
+                          name:
+                            description: Name of the connection secret key that will be propagated to the connection secret of the composition instance. Leave empty if you'd like to use the same key name.
+                            type: string
+                          value:
+                            description: Value that will be propagated to the connection secret of the composition instance. Typically you should use FromConnectionSecretKey instead, but an explicit value may be set to inject a fixed, non-sensitive connection secret values, for example a well-known port. Supercedes FromConnectionSecretKey when set.
+                            type: string
+                        type: object
+                      type: array
+                    patches:
+                      description: Patches will be applied as overlay to the base resource.
+                      items:
+                        description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
+                        properties:
+                          fromFieldPath:
+                            description: FromFieldPath is the path of the field on the upstream resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            type: string
+                          patchSetName:
+                            description: PatchSetName to include patches from. Required when type is PatchSet.
+                            type: string
+                          toFieldPath:
+                            description: ToFieldPath is the path of the field on the base resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path on the target resource.
+                            type: string
+                          transforms:
+                            description: Transforms are the list of functions that are used as a FIFO pipe for the input to be transformed.
+                            items:
+                              description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
+                              properties:
+                                convert:
+                                  description: Convert is used to cast the input into the given output type.
+                                  properties:
+                                    toType:
+                                      description: ToType is the type of the output of this transform.
+                                      enum:
+                                      - string
+                                      - int
+                                      - bool
+                                      - float64
+                                      type: string
+                                  required:
+                                  - toType
+                                  type: object
+                                map:
+                                  additionalProperties:
+                                    type: string
+                                  description: Map uses the input as a key in the given map and returns the value.
+                                  type: object
+                                math:
+                                  description: Math is used to transform the input via mathematical operations such as multiplication.
+                                  properties:
+                                    multiply:
+                                      description: Multiply the value.
+                                      format: int64
+                                      type: integer
+                                  type: object
+                                string:
+                                  description: String is used to transform the input into a string or a different kind of string. Note that the input does not necessarily need to be a string.
+                                  properties:
+                                    fmt:
+                                      description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                      type: string
+                                  required:
+                                  - fmt
+                                  type: object
+                                type:
+                                  description: Type of the transform to be run.
+                                  type: string
+                              required:
+                              - type
+                              type: object
+                            type: array
+                          type:
+                            default: FromCompositeFieldPath
+                            description: Type sets the patching behaviour to be used. Each patch type may require its' own fields to be set on the Patch object.
+                            enum:
+                            - FromCompositeFieldPath
+                            - PatchSet
+                            type: string
+                        type: object
+                      type: array
+                    readinessChecks:
+                      description: ReadinessChecks allows users to define custom readiness checks. All checks have to return true in order for resource to be considered ready. The default readiness check is to have the "Ready" condition to be "True".
+                      items:
+                        description: ReadinessCheck is used to indicate how to tell whether a resource is ready for consumption
+                        properties:
+                          fieldPath:
+                            description: FieldPath shows the path of the field whose value will be used.
+                            type: string
+                          matchInteger:
+                            description: MatchInt is the value you'd like to match if you're using "MatchInt" type.
+                            format: int64
+                            type: integer
+                          matchString:
+                            description: MatchString is the value you'd like to match if you're using "MatchString" type.
+                            type: string
+                          type:
+                            description: Type indicates the type of probe you'd like to use.
+                            enum:
+                            - MatchString
+                            - MatchInteger
+                            - NonEmpty
+                            - None
+                            type: string
+                        required:
+                        - type
+                        type: object
+                      type: array
+                  required:
+                  - base
+                  type: object
+                type: array
+              writeConnectionSecretsToNamespace:
+                description: WriteConnectionSecretsToNamespace specifies the namespace in which the connection secrets of composite resource dynamically provisioned using this composition will be created.
+                type: string
+            required:
+            - compositeTypeRef
+            - resources
+            type: object
+          status:
+            description: CompositionStatus shows the observed state of the composition.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time this condition transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A Message containing details about this condition's last transition from one status to another, if any.
+                      type: string
+                    reason:
+                      description: A Reason for this condition's last transition from one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True, False, or Unknown?
+                      type: string
+                    type:
+                      description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        type: object
+    served: true
+    storage: false
     subresources:
       status: {}
 status:

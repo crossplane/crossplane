@@ -28,7 +28,6 @@ import (
 
 // Provider is the CRD type for a request to add a provider to Crossplane.
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
 // +kubebuilder:printcolumn:name="PACKAGE",type="string",JSONPath=".spec.package"
@@ -74,7 +73,6 @@ type ProviderList struct {
 
 // A ProviderRevision that has been added to Crossplane.
 // +kubebuilder:subresource:status
-// +kubebuilder:storageversion
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
 // +kubebuilder:printcolumn:name="IMAGE",type="string",JSONPath=".spec.image"

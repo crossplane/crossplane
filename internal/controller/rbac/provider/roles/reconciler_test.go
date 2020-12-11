@@ -34,7 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 func TestReconcile(t *testing.T) {
@@ -95,7 +95,7 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
-								d := o.(*v1beta1.ProviderRevision)
+								d := o.(*v1.ProviderRevision)
 								d.SetDeletionTimestamp(&now)
 								return nil
 							}),
@@ -178,7 +178,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1beta1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -202,7 +202,7 @@ func TestReconcile(t *testing.T) {
 							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1beta1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -236,7 +236,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1beta1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},

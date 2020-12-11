@@ -36,8 +36,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -133,8 +133,8 @@ func Setup(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1alpha1.Lock{}).
-		Owns(&v1beta1.ConfigurationRevision{}).
-		Owns(&v1beta1.ProviderRevision{}).
+		Owns(&v1.ConfigurationRevision{}).
+		Owns(&v1.ProviderRevision{}).
 		Complete(r)
 }
 
@@ -257,12 +257,12 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 		return reconcile.Result{}, nil
 	}
 
-	var pack v1beta1.Package
+	var pack v1.Package
 	switch dep.Type {
 	case v1alpha1.ConfigurationPackageType:
-		pack = &v1beta1.Configuration{}
+		pack = &v1.Configuration{}
 	case v1alpha1.ProviderPackageType:
-		pack = &v1beta1.Provider{}
+		pack = &v1.Provider{}
 	default:
 		log.Debug(errInvalidPackageType)
 		return reconcile.Result{}, nil
