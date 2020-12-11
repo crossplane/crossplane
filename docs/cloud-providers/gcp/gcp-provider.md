@@ -233,7 +233,7 @@ data:
 apiVersion: gcp.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
-  name: gcp-provider
+  name: default
 spec:
   # replace this with your own gcp project id
   projectID: ${PROJECT_ID}
@@ -256,7 +256,7 @@ The output will look like the following:
 
 ```bash
 secret/gcp-account-creds created
-provider.gcp.crossplane.io/gcp-provider created
+provider.gcp.crossplane.io/default created
 ```
 
 The `gcp-provider` resource will be used in other resources that we will create,
