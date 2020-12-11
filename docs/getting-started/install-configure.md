@@ -5,16 +5,39 @@ weight: 2
 indent: true
 ---
 
-# Install & Configure Crossplane
+# Choosing Hosted vs. Self-Hosted Crossplane
 
-Crossplane can be easily installed into any existing Kubernetes cluster using
-the regularly published Helm chart. The Helm chart contains all the custom
-resources and controllers needed to deploy and configure Crossplane.
+Users looking to use Crossplane for the first time have two options avaiable to them 
+today. The easiest way to start using Crossplane quickly is to use a hosted Crossplane 
+service like Upbound Cloud. Setup should take 10-15 minutes total.
 
-See [Install] and [Configure] docs for installing alternate versions and more
-detailed instructions.
+Alternatively, users looking for some more flexability can install Crossplane into their 
+own Kubernetes cluster. Crossplane will be installed using the regularly published Helm 
+chart. The Helm chart contains all the custom resources and controllers needed to deploy 
+and configure Crossplane.
 
-## Get a Kubernetes Cluster
+Users choosing the self-hosted option can reference our [Install] and [Configure] docs 
+for installing alternate versions and more detailed instructions.
+
+## Start with a Hosted Crossplane
+Upbound Cloud is a managed service of Crossplane created by the founders of Crossplane. 
+You can [create an account](https://cloud.upbound.io/register) to get started. Once 
+logged in, you can [create](https://cloud.upbound.io/docs/getting-started/set-up-upbound-cloud) 
+and then [connect](https://cloud.upbound.io/docs/getting-started/connect-to-your-platform) 
+to your hosted Crossplane cluster.
+
+Once you've completed thse two steps, skip down to 
+[Install Crossplane CLI](#install-crossplane-cli) for further setup instructions.
+
+<i>Want see another hosted Crossplane service listed? Please 
+<a href="http://slack.crossplane.io/">reach out on Slack</a> and our community will 
+highlight it here!</a>
+
+## Start with a Self-Hosted Crossplane
+Installing Crossplane into an existing Kubernetes cluster will require a bit more
+setup, but can provide slightly more configurability today.
+
+### Get a Kubernetes Cluster
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#setup-mac-brew" data-toggle="tab">macOS via Homebrew</a></li>
@@ -60,7 +83,7 @@ For Windows use the following:
 </div>
 </div>
 
-## Install Crossplane
+### Install Crossplane
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (alpha)</a></li>
@@ -103,7 +126,7 @@ helm install crossplane --namespace crossplane-system crossplane-master/crosspla
 </div>
 </div>
 
-## Check Crossplane Status
+### Check Crossplane Status
 
 ```console
 helm list -n crossplane-system
