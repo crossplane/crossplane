@@ -2,7 +2,7 @@
 title: Install & Configure toc: true weight: 2 indent: true
 ---
 
-# Choosing Hosted vs. Self-Hosted Crossplane
+# Choosing Hosted or Self-Hosted Crossplane
 
 Users looking to use Crossplane for the first time have two options avaiable to
 them today. The first way is to use a hosted Crossplane service like [Upbound
