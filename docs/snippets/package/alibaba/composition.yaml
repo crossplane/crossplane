@@ -1,5 +1,5 @@
 ---
-apiVersion: apiextensions.crossplane.io/v1beta1
+apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   name: compositepostgresqlinstances.alibaba.database.example.org

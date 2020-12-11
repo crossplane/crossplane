@@ -155,7 +155,7 @@ Packages can also be installed manually by creating a `Provider` or
 creation of the following two resources, which could have been authored by hand:
 
 ```yaml
-apiVersion: pkg.crossplane.io/v1beta1
+apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-gcp
@@ -166,7 +166,7 @@ spec:
 ```
 
 ```yaml
-apiVersion: pkg.crossplane.io/v1beta1
+apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
   name: provider-gcp
