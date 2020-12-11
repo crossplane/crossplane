@@ -1,41 +1,52 @@
 ---
-title: Install & Configure
-toc: true
-weight: 2
-indent: true
+title: Install & Configure toc: true weight: 2 indent: true
 ---
 
 # Choosing Hosted vs. Self-Hosted Crossplane
 
-Users looking to use Crossplane for the first time have two options avaiable to them 
-today. The easiest way to start using Crossplane quickly is to use a hosted Crossplane 
-service like Upbound Cloud. Setup should take 10-15 minutes total.
+Users looking to use Crossplane for the first time have two options avaiable to
+them today. The first way is to use a hosted Crossplane service like [Upbound
+Cloud]("https://upbound.io"). Alternatively, users looking for some more
+flexability can install Crossplane into their own Kubernetes cluster.
 
-Alternatively, users looking for some more flexability can install Crossplane into their 
-own Kubernetes cluster. Crossplane will be installed using the regularly published Helm 
-chart. The Helm chart contains all the custom resources and controllers needed to deploy 
-and configure Crossplane.
+Crossplane will be installed using the regularly published Helm chart. The Helm
+chart contains all the custom resources and controllers needed to deploy and
+configure Crossplane.
 
-Users choosing the self-hosted option can reference our [Install] and [Configure] docs 
-for installing alternate versions and more detailed instructions.
+Users choosing the self-hosted option can reference our [Install] and
+[Configure] docs for installing alternate versions and more detailed
+instructions.
+
+<ul class="nav nav-tabs">
+<li class="active"><a href="#using-hosted-crossplane" data-toggle="tab">Hosted Crossplane</a></li>
+<li><a href="#using-self-hosted-crossplane" data-toggle="tab">Self-Hosted Crossplane</a></li>
+</ul>
+
+<div class="tab-content">
+<div class="tab-pane fade in active" id="using-hosted-crossplane" markdown="1">
 
 ## Start with a Hosted Crossplane
-Upbound Cloud is a managed service of Crossplane created by the founders of Crossplane. 
-You can [create an account](https://cloud.upbound.io/register) to get started. Once 
-logged in, you can [create](https://cloud.upbound.io/docs/getting-started/set-up-upbound-cloud) 
-and then [connect](https://cloud.upbound.io/docs/getting-started/connect-to-your-platform) 
+Upbound Cloud is a managed service of Crossplane created by the founders of
+Crossplane. You can [create an account](https://cloud.upbound.io/register) to
+get started. Once logged in, you can
+[create](https://cloud.upbound.io/docs/getting-started/set-up-upbound-cloud) and
+then
+[connect](https://cloud.upbound.io/docs/getting-started/connect-to-your-platform)
 to your hosted Crossplane cluster.
 
-Once you've completed thse two steps, skip down to 
-[Install Crossplane CLI](#install-crossplane-cli) for further setup instructions.
+Once you've completed these two steps, skip down to [Install Crossplane
+CLI](#install-crossplane-cli) for further setup instructions.
 
-<i>Want see another hosted Crossplane service listed? Please 
-<a href="http://slack.crossplane.io/">reach out on Slack</a> and our community will 
-highlight it here!</a></i>
+<i>Want see another hosted Crossplane service listed? Please [reach out on
+Slack][Slack] and our community will highlight it here!</i>
+
+</div>
+
+<div class="tab-pane fade" id="using-self-hosted-crossplane" markdown="1">
 
 ## Start with a Self-Hosted Crossplane
-Installing Crossplane into an existing Kubernetes cluster will require a bit more
-setup, but can provide slightly more configurability today.
+Installing Crossplane into an existing Kubernetes cluster will require a bit
+more setup, but can provide more flexability for users who need it.
 
 ### Get a Kubernetes Cluster
 
@@ -57,8 +68,8 @@ brew install helm
 
 kind create cluster --image kindest/node:v1.16.15 --wait 5m
 ```
-
 </div>
+
 <div class="tab-pane fade" id="setup-mac-linux" markdown="1">
 For macOS / Linux use the following:
 
@@ -134,9 +145,13 @@ helm list -n crossplane-system
 kubectl get all -n crossplane-system
 ```
 
+</div>
+</div>
+
 ## Install Crossplane CLI
 
-The Crossplane CLI extends `kubectl` with functionality to build, push, and install [Crossplane packages]:
+The Crossplane CLI extends `kubectl` with functionality to build, push, and
+install [Crossplane packages]:
 
 ```console
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
@@ -144,11 +159,8 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 
 ## Select Provider
 
-If you've decided to use a Hosted Crossplane from Upbound Cloud, make sure you've gone ahead and 
-[connected locally](https://cloud.upbound.io/docs/getting-started/connect-to-your-platform) to the remote 
-cluster. 
-
-Now from your terminal, install and configure a provider for Crossplane to use for infrastructure provisioning:
+Now from your terminal, install and configure a provider for Crossplane to use
+for infrastructure provisioning:
 <ul class="nav nav-tabs">
 <li class="active"><a href="#provider-tab-aws" data-toggle="tab">AWS</a></li>
 <li><a href="#provider-tab-gcp" data-toggle="tab">GCP</a></li>
@@ -181,8 +193,8 @@ kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./c
 
 ### Configure the Provider
 
-We will create the following `ProviderConfig` object to configure credentials for AWS
-Provider:
+We will create the following `ProviderConfig` object to configure credentials
+for AWS Provider:
 
 ```yaml
 apiVersion: aws.crossplane.io/v1beta1
@@ -242,8 +254,8 @@ kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./c
 
 ### Configure the Provider
 
-We will create the following `ProviderConfig` object to configure credentials for GCP
-Provider:
+We will create the following `ProviderConfig` object to configure credentials
+for GCP Provider:
 
 ```console
 # replace this with your own gcp project id
@@ -302,8 +314,8 @@ kubectl create secret generic azure-creds -n crossplane-system --from-file=key=.
 
 ### Configure the Provider
 
-We will create the following `ProviderConfig` object to configure credentials for
-Azure Provider:
+We will create the following `ProviderConfig` object to configure credentials
+for Azure Provider:
 
 ```yaml
 apiVersion: azure.crossplane.io/v1beta1
@@ -340,8 +352,8 @@ kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key
 
 ### Configure the Provider
 
-We will create the following `ProviderConfig` object to configure credentials for
-Alibaba Provider:
+We will create the following `ProviderConfig` object to configure credentials
+for Alibaba Provider:
 
 ```yaml
 apiVersion: alibaba.crossplane.io/v1alpha1
@@ -377,7 +389,8 @@ detailed instructions.
 
 ## Uninstall Provider
 
-Let's check whether there are any managed resources before deleting the provider.
+Let's check whether there are any managed resources before deleting the
+provider.
 
 ```console
 kubectl get managed
@@ -399,11 +412,12 @@ kubectl delete namespace crossplane-system
 
 <!-- Named Links -->
 
-[provision infrastructure]: provision-infrastructure.md
-[Install]: ../reference/install.md
-[Configure]: ../reference/configure.md
-[Kubernetes cluster]: https://kubernetes.io/docs/setup/
-[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
-[Helm]: https://docs.helm.sh/using_helm/
-[Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/
-[Crossplane packages]: ../introduction/packages.md
+[provision infrastructure]: provision-infrastructure.md 
+[Install]: ../reference/install.md 
+[Configure]: ../reference/configure.md 
+[Kubernetes cluster]: https://kubernetes.io/docs/setup/ 
+[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/ 
+[Helm]:https://docs.helm.sh/using_helm/ 
+[Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/ 
+[Crossplane packages]:../introduction/packages.md 
+[Slack]: http://slack.crossplane.io/
