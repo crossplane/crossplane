@@ -25,6 +25,7 @@ type ConfigurationSpec struct {
 	MetaSpec `json:",inline"`
 }
 
+// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 
 // A Configuration is the description of a Crossplane Configuration package.

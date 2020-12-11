@@ -42,6 +42,7 @@ type ControllerSpec struct {
 	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
 }
 
+// +kubebuilder:storageversion
 // +kubebuilder:object:root=true
 
 // A Provider is the description of a Crossplane Provider package.
