@@ -27,7 +27,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/dag"
@@ -75,7 +75,7 @@ func TestResolve(t *testing.T) {
 						MockGet: test.NewMockGetFn(errBoom),
 					},
 				},
-				meta: &pkgmeta.Configuration{},
+				meta: &pkgmetav1.Configuration{},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetLock),
@@ -96,7 +96,7 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{},
+				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
 						Package: "hasheddan/config-nop-a:v0.0.1",
@@ -122,7 +122,7 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{},
+				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
@@ -163,7 +163,7 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{},
+				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
@@ -204,7 +204,7 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{},
+				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
@@ -247,7 +247,7 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{},
+				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
@@ -298,10 +298,10 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							DependsOn: []pkgmeta.Dependency{
+				meta: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
 								{
 									Provider: pointer.StringPtr("not-here-1"),
 								},
@@ -386,10 +386,10 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							DependsOn: []pkgmeta.Dependency{
+				meta: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
 								{
 									Provider: pointer.StringPtr("not-here-1"),
 								},
@@ -483,10 +483,10 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							DependsOn: []pkgmeta.Dependency{
+				meta: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
 								{
 									Provider: pointer.StringPtr("not-here-1"),
 									Version:  ">=v0.1.0",
@@ -583,10 +583,10 @@ func TestResolve(t *testing.T) {
 						}
 					},
 				},
-				meta: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							DependsOn: []pkgmeta.Dependency{
+				meta: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							DependsOn: []pkgmetav1.Dependency{
 								{
 									Provider: pointer.StringPtr("not-here-1"),
 									Version:  ">=v0.1.0",

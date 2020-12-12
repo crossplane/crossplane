@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	"github.com/pkg/errors"
@@ -35,6 +35,7 @@ type ConfigurationSpec struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // A Configuration is the description of a Crossplane Configuration package.
 type Configuration struct {
@@ -57,11 +58,10 @@ func (c *Configuration) ConvertTo(hub conversion.Hub) error {
 		out.Spec.Crossplane = &meta.CrossplaneConstraints{Version: c.Spec.Crossplane.Version}
 	}
 
-	if len(c.Spec.DependsOn) == 0 {
-		return nil
+	if len(c.Spec.DependsOn) > 0 {
+		out.Spec.DependsOn = make([]meta.Dependency, len(c.Spec.DependsOn))
 	}
 
-	out.Spec.DependsOn = make([]meta.Dependency, len(c.Spec.DependsOn))
 	for i := range c.Spec.DependsOn {
 		out.Spec.DependsOn[i] = meta.Dependency{
 			Provider:      c.Spec.DependsOn[i].Provider,

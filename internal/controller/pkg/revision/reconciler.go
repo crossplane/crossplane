@@ -159,7 +159,7 @@ func WithParserBackend(p parser.Backend) ReconcilerOption {
 	}
 }
 
-// WithLinter specifies how the Reconciler should parse a package.
+// WithLinter specifies how the Reconciler should lint a package.
 func WithLinter(l parser.Linter) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.linter = l

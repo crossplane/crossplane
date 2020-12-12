@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1
 
 import (
 	"github.com/pkg/errors"
@@ -52,6 +52,7 @@ type ControllerSpec struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:storageversion
 
 // A Provider is the description of a Crossplane Provider package.
 type Provider struct {

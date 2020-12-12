@@ -130,7 +130,7 @@ func (m *MockDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRev
 	return m.MockRemoveSelf()
 }
 
-var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: test
