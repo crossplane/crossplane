@@ -1,12 +1,15 @@
 ---
-title: Install & Configure toc: true weight: 2 indent: true
+title: Install & Configure 
+toc: true 
+weight: 2 
+indent: true
 ---
 
 # Choosing Hosted or Self-Hosted Crossplane
 
-Users looking to use Crossplane for the first time have two options avaiable to
+Users looking to use Crossplane for the first time have two options available to
 them today. The first way is to use a hosted Crossplane service like [Upbound
-Cloud]("https://upbound.io"). Alternatively, users looking for some more
+Cloud][Upbound Cloud]. Alternatively, users looking for some more
 flexability can install Crossplane into their own Kubernetes cluster.
 
 Crossplane will be installed using the regularly published Helm chart. The Helm
@@ -421,3 +424,4 @@ kubectl delete namespace crossplane-system
 [Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/ 
 [Crossplane packages]:../introduction/packages.md 
 [Slack]: http://slack.crossplane.io/
+[Upbound Cloud]: https://upbound.io
