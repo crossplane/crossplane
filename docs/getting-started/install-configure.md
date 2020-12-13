@@ -10,7 +10,7 @@ indent: true
 Users looking to use Crossplane for the first time have two options available to
 them today. The first way is to use a hosted Crossplane service like [Upbound
 Cloud][Upbound Cloud]. Alternatively, users looking for some more
-flexability can install Crossplane into their own Kubernetes cluster.
+flexibility can install Crossplane into their own Kubernetes cluster.
 
 Crossplane will be installed using the regularly published Helm chart. The Helm
 chart contains all the custom resources and controllers needed to deploy and
@@ -49,7 +49,7 @@ Slack][Slack] and our community will highlight it here!</i>
 
 ## Start with a Self-Hosted Crossplane
 Installing Crossplane into an existing Kubernetes cluster will require a bit
-more setup, but can provide more flexability for users who need it.
+more setup, but can provide more flexibility for users who need it.
 
 ### Get a Kubernetes Cluster
 
