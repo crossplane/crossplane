@@ -22,9 +22,10 @@ purposes of Crossplane packages are as follows:
   resources owned by other packages. Installing CRDs via packages also allows
   Crossplane itself to manage those resources, allowing for powerful
   [composition] features to be enabled.
-- **Dependency Management**: In future releases, Crossplane will be able to
-  resolve dependencies between packages, automatically installing a package's
-  dependencies if they are not present in the cluster.
+- **Dependency Management**: Crossplane resolves dependencies between packages,
+  automatically installing a package's dependencies if they are not present in
+  the cluster, and checking if dependency versions are valid if they are already
+  installed.
 
 ## Building a Package
 
@@ -49,18 +50,29 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
+  crossplane:
+    version: ">=v1.0.0"
   controller:
-    image: crossplane/provider-gcp-controller:master
+    image: crossplane/provider-gcp-controller:v0.14.0
+    permissionRequests:
+    - apiGroups:
+      - apiextensions.crossplane.io
+      resources:
+      - compositions
+      verbs:
+      - get
+      - list
+      - create
+      - update
+      - patch
+      - watch
 ```
+
+See all available fields in the [official documentation][provider-docs].
 
 > Note: The `meta.pkg.crossplane.io` group does contain custom resources that
 > may be installed into the cluster. They are strictly used as metadata in a
 > Crossplane package.
-
-The `spec.controller.image` fields specifies that the `Provider` desires for a
-`Deployment` to be created with the provided image. It is important to note that
-this image is separate from the package image itself. In the case above, it is
-an image containing the `provider-gcp` controller binary.
 
 A Provider package may optionally contain one or more CRDs. These CRDs will be
 installed prior to the creation of the Provider's `Deployment`. Crossplane will
@@ -68,6 +80,29 @@ not install _any_ CRDs for a package unless it can determine that _all_ CRDs can
 be installed. This guards against multiple Providers attempting to reconcile the
 same CRDs. Crossplane will also create a `ServiceAccount` with permissions to
 reconcile these CRDs and it will be assigned to the controller `Deployment`.
+
+The `spec.controller.image` fields specifies that the `Provider` desires for the
+controller `Deployment` to be created with the provided image. It is important
+to note that this image is separate from the package image itself. In the case
+above, it is an image containing the `provider-gcp` controller binary.
+
+The `spec.controller.permissionRequests` field allows a package author to
+request additional RBAC for the packaged controller. The controller's
+`ServiceAccount` will automatically give the controller permission to reconcile
+all types that its package installs, as well as `Secrets`, `ConfigMaps`, and
+`Events`. Any additional permissions must be explicitly requested.
+
+> Note that the Crossplane RBAC manager can be configured to reject permissions
+> for certain API groups. If a package requests permissions that Crossplane is
+> configured to reject, the package will fail to be installed. 
+
+The `spec.crossplane.version` field specifies the version constraints for core
+Crossplane that the `Provider` is compatible with. It is advisable to use this
+field if a package relies on specific features in a minimum version of
+Crossplane.
+
+> All version constraints used in packages follow the [specification] outlined
+> in the `Masterminds/semver` repository.
 
 For an example Provider package, see [provider-gcp].
 
@@ -81,6 +116,9 @@ kubectl crossplane build provider
 If the Provider package is valid, you will see a file with the `.xpkg`
 extension.
 
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
+
 ### Configuration Packages
 
 A Configuration package contains a `crossplane.yaml` with the following format:
@@ -90,17 +128,34 @@ apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
   name: my-org-infra
+spec:
+  crossplane:
+    version: ">=v1.0.0"
+  dependsOn:
+    - provider: crossplane/provider-gcp
+      version: ">=v0.14.0"
 ```
 
-Currently, the only purpose of a Configuration's `crossplane.yaml` is to declare
-that it is in fact a Configuration package type. However, future releases will
-include additional fields for functionality such as specifying dependencies on
-Provider packages.
+See all available fields in the [official documentation][configuration-docs].
 
 A Configuration package may also specify one or more of
 `CompositeResourceDefinition` and `Composition` types. These resources will be
 installed and will be solely owned by the Configuration package. No other
 package will be able to modify them.
+
+The `spec.crossplane.version` field serves the same purpose that it does in a
+`Provider` package.
+
+The `spec.dependsOn` field specifies packages that this package depends on. When
+installed, the package manager will ensure that all dependencies are present and
+have a valid version given the constraint. If a dependency is not installed, the
+package manager will install it at the latest version that fits within the
+provided constraints.
+
+> Dependency resolution is an `alpha` feature and depends on the `v1alpha`
+> [`Lock` API][lock-api].
+
+For an example Configuration package, see [getting-started-with-gcp].
 
 To build a Configuration package, navigate to the package root directory and
 execute the following command:
@@ -120,13 +175,13 @@ registry is not specified they will be pushed to Docker Hub.
 To push a Provider package, execute the following command:
 
 ```
-kubectl crossplane push provider crossplane/provider-gcp:master
+kubectl crossplane push provider crossplane/provider-gcp:v0.14.0
 ```
 
 To push a Configuration package, execute the following command:
 
 ```
-kubectl crossplane push configuration crossplane/my-org-infra:master
+kubectl crossplane push configuration crossplane/my-org-infra:v0.1.0
 ```
 
 > Note: Both of the above commands assume a single `.xpkg` file exists in the
@@ -141,13 +196,13 @@ Packages can be installed into a Crossplane cluster using the Crossplane CLI.
 To install a Provider package, execute the following command:
 
 ```
-kubectl crossplane install provider crossplane/provider-gcp:master
+kubectl crossplane install provider crossplane/provider-gcp:v0.12.0
 ```
 
 To install a Configuration package, execute the following command:
 
 ```
-kubectl crossplane install configuration crossplane/my-org-infra:master
+kubectl crossplane install configuration crossplane/my-org-infra:v0.1.0
 ```
 
 Packages can also be installed manually by creating a `Provider` or
@@ -161,6 +216,7 @@ metadata:
   name: provider-gcp
 spec:
   package: crossplane/provider-gcp:master
+  packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1
 ```
@@ -169,9 +225,10 @@ spec:
 apiVersion: pkg.crossplane.io/v1
 kind: Configuration
 metadata:
-  name: provider-gcp
+  name: my-org-infra
 spec:
   package: crossplane/provider-gcp:master
+  packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1
 ```
@@ -181,14 +238,10 @@ spec:
 > `meta.pkg.crossplane.io` group and are actual custom resources created in the
 > cluster.
 
-The `spec.revisionActivationPolicy` and `spec.revisionHistoryLimit` fields are
-explained in the following section.
-
-## Upgrading a Package
-
-Once a package is installed, Crossplane makes it easy to upgrade to a new
-version. Controlling this functionality is accomplished via the three `spec`
-fields shown above. They are explained in detail below.
+The default fields specified above can be configured with different values to
+modify the installation and upgrade behavior of a package. In addition, there
+are multiple other fields which can further customize how the package manager
+handles a specific revision.
 
 ### spec.package
 
@@ -203,28 +256,59 @@ change unexpectedly (e.g. a specific semantic version, such as `v0.1.0`) or, for
 an even stronger guarantee, providing the image with a `@sha256` extension
 instead of a tag.
 
+### spec.packagePullPolicy
+
+Valid values: `IfNotPresent`, `Always`, or `Never` (default: `IfNotPresent`)
+
+When a package is installed, Crossplane downloads the image contents into a
+cache. Depending on the image identifier (tag or digest) and the
+`packagePullPolicy`, the Crossplane package manager will decide if and when to
+check and see if newer package contents are available. The following table
+describes expected behavior based on the supplied fields:
+
+|                                 | `IfNotPresent`                                                                                                                                                                                                                                                                                                                                   | `Always`                                                                                                                                                                                                                                                       | `Never`                                                                                                                   |
+|---------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------|
+| Semver Tag (e.g. `v1.3.0`)      | Package is downloaded when initially installed, and as long as it is present in the cache, it will not be downloaded again. If the cache is lost and the a new version of the package image has been pushed for the same tag, package could inadvertently be upgraded. <br><br>  **Upgrade Safety: Strong**                                      | Package is downloaded when initially installed, but Crossplane will check every minute if new content is available. New content would have to be pushed for the same semver tag for upgrade to take place. <br><br> **Upgrade Safety: Weak**                   | Crossplane will never download content. Must manually load package image in cache. <br><br> **Upgrade Safety: Strongest** |
+| Digest (e.g. `@sha256:28b6...`) | Package is downloaded when initially installed, and as long as it is present in the cache, it will not be downloaded again. If the cache is lost but an image with this digest is still available, it will be downloaded again. The package will never be upgraded without a user changing the digest. <br><br>  **Upgrade Safety: Very Strong** | Package is downloaded when initially installed, but Crossplane will check every minute if new content is available. Because image digest is used, new content will never be downloaded. <br><br> **Upgrade Safety: Strong**                                    | Crossplane will never download content. Must manually load package image in cache. <br><br> **Upgrade Safety: Strongest** |
+| Channel Tag (e.g. `latest`)     | Package is downloaded when initially installed, and as long as it is present in the cache, it will not be downloaded again. If the cache is lost, the latest version of this package image will be downloaded again, which will frequently have different contents. <br><br> **Upgrade Safety: Weak**                                            | Package is downloaded when initially installed, but Crossplane will check every minute if new content is available. When the image content is new, Crossplane will download the new contents and create a new revision. <br><br> **Upgrade Safety: Very Weak** | Crossplane will never download content. Must manually load package image in cache. <br><br> **Upgrade Safety: Strongest** |
+
 ### spec.revisionActivationPolicy
 
 Valid values: `Automatic` or `Manual` (default: `Automatic`)
 
-This field determines what Crossplane does when a new revision is created, be it
-manually by you specifying a new tag in the `spec.package` field, or
-automatically if a general tag such as `latest` or `master` is used and the
-underlying contents change. When a new revision is created for a package, it can
-either be `Active` or `Inactive`.
+When Crossplane downloads new contents for a package, regardless of whether it
+was a manual upgrade (i.e. user updating package image tag), or an automatic one
+(enabled by the `packagePullPolicy`), it will create a new package revision.
+However, the new objects and / or controllers will not be installed until the
+new revision is marked as `Active`. This activation process is configured by the
+`revisionActivationPolicy` field.
 
 An `Active` package revision attempts to become the _controller_ of all
 resources it installs. There can only be one controller of a resource, so if two
 `Active` revisions both install the same resource, one will fail to install
 until the other cedes control.
 
-An `Inactive` package revision attempts to become the _owner_ of all resource it
-installs. There can be an arbitrary number of owners of a resource, so multiple
-`Inactive` revisions and a single `Active` revision can exist for a resource.
-Importantly, an `Inactive` package revision will not perform any auxiliary
-actions (such as creating a `Deployment` in the case of a `Provider`), meaning
-we will not encounter a situation where two revisions are fighting over
+An `Inactive` package revision attempts to become the _owner_ of all resources
+it installs. There can be an arbitrary number of owners of a resource, so
+multiple `Inactive` revisions and a single `Active` revision can exist for a
+resource. Importantly, an `Inactive` package revision will not perform any
+auxiliary actions (such as creating a `Deployment` in the case of a `Provider`),
+meaning we will not encounter a situation where two revisions are fighting over
 reconciling a resource.
+
+With `revisionActivationPolicy: Automatic`, Crossplane will mark any new
+revision as `Active` when it is created, as well as transition any old revisions
+to `Inactive`. When `revisionActivationPolicy: Manual`, the user must manually
+edit a new revision and mark it as `Active`. This can be useful if you are using
+a `packagePullPolicy: Automatic` with a channel tag (e.g. `latest`) and you want
+Crossplane to create new revisions when a new version is available, but you
+don't want to automatically update to that newer revision.
+
+It is recommended for most users to use semver tags or image digests and
+manually update their packages, but use a `revisionActivationPolicy: Automatic`
+to avoid having to manually activate new versions. However, each user should
+consider their specific environment and choose a combination that makes sense
+for them.
 
 ### spec.revisionHistoryLimit
 
@@ -247,10 +331,85 @@ become `Inactive`, and the oldest `Inactive` revision will be garbage collected.
 > immediately be garbage collected if it is outside the
 > `spec.revisionHistoryLimit`.
 
+### spec.packagePullSecrets
+
+Valid values: slice of `Secret` names (secrets must exist in `namespace`
+Crossplane was installed in, typically `crossplane-system`)
+
+This field allows a user to provide credentials required to pull a package from
+a private repository on a registry. The credentials are passed along to a
+packaged controller if the package is a `Provider`, but are not passed along to
+any dependencies.
+
+### spec.skipDependencyResolution
+
+Valid values: `true` or `false` (default: `false`)
+
+If `skipDependencyResolution: true`, the package manager will install a package
+without considering its dependencies.
+
+### spec.ignoreCrossplaneConstraints
+
+Valid values: `true` or `false` (default: `false`)
+
+If `ignoreCrossplaneConstraints: true`, the package manager will install a
+package without considering the version of Crossplane that is installed.
+
+### spec.controllerConfigRef
+
+> This field is only available when installing a `Provider` and is an `alpha`
+> feature that depends on the `v1alpha1` [`ControllerConfig` API][controller-config-docs].
+
+Valid values: name of a `ControllerConfig` object
+
+Packaged `Provider` controllers are installed in the form of a `Deployment`.
+Crossplane populates the `Deployment` with default values that may not be
+appropriate for every use-case. In the event that a user wants to override some
+of the defaults that Crossplane has set, they may create and reference a
+`ControllerConfig`.
+
+An example of when this may be useful is when a user is running Crossplane on
+EKS and wants to take advantage of [IAM Roles for Service Accounts]. This
+requires setting an `fsGroup` and annotating the `ServiceAccount` that
+Crossplane creates for the controller. This could be accomplished with the
+following `ControllerConfig` and `Provider`:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: aws-config
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::$AWS_ACCOUNT_ID\:role/$IAM_ROLE_NAME
+spec:
+  podSecurityContext:
+    fsGroup: 2000
+---
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: Provider
+metadata:
+  name: provider-aws
+spec:
+  package: crossplane/provider-aws:v0.15.0
+  controllerConfigRef:
+    name: aws-config
+```
+
+You can find all configurable values in the [official `ControllerConfig`
+documentation][controller-config-docs].
+
+
 <!-- Named Links -->
 
 [OCI images]: https://github.com/opencontainers/image-spec
 [Providers]: providers.md
+[provider-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Provider/v1
+[configuration-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Configuration/v1
+[lock-api]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/Lock/v1alpha1
+[getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/master/docs/snippets/package/gcp
+[specification]: https://github.com/Masterminds/semver#basic-comparisons
 [composition]: composition.md
+[IAM Roles for Service Accounts]: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+[controller-config-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/ControllerConfig/v1alpha1
 [package format]: https://github.com/crossplane/crossplane/blob/1aa83092172bdf0d2ed64754d33517c612ff7368/design/one-pager-package-format-v2.md
 [provider-gcp]: https://github.com/crossplane/provider-gcp/tree/master/package

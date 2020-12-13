@@ -573,6 +573,9 @@ kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-aws:master
 ```
 
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
+
 </div>
 <div class="tab-pane fade" id="aws-new-tab-3" markdown="1">
 
@@ -597,6 +600,9 @@ kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:master
 ```
 
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
+
 </div>
 <div class="tab-pane fade" id="gcp-tab-3" markdown="1">
 
@@ -619,6 +625,9 @@ REG=my-package-repo
 kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-gcp:master
 ```
+
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
 
 </div>
 <div class="tab-pane fade" id="azure-tab-3" markdown="1">
@@ -643,6 +652,9 @@ kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
 ```
 
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
+
 </div>
 <div class="tab-pane fade" id="alibaba-tab-3" markdown="1">
 
@@ -665,6 +677,9 @@ REG=my-package-repo
 kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-alibaba:master
 ```
+
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
 
 </div>
 </div>
