@@ -32,7 +32,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/version/fake"
 )
@@ -48,12 +49,22 @@ kind: CustomResourceDefinition
 metadata:
   name: test`)
 
-	provBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+	v1alpha1ProvBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Provider
 metadata:
   name: test`)
 
-	confBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+	v1alpha1ConfBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: test`)
+
+	v1ProvBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: test`)
+
+	v1ConfBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Configuration
 metadata:
   name: test`)
@@ -68,18 +79,22 @@ kind: Composition
 metadata:
   name: test`)
 
-	v1beta1crd = &apiextensions.CustomResourceDefinition{}
-	_          = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
-	v1crd      = &apiextensions.CustomResourceDefinition{}
-	_          = yaml.Unmarshal(v1CRDBytes, v1crd)
-	provMeta   = &pkgmeta.Provider{}
-	_          = yaml.Unmarshal(provBytes, provMeta)
-	confMeta   = &pkgmeta.Configuration{}
-	_          = yaml.Unmarshal(confBytes, confMeta)
-	v1XRD      = &v1.CompositeResourceDefinition{}
-	_          = yaml.Unmarshal(v1XRDBytes, v1XRD)
-	v1Comp     = &v1.Composition{}
-	_          = yaml.Unmarshal(v1CompBytes, v1Comp)
+	v1beta1crd       = &apiextensions.CustomResourceDefinition{}
+	_                = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
+	v1crd            = &apiextensions.CustomResourceDefinition{}
+	_                = yaml.Unmarshal(v1CRDBytes, v1crd)
+	v1alpha1ProvMeta = &pkgmetav1alpha1.Provider{}
+	_                = yaml.Unmarshal(v1alpha1ProvBytes, v1alpha1ProvMeta)
+	v1alpha1ConfMeta = &pkgmetav1alpha1.Configuration{}
+	_                = yaml.Unmarshal(v1alpha1ConfBytes, v1alpha1ConfMeta)
+	v1ProvMeta       = &pkgmetav1.Provider{}
+	_                = yaml.Unmarshal(v1ProvBytes, v1ProvMeta)
+	v1ConfMeta       = &pkgmetav1.Configuration{}
+	_                = yaml.Unmarshal(v1ConfBytes, v1ConfMeta)
+	v1XRD            = &v1.CompositeResourceDefinition{}
+	_                = yaml.Unmarshal(v1XRDBytes, v1XRD)
+	v1Comp           = &v1.Composition{}
+	_                = yaml.Unmarshal(v1CompBytes, v1Comp)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -87,11 +102,11 @@ metadata:
 )
 
 func TestOneMeta(t *testing.T) {
-	oneR := bytes.NewReader(bytes.Join([][]byte{v1beta1CRDBytes, provBytes}, []byte("\n---\n")))
+	oneR := bytes.NewReader(bytes.Join([][]byte{v1beta1CRDBytes, v1alpha1ProvBytes}, []byte("\n---\n")))
 	oneMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(oneR))
 	noneR := bytes.NewReader(v1beta1CRDBytes)
 	noneMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(noneR))
-	multiR := bytes.NewReader(bytes.Join([][]byte{provBytes, provBytes}, []byte("\n---\n")))
+	multiR := bytes.NewReader(bytes.Join([][]byte{v1alpha1ProvBytes, v1alpha1ProvBytes}, []byte("\n---\n")))
 	multiMeta, _ := p.Parse(context.TODO(), ioutil.NopCloser(multiR))
 
 	cases := map[string]struct {
@@ -132,9 +147,13 @@ func TestIsProvider(t *testing.T) {
 		obj    runtime.Object
 		err    error
 	}{
-		"Successful": {
-			reason: "Should not return error if object is provider.",
-			obj:    provMeta,
+		"v1alpha1": {
+			reason: "Should not return error if object is a v1alpha1 provider.",
+			obj:    v1alpha1ProvMeta,
+		},
+		"v1": {
+			reason: "Should not return error if object is a v1 provider.",
+			obj:    v1ProvMeta,
 		},
 		"ErrNotProvider": {
 			reason: "Should return error if object is not provider.",
@@ -160,9 +179,13 @@ func TestIsConfiguration(t *testing.T) {
 		obj    runtime.Object
 		err    error
 	}{
-		"Successful": {
-			reason: "Should not return error if object is configuration.",
-			obj:    confMeta,
+		"v1alpha1": {
+			reason: "Should not return error if object is a v1alpha1 configuration.",
+			obj:    v1alpha1ConfMeta,
+		},
+		"v1": {
+			reason: "Should not return error if object is a v1 configuration.",
+			obj:    v1ConfMeta,
 		},
 		"ErrNotConfiguration": {
 			reason: "Should return error if object is not configuration.",
@@ -198,10 +221,10 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 		"Successful": {
 			reason: "Should not return error if Crossplane version within constraints.",
 			args: args{
-				obj: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				obj: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplaneConstraint,
 							},
 						},
@@ -215,16 +238,16 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 		"SuccessfulNoConstraints": {
 			reason: "Should not return error if no constraints provided.",
 			args: args{
-				obj: confMeta,
+				obj: v1ProvMeta,
 			},
 		},
 		"ErrInvalidConstraints": {
 			reason: "Should return error if constraints are invalid.",
 			args: args{
-				obj: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				obj: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplaneConstraint,
 							},
 						},
@@ -240,10 +263,10 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 		"ErrOutsideConstraints": {
 			reason: "Should return error if Crossplane version outside constraints.",
 			args: args{
-				obj: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				obj: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplaneConstraint,
 							},
 						},
@@ -291,10 +314,10 @@ func TestPackageValidSemver(t *testing.T) {
 		"Valid": {
 			reason: "Should not return error if constraints are valid.",
 			args: args{
-				obj: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				obj: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: validConstraint,
 							},
 						},
@@ -305,10 +328,10 @@ func TestPackageValidSemver(t *testing.T) {
 		"ErrInvalidConstraints": {
 			reason: "Should return error if constraints are invalid.",
 			args: args{
-				obj: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				obj: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: invalidConstraint,
 							},
 						},
@@ -346,7 +369,7 @@ func TestIsCRD(t *testing.T) {
 		},
 		"ErrNotCRD": {
 			reason: "Should return error if object is not CRD.",
-			obj:    confMeta,
+			obj:    v1alpha1ConfMeta,
 			err:    errors.New(errNotCRD),
 		},
 	}

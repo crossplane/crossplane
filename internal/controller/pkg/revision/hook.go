@@ -28,9 +28,10 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
@@ -42,8 +43,6 @@ const (
 	errApplyProviderDeployment       = "cannot apply provider package deployment"
 	errApplyProviderSA               = "cannot apply provider package service account"
 	errUnavailableProviderDeployment = "provider package deployment is unavailable"
-
-	errNotConfiguration = "not a configuration package"
 )
 
 // A Hooks performs operations before and after a revision establishes objects.
@@ -73,7 +72,8 @@ func NewProviderHooks(client resource.ClientApplicator, namespace string) *Provi
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
 func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	pkgProvider, ok := pkg.(*pkgmeta.Provider)
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New(errNotProvider)
 	}
@@ -108,7 +108,8 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 // Post creates a packaged provider controller and service account if the
 // revision is active.
 func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	pkgProvider, ok := pkg.(*pkgmeta.Provider)
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New("not a provider package")
 	}
@@ -161,13 +162,6 @@ func NewConfigurationHooks() *ConfigurationHooks {
 
 // Pre sets status fields based on the configuration package.
 func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	_, ok := pkg.(*pkgmeta.Configuration)
-	if !ok {
-		return errors.New(errNotConfiguration)
-	}
-
-	// TODO(hasheddan): update any status fields relevant to package revisions
-
 	return nil
 }
 

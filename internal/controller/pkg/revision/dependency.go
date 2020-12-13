@@ -26,10 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/dag"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
@@ -67,7 +68,7 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1alpha1.Pa
 
 // Resolve resolves package dependencies.
 func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { // nolint:gocyclo
-	pack, ok := pkg.(pkgmeta.Pkg)
+	pack, ok := xpkg.TryConvertToPkg(pkg, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 	if !ok {
 		return found, installed, invalid, errors.New(errNotMeta)
 	}

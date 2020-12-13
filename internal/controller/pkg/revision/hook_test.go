@@ -29,7 +29,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
@@ -71,32 +71,23 @@ func TestHookPre(t *testing.T) {
 			reason: "Should return error if the supplied package revision is not a provider revision.",
 			args: args{
 				hook: &ProviderHooks{},
-				pkg:  &pkgmeta.Provider{},
+				pkg:  &pkgmetav1.Provider{},
 			},
 			want: want{
 				err: errors.New(errNotProviderRevision),
-			},
-		},
-		"ErrNotConfiguration": {
-			reason: "Should return error if not configuration.",
-			args: args{
-				hook: &ConfigurationHooks{},
-			},
-			want: want{
-				err: errors.New(errNotConfiguration),
 			},
 		},
 		"ProviderActive": {
 			reason: "Should only update status if provider revision is active.",
 			args: args{
 				hook: &ProviderHooks{},
-				pkg: &pkgmeta.Provider{
-					Spec: pkgmeta.ProviderSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				pkg: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmeta.Dependency{{
+							DependsOn: []pkgmetav1.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
 							}},
@@ -121,13 +112,13 @@ func TestHookPre(t *testing.T) {
 			reason: "Should always update status for configuration revisions.",
 			args: args{
 				hook: &ConfigurationHooks{},
-				pkg: &pkgmeta.Configuration{
-					Spec: pkgmeta.ConfigurationSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				pkg: &pkgmetav1.Configuration{
+					Spec: pkgmetav1.ConfigurationSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmeta.Dependency{{
+							DependsOn: []pkgmetav1.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
 							}},
@@ -166,13 +157,13 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmeta.Provider{
-					Spec: pkgmeta.ProviderSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				pkg: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmeta.Dependency{{
+							DependsOn: []pkgmetav1.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
 							}},
@@ -212,13 +203,13 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmeta.Provider{
-					Spec: pkgmeta.ProviderSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				pkg: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmeta.Dependency{{
+							DependsOn: []pkgmetav1.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
 							}},
@@ -252,13 +243,13 @@ func TestHookPre(t *testing.T) {
 						},
 					},
 				},
-				pkg: &pkgmeta.Provider{
-					Spec: pkgmeta.ProviderSpec{
-						MetaSpec: pkgmeta.MetaSpec{
-							Crossplane: &pkgmeta.CrossplaneConstraints{
+				pkg: &pkgmetav1.Provider{
+					Spec: pkgmetav1.ProviderSpec{
+						MetaSpec: pkgmetav1.MetaSpec{
+							Crossplane: &pkgmetav1.CrossplaneConstraints{
 								Version: crossplane,
 							},
-							DependsOn: []pkgmeta.Dependency{{
+							DependsOn: []pkgmetav1.Dependency{{
 								Provider: &providerDep,
 								Version:  versionDep,
 							}},
@@ -327,7 +318,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should do nothing if provider revision is inactive.",
 			args: args{
 				hook: &ProviderHooks{},
-				pkg:  &pkgmeta.Provider{},
+				pkg:  &pkgmetav1.Provider{},
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionInactive,
@@ -358,7 +349,7 @@ func TestHookPost(t *testing.T) {
 						}),
 					},
 				},
-				pkg: &pkgmeta.Provider{},
+				pkg: &pkgmetav1.Provider{},
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
@@ -390,7 +381,7 @@ func TestHookPost(t *testing.T) {
 						}),
 					},
 				},
-				pkg: &pkgmeta.Provider{},
+				pkg: &pkgmetav1.Provider{},
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
@@ -425,7 +416,7 @@ func TestHookPost(t *testing.T) {
 						}),
 					},
 				},
-				pkg: &pkgmeta.Provider{},
+				pkg: &pkgmetav1.Provider{},
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
@@ -451,7 +442,7 @@ func TestHookPost(t *testing.T) {
 						}),
 					},
 				},
-				pkg: &pkgmeta.Provider{},
+				pkg: &pkgmetav1.Provider{},
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
