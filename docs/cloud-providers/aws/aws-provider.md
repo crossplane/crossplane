@@ -10,7 +10,7 @@ AWS account.
 Prior to adding AWS to Crossplane, following steps need to be taken
 
 - Crossplane is installed in a k8s cluster
-- AWS Stack is installed in the same cluster
+- `provider-aws` is installed in the same cluster
 - `kubectl` is configured to communicate with the same cluster
 
 ## Step 1: Configure `aws` CLI
@@ -22,7 +22,7 @@ command line tool] [installed] and [configured]. Once installed, the credentials
 and configuration will reside in `~/.aws/credentials` and `~/.aws/config`
 respectively.
 
-## Step 2: Setup `aws` Provider
+## Step 2: Setup `aws` ProviderConfig
 
 Run `setup.sh` to read `aws` credentials and region, and create an `aws
 provider` instance in Crossplane:
