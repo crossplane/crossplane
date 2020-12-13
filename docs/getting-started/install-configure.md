@@ -422,6 +422,6 @@ kubectl delete namespace crossplane-system
 [Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/ 
 [Helm]:https://docs.helm.sh/using_helm/ 
 [Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/ 
-[Crossplane packages]:../introduction/packages.md 
+[Crossplane packages]: ../introduction/packages.md 
 [Slack]: http://slack.crossplane.io/
 [Upbound Cloud]: https://upbound.io
