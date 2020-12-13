@@ -22,12 +22,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	"github.com/crossplane/crossplane/apis/pkg/meta"
+	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 )
 
 const (
-	errWrongConvertToProvider   = "must convert to *meta.Provider"
-	errWrongConvertFromProvider = "must convert from *meta.Provider"
+	errWrongConvertToProvider   = "must convert to *v1.Provider"
+	errWrongConvertFromProvider = "must convert from *v1.Provider"
 )
 
 // ProviderSpec specifies the configuration of a Provider.
@@ -63,31 +63,31 @@ type Provider struct {
 
 // ConvertTo converts this Provider to the Hub version.
 func (p *Provider) ConvertTo(hub conversion.Hub) error {
-	out, ok := hub.(*meta.Provider)
+	out, ok := hub.(*v1.Provider)
 	if !ok {
 		return errors.New(errWrongConvertToProvider)
 	}
 
 	p.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 
-	out.Spec = meta.ProviderSpec{
-		Controller: meta.ControllerSpec{
+	out.Spec = v1.ProviderSpec{
+		Controller: v1.ControllerSpec{
 			Image:              p.Spec.Controller.Image,
 			PermissionRequests: p.Spec.Controller.PermissionRequests,
 		},
 	}
 
 	if p.Spec.Crossplane != nil {
-		out.Spec.Crossplane = &meta.CrossplaneConstraints{Version: p.Spec.Crossplane.Version}
+		out.Spec.Crossplane = &v1.CrossplaneConstraints{Version: p.Spec.Crossplane.Version}
 	}
 
 	if len(p.Spec.DependsOn) == 0 {
 		return nil
 	}
 
-	out.Spec.DependsOn = make([]meta.Dependency, len(p.Spec.DependsOn))
+	out.Spec.DependsOn = make([]v1.Dependency, len(p.Spec.DependsOn))
 	for i := range p.Spec.DependsOn {
-		out.Spec.DependsOn[i] = meta.Dependency{
+		out.Spec.DependsOn[i] = v1.Dependency{
 			Provider:      p.Spec.DependsOn[i].Provider,
 			Configuration: p.Spec.DependsOn[i].Configuration,
 			Version:       p.Spec.DependsOn[i].Version,
@@ -99,7 +99,7 @@ func (p *Provider) ConvertTo(hub conversion.Hub) error {
 
 // ConvertFrom converts this Provider from the Hub version.
 func (p *Provider) ConvertFrom(hub conversion.Hub) error {
-	in, ok := hub.(*meta.Provider)
+	in, ok := hub.(*v1.Provider)
 	if !ok {
 		return errors.New(errWrongConvertFromProvider)
 	}

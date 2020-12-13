@@ -17,7 +17,6 @@ limitations under the License.
 package xpkg
 
 import (
-	"github.com/pkg/errors"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -25,14 +24,8 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
-)
-
-const (
-	errNotConvertible = "supplied object was not convertible"
-	errNoConversions  = "supplied object could not be converted to any of the supplied candidates"
 )
 
 // BuildMetaScheme builds the default scheme used for identifying metadata in a
@@ -67,30 +60,31 @@ func BuildObjectScheme() (*runtime.Scheme, error) {
 	return objScheme, nil
 }
 
-// ConvertTo converts the supplied object to the first supplied candidate that
-// does not return an error.
-func ConvertTo(obj runtime.Object, candidates ...conversion.Hub) (runtime.Object, error) {
+// TryConvert converts the supplied object to the first supplied candidate that
+// does not return an error. Returns the converted object and true when
+// conversion succeeds, or the original object and false if it does not.
+func TryConvert(obj runtime.Object, candidates ...conversion.Hub) (runtime.Object, bool) {
+	// Note that if we already converted the supplied object to one of the
+	// supplied Hubs in a previous call this will ensure we skip conversion if
+	// and when it's called again.
 	cvt, ok := obj.(conversion.Convertible)
 	if !ok {
-		return nil, errors.New(errNotConvertible)
+		return obj, false
 	}
 
 	for _, c := range candidates {
 		c := c
 		if err := cvt.ConvertTo(c); err == nil {
-			return c, nil
+			return c, true
 		}
 	}
 
-	return nil, errors.New(errNoConversions)
+	return obj, false
 }
 
-// ConvertToPkg converts the supplied object to a pkgmeta.Pkg, if possible.
-func ConvertToPkg(obj runtime.Object, candidates ...conversion.Hub) (pkgmeta.Pkg, bool) {
-	po, err := ConvertTo(obj, candidates...)
-	if err != nil {
-		return nil, false
-	}
-	m, ok := po.(pkgmeta.Pkg)
+// TryConvertToPkg converts the supplied object to a pkgmeta.Pkg, if possible.
+func TryConvertToPkg(obj runtime.Object, candidates ...conversion.Hub) (pkgmetav1.Pkg, bool) {
+	po, _ := TryConvert(obj, candidates...)
+	m, ok := po.(pkgmetav1.Pkg)
 	return m, ok
 }

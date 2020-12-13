@@ -28,7 +28,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -72,12 +72,8 @@ func NewProviderHooks(client resource.ClientApplicator, namespace string) *Provi
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
 func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	po, err := xpkg.ConvertTo(pkg, &pkgmeta.Provider{})
-	if err != nil {
-		return errors.Wrap(err, errNotProvider)
-	}
-
-	pkgProvider, ok := po.(*pkgmeta.Provider)
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New(errNotProvider)
 	}
@@ -112,12 +108,8 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 // Post creates a packaged provider controller and service account if the
 // revision is active.
 func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
-	po, err := xpkg.ConvertTo(pkg, &pkgmeta.Provider{})
-	if err != nil {
-		return errors.Wrap(err, errNotProvider)
-	}
-
-	pkgProvider, ok := po.(*pkgmeta.Provider)
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
+	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New("not a provider package")
 	}

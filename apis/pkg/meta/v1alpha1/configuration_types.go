@@ -21,12 +21,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
-	"github.com/crossplane/crossplane/apis/pkg/meta"
+	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 )
 
 const (
-	errWrongConvertToConfiguration   = "must convert to *meta.Configuration"
-	errWrongConvertFromConfiguration = "must convert from *meta.Configuration"
+	errWrongConvertToConfiguration   = "must convert to *v1.Configuration"
+	errWrongConvertFromConfiguration = "must convert from *v1.Configuration"
 )
 
 // ConfigurationSpec specifies the configuration of a Configuration.
@@ -46,7 +46,7 @@ type Configuration struct {
 
 // ConvertTo converts this Configuration to the Hub version.
 func (c *Configuration) ConvertTo(hub conversion.Hub) error {
-	out, ok := hub.(*meta.Configuration)
+	out, ok := hub.(*v1.Configuration)
 	if !ok {
 		return errors.New(errWrongConvertToConfiguration)
 	}
@@ -54,16 +54,16 @@ func (c *Configuration) ConvertTo(hub conversion.Hub) error {
 	c.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
 
 	if c.Spec.Crossplane != nil {
-		out.Spec.Crossplane = &meta.CrossplaneConstraints{Version: c.Spec.Crossplane.Version}
+		out.Spec.Crossplane = &v1.CrossplaneConstraints{Version: c.Spec.Crossplane.Version}
 	}
 
 	if len(c.Spec.DependsOn) == 0 {
 		return nil
 	}
 
-	out.Spec.DependsOn = make([]meta.Dependency, len(c.Spec.DependsOn))
+	out.Spec.DependsOn = make([]v1.Dependency, len(c.Spec.DependsOn))
 	for i := range c.Spec.DependsOn {
-		out.Spec.DependsOn[i] = meta.Dependency{
+		out.Spec.DependsOn[i] = v1.Dependency{
 			Provider:      c.Spec.DependsOn[i].Provider,
 			Configuration: c.Spec.DependsOn[i].Configuration,
 			Version:       c.Spec.DependsOn[i].Version,
@@ -75,7 +75,7 @@ func (c *Configuration) ConvertTo(hub conversion.Hub) error {
 
 // ConvertFrom converts this Configuration from the Hub version.
 func (c *Configuration) ConvertFrom(hub conversion.Hub) error {
-	in, ok := hub.(*meta.Configuration)
+	in, ok := hub.(*v1.Configuration)
 	if !ok {
 		return errors.New(errWrongConvertFromConfiguration)
 	}

@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v1beta1 "github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
-	pkgmeta "github.com/crossplane/crossplane/apis/pkg/meta"
+	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
@@ -64,21 +64,27 @@ func OneMeta(pkg *parser.Package) error {
 
 // IsProvider checks that an object is a Provider meta type.
 func IsProvider(o runtime.Object) error {
-	_, err := ConvertTo(o, &pkgmeta.Provider{})
-	return errors.Wrap(err, errNotMetaProvider)
+	po, _ := TryConvert(o, &pkgmetav1.Provider{})
+	if _, ok := po.(*pkgmetav1.Provider); !ok {
+		return errors.New(errNotMetaProvider)
+	}
+	return nil
 }
 
 // IsConfiguration checks that an object is a Configuration meta type.
 func IsConfiguration(o runtime.Object) error {
-	_, err := ConvertTo(o, &pkgmeta.Configuration{})
-	return errors.Wrap(err, errNotMetaConfiguration)
+	po, _ := TryConvert(o, &pkgmetav1.Configuration{})
+	if _, ok := po.(*pkgmetav1.Configuration); !ok {
+		return errors.New(errNotMetaConfiguration)
+	}
+	return nil
 }
 
 // PackageCrossplaneCompatible checks that the current Crossplane version is
 // compatible with the package constraints.
 func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 	return func(o runtime.Object) error {
-		p, ok := ConvertToPkg(o, &pkgmeta.Provider{}, &pkgmeta.Configuration{})
+		p, ok := TryConvertToPkg(o, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 		if !ok {
 			return errors.New(errNotMeta)
 		}
@@ -99,7 +105,7 @@ func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 
 // PackageValidSemver checks that the package uses valid semver ranges.
 func PackageValidSemver(o runtime.Object) error {
-	p, ok := ConvertToPkg(o, &pkgmeta.Provider{}, &pkgmeta.Configuration{})
+	p, ok := TryConvertToPkg(o, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 	if !ok {
 		return errors.New(errNotMeta)
 	}

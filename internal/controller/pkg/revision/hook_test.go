@@ -64,7 +64,7 @@ func TestHookPre(t *testing.T) {
 				hook: &ProviderHooks{},
 			},
 			want: want{
-				err: errors.Wrap(errors.New("supplied object was not convertible"), errNotProvider),
+				err: errors.New(errNotProvider),
 			},
 		},
 		"ErrNotProviderRevision": {
@@ -311,7 +311,7 @@ func TestHookPost(t *testing.T) {
 				hook: &ProviderHooks{},
 			},
 			want: want{
-				err: errors.Wrap(errors.New("supplied object was not convertible"), errNotProvider),
+				err: errors.New(errNotProvider),
 			},
 		},
 		"ProviderInactive": {

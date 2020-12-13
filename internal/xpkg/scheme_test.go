@@ -23,8 +23,6 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
-
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 type mockHub struct{ runtime.Object }
@@ -33,12 +31,17 @@ func (h mockHub) Hub() {}
 
 type mockConvertible struct {
 	conversion.Convertible
-	err error
+	Fail bool
 }
 
-func (c *mockConvertible) ConvertTo(_ conversion.Hub) error { return c.err }
+func (c *mockConvertible) ConvertTo(_ conversion.Hub) error {
+	if c.Fail {
+		return errors.New("nope")
+	}
+	return nil
+}
 
-func TestConvertTo(t *testing.T) {
+func TestTryConvert(t *testing.T) {
 	type args struct {
 		meta       runtime.Object
 		candidates []conversion.Hub
@@ -46,7 +49,7 @@ func TestConvertTo(t *testing.T) {
 
 	type want struct {
 		meta runtime.Object
-		err  error
+		ok   bool
 	}
 
 	cases := map[string]struct {
@@ -54,46 +57,48 @@ func TestConvertTo(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrNotConvertible": {
-			reason: "We should return an error if we try to convert an object that is not convertible.",
+		"NotConvertible": {
+			reason: "We should return the object unchanged if we try to convert an object that is not convertible.",
 			args: args{
 				meta: nil,
 			},
 			want: want{
-				err: errors.New(errNotConvertible),
+				meta: nil,
+				ok:   false,
 			},
 		},
 		"ErrNoConversion": {
-			reason: "We should return an error if none of the supplied candidates convert successfully.",
+			reason: "We should return false if none of the supplied candidates convert successfully.",
 			args: args{
-				meta:       &mockConvertible{err: errors.New("nope")},
+				meta:       &mockConvertible{Fail: true},
 				candidates: []conversion.Hub{&mockHub{}},
 			},
 			want: want{
-				err: errors.New(errNoConversions),
+				meta: &mockConvertible{Fail: true},
+				ok:   false,
 			},
 		},
 		"SuccessfulConversion": {
-			reason: "We should not return an error if one of the supplied candidates converted successfully.",
+			reason: "We should not return true if one of the supplied candidates converted successfully.",
 			args: args{
 				meta:       &mockConvertible{},
 				candidates: []conversion.Hub{&mockHub{}},
 			},
 			want: want{
 				meta: &mockHub{},
-				err:  nil,
+				ok:   true,
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ConvertTo(tc.args.meta, tc.args.candidates...)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nInternalise(...): -want error, +got error:\n%s", tc.reason, diff)
+			got, ok := TryConvert(tc.args.meta, tc.args.candidates...)
+			if diff := cmp.Diff(tc.want.ok, ok); diff != "" {
+				t.Errorf("\n%s\nTryConvert(...): -want ok, +got ok:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.meta, got); diff != "" {
-				t.Errorf("\n%s\nInternalise(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nTryConvert(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

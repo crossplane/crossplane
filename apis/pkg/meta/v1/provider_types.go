@@ -17,17 +17,8 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/conversion"
-
-	"github.com/crossplane/crossplane/apis/pkg/meta"
-)
-
-const (
-	errWrongConvertToProvider   = "must convert to *meta.Provider"
-	errWrongConvertFromProvider = "must convert from *meta.Provider"
 )
 
 // ProviderSpec specifies the configuration of a Provider.
@@ -62,74 +53,5 @@ type Provider struct {
 	Spec ProviderSpec `json:"spec"`
 }
 
-// ConvertTo converts this Provider to the Hub version.
-func (p *Provider) ConvertTo(hub conversion.Hub) error {
-	out, ok := hub.(*meta.Provider)
-	if !ok {
-		return errors.New(errWrongConvertToProvider)
-	}
-
-	p.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-
-	out.Spec = meta.ProviderSpec{
-		Controller: meta.ControllerSpec{
-			Image:              p.Spec.Controller.Image,
-			PermissionRequests: p.Spec.Controller.PermissionRequests,
-		},
-	}
-
-	if p.Spec.Crossplane != nil {
-		out.Spec.Crossplane = &meta.CrossplaneConstraints{Version: p.Spec.Crossplane.Version}
-	}
-
-	if len(p.Spec.DependsOn) == 0 {
-		return nil
-	}
-
-	out.Spec.DependsOn = make([]meta.Dependency, len(p.Spec.DependsOn))
-	for i := range p.Spec.DependsOn {
-		out.Spec.DependsOn[i] = meta.Dependency{
-			Provider:      p.Spec.DependsOn[i].Provider,
-			Configuration: p.Spec.DependsOn[i].Configuration,
-			Version:       p.Spec.DependsOn[i].Version,
-		}
-	}
-
-	return nil
-}
-
-// ConvertFrom converts this Provider from the Hub version.
-func (p *Provider) ConvertFrom(hub conversion.Hub) error {
-	in, ok := hub.(*meta.Provider)
-	if !ok {
-		return errors.New(errWrongConvertFromProvider)
-	}
-
-	in.ObjectMeta.DeepCopyInto(&p.ObjectMeta)
-
-	p.Spec = ProviderSpec{
-		Controller: ControllerSpec{
-			Image:              in.Spec.Controller.Image,
-			PermissionRequests: in.Spec.Controller.PermissionRequests,
-		},
-	}
-
-	if in.Spec.Crossplane != nil {
-		p.Spec.Crossplane = &CrossplaneConstraints{Version: in.Spec.Crossplane.Version}
-	}
-
-	if len(in.Spec.DependsOn) == 0 {
-		return nil
-	}
-
-	p.Spec.DependsOn = make([]Dependency, len(in.Spec.DependsOn))
-	for i := range in.Spec.DependsOn {
-		p.Spec.DependsOn[i] = Dependency{
-			Provider:      in.Spec.DependsOn[i].Provider,
-			Configuration: in.Spec.DependsOn[i].Configuration,
-			Version:       in.Spec.DependsOn[i].Version,
-		}
-	}
-
-	return nil
-}
+// Hub marks this type as the conversion hub.
+func (p *Provider) Hub() {}

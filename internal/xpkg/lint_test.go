@@ -158,7 +158,7 @@ func TestIsProvider(t *testing.T) {
 		"ErrNotProvider": {
 			reason: "Should return error if object is not provider.",
 			obj:    v1beta1crd,
-			err:    errors.Wrap(errors.New(errNotConvertible), errNotMetaProvider),
+			err:    errors.New(errNotMetaProvider),
 		},
 	}
 
@@ -190,7 +190,7 @@ func TestIsConfiguration(t *testing.T) {
 		"ErrNotConfiguration": {
 			reason: "Should return error if object is not configuration.",
 			obj:    v1beta1crd,
-			err:    errors.Wrap(errors.New(errNotConvertible), errNotMetaConfiguration),
+			err:    errors.New(errNotMetaConfiguration),
 		},
 	}
 

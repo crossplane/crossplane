@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/apis/pkg/meta"
+	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 )
 
 func TestConvertTo(t *testing.T) {
@@ -49,24 +49,24 @@ func TestConvertTo(t *testing.T) {
 		want   want
 	}{
 		"ErrConfigurationWrongHub": {
-			reason: "It is only possible to convert a *v1alpha1.Configuration to a *meta.Configuration.",
+			reason: "It is only possible to convert a *v1alpha1.Configuration to a *v1.Configuration.",
 			c:      &Configuration{},
-			hub:    &meta.Provider{},
+			hub:    &v1.Provider{},
 			want: want{
-				hub: &meta.Provider{},
+				hub: &v1.Provider{},
 				err: errors.New(errWrongConvertToConfiguration),
 			},
 		},
 		"MinimalConfigurationConversion": {
-			reason: "It should be possible to convert a minimal *v1alpha1.Configuration to a *meta.Configuration.",
+			reason: "It should be possible to convert a minimal *v1alpha1.Configuration to a *v1.Configuration.",
 			c:      &Configuration{ObjectMeta: metav1.ObjectMeta{Name: name}},
-			hub:    &meta.Configuration{},
+			hub:    &v1.Configuration{},
 			want: want{
-				hub: &meta.Configuration{ObjectMeta: metav1.ObjectMeta{Name: name}},
+				hub: &v1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: name}},
 			},
 		},
 		"FullConfigurationConversion": {
-			reason: "It should be possible to convert a fully populated *v1alpha1.Configuration to a *meta.Configuration.",
+			reason: "It should be possible to convert a fully populated *v1alpha1.Configuration to a *v1.Configuration.",
 			c: &Configuration{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec: ConfigurationSpec{
@@ -85,14 +85,14 @@ func TestConvertTo(t *testing.T) {
 					},
 				},
 			},
-			hub: &meta.Configuration{},
+			hub: &v1.Configuration{},
 			want: want{
-				hub: &meta.Configuration{
+				hub: &v1.Configuration{
 					ObjectMeta: metav1.ObjectMeta{Name: name},
-					Spec: meta.ConfigurationSpec{
-						MetaSpec: meta.MetaSpec{
-							Crossplane: &meta.CrossplaneConstraints{Version: version},
-							DependsOn: []meta.Dependency{
+					Spec: v1.ConfigurationSpec{
+						MetaSpec: v1.MetaSpec{
+							Crossplane: &v1.CrossplaneConstraints{Version: version},
+							DependsOn: []v1.Dependency{
 								{
 									Provider: &provider,
 									Version:  version,
@@ -108,34 +108,34 @@ func TestConvertTo(t *testing.T) {
 			},
 		},
 		"ErrProviderWrongHub": {
-			reason: "It is only possible to convert a *v1alpha1.Provider to a *meta.Provider.",
+			reason: "It is only possible to convert a *v1alpha1.Provider to a *v1.Provider.",
 			c:      &Provider{},
-			hub:    &meta.Configuration{},
+			hub:    &v1.Configuration{},
 			want: want{
-				hub: &meta.Configuration{},
+				hub: &v1.Configuration{},
 				err: errors.New(errWrongConvertToProvider),
 			},
 		},
 		"MinimalProviderConversion": {
-			reason: "It should be possible to convert a minimal *v1alpha1.Provider to a *meta.Provider.",
+			reason: "It should be possible to convert a minimal *v1alpha1.Provider to a *v1.Provider.",
 			c: &Provider{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec: ProviderSpec{
 					Controller: ControllerSpec{Image: ctrl},
 				},
 			},
-			hub: &meta.Provider{},
+			hub: &v1.Provider{},
 			want: want{
-				hub: &meta.Provider{
+				hub: &v1.Provider{
 					ObjectMeta: metav1.ObjectMeta{Name: name},
-					Spec: meta.ProviderSpec{
-						Controller: meta.ControllerSpec{Image: ctrl},
+					Spec: v1.ProviderSpec{
+						Controller: v1.ControllerSpec{Image: ctrl},
 					},
 				},
 			},
 		},
 		"FullProviderConversion": {
-			reason: "It should be possible to convert a fully populated *v1alpha1.Provider to a *meta.Provider.",
+			reason: "It should be possible to convert a fully populated *v1alpha1.Provider to a *v1.Provider.",
 			c: &Provider{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec: ProviderSpec{
@@ -163,12 +163,12 @@ func TestConvertTo(t *testing.T) {
 					},
 				},
 			},
-			hub: &meta.Provider{},
+			hub: &v1.Provider{},
 			want: want{
-				hub: &meta.Provider{
+				hub: &v1.Provider{
 					ObjectMeta: metav1.ObjectMeta{Name: name},
-					Spec: meta.ProviderSpec{
-						Controller: meta.ControllerSpec{
+					Spec: v1.ProviderSpec{
+						Controller: v1.ControllerSpec{
 							Image: ctrl,
 							PermissionRequests: []rbacv1.PolicyRule{
 								{
@@ -177,9 +177,9 @@ func TestConvertTo(t *testing.T) {
 								},
 							},
 						},
-						MetaSpec: meta.MetaSpec{
-							Crossplane: &meta.CrossplaneConstraints{Version: version},
-							DependsOn: []meta.Dependency{
+						MetaSpec: v1.MetaSpec{
+							Crossplane: &v1.CrossplaneConstraints{Version: version},
+							DependsOn: []v1.Dependency{
 								{
 									Provider: &provider,
 									Version:  version,
@@ -229,31 +229,31 @@ func TestConvertFrom(t *testing.T) {
 		want   want
 	}{
 		"ErrConfigurationWrongHub": {
-			reason: "It is only possible to convert a *v1alpha1.Configuration from a *meta.Configuration.",
+			reason: "It is only possible to convert a *v1alpha1.Configuration from a *v1.Configuration.",
 			c:      &Configuration{},
-			hub:    &meta.Provider{},
+			hub:    &v1.Provider{},
 			want: want{
 				c:   &Configuration{},
 				err: errors.New(errWrongConvertFromConfiguration),
 			},
 		},
 		"MinimalConfigurationConversion": {
-			reason: "It should be possible to convert a minimal *v1alpha1.Configuration from a *meta.Configuration.",
+			reason: "It should be possible to convert a minimal *v1alpha1.Configuration from a *v1.Configuration.",
 			c:      &Configuration{},
-			hub:    &meta.Configuration{ObjectMeta: metav1.ObjectMeta{Name: name}},
+			hub:    &v1.Configuration{ObjectMeta: metav1.ObjectMeta{Name: name}},
 			want: want{
 				c: &Configuration{ObjectMeta: metav1.ObjectMeta{Name: name}},
 			},
 		},
 		"FullConfigurationConversion": {
-			reason: "It should be possible to convert a fully populated *v1alpha1.Configuration from a *meta.Configuration.",
+			reason: "It should be possible to convert a fully populated *v1alpha1.Configuration from a *v1.Configuration.",
 			c:      &Configuration{},
-			hub: &meta.Configuration{
+			hub: &v1.Configuration{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Spec: meta.ConfigurationSpec{
-					MetaSpec: meta.MetaSpec{
-						Crossplane: &meta.CrossplaneConstraints{Version: version},
-						DependsOn: []meta.Dependency{
+				Spec: v1.ConfigurationSpec{
+					MetaSpec: v1.MetaSpec{
+						Crossplane: &v1.CrossplaneConstraints{Version: version},
+						DependsOn: []v1.Dependency{
 							{
 								Provider: &provider,
 								Version:  version,
@@ -288,21 +288,21 @@ func TestConvertFrom(t *testing.T) {
 			},
 		},
 		"ErrProviderWrongHub": {
-			reason: "It is only possible to convert a *v1alpha1.Provider from a *meta.Provider.",
+			reason: "It is only possible to convert a *v1alpha1.Provider from a *v1.Provider.",
 			c:      &Provider{},
-			hub:    &meta.Configuration{},
+			hub:    &v1.Configuration{},
 			want: want{
 				c:   &Provider{},
 				err: errors.New(errWrongConvertFromProvider),
 			},
 		},
 		"MinimalProviderConversion": {
-			reason: "It should be possible to convert a minimal *v1alpha1.Provider from a *meta.Provider.",
+			reason: "It should be possible to convert a minimal *v1alpha1.Provider from a *v1.Provider.",
 			c:      &Provider{},
-			hub: &meta.Provider{
+			hub: &v1.Provider{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Spec: meta.ProviderSpec{
-					Controller: meta.ControllerSpec{Image: ctrl},
+				Spec: v1.ProviderSpec{
+					Controller: v1.ControllerSpec{Image: ctrl},
 				},
 			},
 			want: want{
@@ -315,12 +315,12 @@ func TestConvertFrom(t *testing.T) {
 			},
 		},
 		"FullProviderConversion": {
-			reason: "It should be possible to convert a fully populated *v1alpha1.Provider from a *meta.Provider.",
+			reason: "It should be possible to convert a fully populated *v1alpha1.Provider from a *v1.Provider.",
 			c:      &Provider{},
-			hub: &meta.Provider{
+			hub: &v1.Provider{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Spec: meta.ProviderSpec{
-					Controller: meta.ControllerSpec{
+				Spec: v1.ProviderSpec{
+					Controller: v1.ControllerSpec{
 						Image: ctrl,
 						PermissionRequests: []rbacv1.PolicyRule{
 							{
@@ -329,9 +329,9 @@ func TestConvertFrom(t *testing.T) {
 							},
 						},
 					},
-					MetaSpec: meta.MetaSpec{
-						Crossplane: &meta.CrossplaneConstraints{Version: version},
-						DependsOn: []meta.Dependency{
+					MetaSpec: v1.MetaSpec{
+						Crossplane: &v1.CrossplaneConstraints{Version: version},
+						DependsOn: []v1.Dependency{
 							{
 								Provider: &provider,
 								Version:  version,
