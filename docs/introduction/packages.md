@@ -116,6 +116,9 @@ kubectl crossplane build provider
 If the Provider package is valid, you will see a file with the `.xpkg`
 extension.
 
+> Note that the Crossplane CLI will not follow symbolic links for files in the
+> root package directory.
+
 ### Configuration Packages
 
 A Configuration package contains a `crossplane.yaml` with the following format:
