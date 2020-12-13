@@ -152,6 +152,9 @@ have a valid version given the constraint. If a dependency is not installed, the
 package manager will install it at the latest version that fits within the
 provided constraints.
 
+> Dependency resolution is an `alpha` feature and depends on the `v1alpha`
+> [`Lock` API][lock-api].
+
 For an example Configuration package, see [getting-started-with-gcp].
 
 To build a Configuration package, navigate to the package root directory and
@@ -354,7 +357,8 @@ package without considering the version of Crossplane that is installed.
 
 ### spec.controllerConfigRef
 
-> This field is only available when installing a `Provider`.
+> This field is only available when installing a `Provider` and is an `alpha`
+> feature that depends on the `v1alpha1` [`ControllerConfig` API][controller-config-docs].
 
 Valid values: name of a `ControllerConfig` object
 
@@ -401,6 +405,7 @@ documentation][controller-config-docs].
 [Providers]: providers.md
 [provider-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Provider/v1
 [configuration-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Configuration/v1
+[lock-api]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/Lock/v1alpha1
 [getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/master/docs/snippets/package/gcp
 [specification]: https://github.com/Masterminds/semver#basic-comparisons
 [composition]: composition.md
