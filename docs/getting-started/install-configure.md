@@ -203,7 +203,7 @@ for infrastructure provisioning:
 ### Install AWS Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-aws:alpha
+kubectl crossplane install provider crossplane/provider-aws:v0.16.0
 ```
 
 ### Get AWS Account Keyfile
@@ -248,7 +248,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ### Install GCP Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-gcp:alpha
+kubectl crossplane install provider crossplane/provider-gcp:v0.14.0
 ```
 
 ### Get GCP Account Keyfile
@@ -309,7 +309,7 @@ spec:
 ### Install Azure Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-azure:alpha
+kubectl crossplane install provider crossplane/provider-azure:v0.14.0
 ```
 
 ### Get Azure Principal Keyfile
@@ -369,7 +369,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ### Install Alibaba Provider
 
 ```console
-kubectl crossplane install provider crossplane/provider-alibaba:alpha
+kubectl crossplane install provider crossplane/provider-alibaba:v0.5.0
 ```
 
 ### Create a Provider Secret
