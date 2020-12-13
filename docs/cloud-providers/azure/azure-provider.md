@@ -69,7 +69,7 @@ local filesystem:
 
 * `crossplane-azure-provider-key.json`
 
-## Setup Azure Provider
+## Setup Azure ProviderConfig
 
 Before creating any resources, we need to create and configure an Azure cloud
 provider resource in Crossplane, which stores the cloud account information in

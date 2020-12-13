@@ -180,17 +180,17 @@ Kubernetes clusters with GKE.
 - Go to [Kubernetes Clusters](https://console.cloud.google.com/kubernetes/list)
   - Click `Enable Billing`
 
-## Setup GCP Provider
+## Setup GCP ProviderConfig
 
 Before creating any resources, we need to create and configure a GCP cloud
-provider resource in Crossplane, which stores the cloud account information in
-it. All the requests from Crossplane to GCP will use the credentials attached to
-this provider resource. The following command assumes that you have a
-`crossplane-gcp-provider-key.json` file that belongs to the account that will be
-used by Crossplane, which has GCP project id. You should be able to get the
-project id from the JSON credentials file or from the GCP console. Without loss
-of generality, let's assume the project id is `my-cool-gcp-project` in this
-guide.
+`ProviderConfig` resource in Crossplane, which stores the cloud account
+information in it. All the requests from Crossplane to GCP will use the
+credentials attached to this `ProviderConfig` resource. The following command
+assumes that you have a `crossplane-gcp-provider-key.json` file that belongs to
+the account that will be used by Crossplane, which has GCP project id. You
+should be able to get the project id from the JSON credentials file or from the
+GCP console. Without loss of generality, let's assume the project id is
+`my-cool-gcp-project` in this guide.
 
 First, let's encode the credential file contents and put it in a variable:
 

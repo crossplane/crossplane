@@ -10,7 +10,7 @@ indent: true
 Users looking to use Crossplane for the first time have two options available to
 them today. The first way is to use a hosted Crossplane service like [Upbound
 Cloud][Upbound Cloud]. Alternatively, users looking for some more
-flexability can install Crossplane into their own Kubernetes cluster.
+flexibility can install Crossplane into their own Kubernetes cluster.
 
 Crossplane will be installed using the regularly published Helm chart. The Helm
 chart contains all the custom resources and controllers needed to deploy and
@@ -24,7 +24,7 @@ instructions.
 <li class="active"><a href="#using-hosted-crossplane" data-toggle="tab">Hosted Crossplane</a></li>
 <li><a href="#using-self-hosted-crossplane" data-toggle="tab">Self-Hosted Crossplane</a></li>
 </ul>
-
+<br>
 <div class="tab-content">
 <div class="tab-pane fade in active" id="using-hosted-crossplane" markdown="1">
 
@@ -49,7 +49,7 @@ Slack][Slack] and our community will highlight it here!</i>
 
 ## Start with a Self-Hosted Crossplane
 Installing Crossplane into an existing Kubernetes cluster will require a bit
-more setup, but can provide more flexability for users who need it.
+more setup, but can provide more flexibility for users who need it.
 
 ### Get a Kubernetes Cluster
 
@@ -100,26 +100,26 @@ For Windows use the following:
 ### Install Crossplane
 
 <ul class="nav nav-tabs">
-<li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (alpha)</a></li>
-<li><a href="#install-tab-helm3-master" data-toggle="tab">Helm 3 (master)</a></li>
+<li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (stable)</a></li>
+<li><a href="#install-tab-helm3-latest" data-toggle="tab">Helm 3 (latest)</a></li>
 </ul>
 <br>
 <div class="tab-content">
 <div class="tab-pane fade in active" id="install-tab-helm3" markdown="1">
-Use Helm 3 to install the latest official `alpha` release of Crossplane, suitable for community use and testing:
+Use Helm 3 to install the latest official `stable` release of Crossplane, suitable for community use and testing:
 
 ```console
 kubectl create namespace crossplane-system
 
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --set alpha.oam.enabled=true
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --set alpha.oam.enabled=true
 ```
 
 </div>
-<div class="tab-pane fade" id="install-tab-helm3-master" markdown="1">
-Use Helm 3 to install the latest `master` pre-release version of Crossplane:
+<div class="tab-pane fade" id="install-tab-helm3-latest" markdown="1">
+Use Helm 3 to install the latest pre-release version of Crossplane:
 
 ```console
 kubectl create namespace crossplane-system
@@ -156,9 +156,35 @@ kubectl get all -n crossplane-system
 The Crossplane CLI extends `kubectl` with functionality to build, push, and
 install [Crossplane packages]:
 
+<ul class="nav nav-tabs">
+<li class="active"><a href="#install-tab-cli" data-toggle="tab">Stable</a></li>
+<li><a href="#install-tab-cli-latest" data-toggle="tab">Latest</a></li>
+</ul>
+<br>
+<div class="tab-content">
+<div class="tab-pane fade in active" id="install-tab-cli" markdown="1">
+
 ```console
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 ```
+
+</div>
+<div class="tab-pane fade" id="install-tab-cli-latest" markdown="1">
+
+```console
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master sh
+```
+
+You may also specify `VERSION` for download if you would like to select a
+specific version from the given release channel. If a version is not specified
+the latest version from the release channel will be used.
+
+```console
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
+```
+
+</div>
+</div>
 
 ## Select Provider
 
@@ -422,6 +448,6 @@ kubectl delete namespace crossplane-system
 [Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/ 
 [Helm]:https://docs.helm.sh/using_helm/ 
 [Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/ 
-[Crossplane packages]:../introduction/packages.md 
+[Crossplane packages]: ../introduction/packages.md 
 [Slack]: http://slack.crossplane.io/
 [Upbound Cloud]: https://upbound.io
