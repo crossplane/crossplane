@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,9 +30,14 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 
 	// Load all the auth plugins for the cloud providers.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+)
+
+const (
+	errPkgIdentifier = "invalid package image identifier"
 )
 
 // installCmd installs a package.
@@ -61,11 +67,13 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 	if c.ManualActivation {
 		rap = v1.ManualActivation
 	}
-	name := c.Name
-	if name == "" {
-		// NOTE(muvaf): "crossplane/my-configuration:master" -> "my-configuration"
-		woTag := strings.Split(strings.Split(c.Package, ":")[0], "/")
-		name = woTag[len(woTag)-1]
+	pkgName := c.Name
+	if pkgName == "" {
+		ref, err := name.ParseReference(c.Package)
+		if err != nil {
+			return errors.Wrap(err, errPkgIdentifier)
+		}
+		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
 	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
@@ -75,7 +83,7 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 	}
 	cr := &v1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name: pkgName,
 		},
 		Spec: v1.ConfigurationSpec{
 			PackageSpec: v1.PackageSpec{
@@ -110,15 +118,17 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 	if c.ManualActivation {
 		rap = v1.ManualActivation
 	}
-	name := c.Name
-	if name == "" {
-		// NOTE(muvaf): "crossplane/provider-gcp:master" -> "provider-gcp"
-		woTag := strings.Split(strings.Split(c.Package, ":")[0], "/")
-		name = woTag[len(woTag)-1]
+	pkgName := c.Name
+	if pkgName == "" {
+		ref, err := name.ParseReference(c.Package)
+		if err != nil {
+			return errors.Wrap(err, errPkgIdentifier)
+		}
+		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
 	cr := &v1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
+			Name: pkgName,
 		},
 		Spec: v1.ProviderSpec{
 			PackageSpec: v1.PackageSpec{
