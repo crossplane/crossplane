@@ -24,7 +24,7 @@ instructions.
 <li class="active"><a href="#using-hosted-crossplane" data-toggle="tab">Hosted Crossplane</a></li>
 <li><a href="#using-self-hosted-crossplane" data-toggle="tab">Self-Hosted Crossplane</a></li>
 </ul>
-
+<br>
 <div class="tab-content">
 <div class="tab-pane fade in active" id="using-hosted-crossplane" markdown="1">
 
@@ -101,7 +101,7 @@ For Windows use the following:
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (stable)</a></li>
-<li><a href="#install-tab-helm3-master" data-toggle="tab">Helm 3 (master)</a></li>
+<li><a href="#install-tab-helm3-latest" data-toggle="tab">Helm 3 (latest)</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -118,8 +118,8 @@ helm install crossplane --namespace crossplane-system crossplane-stable/crosspla
 ```
 
 </div>
-<div class="tab-pane fade" id="install-tab-helm3-master" markdown="1">
-Use Helm 3 to install the latest `master` pre-release version of Crossplane:
+<div class="tab-pane fade" id="install-tab-helm3-latest" markdown="1">
+Use Helm 3 to install the latest pre-release version of Crossplane:
 
 ```console
 kubectl create namespace crossplane-system
@@ -156,9 +156,35 @@ kubectl get all -n crossplane-system
 The Crossplane CLI extends `kubectl` with functionality to build, push, and
 install [Crossplane packages]:
 
+<ul class="nav nav-tabs">
+<li class="active"><a href="#install-tab-cli" data-toggle="tab">Stable</a></li>
+<li><a href="#install-tab-cli-latest" data-toggle="tab">Latest</a></li>
+</ul>
+<br>
+<div class="tab-content">
+<div class="tab-pane fade in active" id="install-tab-cli" markdown="1">
+
 ```console
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 ```
+
+</div>
+<div class="tab-pane fade" id="install-tab-cli-latest" markdown="1">
+
+```console
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master sh
+```
+
+You may also specify `VERSION` for download if you would like to select a
+specific version from the given release channel. If a version is not specified
+the latest version from the release channel will be used.
+
+```console
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
+```
+
+</div>
+</div>
 
 ## Select Provider
 
