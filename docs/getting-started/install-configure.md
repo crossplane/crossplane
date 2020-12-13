@@ -100,21 +100,21 @@ For Windows use the following:
 ### Install Crossplane
 
 <ul class="nav nav-tabs">
-<li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (alpha)</a></li>
+<li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (stable)</a></li>
 <li><a href="#install-tab-helm3-master" data-toggle="tab">Helm 3 (master)</a></li>
 </ul>
 <br>
 <div class="tab-content">
 <div class="tab-pane fade in active" id="install-tab-helm3" markdown="1">
-Use Helm 3 to install the latest official `alpha` release of Crossplane, suitable for community use and testing:
+Use Helm 3 to install the latest official `stable` release of Crossplane, suitable for community use and testing:
 
 ```console
 kubectl create namespace crossplane-system
 
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
+helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane --set alpha.oam.enabled=true
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --set alpha.oam.enabled=true
 ```
 
 </div>
