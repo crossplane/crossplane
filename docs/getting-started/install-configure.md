@@ -206,6 +206,11 @@ for infrastructure provisioning:
 kubectl crossplane install provider crossplane/provider-aws:v0.16.0
 ```
 
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
+```
+
 ### Get AWS Account Keyfile
 
 Using an AWS account with permissions to manage RDS databases:
@@ -249,6 +254,11 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```console
 kubectl crossplane install provider crossplane/provider-gcp:v0.14.0
+```
+
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
 ```
 
 ### Get GCP Account Keyfile
@@ -312,6 +322,11 @@ spec:
 kubectl crossplane install provider crossplane/provider-azure:v0.14.0
 ```
 
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
+```
+
 ### Get Azure Principal Keyfile
 
 ```console
@@ -372,6 +387,11 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 kubectl crossplane install provider crossplane/provider-alibaba:v0.5.0
 ```
 
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
+```
+
 ### Create a Provider Secret
 
 ```console
@@ -425,10 +445,21 @@ provider.
 kubectl get managed
 ```
 
-If there are any, please delete them first so you don't lose track of them.
+If there are any, please delete them first, so you don't lose the track of them.
+Then delete all the `ProviderConfig`s you created. An example command if you used
+AWS Provider:
+```
+kubectl delete providerconfig.aws --all
+```
 
+List installed providers:
 ```console
-kubectl delete -f provider.yaml
+kubectl get provider.pkg
+```
+
+Delete the one you want to delete:
+```
+kubectl delete provider.pkg <provider-name>
 ```
 
 ## Uninstall Crossplane
@@ -437,6 +468,13 @@ kubectl delete -f provider.yaml
 helm delete crossplane --namespace crossplane-system
 
 kubectl delete namespace crossplane-system
+```
+
+Helm does not delete CRD objects. You can delete the ones Crossplane created with
+the following commands:
+```
+kubectl patch lock lock -p '{"metadata":{"finalizers": []}}' --type=merge
+kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
 ```
 
 <!-- Named Links -->

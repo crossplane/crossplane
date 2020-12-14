@@ -113,10 +113,11 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 </div>
 
 Crossplane should now be configured to allow us to create a `PostgreSQLInstance`
-claim! You can make sure your `Configuration` installed successfully by running:
+claim! You can watch the installation progress of the `Configuration` object by
+running:
 
 ```console
-kubectl describe configuration
+kubectl get configuration --watch
 ```
 
 Make sure you've [setup] a `ProviderConfig` named `default` for your chosen
