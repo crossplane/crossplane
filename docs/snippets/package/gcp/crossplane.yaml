@@ -1,4 +1,4 @@
-apiVersion: meta.pkg.crossplane.io/v1
+apiVersion: meta.pkg.crossplane.io/v1alpha1
 kind: Configuration
 metadata:
   name: getting-started-with-gcp
@@ -10,4 +10,4 @@ spec:
     version: ">=v0.14.0-0"
   dependsOn:
     - provider: crossplane/provider-gcp
-      version: ">=v0.13.0-0"
+      version: ">=v0.13.0"
