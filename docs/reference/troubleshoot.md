@@ -7,34 +7,11 @@ indent: true
 
 # Troubleshooting
 
-* [Using the trace command]
 * [Resource Status and Conditions]
+* [Resource Events]
 * [Crossplane Logs]
 * [Pausing Crossplane]
 * [Deleting a Resource Hangs]
-
-## Using the trace command
-
-The [Crossplane CLI] trace command provides a holistic view for a particular
-object and related ones to ease debugging and troubleshooting process. It finds
-the relevant Crossplane resources for a given one and provides detailed
-information as well as an overview indicating what could be wrong.
-
-Usage:
-```
-kubectl crossplane trace TYPE[.GROUP] NAME [-n| --namespace NAMESPACE] [--kubeconfig KUBECONFIG] [-o| --outputFormat dot]
-```
-
-Examples:
-```
-# Trace a KubernetesApplication
-kubectl crossplane trace KubernetesApplication wordpress-app-83f04457-0b1b-4532-9691-f55cf6c0da6e -n app-project1-dev
-
-# Trace a MySQLInstance
-kubectl crossplane trace MySQLInstance wordpress-mysql-83f04457-0b1b-4532-9691-f55cf6c0da6e -n app-project1-dev
-```
-
-For more information, see [the trace command documentation].
 
 ## Resource Status and Conditions
 
@@ -45,7 +22,7 @@ condition. For example, to determine the status of a MySQLInstance resource
 claim, run:
 
 ```shell
-kubectl -n app-project1-dev describe mysqlinstance mysql-claim
+kubectl describe mysqlinstance mysql
 ```
 
 This should produce output that includes:
@@ -54,21 +31,32 @@ This should produce output that includes:
 Status:
   Conditions:
     Last Transition Time:  2019-09-16T13:46:42Z
-    Reason:                Managed claim is waiting for managed resource to become bindable
+    Reason:                Composite resource is not yet Ready
     Status:                False
     Type:                  Ready
-    Last Transition Time:  2019-09-16T13:46:42Z
-    Reason:                Successfully reconciled managed resource
-    Status:                True
-    Type:                  Synced
 ```
 
-Most Crossplane resources set exactly two condition types; `Ready` and `Synced`.
-`Ready` represents the availability of the resource itself - whether it is
-creating, deleting, available, unavailable, binding, etc. `Synced` represents
-the success of the most recent attempt to 'reconcile' the _desired_ state of the
-resource with its _actual_ state. The `Synced` condition is the first place you
-should look when a Crossplane resource is not behaving as expected.
+Most Crossplane resources set the `Ready` condition. `Ready` represents the
+availability of the resource - whether it is creating, deleting, available,
+unavailable, binding, etc.
+
+## Resource Events
+
+Most Crossplane resources emit _events_ when something interesting happens. You
+can see the events associated with a resource by running `kubectl describe` - 
+e.g. `kubectl describe mysqlinstance mysql`. You can also see all events in a
+particular namespace by running `kubectl get events`.
+
+```console
+Events:
+  Type     Reason                   Age                From                                                   Message
+  ----     ------                   ----               ----                                                   -------
+  Warning  CannotConnectToProvider  16s (x4 over 46s)  managed/postgresqlserver.database.azure.crossplane.io  cannot get referenced ProviderConfig: ProviderConfig.azure.crossplane.io "default" not found
+```
+
+> Note that events are namespaced, while many Crossplane resources (XRs, etc)
+> are cluster scoped. Crossplane emits events for cluster scoped resources to
+> the 'default' namespace.
 
 ## Crossplane Logs
 
@@ -80,9 +68,13 @@ namespace. To get the current Crossplane logs, run the following:
 kubectl -n crossplane-system logs -lapp=crossplane
 ```
 
-Remember that much of Crossplane's functionality is provided by Stacks. You can
-use `kubectl logs` to view Stack logs too, though Stacks may not run in the
-`crossplane-system` namespace.
+Remember that much of Crossplane's functionality is provided by providers. You
+can use `kubectl logs` to view provider logs too.
+
+> Note that Crossplane emits few logs by default - events are typically the best
+> place to look for information about what Crossplane is doing. You may need to
+> restart Crossplane (or your provider) with the `--debug` flag if you can't 
+> find what you're looking for.
 
 ## Pausing Crossplane
 
