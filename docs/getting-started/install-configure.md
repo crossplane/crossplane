@@ -471,8 +471,9 @@ kubectl delete namespace crossplane-system
 ```
 
 Helm does not delete CRD objects. You can delete the ones Crossplane created with
-the following command:
+the following commands:
 ```
+kubectl patch lock lock -p '{"metadata":{"finalizers": []}}' --type=merge
 kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
 ```
 
