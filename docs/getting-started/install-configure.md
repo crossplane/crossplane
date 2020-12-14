@@ -206,6 +206,11 @@ for infrastructure provisioning:
 kubectl crossplane install provider crossplane/provider-aws:v0.16.0
 ```
 
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
+```
+
 ### Get AWS Account Keyfile
 
 Using an AWS account with permissions to manage RDS databases:
@@ -249,6 +254,11 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```console
 kubectl crossplane install provider crossplane/provider-gcp:v0.14.0
+```
+
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
 ```
 
 ### Get GCP Account Keyfile
@@ -312,6 +322,11 @@ spec:
 kubectl crossplane install provider crossplane/provider-azure:v0.14.0
 ```
 
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
+```
+
 ### Get Azure Principal Keyfile
 
 ```console
@@ -370,6 +385,11 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ```console
 kubectl crossplane install provider crossplane/provider-alibaba:v0.5.0
+```
+
+Wait until the provider becomes healthy:
+```
+kubectl get provider.pkg --watch
 ```
 
 ### Create a Provider Secret
