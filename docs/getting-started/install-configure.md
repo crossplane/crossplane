@@ -445,10 +445,16 @@ provider.
 kubectl get managed
 ```
 
-If there are any, please delete them first so you don't lose track of them.
+If there are any, please delete them first, so you don't lose the track of them.
 
+List installed providers:
 ```console
-kubectl delete -f provider.yaml
+kubectl get provider.pkg
+```
+
+Delete the one you want to delete:
+```
+kubectl delete provider.pkg <provider-name>
 ```
 
 ## Uninstall Crossplane
