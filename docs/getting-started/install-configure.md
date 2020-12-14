@@ -446,6 +446,11 @@ kubectl get managed
 ```
 
 If there are any, please delete them first, so you don't lose the track of them.
+Then delete all the `ProviderConfig`s you created. An example command if you used
+AWS Provider:
+```
+kubectl delete providerconfig.aws --all
+```
 
 List installed providers:
 ```console
@@ -463,6 +468,12 @@ kubectl delete provider.pkg <provider-name>
 helm delete crossplane --namespace crossplane-system
 
 kubectl delete namespace crossplane-system
+```
+
+Helm does not delete CRD objects. You can delete the ones Crossplane created with
+the following command:
+```
+kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
 ```
 
 <!-- Named Links -->
