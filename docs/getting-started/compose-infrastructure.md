@@ -73,7 +73,7 @@ We will now install a `Configuration` that:
 > an RDS instance that will allow traffic from the internet.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.0.0
 ```
 
 </div>
@@ -85,28 +85,28 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 > complex ones. See the [composition] documentation for more information.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.0.0
 ```
 
 </div>
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.0.0
 ```
 
 </div>
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.0.0
 ```
 
 </div>
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:v1.0.0
 ```
 
 </div>
@@ -154,7 +154,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
@@ -178,7 +178,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
@@ -201,7 +201,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/docs/snippets/compose/claim-gcp.yaml
 ```
 
 </div>
@@ -224,7 +224,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/docs/snippets/compose/claim-azure.yaml
 ```
 
 </div>
@@ -247,7 +247,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/docs/snippets/compose/claim-alibaba.yaml
 ```
 
 </div>
@@ -343,7 +343,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/pod.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/docs/snippets/compose/pod.yaml
 ```
 
 This `Pod` simply connects to a PostgreSQL database and prints its name, so you
