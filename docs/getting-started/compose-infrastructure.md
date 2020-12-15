@@ -305,6 +305,9 @@ be consumed by Kubernetes primitives. The most basic building block in
 Kubernetes is the `Pod`. Let's define a `Pod` that will show that we are able to
 connect to our newly provisioned database.
 
+> Note that if you're using a hosted Crossplane you'll need to copy the db-conn
+> connection secret over to your own Kubernetes cluster and run this pod there.
+
 ```yaml
 apiVersion: v1
 kind: Pod
