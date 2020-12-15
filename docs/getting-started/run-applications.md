@@ -7,6 +7,10 @@ indent: true
 
 # Run Applications
 
+> Note that OAM is an alpha feature that is disabled by default. Make sure you
+> installed the Crossplane Helm chart with the `--set alpha.oam.enabled=true`
+> flag enabled before following this part of the guide.
+
 Crossplane strives to be the best Kubernetes add-on to provision and manage the
 infrastructure and services your applications need directly from kubectl. A huge
 part of this mission is arriving at an elegant, flexible way to model and manage

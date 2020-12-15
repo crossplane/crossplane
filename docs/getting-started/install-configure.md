@@ -40,6 +40,11 @@ to your hosted Crossplane cluster.
 Once you've completed these two steps, skip down to [Install Crossplane
 CLI](#install-crossplane-cli) for further setup instructions.
 
+> Note that Upbound Cloud does not yet include support for Crossplane's alpha
+> Open Application Model (OAM) functionality. You'll need to install a self
+> hosted Crossplane if you'd like to try the 'Run Applications' part of this
+> guide.
+
 <i>Want see another hosted Crossplane service listed? Please [reach out on
 Slack][Slack] and our community will highlight it here!</i>
 
@@ -114,8 +119,12 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --set alpha.oam.enabled=true
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
 ```
+
+> Note that OAM is an alpha feature that is disabled by default. Make sure to
+> install the Crossplane Helm chart with the `--set alpha.oam.enabled=true` flag
+> if you would like to follow the 'Run Applications'  part of the guide.
 
 </div>
 <div class="tab-pane fade" id="install-tab-helm3-latest" markdown="1">
@@ -128,14 +137,20 @@ helm repo add crossplane-master https://charts.crossplane.io/master/
 helm repo update
 helm search repo crossplane-master --devel
 
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version> --set alpha.oam.enabled=true
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane \
+  --devel --version <version>
 ```
 
 For example:
 
 ```console
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version 0.11.0-rc.100.gbc5d311 --devel --set alpha.oam.enabled=true
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane \
+  --version 0.11.0-rc.100.gbc5d311 --devel
 ```
+
+> Note that OAM is an alpha feature that is disabled by default. Make sure to
+> install the Crossplane Helm chart with the `--set alpha.oam.enabled=true` flag
+> if you would like to follow the 'Run Applications'  part of the guide.
 
 </div>
 </div>
