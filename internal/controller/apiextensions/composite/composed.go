@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -159,7 +160,7 @@ func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetche
 }
 
 // FetchConnectionDetails of the supplied composed resource, if any.
-func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
 	sref := cd.GetWriteConnectionSecretToReference()
 	if sref == nil {
 		return nil, nil
@@ -178,28 +179,49 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 	}
 
 	for _, d := range t.ConnectionDetails {
-		if d.Name != nil && d.Value != nil {
-			conn[*d.Name] = []byte(*d.Value)
-			continue
-		}
+		switch {
+		case d.Value != nil:
+			if d.Name != nil {
+				conn[*d.Name] = []byte(*d.Value)
+			}
+		case d.FromConnectionSecretKey != nil && len(s.Data[*d.FromConnectionSecretKey]) != 0:
+			key := *d.FromConnectionSecretKey
+			if d.Name != nil {
+				key = *d.Name
+			}
 
-		if d.FromConnectionSecretKey == nil {
-			continue
+			conn[key] = s.Data[*d.FromConnectionSecretKey]
+		case d.FromResourceFieldPath != nil && d.Name != nil:
+			_ = extractFieldPathValue(cd, d, conn)
 		}
-
-		if len(s.Data[*d.FromConnectionSecretKey]) == 0 {
-			continue
-		}
-
-		key := *d.FromConnectionSecretKey
-		if d.Name != nil {
-			key = *d.Name
-		}
-
-		conn[key] = s.Data[*d.FromConnectionSecretKey]
 	}
 
 	return conn, nil
+}
+
+func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn managed.ConnectionDetails) error {
+	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+	if err != nil {
+		return err
+	}
+
+	str, err := fieldpath.Pave(fromMap).GetString(*detail.FromResourceFieldPath)
+	if err == nil {
+		conn[*detail.Name] = []byte(str)
+		return nil
+	}
+
+	in, err := fieldpath.Pave(fromMap).GetValue(*detail.FromResourceFieldPath)
+	if err != nil {
+		return err
+	}
+
+	buffer, err := json.Marshal(in)
+	if err != nil {
+		return err
+	}
+	conn[*detail.Name] = buffer
+	return nil
 }
 
 // IsReady returns whether the composed resource is ready.

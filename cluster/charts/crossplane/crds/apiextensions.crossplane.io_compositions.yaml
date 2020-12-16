@@ -65,7 +65,7 @@ spec:
                         description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
                         properties:
                           fromFieldPath:
-                            description: FromFieldPath is the path of the field on the upstream resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            description: FromFieldPath is the path of the field on the composed resource whose value to be used as input. Required when type is FromCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
@@ -152,7 +152,10 @@ spec:
                         description: ConnectionDetail includes the information about the propagation of the connection information from one secret to another.
                         properties:
                           fromConnectionSecretKey:
-                            description: FromConnectionSecretKey is the key that will be used to fetch the value from the given target resource.
+                            description: FromConnectionSecretKey is the key that will be used to fetch the value from the given target resource's secret
+                            type: string
+                          fromResourceFieldPath:
+                            description: FromResourceFieldPath is the path of the field on the composed resource whose value to be used as input. Name must be specified.
                             type: string
                           name:
                             description: Name of the connection secret key that will be propagated to the connection secret of the composition instance. Leave empty if you'd like to use the same key name.
@@ -168,7 +171,7 @@ spec:
                         description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
                         properties:
                           fromFieldPath:
-                            description: FromFieldPath is the path of the field on the upstream resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            description: FromFieldPath is the path of the field on the composed resource whose value to be used as input. Required when type is FromCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.

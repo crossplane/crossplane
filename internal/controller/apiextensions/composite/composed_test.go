@@ -263,6 +263,72 @@ func TestFetch(t *testing.T) {
 				},
 			},
 		},
+		"SuccessFieldPath": {
+			reason: "Should publish only the selected set of secret keys",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						// Entries with only a name are silently ignored.
+						Name:          pointer.StringPtr("name"),
+						FromResourceFieldPath: pointer.StringPtr("objectMeta.name"),
+					},
+				}},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"name": []byte("test"),
+				},
+			},
+		},
+		"SuccessFieldPathMarshal": {
+			reason: "Should publish the secret keys as a JSON value",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 4,
+					},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						// Entries with only a name are silently ignored.
+						Name:          pointer.StringPtr("generation"),
+						FromResourceFieldPath: pointer.StringPtr("objectMeta.generation"),
+					},
+				}},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"generation": []byte("4"),
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {

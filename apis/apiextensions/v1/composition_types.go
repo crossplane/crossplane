@@ -208,7 +208,7 @@ type Patch struct {
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
-	// FromFieldPath is the path of the field on the upstream resource whose value
+	// FromFieldPath is the path of the field on the composed resource whose value
 	// to be used as input. Required when type is FromCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
@@ -553,9 +553,14 @@ type ConnectionDetail struct {
 	Name *string `json:"name,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
-	// from the given target resource.
+	// from the given target resource's secret
 	// +optional
 	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
+
+	// FromResourceFieldPath is the path of the field on the composed resource whose value
+	// to be used as input. Name must be specified.
+	// +optional
+	FromResourceFieldPath *string `json:"fromResourceFieldPath,omitempty"`
 
 	// Value that will be propagated to the connection secret of the composition
 	// instance. Typically you should use FromConnectionSecretKey instead, but
