@@ -15,7 +15,7 @@ v0.14, run:
 
 ```console
 # Update to the latest CRDs.
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.0/cluster/charts/crossplane/crds
+kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=release-1.0
 
 # Update to the v1.0 Helm chart
 helm --namespace crossplane-system upgrade crossplane crossplane-stable/crossplane
