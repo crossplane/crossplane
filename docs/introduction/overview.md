@@ -77,7 +77,7 @@ Managed resources are Kubernetes custom resources that represent infrastructure
 primitives. Managed resources with an API version of `v1beta1` or higher support
 every field that the cloud provider does for the given resource. You can find
 the Managed Resources and their API specifications for each provider on
-[doc.crds.dev] and learn more in the [managed resource documentation].
+[doc.crds.dev] and learn more in the [managed resources documentation].
 
 ## Composite Resources
 
