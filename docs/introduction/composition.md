@@ -79,7 +79,7 @@ corresponding `MySQLInstance` claim.
 ## Defining Infrastructure
 
 New kinds of infrastructure resource are defined by an infrastructure operator.
-There are three steps to this process:
+There are two steps to this process:
 
 1. Define your composite resource, and optionally the claim it offers.
 1. Specify one or more possible ways your composite resource may be composed.
