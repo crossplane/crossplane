@@ -7,12 +7,12 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## Table of Contents
 
 * [What's next](#whats-next)
-
-  * [v1.0.0 Release Candidate (Dec 2020)](#v100-release-candidate-dec-2020)
+  * [v1.1.0 Provider Code Generation, Multi-Language Support, Composition Enhancements](#v110-provider-code-generation-multi-langauage-support-composition-enhancements)
   * [Under Consideration](#under-consideration)
 
 * [Released](#released)
-  * [v0.14.0 Hardening, robustness, v1beta1 APIs in core](#v0140---hardening-robustness-v1beta1-apis-in-core)
+  * [v1.0.0 Stable v1 APIs, package dep resolution, Prom metrics, and more](#v100-stable-v1-apis-package-dep-resolution-prom-metrics-and-more)
+  * [v0.14.0 Hardening, robustness, v1beta1 APIs in core](#v0140-hardening-robustness-v1beta1-apis-in-core) 
   * [v0.13.0 Paving the way for a v1.0 release of Crossplane](#v0130-paving-the-way-for-a-v10-release-of-crossplane)
   * [v0.12.0 Upgrade claims/classes to a more powerful composition approach](#v0120-upgrade-claimsclasses-to-a-more-powerful-composition-approach)
   * [v0.11.0 Composition v1alpha1, OAM support, backup/restore, docs overhaul](#v0110-infra-composition-v1alpha1-oam-support-backuprestore-docs-overhaul)
@@ -29,51 +29,42 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## What's Next
 
-### v1.0.0 Release Candidate (Dec 2020)
+### v1.1.0 Provider Code Generation, Multi-Language Support, Composition Enhancements
 
-* Hardening and cleanup for v1.0
-  * Prometheus metrics for all binaries [#314](https://github.com/crossplane/crossplane/issues/314)
-  * crossplane-runtime to v1.0
+* General
+  * First-class multi-language support for defining `Compositions` and `Configuration` packages.
+    * https://github.com/crossplane-contrib/crossplane-cdk8s
+    * enhancements and community feedback
+  * Managed resources can accept an array of resource references for cross-resource references (CRR)
 
 * Composition
-  * Claim update propagation to its underlying composite resource [#1649](https://github.com/crossplane/crossplane/issues/1649)
   * Bi-directional patching for status [#1639](https://github.com/crossplane/crossplane/issues/1639)
   * Revision support for incremental upgrades [#1481](https://github.com/crossplane/crossplane/issues/1481)
   * Support taking values from members to fill a connection secret [#1609](https://github.com/crossplane/crossplane/issues/1609)
-  * Validation webhooks
-
-* Package Manager
-  * Basic dependency resolution for packages [#1842](https://github.com/crossplane/crossplane/issues/1842)
-    * i.e. automatically install the providers a configuration needs.
 
 * Providers
-  * AWS Provider
-    * more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
-  * Helm Provider
-    * v1beta1 APIs
-
-  * Code Generation of Providers (work-in-progress)
+  * Code Generation of Providers (towards 100% coverage)
     * AWS ACK Code Generation of the Crossplane provider-aws
-      * [initial auto generated resources](https://github.com/crossplane/provider-aws/issues/149#issuecomment-718208201)
+      * auto generate all available types that ACK supports from [aws-sdk-go/models/apis](https://github.com/aws/aws-sdk-go/blob/master/models/apis)
     * Azure Code Generation of the Crossplane provider-azure
-      * [initial auto generated resources](https://github.com/matthchr/k8s-infra/tree/crossplane-hacking)
+      * auto generate available types from the Azure metadata
     * Clouds that don't have code gen pipelines
-      * Wrap stateless Terraform providers (work-in-progress) [#262](https://github.com/crossplane/crossplane/issues/262)
-      * [initial auto generated resources](https://github.com/kasey/provider-terraform-aws/tree/master/generated/resources)
+      * Wrap stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
 
-* Open Application Model (OAM)
-  * APIs to v1beta1
-  * Hardening
+* Package Manager
+  * Conversion webhooks to support installing multiple API versions at the same time
 
 ### Under Consideration
 
 * General
   * First-class multi-language support for defining `Compositions` and `Configuration` packages.
-  * Managed resources can accept an array of resource references for cross-resource references (CRR)
+    * https://github.com/crossplane-contrib/crossplane-cdk8s
+    * alpha release
   * Per-namespace mapping of IRSA and workload identity for finer grained infra permissions in multi-tenant clusters
   * Enhanced integration testing [#1033](https://github.com/crossplane/crossplane/issues/1033)
 
 * Composition
+  * Validation webhooks
   * Additional conversion strategies for XRDs with multiple version of an XR defined
   * `CustomComposition` support for use with cdk8s sidecar, TYY, and others [#1678](https://github.com/crossplane/crossplane/issues/1678)
 
@@ -110,7 +101,38 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## Released
 
-### [v0.14.0 - Hardening, robustness, v1beta1 APIs in core](https://github.com/crossplane/crossplane/releases/tag/v0.14.0)
+### v1.0.0 Stable v1 APIs, package dep resolution, Prom metrics, and more
+
+* Stable v1 APIs
+
+* Hardening and cleanup for v1.0
+  * Prometheus metrics for all binaries [#314](https://github.com/crossplane/crossplane/issues/314)
+
+* Composition
+  * Claim update propagation to its underlying composite resource [#1649](https://github.com/crossplane/crossplane/issues/1649)
+
+* Package Manager
+  * Basic dependency resolution for packages [#1842](https://github.com/crossplane/crossplane/issues/1842)
+    * i.e. automatically install the providers a configuration needs.
+
+* Providers
+  * AWS Provider
+    * more API types [crossplane/provider-aws#149](https://github.com/crossplane/provider-aws/issues/149)
+  * Helm Provider
+    * v1beta1 APIs
+
+  * Code Generation of Providers (work-in-progress)
+    * AWS ACK Code Generation of the Crossplane provider-aws
+      * [initial auto generated resources](https://github.com/crossplane/provider-aws/issues/149#issuecomment-718208201)
+    * Azure Code Generation of the Crossplane provider-azure
+      * [initial auto generated resources](https://github.com/matthchr/k8s-infra/tree/crossplane-hacking)
+    * Clouds that don't have code gen pipelines
+      * Wrap stateless Terraform providers (work-in-progress) [#262](https://github.com/crossplane/crossplane/issues/262)
+        * https://github.com/crossplane-contrib/provider-terraform-aws
+        * https://github.com/crossplane-contrib/terraform-runtime
+        * https://github.com/crossplane-contrib/terraform-provider-gen
+
+### [v0.14.0 Hardening, robustness, v1beta1 APIs in core](https://github.com/crossplane/crossplane/releases/tag/v0.14.0)
 
 * Hardening and cleanup for v1.0
   * Leader election for all controllers [#5](https://github.com/crossplane/crossplane/issues/5)
