@@ -266,5 +266,5 @@ including Velero.
 
 [api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
 [velero]: https://velero.io/
-[api-reference]: api-docs/overview.md
-[provider]: provider.md
+[api-reference]: ../api-docs/overview.md
+[provider]: providers.md
