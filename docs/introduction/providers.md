@@ -101,7 +101,7 @@ documentation of each provider should give you an idea of how that credentials
 blob should look like. See [Getting Started][getting-started] guide for more
 details.
 
-The following is an example usage of Azure `ProviderConfig`, referenced by a
+The following is an example usage of AWS `ProviderConfig`, referenced by a
 `RDSInstance`:
 
 ```yaml
