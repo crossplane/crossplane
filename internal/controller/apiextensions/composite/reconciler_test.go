@@ -133,8 +133,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"ConfigureCompositeError": {
-			reason: "We should requeue after a short wait if we encounter an error while configuring the composite resource.",
+		"ValidateCompositionError": {
+			reason: "We should requeue after a short wait if we encounter an error while validating the Composition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -147,7 +147,7 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
 					})),
-					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error {
 						return errBoom
 					})),
 				},
@@ -184,16 +184,6 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return cd, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is ready.
-						return true, nil
-					})),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
 					})),
@@ -203,20 +193,43 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
-		"RenderComposedError": {
-			reason: "We should requeue after a short wait if we encounter an error while rendering a composed resource.",
+		"ConfigureCompositeError": {
+			reason: "We should requeue after a short wait if we encounter an error while configuring the composite resource.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
+							MockGet: test.NewMockGetFn(nil),
 						},
+					}),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+						return errBoom
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"ComposeError": {
+			reason: "We should requeue after a short wait if we encounter an error while composing.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:          test.NewMockGetFn(nil),
+							MockUpdate:       test.NewMockUpdateFn(nil),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						},
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+							return nil
+						}),
 					}),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
@@ -225,8 +238,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return errBoom
+					WithComposer(ComposerFn(func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+						return CompositionResult{}, errBoom
 					})),
 				},
 			},
@@ -235,218 +248,14 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"UpdateCompositeError": {
-			reason: "We should requeue after a short wait if we encounter an error while updating our composite resource with references.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(errBoom),
-						},
-					}),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"ApplyComposedError": {
-			reason: "We should requeue after a short wait if we encounter an error while applying a composed resource.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return errBoom
-						}),
-					}),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"FetchConnectionDetailsError": {
-			reason: "We should requeue after a short wait if we encounter an error while fetching a composed resource's connection details.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"CheckReadinessError": {
-			reason: "We should requeue after a short wait if we encounter an error while checking whether a composed resource is ready.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return false, errBoom
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"CompositeRenderError": {
-			reason: "We should requeue after a short wait if we encounter an error while rendering the Composite.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return false, nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return errBoom
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"CompositeUpdateError": {
 			reason: "We should requeue after a short wait if we encounter an error while updating the Composite.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								// annotation will be set by mock composite render
-								if obj.GetAnnotations()["composite-rendered"] == "true" {
-									return errBoom
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockGet:    test.NewMockGetFn(nil),
+							MockUpdate: test.NewMockUpdateFn(errBoom),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -459,20 +268,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return true, nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						// use arbitrary annotation to track api-server requests
-						// made after composite render
-						cp.SetAnnotations(map[string]string{"composite-rendered": "true"})
-						return nil
+					WithComposer(ComposerFn(func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+						return CompositionResult{}, nil
 					})),
 				},
 			},
@@ -494,11 +291,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								// annotation will be set by mock composite render
-								if obj.GetAnnotations()["composite-rendered"] == "true" {
-									// Set composite resource version to indicate update was not a no-op.
-									obj.SetResourceVersion("1")
-								}
+								obj.SetResourceVersion("1")
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
@@ -514,20 +307,8 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return true, nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						// use arbitrary annotation to track api-server requests
-						// made after composite render
-						cp.SetAnnotations(map[string]string{"composite-rendered": "true"})
-						return nil
+					WithComposer(ComposerFn(func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+						return CompositionResult{}, nil
 					})),
 				},
 			},
@@ -557,6 +338,9 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
 					})),
+					WithComposer(ComposerFn(func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+						return CompositionResult{}, nil
+					})),
 					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
 						return false, errBoom
 					})),
@@ -573,12 +357,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
+							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
@@ -590,18 +369,11 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is not ready.
-						return false, nil
-					})),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+						return CompositionResult{DesiredResources: 2, ReadyResources: 1}, nil
 					})),
 					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
 						return false, nil
@@ -619,12 +391,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if comp, ok := obj.(*v1.Composition); ok {
-									comp.Spec.Resources = []v1.ComposedTemplate{{}}
-								}
-								return nil
-							}),
+							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
@@ -636,18 +403,11 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return cd, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is ready.
-						return true, nil
-					})),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+						return CompositionResult{DesiredResources: 2, ReadyResources: 2, ConnectionDetails: cd}, nil
 					})),
 					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
 						want := cd
@@ -662,6 +422,155 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: longWait},
 			},
 		},
+		/*
+							"UpdateCompositeError": {
+								reason: "We should requeue after a short wait if we encounter an error while updating our composite resource with references.",
+								args: args{
+									mgr: &fake.Manager{},
+									opts: []ReconcilerOption{
+										WithClientApplicator(resource.ClientApplicator{
+											Client: &test.MockClient{
+												MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+													if comp, ok := obj.(*v1.Composition); ok {
+														comp.Spec.Resources = []v1.ComposedTemplate{{}}
+													}
+													return nil
+												}),
+												MockUpdate: test.NewMockUpdateFn(errBoom),
+											},
+										}),
+										WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+											cr.SetCompositionReference(&corev1.ObjectReference{})
+											return nil
+										})),
+										WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+											return nil
+										})),
+										WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+											return nil
+										})),
+									},
+								},
+								want: want{
+									r: reconcile.Result{RequeueAfter: shortWait},
+								},
+							},
+							"ApplyComposedError": {
+								reason: "We should requeue after a short wait if we encounter an error while applying a composed resource.",
+								args: args{
+									mgr: &fake.Manager{},
+									opts: []ReconcilerOption{
+										WithClientApplicator(resource.ClientApplicator{
+											Client: &test.MockClient{
+												MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+													if comp, ok := obj.(*v1.Composition); ok {
+														comp.Spec.Resources = []v1.ComposedTemplate{{}}
+													}
+													return nil
+												}),
+												MockUpdate: test.NewMockUpdateFn(nil),
+											},
+											Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+												return errBoom
+											}),
+										}),
+										WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+											cr.SetCompositionReference(&corev1.ObjectReference{})
+											return nil
+										})),
+										WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+											return nil
+										})),
+										WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+											return nil
+										})),
+									},
+								},
+								want: want{
+									r: reconcile.Result{RequeueAfter: shortWait},
+								},
+							},
+							"FetchConnectionDetailsError": {
+								reason: "We should requeue after a short wait if we encounter an error while fetching a composed resource's connection details.",
+								args: args{
+									mgr: &fake.Manager{},
+									opts: []ReconcilerOption{
+										WithClientApplicator(resource.ClientApplicator{
+											Client: &test.MockClient{
+												MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+													if comp, ok := obj.(*v1.Composition); ok {
+														comp.Spec.Resources = []v1.ComposedTemplate{{}}
+													}
+													return nil
+												}),
+												MockUpdate: test.NewMockUpdateFn(nil),
+											},
+											Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+												return nil
+											}),
+										}),
+										WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+											cr.SetCompositionReference(&corev1.ObjectReference{})
+											return nil
+										})),
+										WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+											return nil
+										})),
+										WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+											return nil
+										})),
+										WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+											return nil, errBoom
+										})),
+									},
+								},
+								want: want{
+									r: reconcile.Result{RequeueAfter: shortWait},
+								},
+							},
+							"CheckReadinessError": {
+								reason: "We should requeue after a short wait if we encounter an error while checking whether a composed resource is ready.",
+								args: args{
+									mgr: &fake.Manager{},
+									opts: []ReconcilerOption{
+										WithClientApplicator(resource.ClientApplicator{
+											Client: &test.MockClient{
+												MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+													if comp, ok := obj.(*v1.Composition); ok {
+														comp.Spec.Resources = []v1.ComposedTemplate{{}}
+													}
+													return nil
+												}),
+												MockUpdate: test.NewMockUpdateFn(nil),
+											},
+											Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+												return nil
+											}),
+										}),
+										WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+											cr.SetCompositionReference(&corev1.ObjectReference{})
+											return nil
+										})),
+										WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+											return nil
+										})),
+										WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+											return nil
+										})),
+										WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+											return nil, nil
+										})),
+										WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
+											return false, errBoom
+										})),
+									},
+								},
+								want: want{
+									r: reconcile.Result{RequeueAfter: shortWait},
+								},
+							},
+			,
+		*/
 	}
 
 	for name, tc := range cases {

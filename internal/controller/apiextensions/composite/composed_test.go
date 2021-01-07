@@ -119,12 +119,18 @@ func TestRender(t *testing.T) {
 					xcrd.LabelKeyClaimNamespace:        "rolans",
 				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+				t: v1.ComposedTemplate{
+					TemplateName: pointer.StringPtr("wat"),
+					Base:         runtime.RawExtension{Raw: tmpl},
+				},
 			},
 			want: want{
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
 					Name:         "cd",
 					GenerateName: "ola-",
+					Annotations: map[string]string{
+						AnnotationKeyCompositionTemplateName: "wat",
+					},
 					Labels: map[string]string{
 						xcrd.LabelKeyNamePrefixForComposed: "ola",
 						xcrd.LabelKeyClaimName:             "rola",
@@ -432,10 +438,168 @@ func TestIsReady(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ready, err := IsReady(context.Background(), tc.args.cd, tc.args.t)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nIsReady(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.ready, ready); diff != "" {
 				t.Errorf("\n%s\nIsReady(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestRejectMixedTemplates(t *testing.T) {
+	cases := map[string]struct {
+		comp *v1.Composition
+		want error
+	}{
+		"Mixed": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Unnamed.
+						},
+						{
+							TemplateName: pointer.StringPtr("cool"),
+						},
+					},
+				},
+			},
+			want: errors.New(errMixed),
+		},
+		"Anonymous": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Unnamed.
+						},
+						{
+							// Unnamed.
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		"Named": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							TemplateName: pointer.StringPtr("cool"),
+						},
+						{
+							TemplateName: pointer.StringPtr("cooler"),
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RejectMixedTemplates(tc.comp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nRejectMixedTemplates(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRejectDuplicateNames(t *testing.T) {
+	cases := map[string]struct {
+		comp *v1.Composition
+		want error
+	}{
+		"Unique": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							TemplateName: pointer.StringPtr("cool"),
+						},
+						{
+							TemplateName: pointer.StringPtr("cooler"),
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		"Anonymous": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Unnamed.
+						},
+						{
+							// Unnamed.
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		"Duplicates": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							TemplateName: pointer.StringPtr("cool"),
+						},
+						{
+							TemplateName: pointer.StringPtr("cool"),
+						},
+					},
+				},
+			},
+			want: errors.New(errDuplicate),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RejectDuplicateNames(tc.comp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nRejectDuplicateNames(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCompose(t *testing.T) {
+	type args struct {
+		ctx  context.Context
+		cr   resource.Composite
+		comp *v1.Composition
+	}
+
+	type want struct {
+		r   CompositionResult
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      Composer
+		args   args
+		want   want
+	}{
+		// TODO(negz): Add tests.
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.c.Compose(tc.args.ctx, tc.args.cr, tc.args.comp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nCompose(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.r, got); diff != "" {
+				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

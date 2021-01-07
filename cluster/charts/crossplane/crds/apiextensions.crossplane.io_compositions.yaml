@@ -261,6 +261,9 @@ spec:
                         - type
                         type: object
                       type: array
+                    templateName:
+                      description: A TemplateName uniquely identifies this resource template within its Composition. Template names are strongly recommended. Either all or no templates within a Composition must be named. Compositions that use anonymous templates match templates to composed resources by order, and must therefore treat the order and length of their spec.resources array as immutable.
+                      type: string
                   required:
                   - base
                   type: object
@@ -550,6 +553,9 @@ spec:
                         - type
                         type: object
                       type: array
+                    templateName:
+                      description: A TemplateName uniquely identifies this resource template within its Composition. Template names are strongly recommended. Either all or no templates within a Composition must be named. Compositions that use anonymous templates match templates to composed resources by order, and must therefore treat the order and length of their spec.resources array as immutable.
+                      type: string
                   required:
                   - base
                   type: object

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,7 +34,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -56,10 +54,9 @@ const (
 	errGetComp      = "cannot get Composition"
 	errConfigure    = "cannot configure composite resource"
 	errPublish      = "cannot publish connection details"
-	errRenderCD     = "cannot render composed resource"
-	errRenderCR     = "cannot render composite resource"
-
-	errFmtRender = "cannot render composed resource at index %d"
+	errValidate     = "refusing to use invalid Composition"
+	errInline       = "cannot inline Composition patch sets"
+	errCompose      = "cannot compose resources"
 )
 
 // Event reasons.
@@ -126,45 +123,32 @@ func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, c
 	return fn(ctx, cr, cp)
 }
 
-// A Renderer is used to render a composed resource.
-type Renderer interface {
-	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
+// A CompositionResult is the result of composing several composed resources
+// into a composite resource.
+type CompositionResult struct {
+	// The connection details of all composed resources.
+	ConnectionDetails managed.ConnectionDetails
+
+	// The desired number of composed resources.
+	DesiredResources int
+
+	// The number of composed resources that are ready.
+	ReadyResources int
 }
 
-// A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
-
-// Render the supplied composed resource using the supplied composite resource
-// and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-	return fn(ctx, cp, cd, t)
+// A Composer composes (i.e. CRUDs) resources per the supplied composite
+// resource and composition.
+type Composer interface {
+	Compose(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error)
 }
 
-// ConnectionDetailsFetcher fetches the connection details of the Composed resource.
-type ConnectionDetailsFetcher interface {
-	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
-}
+// A ComposerFn may compose resources per the supplied composite resource and
+// composition.
+type ComposerFn func(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error)
 
-// A ConnectionDetailsFetcherFn fetches the connection details of the supplied
-// composed resource, if any.
-type ConnectionDetailsFetcherFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
-
-// FetchConnectionDetails calls the FetchConnectionDetailsFn.
-func (f ConnectionDetailsFetcherFn) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-	return f(ctx, cd, t)
-}
-
-// A ReadinessChecker checks whether a composed resource is ready or not.
-type ReadinessChecker interface {
-	IsReady(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error)
-}
-
-// A ReadinessCheckerFn checks whether a composed resource is ready or not.
-type ReadinessCheckerFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error)
-
-// IsReady reports whether a composed resource is ready or not.
-func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-	return fn(ctx, cd, t)
+// Compose resources from the supplied composite resource and Composition.
+func (fn ComposerFn) Compose(ctx context.Context, cr resource.Composite, comp *v1.Composition) (CompositionResult, error) {
+	return fn(ctx, cr, comp)
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -192,26 +176,11 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
-// WithRenderer specifies how the Reconciler should render composed resources.
-func WithRenderer(rd Renderer) ReconcilerOption {
+// WithCompositionValidator specifies how the Reconciler should validate
+// Compositions.
+func WithCompositionValidator(v CompositionValidator) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composed.Renderer = rd
-	}
-}
-
-// WithConnectionDetailsFetcher specifies how the Reconciler should fetch the
-// connection details of composed resources.
-func WithConnectionDetailsFetcher(f ConnectionDetailsFetcher) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.composed.ConnectionDetailsFetcher = f
-	}
-}
-
-// WithReadinessChecker specifies how the Reconciler should fetch the connection
-// details of composed resources.
-func WithReadinessChecker(c ReadinessChecker) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.composed.ReadinessChecker = c
+		r.composition = v
 	}
 }
 
@@ -231,6 +200,13 @@ func WithConfigurator(c Configurator) ReconcilerOption {
 	}
 }
 
+// WithComposer specifies how the Reconciler should compose resources.
+func WithComposer(c Composer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.Composer = c
+	}
+}
+
 // WithConnectionPublisher specifies how the Reconciler should publish
 // connection secrets.
 func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
@@ -239,24 +215,12 @@ func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
 	}
 }
 
-// WithCompositeRenderer specifies how the Reconciler should render composite resources.
-func WithCompositeRenderer(rd Renderer) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.composite.Renderer = rd
-	}
-}
-
 type compositeResource struct {
 	CompositionSelector
 	Configurator
+	Composer
 	ConnectionPublisher
 	Renderer
-}
-
-type composedResource struct {
-	Renderer
-	ConnectionDetailsFetcher
-	ReadinessChecker
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
@@ -267,23 +231,20 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
-		client: resource.ClientApplicator{
-			Client:     kube,
-			Applicator: resource.NewAPIPatchingApplicator(kube),
-		},
+		client:       kube,
 		newComposite: nc,
 
+		composition: ValidationChain{
+			CompositionValidatorFn(RejectMixedTemplates),
+			CompositionValidatorFn(RejectDuplicateNames),
+		},
+
 		composite: compositeResource{
+			Composer:            NewNamedComposer(kube),
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 			Renderer:            RendererFn(RenderComposite),
-		},
-
-		composed: composedResource{
-			Renderer:                 NewAPIDryRunRenderer(kube),
-			ReadinessChecker:         ReadinessCheckerFn(IsReady),
-			ConnectionDetailsFetcher: NewAPIConnectionDetailsFetcher(kube),
 		},
 
 		log:    logging.NewNopLogger(),
@@ -298,11 +259,11 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 
 // A Reconciler reconciles composite resources.
 type Reconciler struct {
-	client       resource.ClientApplicator
+	client       client.Client
 	newComposite func() resource.Composite
 
-	composite compositeResource
-	composed  composedResource
+	composition CompositionValidator
+	composite   compositeResource
 
 	log    logging.Logger
 	record event.Recorder
@@ -348,98 +309,38 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	if err := r.composite.Configure(ctx, cr, comp); err != nil {
-		log.Debug(errConfigure, "error", err)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
-	}
-
 	log = log.WithValues(
 		"composition-uid", comp.GetUID(),
 		"composition-version", comp.GetResourceVersion(),
 		"composition-name", comp.GetName(),
 	)
 
-	// TODO(muvaf): Since the composed reconciler returns only reference, it can
-	// be parallelized via go routines.
+	// TODO(negz): Composition validation should be handled by a validation
+	// webhook, not by this controller.
+	if err := r.composition.Validate(comp); err != nil {
+		log.Debug(errValidate, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
 
-	// In order to iterate over all composition targets, we create an empty ref
-	// array with the same length. Then copy the already provisioned ones into
-	// that array to not create new ones because composed reconciler assumes that
-	// if the reference is empty, it needs to create the resource.
-
-	// TODO(negz): This approach means that the resources of a Composition are
-	// effectively append only. We may want to reconsider this per
-	// https://github.com/crossplane/crossplane/issues/1909
-	refs := make([]corev1.ObjectReference, len(comp.Spec.Resources))
-	copy(refs, cr.GetResourceReferences())
-
-	// Inline PatchSets from Composition Spec before rendering
+	// Inline PatchSets from Composition Spec before composing resources.
 	if err := comp.Spec.InlinePatchSets(); err != nil {
-		log.Debug(errRenderCD, "error", err)
+		log.Debug(errInline, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	cds := make([]*composed.Unstructured, len(refs))
-	for i := range refs {
-		cd := composed.New(composed.FromReference(refs[i]))
-		if err := r.composed.Render(ctx, cr, cd, comp.Spec.Resources[i]); err != nil {
-			log.Debug(errRenderCD, "error", err, "index", i)
-			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
-
-		cds[i] = cd
-		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
-	}
-
-	cr.SetResourceReferences(refs)
-	if err := r.client.Update(ctx, cr); err != nil {
-		log.Debug(errUpdate, "error", err)
+	if err := r.composite.Configure(ctx, cr, comp); err != nil {
+		log.Debug(errConfigure, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	conn := managed.ConnectionDetails{}
-	ready := 0
-	for i, cd := range cds {
-		if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
-			log.Debug(errApply, "error", err)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
-
-		// Connection details are fetched in all cases in a best-effort mode,
-		// i.e. it doesn't return error if the secret does not exist or the
-		// resource does not publish a secret at all.
-		c, err := r.composed.FetchConnectionDetails(ctx, cd, comp.Spec.Resources[i])
-		if err != nil {
-			log.Debug(errFetchSecret, "error", err)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
-
-		for key, val := range c {
-			conn[key] = val
-		}
-
-		rdy, err := r.composed.IsReady(ctx, cd, comp.Spec.Resources[i])
-		if err != nil {
-			log.Debug(errReadiness, "error", err)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
-
-		if rdy {
-			ready++
-		}
-
-		if err := r.composite.Render(ctx, cr, cd, comp.Spec.Resources[i]); err != nil {
-			log.Debug(errRenderCR, "error", err)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
-		}
+	composed, err := r.composite.Compose(ctx, cr, comp)
+	if err != nil {
+		log.Debug(errCompose, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
 	// We pass a deepcopy because the update method doesn't update status,
@@ -464,7 +365,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
 
-	published, err := r.composite.PublishConnection(ctx, cr, conn)
+	published, err := r.composite.PublishConnection(ctx, cr, composed.ConnectionDetails)
 	if err != nil {
 		log.Debug(errPublish, "error", err)
 		r.record.Event(cr, event.Warning(reasonPublish, err))
@@ -480,7 +381,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// * Report which resources are not ready.
 	// * If a resource becomes Unavailable at some point, should we still report
 	//   it as Creating?
-	if ready != len(refs) {
+	if composed.ReadyResources < composed.DesiredResources {
 		cr.SetConditions(xpv1.Creating())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}

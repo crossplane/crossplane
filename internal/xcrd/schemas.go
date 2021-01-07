@@ -16,7 +16,9 @@ limitations under the License.
 
 package xcrd
 
-import extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+import (
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+)
 
 // Label keys.
 const (
