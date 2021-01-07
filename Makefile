@@ -57,6 +57,7 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 
 DOCKER_REGISTRY = crossplane
 IMAGES = crossplane
+OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/image.mk
 
 # ====================================================================================
