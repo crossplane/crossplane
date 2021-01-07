@@ -1,12 +1,13 @@
 # ====================================================================================
 # Setup Project
 
-PLATFORMS := linux_amd64 linux_arm64
+PLATFORMS := linux_amd64 linux_arm64 linux_arm
 include ../../../build/makelib/common.mk
 
 # ====================================================================================
 #  Options
 IMAGE = $(BUILD_REGISTRY)/crossplane-$(ARCH)
+OSBASEIMAGE = gcr.io/distroless/static:nonroot
 include ../../../build/makelib/image.mk
 
 # ====================================================================================

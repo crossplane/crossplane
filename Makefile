@@ -4,7 +4,7 @@
 PROJECT_NAME := crossplane
 PROJECT_REPO := github.com/crossplane/$(PROJECT_NAME)
 
-PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
+PLATFORMS ?= linux_amd64 linux_arm64 linux_arm darwin_amd64 windows_amd64
 # -include will silently skip missing files, which allows us
 # to load those files with a target in the Makefile. If only
 # "include" was used, the make command would fail and refuse
@@ -57,6 +57,7 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 
 DOCKER_REGISTRY = crossplane
 IMAGES = crossplane
+OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/image.mk
 
 # ====================================================================================
