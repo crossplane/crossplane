@@ -7,6 +7,7 @@ include ../../../build/makelib/common.mk
 # ====================================================================================
 #  Options
 IMAGE = $(BUILD_REGISTRY)/crossplane-$(ARCH)
+OSBASEIMAGE = gcr.io/distroless/static:nonroot
 include ../../../build/makelib/image.mk
 
 # ====================================================================================
