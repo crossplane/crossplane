@@ -161,6 +161,15 @@ spec:
                             type: string
                         type: object
                       type: array
+                    dependsOn:
+                      description: DependsOn allows this element in the composition to depend on some other element(s) in this composition.
+                      items:
+                        description: DependencyCheck contains fields which allow the resource to describe an individual dependency for some resource
+                        properties:
+                          previous:
+                            type: boolean
+                        type: object
+                      type: array
                     patches:
                       description: Patches will be applied as overlay to the base resource.
                       items:

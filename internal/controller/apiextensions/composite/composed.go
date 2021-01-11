@@ -40,6 +40,7 @@ import (
 // Error strings
 const (
 	errApply       = "cannot apply composed resource"
+	errApplyBlock  = "cannot apply composed resource because of dependency"
 	errFetchSecret = "cannot fetch connection secret"
 	errReadiness   = "cannot check whether composed resource is ready"
 	errUnmarshal   = "cannot unmarshal base template"
@@ -124,6 +125,8 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	if cd.GetName() != "" || cd.GetGenerateName() == "" {
 		return nil
 	}
+
+	fmt.Printf("%+v\n", cd)
 
 	// The API server returns an available name derived from generateName when
 	// we perform a dry-run create. This name is likely (but not guaranteed) to
@@ -237,4 +240,20 @@ func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bo
 		}
 	}
 	return true, nil
+}
+
+// IsBlocked returns whether the composed resource has done incomplete dependencies.
+func IsBlocked(cds []*composed.Unstructured, ts []v1.ComposedTemplate, index int) (bool, error) {
+	for _, depends := range ts[index].DependsOn {
+		if depends.Previous != nil && *depends.Previous && index != 0 {
+			blocked, err := IsReady(context.Background(), cds[index-1], ts[index-1])
+			if err != nil {
+				return true, err
+			}
+			if !blocked {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }

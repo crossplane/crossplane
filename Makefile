@@ -136,11 +136,11 @@ submodules:
 
 # Install CRDs into a cluster. This is for convenience.
 install-crds: $(KUBECTL) reviewable
-	$(KUBECTL) apply -f cluster/charts/crossplane-types/crds/
+	$(KUBECTL) apply -f cluster/charts/crossplane/crds/
 
 # Uninstall CRDs from a cluster. This is for convenience.
 uninstall-crds:
-	$(KUBECTL) delete -f cluster/charts/crossplane-types/crds/
+	$(KUBECTL) delete -f cluster/charts/crossplane/crds/
 
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,

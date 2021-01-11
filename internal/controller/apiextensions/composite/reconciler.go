@@ -165,6 +165,19 @@ func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, 
 	return fn(ctx, cd, t)
 }
 
+// A BlockedChecker checks whether a composed resource is currently blocked or not.
+type BlockedChecker interface {
+	IsBlocked(cds []*composed.Unstructured, ts []v1.ComposedTemplate, index int) (ready bool, err error)
+}
+
+// A BlockedCheckerFn checks whether a composed resource is blocked or not.
+type BlockedCheckerFn func(cds []*composed.Unstructured, ts []v1.ComposedTemplate, index int) (ready bool, err error)
+
+// IsBlocked reports whether a composed resource is ready or not.
+func (fn BlockedCheckerFn) IsBlocked(cds []*composed.Unstructured, ts []v1.ComposedTemplate, i int) (ready bool, err error) {
+	return fn(cds, ts, i)
+}
+
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -247,6 +260,7 @@ type composedResource struct {
 	Renderer
 	ConnectionDetailsFetcher
 	ReadinessChecker
+	BlockedChecker
 }
 
 // NewReconciler returns a new Reconciler of composite resources.
@@ -272,6 +286,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		composed: composedResource{
 			Renderer:                 NewAPIDryRunRenderer(kube),
 			ReadinessChecker:         ReadinessCheckerFn(IsReady),
+			BlockedChecker:           BlockedCheckerFn(IsBlocked),
 			ConnectionDetailsFetcher: NewAPIConnectionDetailsFetcher(kube),
 		},
 
@@ -393,6 +408,14 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	conn := managed.ConnectionDetails{}
 	ready := 0
 	for i, cd := range cds {
+		if len(comp.Spec.Resources[i].DependsOn) != 0 {
+			blocked, err := r.composed.IsBlocked(cds, comp.Spec.Resources, i)
+			if err != nil || blocked {
+				log.Debug(errApplyBlock, "error", err)
+				continue
+			}
+		}
+
 		if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
 			log.Debug(errApply, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))

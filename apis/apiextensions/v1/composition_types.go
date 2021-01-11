@@ -153,6 +153,16 @@ type ComposedTemplate struct {
 	// default readiness check is to have the "Ready" condition to be "True".
 	// +optional
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
+
+	// DependsOn allows this element in the composition to depend on
+	// some other element(s) in this composition.
+	// +optional
+	DependsOn []DependencyCheck `json:"dependsOn,omitempty"`
+}
+
+// DependencyCheck contains fields which allow the resource to describe an individual dependency for some resource
+type DependencyCheck struct {
+	Previous *bool `json:"previous,omitempty"`
 }
 
 // TypeReadinessCheck is used for readiness check types.
