@@ -1,0 +1,18 @@
+{{- if .Values.metrics.monitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ template "name" . }}
+  labels:
+    app: {{ template "name" . }}
+    chart: {{ template "chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "name" . }}
+  podMetricsEndpoints:
+    - port: 8080
+      path: /metrics
+{{- end }}

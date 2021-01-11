@@ -7,7 +7,7 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## Table of Contents
 
 * [What's next](#whats-next)
-  * [v1.1.0 Provider Code Generation, Multi-Language Support, Composition Enhancements](#v110-provider-code-generation-multi-langauage-support-composition-enhancements)
+  * [v1.1.0 Provider Code Generation, Multi-Language Support, Composition Enhancements](#v110-provider-code-generation-multi-language-support-composition-enhancements)
   * [Under Consideration](#under-consideration)
 
 * [Released](#released)
