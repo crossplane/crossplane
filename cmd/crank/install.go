@@ -19,17 +19,20 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
+	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 
 	// Load all the auth plugins for the cloud providers.
@@ -97,7 +100,7 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
 	res, err := kube.Configurations().Create(context.Background(), cr, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Wrap(err, "cannot create configuration")
+		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
 	return err
@@ -141,8 +144,19 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
 	res, err := kube.Providers().Create(context.Background(), cr, metav1.CreateOptions{})
 	if err != nil {
-		return errors.Wrap(err, "cannot create provider")
+		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
 	return err
+}
+
+func warnIfNotFound(err error) error {
+	serr, ok := err.(*apierrors.StatusError)
+	if !ok {
+		return err
+	}
+	if serr.ErrStatus.Code != http.StatusNotFound {
+		return err
+	}
+	return errors.WithMessagef(err, "kubectl-crossplane plugin %s might be out of date", version.New().GetVersionString())
 }
