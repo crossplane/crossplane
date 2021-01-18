@@ -252,14 +252,14 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 }
 
 // Reconcile a composite resource claim with a concrete composite resource.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): This method is well over our cyclomatic complexity goal.
 	// Be wary of adding additional complexity.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), reconcileTimeout)
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
 	cm := r.newClaim()

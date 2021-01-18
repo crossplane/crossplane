@@ -67,7 +67,7 @@ func TestAdd(t *testing.T) {
 		},
 		"SuccessfulEnqueue": {
 			client: &test.MockClient{
-				MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+				MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 					nsl := o.(*corev1.NamespaceList)
 					*nsl = corev1.NamespaceList{Items: []corev1.Namespace{{ObjectMeta: metav1.ObjectMeta{Name: name}}}}
 					return nil

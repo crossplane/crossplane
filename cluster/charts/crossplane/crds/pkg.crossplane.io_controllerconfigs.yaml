@@ -412,7 +412,7 @@ spec:
                           - key
                           type: object
                         fieldRef:
-                          description: 'Selects a field of the pod: supports metadata.name, metadata.namespace, metadata.labels, metadata.annotations, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.'
+                          description: 'Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels[''<KEY>'']`, `metadata.annotations[''<KEY>'']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs.'
                           properties:
                             apiVersion:
                               description: Version of the schema the FieldPath is written in terms of, defaults to "v1".
@@ -524,7 +524,7 @@ spec:
                     format: int64
                     type: integer
                   fsGroupChangePolicy:
-                    description: 'fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are "OnRootMismatch" and "Always". If not specified defaults to "Always".'
+                    description: 'fsGroupChangePolicy defines behavior of changing ownership and permission of the volume before being exposed inside Pod. This field will only apply to volume types which support fsGroup based ownership(and permissions). It will have no effect on ephemeral volume types such as: secret, configmaps and emptydir. Valid values are "OnRootMismatch" and "Always". If not specified, "Always" is used.'
                     type: string
                   runAsGroup:
                     description: The GID to run the entrypoint of the container process. Uses runtime default if unset. May also be set in SecurityContext.  If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence for that container.
@@ -552,6 +552,18 @@ spec:
                       user:
                         description: User is a SELinux user label that applies to the container.
                         type: string
+                    type: object
+                  seccompProfile:
+                    description: The seccomp options to use by the containers in this pod.
+                    properties:
+                      localhostProfile:
+                        description: localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must only be set if type is "Localhost".
+                        type: string
+                      type:
+                        description: "type indicates which kind of seccomp profile will be applied. Valid options are: \n Localhost - a profile defined in a file on the node should be used. RuntimeDefault - the container runtime default profile should be used. Unconfined - no profile should be applied."
+                        type: string
+                    required:
+                    - type
                     type: object
                   supplementalGroups:
                     description: A list of groups applied to the first process run in each container, in addition to the container's primary GID.  If unspecified, no groups will be added to any container.
@@ -678,6 +690,18 @@ spec:
                       user:
                         description: User is a SELinux user label that applies to the container.
                         type: string
+                    type: object
+                  seccompProfile:
+                    description: The seccomp options to use by this container. If seccomp options are provided at both the pod & container level, the container options override the pod options.
+                    properties:
+                      localhostProfile:
+                        description: localhostProfile indicates a profile defined in a file on the node should be used. The profile must be preconfigured on the node to work. Must be a descending path, relative to the kubelet's configured seccomp profile location. Must only be set if type is "Localhost".
+                        type: string
+                      type:
+                        description: "type indicates which kind of seccomp profile will be applied. Valid options are: \n Localhost - a profile defined in a file on the node should be used. RuntimeDefault - the container runtime default profile should be used. Unconfined - no profile should be applied."
+                        type: string
+                    required:
+                    - type
                     type: object
                   windowsOptions:
                     description: The Windows specific settings applied to all containers. If unspecified, the options from the PodSecurityContext will be used. If set in both SecurityContext and PodSecurityContext, the value specified in SecurityContext takes precedence.

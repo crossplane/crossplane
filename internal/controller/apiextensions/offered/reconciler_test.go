@@ -26,9 +26,9 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -137,7 +137,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								d := o.(*v1.CompositeResourceDefinition)
 								d.SetDeletionTimestamp(&now)
 								return nil
@@ -161,7 +161,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								switch v := o.(type) {
 								case *v1.CompositeResourceDefinition:
 									d := v1.CompositeResourceDefinition{}
@@ -191,7 +191,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								if v, ok := o.(*v1.CompositeResourceDefinition); ok {
 									d := v1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
@@ -221,7 +221,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								if v, ok := o.(*v1.CompositeResourceDefinition); ok {
 									d := v1.CompositeResourceDefinition{}
 									d.SetDeletionTimestamp(&now)
@@ -251,7 +251,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								switch v := o.(type) {
 								case *v1.CompositeResourceDefinition:
 									d := v1.CompositeResourceDefinition{}
@@ -286,7 +286,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								switch v := o.(type) {
 								case *v1.CompositeResourceDefinition:
 									d := v1.CompositeResourceDefinition{}
@@ -301,7 +301,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								v := o.(*unstructured.UnstructuredList)
 								*v = unstructured.UnstructuredList{
 									Items: []unstructured.Unstructured{{}, {}},
@@ -328,7 +328,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								switch v := o.(type) {
 								case *v1.CompositeResourceDefinition:
 									d := v1.CompositeResourceDefinition{}
@@ -343,7 +343,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								v := o.(*unstructured.UnstructuredList)
 								*v = unstructured.UnstructuredList{
 									Items: []unstructured.Unstructured{{}, {}},
@@ -370,7 +370,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								switch v := o.(type) {
 								case *v1.CompositeResourceDefinition:
 									d := v1.CompositeResourceDefinition{
@@ -408,7 +408,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								switch v := o.(type) {
 								case *v1.CompositeResourceDefinition:
 									d := v1.CompositeResourceDefinition{}
@@ -425,7 +425,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockList:   test.NewMockListFn(nil),
 							MockDelete: test.NewMockDeleteFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(got client.Object) error {
 								want := &v1.CompositeResourceDefinition{}
 								want.SetUID(owner)
 								want.SetDeletionTimestamp(&now)
@@ -479,7 +479,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return errBoom
 						}),
 					}),
@@ -504,7 +504,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -529,7 +529,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -563,7 +563,7 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.CompositeResourceDefinition{}
 								want.Status.SetConditions(v1.WatchingClaim())
 
@@ -573,7 +573,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -606,7 +606,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								d := obj.(*v1.CompositeResourceDefinition)
 								d.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{}
 								d.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
@@ -616,7 +616,7 @@ func TestReconcile(t *testing.T) {
 								d.Status.Controllers.CompositeResourceClaimTypeRef = v1.TypeReference{APIVersion: "old"}
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.CompositeResourceDefinition{}
 								want.Spec.ClaimNames = &extv1.CustomResourceDefinitionNames{}
 								want.Spec.Versions = []v1.CompositeResourceDefinitionVersion{
@@ -632,7 +632,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -664,7 +664,7 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, tc.args.opts...)
-			got, err := r.Reconcile(reconcile.Request{})
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

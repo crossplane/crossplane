@@ -138,7 +138,7 @@ func TestBind(t *testing.T) {
 			reason: "Errors updating the composite resource should be returned",
 			fields: fields{
 				c: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil, func(obj runtime.Object) error {
+					MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 						if _, ok := obj.(*fake.Composite); ok {
 							return errBoom
 						}
@@ -284,12 +284,12 @@ func TestPropagateConnection(t *testing.T) {
 			reason: "Errors applying the claim connection secret should be returned",
 			fields: fields{
 				client: resource.ClientApplicator{
-					Client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+					Client: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 						s := resource.ConnectionSecretFor(cp, fake.GVK(cp))
 						*o.(*corev1.Secret) = *s
 						return nil
 					})},
-					Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
+					Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
 				},
 				typer: fake.SchemeWith(cp, cm),
 			},
@@ -306,7 +306,7 @@ func TestPropagateConnection(t *testing.T) {
 			fields: fields{
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 							// The managed secret has some data when we get it.
 							s := resource.ConnectionSecretFor(cp, fake.GVK(cp))
 							s.Data = mgcsdata
@@ -315,7 +315,7 @@ func TestPropagateConnection(t *testing.T) {
 							return nil
 						}),
 					},
-					Applicator: resource.ApplyFn(func(ctx context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+					Applicator: resource.ApplyFn(func(ctx context.Context, o client.Object, _ ...resource.ApplyOption) error {
 						// Simulate a no-op change by not allowing the update.
 						return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 					}),
@@ -335,7 +335,7 @@ func TestPropagateConnection(t *testing.T) {
 			fields: fields{
 				client: resource.ClientApplicator{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 							// The managed secret has some data when we get it.
 							s := resource.ConnectionSecretFor(cp, fake.GVK(cp))
 							s.Data = mgcsdata
@@ -344,7 +344,7 @@ func TestPropagateConnection(t *testing.T) {
 							return nil
 						}),
 					},
-					Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+					Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 						// Ensure the managed secret's data is copied to the
 						// claim secret, and that the claim secret is annotated
 						// to allow constant propagation from the managed

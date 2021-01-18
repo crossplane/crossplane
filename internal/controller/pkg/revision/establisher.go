@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	errAssertObj = "cannot assert object to resource.Object"
+	errAssertResourceObj = "cannot assert object to resource.Object"
+	errAssertClientObj   = "cannot assert object to client.Object"
 )
 
 // An Establisher establishes control or ownership of a set of resources in the
@@ -74,12 +75,16 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		// metadata.
 		d, ok := res.(resource.Object)
 		if !ok {
-			return nil, errors.New(errAssertObj)
+			return nil, errors.New(errAssertResourceObj)
 		}
 
 		// Make a copy of the desired object to be populated with existing
 		// object, if it exists.
-		current := res.DeepCopyObject()
+		copy := res.DeepCopyObject()
+		current, ok := copy.(client.Object)
+		if !ok {
+			return nil, errors.New(errAssertClientObj)
+		}
 		err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
 		if resource.IgnoreNotFound(err) != nil {
 			return nil, err

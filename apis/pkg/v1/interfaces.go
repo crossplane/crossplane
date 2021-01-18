@@ -18,7 +18,7 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -598,7 +598,7 @@ var _ PackageRevisionList = &ConfigurationRevisionList{}
 // types.
 // +k8s:deepcopy-gen=false
 type PackageRevisionList interface {
-	runtime.Object
+	client.ObjectList
 
 	// GetRevisions gets the list of PackageRevisions in a PackageRevisionList.
 	// This is a costly operation, but allows for treating different revision

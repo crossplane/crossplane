@@ -24,9 +24,9 @@ import (
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -115,7 +115,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if _, ok := obj.(*v1.Composition); ok {
 									return errBoom
 								}
@@ -163,7 +163,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{
 										Patches: []v1.Patch{{
@@ -177,7 +177,7 @@ func TestReconcile(t *testing.T) {
 							MockUpdate:       test.NewMockUpdateFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -211,7 +211,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -242,7 +242,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -274,7 +274,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -282,7 +282,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return errBoom
 						}),
 					}),
@@ -309,7 +309,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -317,7 +317,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -347,7 +347,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -355,7 +355,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -391,7 +391,7 @@ func TestReconcile(t *testing.T) {
 							MockGet:    test.NewMockGetFn(nil),
 							MockUpdate: test.NewMockUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -418,7 +418,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -427,7 +427,7 @@ func TestReconcile(t *testing.T) {
 							MockUpdate:       test.NewMockUpdateFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -464,7 +464,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if comp, ok := obj.(*v1.Composition); ok {
 									comp.Spec.Resources = []v1.ComposedTemplate{{}}
 								}
@@ -473,7 +473,7 @@ func TestReconcile(t *testing.T) {
 							MockUpdate:       test.NewMockUpdateFn(nil),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -512,7 +512,7 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, tc.args.of, tc.args.opts...)
-			got, err := r.Reconcile(reconcile.Request{})
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
