@@ -7,11 +7,23 @@ indent: true
 
 # Troubleshooting
 
+* [Requested Resource Not Found]
 * [Resource Status and Conditions]
 * [Resource Events]
 * [Crossplane Logs]
 * [Pausing Crossplane]
 * [Deleting a Resource Hangs]
+
+## Requested Resource Not Found
+
+If you use the kubectl Crossplane plugin to install a `Provider` or `Configuration`
+(e.g. `kubectl crossplane install provider crossplane/provider-aws:master`) and
+get `the server could not find the requested resource` error, more often than
+not, that is an indicator that the kubectl Crossplane you're using is outdated.
+In other words some Crossplane API has been graduated from alpha to beta or stable
+and the old plugin is not aware of this change.
+
+You can follow the [install Crossplane CLI] instructions to upgrade the plugin.
 
 ## Resource Status and Conditions
 
@@ -127,10 +139,12 @@ kubectl patch workloads.compute.crossplane.io test-workload -p '{"metadata":{"fi
 <!-- Named Links -->
 
 [Using the trace command]: #using-the-trace-command
+[Requested Resource Not Found]: #requested-resource-not-found
+[install Crossplane CLI]: ../getting-started/install-configure.md#install-crossplane-cli
 [Resource Status and Conditions]: #resource-status-and-conditions
+[Resource Events]: #resource-events
 [Crossplane Logs]: #crossplane-logs
 [Pausing Crossplane]: #pausing-crossplane
 [Deleting a Resource Hangs]: #deleting-a-resource-hangs
-[Crossplane CLI]: https://github.com/crossplane/crossplane-cli
 [the trace command documentation]: https://github.com/crossplane/crossplane-cli/tree/master/docs/trace-command.md
 [Owner References]: https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#owners-and-dependents
