@@ -90,9 +90,9 @@ type PackageRevisionStatus struct {
 	ObjectRefs []xpv1.TypedReference `json:"objectRefs,omitempty"`
 
 	// Dependency information.
-	FoundDependencies     int64 `json:"foundDependencies"`
-	InstalledDependencies int64 `json:"installedDependencies"`
-	InvalidDependencies   int64 `json:"invalidDependencies"`
+	FoundDependencies     int64 `json:"foundDependencies,omitempty"`
+	InstalledDependencies int64 `json:"installedDependencies,omitempty"`
+	InvalidDependencies   int64 `json:"invalidDependencies,omitempty"`
 
 	// PermissionRequests made by this package. The package declares that its
 	// controller needs these permissions to run. The RBAC manager is
