@@ -79,8 +79,8 @@ and their default values.
 | `securityContextCrossplane.runAsGroup` | Run as group for Crossplane | `2000` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Allow privilege escalation for Crossplane | `false` |
 | `securityContextCrossplane.readOnlyRootFilesystem` | ReadOnly root filesystem for Crossplane | `true` |
-| `provider.packages` | Provider packages to be installed | `[]` |
-| `configuration.packages` | Configuration packages to be installed | `[]` |
+| `provider.packages` | The list of Provider packages to install together with Crossplane | `[]` |
+| `configuration.packages` | The list of Configuration packages to install together with Crossplane | `[]` |
 | `packageCache.medium` | Storage medium for package cache. `Memory` means volume will be backed by tmpfs, which can be useful for development. | `""` |
 | `packageCache.sizeLimit` | Size limit for package cache. If medium is `Memory` then maximum usage would be the minimum of this value the sum of all memory limits on containers in the Crossplane pod. | `5Mi` |
 | `packageCache.pvc` | Name of the PersistentVolumeClaim to be used as the package cache. Providing a value will cause the default emptyDir volume to not be mounted. | `""` |

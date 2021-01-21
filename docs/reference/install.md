@@ -92,6 +92,7 @@ and their default values.
 | `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
 | `alpha.oam.enabled` | Deploy the `crossplane/oam-kubernetes-runtime` Helm chart | `false` |
 | `provider.packages` | The list of Provider packages to install together with Crossplane | `[]` |
+| `configuration.packages` | The list of Configuration packages to install together with Crossplane | `[]` |
 
 ### Command Line
 
