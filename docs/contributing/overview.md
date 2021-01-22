@@ -13,7 +13,9 @@ documentation you would like to see in this section.
 
 1. [Provider Development Guide]
 2. [Observability Developer Guide]
+3. [Release Process]
 
 
 [Provider Development Guide]: provider_development_guide.md
 [Observability Developer Guide]: observability_developer_guide.md
+[Release Process]: release-process.md
