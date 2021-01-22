@@ -32,9 +32,10 @@ import (
 )
 
 const (
-	errMathNoMultiplier   = "no input is given"
-	errMathInputNonNumber = "input is required to be a number for math transformer"
-	errPatchSetType       = "a patch in a PatchSet cannot be of type PatchSet"
+	errMathNoMultiplier       = "no input is given"
+	errMathInputNonNumber     = "input is required to be a number for math transformer"
+	errMultipleValuesReturned = "multiple output values returned - please add a combine transform"
+	errPatchSetType           = "a patch in a PatchSet cannot be of type PatchSet"
 
 	errFmtConfigMissing                = "given type %s requires configuration"
 	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
@@ -43,6 +44,7 @@ const (
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
 	errFmtRequiredField                = "%s is required by type %s"
+	errFmtResolveAtIndex               = "could not resolve input value at index %d"
 	errFmtTransformAtIndex             = "transform at index %d returned error"
 	errFmtTransformTypeFailed          = "%s transform could not resolve"
 	errFmtTypeNotSupported             = "transform type %s is not supported"
@@ -318,7 +320,12 @@ func (c *Patch) applyTransforms(input []interface{}) (interface{}, error) {
 			return nil, errors.Wrapf(err, errFmtTransformAtIndex, i)
 		}
 	}
-	// Only the first resolved value will be returned
+	// We can only patch a single output value, so if we still have
+	// multiple values here, then the user has not combined the input
+	// values.
+	if len(input) > 1 {
+		return nil, errors.New(errMultipleValuesReturned)
+	}
 	return input[0], nil
 }
 
@@ -456,6 +463,7 @@ const (
 	TransformTypeMath    TransformType = "math"
 	TransformTypeString  TransformType = "string"
 	TransformTypeConvert TransformType = "convert"
+	TransformTypeCombine TransformType = "combine"
 )
 
 // Transform is a unit of process whose input is transformed into an output with
@@ -483,6 +491,13 @@ type Transform struct {
 	// Convert is used to cast the input into the given output type.
 	// +optional
 	Convert *ConvertTransform `json:"convert,omitempty"`
+
+	// Combine is used to turn multiple input values into a single
+	// output value. When using a PatchType that takes multiple input
+	// values, a combine transform must be used to turn it into a single
+	// output value.
+	// +optional
+	Combine *CombineTransform `json:"combine,omitempty"`
 }
 
 // Transform calls the appropriate Transformer.
@@ -500,6 +515,8 @@ func (t *Transform) Transform(input []interface{}) ([]interface{}, error) {
 		transformer = t.String
 	case TransformTypeConvert:
 		transformer = t.Convert
+	case TransformTypeCombine:
+		transformer = t.Combine
 	default:
 		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
 	}
@@ -750,6 +767,57 @@ const (
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
 	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
 )
+
+// CombineTransformType is type of the combine transform function to be chosen.
+type CombineTransformType string
+
+// Accepted CombineTransformTypes.
+const (
+	CombineTransformTypeString CombineTransformType = "string"
+)
+
+// A CombineTransform combines multiple inputs to a single output
+// using another transform.
+type CombineTransform struct {
+	// Format the input using a Go format string. See
+	// https://golang.org/pkg/fmt/ for details.
+	String *StringCombine `json:"string,omitempty"`
+
+	// Type of the combine to be run.
+	// +kubebuilder:validation:Enum=string
+	Type CombineTransformType `json:"type"`
+}
+
+// Resolve calls the appropriate Combiner.
+func (t *CombineTransform) Resolve(input []interface{}) ([]interface{}, error) {
+	var combiner interface {
+		Combine(input []interface{}) (interface{}, error)
+	}
+
+	switch t.Type {
+	case CombineTransformTypeString:
+		combiner = t.String
+	default:
+		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
+	}
+	if reflect.ValueOf(combiner).IsNil() {
+		return nil, errors.Errorf(errFmtConfigMissing, string(t.Type))
+	}
+	out, err := combiner.Combine(input)
+	return []interface{}{out}, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
+}
+
+// A StringCombine returns a single string given multiple inputs.
+type StringCombine struct {
+	// Format the input using a Go format string. See
+	// https://golang.org/pkg/fmt/ for details.
+	Format string `json:"fmt"`
+}
+
+// Combine runs the String combine.
+func (s *StringCombine) Combine(input []interface{}) (interface{}, error) {
+	return fmt.Sprintf(s.Format, input...), nil
+}
 
 // ConnectionDetail includes the information about the propagation of the connection
 // information from one secret to another.

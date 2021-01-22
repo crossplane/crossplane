@@ -91,6 +91,26 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
+                                combine:
+                                  description: Combine is used to turn multiple input values into a single output value. When using a PatchType that takes multiple input values, a combine transform must be used to turn it into a single output value.
+                                  properties:
+                                    string:
+                                      description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                      properties:
+                                        fmt:
+                                          description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                          type: string
+                                      required:
+                                      - fmt
+                                      type: object
+                                    type:
+                                      description: Type of the combine to be run.
+                                      enum:
+                                      - string
+                                      type: string
+                                  required:
+                                  - type
+                                  type: object
                                 convert:
                                   description: Convert is used to cast the input into the given output type.
                                   properties:
@@ -229,6 +249,26 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
+                                combine:
+                                  description: Combine is used to turn multiple input values into a single output value. When using a PatchType that takes multiple input values, a combine transform must be used to turn it into a single output value.
+                                  properties:
+                                    string:
+                                      description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                      properties:
+                                        fmt:
+                                          description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                          type: string
+                                      required:
+                                      - fmt
+                                      type: object
+                                    type:
+                                      description: Type of the combine to be run.
+                                      enum:
+                                      - string
+                                      type: string
+                                  required:
+                                  - type
+                                  type: object
                                 convert:
                                   description: Convert is used to cast the input into the given output type.
                                   properties:
