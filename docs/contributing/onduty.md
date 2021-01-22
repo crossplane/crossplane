@@ -1,3 +1,10 @@
+---
+title: Community On-Duty
+toc: true
+weight: 1004
+indent: true
+---
+
 # Community On-Duty
 
 Community on-duty is a weekly rotation of Crossplane community members who have
