@@ -32,9 +32,9 @@ import (
 )
 
 const (
-	errMathNoMultiplier       = "no input is given"
-	errMathInputNonNumber     = "input is required to be a number for math transformer"
-	errPatchSetType           = "a patch in a PatchSet cannot be of type PatchSet"
+	errMathNoMultiplier   = "no input is given"
+	errMathInputNonNumber = "input is required to be a number for math transformer"
+	errPatchSetType       = "a patch in a PatchSet cannot be of type PatchSet"
 
 	errFmtConfigMissing                = "given type %s requires configuration"
 	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
@@ -202,9 +202,10 @@ type PatchType string
 
 // Patch types.
 const (
-	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
-	PatchTypePatchSet               PatchType = "PatchSet"
-	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
+	PatchTypeFromCompositeFieldPath          PatchType = "FromCompositeFieldPath" // Default
+	PatchTypeFromMultipleCompositeFieldPaths PatchType = "FromMultipleCompositeFieldPaths"
+	PatchTypePatchSet                        PatchType = "PatchSet"
+	PatchTypeToCompositeFieldPath            PatchType = "ToCompositeFieldPath"
 )
 
 // Patch objects are applied between composite and composed resources. Their
@@ -215,7 +216,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;FromMultipleCompositeFieldPaths
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -224,6 +225,11 @@ type Patch struct {
 	// ToCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
+
+	// FromMultipleFieldPaths is a list of paths to fields on the upstream resource whose
+	// values are used as input. Required when type is FromMultipleCompositeFieldPaths.
+	// +optional
+	FromMultipleFieldPaths []string `json:"fromMultipleFieldPaths,omitempty"`
 
 	// ToFieldPath is the path of the field on the resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
@@ -274,7 +280,9 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 
 	switch c.Type {
 	case PatchTypeFromCompositeFieldPath:
-		return c.applyFromFieldPathPatch(from, to)
+		return c.applyFromCompositeFieldPatch(from, to)
+	case PatchTypeFromMultipleCompositeFieldPaths:
+		return c.applyFromMultipleCompositeFieldsPatch(from, to)
 	case PatchTypeToCompositeFieldPath:
 		return c.applyFromFieldPathPatch(to, from)
 	case PatchTypePatchSet:
@@ -300,6 +308,22 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 
 // applyFromFieldPathPatch patches the "to" resource, using a source field
 // on the "from" resource. Values may be transformed if any are defined on
+// applyTransforms applies a list of transforms to patch value(s).
+// The transform chain must return a single value. If it returns
+// multiple values, error and prompt the user to add a combine transform.
+func (c *Patch) applyTransforms(input []interface{}) (interface{}, error) {
+	var err error
+	for i, t := range c.Transforms {
+		if input, err = t.Transform(input); err != nil {
+			return nil, errors.Wrapf(err, errFmtTransformAtIndex, i)
+		}
+	}
+	// Only the first resolved value will be returned
+	return input[0], nil
+}
+
+// applyFromCompositeFieldPatch patches the composed resource, using a source field
+// on the composite resource. Values may be transformed if any are defined on
 // the patch.
 func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // nolint:gocyclo
 	// NOTE(benagricola): The cyclomatic complexity here is from error checking
@@ -328,11 +352,69 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	if err != nil {
 		return err
 	}
-	out := in
-	for i, f := range c.Transforms {
-		if out, err = f.Transform(out); err != nil {
-			return errors.Wrapf(err, errFmtTransformAtIndex, i)
+
+	// Apply transform pipeline
+	out, err := c.applyTransforms([]interface{}{in})
+	if err != nil {
+		return err
+	}
+
+	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
+		return fieldpath.Pave(u.UnstructuredContent()).SetValue(*c.ToFieldPath, out)
+	}
+
+	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
+	if err != nil {
+		return err
+	}
+	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, out); err != nil {
+		return err
+	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
+}
+
+// applyFromMultipleCompositeFieldsPatch patches the composed resource, using a list of
+// source fields on the composite resource. Without a transform, values are turned into their
+// string representation and concatenated. Use a string transform with multiple placeholders
+// to control the format more explicitly.
+func (c *Patch) applyFromMultipleCompositeFieldsPatch(from, to runtime.Object) error { // nolint:gocyclo
+	if len(c.FromMultipleFieldPaths) == 0 {
+		return errors.Errorf(errFmtRequiredField, "FromMultipleFieldPaths", c.Type)
+	}
+
+	// Unlike FromCompositeFieldPath, defaulting the To field to the From field might
+	// introduce some confusion, as we can specify multiple From fields. Easier on the
+	// brain to just make this explicit.
+	if c.ToFieldPath == nil {
+		return errors.Errorf(errFmtRequiredField, "ToFieldPath", c.Type)
+	}
+
+	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+	if err != nil {
+		return err
+	}
+
+	in := make([]interface{}, len(c.FromMultipleFieldPaths))
+
+	// Get value of each source field, or error
+	for i, sp := range c.FromMultipleFieldPaths {
+		iv, err := fieldpath.Pave(fromMap).GetValue(sp)
+
+		// If field is not found, do not patch.
+		if fieldpath.IsNotFound(err) {
+			return nil
 		}
+
+		if err != nil {
+			return err
+		}
+		in[i] = iv
+	}
+
+	// Apply transforms pipeline
+	out, err := c.applyTransforms(in)
+	if err != nil {
+		return err
 	}
 
 	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
@@ -404,10 +486,11 @@ type Transform struct {
 }
 
 // Transform calls the appropriate Transformer.
-func (t *Transform) Transform(input interface{}) (interface{}, error) {
+func (t *Transform) Transform(input []interface{}) ([]interface{}, error) {
 	var transformer interface {
-		Resolve(input interface{}) (interface{}, error)
+		Resolve(input []interface{}) ([]interface{}, error)
 	}
+
 	switch t.Type {
 	case TransformTypeMath:
 		transformer = t.Math
@@ -430,6 +513,43 @@ func (t *Transform) Transform(input interface{}) (interface{}, error) {
 	return out, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
 }
 
+// resolverFunc represents a function that can resolve a single
+// input value into a single output value.
+type resolverFunc func(input interface{}) (interface{}, error)
+
+// resolveMultiple executes a resolverFunc on a list of inputs,
+// returning a list of outputs with length identical to that of inputs.
+// This function is likely to be duplicated into every Resolve method so
+// it was extracted, allowing each Resolve method to call this with their
+// own resolverFunc implementation.
+func resolveMultiple(input []interface{}, resolver resolverFunc) ([]interface{}, error) {
+	il := len(input)
+	out := make([]interface{}, il)
+
+	// If we're only passed one value, call the resolverFunc
+	// directly. Don't wrap any errors as the index of the
+	// input doesn't matter.
+	if il < 2 {
+		rv, err := resolver(input[0])
+		if err != nil {
+			return nil, err
+		}
+		out[0] = rv
+		return out, nil
+	}
+
+	// With multiple values - loop over each value, and resolve it
+	// against the given resolverFunc
+	for i, v := range input {
+		rv, err := resolver(v)
+		if err != nil {
+			return nil, errors.Wrapf(err, errFmtResolveAtIndex, i)
+		}
+		out[i] = rv
+	}
+	return out, nil
+}
+
 // MathTransform conducts mathematical operations on the input with the given
 // configuration in its properties.
 type MathTransform struct {
@@ -439,10 +559,16 @@ type MathTransform struct {
 }
 
 // Resolve runs the Math transform.
-func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
+func (m *MathTransform) Resolve(input []interface{}) ([]interface{}, error) {
 	if m.Multiply == nil {
 		return nil, errors.New(errMathNoMultiplier)
 	}
+
+	return resolveMultiple(input, m.resolveOne)
+}
+
+// resolveOne resolves a single Math value
+func (m *MathTransform) resolveOne(input interface{}) (interface{}, error) {
 	switch i := input.(type) {
 	case int64:
 		return *m.Multiply * i, nil
@@ -480,7 +606,12 @@ func (m MapTransform) MarshalJSON() ([]byte, error) {
 }
 
 // Resolve runs the Map transform.
-func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
+func (m *MapTransform) Resolve(input []interface{}) ([]interface{}, error) {
+	return resolveMultiple(input, m.resolveOne)
+}
+
+// resolveOne resolves a single Map value
+func (m *MapTransform) resolveOne(input interface{}) (interface{}, error) {
 	switch i := input.(type) {
 	case string:
 		val, ok := m.Pairs[i]
@@ -501,7 +632,12 @@ type StringTransform struct {
 }
 
 // Resolve runs the String transform.
-func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
+func (s *StringTransform) Resolve(input []interface{}) ([]interface{}, error) {
+	return resolveMultiple(input, s.resolveOne)
+}
+
+// resolveOne resolves a single String value
+func (s *StringTransform) resolveOne(input interface{}) (interface{}, error) {
 	return fmt.Sprintf(s.Format, input), nil
 }
 
@@ -574,8 +710,13 @@ type ConvertTransform struct {
 	ToType string `json:"toType"`
 }
 
-// Resolve runs the String transform.
-func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
+// Resolve runs the Convert transform.
+func (s *ConvertTransform) Resolve(input []interface{}) ([]interface{}, error) {
+	return resolveMultiple(input, s.resolveOne)
+}
+
+// resolveOne resolves a single Convert value
+func (s *ConvertTransform) resolveOne(input interface{}) (interface{}, error) {
 	from := reflect.TypeOf(input).Kind().String()
 	if from == ConvertTransformTypeInt {
 		from = ConvertTransformTypeInt64

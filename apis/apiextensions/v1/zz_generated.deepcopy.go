@@ -458,6 +458,11 @@ func (in *Patch) DeepCopyInto(out *Patch) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.FromMultipleFieldPaths != nil {
+		in, out := &in.FromMultipleFieldPaths, &out.FromMultipleFieldPaths
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.ToFieldPath != nil {
 		in, out := &in.ToFieldPath, &out.ToFieldPath
 		*out = new(string)

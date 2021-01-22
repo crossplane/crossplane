@@ -65,6 +65,11 @@ spec:
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
+                          fromMultipleFieldPaths:
+                            description: FromMultipleFieldPaths is a list of paths to fields on the upstream resource whose values are used as input. Required when type is FromMultipleCompositeFieldPaths.
+                            items:
+                              type: string
+                            type: array
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
@@ -142,6 +147,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
+                            - FromMultipleCompositeFieldPaths
                             type: string
                         type: object
                       type: array
@@ -197,6 +203,11 @@ spec:
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
+                          fromMultipleFieldPaths:
+                            description: FromMultipleFieldPaths is a list of paths to fields on the upstream resource whose values are used as input. Required when type is FromMultipleCompositeFieldPaths.
+                            items:
+                              type: string
+                            type: array
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
@@ -274,6 +285,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
+                            - FromMultipleCompositeFieldPaths
                             type: string
                         type: object
                       type: array

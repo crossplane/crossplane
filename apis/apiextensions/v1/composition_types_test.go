@@ -253,7 +253,7 @@ func TestMapResolve(t *testing.T) {
 		i interface{}
 	}
 	type want struct {
-		o   interface{}
+		o   []interface{}
 		err error
 	}
 
@@ -283,13 +283,13 @@ func TestMapResolve(t *testing.T) {
 				i: "ola",
 			},
 			want: want{
-				o: "voila",
+				o: []interface{}{"voila"},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&MapTransform{Pairs: tc.m}).Resolve(tc.i)
+			got, err := (&MapTransform{Pairs: tc.m}).Resolve([]interface{}{tc.i})
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -309,7 +309,7 @@ func TestMathResolve(t *testing.T) {
 		i          interface{}
 	}
 	type want struct {
-		o   interface{}
+		o   []interface{}
 		err error
 	}
 
@@ -340,7 +340,7 @@ func TestMathResolve(t *testing.T) {
 				i:          3,
 			},
 			want: want{
-				o: 3 * m,
+				o: []interface{}{3 * m},
 			},
 		},
 		"SuccessInt64": {
@@ -349,13 +349,13 @@ func TestMathResolve(t *testing.T) {
 				i:          int64(3),
 			},
 			want: want{
-				o: 3 * m,
+				o: []interface{}{3 * m},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&MathTransform{Multiply: tc.multiplier}).Resolve(tc.i)
+			got, err := (&MathTransform{Multiply: tc.multiplier}).Resolve([]interface{}{tc.i})
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -374,7 +374,7 @@ func TestStringResolve(t *testing.T) {
 		i    interface{}
 	}
 	type want struct {
-		o   interface{}
+		o   []interface{}
 		err error
 	}
 
@@ -388,7 +388,7 @@ func TestStringResolve(t *testing.T) {
 				i:    "thing",
 			},
 			want: want{
-				o: "verycoolthing",
+				o: []interface{}{"verycoolthing"},
 			},
 		},
 		"FmtInteger": {
@@ -397,13 +397,13 @@ func TestStringResolve(t *testing.T) {
 				i:    8,
 			},
 			want: want{
-				o: "the largest 8",
+				o: []interface{}{"the largest 8"},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&StringTransform{Format: tc.fmts}).Resolve(tc.i)
+			got, err := (&StringTransform{Format: tc.fmts}).Resolve([]interface{}{tc.i})
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -421,7 +421,7 @@ func TestConvertResolve(t *testing.T) {
 		i  interface{}
 	}
 	type want struct {
-		o   interface{}
+		o   []interface{}
 		err error
 	}
 
@@ -435,7 +435,7 @@ func TestConvertResolve(t *testing.T) {
 				ot: ConvertTransformTypeBool,
 			},
 			want: want{
-				o: true,
+				o: []interface{}{true},
 			},
 		},
 		"SameTypeNoOp": {
@@ -477,7 +477,7 @@ func TestConvertResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve(tc.i)
+			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve([]interface{}{tc.i})
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
