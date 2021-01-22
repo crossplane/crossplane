@@ -6,25 +6,20 @@ weight: 200
 
 # Guides
 
-Because of Crossplane's standardization on the Kubernetes API, it integrates
-well with many other projects. Below is a collection of guides and tutorials that
-demonstrate how to use Crossplane with a variety tools and projects often used
-with Kubernetes plus some deep dive content on Crossplane itself!
+This section contains guides for using Crossplane in specific scenarios or
+alongside other technologies. If you are interested in writing and
+maintaining a guide for your own use-case please feel free to [open an issue] to
+add it! Also check out the [The Binding Status], a biweekly livestream show
+where Crossplane maintainers welcome guests from the cloud-native community and
+show off [demos] integrating with the projects they work on.
 
-- [Argo CD] - use GitOps to provision managed services with Crossplane and Argo CD.
-- [Knative] - use managed services provisioned by Crossplane in your Knative services.
-- [Okteto] - use managed services in your Okteto development workflow.
-- [Open Policy Agent] - set global policy on provisioning cloud resources with Crossplane and OPA.
-- [OpenFaaS] - consume managed services with for your serverless functions.
-- [Provider Internals] - translate provider APIs into managed resource CRDs and explore managed resource API patterns & best practices.
-- [Velero] - backup and restore your Crossplane infrastructure resources.
+- [Upgrading to v0.14]
+- [Upgrading to v1.0]
 
 <!-- Named Links -->
 
-[Velero]: https://www.youtube.com/watch?v=eV_2QoMRqGw&list=PL510POnNVaaYFuK-B_SIUrpIonCtLVOzT&index=18&t=183s
-[Argo CD]: https://aws.amazon.com/blogs/opensource/connecting-aws-managed-services-to-your-argo-cd-pipeline-with-open-source-crossplane/
-[Open Policy Agent]: https://github.com/crossplane/tbs/tree/master/episodes/14
-[Knative]: https://github.com/crossplane/tbs/tree/master/episodes/15
-[OpenFaaS]: https://github.com/crossplane/tbs/tree/master/episodes/13
-[Okteto]: https://github.com/crossplane/tbs/tree/master/episodes/10
-[Provider Internals]: https://github.com/crossplane/tbs/tree/master/episodes/7
+[open an issue]: https://github.com/crossplane/crossplane/issues/new
+[The Binding Status]: https://youtube.com/playlist?list=PL510POnNVaaYFuK-B_SIUrpIonCtLVOzT
+[demos]: https://github.com/crossplane/tbs
+[Upgrading to v0.14]: upgrading-to-v0.14.md
+[Upgrading to v1.0]: upgrading-to-v1.0.md

@@ -1,3 +1,10 @@
+---
+title: Release Process
+toc: true
+weight: 1003
+indent: true
+---
+
 # Release Process
 
 This document is meant to be a complete end-to-end guide for how to release new
