@@ -32,21 +32,21 @@ import (
 )
 
 const (
-	errMathNoMultiplier   = "no input is given"
-	errMathInputNonNumber = "input is required to be a number for math transformer"
-	errPatchSetType       = "a patch in a PatchSet cannot be of type PatchSet"
-	errRequiredField      = "%s is required by type %s"
-	errUndefinedPatchSet  = "cannot find PatchSet by name %s"
-	errInvalidPatchType   = "patch type %s is unsupported"
+	errMathNoMultiplier       = "no input is given"
+	errMathInputNonNumber     = "input is required to be a number for math transformer"
+	errPatchSetType           = "a patch in a PatchSet cannot be of type PatchSet"
 
+	errFmtConfigMissing                = "given type %s requires configuration"
 	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
 	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
-	errFmtTransformAtIndex             = "transform at index %d returned error"
-	errFmtTypeNotSupported             = "transform type %s is not supported"
-	errFmtConfigMissing                = "given type %s requires configuration"
-	errFmtTransformTypeFailed          = "%s transform could not resolve"
+	errFmtInvalidPatchType             = "patch type %s is unsupported"
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
+	errFmtRequiredField                = "%s is required by type %s"
+	errFmtTransformAtIndex             = "transform at index %d returned error"
+	errFmtTransformTypeFailed          = "%s transform could not resolve"
+	errFmtTypeNotSupported             = "transform type %s is not supported"
+	errFmtUndefinedPatchSet            = "cannot find PatchSet by name %s"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -94,11 +94,11 @@ func (cs *CompositionSpec) InlinePatchSets() error {
 				continue
 			}
 			if p.PatchSetName == nil {
-				return errors.Errorf(errRequiredField, "PatchSetName", p.Type)
+				return errors.Errorf(errFmtRequiredField, "PatchSetName", p.Type)
 			}
 			ps, ok := pn[*p.PatchSetName]
 			if !ok {
-				return errors.Errorf(errUndefinedPatchSet, *p.PatchSetName)
+				return errors.Errorf(errFmtUndefinedPatchSet, *p.PatchSetName)
 			}
 			po = append(po, ps...)
 		}
@@ -280,7 +280,7 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
-	return errors.Errorf(errInvalidPatchType, c.Type)
+	return errors.Errorf(errFmtInvalidPatchType, c.Type)
 }
 
 // filterPatch returns true if patch should be filtered (not applied)
@@ -308,7 +308,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	// (necessary because with multiple patch types, the input fields
 	// must be +optional).
 	if c.FromFieldPath == nil {
-		return errors.Errorf(errRequiredField, "FromFieldPath", c.Type)
+		return errors.Errorf(errFmtRequiredField, "FromFieldPath", c.Type)
 	}
 
 	// Default to patching the same field on the composed resource.
