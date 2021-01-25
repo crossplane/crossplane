@@ -18,6 +18,8 @@ releases at a time, meaning that a user that depends on an LTS release will not
 be required to upgrade their version for up to 1.5 years. The Crossplane
 community also supports the latest release, whether it is an LTS release or not.
 
+![Release Diagram](../media/crossplane-releases.png)
+
 For example, Crossplane v1.0.0 was the first LTS release, so the next one will
 be v1.1.0 in February 2021. At that time, the Crossplane community will support
 both v1.0.0 and v1.1.0. When v1.2.0 is released in April 2021, the community
