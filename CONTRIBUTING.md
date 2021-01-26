@@ -88,6 +88,12 @@ contribute. If there isn't, please raise a new one! Let us know what you'd like
 to work on, and why. The Crossplane maintainers can't always triage new issues
 immediately, but we encourage you to bring them to our attention via [Slack].
 
+> NOTE: new features can only being merged during the active development period
+> of a Crossplane release cycle. If implementation and review of a new feature
+> cannot be accomplished prior to feature freeze, it may be bumped to the next
+> release cycle. See the [Crossplane release cycle] documentation for more
+> information.
+
 Be sure to practice [good git commit hygiene] as you make your changes. All but
 the smallest changes should be broken up into a few commits that tell a story.
 Use your git commits to provide context for the folks who will review PR, and
@@ -144,6 +150,7 @@ us][Slack] if you have any questions about contributing!
 [code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 [build submodule]: https://github.com/upbound/build/
 [`kind`]: https://kind.sigs.k8s.io/
+[Crossplane release cycle]: docs/reference/release-cycle.md
 [good git commit hygiene]: https://www.futurelearn.com/info/blog/telling-stories-with-your-git-history
 [Developer Certificate of Origin]: https://github.com/apps/dco
 [code review comments]: https://github.com/golang/go/wiki/CodeReviewComments

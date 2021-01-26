@@ -61,10 +61,10 @@ release. Pre-releases will not be made on release branches.
 
 ### Provider Releases
 
-The Crossplane release process is not required to be adhered to by any other
+The Crossplane release cycle is not required to be adhered to by any other
 Crossplane projects, but a similar cadence is encouraged. Maintainers listed in
-each repositories `OWNERS.md` file are responsible for determining and
-publishing the release process for their project.
+each repository's `OWNERS.md` file are responsible for determining and
+publishing the release cycle for their project.
 
 ## Release Stages
 
@@ -76,8 +76,8 @@ During active development, any code that meets the requisite criteria (i.e.
 passing appropriate tests, approved by a maintainer, etc.) will be merged into
 the main development branch. At present, there is no requirement to formally
 submit an enhancement proposal prior to the start of the release cycle, but
-contributors are encouraged to open an issues and gather feedback before
-starting work on a major implementation.
+contributors are encouraged to open an issue and gather feedback before starting
+work on a major implementation (see [CONTRIBUTING.md] for more information).
 
 ### Feature Freeze
 
@@ -107,3 +107,4 @@ branch with the following exceptions:
 [Active Development]: #active-development
 [Feature Freeze]: #feature-freeze
 [Code Freeze]: #code-freeze
+[CONTRIBUTING.md]: https://github.com/crossplane/crossplane/blob/master/CONTRIBUTING.md
