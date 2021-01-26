@@ -25,9 +25,9 @@ const (
 	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
-// FilterClaimSpecProps is the list of XRC resource spec properties to filter
-// out when translating an XRC into an XR.
-var FilterClaimSpecProps = []string{"resourceRef", "writeConnectionSecretToRef"}
+// KeepClaimSpecProps is the list of XRC spec properties to keep
+// when translating an XRC into an XR.
+var KeepClaimSpecProps = []string{"compositionRef", "compositionSelector"}
 
 // TODO(negz): Add descriptions to schema fields.
 
@@ -238,4 +238,15 @@ func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefiniti
 			JSONPath: ".metadata.creationTimestamp",
 		},
 	}
+}
+
+// GetPropFields returns the fields from a map of schema properties
+func GetPropFields(props map[string]extv1.JSONSchemaProps) []string {
+	propFields := make([]string, len(props))
+	i := 0
+	for k := range props {
+		propFields[i] = k
+		i++
+	}
+	return propFields
 }

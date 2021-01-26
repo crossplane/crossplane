@@ -24,6 +24,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -55,7 +56,8 @@ const (
 	errGetComp      = "cannot get Composition"
 	errConfigure    = "cannot configure composite resource"
 	errPublish      = "cannot publish connection details"
-	errRender       = "cannot render composed resource"
+	errRenderCD     = "cannot render composed resource"
+	errRenderCR     = "cannot render composite resource"
 
 	errFmtRender = "cannot render composed resource at index %d"
 )
@@ -237,10 +239,18 @@ func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
 	}
 }
 
+// WithCompositeRenderer specifies how the Reconciler should render composite resources.
+func WithCompositeRenderer(rd Renderer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.Renderer = rd
+	}
+}
+
 type compositeResource struct {
 	CompositionSelector
 	Configurator
 	ConnectionPublisher
+	Renderer
 }
 
 type composedResource struct {
@@ -267,6 +277,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
+			Renderer:            RendererFn(RenderComposite),
 		},
 
 		composed: composedResource{
@@ -365,7 +376,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Inline PatchSets from Composition Spec before rendering
 	if err := comp.Spec.InlinePatchSets(); err != nil {
-		log.Debug(errRender, "error", err)
+		log.Debug(errRenderCD, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
@@ -374,7 +385,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i := range refs {
 		cd := composed.New(composed.FromReference(refs[i]))
 		if err := r.composed.Render(ctx, cr, cd, comp.Spec.Resources[i]); err != nil {
-			log.Debug(errRender, "error", err, "index", i)
+			log.Debug(errRenderCD, "error", err, "index", i)
 			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
@@ -423,6 +434,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if rdy {
 			ready++
 		}
+
+		if err := r.composite.Render(ctx, cr, cd, comp.Spec.Resources[i]); err != nil {
+			log.Debug(errRenderCR, "error", err)
+			r.record.Event(cr, event.Warning(reasonCompose, err))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+	}
+
+	// We pass a deepcopy because the update method doesn't update status,
+	// but calling update resets any pending status changes.
+	updated := cr.DeepCopyObject().(client.Object)
+	if err := r.client.Update(ctx, updated); err != nil {
+		log.Debug(errUpdate, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
+	if updated.GetResourceVersion() != cr.GetResourceVersion() {
+		// If our deepcopy's resource version changed we know that our update
+		// was not a no-op. Our original object has a stale resource
+		// version, so any attempt to update it will fail. The safest thing for
+		// us to do here is to return early. The update will have immediately enqueued a
+		// new reconcile because this controller is watching for this kind of resource.
+		// The remaining reconcile logic will proceed when no new spec changes are persisted.
+		log.Debug("Composite resource spec or metadata was patched - terminating reconcile early")
+		return reconcile.Result{}, nil
 	}
 
 	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))

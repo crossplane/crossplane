@@ -60,10 +60,11 @@ const (
 
 // Event reasons.
 const (
-	reasonBind      event.Reason = "BindCompositeResource"
-	reasonDelete    event.Reason = "DeleteCompositeResource"
-	reasonConfigure event.Reason = "ConfigureCompositeResource"
-	reasonPropagate event.Reason = "PropagateConnectionSecret"
+	reasonBind               event.Reason = "BindCompositeResource"
+	reasonDelete             event.Reason = "DeleteCompositeResource"
+	reasonCompositeConfigure event.Reason = "ConfigureCompositeResource"
+	reasonClaimConfigure     event.Reason = "ConfigureClaim"
+	reasonPropagate          event.Reason = "PropagateConnectionSecret"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -72,20 +73,18 @@ func ControllerName(name string) string {
 	return "claim/" + name
 }
 
-// A CompositeConfigurator configures the supplied composite resource, typically
-// by converting it to a known type and populating its spec to reflect the
-// supplied composite resource claim.
-type CompositeConfigurator interface {
+// A Configurator configures the supplied resource, typically either populating the
+// composite with fields from the claim, or claim with fields from composite.
+type Configurator interface {
 	Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 }
 
-// A CompositeConfiguratorFn configures the supplied composite resource,
-// typically by converting it to a known type and populating its spec to reflect
-// the supplied composite resource claim.
-type CompositeConfiguratorFn func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
+// A ConfiguratorFn configures the supplied resource, typically either populating the
+// composite with fields from the claim, or claim with fields from composite.
+type ConfiguratorFn func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error
 
 // Configure the supplied resource using the supplied claim.
-func (fn CompositeConfiguratorFn) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+func (fn ConfiguratorFn) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 	return fn(ctx, cm, cp)
 }
 
@@ -140,26 +139,28 @@ type Reconciler struct {
 }
 
 type crComposite struct {
-	CompositeConfigurator
+	Configurator
 	ConnectionPropagator
 }
 
 func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
 	return crComposite{
-		CompositeConfigurator: CompositeConfiguratorFn(Configure),
-		ConnectionPropagator:  NewAPIConnectionPropagator(c, t),
+		Configurator:         ConfiguratorFn(ConfigureComposite),
+		ConnectionPropagator: NewAPIConnectionPropagator(c, t),
 	}
 }
 
 type crClaim struct {
 	resource.Finalizer
 	Binder
+	Configurator
 }
 
 func defaultCRClaim(c client.Client, t runtime.ObjectTyper) crClaim {
 	return crClaim{
-		Finalizer: resource.NewAPIFinalizer(c, finalizer),
-		Binder:    NewAPIBinder(c, t),
+		Finalizer:    resource.NewAPIFinalizer(c, finalizer),
+		Binder:       NewAPIBinder(c, t),
+		Configurator: NewAPIClaimConfigurator(c),
 	}
 }
 
@@ -176,9 +177,17 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 
 // WithCompositeConfigurator specifies how the Reconciler should configure the bound
 // composite resource.
-func WithCompositeConfigurator(cf CompositeConfigurator) ReconcilerOption {
+func WithCompositeConfigurator(cf Configurator) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.CompositeConfigurator = cf
+		r.composite.Configurator = cf
+	}
+}
+
+// WithClaimConfigurator specifies how the Reconciler should configure the bound
+// claim resource.
+func WithClaimConfigurator(cf Configurator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.claim.Configurator = cf
 	}
 }
 
@@ -353,7 +362,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// after a brief wait, in case this was a transient error or some
 		// issue with the resource class was resolved.
 		log.Debug("Cannot configure composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(cm, event.Warning(reasonConfigure, err))
+		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
 		return reconcile.Result{RequeueAfter: aShortWait}, nil
 	}
 
@@ -367,12 +376,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// implicitly due to the status update. Otherwise we want to retry
 		// after a brief wait, in case this was a transient error.
 		log.Debug("Cannot apply composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(cm, event.Warning(reasonConfigure, err))
+		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
 		return reconcile.Result{RequeueAfter: aShortWait}, nil
 	}
 
 	log.Debug("Successfully applied composite resource")
-	record.Event(cm, event.Normal(reasonConfigure, "Successfully applied composite resource"))
+	record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 
 	if err := r.claim.Bind(ctx, cm, cp); err != nil {
 		// If we didn't hit this error last time we'll be requeued implicitly
@@ -380,6 +389,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// wait, in case this was a transient error.
 		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonBind, err))
+		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+
+	if err := r.claim.Configure(ctx, cm, cp); err != nil {
+		log.Debug("Cannot configure composite resource claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(cm, event.Warning(reasonClaimConfigure, err))
 		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
 		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}

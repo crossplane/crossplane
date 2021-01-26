@@ -25,6 +25,7 @@ import (
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -35,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-func TestConfigure(t *testing.T) {
+func TestCompositeConfigure(t *testing.T) {
 	ns := "spacename"
 	name := "cool"
 	now := metav1.Now()
@@ -152,6 +153,10 @@ func TestConfigure(t *testing.T) {
 							"spec": map[string]interface{}{
 								"coolness": 23,
 
+								// These should be preserved.
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+
 								// These should be filtered out.
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
@@ -173,7 +178,9 @@ func TestConfigure(t *testing.T) {
 								},
 							},
 							"spec": map[string]interface{}{
-								"coolness": int64(23),
+								"coolness":            23,
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
 							},
 						},
 					},
@@ -229,7 +236,7 @@ func TestConfigure(t *testing.T) {
 							"spec": map[string]interface{}{
 								// This should be overridden with the value of
 								// the equivalent claim field.
-								"coolness": int64(42),
+								"coolness": 42,
 							},
 						},
 					},
@@ -256,7 +263,7 @@ func TestConfigure(t *testing.T) {
 								},
 							},
 							"spec": map[string]interface{}{
-								"coolness": int64(23),
+								"coolness": 23,
 							},
 						},
 					},
@@ -267,12 +274,347 @@ func TestConfigure(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := Configure(tc.args.ctx, tc.args.cm, tc.args.cp)
+			got := ConfigureComposite(tc.args.ctx, tc.args.cm, tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
-				t.Errorf("b.Bind(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
+				t.Errorf("ConfigureComposite(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
-				t.Errorf("b.Bind(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+				t.Errorf("ConfigureComposite(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+			}
+		})
+	}
+
+}
+
+func TestClaimConfigure(t *testing.T) {
+	errBoom := errors.New("boom")
+	ns := "spacename"
+	name := "cool"
+
+	type args struct {
+		cm     resource.CompositeClaim
+		cp     resource.Composite
+		client client.Client
+	}
+
+	type want struct {
+		cm  resource.CompositeClaim
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"MergeStatusClaimError": {
+			reason: "Should return an error if unable to merge status of claim",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"status": "notStatus",
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"status": "notStatus",
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"status": "notStatus",
+						},
+					},
+				},
+				err: errors.Wrap(errors.New(errUnsupportedDstObject), errMergeClaimStatus),
+			},
+		},
+		"MergeStatusCompositeError": {
+			reason: "Should return an error if unable to merge status from composite",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"status": "notStatus",
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				err: errors.Wrap(errors.New(errUnsupportedSrcObject), errMergeClaimStatus),
+			},
+		},
+		"UpdateStatusError": {
+			reason: "Should return an error if unable to update status",
+			args: args{
+				client: &test.MockClient{
+					MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+				},
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   map[string]interface{}{},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   map[string]interface{}{},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   map[string]interface{}{},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				err: errors.Wrap(errBoom, errUpdateClaimStatus),
+			},
+		},
+		"MergeSpecError": {
+			reason: "Should return an error if unable to merge spec",
+			args: args{
+				client: &test.MockClient{
+					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+				},
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   "notSpec",
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   "notSpec",
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   "notSpec",
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				err: errors.Wrap(errors.New(errUnsupportedDstObject), errMergeClaimSpec),
+			},
+		},
+		"UpdateClaimError": {
+			reason: "Should return an error if unable to update claim",
+			args: args{
+				client: &test.MockClient{
+					MockUpdate:       test.NewMockUpdateFn(errBoom),
+					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+				},
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   map[string]interface{}{},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   map[string]interface{}{},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec":   map[string]interface{}{},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				err: errors.Wrap(errBoom, errUpdateClaim),
+			},
+		},
+		"LateInitializeClaim": {
+			reason: "Empty fields in claim should be late initialized from the composite",
+			args: args{
+				client: test.NewMockClient(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{
+								"someField":                  "someValue",
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]interface{}{
+								"coolness": 23,
+
+								// These should be filtered out.
+								"resourceRefs": "ref",
+								"claimRef":     "ref",
+							},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{
+								"someField":                  "someValue",
+								"coolness":                   23,
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]interface{}{},
+						},
+					},
+				},
+			},
+		},
+		"ConfigureStatus": {
+			reason: "Status of claim should be overwritten by the composite",
+			args: args{
+				client: test.NewMockClient(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]interface{}{
+								"previousCoolness": 23,
+								"conditions": []map[string]interface{}{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]interface{}{
+								"resourceRefs": "ref",
+								"claimRef":     "ref",
+							},
+							"status": map[string]interface{}{
+								"previousCoolness": 28,
+								"conditions": []map[string]interface{}{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]interface{}{
+								"previousCoolness": 28,
+								"conditions": []map[string]interface{}{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewAPIClaimConfigurator(tc.args.client)
+			got := c.Configure(context.Background(), tc.args.cm, tc.args.cp)
+			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
+				t.Errorf("c.Configure(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
+				t.Errorf("c.Configure(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}

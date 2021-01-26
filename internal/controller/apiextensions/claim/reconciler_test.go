@@ -218,7 +218,7 @@ func TestReconcile(t *testing.T) {
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
-					WithCompositeConfigurator(CompositeConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
 				},
 			},
 			want: want{
@@ -246,7 +246,7 @@ func TestReconcile(t *testing.T) {
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
-					WithCompositeConfigurator(CompositeConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -275,8 +275,39 @@ func TestReconcile(t *testing.T) {
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
-					WithCompositeConfigurator(CompositeConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: aShortWait},
+			},
+		},
+		"ClaimConfigureError": {
+			reason: "We should requeue after a short wait if we encounter an error configuring the claim resource",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*claim.Unstructured); ok {
+									o.SetResourceReference(&corev1.ObjectReference{})
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						},
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+							return nil
+						}),
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
 				},
 			},
 			want: want{
@@ -305,8 +336,9 @@ func TestReconcile(t *testing.T) {
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
-					WithCompositeConfigurator(CompositeConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 				},
 			},
 			want: want{
@@ -338,8 +370,9 @@ func TestReconcile(t *testing.T) {
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
-					WithCompositeConfigurator(CompositeConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return false, errBoom
 					})),
@@ -374,8 +407,9 @@ func TestReconcile(t *testing.T) {
 					WithClaimFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
-					WithCompositeConfigurator(CompositeConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
