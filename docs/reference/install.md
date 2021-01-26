@@ -18,19 +18,21 @@ resources and controllers needed to deploy and configure Crossplane.
 
 ## Installation
 
-Helm charts for Crossplane are currently published to the `alpha` and `master`
-channels. In the future, `beta` and `stable` will also be available.
+Helm charts for Crossplane are currently published to the `stable` and `master`
+channels.
 
-### Alpha
+### Stable
 
 The alpha channel is the most recent release of Crossplane that is considered
-ready for testing by the community.
+ready for the community.
 
 ```console
 kubectl create namespace crossplane-system
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
+helm repo add crossplane-stable https://charts.crossplane.io/stable
+helm repo update
+
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
 ```
 
 ### Master
@@ -47,6 +49,7 @@ version returned by the `search` command:
 ```console
 kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
+helm repo update
 helm search repo crossplane-master --devel
 
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version>
