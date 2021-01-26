@@ -127,6 +127,7 @@ spec:
                             enum:
                             - FromCompositeFieldPath
                             - PatchSet
+                            - ToCompositeFieldPath
                             type: string
                         type: object
                       type: array
@@ -229,6 +230,7 @@ spec:
                             enum:
                             - FromCompositeFieldPath
                             - PatchSet
+                            - ToCompositeFieldPath
                             type: string
                         type: object
                       type: array
