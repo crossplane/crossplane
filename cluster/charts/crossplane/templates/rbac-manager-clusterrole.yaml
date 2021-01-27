@@ -79,8 +79,10 @@ rules:
   - "*"
 - apiGroups:
   - ""
+  - coordination.k8s.io
   resources:
   - configmaps
+  - leases
   verbs:
   - get
   - list
@@ -88,4 +90,5 @@ rules:
   - update
   - patch
   - watch
+  - delete
 {{- end}}
