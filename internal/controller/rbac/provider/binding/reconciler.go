@@ -129,12 +129,12 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a ClusterRoleBinding that binds a
 // provider's service account to its system ClusterRole.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	pr := &v1.ProviderRevision{}

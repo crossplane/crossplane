@@ -25,6 +25,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -145,7 +146,7 @@ func TestHookPre(t *testing.T) {
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o runtime.Object) error {
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
 								switch o.(type) {
 								case *appsv1.Deployment:
 									return errBoom
@@ -191,7 +192,7 @@ func TestHookPre(t *testing.T) {
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o runtime.Object) error {
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
 								switch o.(type) {
 								case *appsv1.Deployment:
 									return nil
@@ -237,7 +238,7 @@ func TestHookPre(t *testing.T) {
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockDelete: test.NewMockDeleteFn(nil, func(o runtime.Object) error {
+							MockDelete: test.NewMockDeleteFn(nil, func(o client.Object) error {
 								return nil
 							}),
 						},
@@ -338,7 +339,7 @@ func TestHookPost(t *testing.T) {
 			args: args{
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							switch o.(type) {
 							case *appsv1.Deployment:
 								return nil
@@ -370,7 +371,7 @@ func TestHookPost(t *testing.T) {
 			args: args{
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							switch o.(type) {
 							case *appsv1.Deployment:
 								return errBoom
@@ -402,7 +403,7 @@ func TestHookPost(t *testing.T) {
 			args: args{
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							d, ok := o.(*appsv1.Deployment)
 							if !ok {
 								return nil
@@ -437,7 +438,7 @@ func TestHookPost(t *testing.T) {
 			args: args{
 				hook: &ProviderHooks{
 					client: resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},

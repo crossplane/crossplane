@@ -74,7 +74,7 @@ func TestAdd(t *testing.T) {
 		"SuccessfulEnqueue": {
 			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
 			client: &test.MockClient{
-				MockList: test.NewMockListFn(nil, func(obj runtime.Object) error {
+				MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 					l := obj.(*v1.ProviderRevisionList)
 					l.Items = []v1.ProviderRevision{
 						{

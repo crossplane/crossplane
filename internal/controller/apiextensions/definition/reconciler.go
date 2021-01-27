@@ -215,7 +215,7 @@ type Reconciler struct {
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
 // resource and starting a controller to reconcile it.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
 	// complexity goal. Be wary when adding branches, and look for functionality
 	// that could be reasonably moved into an injected dependency.
@@ -223,7 +223,7 @@ func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	d := &v1.CompositeResourceDefinition{}

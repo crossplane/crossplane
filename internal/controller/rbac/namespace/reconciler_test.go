@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -93,7 +94,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								d := o.(*corev1.Namespace)
 								d.SetDeletionTimestamp(&now)
 								return nil
@@ -133,7 +134,7 @@ func TestReconcile(t *testing.T) {
 							MockGet:  test.NewMockGetFn(nil),
 							MockList: test.NewMockListFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(context.Context, runtime.Object, ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return errBoom
 						}),
 					}),
@@ -156,7 +157,7 @@ func TestReconcile(t *testing.T) {
 							MockGet:  test.NewMockGetFn(nil),
 							MockList: test.NewMockListFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(ctx context.Context, o runtime.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(ctx context.Context, o client.Object, ao ...resource.ApplyOption) error {
 							// Simulate a no-op change by not allowing the update.
 							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 						}),
@@ -180,7 +181,7 @@ func TestReconcile(t *testing.T) {
 							MockGet:  test.NewMockGetFn(nil),
 							MockList: test.NewMockListFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(context.Context, runtime.Object, ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -198,7 +199,7 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, tc.args.opts...)
-			got, err := r.Reconcile(reconcile.Request{})
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

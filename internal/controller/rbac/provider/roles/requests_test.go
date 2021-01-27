@@ -23,7 +23,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	rbacv1 "k8s.io/api/rbac/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -200,7 +199,7 @@ func TestValidatePermissionRequests(t *testing.T) {
 		"SuccessfulReject": {
 			fields: fields{
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 						cr := obj.(*rbacv1.ClusterRole)
 						cr.Rules = []rbacv1.PolicyRule{
 							{

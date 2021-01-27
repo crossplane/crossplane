@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -139,7 +140,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
@@ -180,7 +181,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
@@ -221,7 +222,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
@@ -262,7 +263,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
@@ -329,7 +330,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
@@ -418,7 +419,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{
@@ -518,7 +519,7 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj runtime.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 							l := obj.(*v1alpha1.Lock)
 							l.Packages = []v1alpha1.LockPackage{
 								{

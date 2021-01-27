@@ -25,8 +25,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -93,7 +93,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								d := o.(*v1.ProviderRevision)
 								d.SetDeletionTimestamp(&now)
 								return nil
@@ -113,7 +113,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								d := o.(*v1.ProviderRevision)
 								d.SetOwnerReferences([]metav1.OwnerReference{{}})
 								return nil
@@ -134,7 +134,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								d := o.(*v1.ProviderRevision)
 								d.SetOwnerReferences([]metav1.OwnerReference{{}})
 								d.Spec.DesiredState = v1.PackageRevisionActive
@@ -142,7 +142,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockList: test.NewMockListFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(context.Context, runtime.Object, ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return errBoom
 						}),
 					}),
@@ -159,13 +159,13 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								d := o.(*v1.ProviderRevision)
 								d.SetOwnerReferences([]metav1.OwnerReference{{}})
 								d.Spec.DesiredState = v1.PackageRevisionActive
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								// Exercise the logic that filters out
 								// ServiceAccounts that are not owned by the
 								// ProviderRevision. Note the ServiceAccount's
@@ -179,7 +179,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(context.Context, runtime.Object, ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(context.Context, client.Object, ...resource.ApplyOption) error {
 							return nil
 						}),
 					}),
@@ -194,7 +194,7 @@ func TestReconcile(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewReconciler(tc.args.mgr, tc.args.opts...)
-			got, err := r.Reconcile(reconcile.Request{})
+			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

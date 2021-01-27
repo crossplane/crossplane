@@ -25,9 +25,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -136,7 +136,7 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -144,7 +144,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -158,7 +158,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},
@@ -183,7 +183,7 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -192,7 +192,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -207,7 +207,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},
@@ -232,7 +232,7 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -240,7 +240,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -254,7 +254,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},
@@ -279,13 +279,13 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
@@ -299,7 +299,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -312,7 +312,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},
@@ -337,13 +337,13 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
@@ -360,7 +360,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -373,7 +373,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							want := &v1.ConfigurationRevision{}
 							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
 							want.SetName("test-1234567")
@@ -415,13 +415,13 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
@@ -437,7 +437,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -449,7 +449,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							return errBoom
 						}),
 					},
@@ -474,13 +474,13 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
@@ -496,7 +496,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -509,7 +509,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
 							return nil
 						}),
 					},
@@ -534,13 +534,13 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
@@ -575,7 +575,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -589,7 +589,7 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 							want := &v1.ConfigurationRevision{}
 							want.SetLabels(map[string]string{"pkg.crossplane.io/package": "test"})
 							want.SetName("test-1234567")
@@ -631,14 +631,14 @@ func TestReconcile(t *testing.T) {
 					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 								p := o.(*v1.Configuration)
 								p.SetName("test")
 								p.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
 								p.SetRevisionHistoryLimit(&revHistory)
 								return nil
 							}),
-							MockList: test.NewMockListFn(nil, func(o runtime.Object) error {
+							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
 								l := o.(*v1.ConfigurationRevisionList)
 								cr := v1.ConfigurationRevision{
 									ObjectMeta: metav1.ObjectMeta{
@@ -675,7 +675,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o runtime.Object) error {
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -704,7 +704,7 @@ func TestReconcile(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.rec.Reconcile(reconcile.Request{})
+			got, err := tc.args.rec.Reconcile(context.Background(), reconcile.Request{})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

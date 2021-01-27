@@ -149,12 +149,12 @@ type Reconciler struct {
 
 // Reconcile a Namespace by creating a series of opinionated Roles that may be
 // bound to allow access to resources within that namespace.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	ns := &corev1.Namespace{}

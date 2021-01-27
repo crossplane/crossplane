@@ -206,14 +206,14 @@ type Reconciler struct {
 
 // Reconcile a ProviderRevision by creating a series of opinionated ClusterRoles
 // that may be bound to allow access to the resources it defines.
-func (r *Reconciler) Reconcile(req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
 	// NOTE(negz): This reconciler is a little over our desired cyclomatic
 	// complexity score. Be wary of adding additional complexity.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	pr := &v1.ProviderRevision{}

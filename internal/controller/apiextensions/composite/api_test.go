@@ -76,7 +76,7 @@ func TestPublishConnection(t *testing.T) {
 		"ApplyError": {
 			reason: "An error applying the connection secret should be returned",
 			args: args{
-				applicator: resource.ApplyFn(func(_ context.Context, _ runtime.Object, _ ...resource.ApplyOption) error { return errBoom }),
+				applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error { return errBoom }),
 				o:          owner,
 			},
 			want: want{
@@ -86,7 +86,7 @@ func TestPublishConnection(t *testing.T) {
 		"SuccessfulNoOp": {
 			reason: "If application would be a no-op we should not publish a secret.",
 			args: args{
-				applicator: resource.ApplyFn(func(ctx context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+				applicator: resource.ApplyFn(func(ctx context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					// Simulate a no-op change by not allowing the update.
 					return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 				}),
@@ -101,7 +101,7 @@ func TestPublishConnection(t *testing.T) {
 		"SuccessfulPublish": {
 			reason: "if the secret changed we should publish it.",
 			args: args{
-				applicator: resource.ApplyFn(func(_ context.Context, o runtime.Object, _ ...resource.ApplyOption) error {
+				applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
 					want := resource.ConnectionSecretFor(owner, owner.GetObjectKind().GroupVersionKind())
 					want.Data = managed.ConnectionDetails{"onlyme": {41}}
 					if diff := cmp.Diff(want, o); diff != "" {
@@ -310,7 +310,7 @@ func TestSelectorResolver(t *testing.T) {
 			args: args{
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
-					MockList: func(_ context.Context, obj runtime.Object, _ ...client.ListOption) error {
+					MockList: func(_ context.Context, obj client.ObjectList, _ ...client.ListOption) error {
 						compList := &v1.CompositionList{
 							Items: []v1.Composition{
 								{
@@ -437,7 +437,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 			reason: "Successfully set the default composition reference",
 			args: args{
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, obj runtime.Object) error {
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						switch cr := obj.(type) {
 						case *v1.CompositeResourceDefinition:
 							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRef: &xpv1.Reference{Name: comp.Name}}}
