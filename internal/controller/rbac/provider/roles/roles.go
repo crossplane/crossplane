@@ -45,6 +45,7 @@ const (
 	pluralEvents     = "events"
 	pluralConfigmaps = "configmaps"
 	pluralSecrets    = "secrets"
+	pluralLeases     = "leases"
 )
 
 var (
@@ -59,11 +60,12 @@ var (
 //
 // * Secrets for provider credentials and connection secrets.
 // * ConfigMaps for leader election.
+// * Leases for leader election.
 // * Events for debugging.
 var rulesSystemExtra = []rbacv1.PolicyRule{
 	{
-		APIGroups: []string{""},
-		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents},
+		APIGroups: []string{"", "coordination/v1"},
+		Resources: []string{pluralSecrets, pluralConfigmaps, pluralEvents, pluralLeases},
 		Verbs:     verbsEdit,
 	},
 }
