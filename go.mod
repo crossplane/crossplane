@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.2.11
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
-	github.com/crossplane/crossplane-runtime v0.12.1-0.20210121145519-c674db318cdb
+	github.com/crossplane/crossplane-runtime v0.12.1-0.20210128000612-240e79c8a694
 	github.com/docker/cli v0.0.0-20200915230204-cd8016b6bcc5 // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200926000217-2617742802f6+incompatible // indirect
 	github.com/google/go-cmp v0.5.2
