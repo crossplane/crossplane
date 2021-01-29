@@ -96,6 +96,9 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		s.Annotations = cc.Annotations
 		d.Labels = cc.Labels
 		d.Annotations = cc.Annotations
+		if cc.Spec.Metadata != nil {
+			d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
+		}
 		if cc.Spec.Replicas != nil {
 			d.Spec.Replicas = cc.Spec.Replicas
 		}
