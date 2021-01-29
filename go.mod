@@ -11,6 +11,7 @@ require (
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200926000217-2617742802f6+incompatible // indirect
 	github.com/google/go-cmp v0.5.2
 	github.com/google/go-containerregistry v0.2.1
+	github.com/imdario/mergo v0.3.11
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.4.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6

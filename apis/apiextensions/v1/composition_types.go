@@ -193,6 +193,7 @@ type PatchType string
 const (
 	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
 	PatchTypePatchSet               PatchType = "PatchSet"
+	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
 )
 
 // Patch objects are applied between composite and composed resources. Their
@@ -203,7 +204,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -229,20 +230,42 @@ type Patch struct {
 }
 
 // Apply executes a patching operation between the from and to resources.
-func (c *Patch) Apply(from, to runtime.Object) error {
+// Applies all patch types unless an 'only' filter is supplied.
+func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
+	if c.filterPatch(only...) {
+		return nil
+	}
+
 	switch c.Type {
 	case PatchTypeFromCompositeFieldPath:
-		return c.applyFromCompositeFieldPatch(from, to)
+		return c.applyFromFieldPathPatch(from, to)
+	case PatchTypeToCompositeFieldPath:
+		return c.applyFromFieldPathPatch(to, from)
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
 	return errors.Errorf(errInvalidPatchType, c.Type)
 }
 
-// applyFromCompositeFieldPatch patches the composed resource, using a source field
-// on the composite resource. Values may be transformed if any are defined on
+// filterPatch returns true if patch should be filtered (not applied)
+func (c *Patch) filterPatch(only ...PatchType) bool {
+	// filter does not apply if not set
+	if len(only) == 0 {
+		return false
+	}
+
+	for _, patchType := range only {
+		if patchType == c.Type {
+			return false
+		}
+	}
+	return true
+}
+
+// applyFromFieldPathPatch patches the "to" resource, using a source field
+// on the "from" resource. Values may be transformed if any are defined on
 // the patch.
-func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { // nolint:gocyclo
+func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // nolint:gocyclo
 	// NOTE(benagricola): The cyclomatic complexity here is from error checking
 	// at each stage of the patching process, in addition to Apply methods now
 	// being responsible for checking the validity of their input fields

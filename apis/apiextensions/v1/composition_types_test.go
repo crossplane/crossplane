@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -481,6 +480,7 @@ func TestPatchApply(t *testing.T) {
 		patch Patch
 		cp    *fake.Composite
 		cd    *fake.Composed
+		only  []PatchType
 	}
 	type want struct {
 		cp  *fake.Composite
@@ -494,7 +494,7 @@ func TestPatchApply(t *testing.T) {
 		want
 	}{
 		"InvalidCompositeFieldPathPatch": {
-			reason: "Should return error when required fields not passed to applyFromCompositeFieldPatch",
+			reason: "Should return error when required fields not passed to applyFromFieldPathPatch",
 			args: args{
 				patch: Patch{
 					Type: PatchTypeFromCompositeFieldPath,
@@ -546,9 +546,76 @@ func TestPatchApply(t *testing.T) {
 			},
 			want: want{
 				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{Name: "cd", Labels: map[string]string{
-						"Test": "blah",
-					}},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"FilterExcludeCompositeFieldPathPatch": {
+			reason: "Should not apply the patch as the PatchType is not present in filter.",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+				only: []PatchType{PatchTypePatchSet},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: nil,
+			},
+		},
+		"FilterIncludeCompositeFieldPathPatch": {
+			reason: "Should apply the patch as the PatchType is present in filter.",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+				only: []PatchType{PatchTypeFromCompositeFieldPath},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
 				},
 				err: nil,
 			},
@@ -570,14 +637,70 @@ func TestPatchApply(t *testing.T) {
 					ConnectionDetailsLastPublishedTimer: lpt,
 				},
 				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
 				},
 			},
 			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
 				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{Name: "cd", Labels: map[string]string{
-						"Test": "blah",
-					}},
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"ValidToCompositeFieldPathPatch": {
+			reason: "Should correctly apply a ToCompositeFieldPath patch with valid settings",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeToCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
 				},
 				err: nil,
 			},
@@ -586,7 +709,7 @@ func TestPatchApply(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ncp := tc.args.cp.DeepCopyObject()
-			err := tc.args.patch.Apply(ncp, tc.args.cd)
+			err := tc.args.patch.Apply(ncp, tc.args.cd, tc.args.only...)
 
 			if tc.want.cp != nil {
 				if diff := cmp.Diff(tc.want.cp, ncp); diff != "" {

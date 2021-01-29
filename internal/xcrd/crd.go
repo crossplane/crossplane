@@ -30,7 +30,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
-
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -41,7 +40,7 @@ const (
 )
 
 const (
-	errGetSpecProps            = "cannot get spec properties from validation schema"
+	errFmtGetProps             = "cannot get %q properties from validation schema"
 	errParseValidation         = "cannot parse validation schema"
 	errInvalidClaimNames       = "invalid resource claim names"
 	errMissingClaimNames       = "missing names"
@@ -83,9 +82,9 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 			},
 		}
 
-		p, required, err := getSpecProps(vr.Schema)
+		p, required, err := getProps("spec", vr.Schema)
 		if err != nil {
-			return nil, errors.Wrap(err, errGetSpecProps)
+			return nil, errors.Wrapf(err, errFmtGetProps, "spec")
 		}
 		specProps := crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"]
 		specProps.Required = append(specProps.Required, required...)
@@ -96,9 +95,20 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 			specProps.Properties[k] = v
 		}
 		crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"] = specProps
-		for k, v := range CompositeResourceStatusProps() {
-			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
+
+		statusP, statusRequired, err := getProps("status", vr.Schema)
+		if err != nil {
+			return nil, errors.Wrapf(err, errFmtGetProps, "status")
 		}
+		statusProps := crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"]
+		statusProps.Required = statusRequired
+		for k, v := range statusP {
+			statusProps.Properties[k] = v
+		}
+		for k, v := range CompositeResourceStatusProps() {
+			statusProps.Properties[k] = v
+		}
+		crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"] = statusProps
 	}
 
 	return crd, nil
@@ -143,9 +153,9 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 			},
 		}
 
-		p, required, err := getSpecProps(vr.Schema)
+		p, required, err := getProps("spec", vr.Schema)
 		if err != nil {
-			return nil, errors.Wrap(err, errGetSpecProps)
+			return nil, errors.Wrapf(err, errFmtGetProps, "spec")
 		}
 		specProps := crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"]
 		specProps.Required = append(specProps.Required, required...)
@@ -156,9 +166,20 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 			specProps.Properties[k] = v
 		}
 		crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["spec"] = specProps
-		for k, v := range CompositeResourceStatusProps() {
-			crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"].Properties[k] = v
+
+		statusP, statusRequired, err := getProps("status", vr.Schema)
+		if err != nil {
+			return nil, errors.Wrapf(err, errFmtGetProps, "status")
 		}
+		statusProps := crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"]
+		statusProps.Required = statusRequired
+		for k, v := range statusP {
+			statusProps.Properties[k] = v
+		}
+		for k, v := range CompositeResourceStatusProps() {
+			statusProps.Properties[k] = v
+		}
+		crd.Spec.Versions[i].Schema.OpenAPIV3Schema.Properties["status"] = statusProps
 	}
 
 	return crd, nil
@@ -188,7 +209,7 @@ func validateClaimNames(d *v1.CompositeResourceDefinition) error {
 	return nil
 }
 
-func getSpecProps(v *v1.CompositeResourceValidation) (map[string]extv1.JSONSchemaProps, []string, error) {
+func getProps(field string, v *v1.CompositeResourceValidation) (map[string]extv1.JSONSchemaProps, []string, error) {
 	if v == nil {
 		return nil, nil, nil
 	}
@@ -198,7 +219,7 @@ func getSpecProps(v *v1.CompositeResourceValidation) (map[string]extv1.JSONSchem
 		return nil, nil, errors.Wrap(err, errParseValidation)
 	}
 
-	spec, ok := s.Properties["spec"]
+	spec, ok := s.Properties[field]
 	if !ok {
 		return nil, nil, nil
 	}
