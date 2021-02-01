@@ -110,7 +110,8 @@ kind: RDSInstance
 metadata:
   name: prod-sql
 spec:
-  providerConfigRef: prod-acc
+  providerConfigRef:
+    name: prod-acc
   ...
 ```
 
