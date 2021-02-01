@@ -25,6 +25,10 @@ import (
 // Values provided will override package manager defaults. Labels and
 // annotations are passed to both the controller Deployment and ServiceAccount.
 type ControllerConfigSpec struct {
+	// Metadata that will be added to the provider Pod.
+	// +optional
+	Metadata *PodObjectMeta `json:"metadata,omitempty"`
+
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// Note: If more than 1 replica is set and leader election is not enabled then
@@ -124,6 +128,17 @@ type ControllerConfigSpec struct {
 	// Cannot be updated.
 	// +optional
 	Env []corev1.EnvVar `json:"env,omitempty"`
+}
+
+// PodObjectMeta is metadata that is added to the Pods in a provider's
+// Deployment.
+type PodObjectMeta struct {
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: http://kubernetes.io/docs/user-guide/annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // +kubebuilder:object:root=true

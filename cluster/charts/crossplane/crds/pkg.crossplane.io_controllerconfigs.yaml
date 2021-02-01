@@ -508,6 +508,15 @@ spec:
                       type: string
                   type: object
                 type: array
+              metadata:
+                description: Metadata that will be added to the provider Pod.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: 'Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: http://kubernetes.io/docs/user-guide/annotations'
+                    type: object
+                type: object
               nodeName:
                 description: NodeName is a request to schedule this pod onto a specific node. If it is non-empty, the scheduler simply schedules this pod onto that node, assuming that it fits resource requirements.
                 type: string
