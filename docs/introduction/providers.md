@@ -69,7 +69,7 @@ There are a few other ways to to trigger the installation of provider packages:
 * Using the Crossplane CLI: `kubectl crossplane install provider
   crossplane/provider-aws:master`
 
-You can uninstall a provider by deleting the `ClusterPackageInstall` resource
+You can uninstall a provider by deleting the `Provider` resource
 you've created.
 
 ## Configuring Providers
