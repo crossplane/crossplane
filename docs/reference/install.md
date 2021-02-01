@@ -23,7 +23,7 @@ channels.
 
 ### Stable
 
-The alpha channel is the most recent release of Crossplane that is considered
+The stable channel is the most recent release of Crossplane that is considered
 ready for the community.
 
 ```console
@@ -104,7 +104,7 @@ For example, the following command will install Crossplane with an image pull
 policy of `IfNotPresent`.
 
 ```console
-helm install --namespace crossplane-system crossplane-alpha/crossplane --set image.pullPolicy=IfNotPresent
+helm install --namespace crossplane-system crossplane-stable/crossplane --set image.pullPolicy=IfNotPresent
 ```
 
 ### Settings File
@@ -113,7 +113,7 @@ Alternatively, a yaml file that specifies the values for the above parameters
 (`values.yaml`) can be provided while installing the chart.
 
 ```console
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane -f values.yaml
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane -f values.yaml
 ```
 
 Here are the sample settings to get you started.
