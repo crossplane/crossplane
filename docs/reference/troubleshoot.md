@@ -12,7 +12,7 @@ indent: true
 * [Resource Events]
 * [Crossplane Logs]
 * [Pausing Crossplane]
-* [Deleting a Resource Hangs]
+* [Deleting When a Resource Hangs]
 
 ## Requested Resource Not Found
 
@@ -143,4 +143,4 @@ kubectl patch cloudsqlinstance my-db -p '{"metadata":{"finalizers": []}}' --type
 [Resource Events]: #resource-events
 [Crossplane Logs]: #crossplane-logs
 [Pausing Crossplane]: #pausing-crossplane
-[Deleting When a Resource Hangs]: #deleting-a-resource-hangs
+[Deleting When a Resource Hangs]: #deleting-when-a-resource-hangs
