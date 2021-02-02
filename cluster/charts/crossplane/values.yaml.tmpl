@@ -7,6 +7,10 @@ image:
   tag: %%VERSION%%
   pullPolicy: Always
 
+nodeSelector: {}
+tolerations: {}
+affinity: {}
+
 leaderElection: true
 args: {}
 
@@ -25,6 +29,9 @@ rbacManager:
   managementPolicy: All
   leaderElection: true
   args: {}
+  nodeSelector: {}
+  tolerations: {}
+  affinity: {}
 
 priorityClassName: ""
 
