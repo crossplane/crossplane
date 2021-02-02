@@ -57,4 +57,13 @@ spec:
         env:
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
+      {{- if .Values.rbacManager.nodeSelector }}
+      nodeSelector: {{ toYaml .Values.rbacManager.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if .Values.rbacManager.tolerations }}
+      tolerations: {{ toYaml .Values.rbacManager.tolerations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.rbacManager.affinity }}
+      affinity: {{ toYaml .Values.rbacManager.affinity | nindent 8 }}
+      {{- end }}
 {{- end}}
