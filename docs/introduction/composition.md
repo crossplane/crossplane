@@ -7,42 +7,35 @@ indent: true
 
 # Composing Infrastructure
 
-## Revisions
-
-* 1.1 - Ben Agricola (@benagricola)
-  * Updated [Specify How Your Resource May Be Composed](
-    #specify-how-your-resource-may-be-composed) with examples outlining how to
-  define and consume patch sets.
-
 ## Composition
 
-Crossplane allows infrastructure operators to define and compose new kinds of
-infrastructure resources then offer them for the application operators they
-support to use, all without writing any code.
+Providers extend Crossplane with custom resources that can be used to
+declaratively configure a system. The AWS provider for example, adds custom
+resources for AWS services like RDS and S3. We call these 'managed resources'.
+Managed resources match the APIs of the system they represent as closely as
+possible, but they’re also opinionated. Common functionality like status
+conditions and references work the same no matter which provider you're using -
+all managed resources comply with the Crossplane Resource Model, or XRM. Despite
+the name, 'provider' doesn’t necessarily mean 'cloud provider'. The Crossplane
+community has built providers that add support for managing databases on a SQL
+server, managing Helm releases, and ordering pizza.
 
-Infrastructure providers extend Crossplane, enabling it to manage a wide array
-of infrastructure resources like Azure SQL servers and AWS ElastiCache clusters.
-Infrastructure composition allows infrastructure operators to define, share, and
-reuse new kinds of infrastructure resources that are _composed_ of these
-infrastructure resources. Infrastructure operators may configure one or more
-compositions of any defined resource, and may publish any defined resource to
-their application operators, who may then declare that their application
-requires that kind of resource.
+Composition allows platform builders to define new custom resources that are
+composed of managed resources. We call these composite resources, or XRs. An XR
+typically groups together a handful of managed resources into one logical
+resource, exposing only the settings that the platform builer deems useful and
+deferring the rest to an API-server-side template we call a 'Composition'.
 
-Composition can be used to build a catalogue of kinds and configuration classes
-of infrastructure that fit the needs and opinions of your organisation. As an
-infrastructure operator you might define your own `MySQLInstance` resource. This
-resource would allow your application operators to configure only the settings
-that _your_ organisation needs - perhaps engine version and storage size. All
-other settings are deferred to a selectable composition representing a
-configuration class like "production" or "staging". Compositions can hide
-infrastructure complexity and include policy guardrails so that applications can
-easily and safely consume the infrastructure they need, while conforming to your
-organisational best-practices.
-
-> Note that composition is an **alpha** feature of Crossplane. Refer to [Current
-> Limitations] for information on functionality that is planned but not yet
-> implemented.
+Composition can be used to build a catalogue of custom resources and classes of
+configuration that fit the needs and opinions of your organisation. A platform
+team might define their own `MySQLInstance` XR, for example. This XR would allow
+the platform customers they support to self-service their database needs by
+ensuring they can configure only the settings that _your_ organisation needs -
+perhaps engine version and storage size. All other settings are deferred to a
+selectable composition representing a configuration class like "production" or
+"staging". Compositions can hide infrastructure complexity and include policy
+guardrails so that applications can easily and safely consume the infrastructure
+they need, while conforming to your organisational best-practices.
 
 ## Concepts
 
@@ -73,13 +66,15 @@ corresponding `MySQLInstance` claim.
 
 > Note that composite resources and compositions are _cluster scoped_ - they
 > exist outside of any Kubernetes namespace. A claim is a namespaced proxy for a
-> composite resource. This enables an RBAC model under which application
-> operators may only interact with infrastructure via resource claims.
+> composite resource. This enables Crossplane to model complex relationships
+> between XRs that may span namespace boundaries - for example MySQLInstances
+> spread across multiple namespaces can all share a VPC that exists above any
+> namespace.
 
-## Defining Infrastructure
+## Creating A New Kind of Composite Resource
 
-New kinds of infrastructure resource are defined by an infrastructure operator.
-There are two steps to this process:
+New kinds of composite resource are defined by a platform builder. There are
+two steps to this process:
 
 1. Define your composite resource, and optionally the claim it offers.
 1. Specify one or more possible ways your composite resource may be composed.
@@ -284,17 +279,16 @@ A `Composition`:
 
 Multiple compositions may satisfy a particular kind of composite resource, and
 the author of a composite resource (or resource claim) may select which
-composition will be used. This allows an infrastructure operator to offer their
-application operators a choice between multiple opinionated classes of
-infrastructure, allowing them to explicitly specify only some configuration. An
-infrastructure operator may offer their application operators the choice between
-an "Azure" and a "GCP" composition when creating a `MySQLInstance` for example,
-Or they may offer a choice between a "production" and a "staging" composition.
-They can also offer a default composition in case application operators do not
-supply a composition selector or enforce a specific composition in order to
-override the composition choice of users for all instances. In all cases, the
-application operator may configure any value supported by the composite
-resource's schema, with all other values being deferred to the composition.
+composition will be used. This allows a platform builder to expose a subset of
+configuration to their customers in a granular fashion, and defer the rest to
+fixed classes of configuration. A platform builder may offer their customers the
+choice between an "Azure" and a "GCP" composition, or they may offer a choice
+between a "production" and a "staging" composition. They can also offer a
+default composition in case their customers do not supply a composition selector
+or enforce a specific composition in order to override the composition choice of
+users for all instances. In all cases, the customer may configure any value
+supported by the composite resource's schema, with all other values being
+deferred to the composition.
 
 The below `Composition` satisfies the `CompositeMySQLInstance` defined in the
 previous section by composing an Azure SQL server, firewall rule, and resource
@@ -514,49 +508,47 @@ spec:
 
 ![Infrastructure Composition Provisioning]
 
-Crossplane offers several ways for both infrastructure operators and application
-operators to use the composite resource they've defined and offered:
+Crossplane is designed to allow platform builders to expose XRs in several ways:
 
-1. Only infrastructure operators can create or manage a composite resource that
-   does not offer a composite resource claim.
-1. Infrastructure operators can also create composite resources that offer a
-   claim. This allows an application operator to create a claim that
-   specifically requests the composite resource the infrastructure operator
-   created.
-1. Application operators can create a composite resource claim (if the composite
-  resource offers one), and a composite resource will be provisioned on-demand.
+1. Platform builders can create or manage an XR that does not offer a composite
+   resource claim. This XR exists at the cluster scope, which Crossplane
+   considers the domain of the platform builder.
+1. Platform builders can create an XR of _a kind that offers a claim_ without
+   claiming it (i.e. without authoring a claim). This allows their customers to
+   claim an existing XR at a future point in time.
+1. Platform customers can create a composite resource claim (if the XRD offers
+   one), and a composite resource will be provisioned on-demand.
 
 Options one and two are frequently referred to as "static provisioning", while
 option three is known as "dynamic provisioning".
 
-> Note that infrastructure operator focused Crossplane concepts are cluster
-> scoped - they exist outside any namespace. Crossplane assumes infrastructure
-> operators will have similar RBAC permissions to cluster administrators, and
-> will thus be permitted to manage cluster scoped resources. Application
-> operator focused Crossplane concepts are namespaced. Crossplane assumes
-> application operators will be permitted access to the namespace(s) in which
-> their applications run, and not to cluster scoped resources.
+> Note that platform builder focused Crossplane concepts are cluster scoped -
+> they exist outside any namespace. Crossplane assumes platform builders will
+> have similar RBAC permissions to cluster administrators, and will thus be
+> permitted to manage cluster scoped resources. Platform customer focused
+> Crossplane concepts are namespaced. Crossplane assumes customers will be
+> permitted access to the namespace(s) in which their applications run, and not
+> to cluster scoped resources.
 
 ### Creating and Managing Composite Resources
 
-An infrastructure operator may wish to author a composite resource of a kind
-that offers a claim so that an application operator may later author a claim for
-that exact resource. This pattern is useful for resources that may take several
-minutes to provision - the infrastructure operator can keep a pool of resources
-available in advance in order to ensure claims may be instantly satisfied.
+A platform builder may wish to author a composite resource of a kind that offers
+a claim so that a platform customer may later author a claim for that exact
+resource. This pattern is useful for resources that may take several minutes to
+provision - the platform builder can keep a pool of resources available in
+advance in order to ensure claims may be instantly satisfied.
 
-In some cases an infrastructure operator may wish to use Crossplane to model a
-composite that they do not wish to allow application operators to provision.
-Consider a `VPCNetwork` composite resource that creates an AWS VPC network with
-an internet gateway, route table, and several subnets. Defining this resource as
-a composite allows the infrastructure operator to easily reuse their
-configuration, but it does not make sense in their organisation to allow
-application operators to create "supporting infrastructure" like a VPC network.
+In some cases a platform builder may wish to use Crossplane to model an XR that
+they do not wish to allow platform customers to provision. Consider a `VPC` XR
+that creates an AWS VPC network with an internet gateway, route table, and
+several subnets. Defining this resource as an XR allows the platform builder to
+easily reuse their configuration, but it does not make sense to allow platform
+customers to create "supporting infrastructure" like a VPC network.
 
-In both of the above scenarios the infrastructure operator may statically
-provision a composite resource; i.e. author it directly rather than via its
-corresponding resource claim. The `CompositeMySQLInstance` composite resource
-defined above could be authored as follows:
+In both of the above scenarios the platform builder may statically provision a
+composite resource; i.e. author it directly rather than via its corresponding
+resource claim. The `CompositeMySQLInstance` composite resource defined above
+could be authored as follows:
 
 ```yaml
 apiVersion: example.org/v1alpha1
@@ -599,16 +591,16 @@ the `spec.parameters.storageGB` field would immediately be propagated to the
 due to the relationship established between these two fields by the patches
 configured in the `example-azure` `Composition`.
 
-`kubectl describe` may be used to examine a composite resource. Note the
-`Synced` and `Ready` conditions below. The former indicates that Crossplane is
-successfully reconciling the composite resource by updating the composed
-resources. The latter indicates that all composed resources are also indicating
-that they are in condition `Ready`, and therefore the composite resource should
-be online and ready to use. More detail about the health and configuration of
-the composite resource can be determined by describing each composite resource.
-The kinds and names of each composed resource are exposed as "Resource Refs" -
-for example `kubectl describe mysqlserver example-zrpgr` will describe the
-detailed state of the composed Azure `MySQLServer`.
+`kubectl describe` may be used to examine a composite resource. Note the `Ready`
+condition below. It indicates that all composed resources are indicating they
+are 'ready', and therefore the composite resource should be online and ready to
+use. 
+
+More detail about the health and configuration of the composite resource can be
+determined by describing each composed resource. The kinds and names of each
+composed resource are exposed as "Resource Refs" - for example `kubectl describe
+mysqlserver example-zrpgr` will describe the detailed state of the composed
+Azure `MySQLServer`.
 
 ```console
 $ kubectl describe compositemysqlinstance.example.org
@@ -668,12 +660,11 @@ Events:
 
 ### Creating a Composite Resource Claim
 
-Composite resource claims represent an application's need for a particular kind
-of composite resource, for example the above `MySQLInstance`. Claims are a proxy
-for the kind of resource they require, allowing application operators to
-provision and consume infrastructure. An claim may request pre-existing,
-statically provisioned infrastructure or it may dynamically provision a
-composite resource on-demand.
+Composite resource claims represent a need for a particular kind of composite
+resource, for example the above `MySQLInstance`. Claims are a proxy for the kind
+of resource they claim, allowing platform customers to provision and consume an
+XR. An claim may request a pre-existing, statically provisioned XR or it may
+dynamically provision one on-demand.
 
 The below claim explicitly requests the `CompositeMySQLInstance` authored in the
 previous example:
@@ -740,16 +731,15 @@ spec:
 ```
 
 > Note that compositionSelector labels can form a shared language between the
-> infrastructure operators who define compositions and the application operators
-> who require composite resources. Compositions could be labelled by zone, size,
-> or purpose in order to allow application operators to request a class of
-> composite resource by describing their needs such as "east coast, production".
+> platform builders who define compositions and their platform customers.
+> Compositions could be labelled by zone, size, or purpose in order to allow
+> platform customers to request a class of composite resource by describing
+> their needs such as "east coast, production".
 
-Like composite resources, claims can be examined using `kubectl describe`.
-The `Synced` and `Ready` conditions have the same meaning as the `MySQLInstance`
-above. The "Resource Ref" indicates the name of the composite resource that was
-either explicitly required, or in the case of the below claim dynamically
-provisioned.
+Like composite resources, claims can be examined using `kubectl describe`. The
+`Ready` condition has the same meaning as the `MySQLInstance` above. The
+"Resource Ref" indicates the name of the composite resource that was either
+explicitly claimed, or in the case of the below claim dynamically provisioned.
 
 ```console
 $ kubectl describe mysqlinstanceclaim.example.org example
@@ -803,17 +793,21 @@ Events:
 
 ## Current Limitations
 
-Composite resources are an alpha feature of Crossplane. At present the below
-functionality is planned but not yet implemented:
+At present the below functionality is planned but not yet implemented:
 
-* Only three transforms are currently supported - string format, multiplication,
-  and map. Crossplane intends to limit the set of supported transforms, and will
-  add more as clear use cases appear.
 * Compositions are mutable, and updating a composition causes all composite
-  resources that use that composition to be updated accordingly. A future
-  release of Crossplane may alter this behaviour.
+  resources that use that composition to be updated accordingly. Revision
+  support is planned per issue [#1481].
+* The array of templates within a Composition may not currently be reordered.
+  Support for reordering templates is planned per issue [#1909]
+
+Refer to the list of [composition related issues] for an up-to-date list of
+known issues and proposed improvements.
 
 [Current Limitations]: #current-limitations
 [Infrastructure Composition Concepts]: composition-concepts.png
 [structural schemas]: https://kubernetes.io/docs/tasks/access-kubernetes-api/custom-resources/custom-resource-definitions/#specifying-a-structural-schema
 [Infrastructure Composition Provisioning]: composition-provisioning.png
+[composition related issues]: https://github.com/crossplane/crossplane/labels/composition
+[#1481]: https://github.com/crossplane/crossplane/issues/1481
+[#1909]: https://github.com/crossplane/crossplane/issues/1909
