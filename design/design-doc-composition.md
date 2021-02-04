@@ -2,7 +2,17 @@
 
 * Owner: Nic Cope (@negz)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
+
+> Note that Composition has evolved since this design document was accepted. You
+> may wish to refer to the Composition documentation for a detailed overview of
+> the current motivations behind Composition and how it works. While much of the
+> machinery of Composition is as described by this document we elected not to
+> build distinct a InfrastructureDefinition and ApplicationDefinition, and
+> instead expose a less opinionated CompositeResourceDefinition. An
+> 'infrastructure requirement' is now a 'resource claim', which may be 'offered'
+> by configuring the CompositeResourceDefinition appropriately, instead of
+> 'published' by creating an InfrastructurePublication.
 
 ## Background
 
