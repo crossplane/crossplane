@@ -17,11 +17,10 @@ limitations under the License.
 package rbac
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
-	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -36,28 +35,19 @@ const (
 	ManagementPolicyBasic = string(rbac.ManagementPolicyBasic)
 )
 
-// Command configuration for the RBAC manager.
-type Command struct {
-	Name                string
-	Sync                time.Duration
-	LeaderElection      bool
-	ManagementPolicy    string
-	ProviderClusterRole string
-}
+// TODO: Fix Enum Support and Remove Hardcoding
 
-// FromKingpin produces the RBAC manager command from a Kingpin command.
-func FromKingpin(cmd *kingpin.CmdClause) *Command {
-	c := &Command{Name: cmd.FullCommand()}
-	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("manage", "RBAC management policy.").Short('m').Default(ManagementPolicyAll).EnumVar(&c.ManagementPolicy, ManagementPolicyAll, ManagementPolicyBasic)
-	cmd.Flag("provider-clusterrole", "A ClusterRole enumerating the permissions provider packages may request.").StringVar(&c.ProviderClusterRole)
-	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
-
-	return c
+// Cmd starts Crossplane RBAC Manager controllers.
+type Cmd struct {
+	Sync                time.Duration `short:"s" default:"1h" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m."`
+	LeaderElection      bool          `short:"l" default:"false" env:"LEADER_ELECTION" help:"Use leader election for the conroller manager."`
+	ManagementPolicy    string        `short:"m" name:"manage" default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}" help:"RBAC management policy."`
+	ProviderClusterRole string        `help:"A ClusterRole enumerating the permissions provider packages may request."`
 }
 
 // Run the RBAC manager.
-func (c *Command) Run(log logging.Logger) error {
+func (c *Cmd) Run(zl *logr.Logger) error {
+	log := logging.NewLogrLogger((*zl).WithName("rbac"))
 	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
 
 	cfg, err := ctrl.GetConfig()
@@ -67,7 +57,7 @@ func (c *Command) Run(log logging.Logger) error {
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		LeaderElection:   c.LeaderElection,
-		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
+		LeaderElectionID: "crossplane-leader-election-rbac",
 		SyncPeriod:       &c.Sync,
 	})
 	if err != nil {

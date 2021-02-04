@@ -17,12 +17,11 @@ limitations under the License.
 package core
 
 import (
-	"fmt"
 	"time"
 
+	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
-	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -34,27 +33,17 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-// Command configuration for the core Crossplane controllers.
-type Command struct {
-	Name           string
-	Namespace      string
-	CacheDir       string
-	LeaderElection bool
-	Sync           time.Duration
-}
-
-// FromKingpin produces the core Crossplane command from a Kingpin command.
-func FromKingpin(cmd *kingpin.CmdClause) *Command {
-	c := &Command{Name: cmd.FullCommand()}
-	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
-	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").ExistingDirVar(&c.CacheDir)
-	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
-	return c
+// Cmd starts core Crossplane controllers.
+type Cmd struct {
+	Namespace      string        `short:"n" default:"crossplane-system" env:"POD_NAMESPACE" help:"Namespace used to unpack and run packages."`
+	CacheDir       string        `short:"c" default:"/cache" env:"CACHE_DIR" type:"existingdir" help:"Directory used for caching package images."`
+	Sync           time.Duration `short:"s" default:"1h" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m."`
+	LeaderElection bool          `short:"l" default:"false" env:"LEADER_ELECTION" help:"Use leader election for the conroller manager."`
 }
 
 // Run core Crossplane controllers.
-func (c *Command) Run(log logging.Logger) error {
+func (c *Cmd) Run(zl *logr.Logger) error {
+	log := logging.NewLogrLogger((*zl).WithName("crossplane"))
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	cfg, err := ctrl.GetConfig()
@@ -64,7 +53,7 @@ func (c *Command) Run(log logging.Logger) error {
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		LeaderElection:   c.LeaderElection,
-		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
+		LeaderElectionID: "crossplane-leader-election-core",
 		SyncPeriod:       &c.Sync,
 	})
 	if err != nil {

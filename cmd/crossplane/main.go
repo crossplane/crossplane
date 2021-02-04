@@ -17,44 +17,54 @@ limitations under the License.
 package main
 
 import (
-	"os"
-	"path/filepath"
+	"strings"
 
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kong"
+	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
 
-func main() {
-	var (
-		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
-		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-	)
+type debugFlag bool
 
-	c := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
-	r := rbac.FromKingpin(app.Command("rbac", "Start Crossplane RBAC Manager controllers."))
-	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
+func (d *debugFlag) AfterApply(zl *logr.Logger) error { // nolint:unparam
+	*zl = zap.New(zap.UseDevMode(bool(*d)))
+	if *d {
+		ctrl.SetLogger(*zl)
+	}
+	return nil
+}
+
+var cli struct {
+	Debug debugFlag `help:"Enable debug loggging."`
+
+	Core core.Cmd `cmd:"" help:"Start core Crossplane controllers."`
+	Rbac rbac.Cmd `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+}
+
+func main() {
 
 	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
 	// order to ensure the debug flag has been parsed and set.
-	zl := zap.New(zap.UseDevMode(*debug))
-	if *debug {
-		// The controller-runtime runs with a no-op logger by default. It is
-		// *very* verbose even at info level, so we only provide it a real
-		// logger when we're running in debug mode.
-		ctrl.SetLogger(zl)
-	}
+	zl := zap.New(zap.UseDevMode(false))
 
-	switch cmd {
-	case c.Name:
-		kingpin.FatalIfError(c.Run(logging.NewLogrLogger(zl.WithName("crossplane"))), "cannot run crossplane")
-	case r.Name:
-		kingpin.FatalIfError(r.Run(logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
-	default:
-		kingpin.FatalUsage("unknown command %s", cmd)
-	}
+	ctx := kong.Parse(&cli,
+		kong.Name("crossplane"),
+		kong.Description("An open source multicloud control plane."),
+		kong.Bind(&zl),
+		kong.UsageOnError(),
+		kong.Vars{
+			"rbac_manage_default_var": rbac.ManagementPolicyAll,
+			"rbac_manage_enum_var": strings.Join(
+				[]string{
+					rbac.ManagementPolicyAll,
+					rbac.ManagementPolicyBasic,
+				},
+				", "),
+		})
+	err := ctx.Run()
+	ctx.FatalIfErrorf(err)
 }
