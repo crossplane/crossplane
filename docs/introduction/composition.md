@@ -442,6 +442,15 @@ spec:
       # connection secret.
     - name: port
       value: "3306"
+    # Readiness checks allow you to define custom readiness checks. All checks
+	  # have to return true in order for resource to be considered ready. The
+    # default readiness check is to have the "Ready" condition to be "True".
+    # Currently Crossplane supports the MatchString, MatchInteger, and None
+    # readiness checks.
+    readinessChecks:
+    - type: MatchString
+      fieldPath: "status.atProvider.userVisibleState"
+      matchString: "Ready"
     # A CompositeMySQLInstance that uses this Composition will also be composed
     # of an Azure MySQLServerFirewallRule.
   - base:
