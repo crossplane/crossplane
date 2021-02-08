@@ -40,14 +40,17 @@ import (
 
 // Error strings
 const (
-	errApply       = "cannot apply composed resource"
-	errFetchSecret = "cannot fetch connection secret"
-	errReadiness   = "cannot check whether composed resource is ready"
-	errUnmarshal   = "cannot unmarshal base template"
-	errFmtPatch    = "cannot apply the patch at index %d"
-	errGetSecret   = "cannot get connection secret of composed resource"
-	errNamePrefix  = "name prefix is not found in labels"
-	errName        = "cannot use dry-run create to name composed resource"
+	errApply          = "cannot apply composed resource"
+	errFetchSecret    = "cannot fetch connection secret"
+	errReadiness      = "cannot check whether composed resource is ready"
+	errUnmarshal      = "cannot unmarshal base template"
+	errFmtPatch       = "cannot apply the patch at index %d"
+	errGetSecret      = "cannot get connection secret of composed resource"
+	errNamePrefix     = "name prefix is not found in labels"
+	errName           = "cannot use dry-run create to name composed resource"
+	errConnDetailKey  = "connection detail of type %s key is not set"
+	errConnDetailVal  = "connection detail of type %s value is not set"
+	errConnDetailPath = "connection detail of type %s fromFieldPath is not set"
 )
 
 // Observation is the result of composed reconciliation.
@@ -161,39 +164,64 @@ func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetche
 
 // FetchConnectionDetails of the supplied composed resource, if any.
 func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
-	sref := cd.GetWriteConnectionSecretToReference()
-	if sref == nil {
-		return nil, nil
+	data := map[string][]byte{}
+	if sref := cd.GetWriteConnectionSecretToReference(); sref != nil {
+		// It's possible that the composed resource does want to write a
+		// connection secret but has not yet. We presume this isn't an issue and
+		// that we'll propagate any connection details during a future
+		// iteration.
+		s := &corev1.Secret{}
+		nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
+		if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
+			return nil, errors.Wrap(err, errGetSecret)
+		}
+		data = s.Data
 	}
 
 	conn := managed.ConnectionDetails{}
 
-	// It's possible that the composed resource does want to write a
-	// connection secret but has not yet. We presume this isn't an issue and
-	// that we'll propagate any connection details during a future
-	// iteration.
-	s := &corev1.Secret{}
-	nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
-	if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
-		return nil, errors.Wrap(err, errGetSecret)
-	}
-
 	for _, d := range t.ConnectionDetails {
-		switch {
-		case d.Value != nil:
-			if d.Name != nil {
+		switch d.Type {
+		case v1.ConnectionDetailValue:
+			// Name, Value must be set if value type
+			switch {
+			case d.Name == nil:
+				return nil, fmt.Errorf(errConnDetailKey, d.Type)
+			case d.Value == nil:
+				return nil, fmt.Errorf(errConnDetailVal, d.Type)
+			default:
 				conn[*d.Name] = []byte(*d.Value)
 			}
-		case d.FromConnectionSecretKey != nil && len(s.Data[*d.FromConnectionSecretKey]) != 0:
+		case v1.ConnectionDetailFromConnectionSecretKey:
+			if d.FromConnectionSecretKey == nil {
+				return nil, fmt.Errorf(errConnDetailKey, d.Type)
+			}
+			if data[*d.FromConnectionSecretKey] == nil {
+				// We don't consider this an error because it's possible the
+				// key will still be written at some point in the future.
+				continue
+			}
 			key := *d.FromConnectionSecretKey
 			if d.Name != nil {
 				key = *d.Name
 			}
-
-			conn[key] = s.Data[*d.FromConnectionSecretKey]
-		case d.FromResourceFieldPath != nil && d.Name != nil:
-			_ = extractFieldPathValue(cd, d, conn)
+			if key != "" {
+				conn[key] = data[*d.FromConnectionSecretKey]
+			}
+		case v1.ConnectionDetailFromFieldPath:
+			switch {
+			case d.Name == nil:
+				return nil, fmt.Errorf(errConnDetailKey, d.Type)
+			case d.FromFieldPath == nil:
+				return nil, fmt.Errorf(errConnDetailPath, d.Type)
+			default:
+				_ = extractFieldPathValue(cd, d, conn)
+			}
 		}
+	}
+
+	if len(conn) == 0 {
+		return nil, nil
 	}
 
 	return conn, nil
@@ -205,13 +233,13 @@ func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn
 		return err
 	}
 
-	str, err := fieldpath.Pave(fromMap).GetString(*detail.FromResourceFieldPath)
+	str, err := fieldpath.Pave(fromMap).GetString(*detail.FromFieldPath)
 	if err == nil {
 		conn[*detail.Name] = []byte(str)
 		return nil
 	}
 
-	in, err := fieldpath.Pave(fromMap).GetValue(*detail.FromResourceFieldPath)
+	in, err := fieldpath.Pave(fromMap).GetValue(*detail.FromFieldPath)
 	if err != nil {
 		return err
 	}

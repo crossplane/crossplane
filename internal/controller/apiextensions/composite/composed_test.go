@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -189,9 +190,11 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
+						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
+						Type:  v1.ConnectionDetailValue,
 						Value: pointer.StringPtr("value"),
 					},
 				}},
@@ -233,25 +236,21 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
+						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
 					},
 					{
 						FromConnectionSecretKey: pointer.StringPtr("none"),
+						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
 					},
 					{
 						Name:                    pointer.StringPtr("convfoo"),
 						FromConnectionSecretKey: pointer.StringPtr("foo"),
+						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
 						Value: pointer.StringPtr("value"),
-					},
-					{
-						// Entries with only a name are silently ignored.
-						Name: pointer.StringPtr("missingvalue"),
-					},
-					{
-						// Entries with only a value are silently ignored.
-						Value: pointer.StringPtr("missingname"),
+						Type:  v1.ConnectionDetailValue,
 					},
 				}},
 			},
@@ -261,6 +260,140 @@ func TestFetch(t *testing.T) {
 					"bar":     s.Data["bar"],
 					"fixed":   []byte("value"),
 				},
+			},
+		},
+		"ConnectionDetailValueNotSet": {
+			reason: "Should error if Value type value is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Name: pointer.StringPtr("missingvalue"),
+						Type: v1.ConnectionDetailValue,
+					},
+				}},
+			},
+			want: want{
+				err: fmt.Errorf(errConnDetailVal, v1.ConnectionDetailValue),
+			},
+		},
+		"ErrConnectionDetailNameNotSet": {
+			reason: "Should error if Value type name is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Value: pointer.StringPtr("missingname"),
+						Type:  v1.ConnectionDetailValue,
+					},
+				}},
+			},
+			want: want{
+				err: fmt.Errorf(errConnDetailKey, v1.ConnectionDetailValue),
+			},
+		},
+		"ErrConnectionDetailFromConnectionSecretKeyNotSet": {
+			reason: "Should error if ConnectionDetailFromConnectionSecretKey type FromConnectionSecretKey is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Type: v1.ConnectionDetailFromConnectionSecretKey,
+					},
+				}},
+			},
+			want: want{
+				err: fmt.Errorf(errConnDetailKey, v1.ConnectionDetailFromConnectionSecretKey),
+			},
+		},
+		"ErrConnectionDetailFromFieldPathNotSet": {
+			reason: "Should error if ConnectionDetailFromFieldPath type FromFieldPath is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Type: v1.ConnectionDetailFromFieldPath,
+						Name: pointer.StringPtr("missingname"),
+					},
+				}},
+			},
+			want: want{
+				err: fmt.Errorf(errConnDetailPath, v1.ConnectionDetailFromFieldPath),
+			},
+		},
+		"ErrConnectionDetailFromFieldPathNameNotSet": {
+			reason: "Should error if ConnectionDetailFromFieldPath type Name is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Type:          v1.ConnectionDetailFromFieldPath,
+						FromFieldPath: pointer.StringPtr("fieldpath"),
+					},
+				}},
+			},
+			want: want{
+				err: fmt.Errorf(errConnDetailKey, v1.ConnectionDetailFromFieldPath),
 			},
 		},
 		"SuccessFieldPath": {
@@ -284,9 +417,9 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						// Entries with only a name are silently ignored.
 						Name:          pointer.StringPtr("name"),
-						FromResourceFieldPath: pointer.StringPtr("objectMeta.name"),
+						FromFieldPath: pointer.StringPtr("objectMeta.name"),
+						Type:          v1.ConnectionDetailFromFieldPath,
 					},
 				}},
 			},
@@ -317,9 +450,9 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						// Entries with only a name are silently ignored.
 						Name:          pointer.StringPtr("generation"),
-						FromResourceFieldPath: pointer.StringPtr("objectMeta.generation"),
+						FromFieldPath: pointer.StringPtr("objectMeta.generation"),
+						Type:          v1.ConnectionDetailFromFieldPath,
 					},
 				}},
 			},

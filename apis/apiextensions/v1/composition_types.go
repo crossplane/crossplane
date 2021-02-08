@@ -543,6 +543,16 @@ func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
 	return f(input)
 }
 
+// A ConnectionDetailType is a type of connection detail.
+type ConnectionDetailType string
+
+// ConnectionDetailType types.
+const (
+	ConnectionDetailFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey" // Default
+	ConnectionDetailFromFieldPath           ConnectionDetailType = "FromFieldPath"
+	ConnectionDetailValue                   ConnectionDetailType = "Value"
+)
+
 // ConnectionDetail includes the information about the propagation of the connection
 // information from one secret to another.
 type ConnectionDetail struct {
@@ -552,15 +562,22 @@ type ConnectionDetail struct {
 	// +optional
 	Name *string `json:"name,omitempty"`
 
+	// Type sets the connection detail fetching behaviour to be used. Each connection detail type may require
+	// its' own fields to be set on the ConnectionDetail object.
+	// +optional
+	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;Value
+	// +kubebuilder:default=FromConnectionSecretKey
+	Type ConnectionDetailType `json:"type,omitempty"`
+
 	// FromConnectionSecretKey is the key that will be used to fetch the value
 	// from the given target resource's secret
 	// +optional
 	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
 
-	// FromResourceFieldPath is the path of the field on the composed resource whose value
-	// to be used as input. Name must be specified.
+	// FromFieldPath is the path of the field on the composed resource whose value
+	// to be used as input. Name must be specified if the type is FromFieldPath is specified.
 	// +optional
-	FromResourceFieldPath *string `json:"fromResourceFieldPath,omitempty"`
+	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
 	// Value that will be propagated to the connection secret of the composition
 	// instance. Typically you should use FromConnectionSecretKey instead, but
