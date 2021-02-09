@@ -105,6 +105,9 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		if cc.Spec.Image != nil {
 			d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
 		}
+		if len(cc.Spec.Ports) > 0 {
+			d.Spec.Template.Spec.Containers[0].Ports = cc.Spec.Ports
+		}
 		if cc.Spec.NodeSelector != nil {
 			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
 		}
