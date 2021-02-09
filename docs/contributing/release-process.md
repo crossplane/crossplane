@@ -17,10 +17,10 @@ with a very high level sequential overview for how to run the release process.
 These steps apply to all Crossplane projects, all of which utilize [Github
 Actions](https://github.com/features/actions) for pipelines.
 
-1. **feature freeze**: Merge all completed features into master branches of all
-   repos to begin "feature freeze" period.
-1. **pin dependencies**: Update the go module in master to depend on stable
-   versions of dependencies if needed.
+1. **feature freeze**: Merge all completed features into main development branch
+   of all repos to begin "feature freeze" period.
+1. **pin dependencies**: Update the go module on main development branch to
+   depend on stable versions of dependencies if needed.
 1. **branch repo**: Create a new release branch using the GitHub UI for the
    repo.
 1. **release branch prep**: Make any release-specific updates on the release
@@ -29,8 +29,8 @@ Actions](https://github.com/features/actions) for pipelines.
    desired version (e.g. `v0.14.0`).
 1. **build/publish**: Run the `CI` action on the release branch with the version
    that was just tagged.
-1. **tag next pre-release**: Run the `tag` action on the `master` branch with
-   the `rc.0` for the next release (e.g. `v0.15.0-rc.0`).
+1. **tag next pre-release**: Run the `tag` action on the main development branch
+   with the `rc.0` for the next release (e.g. `v0.15.0-rc.0`).
 1. **verify**: Verify all artifacts have been published successfully, perform
    sanity testing.
 1. **promote**: Run the `Promote` action to promote release to desired
@@ -51,12 +51,12 @@ freeze period, the following conditions should be met:
 
 * All expected features should be
   ["complete"](https://github.com/crossplane/crossplane/blob/master/design/one-pager-definition-of-done.md)
-  and merged into master. This includes user guides, examples, API
-  documentation, and test updates.
+  and merged into main development branch. This includes user guides, examples,
+  API documentation, and test updates.
 * All issues in the
   [milestone](https://github.com/crossplane/crossplane/milestones) should be
   closed
-* Sanity testing has been performed on `master`
+* Sanity testing has been performed on main development branch
 
 ### Pin Dependencies
 
@@ -77,17 +77,17 @@ the new release branch, e.g. `release-0.5`. Release branch names always follow
 the convention of `release-[minor-semver]`.
 
 If this is the first ever release branch being created in a repo (uncommon), you
-should also set up branch protection rules for the `release-*` pattern.  You can
+should also set up branch protection rules for the `release-*` pattern. You can
 find existing examples in the [Crossplane repo
 settings](https://github.com/crossplane/crossplane/settings/branches).
 
 At this point, the `HEAD` commit in the release branch will be our release
-candidate.  The build pipeline will automatically be started due to the create
-branch event, so we can start to perform testing on this build.  Note that it
-should be the exact same as what is currently in `master` since they are using
-the same commit and have the same tag.  Also note that this is not the official
-release build since we have not made the official release tag yet (e.g.
-`v0.5.0`).
+candidate. The build pipeline will automatically be started due to the create
+branch event, so we can start to perform testing on this build. Note that it
+should be the exact same as what is currently in main development branch since
+they are using the same commit and have the same tag. Also note that this is not
+the official release build since we have not made the official release tag yet
+(e.g. `v0.5.0`).
 
 ### Release Branch Prep
 
@@ -101,7 +101,7 @@ examples to point to the new versions that we will be releasing soon.
 * Documentation, such as pinning
   [snippet](https://github.com/crossplane/crossplane/blob/release-0.14/docs/snippets)
   links to the current release branch.
-  * searching for `master` will help a lot here
+  * searching for `:v` will help a lot here
 
 #### Bug Fixes in Release Branch
 
@@ -109,14 +109,15 @@ During our testing of the release candidate, we may find issues or bugs that we
 triage and decide we want to fix before the release goes out. In order to fix a
 bug in the release branch, the following process is recommended:
 
-1. Make the bug fix into `master` first through the normal PR process
-    1. If the applicable code has already been removed from `master` then simply
-       fix the bug directly in the release branch by opening a PR directly
-       against the release branch
+1. Make the bug fix into main development branch first through the normal PR
+   process
+    1. If the applicable code has already been removed from the main development
+       branch then simply fix the bug directly in the release branch by opening
+       a PR directly against the release branch
 1. Backport the fix by performing a cherry-pick of the fix's commit hash
-   (**not** the merge commit) from `master` into the release branch.  For
-   example, to backport a fix from master to `v0.5.0`, something like the
-   following should be used:
+   (**not** the merge commit) from main development branch into the release
+   branch. For example, to backport a fix from the main development branch to
+   `v0.5.0`, something like the following should be used:
 
     ```console
     git fetch --all
@@ -169,38 +170,39 @@ For crossplane/crossplane:
 
 ### Tag Next Pre-release
 
-The next step is to create the pre-release tag for the `HEAD` commit in
-`master`.  This tag serves as an indication of when the release was branched
-from master and is also important for generating future versions of `master`
-builds since that [versioning
+The next step is to create the pre-release tag for the `HEAD` commit in main
+development branch. This tag serves as an indication of when the release was
+branched from the main development branch and is also important for generating
+future versions of the main development branch builds since that [versioning
 process](https://github.com/upbound/build/blob/master/makelib/common.mk#L182-L196)
 is based on `git describe --tags`.
 
 > NOTE: the `build` submodule uses the latest tag by timestamp on the branch
 > which the commit it is building resides on. If there were no prep commits made
-> on the release branch, then its `HEAD` is even with `master` (i.e. the stable
-> tag and the next pre-release tag will be on the same commit). This means that
-> we must tag the pre-release version _after_ the stable version to ensure
-> subsequent builds use the next pre-release tag as their base. If there are
-> additional commits on the release branch before the stable tag is created,
-> then the pre-release tag could be created first.
+> on the release branch, then its `HEAD` is even with the main development
+> branch (i.e. the stable tag and the next pre-release tag will be on the same
+> commit). This means that we must tag the pre-release version _after_ the
+> stable version to ensure subsequent builds use the next pre-release tag as
+> their base. If there are additional commits on the release branch before the
+> stable tag is created, then the pre-release tag could be created first.
 
-To accomplish this, run the `Tag` action for the repo on the `master` branch.
-You will be prompted to enter the `version` for the tag. Since this tag will
-essentially be the start of pre-releases working towards the **next** version,
-the `version` should be the **next** release number, plus a trailing tag to
-indicate it is a pre-release.  The current convention is to use `*-rc.0`. For
-example, when we are releasing the `v0.9.0` release and we are ready for master
-to start working towards the **next** release of `v0.10.0`, we would make the
-tag `v0.10.0-rc.0`
+To accomplish this, run the `Tag` action for the repo on the main development
+branch branch. You will be prompted to enter the `version` for the tag. Since
+this tag will essentially be the start of pre-releases working towards the
+**next** version, the `version` should be the **next** release number, plus a
+trailing tag to indicate it is a pre-release.  The current convention is to use
+`*-rc.0`. For example, when we are releasing the `v0.9.0` release and we are
+ready for the main development branch to start working towards the **next**
+release of `v0.10.0`, we would make the tag `v0.10.0-rc.0`
 
 After the tag action has succeeded, verify in the [GitHub
 UI](https://github.com/crossplane/crossplane/tags) that the tag was successfully
 applied to the correct commit.
 
-The `master` branch can now be opened for new features since we have a safe
-release branch to continue bug fixes and improvements for the release itself.
-Essentially, `master` is free to now diverge from the release branch.
+The main development branch can now be opened for new features since we have a
+safe release branch to continue bug fixes and improvements for the release
+itself. Essentially, the main development branch is free to now diverge from the
+release branch.
 
 ### Promote
 
@@ -210,13 +212,8 @@ This is a very quick pipeline that doesn't rebuild anything, it simply makes
 metadata changes to the published release to also include the release in the
 channel of your choice.
 
-Currently, we only support the `master` and `alpha` channels.
-
 Run the `Promote` action on the release branch and input the version you would
 like to promote (e.g. `v0.5.0`) and the channel you'd like to promote it to.
-
-* Run `Promote` action for `master` channel on release branch
-* Run `Promote` action for `alpha` channel on release branch
 
 After the `Promote` actions have succeeded, verify on DockerHub and the Helm
 chart repository that the release has been promoted to the right channels.
@@ -251,14 +248,14 @@ release branch, we do **not** create a new release branch for a patch release.
 The basic flow is **very** similar to a normal release, but with a few less
 steps.  Please refer to details for each step in the sections above.
 
-* Fix any bugs in `master` first and then `cherry-pick -x` to the release branch
-  * If `master` has already removed the relevant code then make your fix
-    directly in the release branch
+* Fix any bugs in the main development branch first and then `cherry-pick -x` to
+  the release branch
+  * If main development branch has already removed the relevant code then make
+    your fix directly in the release branch
 * After all testing on the release branch look good and any docs/tests have been
   updated with the new version number, run the `Tag` action on the release
   branch with the new patch version (e.g. `v0.5.1`)
 * Run the normal `CI` action on the release branch to build and publish the
   release
 * Publish release notes
-* Run `Promote` action to promote the patch release to the `master` and `alpha`
-  channels
+* Run `Promote` action to promote the patch release to the appropriate channels
