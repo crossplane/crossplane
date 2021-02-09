@@ -610,6 +610,32 @@ spec:
                         type: string
                     type: object
                 type: object
+              ports:
+                description: List of container ports to expose on the container
+                items:
+                  description: ContainerPort represents a network port in a single container.
+                  properties:
+                    containerPort:
+                      description: Number of port to expose on the pod's IP address. This must be a valid port number, 0 < x < 65536.
+                      format: int32
+                      type: integer
+                    hostIP:
+                      description: What host IP to bind the external port to.
+                      type: string
+                    hostPort:
+                      description: Number of port to expose on the host. If specified, this must be a valid port number, 0 < x < 65536. If HostNetwork is specified, this must match ContainerPort. Most containers do not need this.
+                      format: int32
+                      type: integer
+                    name:
+                      description: If specified, this must be an IANA_SVC_NAME and unique within the pod. Each named port in a pod must have a unique name. Name for the port that can be referred to by services.
+                      type: string
+                    protocol:
+                      description: Protocol for port. Must be UDP, TCP, or SCTP. Defaults to "TCP".
+                      type: string
+                  required:
+                  - containerPort
+                  type: object
+                type: array
               priorityClassName:
                 description: If specified, indicates the pod's priority. "system-node-critical" and "system-cluster-critical" are two special keywords which indicate the highest priorities with the former being the highest priority. Any other name must be defined by creating a PriorityClass object with that name. If not specified, the pod priority will be default or zero if there is no default.
                 type: string
