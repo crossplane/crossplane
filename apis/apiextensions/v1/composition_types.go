@@ -286,7 +286,7 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 	case PatchTypeFromMultipleCompositeFieldPaths:
 		return c.applyFromMultipleCompositeFieldsPatch(from, to)
 	case PatchTypeToCompositeFieldPath:
-		return c.applyFromFieldPathPatch(to, from)
+		return c.applyFromCompositeFieldPatch(to, from)
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
@@ -332,7 +332,7 @@ func (c *Patch) applyTransforms(input []interface{}) (interface{}, error) {
 // applyFromCompositeFieldPatch patches the composed resource, using a source field
 // on the composite resource. Values may be transformed if any are defined on
 // the patch.
-func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // nolint:gocyclo
+func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { // nolint:gocyclo
 	// NOTE(benagricola): The cyclomatic complexity here is from error checking
 	// at each stage of the patching process, in addition to Apply methods now
 	// being responsible for checking the validity of their input fields

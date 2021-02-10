@@ -787,6 +787,86 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"ValidMultipleCompositeFieldPathPatch": {
+			reason: "Should correctly apply a CompositeMultipleFieldPathPatch with valid settings",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeFromMultipleCompositeFieldPaths,
+					FromMultipleFieldPaths: []string{
+						"objectMeta.labels.labelOne",
+						"objectMeta.labels.labelTwo",
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.labelThree"),
+					Transforms: []Transform{{
+						Type: TransformTypeCombine,
+						Combine: &CombineTransform{
+							Type: CombineTransformTypeString,
+							String: &StringCombine{
+								Format: "%s--%s",
+							},
+						},
+					}},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"labelOne": "foo",
+							"labelTwo": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"labelThree": "foo--bar",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"InvalidMultipleCompositeFieldPathPatch": {
+			reason: "Should not apply a CompositeMultipleFieldPathPatch that resolves to multiple fields without a combine transform",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeFromMultipleCompositeFieldPaths,
+					FromMultipleFieldPaths: []string{
+						"objectMeta.labels.labelOne",
+						"objectMeta.labels.labelTwo",
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.labelThree"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"labelOne": "foo",
+							"labelTwo": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: errors.New(errMultipleValuesReturned),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -810,6 +890,86 @@ func TestPatchApply(t *testing.T) {
 	}
 }
 
+func TestCombineResolve(t *testing.T) {
+	type args struct {
+		tt CombineTransformType
+		ts StringCombine
+		i  []interface{}
+	}
+	type want struct {
+		o   []interface{}
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"CombineOneStringToString": {
+			reason: "Should no-op a single string input value to a single output value",
+			args: args{
+				i: []interface{}{
+					"one-value",
+				},
+				tt: CombineTransformTypeString,
+				ts: StringCombine{
+					Format: "%s TEST",
+				},
+			},
+			want: want{
+				o: []interface{}{"one-value TEST"},
+			},
+		},
+		"CombineMultipleStringsToString": {
+			reason: "Should combine multiple string input values to a single output value",
+			args: args{
+				i: []interface{}{
+					"one-value",
+					"two-value",
+				},
+				tt: CombineTransformTypeString,
+				ts: StringCombine{
+					Format: "%s TEST %s",
+				},
+			},
+			want: want{
+				o: []interface{}{"one-value TEST two-value"},
+			},
+		},
+		"CombineMultipleInputTypesToStringFormat": {
+			reason: "Should combine multiple input values supported by fmt.Sprintf to a single output value",
+			args: args{
+				i: []interface{}{
+					"one-value",
+					1,
+					3.14159,
+					true,
+				},
+				tt: CombineTransformTypeString,
+				ts: StringCombine{
+					Format: "%s TEST %d PI %.3f %t",
+				},
+			},
+			want: want{
+				o: []interface{}{"one-value TEST 1 PI 3.142 true"},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := (&CombineTransform{Type: tc.args.tt, String: &tc.args.ts}).Resolve(tc.i)
+
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestOptionalFieldPathNotFound(t *testing.T) {
 	errBoom := errors.New("boom")
 	errNotFound := func() error {
@@ -822,8 +982,8 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 	type args struct {
 		err error
 		p   *PatchPolicy
+		want bool
 	}
-
 	cases := map[string]struct {
 		reason string
 		args
@@ -881,8 +1041,8 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := IsOptionalFieldPathNotFound(tc.args.err, tc.args.p)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("IsOptionalFieldPathNotFound(...): -want, +got:\n%s", diff)
+            if diff := cmp.Diff(tc.want, got); diff != "" {
+                t.Errorf("IsOptionalFieldPathNotFound(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
