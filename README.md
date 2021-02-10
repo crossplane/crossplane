@@ -43,6 +43,17 @@ With Crossplane you can:
   * Deploy application configurations from app delivery pipelines or GitOps
     workflows, using the proven Kubernetes declarative model.
 
+## Releases
+
+Currently supported releases, as well as the next upcoming release are listed
+below. For more information take a look at the Crossplane [release cycle
+documentation].
+
+| Release | Current Patch | Support Type | Release Date |    EOL    |
+|:-------:|:-------------:|:------------:|:------------:|:---------:|
+|   v1.0  |     v1.0.0    |      LTS     | Dec 14, 2020 | July 2022 |
+|   v1.1  |    Upcoming   |    Interim   |  Mar 2, 2021 |  May 2021 |
+
 ## Getting Started
 
 Take a look at the [documentation] to get started.
@@ -134,6 +145,7 @@ Crossplane is under the Apache 2.0 license.
 
 [Crossplane]: https://crossplane.io
 [CNCF]: https://cncf.io
+[release cycle documentation]: https://crossplane.io/docs/master/reference/release-cycle.html
 [documentation]: https://crossplane.io/docs/latest
 [GCP]: https://github.com/crossplane/provider-gcp
 [AWS]: https://github.com/crossplane/provider-aws
