@@ -282,11 +282,11 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 
 	switch c.Type {
 	case PatchTypeFromCompositeFieldPath:
-		return c.applyFromCompositeFieldPatch(from, to)
+		return c.applyFromFieldPathPatch(from, to)
 	case PatchTypeFromMultipleCompositeFieldPaths:
-		return c.applyFromMultipleCompositeFieldsPatch(from, to)
+		return c.applyFromMultipleFieldPathsPatch(from, to)
 	case PatchTypeToCompositeFieldPath:
-		return c.applyFromCompositeFieldPatch(to, from)
+		return c.applyFromFieldPathPatch(to, from)
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
@@ -308,8 +308,6 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 	return true
 }
 
-// applyFromFieldPathPatch patches the "to" resource, using a source field
-// on the "from" resource. Values may be transformed if any are defined on
 // applyTransforms applies a list of transforms to patch value(s).
 // The transform chain must return a single value. If it returns
 // multiple values, error and prompt the user to add a combine transform.
@@ -329,10 +327,10 @@ func (c *Patch) applyTransforms(input []interface{}) (interface{}, error) {
 	return input[0], nil
 }
 
-// applyFromCompositeFieldPatch patches the composed resource, using a source field
+// applyFromFieldPathPatch patches the composed resource, using a source field
 // on the composite resource. Values may be transformed if any are defined on
 // the patch.
-func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { // nolint:gocyclo
+func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // nolint:gocyclo
 	// NOTE(benagricola): The cyclomatic complexity here is from error checking
 	// at each stage of the patching process, in addition to Apply methods now
 	// being responsible for checking the validity of their input fields
@@ -380,11 +378,11 @@ func (c *Patch) applyFromCompositeFieldPatch(from, to runtime.Object) error { //
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
-// applyFromMultipleCompositeFieldsPatch patches the composed resource, using a list of
+// applyFromMultipleFieldPathsPatch patches the composed resource, using a list of
 // source fields on the composite resource. Without a transform, values are turned into their
 // string representation and concatenated. Use a string transform with multiple placeholders
 // to control the format more explicitly.
-func (c *Patch) applyFromMultipleCompositeFieldsPatch(from, to runtime.Object) error { // nolint:gocyclo
+func (c *Patch) applyFromMultipleFieldPathsPatch(from, to runtime.Object) error { // nolint:gocyclo
 	if len(c.FromMultipleFieldPaths) == 0 {
 		return errors.Errorf(errFmtRequiredField, "FromMultipleFieldPaths", c.Type)
 	}
