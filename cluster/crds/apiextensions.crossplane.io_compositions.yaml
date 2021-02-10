@@ -95,7 +95,7 @@ spec:
                                   description: Combine is used to turn multiple input values into a single output value. When using a PatchType that takes multiple input values, a combine transform must be used to turn it into a single output value.
                                   properties:
                                     string:
-                                      description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                      description: Format the inputs using a Go format string. See https://golang.org/pkg/fmt/ for details.
                                       properties:
                                         fmt:
                                           description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
@@ -253,7 +253,7 @@ spec:
                                   description: Combine is used to turn multiple input values into a single output value. When using a PatchType that takes multiple input values, a combine transform must be used to turn it into a single output value.
                                   properties:
                                     string:
-                                      description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
+                                      description: Format the inputs using a Go format string. See https://golang.org/pkg/fmt/ for details.
                                       properties:
                                         fmt:
                                           description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.

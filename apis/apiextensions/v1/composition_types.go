@@ -327,8 +327,8 @@ func (c *Patch) applyTransforms(input []interface{}) (interface{}, error) {
 	return input[0], nil
 }
 
-// applyFromFieldPathPatch patches the composed resource, using a source field
-// on the composite resource. Values may be transformed if any are defined on
+// applyFromFieldPathPatch patches the "to" resource, using a source field
+// on the "from" resource. Values may be transformed if any are defined on
 // the patch.
 func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // nolint:gocyclo
 	// NOTE(benagricola): The cyclomatic complexity here is from error checking
@@ -774,10 +774,9 @@ const (
 	CombineTransformTypeString CombineTransformType = "string"
 )
 
-// A CombineTransform combines multiple inputs to a single output
-// using another transform.
+// A CombineTransform combines multiple inputs to a single output.
 type CombineTransform struct {
-	// Format the input using a Go format string. See
+	// Format the inputs using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
 	String *StringCombine `json:"string,omitempty"`
 
