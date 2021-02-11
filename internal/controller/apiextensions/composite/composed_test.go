@@ -18,7 +18,6 @@ package composite
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -286,7 +285,7 @@ func TestFetch(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: fmt.Errorf(errConnDetailVal, v1.ConnectionDetailValue),
+				err: errors.Errorf(errFmtConnDetailVal, v1.ConnectionDetailValue),
 			},
 		},
 		"ErrConnectionDetailNameNotSet": {
@@ -313,7 +312,7 @@ func TestFetch(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: fmt.Errorf(errConnDetailKey, v1.ConnectionDetailValue),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailValue),
 			},
 		},
 		"ErrConnectionDetailFromConnectionSecretKeyNotSet": {
@@ -339,7 +338,7 @@ func TestFetch(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: fmt.Errorf(errConnDetailKey, v1.ConnectionDetailFromConnectionSecretKey),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailFromConnectionSecretKey),
 			},
 		},
 		"ErrConnectionDetailFromFieldPathNotSet": {
@@ -366,7 +365,7 @@ func TestFetch(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: fmt.Errorf(errConnDetailPath, v1.ConnectionDetailFromFieldPath),
+				err: errors.Errorf(errFmtConnDetailPath, v1.ConnectionDetailFromFieldPath),
 			},
 		},
 		"ErrConnectionDetailFromFieldPathNameNotSet": {
@@ -393,7 +392,7 @@ func TestFetch(t *testing.T) {
 				}},
 			},
 			want: want{
-				err: fmt.Errorf(errConnDetailKey, v1.ConnectionDetailFromFieldPath),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailFromFieldPath),
 			},
 		},
 		"SuccessFieldPath": {
