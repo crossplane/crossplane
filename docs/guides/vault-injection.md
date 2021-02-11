@@ -227,6 +227,7 @@ injected into the container filesystem by assuming role `crossplane-providers`.
 There is also so template formatting added to make sure the secret data is
 presented in a form that `provider-gcp` is expecting.
 
+{% raw  %}
 ```console
 echo "apiVersion: pkg.crossplane.io/v1alpha1
 kind: ControllerConfig
@@ -252,6 +253,7 @@ spec:
   controllerConfigRef:
     name: vault-config" | kubectl apply -f -
 ```
+{% endraw %}
 
 ## Configure provider-gcp
 
