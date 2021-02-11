@@ -173,6 +173,9 @@ spec:
                             type: string
                         type: object
                       type: array
+                    name:
+                      description: A Name uniquely identifies this entry within its Composition's resources array. Names are optional but *strongly* recommended. When all entries in the resources array are named entries may added, deleted, and reordered as long as their names do not change. When entries are not named the length and order of the resources array should be treated as immutable. Either all or no entries must be named.
+                      type: string
                     patches:
                       description: Patches will be applied as overlay to the base resource.
                       items:
@@ -272,9 +275,6 @@ spec:
                         - type
                         type: object
                       type: array
-                    templateName:
-                      description: A TemplateName uniquely identifies this resource template within its Composition. Template names are strongly recommended. Either all or no templates within a Composition must be named. Compositions that use anonymous templates match templates to composed resources by order, and must therefore treat the order and length of their spec.resources array as immutable.
-                      type: string
                   required:
                   - base
                   type: object
@@ -466,6 +466,9 @@ spec:
                             type: string
                         type: object
                       type: array
+                    name:
+                      description: A Name uniquely identifies this entry within its Composition's resources array. Names are optional but *strongly* recommended. When all entries in the resources array are named entries may added, deleted, and reordered as long as their names do not change. When entries are not named the length and order of the resources array should be treated as immutable. Either all or no entries must be named.
+                      type: string
                     patches:
                       description: Patches will be applied as overlay to the base resource.
                       items:
@@ -564,9 +567,6 @@ spec:
                         - type
                         type: object
                       type: array
-                    templateName:
-                      description: A TemplateName uniquely identifies this resource template within its Composition. Template names are strongly recommended. Either all or no templates within a Composition must be named. Compositions that use anonymous templates match templates to composed resources by order, and must therefore treat the order and length of their spec.resources array as immutable.
-                      type: string
                   required:
                   - base
                   type: object

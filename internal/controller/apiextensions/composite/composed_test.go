@@ -55,7 +55,7 @@ func TestRejectMixedTemplates(t *testing.T) {
 							// Unnamed.
 						},
 						{
-							TemplateName: pointer.StringPtr("cool"),
+							Name: pointer.StringPtr("cool"),
 						},
 					},
 				},
@@ -82,10 +82,10 @@ func TestRejectMixedTemplates(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							TemplateName: pointer.StringPtr("cool"),
+							Name: pointer.StringPtr("cool"),
 						},
 						{
-							TemplateName: pointer.StringPtr("cooler"),
+							Name: pointer.StringPtr("cooler"),
 						},
 					},
 				},
@@ -114,10 +114,10 @@ func TestRejectDuplicateNames(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							TemplateName: pointer.StringPtr("cool"),
+							Name: pointer.StringPtr("cool"),
 						},
 						{
-							TemplateName: pointer.StringPtr("cooler"),
+							Name: pointer.StringPtr("cooler"),
 						},
 					},
 				},
@@ -144,10 +144,10 @@ func TestRejectDuplicateNames(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							TemplateName: pointer.StringPtr("cool"),
+							Name: pointer.StringPtr("cool"),
 						},
 						{
-							TemplateName: pointer.StringPtr("cool"),
+							Name: pointer.StringPtr("cool"),
 						},
 					},
 				},
@@ -333,7 +333,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	n0 := "zero"
-	t0 := v1.ComposedTemplate{TemplateName: &n0}
+	t0 := v1.ComposedTemplate{Name: &n0}
 
 	r0 := corev1.ObjectReference{Name: n0}
 
@@ -359,11 +359,11 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			args: args{
 				cr: &fake.Composite{},
 				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0, {TemplateName: nil}}},
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0, {Name: nil}}},
 				},
 			},
 			want: want{
-				tas: []TemplateAssociation{{Template: t0}, {Template: v1.ComposedTemplate{TemplateName: nil}}},
+				tas: []TemplateAssociation{{Template: t0}, {Template: v1.ComposedTemplate{Name: nil}}},
 			},
 		},
 		"ResourceNotFoundError": {
@@ -422,7 +422,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			reason: "We should associate referenced resources by their template name annotation.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-					SetCompositionTemplateName(obj.(metav1.Object), n0)
+					SetCompositionResourceName(obj.(metav1.Object), n0)
 					return nil
 				}),
 			},
@@ -443,7 +443,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
-					SetCompositionTemplateName(obj, "unknown")
+					SetCompositionResourceName(obj, "unknown")
 
 					// This resource is not controlled by us.
 					ctrl := true
@@ -472,7 +472,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
-					SetCompositionTemplateName(obj, "unknown")
+					SetCompositionResourceName(obj, "unknown")
 					return nil
 				}),
 				MockDelete: test.NewMockDeleteFn(errBoom),
@@ -494,7 +494,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
-					SetCompositionTemplateName(obj, "unknown")
+					SetCompositionResourceName(obj, "unknown")
 					return nil
 				}),
 				MockDelete: test.NewMockDeleteFn(nil),

@@ -62,19 +62,19 @@ const (
 
 // Annotation keys.
 const (
-	AnnotationKeyCompositionTemplateName = "crossplane.io/composition-template-name"
+	AnnotationKeyCompositionResourceName = "crossplane.io/composition-resource-name"
 )
 
-// SetCompositionTemplateName sets the name of the composition template used to
+// SetCompositionResourceName sets the name of the composition template used to
 // reconcile a composed resource as an annotation.
-func SetCompositionTemplateName(o metav1.Object, name string) {
-	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionTemplateName: name})
+func SetCompositionResourceName(o metav1.Object, name string) {
+	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: name})
 }
 
-// GetCompositionTemplateName gets the name of the composition template used to
+// GetCompositionResourceName gets the name of the composition template used to
 // reconcile a composed resource from its annotations.
-func GetCompositionTemplateName(o metav1.Object) string {
-	return o.GetAnnotations()[AnnotationKeyCompositionTemplateName]
+func GetCompositionResourceName(o metav1.Object) string {
+	return o.GetAnnotations()[AnnotationKeyCompositionResourceName]
 }
 
 // A CompositionValidator validates the supplied Composition.
@@ -115,7 +115,7 @@ func (vs ValidationChain) Validate(comp *v1.Composition) error {
 func RejectMixedTemplates(comp *v1.Composition) error {
 	named := 0
 	for _, tmpl := range comp.Spec.Resources {
-		if tmpl.TemplateName != nil {
+		if tmpl.Name != nil {
 			named++
 		}
 	}
@@ -138,13 +138,13 @@ func RejectMixedTemplates(comp *v1.Composition) error {
 func RejectDuplicateNames(comp *v1.Composition) error {
 	seen := map[string]bool{}
 	for _, tmpl := range comp.Spec.Resources {
-		if tmpl.TemplateName == nil {
+		if tmpl.Name == nil {
 			continue
 		}
-		if seen[*tmpl.TemplateName] {
+		if seen[*tmpl.Name] {
 			return errors.New(errDuplicate)
 		}
-		seen[*tmpl.TemplateName] = true
+		seen[*tmpl.Name] = true
 	}
 	return nil
 }
@@ -215,13 +215,13 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 
 	templates := map[string]int{}
 	for i, t := range comp.Spec.Resources {
-		if t.TemplateName == nil {
+		if t.Name == nil {
 			// If our templates aren't named we fall back to assuming that the
 			// existing resource reference array (if any) already matches the
 			// order of our resource template array.
 			return AssociateByOrder(comp.Spec.Resources, cr.GetResourceReferences()), nil
 		}
-		templates[*t.TemplateName] = i
+		templates[*t.Name] = i
 	}
 
 	tas := make([]TemplateAssociation, len(comp.Spec.Resources))
@@ -243,7 +243,7 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			return nil, errors.Wrap(err, errGetComposed)
 		}
 
-		name := GetCompositionTemplateName(cd)
+		name := GetCompositionResourceName(cd)
 		if name == "" {
 			// All of our templates are named, but this existing composed
 			// resource is not associated with a named template. It's likely
@@ -337,8 +337,8 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		xcrd.LabelKeyClaimNamespace:        cp.GetLabels()[xcrd.LabelKeyClaimNamespace],
 	})
 
-	if t.TemplateName != nil {
-		SetCompositionTemplateName(cd, *t.TemplateName)
+	if t.Name != nil {
+		SetCompositionResourceName(cd, *t.Name)
 	}
 
 	// Unmarshalling the template will overwrite any existing fields, so we must
