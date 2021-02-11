@@ -65,8 +65,8 @@ spec:
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
-                          fromMultipleFieldPaths:
-                            description: FromMultipleFieldPaths is a list of paths to fields on the upstream resource whose values are used as input. Required when type is FromMultipleCompositeFieldPaths.
+                          fromManyFieldPaths:
+                            description: FromManyFieldPaths is a list of paths to fields on the upstream resource whose values are used as input. Required when type is FromManyCompositeFieldPaths.
                             items:
                               type: string
                             type: array
@@ -91,26 +91,6 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
-                                combine:
-                                  description: Combine is used to turn multiple input values into a single output value. When using a PatchType that takes multiple input values, a combine transform must be used to turn it into a single output value.
-                                  properties:
-                                    string:
-                                      description: Format the inputs using a Go format string. See https://golang.org/pkg/fmt/ for details.
-                                      properties:
-                                        fmt:
-                                          description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
-                                          type: string
-                                      required:
-                                      - fmt
-                                      type: object
-                                    type:
-                                      description: Type of the combine to be run.
-                                      enum:
-                                      - string
-                                      type: string
-                                  required:
-                                  - type
-                                  type: object
                                 convert:
                                   description: Convert is used to cast the input into the given output type.
                                   properties:
@@ -167,7 +147,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
-                            - FromMultipleCompositeFieldPaths
+                            - FromManyCompositeFieldPaths
                             type: string
                         type: object
                       type: array
@@ -223,8 +203,8 @@ spec:
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
-                          fromMultipleFieldPaths:
-                            description: FromMultipleFieldPaths is a list of paths to fields on the upstream resource whose values are used as input. Required when type is FromMultipleCompositeFieldPaths.
+                          fromManyFieldPaths:
+                            description: FromManyFieldPaths is a list of paths to fields on the upstream resource whose values are used as input. Required when type is FromManyCompositeFieldPaths.
                             items:
                               type: string
                             type: array
@@ -249,26 +229,6 @@ spec:
                             items:
                               description: Transform is a unit of process whose input is transformed into an output with the supplied configuration.
                               properties:
-                                combine:
-                                  description: Combine is used to turn multiple input values into a single output value. When using a PatchType that takes multiple input values, a combine transform must be used to turn it into a single output value.
-                                  properties:
-                                    string:
-                                      description: Format the inputs using a Go format string. See https://golang.org/pkg/fmt/ for details.
-                                      properties:
-                                        fmt:
-                                          description: Format the input using a Go format string. See https://golang.org/pkg/fmt/ for details.
-                                          type: string
-                                      required:
-                                      - fmt
-                                      type: object
-                                    type:
-                                      description: Type of the combine to be run.
-                                      enum:
-                                      - string
-                                      type: string
-                                  required:
-                                  - type
-                                  type: object
                                 convert:
                                   description: Convert is used to cast the input into the given output type.
                                   properties:
@@ -325,7 +285,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
-                            - FromMultipleCompositeFieldPaths
+                            - FromManyCompositeFieldPaths
                             type: string
                         type: object
                       type: array

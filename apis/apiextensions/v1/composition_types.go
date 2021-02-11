@@ -32,10 +32,9 @@ import (
 )
 
 const (
-	errMathNoMultiplier       = "no input is given"
-	errMathInputNonNumber     = "input is required to be a number for math transformer"
-	errMultipleValuesReturned = "multiple output values returned - please add a combine transform"
-	errPatchSetType           = "a patch in a PatchSet cannot be of type PatchSet"
+	errMathNoMultiplier   = "no input is given"
+	errMathInputNonNumber = "input is required to be a number for math transformer"
+	errPatchSetType       = "a patch in a PatchSet cannot be of type PatchSet"
 
 	errFmtConfigMissing                = "given type %s requires configuration"
 	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
@@ -204,10 +203,10 @@ type PatchType string
 
 // Patch types.
 const (
-	PatchTypeFromCompositeFieldPath          PatchType = "FromCompositeFieldPath" // Default
-	PatchTypeFromMultipleCompositeFieldPaths PatchType = "FromMultipleCompositeFieldPaths"
-	PatchTypePatchSet                        PatchType = "PatchSet"
-	PatchTypeToCompositeFieldPath            PatchType = "ToCompositeFieldPath"
+	PatchTypeFromCompositeFieldPath      PatchType = "FromCompositeFieldPath" // Default
+	PatchTypeFromManyCompositeFieldPaths PatchType = "FromManyCompositeFieldPaths"
+	PatchTypePatchSet                    PatchType = "PatchSet"
+	PatchTypeToCompositeFieldPath        PatchType = "ToCompositeFieldPath"
 )
 
 // Patch objects are applied between composite and composed resources. Their
@@ -218,7 +217,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;FromMultipleCompositeFieldPaths
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;FromManyCompositeFieldPaths
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -228,10 +227,10 @@ type Patch struct {
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
-	// FromMultipleFieldPaths is a list of paths to fields on the upstream resource whose
-	// values are used as input. Required when type is FromMultipleCompositeFieldPaths.
+	// FromManyFieldPaths is a list of paths to fields on the upstream resource whose
+	// values are used as input. Required when type is FromManyCompositeFieldPaths.
 	// +optional
-	FromMultipleFieldPaths []string `json:"fromMultipleFieldPaths,omitempty"`
+	FromManyFieldPaths []string `json:"fromManyFieldPaths,omitempty"`
 
 	// ToFieldPath is the path of the field on the resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
@@ -283,8 +282,8 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 	switch c.Type {
 	case PatchTypeFromCompositeFieldPath:
 		return c.applyFromFieldPathPatch(from, to)
-	case PatchTypeFromMultipleCompositeFieldPaths:
-		return c.applyFromMultipleFieldPathsPatch(from, to)
+	case PatchTypeFromManyCompositeFieldPaths:
+		return c.applyFromManyFieldPathsPatch(from, to)
 	case PatchTypeToCompositeFieldPath:
 		return c.applyFromFieldPathPatch(to, from)
 	case PatchTypePatchSet:
@@ -309,21 +308,19 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 }
 
 // applyTransforms applies a list of transforms to patch value(s).
-// The transform chain must return a single value. If it returns
-// multiple values, error and prompt the user to add a combine transform.
-func (c *Patch) applyTransforms(input []interface{}) (interface{}, error) {
+// The transform chain must return a single value.
+func (c *Patch) applyTransforms(input ...interface{}) (interface{}, error) {
 	var err error
 	for i, t := range c.Transforms {
-		if input, err = t.Transform(input); err != nil {
+		if input, err = t.Transform(input...); err != nil {
 			return nil, errors.Wrapf(err, errFmtTransformAtIndex, i)
 		}
 	}
-	// We can only patch a single output value, so if we still have
-	// multiple values here, then the user has not combined the input
-	// values.
+	// If we have multiple outputs, return them
 	if len(input) > 1 {
-		return nil, errors.New(errMultipleValuesReturned)
+		return input, nil
 	}
+	// Otherwise return the first output, unwrapped
 	return input[0], nil
 }
 
@@ -334,7 +331,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	// NOTE(benagricola): The cyclomatic complexity here is from error checking
 	// at each stage of the patching process, in addition to Apply methods now
 	// being responsible for checking the validity of their input fields
-	// (necessary because with multiple patch types, the input fields
+	// (necessary because with many patch types, the input fields
 	// must be +optional).
 	if c.FromFieldPath == nil {
 		return errors.Errorf(errFmtRequiredField, "FromFieldPath", c.Type)
@@ -359,7 +356,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	}
 
 	// Apply transform pipeline
-	out, err := c.applyTransforms([]interface{}{in})
+	out, err := c.applyTransforms(in)
 	if err != nil {
 		return err
 	}
@@ -372,23 +369,24 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	if err != nil {
 		return err
 	}
+
 	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, out); err != nil {
 		return err
 	}
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
-// applyFromMultipleFieldPathsPatch patches the composed resource, using a list of
+// applyFromManyFieldPathsPatch patches the composed resource, using a list of
 // source fields on the composite resource. Without a transform, values are turned into their
-// string representation and concatenated. Use a string transform with multiple placeholders
+// string representation and concatenated. Use a string transform with Many placeholders
 // to control the format more explicitly.
-func (c *Patch) applyFromMultipleFieldPathsPatch(from, to runtime.Object) error { // nolint:gocyclo
-	if len(c.FromMultipleFieldPaths) == 0 {
-		return errors.Errorf(errFmtRequiredField, "FromMultipleFieldPaths", c.Type)
+func (c *Patch) applyFromManyFieldPathsPatch(from, to runtime.Object) error { // nolint:gocyclo
+	if len(c.FromManyFieldPaths) == 0 {
+		return errors.Errorf(errFmtRequiredField, "FromManyFieldPaths", c.Type)
 	}
 
 	// Unlike FromCompositeFieldPath, defaulting the To field to the From field might
-	// introduce some confusion, as we can specify multiple From fields. Easier on the
+	// introduce some confusion, as we can specify many From fields. Easier on the
 	// brain to just make this explicit.
 	if c.ToFieldPath == nil {
 		return errors.Errorf(errFmtRequiredField, "ToFieldPath", c.Type)
@@ -399,10 +397,10 @@ func (c *Patch) applyFromMultipleFieldPathsPatch(from, to runtime.Object) error 
 		return err
 	}
 
-	in := make([]interface{}, len(c.FromMultipleFieldPaths))
+	in := make([]interface{}, len(c.FromManyFieldPaths))
 
 	// Get value of each source field, or error
-	for i, sp := range c.FromMultipleFieldPaths {
+	for i, sp := range c.FromManyFieldPaths {
 		iv, err := fieldpath.Pave(fromMap).GetValue(sp)
 
 		// If field is not found, do not patch.
@@ -417,7 +415,7 @@ func (c *Patch) applyFromMultipleFieldPathsPatch(from, to runtime.Object) error 
 	}
 
 	// Apply transforms pipeline
-	out, err := c.applyTransforms(in)
+	out, err := c.applyTransforms(in...)
 	if err != nil {
 		return err
 	}
@@ -461,7 +459,6 @@ const (
 	TransformTypeMath    TransformType = "math"
 	TransformTypeString  TransformType = "string"
 	TransformTypeConvert TransformType = "convert"
-	TransformTypeCombine TransformType = "combine"
 )
 
 // Transform is a unit of process whose input is transformed into an output with
@@ -489,19 +486,12 @@ type Transform struct {
 	// Convert is used to cast the input into the given output type.
 	// +optional
 	Convert *ConvertTransform `json:"convert,omitempty"`
-
-	// Combine is used to turn multiple input values into a single
-	// output value. When using a PatchType that takes multiple input
-	// values, a combine transform must be used to turn it into a single
-	// output value.
-	// +optional
-	Combine *CombineTransform `json:"combine,omitempty"`
 }
 
 // Transform calls the appropriate Transformer.
-func (t *Transform) Transform(input []interface{}) ([]interface{}, error) {
+func (t *Transform) Transform(input ...interface{}) ([]interface{}, error) {
 	var transformer interface {
-		Resolve(input []interface{}) ([]interface{}, error)
+		Resolve(input ...interface{}) ([]interface{}, error)
 	}
 
 	switch t.Type {
@@ -513,8 +503,6 @@ func (t *Transform) Transform(input []interface{}) ([]interface{}, error) {
 		transformer = t.String
 	case TransformTypeConvert:
 		transformer = t.Convert
-	case TransformTypeCombine:
-		transformer = t.Combine
 	default:
 		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
 	}
@@ -524,7 +512,7 @@ func (t *Transform) Transform(input []interface{}) ([]interface{}, error) {
 	if reflect.ValueOf(transformer).IsNil() {
 		return nil, errors.Errorf(errFmtConfigMissing, string(t.Type))
 	}
-	out, err := transformer.Resolve(input)
+	out, err := transformer.Resolve(input...)
 	return out, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
 }
 
@@ -532,12 +520,12 @@ func (t *Transform) Transform(input []interface{}) ([]interface{}, error) {
 // input value into a single output value.
 type resolverFunc func(input interface{}) (interface{}, error)
 
-// resolveMultiple executes a resolverFunc on a list of inputs,
+// resolveMany executes a resolverFunc on a list of inputs,
 // returning a list of outputs with length identical to that of inputs.
 // This function is likely to be duplicated into every Resolve method so
 // it was extracted, allowing each Resolve method to call this with their
 // own resolverFunc implementation.
-func resolveMultiple(input []interface{}, resolver resolverFunc) ([]interface{}, error) {
+func resolveMany(resolver resolverFunc, input ...interface{}) ([]interface{}, error) {
 	il := len(input)
 	out := make([]interface{}, il)
 
@@ -553,7 +541,7 @@ func resolveMultiple(input []interface{}, resolver resolverFunc) ([]interface{},
 		return out, nil
 	}
 
-	// With multiple values - loop over each value, and resolve it
+	// With many values - loop over each value, and resolve it
 	// against the given resolverFunc
 	for i, v := range input {
 		rv, err := resolver(v)
@@ -574,12 +562,12 @@ type MathTransform struct {
 }
 
 // Resolve runs the Math transform.
-func (m *MathTransform) Resolve(input []interface{}) ([]interface{}, error) {
+func (m *MathTransform) Resolve(input ...interface{}) ([]interface{}, error) {
 	if m.Multiply == nil {
 		return nil, errors.New(errMathNoMultiplier)
 	}
 
-	return resolveMultiple(input, m.resolveOne)
+	return resolveMany(m.resolveOne, input...)
 }
 
 // resolveOne resolves a single Math value
@@ -621,8 +609,8 @@ func (m MapTransform) MarshalJSON() ([]byte, error) {
 }
 
 // Resolve runs the Map transform.
-func (m *MapTransform) Resolve(input []interface{}) ([]interface{}, error) {
-	return resolveMultiple(input, m.resolveOne)
+func (m *MapTransform) Resolve(input ...interface{}) ([]interface{}, error) {
+	return resolveMany(m.resolveOne, input...)
 }
 
 // resolveOne resolves a single Map value
@@ -647,13 +635,10 @@ type StringTransform struct {
 }
 
 // Resolve runs the String transform.
-func (s *StringTransform) Resolve(input []interface{}) ([]interface{}, error) {
-	return resolveMultiple(input, s.resolveOne)
-}
-
-// resolveOne resolves a single String value
-func (s *StringTransform) resolveOne(input interface{}) (interface{}, error) {
-	return fmt.Sprintf(s.Format, input), nil
+// Will always produce a single output string, so can be
+// used to combine multiple values into a formatted string.
+func (s *StringTransform) Resolve(input ...interface{}) ([]interface{}, error) {
+	return []interface{}{fmt.Sprintf(s.Format, input...)}, nil
 }
 
 // The list of supported ConvertTransform input and output types.
@@ -726,8 +711,8 @@ type ConvertTransform struct {
 }
 
 // Resolve runs the Convert transform.
-func (s *ConvertTransform) Resolve(input []interface{}) ([]interface{}, error) {
-	return resolveMultiple(input, s.resolveOne)
+func (s *ConvertTransform) Resolve(input ...interface{}) ([]interface{}, error) {
+	return resolveMany(s.resolveOne, input...)
 }
 
 // resolveOne resolves a single Convert value
@@ -765,56 +750,6 @@ const (
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
 	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
 )
-
-// CombineTransformType is type of the combine transform function to be chosen.
-type CombineTransformType string
-
-// Accepted CombineTransformTypes.
-const (
-	CombineTransformTypeString CombineTransformType = "string"
-)
-
-// A CombineTransform combines multiple inputs to a single output.
-type CombineTransform struct {
-	// Format the inputs using a Go format string. See
-	// https://golang.org/pkg/fmt/ for details.
-	String *StringCombine `json:"string,omitempty"`
-
-	// Type of the combine to be run.
-	// +kubebuilder:validation:Enum=string
-	Type CombineTransformType `json:"type"`
-}
-
-// Resolve calls the appropriate Combiner.
-func (t *CombineTransform) Resolve(input []interface{}) ([]interface{}, error) {
-	var combiner interface {
-		Combine(input []interface{}) (interface{}, error)
-	}
-
-	switch t.Type {
-	case CombineTransformTypeString:
-		combiner = t.String
-	default:
-		return nil, errors.Errorf(errFmtTypeNotSupported, string(t.Type))
-	}
-	if reflect.ValueOf(combiner).IsNil() {
-		return nil, errors.Errorf(errFmtConfigMissing, string(t.Type))
-	}
-	out, err := combiner.Combine(input)
-	return []interface{}{out}, errors.Wrapf(err, errFmtTransformTypeFailed, string(t.Type))
-}
-
-// A StringCombine returns a single string given multiple inputs.
-type StringCombine struct {
-	// Format the input using a Go format string. See
-	// https://golang.org/pkg/fmt/ for details.
-	Format string `json:"fmt"`
-}
-
-// Combine runs the String combine.
-func (s *StringCombine) Combine(input []interface{}) (interface{}, error) {
-	return fmt.Sprintf(s.Format, input...), nil
-}
 
 // ConnectionDetail includes the information about the propagation of the connection
 // information from one secret to another.
