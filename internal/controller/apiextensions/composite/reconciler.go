@@ -58,8 +58,11 @@ const (
 	errPublish      = "cannot publish connection details"
 	errRenderCD     = "cannot render composed resource"
 	errRenderCR     = "cannot render composite resource"
+	errValidate     = "refusing to use invalid Composition"
+	errInline       = "cannot inline Composition patch sets"
+	errAssociate    = "cannot associate composed resources with Composition resource templates"
 
-	errFmtRender = "cannot render composed resource at index %d"
+	errFmtRender = "cannot render composed resource from resource template at index %d"
 )
 
 // Event reasons.
@@ -192,6 +195,22 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
+// WithCompositionValidator specifies how the Reconciler should validate
+// Compositions.
+func WithCompositionValidator(v CompositionValidator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composition.CompositionValidator = v
+	}
+}
+
+// WithCompositionTemplateAssociator specifies how the Reconciler should
+// associate composition templates with composed resources.
+func WithCompositionTemplateAssociator(a CompositionTemplateAssociator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composition.CompositionTemplateAssociator = a
+	}
+}
+
 // WithRenderer specifies how the Reconciler should render composed resources.
 func WithRenderer(rd Renderer) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -246,6 +265,11 @@ func WithCompositeRenderer(rd Renderer) ReconcilerOption {
 	}
 }
 
+type composition struct {
+	CompositionValidator
+	CompositionTemplateAssociator
+}
+
 type compositeResource struct {
 	CompositionSelector
 	Configurator
@@ -272,6 +296,14 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			Applicator: resource.NewAPIPatchingApplicator(kube),
 		},
 		newComposite: nc,
+
+		composition: composition{
+			CompositionValidator: ValidationChain{
+				CompositionValidatorFn(RejectMixedTemplates),
+				CompositionValidatorFn(RejectDuplicateNames),
+			},
+			CompositionTemplateAssociator: NewGarbageCollectingAssociator(kube),
+		},
 
 		composite: compositeResource{
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
@@ -301,8 +333,9 @@ type Reconciler struct {
 	client       resource.ClientApplicator
 	newComposite func() resource.Composite
 
-	composite compositeResource
-	composed  composedResource
+	composition composition
+	composite   compositeResource
+	composed    composedResource
 
 	log    logging.Logger
 	record event.Recorder
@@ -360,31 +393,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"composition-name", comp.GetName(),
 	)
 
-	// TODO(muvaf): Since the composed reconciler returns only reference, it can
-	// be parallelized via go routines.
-
-	// In order to iterate over all composition targets, we create an empty ref
-	// array with the same length. Then copy the already provisioned ones into
-	// that array to not create new ones because composed reconciler assumes that
-	// if the reference is empty, it needs to create the resource.
-
-	// TODO(negz): This approach means that the resources of a Composition are
-	// effectively append only. We may want to reconsider this per
-	// https://github.com/crossplane/crossplane/issues/1909
-	refs := make([]corev1.ObjectReference, len(comp.Spec.Resources))
-	copy(refs, cr.GetResourceReferences())
-
-	// Inline PatchSets from Composition Spec before rendering
-	if err := comp.Spec.InlinePatchSets(); err != nil {
-		log.Debug(errRenderCD, "error", err)
+	// TODO(negz): Composition validation should be handled by a validation
+	// webhook, not by this controller.
+	if err := r.composition.Validate(comp); err != nil {
+		log.Debug(errValidate, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	cds := make([]*composed.Unstructured, len(refs))
-	for i := range refs {
-		cd := composed.New(composed.FromReference(refs[i]))
-		if err := r.composed.Render(ctx, cr, cd, comp.Spec.Resources[i]); err != nil {
+	// Inline PatchSets from Composition Spec before composing resources.
+	if err := comp.Spec.InlinePatchSets(); err != nil {
+		log.Debug(errInline, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
+	tas, err := r.composition.AssociateTemplates(ctx, cr, comp)
+	if err != nil {
+		log.Debug(errAssociate, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
+	refs := make([]corev1.ObjectReference, len(tas))
+	cds := make([]resource.Composed, len(tas))
+	for i, ta := range tas {
+		cd := composed.New(composed.FromReference(ta.Reference))
+		if err := r.composed.Render(ctx, cr, cd, ta.Template); err != nil {
 			log.Debug(errRenderCD, "error", err, "index", i)
 			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -403,17 +438,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	conn := managed.ConnectionDetails{}
 	ready := 0
-	for i, cd := range cds {
+	for i, tpl := range comp.Spec.Resources {
+		cd := cds[i]
 		if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
 			log.Debug(errApply, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
-		// Connection details are fetched in all cases in a best-effort mode,
-		// i.e. it doesn't return error if the secret does not exist or the
-		// resource does not publish a secret at all.
-		c, err := r.composed.FetchConnectionDetails(ctx, cd, comp.Spec.Resources[i])
+		c, err := r.composed.FetchConnectionDetails(ctx, cd, tpl)
 		if err != nil {
 			log.Debug(errFetchSecret, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
@@ -424,7 +457,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			conn[key] = val
 		}
 
-		rdy, err := r.composed.IsReady(ctx, cd, comp.Spec.Resources[i])
+		rdy, err := r.composed.IsReady(ctx, cd, tpl)
 		if err != nil {
 			log.Debug(errReadiness, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
@@ -435,7 +468,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			ready++
 		}
 
-		if err := r.composite.Render(ctx, cr, cd, comp.Spec.Resources[i]); err != nil {
+		if err := r.composite.Render(ctx, cr, cd, tpl); err != nil {
 			log.Debug(errRenderCR, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
