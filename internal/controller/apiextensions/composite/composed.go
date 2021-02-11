@@ -40,17 +40,18 @@ import (
 
 // Error strings
 const (
-	errApply          = "cannot apply composed resource"
-	errFetchSecret    = "cannot fetch connection secret"
-	errReadiness      = "cannot check whether composed resource is ready"
-	errUnmarshal      = "cannot unmarshal base template"
-	errFmtPatch       = "cannot apply the patch at index %d"
-	errGetSecret      = "cannot get connection secret of composed resource"
-	errNamePrefix     = "name prefix is not found in labels"
-	errName           = "cannot use dry-run create to name composed resource"
-	errConnDetailKey  = "connection detail of type %s key is not set"
-	errConnDetailVal  = "connection detail of type %s value is not set"
-	errConnDetailPath = "connection detail of type %s fromFieldPath is not set"
+	errApply       = "cannot apply composed resource"
+	errFetchSecret = "cannot fetch connection secret"
+	errReadiness   = "cannot check whether composed resource is ready"
+	errUnmarshal   = "cannot unmarshal base template"
+	errGetSecret   = "cannot get connection secret of composed resource"
+	errNamePrefix  = "name prefix is not found in labels"
+	errName        = "cannot use dry-run create to name composed resource"
+
+	errFmtPatch          = "cannot apply the patch at index %d"
+	errFmtConnDetailKey  = "connection detail of type %q key is not set"
+	errFmtConnDetailVal  = "connection detail of type %q value is not set"
+	errFmtConnDetailPath = "connection detail of type %q fromFieldPath is not set"
 )
 
 // Observation is the result of composed reconciliation.
@@ -186,15 +187,15 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 			// Name, Value must be set if value type
 			switch {
 			case d.Name == nil:
-				return nil, fmt.Errorf(errConnDetailKey, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
 			case d.Value == nil:
-				return nil, fmt.Errorf(errConnDetailVal, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailVal, d.Type)
 			default:
 				conn[*d.Name] = []byte(*d.Value)
 			}
 		case v1.ConnectionDetailFromConnectionSecretKey:
 			if d.FromConnectionSecretKey == nil {
-				return nil, fmt.Errorf(errConnDetailKey, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
 			}
 			if data[*d.FromConnectionSecretKey] == nil {
 				// We don't consider this an error because it's possible the
@@ -211,9 +212,9 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 		case v1.ConnectionDetailFromFieldPath:
 			switch {
 			case d.Name == nil:
-				return nil, fmt.Errorf(errConnDetailKey, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
 			case d.FromFieldPath == nil:
-				return nil, fmt.Errorf(errConnDetailPath, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailPath, d.Type)
 			default:
 				_ = extractFieldPathValue(cd, d, conn)
 			}
