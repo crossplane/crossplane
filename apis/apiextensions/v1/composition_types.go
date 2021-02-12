@@ -166,15 +166,15 @@ type ComposedTemplate struct {
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
-// TypeReadinessCheck is used for readiness check types.
-type TypeReadinessCheck string
+// ReadinessCheckType is used for readiness check types.
+type ReadinessCheckType string
 
 // The possible values for readiness check type.
 const (
-	ReadinessCheckNonEmpty     TypeReadinessCheck = "NonEmpty"
-	ReadinessCheckMatchString  TypeReadinessCheck = "MatchString"
-	ReadinessCheckMatchInteger TypeReadinessCheck = "MatchInteger"
-	ReadinessCheckNone         TypeReadinessCheck = "None"
+	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
+	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
+	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeNone         ReadinessCheckType = "None"
 )
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
@@ -182,7 +182,7 @@ const (
 type ReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
 	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
-	Type TypeReadinessCheck `json:"type"`
+	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
 	// +optional
@@ -346,6 +346,7 @@ const (
 type Transform struct {
 
 	// Type of the transform to be run.
+	// +kubebuilder:validation:Enum=map;math;string;convert
 	Type TransformType `json:"type"`
 
 	// Math is used to transform the input via mathematical operations such as
@@ -559,9 +560,9 @@ type ConnectionDetailType string
 
 // ConnectionDetailType types.
 const (
-	ConnectionDetailFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey" // Default
-	ConnectionDetailFromFieldPath           ConnectionDetailType = "FromFieldPath"
-	ConnectionDetailValue                   ConnectionDetailType = "Value"
+	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey" // Default
+	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
+	ConnectionDetailTypeValue                   ConnectionDetailType = "Value"
 )
 
 // ConnectionDetail includes the information about the propagation of the connection
@@ -573,20 +574,22 @@ type ConnectionDetail struct {
 	// +optional
 	Name *string `json:"name,omitempty"`
 
-	// Type sets the connection detail fetching behaviour to be used. Each connection detail type may require
-	// its' own fields to be set on the ConnectionDetail object.
+	// Type sets the connection detail fetching behaviour to be used. Each
+	// connection detail type may require its' own fields to be set on the
+	// ConnectionDetail object.
 	// +optional
 	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;Value
 	// +kubebuilder:default=FromConnectionSecretKey
 	Type ConnectionDetailType `json:"type,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
-	// from the given target resource's secret
+	// from the given target resource's secret.
 	// +optional
 	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
 
-	// FromFieldPath is the path of the field on the composed resource whose value
-	// to be used as input. Name must be specified if the type is FromFieldPath is specified.
+	// FromFieldPath is the path of the field on the composed resource whose
+	// value to be used as input. Name must be specified if the type is
+	// FromFieldPath is specified.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 

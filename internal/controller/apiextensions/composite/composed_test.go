@@ -568,11 +568,11 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
-						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
+						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
-						Type:  v1.ConnectionDetailValue,
+						Type:  v1.ConnectionDetailTypeValue,
 						Value: pointer.StringPtr("value"),
 					},
 				}},
@@ -614,21 +614,21 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
-						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
+						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
 					},
 					{
 						FromConnectionSecretKey: pointer.StringPtr("none"),
-						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
+						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
 					},
 					{
 						Name:                    pointer.StringPtr("convfoo"),
 						FromConnectionSecretKey: pointer.StringPtr("foo"),
-						Type:                    v1.ConnectionDetailFromConnectionSecretKey,
+						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
 						Value: pointer.StringPtr("value"),
-						Type:  v1.ConnectionDetailValue,
+						Type:  v1.ConnectionDetailTypeValue,
 					},
 				}},
 			},
@@ -659,12 +659,12 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Name: pointer.StringPtr("missingvalue"),
-						Type: v1.ConnectionDetailValue,
+						Type: v1.ConnectionDetailTypeValue,
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailVal, v1.ConnectionDetailValue),
+				err: errors.Errorf(errFmtConnDetailVal, v1.ConnectionDetailTypeValue),
 			},
 		},
 		"ErrConnectionDetailNameNotSet": {
@@ -686,12 +686,12 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Value: pointer.StringPtr("missingname"),
-						Type:  v1.ConnectionDetailValue,
+						Type:  v1.ConnectionDetailTypeValue,
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailValue),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailTypeValue),
 			},
 		},
 		"ErrConnectionDetailFromConnectionSecretKeyNotSet": {
@@ -712,12 +712,12 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Type: v1.ConnectionDetailFromConnectionSecretKey,
+						Type: v1.ConnectionDetailTypeFromConnectionSecretKey,
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailFromConnectionSecretKey),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailTypeFromConnectionSecretKey),
 			},
 		},
 		"ErrConnectionDetailFromFieldPathNotSet": {
@@ -738,13 +738,13 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Type: v1.ConnectionDetailFromFieldPath,
+						Type: v1.ConnectionDetailTypeFromFieldPath,
 						Name: pointer.StringPtr("missingname"),
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailPath, v1.ConnectionDetailFromFieldPath),
+				err: errors.Errorf(errFmtConnDetailPath, v1.ConnectionDetailTypeFromFieldPath),
 			},
 		},
 		"ErrConnectionDetailFromFieldPathNameNotSet": {
@@ -765,13 +765,13 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Type:          v1.ConnectionDetailFromFieldPath,
+						Type:          v1.ConnectionDetailTypeFromFieldPath,
 						FromFieldPath: pointer.StringPtr("fieldpath"),
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailFromFieldPath),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailTypeFromFieldPath),
 			},
 		},
 		"SuccessFieldPath": {
@@ -797,7 +797,7 @@ func TestFetch(t *testing.T) {
 					{
 						Name:          pointer.StringPtr("name"),
 						FromFieldPath: pointer.StringPtr("objectMeta.name"),
-						Type:          v1.ConnectionDetailFromFieldPath,
+						Type:          v1.ConnectionDetailTypeFromFieldPath,
 					},
 				}},
 			},
@@ -830,7 +830,7 @@ func TestFetch(t *testing.T) {
 					{
 						Name:          pointer.StringPtr("generation"),
 						FromFieldPath: pointer.StringPtr("objectMeta.generation"),
-						Type:          v1.ConnectionDetailFromFieldPath,
+						Type:          v1.ConnectionDetailTypeFromFieldPath,
 					},
 				}},
 			},
@@ -882,7 +882,7 @@ func TestIsReady(t *testing.T) {
 			reason: "If the only readiness check is explicitly 'None' the resource is always ready.",
 			args: args{
 				cd: composed.New(),
-				t:  v1.ComposedTemplate{ReadinessChecks: []v1.ReadinessCheck{{Type: v1.ReadinessCheckNone}}},
+				t:  v1.ComposedTemplate{ReadinessChecks: []v1.ReadinessCheck{{Type: v1.ReadinessCheckTypeNone}}},
 			},
 			want: want{
 				ready: true,

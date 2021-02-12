@@ -421,7 +421,7 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 
 	for _, d := range t.ConnectionDetails {
 		switch d.Type {
-		case v1.ConnectionDetailValue:
+		case v1.ConnectionDetailTypeValue:
 			// Name, Value must be set if value type
 			switch {
 			case d.Name == nil:
@@ -431,7 +431,7 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 			default:
 				conn[*d.Name] = []byte(*d.Value)
 			}
-		case v1.ConnectionDetailFromConnectionSecretKey:
+		case v1.ConnectionDetailTypeFromConnectionSecretKey:
 			if d.FromConnectionSecretKey == nil {
 				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
 			}
@@ -447,7 +447,7 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 			if key != "" {
 				conn[key] = data[*d.FromConnectionSecretKey]
 			}
-		case v1.ConnectionDetailFromFieldPath:
+		case v1.ConnectionDetailTypeFromFieldPath:
 			switch {
 			case d.Name == nil:
 				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
@@ -511,21 +511,21 @@ func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bo
 	for i, check := range t.ReadinessChecks {
 		var ready bool
 		switch check.Type {
-		case v1.ReadinessCheckNone:
+		case v1.ReadinessCheckTypeNone:
 			return true, nil
-		case v1.ReadinessCheckNonEmpty:
+		case v1.ReadinessCheckTypeNonEmpty:
 			_, err := paved.GetValue(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err)
-		case v1.ReadinessCheckMatchString:
+		case v1.ReadinessCheckTypeMatchString:
 			val, err := paved.GetString(check.FieldPath)
 			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
 				return false, err
 			}
 			ready = !fieldpath.IsNotFound(err) && val == check.MatchString
-		case v1.ReadinessCheckMatchInteger:
+		case v1.ReadinessCheckTypeMatchInteger:
 			val, err := paved.GetInteger(check.FieldPath)
 			if err != nil {
 				return false, err
