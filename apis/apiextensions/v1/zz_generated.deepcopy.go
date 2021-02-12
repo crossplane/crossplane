@@ -458,6 +458,11 @@ func (in *Patch) DeepCopyInto(out *Patch) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.FromFieldPathStrategy != nil {
+		in, out := &in.FromFieldPathStrategy, &out.FromFieldPathStrategy
+		*out = new(FromFieldPathStrategy)
+		**out = **in
+	}
 	if in.ToFieldPath != nil {
 		in, out := &in.ToFieldPath, &out.ToFieldPath
 		*out = new(string)

@@ -146,6 +146,15 @@ const (
 	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
 )
 
+// A FromFieldPathStrategy determines how to patch from a field path.
+type FromFieldPathStrategy string
+
+// 'From field path' patch strategies.
+const (
+	FromFieldPathStrategyOptional FromFieldPathStrategy = "Optional"
+	FromFieldPathStrategyRequired FromFieldPathStrategy = "Required"
+)
+
 // Patch objects are applied between composite and composed resources. Their
 // behaviour depends on the Type selected. The default Type,
 // FromCompositeFieldPath, copies a value from the composite resource to
@@ -163,6 +172,16 @@ type Patch struct {
 	// ToCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
+
+	// FromFieldPathStrategy determines how to patch from a field path. The
+	// default strategy is 'Optional', which means the patch will be a no-op if
+	// the specified fromFieldPath does not exist. Use the 'Required' strategy
+	// if the patch should fail if the specified fromFieldPath does not exist.
+	// The Required strategy can be useful to ensure that a composed resource
+	// is not rendered until the specified fromFieldPath is populated.
+	// +kubebuilder:validation:Enum=Optional;Required
+	// +optional
+	FromFieldPathStrategy *FromFieldPathStrategy `json:"fromFieldPathStrategy,omitempty"`
 
 	// ToFieldPath is the path of the field on the resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
