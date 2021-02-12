@@ -861,6 +861,71 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"MissingFieldManyCompositeFieldPathPatch": {
+			reason: "Should not apply a ManyCompositeFieldPathPatch with a missing input",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeFromManyCompositeFieldPaths,
+					FromManyFieldPaths: []string{
+						"objectMeta.labels.labelOne",
+						"objectMeta.labels.labelTwo",
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.labelThree"),
+					Transforms: []Transform{{
+						Type: TransformTypeString,
+						String: &StringTransform{
+							Format: "%s--%s",
+						},
+					}},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"labelOne": "foo",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: nil,
+			},
+		},
+		"NoFieldsManyCompositeFieldPathPatch": {
+			reason: "Should error if no field paths are passed to ManyCompositeFieldPathPatch",
+			args: args{
+				patch: Patch{
+					Type:               PatchTypeFromManyCompositeFieldPaths,
+					FromManyFieldPaths: []string{},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: nil,
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
