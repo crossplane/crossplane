@@ -437,10 +437,10 @@ func TestStringResolve(t *testing.T) {
 			got, err := (&StringTransform{Format: tc.fmts}).Resolve(tc.i...)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
-				t.Errorf("\n%sResolve(b): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nResolve(b): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%sResolve(b): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nResolve(b): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -819,7 +819,7 @@ func TestPatchApply(t *testing.T) {
 			},
 		},
 		"ValidManyCompositeFieldPathPatch": {
-			reason: "Should correctly apply a CompositeManyFieldPathPatch with valid settings",
+			reason: "Should correctly apply a ManyCompositeFieldPathPatch with valid settings",
 			args: args{
 				patch: Patch{
 					Type: PatchTypeFromManyCompositeFieldPaths,
