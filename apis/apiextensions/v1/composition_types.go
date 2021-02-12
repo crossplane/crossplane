@@ -562,7 +562,7 @@ type ConnectionDetailType string
 const (
 	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey" // Default
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
-	ConnectionDetailTypeValue                   ConnectionDetailType = "Value"
+	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
 )
 
 // ConnectionDetail includes the information about the propagation of the connection
@@ -578,7 +578,7 @@ type ConnectionDetail struct {
 	// connection detail type may require its' own fields to be set on the
 	// ConnectionDetail object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;Value
+	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromValue
 	// +kubebuilder:default=FromConnectionSecretKey
 	Type ConnectionDetailType `json:"type,omitempty"`
 

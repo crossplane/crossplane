@@ -572,7 +572,7 @@ func TestFetch(t *testing.T) {
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
-						Type:  v1.ConnectionDetailTypeValue,
+						Type:  v1.ConnectionDetailTypeFromValue,
 						Value: pointer.StringPtr("value"),
 					},
 				}},
@@ -628,7 +628,7 @@ func TestFetch(t *testing.T) {
 					{
 						Name:  pointer.StringPtr("fixed"),
 						Value: pointer.StringPtr("value"),
-						Type:  v1.ConnectionDetailTypeValue,
+						Type:  v1.ConnectionDetailTypeFromValue,
 					},
 				}},
 			},
@@ -659,12 +659,12 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Name: pointer.StringPtr("missingvalue"),
-						Type: v1.ConnectionDetailTypeValue,
+						Type: v1.ConnectionDetailTypeFromValue,
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailVal, v1.ConnectionDetailTypeValue),
+				err: errors.Errorf(errFmtConnDetailVal, v1.ConnectionDetailTypeFromValue),
 			},
 		},
 		"ErrConnectionDetailNameNotSet": {
@@ -686,12 +686,12 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Value: pointer.StringPtr("missingname"),
-						Type:  v1.ConnectionDetailTypeValue,
+						Type:  v1.ConnectionDetailTypeFromValue,
 					},
 				}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailTypeValue),
+				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailTypeFromValue),
 			},
 		},
 		"ErrConnectionDetailFromConnectionSecretKeyNotSet": {

@@ -421,7 +421,7 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 
 	for _, d := range t.ConnectionDetails {
 		switch d.Type {
-		case v1.ConnectionDetailTypeValue:
+		case v1.ConnectionDetailTypeFromValue:
 			// Name, Value must be set if value type
 			switch {
 			case d.Name == nil:

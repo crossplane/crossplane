@@ -171,7 +171,7 @@ spec:
                             enum:
                             - FromConnectionSecretKey
                             - FromFieldPath
-                            - Value
+                            - FromValue
                             type: string
                           value:
                             description: Value that will be propagated to the connection secret of the composition instance. Typically you should use FromConnectionSecretKey instead, but an explicit value may be set to inject a fixed, non-sensitive connection secret values, for example a well-known port. Supercedes FromConnectionSecretKey when set.
@@ -486,7 +486,7 @@ spec:
                             enum:
                             - FromConnectionSecretKey
                             - FromFieldPath
-                            - Value
+                            - FromValue
                             type: string
                           value:
                             description: Value that will be propagated to the connection secret of the composition instance. Typically you should use FromConnectionSecretKey instead, but an explicit value may be set to inject a fixed, non-sensitive connection secret values, for example a well-known port. Supercedes FromConnectionSecretKey when set.
