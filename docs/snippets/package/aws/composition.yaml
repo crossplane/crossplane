@@ -13,7 +13,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: rdsinstance
+      base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
         spec:

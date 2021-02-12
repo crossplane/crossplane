@@ -311,15 +311,24 @@ spec:
     apiVersion: example.org/v1alpha1
     kind: CompositeMySQLInstance
 
-  # This Composition defines a patch set with the name "Metadata", which consists
+  # This Composition defines a patch set with the name "metadata", which consists
   # of 2 individual patches. Patch sets can be referenced from any of the base
   # resources within the Composition to avoid having to repeat patch definitions.
   # A PatchSet can contain any of the other patch types, except another PatchSet.
   patchSets:
-  - name: Metadata
+  - name: metadata
     patches:
+    # When toFieldPath is omitted it defaults to fromFieldPath.
     - fromFieldPath: metadata.labels
-    - fromFieldPath: metadata.annotations
+    # Exercise caution when patching labels and annotations. Crossplane replaces
+    # patched objects - it does not merge them. This means that patching from
+    # the 'metadata.annotations' field path will _replace_ all of a composed
+    # resource's annotations, including annotations prefixed with crossplane.io/
+    # that control Crossplane's behaviour. Patching the entire annotations
+    # object can therefore have unexpected consquences and is not recommended.
+    # Instead patch specific annotations by specifying their keys.
+    - fromFieldPath: metadata.annotations[crossplane.io/external-name]
+    - fromFieldPath: metadata.annotations[example.org/app-name]
 
   # This Composition reconciles a CompositeMySQLInstance by patching from
   # the CompositeMySQLInstance "to" new instances of the infrastructure
@@ -328,9 +337,18 @@ spec:
   # resources.
   resources:
     # A CompositeMySQLInstance that uses this Composition will be composed of an
-    # Azure ResourceGroup. The "base" for this ResourceGroup specifies the base
+    # Azure ResourceGroup. Note that the 'name' is the name of this entry in the
+    # resources array - it does not affect the name of any ResourceGroup that is
+    # composed using this Composition. Specifying a name is optional but is
+    # *strongly* recommended. When all entries in the resources array are named
+    # entries may be added, deleted, and reordered as long as their names do not
+    # change. When entries are not named the length and order of the resources
+    # array should be treated as immutable. Either all or no entries must be
+    # named.
+  - name: resourcegroup
+    # The "base" for this ResourceGroup specifies the base
     # configuration that may be extended or mutated by the patches below.
-  - base:
+    base:
       apiVersion: azure.crossplane.io/v1alpha3
       kind: ResourceGroup
       spec: {}
@@ -338,12 +356,12 @@ spec:
     # resource (the CompositeMySQLInstance) to a field path within the composed
     # resource (the ResourceGroup). In the below example any labels and
     # annotations will be propagated from the CompositeMySQLInstance to the
-    # ResourceGroup (referencing the "Metadata" patch set defined on the
+    # ResourceGroup (referencing the "metadata" patch set defined on the
     # Composition), as will the location, using the default patch type
     # FromCompositeFieldPath.
     patches:
     - type: PatchSet
-      patchSetName: Metadata
+      patchSetName: metadata
     - fromFieldPath: "spec.parameters.location"
       toFieldPath: "spec.location"
 
@@ -362,7 +380,8 @@ spec:
           au-east: Australia East
     # A MySQLInstance that uses this Composition will also be composed of an
     # Azure MySQLServer.
-  - base:
+  - name: mysqlserver
+    base:
       apiVersion: database.azure.crossplane.io/v1beta1
       kind: MySQLServer
       spec:
@@ -389,10 +408,10 @@ spec:
         writeConnectionSecretToRef:
           namespace: crossplane-system
     patches:
-    # This resource also uses the "Metadata" patch set defined on the
+    # This resource also uses the "metadata" patch set defined on the
     # Composition.
     - type: PatchSet
-      patchSetName: Metadata
+      patchSetName: metadata
     - fromFieldPath: "metadata.uid"
       toFieldPath: "spec.writeConnectionSecretToRef.name"
       transforms:
@@ -453,7 +472,8 @@ spec:
       matchString: "Ready"
     # A CompositeMySQLInstance that uses this Composition will also be composed
     # of an Azure MySQLServerFirewallRule.
-  - base:
+  - name: firewallrule
+    base:
       apiVersion: database.azure.crossplane.io/v1alpha3
       kind: MySQLServerFirewallRule
       spec:
@@ -469,7 +489,7 @@ spec:
               name: sample-subnet
     patches:
     - type: PatchSet
-      patchSetName: Metadata
+      patchSetName: metadata
 
   # Some composite resources may be "dynamically provisioned" - i.e. provisioned
   # on-demand to satisfy an application's claim for infrastructure. The

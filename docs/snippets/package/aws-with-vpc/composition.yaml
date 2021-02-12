@@ -13,7 +13,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: vpc
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: VPC
         spec:
@@ -22,7 +23,8 @@ spec:
             cidrBlock: 192.168.0.0/16
             enableDnsSupport: true
             enableDnsHostNames: true
-    - base:
+    - name: subnet-a
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
@@ -35,7 +37,8 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1a
-    - base:
+    - name: subnet-b
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
@@ -48,7 +51,8 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1b
-    - base:
+    - name: subnet-c
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
@@ -61,7 +65,8 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1c
-    - base:
+    - name: subnet-c
+      base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: DBSubnetGroup
         spec:
@@ -70,7 +75,8 @@ spec:
             description: An excellent formation of subnetworks.
             subnetIdSelector:
               matchControllerRef: true
-    - base:
+    - name: internetgateway
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: InternetGateway
         spec:
@@ -78,7 +84,8 @@ spec:
             region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
-    - base:
+    - name: routetable
+      base:
         apiVersion: ec2.aws.crossplane.io/v1alpha4
         kind: RouteTable
         spec:
@@ -100,7 +107,8 @@ spec:
               - subnetIdSelector:
                   matchLabels:
                     zone: us-east-1c
-    - base:
+    - name: securitygroup
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: SecurityGroup
         spec:
@@ -117,7 +125,8 @@ spec:
                 ipRanges:
                   - cidrIp: 0.0.0.0/0
                     description: Everywhere
-    - base:
+    - name: rdsinstance
+      base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
         spec:

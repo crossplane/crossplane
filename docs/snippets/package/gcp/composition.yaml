@@ -12,7 +12,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: cloudsqlinstance
+      base:
         apiVersion: database.gcp.crossplane.io/v1beta1
         kind: CloudSQLInstance
         spec:
