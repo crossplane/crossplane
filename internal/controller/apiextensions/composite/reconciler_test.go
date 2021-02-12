@@ -156,6 +156,30 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: shortWait},
 			},
 		},
+		"ValidateCompositionError": {
+			reason: "We should requeue after a short wait if we encounter an error while validating our Composition.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil),
+						},
+					}),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
+						return nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return errBoom })),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
 		"InlinePatchSetsError": {
 			reason: "We should requeue after a short wait if we encounter an error while inlining patchSets on a composition.",
 			args: args{
@@ -174,7 +198,6 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -184,18 +207,39 @@ func TestReconcile(t *testing.T) {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
 					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return cd, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is ready.
-						return true, nil
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"AssociateTemplatesError": {
+			reason: "We should requeue after a short wait if we encounter an error while associating Composition templates with composed resources.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil),
+						},
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+							return nil
+						}),
+					}),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
 					})),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
+					WithCompositionTemplateAssociator(CompositionTemplateAssociatorFn(func(c1 context.Context, c2 resource.Composite, c3 *v1.Composition) ([]TemplateAssociation, error) {
+						return nil, errBoom
 					})),
 				},
 			},

@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +41,130 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
+
+func TestRejectMixedTemplates(t *testing.T) {
+	cases := map[string]struct {
+		comp *v1.Composition
+		want error
+	}{
+		"Mixed": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Unnamed.
+						},
+						{
+							Name: pointer.StringPtr("cool"),
+						},
+					},
+				},
+			},
+			want: errors.New(errMixed),
+		},
+		"Anonymous": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Unnamed.
+						},
+						{
+							// Unnamed.
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		"Named": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							Name: pointer.StringPtr("cool"),
+						},
+						{
+							Name: pointer.StringPtr("cooler"),
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RejectMixedTemplates(tc.comp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nRejectMixedTemplates(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRejectDuplicateNames(t *testing.T) {
+	cases := map[string]struct {
+		comp *v1.Composition
+		want error
+	}{
+		"Unique": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							Name: pointer.StringPtr("cool"),
+						},
+						{
+							Name: pointer.StringPtr("cooler"),
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		"Anonymous": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Unnamed.
+						},
+						{
+							// Unnamed.
+						},
+					},
+				},
+			},
+			want: nil,
+		},
+		"Duplicates": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							Name: pointer.StringPtr("cool"),
+						},
+						{
+							Name: pointer.StringPtr("cool"),
+						},
+					},
+				},
+			},
+			want: errors.New(errDuplicate),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RejectDuplicateNames(tc.comp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nRejectDuplicateNames(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
 
 func TestRender(t *testing.T) {
 	ctrl := true
@@ -144,6 +269,260 @@ func TestRender(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAssociateByOrder(t *testing.T) {
+	t0 := v1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("zero")}}
+	t1 := v1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("one")}}
+	t2 := v1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("two")}}
+
+	r0 := corev1.ObjectReference{Name: "zero"}
+	r1 := corev1.ObjectReference{Name: "one"}
+	r2 := corev1.ObjectReference{Name: "two"}
+
+	cases := map[string]struct {
+		reason string
+		t      []v1.ComposedTemplate
+		r      []corev1.ObjectReference
+		want   []TemplateAssociation
+	}{
+		"NoReferences": {
+			reason: "When there are no references we should return templates associated with empty references.",
+			t:      []v1.ComposedTemplate{t0, t1, t2},
+			want: []TemplateAssociation{
+				{Template: t0},
+				{Template: t1},
+				{Template: t2},
+			},
+		},
+		"SomeReferences": {
+			reason: "We should return all templates when there are fewer references than templates.",
+			t:      []v1.ComposedTemplate{t0, t1, t2},
+			r:      []corev1.ObjectReference{r0, r1},
+			want: []TemplateAssociation{
+				{Template: t0, Reference: r0},
+				{Template: t1, Reference: r1},
+				{Template: t2},
+			},
+		},
+		"ExtraReferences": {
+			reason: "When there are more references than templates they should be truncated.",
+			t:      []v1.ComposedTemplate{t0, t1},
+			r:      []corev1.ObjectReference{r0, r1, r2},
+			want: []TemplateAssociation{
+				{Template: t0, Reference: r0},
+				{Template: t1, Reference: r1},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := AssociateByOrder(tc.t, tc.r)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("\n%s\nAssociateByOrder(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGarbageCollectingAssociator(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	n0 := "zero"
+	t0 := v1.ComposedTemplate{Name: &n0}
+
+	r0 := corev1.ObjectReference{Name: n0}
+
+	type args struct {
+		ctx  context.Context
+		cr   resource.Composite
+		comp *v1.Composition
+	}
+
+	type want struct {
+		tas []TemplateAssociation
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		c      client.Client
+		args   args
+		want   want
+	}{
+		"AnonymousTemplates": {
+			reason: "We should fall back to associating templates with references by order if any template is not named.",
+			args: args{
+				cr: &fake.Composite{},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0, {Name: nil}}},
+				},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0}, {Template: v1.ComposedTemplate{Name: nil}}},
+			},
+		},
+		"ResourceNotFoundError": {
+			reason: "Non-existent resources should be ignored.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0}},
+			},
+		},
+		"GetResourceError": {
+			reason: "Errors getting a referenced resource should be returned.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(errBoom),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetComposed),
+			},
+		},
+		"AnonymousResource": {
+			reason: "We should fall back to associating templates with references by order if any resource is not annotated with its template name.",
+			c: &test.MockClient{
+				// Return an empty (and thus unannotated) composed resource.
+				MockGet: test.NewMockGetFn(nil),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0, Reference: r0}},
+			},
+		},
+		"AssociatedResource": {
+			reason: "We should associate referenced resources by their template name annotation.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					SetCompositionResourceName(obj.(metav1.Object), n0)
+					return nil
+				}),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0, Reference: r0}},
+			},
+		},
+		"UncontrolledResource": {
+			reason: "We should not garbage collect a resource that we don't control.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					// The template used to create this resource is no longer known to us.
+					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is not controlled by us.
+					ctrl := true
+					obj.SetOwnerReferences([]metav1.OwnerReference{{
+						Controller: &ctrl,
+						UID:        types.UID("who-dat"),
+					}})
+					return nil
+				}),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: types.UID("very-unique")},
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0}},
+			},
+		},
+		"GarbageCollectionError": {
+			reason: "We should return errors encountered while garbage collecting a composed resource.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					// The template used to create this resource is no longer known to us.
+					SetCompositionResourceName(obj, "unknown")
+					return nil
+				}),
+				MockDelete: test.NewMockDeleteFn(errBoom),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGCComposed),
+			},
+		},
+		"GarbageCollectedResource": {
+			reason: "We should not return a resource that we successfully garbage collect.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					// The template used to create this resource is no longer known to us.
+					SetCompositionResourceName(obj, "unknown")
+					return nil
+				}),
+				MockDelete: test.NewMockDeleteFn(nil),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
+				},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			a := NewGarbageCollectingAssociator(tc.c)
+			got, err := a.AssociateTemplates(tc.args.ctx, tc.args.cr, tc.args.comp)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nAssociateTemplates(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.tas, got); diff != "" {
+				t.Errorf("\n%s\nAssociateTemplates(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

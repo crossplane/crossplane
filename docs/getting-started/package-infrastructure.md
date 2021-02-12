@@ -145,7 +145,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: rdsinstance
+      base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
         spec:
@@ -202,7 +203,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: vpc
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: VPC
         spec:
@@ -211,7 +213,8 @@ spec:
             cidrBlock: 192.168.0.0/16
             enableDnsSupport: true
             enableDnsHostNames: true
-    - base:
+    - name: subnet-a
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
@@ -224,7 +227,8 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1a
-    - base:
+    - name: subnet-b
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
@@ -237,7 +241,8 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1b
-    - base:
+    - name: subnet-c
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: Subnet
         metadata:
@@ -250,7 +255,8 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1c
-    - base:
+    - name: subnet-c
+      base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: DBSubnetGroup
         spec:
@@ -259,7 +265,8 @@ spec:
             description: An excellent formation of subnetworks.
             subnetIdSelector:
               matchControllerRef: true
-    - base:
+    - name: internetgateway
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: InternetGateway
         spec:
@@ -267,7 +274,8 @@ spec:
             region: us-east-1
             vpcIdSelector:
               matchControllerRef: true
-    - base:
+    - name: routetable
+      base:
         apiVersion: ec2.aws.crossplane.io/v1alpha4
         kind: RouteTable
         spec:
@@ -289,7 +297,8 @@ spec:
               - subnetIdSelector:
                   matchLabels:
                     zone: us-east-1c
-    - base:
+    - name: securitygroup
+      base:
         apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: SecurityGroup
         spec:
@@ -306,7 +315,8 @@ spec:
                 ipRanges:
                   - cidrIp: 0.0.0.0/0
                     description: Everywhere
-    - base:
+    - name: rdsinstance
+      base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: RDSInstance
         spec:
@@ -361,7 +371,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: cloudsqlinstance
+      base:
         apiVersion: database.gcp.crossplane.io/v1beta1
         kind: CloudSQLInstance
         spec:
@@ -421,12 +432,14 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: resourcegroup
+      base:
         apiVersion: azure.crossplane.io/v1alpha3
         kind: ResourceGroup
         spec:
           location: West US 2
-    - base:
+    - name: postgresqlserver
+      base:
         apiVersion: database.azure.crossplane.io/v1beta1
         kind: PostgreSQLServer
         spec:
@@ -462,7 +475,8 @@ spec:
         - fromConnectionSecretKey: endpoint
         - name: port
           value: "5432"
-    - base:
+    - name: firewallrule
+      base:
         apiVersion: database.azure.crossplane.io/v1alpha3
         kind: PostgreSQLServerFirewallRule
         spec:
@@ -497,7 +511,8 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: rdsinstance
+      base:
         apiVersion: database.alibaba.crossplane.io/v1alpha1
         kind: RDSInstance
         spec:

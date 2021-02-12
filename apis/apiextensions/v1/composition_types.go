@@ -134,6 +134,17 @@ func TypeReferenceTo(gvk schema.GroupVersionKind) TypeReference {
 // ComposedTemplate is used to provide information about how the composed resource
 // should be processed.
 type ComposedTemplate struct {
+	// TODO(negz): Name should be a required field in v2 of this API.
+
+	// A Name uniquely identifies this entry within its Composition's resources
+	// array. Names are optional but *strongly* recommended. When all entries in
+	// the resources array are named entries may added, deleted, and reordered
+	// as long as their names do not change. When entries are not named the
+	// length and order of the resources array should be treated as immutable.
+	// Either all or no entries must be named.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
 	// Base is the target resource that the patches will be applied on.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource

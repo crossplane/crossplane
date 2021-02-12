@@ -12,12 +12,14 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: CompositePostgreSQLInstance
   resources:
-    - base:
+    - name: resourcegroup
+      base:
         apiVersion: azure.crossplane.io/v1alpha3
         kind: ResourceGroup
         spec:
           location: West US 2
-    - base:
+    - name: postgresqlserver
+      base:
         apiVersion: database.azure.crossplane.io/v1beta1
         kind: PostgreSQLServer
         spec:
@@ -53,7 +55,8 @@ spec:
         - fromConnectionSecretKey: endpoint
         - name: port
           value: "5432"
-    - base:
+    - name: firewallrule
+      base:
         apiVersion: database.azure.crossplane.io/v1alpha3
         kind: PostgreSQLServerFirewallRule
         spec:
