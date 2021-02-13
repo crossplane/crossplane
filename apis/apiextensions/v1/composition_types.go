@@ -560,7 +560,8 @@ type ConnectionDetailType string
 
 // ConnectionDetailType types.
 const (
-	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey" // Default
+	ConnectionDetailTypeUnknown                 ConnectionDetailType = "Unknown"
+	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey"
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
 	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
 )
@@ -575,12 +576,12 @@ type ConnectionDetail struct {
 	Name *string `json:"name,omitempty"`
 
 	// Type sets the connection detail fetching behaviour to be used. Each
-	// connection detail type may require its' own fields to be set on the
-	// ConnectionDetail object.
+	// connection detail type may require its own fields to be set on the
+	// ConnectionDetail object. If the type is omitted Crossplane will attempt
+	// to infer it based on which other fields were specified.
 	// +optional
 	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromValue
-	// +kubebuilder:default=FromConnectionSecretKey
-	Type ConnectionDetailType `json:"type,omitempty"`
+	Type *ConnectionDetailType `json:"type,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
 	// from the given target resource's secret.

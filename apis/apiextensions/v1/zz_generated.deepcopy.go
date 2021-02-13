@@ -361,6 +361,11 @@ func (in *ConnectionDetail) DeepCopyInto(out *ConnectionDetail) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.Type != nil {
+		in, out := &in.Type, &out.Type
+		*out = new(ConnectionDetailType)
+		**out = **in
+	}
 	if in.FromConnectionSecretKey != nil {
 		in, out := &in.FromConnectionSecretKey, &out.FromConnectionSecretKey
 		*out = new(string)

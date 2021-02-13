@@ -529,6 +529,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 }
 
 func TestFetch(t *testing.T) {
+	fromKey := v1.ConnectionDetailTypeFromConnectionSecretKey
+	fromVal := v1.ConnectionDetailTypeFromValue
+	fromField := v1.ConnectionDetailTypeFromFieldPath
 
 	sref := &xpv1.SecretReference{Name: "foo", Namespace: "bar"}
 	s := &corev1.Secret{
@@ -568,11 +571,11 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
-						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
+						Type:                    &fromKey,
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
-						Type:  v1.ConnectionDetailTypeFromValue,
+						Type:  &fromVal,
 						Value: pointer.StringPtr("value"),
 					},
 				}},
@@ -614,21 +617,21 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						FromConnectionSecretKey: pointer.StringPtr("bar"),
-						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
+						Type:                    &fromKey,
 					},
 					{
 						FromConnectionSecretKey: pointer.StringPtr("none"),
-						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
+						Type:                    &fromKey,
 					},
 					{
 						Name:                    pointer.StringPtr("convfoo"),
 						FromConnectionSecretKey: pointer.StringPtr("foo"),
-						Type:                    v1.ConnectionDetailTypeFromConnectionSecretKey,
+						Type:                    &fromKey,
 					},
 					{
 						Name:  pointer.StringPtr("fixed"),
 						Value: pointer.StringPtr("value"),
-						Type:  v1.ConnectionDetailTypeFromValue,
+						Type:  &fromVal,
 					},
 				}},
 			},
@@ -659,7 +662,7 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Name: pointer.StringPtr("missingvalue"),
-						Type: v1.ConnectionDetailTypeFromValue,
+						Type: &fromVal,
 					},
 				}},
 			},
@@ -686,7 +689,7 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Value: pointer.StringPtr("missingname"),
-						Type:  v1.ConnectionDetailTypeFromValue,
+						Type:  &fromVal,
 					},
 				}},
 			},
@@ -712,7 +715,7 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Type: v1.ConnectionDetailTypeFromConnectionSecretKey,
+						Type: &fromKey,
 					},
 				}},
 			},
@@ -738,7 +741,7 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Type: v1.ConnectionDetailTypeFromFieldPath,
+						Type: &fromField,
 						Name: pointer.StringPtr("missingname"),
 					},
 				}},
@@ -765,7 +768,7 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Type:          v1.ConnectionDetailTypeFromFieldPath,
+						Type:          &fromField,
 						FromFieldPath: pointer.StringPtr("fieldpath"),
 					},
 				}},
@@ -797,7 +800,7 @@ func TestFetch(t *testing.T) {
 					{
 						Name:          pointer.StringPtr("name"),
 						FromFieldPath: pointer.StringPtr("objectMeta.name"),
-						Type:          v1.ConnectionDetailTypeFromFieldPath,
+						Type:          &fromField,
 					},
 				}},
 			},
@@ -830,7 +833,7 @@ func TestFetch(t *testing.T) {
 					{
 						Name:          pointer.StringPtr("generation"),
 						FromFieldPath: pointer.StringPtr("objectMeta.generation"),
-						Type:          v1.ConnectionDetailTypeFromFieldPath,
+						Type:          &fromField,
 					},
 				}},
 			},
@@ -850,6 +853,61 @@ func TestFetch(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.conn, conn); diff != "" {
 				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestConnectionDetailType(t *testing.T) {
+	fromVal := v1.ConnectionDetailTypeFromValue
+	name := "coolsecret"
+	value := "coolvalue"
+	key := "coolkey"
+	field := "coolfield"
+
+	cases := map[string]struct {
+		d    v1.ConnectionDetail
+		want v1.ConnectionDetailType
+	}{
+		"FromValueExplicit": {
+			d:    v1.ConnectionDetail{Type: &fromVal},
+			want: v1.ConnectionDetailTypeFromValue,
+		},
+		"FromValueInferred": {
+			d: v1.ConnectionDetail{
+				Name:  &name,
+				Value: &value,
+
+				// Name and value trump key or field
+				FromConnectionSecretKey: &key,
+				FromFieldPath:           &field,
+			},
+			want: v1.ConnectionDetailTypeFromValue,
+		},
+		"FromConnectionSecretKeyInferred": {
+			d: v1.ConnectionDetail{
+				Name:                    &name,
+				FromConnectionSecretKey: &key,
+
+				// From key trumps from field
+				FromFieldPath: &field,
+			},
+			want: v1.ConnectionDetailTypeFromConnectionSecretKey,
+		},
+		"FromFieldPathInferred": {
+			d: v1.ConnectionDetail{
+				Name:          &name,
+				FromFieldPath: &field,
+			},
+			want: v1.ConnectionDetailTypeFromFieldPath,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := connectionDetailType(tc.d)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("connectionDetailType(...): -want, +got\n%s", diff)
 			}
 		})
 	}

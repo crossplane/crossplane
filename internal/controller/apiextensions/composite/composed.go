@@ -420,20 +420,20 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 	conn := managed.ConnectionDetails{}
 
 	for _, d := range t.ConnectionDetails {
-		switch d.Type {
+		switch tp := connectionDetailType(d); tp {
 		case v1.ConnectionDetailTypeFromValue:
 			// Name, Value must be set if value type
 			switch {
 			case d.Name == nil:
-				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailKey, tp)
 			case d.Value == nil:
-				return nil, errors.Errorf(errFmtConnDetailVal, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailVal, tp)
 			default:
 				conn[*d.Name] = []byte(*d.Value)
 			}
 		case v1.ConnectionDetailTypeFromConnectionSecretKey:
 			if d.FromConnectionSecretKey == nil {
-				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailKey, tp)
 			}
 			if data[*d.FromConnectionSecretKey] == nil {
 				// We don't consider this an error because it's possible the
@@ -450,12 +450,14 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 		case v1.ConnectionDetailTypeFromFieldPath:
 			switch {
 			case d.Name == nil:
-				return nil, errors.Errorf(errFmtConnDetailKey, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailKey, tp)
 			case d.FromFieldPath == nil:
-				return nil, errors.Errorf(errFmtConnDetailPath, d.Type)
+				return nil, errors.Errorf(errFmtConnDetailPath, tp)
 			default:
 				_ = extractFieldPathValue(cd, d, conn)
 			}
+		case v1.ConnectionDetailTypeUnknown:
+			// We weren't able to determine the type of this connection detail.
 		}
 	}
 
@@ -464,6 +466,24 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 	}
 
 	return conn, nil
+}
+
+// Originally there was no 'type' determinator field so Crossplane would infer
+// the type. We maintain this behaviour for backward compatibility when no type
+// is set.
+func connectionDetailType(d v1.ConnectionDetail) v1.ConnectionDetailType {
+	switch {
+	case d.Type != nil:
+		return *d.Type
+	case d.Name != nil && d.Value != nil:
+		return v1.ConnectionDetailTypeFromValue
+	case d.FromConnectionSecretKey != nil:
+		return v1.ConnectionDetailTypeFromConnectionSecretKey
+	case d.FromFieldPath != nil:
+		return v1.ConnectionDetailTypeFromFieldPath
+	default:
+		return v1.ConnectionDetailTypeUnknown
+	}
 }
 
 func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn managed.ConnectionDetails) error {
