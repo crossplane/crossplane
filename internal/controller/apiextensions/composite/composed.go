@@ -347,8 +347,10 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
 	cd.SetNamespace(namespace)
+
+	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath}
 	for i, p := range t.Patches {
-		if err := p.Apply(cp, cd); err != nil {
+		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}
