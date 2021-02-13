@@ -338,9 +338,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 	r0 := corev1.ObjectReference{Name: n0}
 
 	type args struct {
-		ctx  context.Context
-		cr   resource.Composite
-		comp *v1.Composition
+		ctx context.Context
+		cr  resource.Composite
+		ts  []v1.ComposedTemplate
 	}
 
 	type want struct {
@@ -358,9 +358,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 			reason: "We should fall back to associating templates with references by order if any template is not named.",
 			args: args{
 				cr: &fake.Composite{},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0, {Name: nil}}},
-				},
+				ts: []v1.ComposedTemplate{t0, {Name: nil}},
 			},
 			want: want{
 				tas: []TemplateAssociation{{Template: t0}, {Template: v1.ComposedTemplate{Name: nil}}},
@@ -375,9 +373,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				tas: []TemplateAssociation{{Template: t0}},
@@ -392,9 +388,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetComposed),
@@ -410,9 +404,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				tas: []TemplateAssociation{{Template: t0, Reference: r0}},
@@ -430,9 +422,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				tas: []TemplateAssociation{{Template: t0, Reference: r0}},
@@ -459,9 +449,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					ObjectMeta:                  metav1.ObjectMeta{UID: types.UID("very-unique")},
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				tas: []TemplateAssociation{{Template: t0}},
@@ -481,9 +469,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGCComposed),
@@ -503,9 +489,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				cr: &fake.Composite{
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{Resources: []v1.ComposedTemplate{t0}},
-				},
+				ts: []v1.ComposedTemplate{t0},
 			},
 			want: want{
 				tas: []TemplateAssociation{{Template: t0}},
@@ -516,7 +500,7 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			a := NewGarbageCollectingAssociator(tc.c)
-			got, err := a.AssociateTemplates(tc.args.ctx, tc.args.cr, tc.args.comp)
+			got, err := a.AssociateTemplates(tc.args.ctx, tc.args.cr, tc.args.ts)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nAssociateTemplates(...): -want, +got:\n%s", tc.reason, diff)

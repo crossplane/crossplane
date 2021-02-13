@@ -401,14 +401,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// Inline PatchSets from Composition Spec before composing resources.
-	if err := comp.Spec.InlinePatchSets(); err != nil {
+	tpls, err := comp.Spec.ComposedTemplates()
+	if err != nil {
 		log.Debug(errInline, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	tas, err := r.composition.AssociateTemplates(ctx, cr, comp)
+	tas, err := r.composition.AssociateTemplates(ctx, cr, tpls)
 	if err != nil {
 		log.Debug(errAssociate, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
@@ -457,7 +457,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	conn := managed.ConnectionDetails{}
 	ready := 0
-	for i, tpl := range comp.Spec.Resources {
+	for i, tpl := range tpls {
 		cd := cds[i]
 
 		if err := r.composite.Render(ctx, cr, cd, tpl); err != nil {

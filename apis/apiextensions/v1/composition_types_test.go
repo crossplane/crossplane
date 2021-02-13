@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -37,7 +38,7 @@ func TestPatchTypeReplacement(t *testing.T) {
 	}
 
 	type want struct {
-		resources []ComposedTemplate
+		templates []ComposedTemplate
 		err       error
 	}
 
@@ -67,7 +68,7 @@ func TestPatchTypeReplacement(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []ComposedTemplate{
+				templates: []ComposedTemplate{
 					{
 						Patches: []Patch{
 							{
@@ -98,14 +99,6 @@ func TestPatchTypeReplacement(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []ComposedTemplate{{
-					Patches: []Patch{
-						{
-							Type:         PatchTypePatchSet,
-							PatchSetName: pointer.StringPtr("patch-set-1"),
-						},
-					},
-				}},
 				err: errors.Errorf(errUndefinedPatchSet, "patch-set-1"),
 			},
 		},
@@ -182,7 +175,7 @@ func TestPatchTypeReplacement(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				resources: []ComposedTemplate{
+				templates: []ComposedTemplate{
 					{
 						Patches: []Patch{
 							{
@@ -235,9 +228,9 @@ func TestPatchTypeReplacement(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.args.comp.InlinePatchSets()
+			got, err := tc.args.comp.ComposedTemplates()
 
-			if diff := cmp.Diff(tc.want.resources, tc.args.comp.Resources); diff != "" {
+			if diff := cmp.Diff(tc.want.templates, got); diff != "" {
 				t.Errorf("\n%s\nInlinePatchSets(b): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -471,6 +464,72 @@ func TestConvertResolve(t *testing.T) {
 	}
 }
 
+func TestPatchesApply(t *testing.T) {
+	now := metav1.NewTime(time.Unix(0, 0))
+	lpt := fake.ConnectionDetailsLastPublishedTimer{
+		Time: &now,
+	}
+
+	type args struct {
+		composite runtime.Object
+		composed  runtime.Object
+		only      []PatchType
+	}
+	cases := map[string]struct {
+		reason string
+		p      Patches
+		args   args
+		want   error
+	}{
+		"Filtered": {
+			reason: "Filtered patch types should not be applied",
+			p: Patches{
+				// This patch would return an error if it were applied due to
+				// the missing fieldpath.
+				{Type: PatchTypeFromCompositeFieldPath},
+				{Type: PatchTypeToCompositeFieldPath},
+			},
+			args: args{
+				composite: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				composed: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+				only:     []PatchType{PatchTypeToCompositeFieldPath},
+			},
+			want: errors.Wrapf(errors.Errorf(errRequiredField, "FromFieldPath", PatchTypeToCompositeFieldPath), errFmtPatchAtIndex, 1),
+		},
+		"Unfiltered": {
+			reason: "Unfiltered patch types should be applied",
+			p: Patches{
+				{
+					Type: PatchTypeFromCompositeFieldPath,
+					FromFieldPath: func() *string {
+						s := "spec"
+						return &s
+					}(),
+				},
+			},
+			args: args{
+				composite: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				composed: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+				only:     []PatchType{PatchTypeToCompositeFieldPath},
+			},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := tc.p.Apply(tc.args.composite, tc.args.composed, tc.args.only...)
+			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nApply(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestPatchApply(t *testing.T) {
 	now := metav1.NewTime(time.Unix(0, 0))
 	lpt := fake.ConnectionDetailsLastPublishedTimer{
@@ -487,7 +546,6 @@ func TestPatchApply(t *testing.T) {
 		patch Patch
 		cp    *fake.Composite
 		cd    *fake.Composed
-		only  []PatchType
 	}
 	type want struct {
 		cp  *fake.Composite
@@ -620,70 +678,6 @@ func TestPatchApply(t *testing.T) {
 				err: errNotFound("wat"),
 			},
 		},
-		"FilterExcludeCompositeFieldPathPatch": {
-			reason: "Should not apply the patch as the PatchType is not present in filter.",
-			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
-					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
-				},
-				cp: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "cp",
-						Labels: map[string]string{
-							"Test": "blah",
-						},
-					},
-					ConnectionDetailsLastPublishedTimer: lpt,
-				},
-				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
-				},
-				only: []PatchType{PatchTypePatchSet},
-			},
-			want: want{
-				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "cd",
-					},
-				},
-				err: nil,
-			},
-		},
-		"FilterIncludeCompositeFieldPathPatch": {
-			reason: "Should apply the patch as the PatchType is present in filter.",
-			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
-					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
-					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
-				},
-				cp: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "cp",
-						Labels: map[string]string{
-							"Test": "blah",
-						},
-					},
-					ConnectionDetailsLastPublishedTimer: lpt,
-				},
-				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
-				},
-				only: []PatchType{PatchTypeFromCompositeFieldPath},
-			},
-			want: want{
-				cd: &fake.Composed{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "cd",
-						Labels: map[string]string{
-							"Test": "blah",
-						}},
-				},
-				err: nil,
-			},
-		},
 		"DefaultToFieldCompositeFieldPathPatch": {
 			reason: "Should correctly default the ToFieldPath value if not specified.",
 			args: args{
@@ -772,11 +766,10 @@ func TestPatchApply(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ncp := tc.args.cp.DeepCopyObject()
-			err := tc.args.patch.Apply(ncp, tc.args.cd, tc.args.only...)
+			err := tc.args.patch.Apply(tc.args.cp, tc.args.cd)
 
 			if tc.want.cp != nil {
-				if diff := cmp.Diff(tc.want.cp, ncp); diff != "" {
+				if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
 					t.Errorf("\n%s\nApply(cp): -want, +got:\n%s", tc.reason, diff)
 				}
 			}

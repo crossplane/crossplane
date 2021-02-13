@@ -55,8 +55,11 @@ type PatchSet struct {
 	Name string `json:"name"`
 
 	// Patches will be applied as an overlay to the base resource.
-	Patches []Patch `json:"patches"`
+	Patches Patches `json:"patches"`
 }
+
+// Patches that may be applied to a composite or composed resource.
+type Patches []Patch
 
 // TypeReference is used to refer to a type for declaring compatibility.
 type TypeReference struct {

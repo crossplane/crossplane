@@ -41,6 +41,7 @@ const (
 
 	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
 	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
+	errFmtPatchAtIndex                 = "cannot apply the patch at index %d"
 	errFmtTransformAtIndex             = "transform at index %d returned error"
 	errFmtTypeNotSupported             = "transform type %s is not supported"
 	errFmtConfigMissing                = "given type %s requires configuration"
@@ -73,38 +74,44 @@ type CompositionSpec struct {
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
 }
 
-// InlinePatchSets dereferences PatchSets and includes their patches inline. The
-// updated CompositionSpec should not be persisted to the API server.
-func (cs *CompositionSpec) InlinePatchSets() error {
+// ComposedTemplates processes and returns a Composition's resource templates,
+// defereferncing and inlining any PatchSets.
+func (cs *CompositionSpec) ComposedTemplates() ([]ComposedTemplate, error) {
 	pn := make(map[string][]Patch)
 	for _, s := range cs.PatchSets {
 		for _, p := range s.Patches {
+			// TODO(negz): We should reject Compositions with nested PatchSets
+			// in a validation webhook.
 			if p.Type == PatchTypePatchSet {
-				return errors.New(errPatchSetType)
+				return nil, errors.New(errPatchSetType)
 			}
 		}
 		pn[s.Name] = s.Patches
 	}
 
+	out := make([]ComposedTemplate, len(cs.Resources))
+
 	for i, r := range cs.Resources {
-		po := []Patch{}
+		po := make([]Patch, 0, len(r.Patches))
 		for _, p := range r.Patches {
 			if p.Type != PatchTypePatchSet {
 				po = append(po, p)
 				continue
 			}
 			if p.PatchSetName == nil {
-				return errors.Errorf(errRequiredField, "PatchSetName", p.Type)
+				return nil, errors.Errorf(errRequiredField, "PatchSetName", p.Type)
 			}
 			ps, ok := pn[*p.PatchSetName]
 			if !ok {
-				return errors.Errorf(errUndefinedPatchSet, *p.PatchSetName)
+				return nil, errors.Errorf(errUndefinedPatchSet, *p.PatchSetName)
 			}
 			po = append(po, ps...)
 		}
-		cs.Resources[i].Patches = po
+		out[i] = r
+		out[i].Patches = po
 	}
-	return nil
+
+	return out, nil
 }
 
 // A PatchSet is a set of patches that can be reused from all resources within
@@ -152,7 +159,7 @@ type ComposedTemplate struct {
 
 	// Patches will be applied as overlay to the base resource.
 	// +optional
-	Patches []Patch `json:"patches,omitempty"`
+	Patches Patches `json:"patches,omitempty"`
 
 	// ConnectionDetails lists the propagation secret keys from this target
 	// resource to the composition instance connection secret.
@@ -195,6 +202,29 @@ type ReadinessCheck struct {
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	// +optional
 	MatchInteger int64 `json:"matchInteger,omitempty"`
+}
+
+// Patches that may be applied to a composite or composed resource.
+type Patches []Patch
+
+// Apply a set of patches, optionally filtered by patch type.
+func (p Patches) Apply(composite runtime.Object, composed runtime.Object, only ...PatchType) error {
+	apply := map[PatchType]bool{}
+	for _, t := range only {
+		apply[t] = true
+	}
+
+	for i, patch := range p {
+		if len(apply) > 0 && !apply[patch.Type] {
+			continue
+		}
+
+		if err := patch.Apply(composite, composed); err != nil {
+			return errors.Wrapf(err, errFmtPatchAtIndex, i)
+		}
+	}
+
+	return nil
 }
 
 // A PatchType is a type of patch.
@@ -267,35 +297,16 @@ type PatchPolicy struct {
 
 // Apply executes a patching operation between the from and to resources.
 // Applies all patch types unless an 'only' filter is supplied.
-func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
-	if c.filterPatch(only...) {
-		return nil
-	}
-
+func (c *Patch) Apply(composite, composed runtime.Object) error {
 	switch c.Type {
 	case PatchTypeFromCompositeFieldPath:
-		return c.applyFromFieldPathPatch(from, to)
+		return c.applyFromFieldPathPatch(composite, composed)
 	case PatchTypeToCompositeFieldPath:
-		return c.applyFromFieldPathPatch(to, from)
+		return c.applyFromFieldPathPatch(composed, composite)
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
 	return errors.Errorf(errInvalidPatchType, c.Type)
-}
-
-// filterPatch returns true if patch should be filtered (not applied)
-func (c *Patch) filterPatch(only ...PatchType) bool {
-	// filter does not apply if not set
-	if len(only) == 0 {
-		return false
-	}
-
-	for _, patchType := range only {
-		if patchType == c.Type {
-			return false
-		}
-	}
-	return true
 }
 
 // applyFromFieldPathPatch patches the "to" resource, using a source field

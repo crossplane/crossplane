@@ -238,7 +238,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					})),
 					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
-					WithCompositionTemplateAssociator(CompositionTemplateAssociatorFn(func(c1 context.Context, c2 resource.Composite, c3 *v1.Composition) ([]TemplateAssociation, error) {
+					WithCompositionTemplateAssociator(CompositionTemplateAssociatorFn(func(context.Context, resource.Composite, []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						return nil, errBoom
 					})),
 				},
