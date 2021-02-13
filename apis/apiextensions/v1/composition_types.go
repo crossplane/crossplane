@@ -219,14 +219,15 @@ type Patch struct {
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
-	// FromFieldPath is the path of the field on the composed resource whose value
-	// to be used as input. Required when type is FromCompositeFieldPath.
+	// FromFieldPath is the path of the field on the resource whose value is
+	// to be used as input. Required when type is FromCompositeFieldPath or
+	// ToCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
-	// ToFieldPath is the path of the field on the base resource whose value will
+	// ToFieldPath is the path of the field on the resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
-	// propagate to the same path on the target resource.
+	// propagate to the same path as fromFieldPath.
 	// +optional
 	ToFieldPath *string `json:"toFieldPath,omitempty"`
 

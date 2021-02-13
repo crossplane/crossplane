@@ -65,13 +65,13 @@ spec:
                         description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
                         properties:
                           fromFieldPath:
-                            description: FromFieldPath is the path of the field on the composed resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
                           toFieldPath:
-                            description: ToFieldPath is the path of the field on the base resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path on the target resource.
+                            description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
                           transforms:
                             description: Transforms are the list of functions that are used as a FIFO pipe for the input to be transformed.
@@ -186,13 +186,13 @@ spec:
                         description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
                         properties:
                           fromFieldPath:
-                            description: FromFieldPath is the path of the field on the composed resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
                           toFieldPath:
-                            description: ToFieldPath is the path of the field on the base resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path on the target resource.
+                            description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
                           transforms:
                             description: Transforms are the list of functions that are used as a FIFO pipe for the input to be transformed.
@@ -379,13 +379,13 @@ spec:
                         description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
                         properties:
                           fromFieldPath:
-                            description: FromFieldPath is the path of the field on the composed resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
                           toFieldPath:
-                            description: ToFieldPath is the path of the field on the base resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path on the target resource.
+                            description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
                           transforms:
                             description: Transforms are the list of functions that are used as a FIFO pipe for the input to be transformed.
@@ -500,13 +500,13 @@ spec:
                         description: Patch objects are applied between composite and composed resources. Their behaviour depends on the Type selected. The default Type, FromCompositeFieldPath, copies a value from the composite resource to the composed resource, applying any defined transformers.
                         properties:
                           fromFieldPath:
-                            description: FromFieldPath is the path of the field on the composed resource whose value to be used as input. Required when type is FromCompositeFieldPath.
+                            description: FromFieldPath is the path of the field on the resource whose value is to be used as input. Required when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
                           toFieldPath:
-                            description: ToFieldPath is the path of the field on the base resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path on the target resource.
+                            description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
                           transforms:
                             description: Transforms are the list of functions that are used as a FIFO pipe for the input to be transformed.
