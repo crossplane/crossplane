@@ -596,10 +596,12 @@ func TestPatchApply(t *testing.T) {
 				patch: Patch{
 					Type:          PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("wat"),
-					FromFieldPathStrategy: func() *FromFieldPathStrategy {
-						s := FromFieldPathStrategyRequired
-						return &s
-					}(),
+					Strategy: &PatchStrategy{
+						FromFieldPath: func() *FromFieldPathStrategy {
+							s := FromFieldPathStrategyRequired
+							return &s
+						}(),
+					},
 					ToFieldPath: pointer.StringPtr("wat"),
 				},
 				cp: &fake.Composite{

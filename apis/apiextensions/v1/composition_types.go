@@ -207,15 +207,6 @@ const (
 	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
 )
 
-// A FromFieldPathStrategy determines how to patch from a field path.
-type FromFieldPathStrategy string
-
-// 'From field path' patch strategies.
-const (
-	FromFieldPathStrategyOptional FromFieldPathStrategy = "Optional"
-	FromFieldPathStrategyRequired FromFieldPathStrategy = "Required"
-)
-
 // Patch objects are applied between composite and composed resources. Their
 // behaviour depends on the Type selected. The default Type,
 // FromCompositeFieldPath, copies a value from the composite resource to
@@ -234,16 +225,6 @@ type Patch struct {
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
-	// FromFieldPathStrategy determines how to patch from a field path. The
-	// default strategy is 'Optional', which means the patch will be a no-op if
-	// the specified fromFieldPath does not exist. Use the 'Required' strategy
-	// if the patch should fail if the specified fromFieldPath does not exist.
-	// The Required strategy can be useful to ensure that a composed resource
-	// is not rendered until the specified fromFieldPath is populated.
-	// +kubebuilder:validation:Enum=Optional;Required
-	// +optional
-	FromFieldPathStrategy *FromFieldPathStrategy `json:"fromFieldPathStrategy,omitempty"`
-
 	// ToFieldPath is the path of the field on the resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
 	// propagate to the same path as fromFieldPath.
@@ -258,6 +239,32 @@ type Patch struct {
 	// input to be transformed.
 	// +optional
 	Transforms []Transform `json:"transforms,omitempty"`
+
+	// Strategy configures the specifics of patching behaviour.
+	// +optional
+	Strategy *PatchStrategy `json:"strategy,omitempty"`
+}
+
+// A FromFieldPathStrategy determines how to patch from a field path.
+type FromFieldPathStrategy string
+
+// 'From field path' patch strategies.
+const (
+	FromFieldPathStrategyOptional FromFieldPathStrategy = "Optional"
+	FromFieldPathStrategyRequired FromFieldPathStrategy = "Required"
+)
+
+// A PatchStrategy configures the specifics of patching behaviour.
+type PatchStrategy struct {
+	// FromFieldPath specifies how to patch from a field path. The default
+	// strategy is 'Optional', which means the patch will be a no-op if the
+	// specified fromFieldPath does not exist. Use the 'Required' strategy if
+	// the patch should fail if the specified fromFieldPath does not exist. The
+	// Required strategy can be useful to ensure that a composed resource is not
+	// rendered until the specified fromFieldPath is populated.
+	// +kubebuilder:validation:Enum=Optional;Required
+	// +optional
+	FromFieldPath *FromFieldPathStrategy `json:"fromFieldPath,omitempty"`
 }
 
 // Apply executes a patching operation between the from and to resources.
@@ -317,10 +324,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
-	if fieldpath.IsNotFound(err) && (c.FromFieldPathStrategy == nil || *c.FromFieldPathStrategy == FromFieldPathStrategyOptional) {
-		return nil
-	}
-	if err != nil {
+	if IgnoreOptionalFieldNotFound(err, c.Strategy) != nil {
 		return err
 	}
 	out := in
@@ -342,6 +346,23 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 		return err
 	}
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
+}
+
+// IgnoreOptionalFieldNotFound ignores errors that indicate a field is not
+// found unless the supplied strategy indicates the field is required.
+func IgnoreOptionalFieldNotFound(err error, s *PatchStrategy) error {
+	switch {
+	case !fieldpath.IsNotFound(err):
+		return err
+	case s == nil:
+		return nil
+	case s.FromFieldPath == nil:
+		return nil
+	case *s.FromFieldPath == FromFieldPathStrategyRequired:
+		return err
+	default:
+		return nil
+	}
 }
 
 // TransformType is type of the transform function to be chosen.
