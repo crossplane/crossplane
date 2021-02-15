@@ -70,11 +70,11 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
-                          strategy:
-                            description: Strategy configures the specifics of patching behaviour.
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
                             properties:
                               fromFieldPath:
-                                description: FromFieldPath specifies how to patch from a field path. The default strategy is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use the 'Required' strategy if the patch should fail if the specified fromFieldPath does not exist. The Required strategy can be useful to ensure that a composed resource is not rendered until the specified fromFieldPath is populated.
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
                                 enum:
                                 - Optional
                                 - Required
@@ -201,11 +201,11 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
-                          strategy:
-                            description: Strategy configures the specifics of patching behaviour.
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
                             properties:
                               fromFieldPath:
-                                description: FromFieldPath specifies how to patch from a field path. The default strategy is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use the 'Required' strategy if the patch should fail if the specified fromFieldPath does not exist. The Required strategy can be useful to ensure that a composed resource is not rendered until the specified fromFieldPath is populated.
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
                                 enum:
                                 - Optional
                                 - Required
@@ -404,11 +404,11 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
-                          strategy:
-                            description: Strategy configures the specifics of patching behaviour.
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
                             properties:
                               fromFieldPath:
-                                description: FromFieldPath specifies how to patch from a field path. The default strategy is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use the 'Required' strategy if the patch should fail if the specified fromFieldPath does not exist. The Required strategy can be useful to ensure that a composed resource is not rendered until the specified fromFieldPath is populated.
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
                                 enum:
                                 - Optional
                                 - Required
@@ -535,11 +535,11 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
-                          strategy:
-                            description: Strategy configures the specifics of patching behaviour.
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
                             properties:
                               fromFieldPath:
-                                description: FromFieldPath specifies how to patch from a field path. The default strategy is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use the 'Required' strategy if the patch should fail if the specified fromFieldPath does not exist. The Required strategy can be useful to ensure that a composed resource is not rendered until the specified fromFieldPath is populated.
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
                                 enum:
                                 - Optional
                                 - Required

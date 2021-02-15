@@ -596,9 +596,9 @@ func TestPatchApply(t *testing.T) {
 				patch: Patch{
 					Type:          PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("wat"),
-					Strategy: &PatchStrategy{
-						FromFieldPath: func() *FromFieldPathStrategy {
-							s := FromFieldPathStrategyRequired
+					Policy: &PatchPolicy{
+						FromFieldPath: func() *FromFieldPathPolicy {
+							s := FromFieldPathPolicyRequired
 							return &s
 						}(),
 					},

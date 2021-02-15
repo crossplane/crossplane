@@ -240,31 +240,29 @@ type Patch struct {
 	// +optional
 	Transforms []Transform `json:"transforms,omitempty"`
 
-	// Strategy configures the specifics of patching behaviour.
+	// Policy configures the specifics of patching behaviour.
 	// +optional
-	Strategy *PatchStrategy `json:"strategy,omitempty"`
+	Policy *PatchPolicy `json:"policy,omitempty"`
 }
 
-// A FromFieldPathStrategy determines how to patch from a field path.
-type FromFieldPathStrategy string
+// A FromFieldPathPolicy determines how to patch from a field path.
+type FromFieldPathPolicy string
 
-// 'From field path' patch strategies.
+// FromFieldPath patch policies.
 const (
-	FromFieldPathStrategyOptional FromFieldPathStrategy = "Optional"
-	FromFieldPathStrategyRequired FromFieldPathStrategy = "Required"
+	FromFieldPathPolicyOptional FromFieldPathPolicy = "Optional"
+	FromFieldPathPolicyRequired FromFieldPathPolicy = "Required"
 )
 
-// A PatchStrategy configures the specifics of patching behaviour.
-type PatchStrategy struct {
-	// FromFieldPath specifies how to patch from a field path. The default
-	// strategy is 'Optional', which means the patch will be a no-op if the
-	// specified fromFieldPath does not exist. Use the 'Required' strategy if
-	// the patch should fail if the specified fromFieldPath does not exist. The
-	// Required strategy can be useful to ensure that a composed resource is not
-	// rendered until the specified fromFieldPath is populated.
+// A PatchPolicy configures the specifics of patching behaviour.
+type PatchPolicy struct {
+	// FromFieldPath specifies how to patch from a field path. The default is
+	// 'Optional', which means the patch will be a no-op if the specified
+	// fromFieldPath does not exist. Use 'Required' if the patch should fail if
+	// the specified path does not exist.
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
-	FromFieldPath *FromFieldPathStrategy `json:"fromFieldPath,omitempty"`
+	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
 }
 
 // Apply executes a patching operation between the from and to resources.
@@ -324,7 +322,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
-	if IgnoreOptionalFieldNotFound(err, c.Strategy) != nil {
+	if IgnoreOptionalFieldNotFound(err, c.Policy) != nil {
 		return err
 	}
 	out := in
@@ -350,7 +348,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 
 // IgnoreOptionalFieldNotFound ignores errors that indicate a field is not
 // found unless the supplied strategy indicates the field is required.
-func IgnoreOptionalFieldNotFound(err error, s *PatchStrategy) error {
+func IgnoreOptionalFieldNotFound(err error, s *PatchPolicy) error {
 	switch {
 	case !fieldpath.IsNotFound(err):
 		return err
@@ -358,7 +356,7 @@ func IgnoreOptionalFieldNotFound(err error, s *PatchStrategy) error {
 		return nil
 	case s.FromFieldPath == nil:
 		return nil
-	case *s.FromFieldPath == FromFieldPathStrategyRequired:
+	case *s.FromFieldPath == FromFieldPathPolicyRequired:
 		return err
 	default:
 		return nil
