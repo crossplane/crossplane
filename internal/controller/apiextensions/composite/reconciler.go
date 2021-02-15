@@ -415,6 +415,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
+	// We want to ensure we can render all of our composed resources before we
+	// apply any of them. We prefer to avoid creating or updating any composed
+	// resources if we know we won't be able to create or update all of them.
 	refs := make([]corev1.ObjectReference, len(tas))
 	cds := make([]resource.Composed, len(tas))
 	for i, ta := range tas {
@@ -429,6 +432,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
 	}
 
+	// We persist references to our composed resources before we create them.
+	// This way we can render composed resources with non-deterministic names,
+	// and also potentially recover from any errors we encounter while applying
+	// composed resources without leaking them.
 	cr.SetResourceReferences(refs)
 	if err := r.client.Update(ctx, cr); err != nil {
 		log.Debug(errUpdate, "error", err)
@@ -436,12 +443,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
+	// We apply all of our composed resources before we observe them and update
+	// the composite resource accordingly in the loop below. This ensures that
+	// issues observing and processing one composed resource won't block the
+	// application of another.
+	for _, cd := range cds {
+		if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
+			log.Debug(errApply, "error", err)
+			r.record.Event(cr, event.Warning(reasonCompose, err))
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+	}
+
 	conn := managed.ConnectionDetails{}
 	ready := 0
 	for i, tpl := range comp.Spec.Resources {
 		cd := cds[i]
-		if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
-			log.Debug(errApply, "error", err)
+
+		if err := r.composite.Render(ctx, cr, cd, tpl); err != nil {
+			log.Debug(errRenderCR, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
@@ -466,12 +486,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		if rdy {
 			ready++
-		}
-
-		if err := r.composite.Render(ctx, cr, cd, tpl); err != nil {
-			log.Debug(errRenderCR, "error", err)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 	}
 
