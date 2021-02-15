@@ -459,7 +459,8 @@ spec:
       # value, for example to expose fixed, non-sensitive connection details
       # like standard ports that are not published to the composed resource's
       # connection secret.
-    - name: port
+    - type: FromValue
+      name: port
       value: "3306"
     # Readiness checks allow you to define custom readiness checks. All checks
 	  # have to return true in order for resource to be considered ready. The

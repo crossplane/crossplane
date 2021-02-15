@@ -401,7 +401,8 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
-        - name: port
+        - type: FromValue
+          name: port
           value: "5432"
 ```
 
@@ -473,7 +474,8 @@ spec:
         - fromConnectionSecretKey: username
         - fromConnectionSecretKey: password
         - fromConnectionSecretKey: endpoint
-        - name: port
+        - type: FromValue
+          name: port
           value: "5432"
     - name: firewallrule
       base:
