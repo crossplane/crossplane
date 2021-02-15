@@ -388,8 +388,8 @@ alongside your [OAM] application manifests.
 <!-- Named Links -->
 
 [last section]: provision-infrastructure.md
-[composition]: ../introduction/composition.md
-[package]: ../introduction/packages.md
+[composition]: ../concepts/composition.md
+[package]: ../concepts/packages.md
 [setup]: install-configure.md
 [next section]: run-applications.md
 [OAM]: https://oam.dev/

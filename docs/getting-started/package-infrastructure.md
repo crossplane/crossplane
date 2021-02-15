@@ -717,8 +717,8 @@ rm -rf crossplane-config
 <!-- Named Links -->
 
 [previous section]: compose-infrastructure.md
-[composed]: ../introduction/composition.md
-[composition]: ../introduction/composition.md
+[composed]: ../concepts/composition.md
+[composition]: ../concepts/composition.md
 [Docker Hub]: https://hub.docker.com/
-[packages]: ../introduction/packages.md
-[packaged]: ../introduction/packages.md
+[packages]: ../concepts/packages.md
+[packaged]: ../concepts/packages.md
