@@ -1,5 +1,5 @@
 ---
-title: Introduction
+title: Concepts
 toc: true
 weight: 100
 ---
