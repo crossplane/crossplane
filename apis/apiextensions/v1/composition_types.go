@@ -239,6 +239,30 @@ type Patch struct {
 	// input to be transformed.
 	// +optional
 	Transforms []Transform `json:"transforms,omitempty"`
+
+	// Policy configures the specifics of patching behaviour.
+	// +optional
+	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// A FromFieldPathPolicy determines how to patch from a field path.
+type FromFieldPathPolicy string
+
+// FromFieldPath patch policies.
+const (
+	FromFieldPathPolicyOptional FromFieldPathPolicy = "Optional"
+	FromFieldPathPolicyRequired FromFieldPathPolicy = "Required"
+)
+
+// A PatchPolicy configures the specifics of patching behaviour.
+type PatchPolicy struct {
+	// FromFieldPath specifies how to patch from a field path. The default is
+	// 'Optional', which means the patch will be a no-op if the specified
+	// fromFieldPath does not exist. Use 'Required' if the patch should fail if
+	// the specified path does not exist.
+	// +kubebuilder:validation:Enum=Optional;Required
+	// +optional
+	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
 }
 
 // Apply executes a patching operation between the from and to resources.
@@ -298,16 +322,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
-	if fieldpath.IsNotFound(err) {
-		// A composition may want to opportunistically patch from a field path
-		// that may or may not exist in the composite, for example by patching
-		// {fromFieldPath: metadata.labels, toFieldPath: metadata.labels}. We
-		// don't consider a reference to a non-existent path to be an issue; if
-		// the relevant toFieldPath is required by the composed resource we'll
-		// report that fact when we attempt to reconcile the composite.
-		return nil
-	}
-	if err != nil {
+	if IgnoreOptionalFieldNotFound(err, c.Policy) != nil {
 		return err
 	}
 	out := in
@@ -329,6 +344,23 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 		return err
 	}
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
+}
+
+// IgnoreOptionalFieldNotFound ignores errors that indicate a field is not
+// found unless the supplied strategy indicates the field is required.
+func IgnoreOptionalFieldNotFound(err error, s *PatchPolicy) error {
+	switch {
+	case !fieldpath.IsNotFound(err):
+		return err
+	case s == nil:
+		return nil
+	case s.FromFieldPath == nil:
+		return nil
+	case *s.FromFieldPath == FromFieldPathPolicyRequired:
+		return err
+	default:
+		return nil
+	}
 }
 
 // TransformType is type of the transform function to be chosen.

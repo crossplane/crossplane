@@ -178,6 +178,30 @@ type Patch struct {
 	// input to be transformed.
 	// +optional
 	Transforms []Transform `json:"transforms,omitempty"`
+
+	// Policy configures the specifics of patching behaviour.
+	// +optional
+	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// A FromFieldPathPolicy determines how to patch from a field path.
+type FromFieldPathPolicy string
+
+// FromFieldPath patch policies.
+const (
+	FromFieldPathPolicyOptional FromFieldPathPolicy = "Optional"
+	FromFieldPathPolicyRequired FromFieldPathPolicy = "Required"
+)
+
+// A PatchPolicy configures the specifics of patching behaviour.
+type PatchPolicy struct {
+	// FromFieldPath specifies how to patch from a field path. The default is
+	// 'Optional', which means the patch will be a no-op if the specified
+	// fromFieldPath does not exist. Use 'Required' if the patch should fail if
+	// the specified path does not exist.
+	// +kubebuilder:validation:Enum=Optional;Required
+	// +optional
+	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
 }
 
 // TransformType is type of the transform function to be chosen.

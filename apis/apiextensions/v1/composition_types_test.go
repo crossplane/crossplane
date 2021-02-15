@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -476,6 +477,12 @@ func TestPatchApply(t *testing.T) {
 		Time: &now,
 	}
 
+	errNotFound := func(path string) error {
+		p := &fieldpath.Paved{}
+		_, err := p.GetValue(path)
+		return err
+	}
+
 	type args struct {
 		patch Patch
 		cp    *fake.Composite
@@ -554,6 +561,63 @@ func TestPatchApply(t *testing.T) {
 					},
 				},
 				err: nil,
+			},
+		},
+		"MissingOptionalFieldPath": {
+			reason: "A FromFieldPath patch should be a no-op when an optional fromFieldPath doesn't exist",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: nil,
+			},
+		},
+		"MissingRequiredFieldPath": {
+			reason: "A FromFieldPath patch should return an error when a required fromFieldPath doesn't exist",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("wat"),
+					Policy: &PatchPolicy{
+						FromFieldPath: func() *FromFieldPathPolicy {
+							s := FromFieldPathPolicyRequired
+							return &s
+						}(),
+					},
+					ToFieldPath: pointer.StringPtr("wat"),
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: errNotFound("wat"),
 			},
 		},
 		"FilterExcludeCompositeFieldPathPatch": {

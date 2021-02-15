@@ -70,6 +70,16 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
+                            properties:
+                              fromFieldPath:
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
+                                enum:
+                                - Optional
+                                - Required
+                                type: string
+                            type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
@@ -191,6 +201,16 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
+                            properties:
+                              fromFieldPath:
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
+                                enum:
+                                - Optional
+                                - Required
+                                type: string
+                            type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
@@ -384,6 +404,16 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
+                            properties:
+                              fromFieldPath:
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
+                                enum:
+                                - Optional
+                                - Required
+                                type: string
+                            type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string
@@ -505,6 +535,16 @@ spec:
                           patchSetName:
                             description: PatchSetName to include patches from. Required when type is PatchSet.
                             type: string
+                          policy:
+                            description: Policy configures the specifics of patching behaviour.
+                            properties:
+                              fromFieldPath:
+                                description: FromFieldPath specifies how to patch from a field path. The default is 'Optional', which means the patch will be a no-op if the specified fromFieldPath does not exist. Use 'Required' if the patch should fail if the specified path does not exist.
+                                enum:
+                                - Optional
+                                - Required
+                                type: string
+                            type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the resource whose value will be changed with the result of transforms. Leave empty if you'd like to propagate to the same path as fromFieldPath.
                             type: string

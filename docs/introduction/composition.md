@@ -327,8 +327,16 @@ spec:
     # that control Crossplane's behaviour. Patching the entire annotations
     # object can therefore have unexpected consquences and is not recommended.
     # Instead patch specific annotations by specifying their keys.
-    - fromFieldPath: metadata.annotations[crossplane.io/external-name]
     - fromFieldPath: metadata.annotations[example.org/app-name]
+    # FromCompositeFieldPath is the default patch type and is thus often
+    # omitted for brevity.
+    - type: FromCompositeFieldPath
+      fromFieldPath: metadata.annotations[crossplane.io/external-name]
+      # By default a patch from a field path that does not exist is a no-op. Use
+      # the 'Required' policy to instead block and return an error when the
+      # field path does not exist.
+      policy:
+        fromFieldPath: Required
 
   # This Composition reconciles a CompositeMySQLInstance by patching from
   # the CompositeMySQLInstance "to" new instances of the infrastructure
