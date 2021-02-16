@@ -110,9 +110,10 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 type installProviderCmd struct {
 	Package string `arg:"" help:"Image containing Provider package."`
 
-	Name                 string `arg:"" optional:"" help:"Name of Provider."`
-	RevisionHistoryLimit int64  `short:"rl" help:"Revision history limit."`
-	ManualActivation     bool   `short:"m" help:"Enable manual revision activation policy."`
+	Name                 string   `arg:"" optional:"" help:"Name of Provider."`
+	RevisionHistoryLimit int64    `short:"rl" help:"Revision history limit."`
+	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
+	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
 }
 
 // Run runs the Provider install cmd.
@@ -129,6 +130,12 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 		}
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
+	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
+	for i, s := range c.PackagePullSecrets {
+		packagePullSecrets[i] = corev1.LocalObjectReference{
+			Name: s,
+		}
+	}
 	cr := &v1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pkgName,
@@ -138,6 +145,7 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 				Package:                  c.Package,
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
+				PackagePullSecrets:       packagePullSecrets,
 			},
 		},
 	}
