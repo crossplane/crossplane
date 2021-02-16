@@ -322,8 +322,10 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
-	if IgnoreOptionalFieldNotFound(err, c.Policy) != nil {
+	if noop, err := FieldNotFoundNoop(err, c.Policy); err != nil {
 		return err
+	} else if noop {
+		return nil
 	}
 	out := in
 	for i, f := range c.Transforms {
@@ -346,20 +348,27 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
-// IgnoreOptionalFieldNotFound ignores errors that indicate a field is not
-// found unless the supplied strategy indicates the field is required.
-func IgnoreOptionalFieldNotFound(err error, s *PatchPolicy) error {
+// FieldNotFoundNoop returns whether a patch is a no-op, valid patch, or error.
+// An error is returned in the case that the error passed is not a field not
+// found error, or is a field not found error and the patch strategy is
+// Required. In the case that an error is not returned, the boolean value
+// indicates whether the patch is a no-op.
+func FieldNotFoundNoop(err error, s *PatchPolicy) (bool, error) {
 	switch {
+	case err == nil:
+		return false, nil
 	case !fieldpath.IsNotFound(err):
-		return err
+		return false, err
 	case s == nil:
-		return nil
+		return true, nil
 	case s.FromFieldPath == nil:
-		return nil
+		return true, nil
 	case *s.FromFieldPath == FromFieldPathPolicyRequired:
-		return err
+		return false, err
 	default:
-		return nil
+		// NOTE(hasheddan): this is the case in which Optional patch policy is
+		// specified explicitly and field is not found.
+		return true, nil
 	}
 }
 
