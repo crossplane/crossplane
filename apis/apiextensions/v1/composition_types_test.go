@@ -791,3 +791,102 @@ func TestPatchApply(t *testing.T) {
 		})
 	}
 }
+
+func TestFieldNotFoundNoop(t *testing.T) {
+	errBoom := errors.New("boom")
+	errNotFound := func() error {
+		p := &fieldpath.Paved{}
+		_, err := p.GetValue("boom")
+		return err
+	}
+	required := FromFieldPathPolicyRequired
+	optional := FromFieldPathPolicyOptional
+	type args struct {
+		err error
+		p   *PatchPolicy
+	}
+	type want struct {
+		noop bool
+		err  error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"NotAnError": {
+			reason: "Should perform patch if no error finding field.",
+			args:   args{},
+			want: want{
+				noop: false,
+			},
+		},
+		"NotFieldNotFoundError": {
+			reason: "Should return error if something other than field not found.",
+			args: args{
+				err: errBoom,
+			},
+			want: want{
+				noop: false,
+				err:  errBoom,
+			},
+		},
+		"DefaultOptionalNoPolicy": {
+			reason: "Should return no-op if field not found and no patch policy specified.",
+			args: args{
+				err: errNotFound(),
+			},
+			want: want{
+				noop: true,
+			},
+		},
+		"DefaultOptionalNoPathPolicy": {
+			reason: "Should return no-op if field not found and empty patch policy specified.",
+			args: args{
+				p:   &PatchPolicy{},
+				err: errNotFound(),
+			},
+			want: want{
+				noop: true,
+			},
+		},
+		"OptionalNotFound": {
+			reason: "Should return no-op if field not found and optional patch policy explicitly specified.",
+			args: args{
+				p: &PatchPolicy{
+					FromFieldPath: &optional,
+				},
+				err: errNotFound(),
+			},
+			want: want{
+				noop: true,
+			},
+		},
+		"RequiredNotFound": {
+			reason: "Should return error if field not found and required patch policy explicitly specified.",
+			args: args{
+				p: &PatchPolicy{
+					FromFieldPath: &required,
+				},
+				err: errNotFound(),
+			},
+			want: want{
+				noop: false,
+				err:  errNotFound(),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := FieldNotFoundNoop(tc.args.err, tc.args.p)
+
+			if diff := cmp.Diff(tc.want.noop, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
