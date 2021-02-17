@@ -109,8 +109,8 @@ spec:
     name: example-azure
   # An enforced composition will be selected for all instances of this type and
   # will override any selectors and references.
-  #enforcedCompositionRef:
-  #  name: securemysql.acme.org
+  # enforcedCompositionRef:
+  #   name: securemysql.acme.org
   group: example.org
   # The defined kind of composite resource.
   names:
@@ -148,6 +148,7 @@ spec:
     # - spec.claimRef
     # - spec.writeConnectionSecretToRef
     # - status.conditions
+    # - status.connectionDetails
     schema:
       openAPIV3Schema:
         type: object
@@ -173,6 +174,15 @@ spec:
                 - location
             required:
             - parameters
+          # The status subresource can be optionally defined in the XRD
+          # schema to allow observed fields from the composed resources
+          # to be set in the composite resource and claim.
+          status:
+            type: object
+            properties:
+              address:
+                description: Address of this MySQL server.
+                type: string
 ```
 
 Refer to the Kubernetes documentation on [structural schemas] for full details
@@ -188,13 +198,16 @@ $ kubectl describe xrd compositemysqlinstances.example.org
 Name:         compositemysqlinstances.example.org
 Namespace:
 Labels:       <none>
-Annotations:  API Version:  apiextensions.crossplane.io/v1
+Annotations:  <none>
+API Version:  apiextensions.crossplane.io/v1
 Kind:         CompositeResourceDefinition
 Metadata:
   Creation Timestamp:  2020-05-15T05:30:44Z
+  Finalizers:
+    offered.apiextensions.crossplane.io
+    defined.apiextensions.crossplane.io
   Generation:        1
   Resource Version:  1418120
-  Self Link:         /apis/apiextensions.crossplane.io/v1/compositeresourcedefinitions/compositemysqlinstances.example.org
   UID:               f8fedfaf-4dfd-4b8a-8228-6af0f4abd7a0
 Spec:
   Connection Secret Keys:
@@ -223,45 +236,64 @@ Spec:
       openAPIV3Schema:
         Properties:
           Spec:
-            Parameters:
-              Properties:
-                Location:
-                  Description:  Geographic location of this MySQL server.
-                  Type:         string
-                Storage GB:
-                  Type:  integer
-                Version:
-                  Description:  MySQL engine version
-                  Enum:
-                    5.6
-                    5.7
-                  Type:  string
-              Required:
-                version
-                storageGB
-                location
-              Type:  object
+            Properties:
+              Parameters:
+                Properties:
+                  Location:
+                    Description:  Geographic location of this MySQL server.
+                    Type:         string
+                  Storage GB:
+                    Type:  integer
+                  Version:
+                    Description:  MySQL engine version
+                    Enum:
+                      5.6
+                      5.7
+                    Type:  string
+                Required:
+                  version
+                  storageGB
+                  location
+                Type:  object
             Required:
               parameters
             Type:  object
-        Type:      object
-    Version:       v1alpha1
+          Status:
+            Properties:
+              Address:
+                Description:  Address of this MySQL server.
+                Type:         string
+            Type:             object
+        Type:                 object
 Status:
   Conditions:
     Last Transition Time:  2020-05-15T05:30:45Z
-    Reason:                Successfully reconciled resource
-    Status:                True
-    Type:                  Synced
-    Last Transition Time:  2020-05-15T05:30:45Z
-    Reason:                Created CRD and started controller
+    Reason:                WatchingCompositeResource
     Status:                True
     Type:                  Established
+    Last Transition Time:  2020-05-15T05:30:45Z
+    Reason:                WatchingCompositeResourceClaim
+    Status:                True
+    Type:                  Offered
+  Controllers:
+    Composite Resource Claim Type:
+      API Version:  example.org/v1alpha1
+      Kind:         MySQLInstance
+    Composite Resource Type:
+      API Version:  example.org/v1alpha1
+      Kind:         CompositeMySQLInstance
 Events:
-  Type    Reason                          Age                  From                                                                Message
-  ----    ------                          ----                 ----                                                                -------
-  Normal  ApplyCompositeResourceDefinition   4m10s                apiextension/compositeresourcedefinition.apiextensions.crossplane.io  waiting for CustomResourceDefinition to be established
-  Normal  RenderCustomResourceDefinition  55s (x8 over 4m10s)  apiextension/compositeresourcedefinition.apiextensions.crossplane.io  Rendered CustomResourceDefinition
-  Normal  ApplyCompositeResourceDefinition   55s (x7 over 4m9s)   apiextension/compositeresourcedefinition.apiextensions.crossplane.io  Applied CustomResourceDefinition and (re)started composite controller
+  Type     Reason              Age                   From                                                             Message
+  ----     ------              ----                  ----                                                             -------
+  Normal   EstablishComposite  4m10s                 defined/compositeresourcedefinition.apiextensions.crossplane.io  waiting for composite resource CustomResourceDefinition to be established
+  Normal   OfferClaim          4m10s                 offered/compositeresourcedefinition.apiextensions.crossplane.io  waiting for composite resource claim CustomResourceDefinition to be established
+  Normal   ApplyClusterRoles   4m9s (x4 over 4m10s)  rbac/compositeresourcedefinition.apiextensions.crossplane.io     Applied RBAC ClusterRoles
+  Normal   RenderCRD           4m7s (x8 over 4m10s)  defined/compositeresourcedefinition.apiextensions.crossplane.io  Rendered composite resource CustomResourceDefinition
+  Normal   EstablishComposite  4m7s (x6 over 4m10s)  defined/compositeresourcedefinition.apiextensions.crossplane.io  Applied composite resource CustomResourceDefinition
+  Normal   EstablishComposite  4m7s (x5 over 4m10s)  defined/compositeresourcedefinition.apiextensions.crossplane.io  (Re)started composite resource controller
+  Normal   RenderCRD           4m7s (x6 over 4m10s)  offered/compositeresourcedefinition.apiextensions.crossplane.io  Rendered composite resource claim CustomResourceDefinition
+  Normal   OfferClaim          4m7s (x4 over 4m10s)  offered/compositeresourcedefinition.apiextensions.crossplane.io  Applied composite resource claim CustomResourceDefinition
+  Normal   OfferClaim          4m7s (x3 over 4m10s)  offered/compositeresourcedefinition.apiextensions.crossplane.io  (Re)started composite resource claim controller
 ```
 
 ### Specify How Your Resource May Be Composed
@@ -328,6 +360,8 @@ spec:
     # object can therefore have unexpected consquences and is not recommended.
     # Instead patch specific annotations by specifying their keys.
     - fromFieldPath: metadata.annotations[example.org/app-name]
+  - name: external-name
+    patches:
     # FromCompositeFieldPath is the default patch type and is thus often
     # omitted for brevity.
     - type: FromCompositeFieldPath
@@ -448,6 +482,17 @@ spec:
         - type: math
           math:
             multiply: 1024
+    # Patches can also be applied from the composed resource (MySQLServer)
+    # to the composite resource (CompositeMySQLInstance). This MySQLServer
+    # will patch the FQDN generated by the provider back to the status
+    # subresource of the CompositeMySQLInstance. If a claim is referenced
+    # by the composite resource, the claim will also be patched. The
+    # "ToCompositeFieldPath" patch may be desirable in cases where a provider
+    # generated value is needed by other composed resources. The composite
+    # field that is patched back can then be patched forward into other resources.
+    - type: ToCompositeFieldPath
+      fromFieldPath: "status.atProvider.fullyQualifiedDomainName"
+      toFieldPath: "status.address"
     # In addition to a base and patches, this composed MySQLServer declares that
     # it can fulfil the connectionSecretKeys contract required by the definition
     # of the CompositeMySQLInstance. This MySQLServer writes a connection secret
@@ -471,7 +516,7 @@ spec:
       name: port
       value: "3306"
     # Readiness checks allow you to define custom readiness checks. All checks
-	  # have to return true in order for resource to be considered ready. The
+    # have to return true in order for resource to be considered ready. The
     # default readiness check is to have the "Ready" condition to be "True".
     # Currently Crossplane supports the MatchString, MatchInteger, and None
     # readiness checks.
@@ -527,8 +572,11 @@ spec:
   containers:
   - name: example-container
     image: example:latest
-    command: [example]
-    args: ["--debug", "--example"]
+    command:
+    - example
+    args:
+    - "--debug"
+    - "--example"
 ```
 
 * `metadata.name` would contain "example-pod"
@@ -632,7 +680,7 @@ configured in the `example-azure` `Composition`.
 `kubectl describe` may be used to examine a composite resource. Note the `Ready`
 condition below. It indicates that all composed resources are indicating they
 are 'ready', and therefore the composite resource should be online and ready to
-use. 
+use.
 
 More detail about the health and configuration of the composite resource can be
 determined by describing each composed resource. The kinds and names of each
@@ -645,14 +693,14 @@ $ kubectl describe compositemysqlinstance.example.org
 
 Name:         example
 Namespace:
-Labels:       <none>
-Annotations:  API Version:  example.org/v1alpha1
+Labels:       crossplane.io/composite=example
+Annotations:  <none>
+API Version:  example.org/v1alpha1
 Kind:         CompositeMySQLInstance
 Metadata:
   Creation Timestamp:  2020-05-15T06:53:16Z
   Generation:          4
   Resource Version:    1425809
-  Self Link:           /apis/example.org/v1alpha1/compositemysqlinstances/example
   UID:                 f654dd52-fe0e-47c8-aa9b-235c77505674
 Spec:
   Composition Ref:
@@ -661,7 +709,6 @@ Spec:
     Location:      au-east
     Storage GB:    20
     Version:       5.7
-  Reclaim Policy:  Delete
   Resource Refs:
     API Version:  azure.crossplane.io/v1alpha3
     Kind:         ResourceGroup
@@ -679,6 +726,7 @@ Spec:
     Name:       example-mysqlinstance
     Namespace:  infra-secrets
 Status:
+  Address:  example.mysql.database.azure.com
   Conditions:
     Last Transition Time:  2020-05-15T06:56:46Z
     Reason:                Resource is available for use
@@ -688,9 +736,11 @@ Status:
     Reason:                Successfully reconciled resource
     Status:                True
     Type:                  Synced
+  Connection Details:
+    Last Published Time:  2020-05-15T06:53:16Z
 Events:
-  Type    Reason                   Age                  From                                  Message
-  ----    ------                   ----                 ----                                  -------
+  Type    Reason                   Age                  From                                           Message
+  ----    ------                   ----                 ----                                           -------
   Normal  SelectComposition        10s (x7 over 3m40s)  composite/compositemysqlinstances.example.org  Successfully selected composition
   Normal  PublishConnectionSecret  10s (x7 over 3m40s)  composite/compositemysqlinstances.example.org  Successfully published connection details
   Normal  ComposeResources         10s (x7 over 3m40s)  composite/compositemysqlinstances.example.org  Successfully composed resources
@@ -785,7 +835,8 @@ $ kubectl describe mysqlinstanceclaim.example.org example
 Name:         example
 Namespace:    default
 Labels:       <none>
-Annotations:  API Version:  example.org/v1alpha1
+Annotations:  crossplane.io/external-name:
+API Version:  example.org/v1alpha1
 Kind:         MySQLInstance
 Metadata:
   Creation Timestamp:  2020-05-15T07:08:11Z
@@ -793,7 +844,6 @@ Metadata:
     finalizer.apiextensions.crossplane.io
   Generation:        3
   Resource Version:  1428420
-  Self Link:         /apis/example.org/v1alpha1/namespaces/default/mysqlinstances/example
   UID:               d87e9580-9d2e-41a7-a198-a39851815840
 Spec:
   Composition Selector:
@@ -811,6 +861,7 @@ Spec:
   Write Connection Secret To Ref:
     Name:  example-mysqlinstance
 Status:
+  Address:  example.mysql.database.azure.com
   Conditions:
     Last Transition Time:  2020-05-15T07:26:49Z
     Reason:                Resource is available for use
@@ -820,9 +871,11 @@ Status:
     Reason:                Successfully reconciled resource
     Status:                True
     Type:                  Synced
+  Connection Details:
+    Last Published Time:  2020-05-15T07:08:11Z
 Events:
-  Type    Reason                      Age                    From                                    Message
-  ----    ------                      ----                   ----                                    -------
+  Type    Reason                      Age                    From                                       Message
+  ----    ------                      ----                   ----                                       -------
   Normal  ConfigureCompositeResource  8m23s                  claim/compositemysqlinstances.example.org  Successfully configured composite resource
   Normal  BindCompositeResource       8m23s (x7 over 8m23s)  claim/compositemysqlinstances.example.org  Composite resource is not yet ready
   Normal  BindCompositeResource       4m53s (x4 over 23m)    claim/compositemysqlinstances.example.org  Successfully bound composite resource
@@ -836,8 +889,6 @@ At present the below functionality is planned but not yet implemented:
 * Compositions are mutable, and updating a composition causes all composite
   resources that use that composition to be updated accordingly. Revision
   support is planned per issue [#1481].
-* The array of templates within a Composition may not currently be reordered.
-  Support for reordering templates is planned per issue [#1909]
 
 Refer to the list of [composition related issues] for an up-to-date list of
 known issues and proposed improvements.
@@ -848,4 +899,3 @@ known issues and proposed improvements.
 [Infrastructure Composition Provisioning]: composition-provisioning.png
 [composition related issues]: https://github.com/crossplane/crossplane/labels/composition
 [#1481]: https://github.com/crossplane/crossplane/issues/1481
-[#1909]: https://github.com/crossplane/crossplane/issues/1909
