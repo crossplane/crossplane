@@ -77,13 +77,18 @@ and their default values.
 | `image.tag` | Image tag | `master` |
 | `image.pullPolicy` | Image pull policy | `Always` |
 | `imagePullSecrets` | Names of image pull secrets to use | `dockerhub` |
-| `replicas` | The number of replicas to run for the Crossplane and RBAC Manager (if enabled) pods | `1` |
+| `replicas` | The number of replicas to run for the Crossplane pods | `1` |
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager (if enabled) pods | `RollingUpdate` |
+| `leaderElection` | Enable leader election for Crossplane Managers pod | `true` |
 | `priorityClassName` | Priority class name for Crossplane and RBAC Manager (if enabled) pods | `""` |
 | `resourcesCrossplane.limits.cpu` | CPU resource limits for Crossplane | `100m` |
 | `resourcesCrossplane.limits.memory` | Memory resource limits for Crossplane | `512Mi` |
 | `resourcesCrossplane.requests.cpu` | CPU resource requests for Crossplane | `100m` |
 | `resourcesCrossplane.requests.memory` | Memory resource requests for Crossplane | `256Mi` |
+| `securityContextCrossplane.runAsUser` | Run as user for Crossplane | `2000` |
+| `securityContextCrossplane.runAsGroup` | Run as group for Crossplane | `2000` |
+| `securityContextCrossplane.allowPrivilegeEscalation` | Allow privilege escalation for Crossplane | `false` |
+| `securityContextCrossplane.readOnlyRootFilesystem` | ReadOnly root filesystem for Crossplane | `true` |
 | `packageCache.medium` | Storage medium for package cache. `Memory` means volume will be backed by tmpfs, which can be useful for development. | `""` |
 | `packageCache.sizeLimit` | Size limit for package cache. If medium is `Memory` then maximum usage would be the minimum of this value the sum of all memory limits on containers in the Crossplane pod. | `5Mi` |
 | `packageCache.pvc` | Name of the PersistentVolumeClaim to be used as the package cache. Providing a value will cause the default emptyDir volume to not be mounted. | `""` |
@@ -91,9 +96,15 @@ and their default values.
 | `resourcesRBACManager.limits.memory` | Memory resource limits for RBAC Manager | `512Mi` |
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for RBAC Manager | `100m` |
 | `resourcesRBACManager.requests.memory` | Memory resource requests for RBAC Manager | `256Mi` |
+securityContextRBACManager:
+| `securityContextRBACManager.allowPrivilegeEscalation` | Allow privilege escalation for RBAC Manager | `false` |
+| `securityContextRBACManager.readOnlyRootFilesystem` | ReadOnly root filesystem for RBAC Manager | `true` |
 | `rbacManager.deploy` | Deploy RBAC Manager and its required roles | `true` |
+| `rbacManager.replicas` | The number of replicas to run for the RBAC Manager pods | `1` |
+| `rbacManager.leaderElection` | Enable leader election for RBAC Managers pod | `true` |
 | `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
 | `alpha.oam.enabled` | Deploy the `crossplane/oam-kubernetes-runtime` Helm chart | `false` |
+| `metrics.enabled` | Expose Crossplane and RBAC Manager metrics endpoint | `false` |
 | `provider.packages` | The list of Provider packages to install together with Crossplane | `[]` |
 
 ### Command Line
