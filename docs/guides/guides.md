@@ -15,6 +15,7 @@ show off [demos] integrating with the projects they work on.
 
 - [Upgrading to v0.14]
 - [Upgrading to v1.0]
+- [Vault Provider Credential Injection]
 
 <!-- Named Links -->
 
@@ -23,3 +24,4 @@ show off [demos] integrating with the projects they work on.
 [demos]: https://github.com/crossplane/tbs
 [Upgrading to v0.14]: upgrading-to-v0.14.md
 [Upgrading to v1.0]: upgrading-to-v1.0.md
+[Vault Provider Credential Injection]: vault-injection.md
