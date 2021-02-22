@@ -59,7 +59,7 @@ type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
 	Name                 string   `arg:"" optional:"" help:"Name of Configuration."`
-	RevisionHistoryLimit int64    `short:"rl" help:"Revision history limit."`
+	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
 	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
 	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
 }
@@ -111,7 +111,7 @@ type installProviderCmd struct {
 	Package string `arg:"" help:"Image containing Provider package."`
 
 	Name                 string   `arg:"" optional:"" help:"Name of Provider."`
-	RevisionHistoryLimit int64    `short:"rl" help:"Revision history limit."`
+	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
 	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
 	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
 }
