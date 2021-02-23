@@ -11,19 +11,21 @@ resources and controllers needed to deploy and configure Crossplane.
 
 ## Installation
 
-Helm charts for Crossplane are currently published to the `alpha` and `master`
-channels. In the future, `beta` and `stable` will also be available.
+Helm charts for Crossplane are currently published to the `stable` and `master`
+channels.
 
-### Alpha
+### Stable
 
-The alpha channel is the most recent release of Crossplane that is considered
-ready for testing by the community.
+The stable channel is the most recent release of Crossplane that is considered
+ready for the community.
 
 ```console
 kubectl create namespace crossplane-system
-helm repo add crossplane-alpha https://charts.crossplane.io/alpha
 
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane
+helm repo add crossplane-stable https://charts.crossplane.io/stable
+helm repo update
+
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
 ```
 
 ### Master
@@ -40,9 +42,10 @@ version returned by the `search` command:
 ```console
 kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
+helm repo update
 helm search repo crossplane-master --devel
 
-helm install crossplane --namespace crossplane-system crossplane-master/crossplane --version <version> --devel
+helm install crossplane --namespace crossplane-system crossplane-master/crossplane --devel --version <version>
 ```
 
 ## Uninstalling the Chart
@@ -111,7 +114,7 @@ For example, the following command will install Crossplane with an image pull
 policy of `IfNotPresent`.
 
 ```console
-helm install --namespace crossplane-system crossplane-alpha/crossplane --set image.pullPolicy=IfNotPresent
+helm install --namespace crossplane-system crossplane-stable/crossplane --set image.pullPolicy=IfNotPresent
 ```
 
 ### Settings File
@@ -120,7 +123,7 @@ Alternatively, a yaml file that specifies the values for the above parameters
 (`values.yaml`) can be provided while installing the chart.
 
 ```console
-helm install crossplane --namespace crossplane-system crossplane-alpha/crossplane -f values.yaml
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane -f values.yaml
 ```
 
 Here are the sample settings to get you started.
