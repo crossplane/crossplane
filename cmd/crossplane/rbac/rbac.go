@@ -17,6 +17,7 @@ limitations under the License.
 package rbac
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -26,8 +27,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplane/crossplane/apis"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/rbac"
+	"github.com/crossplane/crossplane/internal/initializer"
 )
 
 // Available RBAC management policies.
@@ -58,6 +63,16 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 
 // Run the RBAC manager.
 func (c *Command) Run(log logging.Logger) error {
+	// NOTE(muvaf): The plural form of the kind name is not available in Go code.
+	i := initializer.NewInitializer(
+		initializer.NewCRDWaiter([]string{
+			fmt.Sprintf("%s.%s", "compositeresourcedefinitions", v1.Group),
+			fmt.Sprintf("%s.%s", "providerrevisions", pkgv1.Group),
+		}, time.Minute, log),
+	)
+	if err := i.Init(context.TODO()); err != nil {
+		return errors.Wrap(err, "cannot initialize")
+	}
 	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
 
 	cfg, err := ctrl.GetConfig()

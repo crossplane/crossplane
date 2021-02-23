@@ -17,8 +17,11 @@ limitations under the License.
 package core
 
 import (
+	"context"
 	"fmt"
 	"time"
+
+	"github.com/crossplane/crossplane/internal/initializer"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
@@ -41,6 +44,8 @@ type Command struct {
 	CacheDir       string
 	LeaderElection bool
 	Sync           time.Duration
+	Providers      []string
+	Configurations []string
 }
 
 // FromKingpin produces the core Crossplane command from a Kingpin command.
@@ -50,11 +55,22 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").ExistingDirVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
+	cmd.Flag("provider", "Pre-install a Provider by giving its image URI. This argument can be repeated.").StringsVar(&c.Providers)
+	cmd.Flag("configuration", "Pre-install a Configuration by giving its image URI. This argument can be repeated.").StringsVar(&c.Configurations)
 	return c
 }
 
 // Run core Crossplane controllers.
 func (c *Command) Run(log logging.Logger) error {
+	i := initializer.NewInitializer(
+		initializer.NewCoreCRDs("/crds"),
+		initializer.NewLockObject(),
+		initializer.NewPackageInstaller(c.Providers, c.Configurations),
+	)
+	if err := i.Init(context.TODO()); err != nil {
+		return errors.Wrap(err, "cannot initialize")
+	}
+
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	cfg, err := ctrl.GetConfig()
