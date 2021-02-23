@@ -89,7 +89,7 @@ generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds gen-inst
 	@$(OK) Finished vendoring and generating
 
 
-CRD_DIR = cluster/charts/crossplane/crds
+CRD_DIR = cluster/crds
 
 gen-install-doc:
 	@$(INFO) Generating install documentation from Helm chart
@@ -142,11 +142,11 @@ submodules:
 
 # Install CRDs into a cluster. This is for convenience.
 install-crds: $(KUBECTL) reviewable
-	$(KUBECTL) apply -f cluster/charts/crossplane-types/crds/
+	$(KUBECTL) apply -f cluster/crds/
 
 # Uninstall CRDs from a cluster. This is for convenience.
 uninstall-crds:
-	$(KUBECTL) delete -f cluster/charts/crossplane-types/crds/
+	$(KUBECTL) delete -f cluster/crds/
 
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,

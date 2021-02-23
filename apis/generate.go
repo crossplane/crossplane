@@ -20,10 +20,10 @@ limitations under the License.
 // https://github.com/golang/go/wiki/Modules#how-can-i-track-tool-dependencies-for-a-module
 
 // Remove existing CRDs
-//go:generate rm -rf ../cluster/charts/crossplane/crds
+//go:generate rm -rf ../cluster/crds
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/... crd:crdVersions=v1 output:artifacts:config=../cluster/charts/crossplane/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 
 // NOTE(hasheddan): we generate the meta.pkg.crossplane.io types separately as
 // the generated CRDs are never installed, only used for API documentation.
