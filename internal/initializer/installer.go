@@ -29,7 +29,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
-var replaceSet = map[string]string{"(": "", ":": "", "|": "", "@": "", ")": "", ".": "", "*": "", "/": "-"}
+var replaceSet = map[string]string{"(": "", ":": "", "|": "", "@": "", ")": "", ".": "-", "*": "", "/": "-"}
 
 // NewPackageInstaller returns a new package installer.
 func NewPackageInstaller(p []string, c []string) *PackageInstaller {

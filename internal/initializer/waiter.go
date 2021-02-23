@@ -67,11 +67,12 @@ func (cw *CRDWaiter) Run(ctx context.Context, kube resource.ClientApplicator) er
 		if present == len(cw.Names) {
 			return nil
 		}
+		cw.log.Info("waiting another second")
 		time.Sleep(time.Second * 1)
 		current = current.Add(time.Second * 1)
 		if current.After(ending) {
 			return errors.New("timeout for waiting CRDs to be ready is exceeded")
 		}
-		cw.log.Info("waiting another second")
+
 	}
 }

@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/crossplane/crossplane/internal/initializer"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -34,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
+	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 

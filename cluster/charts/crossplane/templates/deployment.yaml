@@ -33,17 +33,19 @@ spec:
       serviceAccountName: {{ template "name" . }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-        {{- if .Values.args }}
+        {{- if or .Values.args (or .Values.provider.packages .Values.configuration.packages) }}
         args:
+        {{- end }}
         {{- range $arg := .Values.args }}
-        - {{ $arg }}
+        - "{{ $arg }}"
         {{- end }}
         {{- range $arg := .Values.provider.packages }}
-        - --provider {{ $arg }}
+        - --provider
+        - "{{ $arg }}"
         {{- end }}
         {{- range $arg := .Values.configuration.packages }}
-        - --configuration {{ $arg }}
-        {{- end }}
+        - --configuration
+        - "{{ $arg }}"
         {{- end }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}
