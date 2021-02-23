@@ -17,6 +17,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 
@@ -25,8 +26,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
+	"github.com/crossplane/crossplane/internal/initializer"
 )
 
 func main() {
@@ -51,6 +54,12 @@ func main() {
 
 	switch cmd {
 	case c.Name:
+		i := initializer.NewInitializer(
+			initializer.NewCoreCRDs("/crds"),
+			initializer.NewLockObject(),
+			initializer.NewPackageInstaller([]string{}, []string{}),
+		)
+		kingpin.FatalIfError(i.Init(context.TODO()), "cannot initialize")
 		kingpin.FatalIfError(c.Run(logging.NewLogrLogger(zl.WithName("crossplane"))), "cannot run crossplane")
 	case r.Name:
 		kingpin.FatalIfError(r.Run(logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
