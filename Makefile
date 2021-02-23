@@ -85,11 +85,16 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds
+generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds gen-install-doc
 	@$(OK) Finished vendoring and generating
 
 
 CRD_DIR = cluster/charts/crossplane/crds
+
+gen-install-doc:
+	@$(INFO) Generating install documentation from Helm chart
+	@head -7 docs/reference/install.md | cat - cluster/charts/crossplane/README.md | tee docs/reference/install.md >/dev/null
+	@$(OK) Successfully generated install documentation
 
 gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
@@ -150,7 +155,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) --debug
 
-.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds
+.PHONY: manifests cobertura reviewable submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds gen-install-doc
 
 # ====================================================================================
 # Special Targets
