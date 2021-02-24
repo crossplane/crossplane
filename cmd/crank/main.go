@@ -48,6 +48,7 @@ var cli struct {
 
 	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
 	Install installCmd `cmd:"" help:"Install Crossplane packages."`
+	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
 	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
 }
 
