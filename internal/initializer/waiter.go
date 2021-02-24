@@ -25,9 +25,9 @@ import (
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 // NewCRDWaiter returns a new *CRDWaiter initializer.
@@ -45,7 +45,7 @@ type CRDWaiter struct {
 
 // Run continuously checks whether the list of CRDs whose names are given are
 // present in the cluster.
-func (cw *CRDWaiter) Run(ctx context.Context, kube resource.ClientApplicator) error {
+func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 	beginning := time.Now()
 	ending := beginning.Add(cw.Timeout)
 	current := beginning

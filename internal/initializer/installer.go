@@ -29,7 +29,16 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
-var replaceSet = map[string]string{"(": "", ":": "", "|": "", "@": "", ")": "", ".": "-", "*": "", "/": "-"}
+var replacer = strings.NewReplacer(
+	"(", "",
+	"|", "",
+	"@", "",
+	")", "",
+	"*", "",
+	":", "-",
+	".", "-",
+	"/", "-",
+)
 
 // NewPackageInstaller returns a new package installer.
 func NewPackageInstaller(p []string, c []string) *PackageInstaller {
@@ -46,7 +55,7 @@ type PackageInstaller struct {
 }
 
 // Run makes sure Lock object exists.
-func (pi *PackageInstaller) Run(ctx context.Context, kube resource.ClientApplicator) error {
+func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	pkgs := make([]client.Object, len(pi.Providers)+len(pi.Configurations))
 	lastIndex := 0
 	for i, img := range pi.Providers {
@@ -76,17 +85,15 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube resource.ClientApplica
 		}
 		pkgs[lastIndex+i+1] = c
 	}
+	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, p := range pkgs {
-		if err := kube.Apply(ctx, p); err != nil {
-			return errors.Wrap(err, "cannot install package")
+		if err := pa.Apply(ctx, p); err != nil {
+			return errors.Wrap(err, "cannot apply package")
 		}
 	}
 	return nil
 }
 
 func cleanUpName(s string) string {
-	for i, o := range replaceSet {
-		s = strings.ReplaceAll(s, i, o)
-	}
-	return strings.TrimSpace(s)
+	return strings.TrimSpace(replacer.Replace(s))
 }

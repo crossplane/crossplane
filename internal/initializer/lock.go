@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
@@ -36,11 +37,11 @@ func NewLockObject() *LockObject {
 type LockObject struct{}
 
 // Run makes sure Lock object exists.
-func (lo *LockObject) Run(ctx context.Context, kube resource.ClientApplicator) error {
+func (lo *LockObject) Run(ctx context.Context, kube client.Client) error {
 	l := &v1alpha1.Lock{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "lock",
 		},
 	}
-	return errors.Wrap(kube.Apply(ctx, l), "cannot apply lock object")
+	return errors.Wrap(resource.NewAPIPatchingApplicator(kube).Apply(ctx, l), "cannot apply lock object")
 }

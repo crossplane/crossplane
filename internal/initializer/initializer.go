@@ -19,20 +19,12 @@ package initializer
 import (
 	"context"
 
-	"github.com/crossplane/crossplane/apis"
-
-	"github.com/pkg/errors"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// NewInitializer returns a new *Initializer.
-func NewInitializer(steps ...Step) *Initializer {
-	return &Initializer{Steps: steps}
+// New returns a new *Initializer.
+func New(kube client.Client, steps ...Step) *Initializer {
+	return &Initializer{kube: kube, steps: steps}
 }
 
 // TODO(muvaf): We will have some options to inject CA Bundles to those CRDs
@@ -40,39 +32,22 @@ func NewInitializer(steps ...Step) *Initializer {
 
 // Step is a blocking step of the initialization process.
 type Step interface {
-	Run(ctx context.Context, kube resource.ClientApplicator) error
+	Run(ctx context.Context, kube client.Client) error
 }
 
 // Initializer makes sure the CRDs Crossplane reconciles are ready to go before
 // starting main Crossplane routines.
 type Initializer struct {
-	Steps []Step
+	steps []Step
+	kube  client.Client
 }
 
 // Init does all operations necessary for controllers and webhooks to work.
 func (c *Initializer) Init(ctx context.Context) error {
-	s := runtime.NewScheme()
-	for _, f := range []func(scheme *runtime.Scheme) error{
-		extv1.AddToScheme,
-		apis.AddToScheme,
-	} {
-		if err := f(s); err != nil {
+	for _, s := range c.steps {
+		if err := s.Run(ctx, c.kube); err != nil {
 			return err
 		}
 	}
-	cl, err := client.New(ctrl.GetConfigOrDie(), client.Options{Scheme: s})
-	if err != nil {
-		return errors.Wrap(err, "cannot create new kubernetes client")
-	}
-	kube := resource.ClientApplicator{
-		Client:     cl,
-		Applicator: resource.NewAPIPatchingApplicator(cl),
-	}
-	for _, s := range c.Steps {
-		if err := s.Run(ctx, kube); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }

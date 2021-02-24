@@ -23,10 +23,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"k8s.io/apimachinery/pkg/util/yaml"
-
 	"github.com/pkg/errors"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
@@ -42,7 +42,7 @@ type CoreCRDs struct {
 }
 
 // Run applies all CRDs in the given directory.
-func (c *CoreCRDs) Run(ctx context.Context, kube resource.ClientApplicator) error { // nolint:gocyclo
+func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolint:gocyclo
 	var crds []*v1.CustomResourceDefinition
 	err := filepath.Walk(c.Path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -78,9 +78,10 @@ func (c *CoreCRDs) Run(ctx context.Context, kube resource.ClientApplicator) erro
 	if err != nil {
 		return errors.Wrap(err, "cannot walk the crds directory")
 	}
+	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, crd := range crds {
-		if err := kube.Apply(ctx, crd); err != nil {
-			return errors.Wrap(err, "cannot create crd")
+		if err := pa.Apply(ctx, crd); err != nil {
+			return errors.Wrap(err, "cannot apply crd")
 		}
 	}
 	return nil

@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"time"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -61,47 +64,49 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 
 // Run core Crossplane controllers.
 func (c *Command) Run(log logging.Logger) error {
-	i := initializer.NewInitializer(
-		initializer.NewCoreCRDs("/crds"),
-		initializer.NewLockObject(),
-		initializer.NewPackageInstaller(c.Providers, c.Configurations),
-	)
-	if err := i.Init(context.TODO()); err != nil {
-		return errors.Wrap(err, "cannot initialize")
+	s := runtime.NewScheme()
+	// Note that the controller managers scheme must be a superset of the
+	// package manager's object scheme; it must contain all object types that
+	// may appear in a Crossplane package. This is because the package manager
+	// uses the controller manager's client (and thus scheme) to create packaged
+	// objects.
+	for _, f := range []func(scheme *runtime.Scheme) error{
+		extv1.AddToScheme,
+		extv1beta1.AddToScheme,
+		apis.AddToScheme,
+	} {
+		if err := f(s); err != nil {
+			return err
+		}
 	}
-
-	log.Debug("Starting", "sync-period", c.Sync.String())
-
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
 	}
 
+	cl, err := client.New(cfg, client.Options{Scheme: s})
+	if err != nil {
+		return errors.Wrap(err, "cannot create new kubernetes client")
+	}
+	i := initializer.New(cl,
+		initializer.NewCoreCRDs("/crds"),
+		initializer.NewLockObject(),
+		initializer.NewPackageInstaller(c.Providers, c.Configurations),
+	)
+	if err := i.Init(context.TODO()); err != nil {
+		return errors.Wrap(err, "cannot initialize core")
+	}
+	log.Debug("Initialization has been completed")
+	log.Debug("Starting", "sync-period", c.Sync.String())
+
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:           s,
 		LeaderElection:   c.LeaderElection,
 		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
 		SyncPeriod:       &c.Sync,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")
-	}
-
-	// Note that the controller managers scheme must be a superset of the
-	// package manager's object scheme; it must contain all object types that
-	// may appear in a Crossplane package. This is because the package manager
-	// uses the controller manager's client (and thus scheme) to create packaged
-	// objects.
-
-	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add CustomResourceDefinition v1 API to scheme")
-	}
-
-	if err := extv1beta1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add CustomResourceDefinition v1beta1 API to scheme")
-	}
-
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
 	}
 
 	if err := apiextensions.Setup(mgr, log); err != nil {

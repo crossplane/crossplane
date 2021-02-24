@@ -21,6 +21,10 @@ import (
 	"fmt"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"k8s.io/apimachinery/pkg/runtime"
+
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -63,43 +67,49 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 
 // Run the RBAC manager.
 func (c *Command) Run(log logging.Logger) error {
+	s := runtime.NewScheme()
+	for _, f := range []func(scheme *runtime.Scheme) error{
+		extv1.AddToScheme,
+		apis.AddToScheme,
+	} {
+		if err := f(s); err != nil {
+			return err
+		}
+	}
+	cfg, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, "cannot get config")
+	}
+	cl, err := client.New(cfg, client.Options{Scheme: s})
+	if err != nil {
+		return errors.Wrap(err, "cannot create new kubernetes client")
+	}
 	// NOTE(muvaf): The plural form of the kind name is not available in Go code.
-	i := initializer.NewInitializer(
+	i := initializer.New(cl,
 		initializer.NewCRDWaiter([]string{
 			fmt.Sprintf("%s.%s", "compositeresourcedefinitions", v1.Group),
 			fmt.Sprintf("%s.%s", "providerrevisions", pkgv1.Group),
 		}, time.Minute, log),
 	)
 	if err := i.Init(context.TODO()); err != nil {
-		return errors.Wrap(err, "cannot initialize")
+		return errors.Wrap(err, "cannot initialize rbac manager")
 	}
+	log.Debug("Initialization has been completed")
 	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
 
-	cfg, err := ctrl.GetConfig()
-	if err != nil {
-		return errors.Wrap(err, "Cannot get config")
-	}
-
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:           s,
 		LeaderElection:   c.LeaderElection,
 		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
 		SyncPeriod:       &c.Sync,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Cannot create manager")
-	}
-
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
-	}
-
-	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add Kubernetes API extensions to scheme")
+		return errors.Wrap(err, "cannot create manager")
 	}
 
 	if err := rbac.Setup(mgr, log, rbac.ManagementPolicy(c.ManagementPolicy), c.ProviderClusterRole); err != nil {
-		return errors.Wrap(err, "Cannot add RBAC controllers to manager")
+		return errors.Wrap(err, "cannot add RBAC controllers to manager")
 	}
 
-	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
+	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "cannot start controller manager")
 }
