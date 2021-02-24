@@ -19,15 +19,13 @@ package initializer
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
-	"github.com/spf13/afero"
-
 	"github.com/pkg/errors"
+	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
@@ -59,7 +57,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 	if err := extv1.AddToScheme(s); err != nil {
 		return errors.Wrap(err, "cannot add crd to scheme")
 	}
-	p := parser.New(nil, s)
+	p := parser.New(runtime.NewScheme(), s)
 	pkg, err := p.Parse(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")

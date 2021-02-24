@@ -19,16 +19,16 @@ package rbac
 import (
 	"context"
 	"fmt"
+
 	"time"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/pkg/errors"
 	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
@@ -67,18 +67,20 @@ func FromKingpin(cmd *kingpin.CmdClause) *Command {
 
 // Run the RBAC manager.
 func (c *Command) Run(log logging.Logger) error {
+	cfg, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, "cannot get config")
+	}
+
 	s := runtime.NewScheme()
 	for _, f := range []func(scheme *runtime.Scheme) error{
+		scheme.AddToScheme,
 		extv1.AddToScheme,
 		apis.AddToScheme,
 	} {
 		if err := f(s); err != nil {
 			return err
 		}
-	}
-	cfg, err := ctrl.GetConfig()
-	if err != nil {
-		return errors.Wrap(err, "cannot get config")
 	}
 	cl, err := client.New(cfg, client.Options{Scheme: s})
 	if err != nil {
@@ -94,9 +96,9 @@ func (c *Command) Run(log logging.Logger) error {
 	if err := i.Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize rbac manager")
 	}
-	log.Debug("Initialization has been completed")
-	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
+	log.Info("Initialization has been completed")
 
+	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:           s,
 		LeaderElection:   c.LeaderElection,

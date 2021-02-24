@@ -78,7 +78,7 @@ case "${1:-}" in
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "upgrading helm package in \"$ns\" namespace"
-    ${HELM3} upgrade --namespace ${ns} ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME} ${HELM3_FLAGS}
+    ${HELM3} upgrade --namespace ${ns} ${PROJECT_NAME} ${projectdir}/cluster/charts/${PROJECT_NAME} ${HELM3_FLAGS} --set image.pullPolicy=Never,imagePullSecrets=''
     ;;
   helm-delete)
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"

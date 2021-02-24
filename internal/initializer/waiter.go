@@ -49,7 +49,7 @@ func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 	beginning := time.Now()
 	ending := beginning.Add(cw.Timeout)
 	current := beginning
-	cw.log.Info(fmt.Sprintf("started waiting for the following CRDs to be present: %v", cw.Names))
+	cw.log.Info(fmt.Sprintf("Started waiting for the following CRDs to be present: %v", cw.Names))
 	for {
 		present := 0
 		for _, n := range cw.Names {
@@ -67,7 +67,7 @@ func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 		if present == len(cw.Names) {
 			return nil
 		}
-		cw.log.Info("waiting another second")
+		cw.log.Info("Waiting for another second")
 		time.Sleep(time.Second * 1)
 		current = current.Add(time.Second * 1)
 		if current.After(ending) {

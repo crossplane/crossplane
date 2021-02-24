@@ -21,15 +21,15 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
@@ -71,6 +71,7 @@ func (c *Command) Run(log logging.Logger) error {
 	// uses the controller manager's client (and thus scheme) to create packaged
 	// objects.
 	for _, f := range []func(scheme *runtime.Scheme) error{
+		scheme.AddToScheme,
 		extv1.AddToScheme,
 		extv1beta1.AddToScheme,
 		apis.AddToScheme,
@@ -96,7 +97,7 @@ func (c *Command) Run(log logging.Logger) error {
 	if err := i.Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
-	log.Debug("Initialization has been completed")
+	log.Info("Initialization has been completed")
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
