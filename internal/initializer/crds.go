@@ -30,13 +30,14 @@ import (
 )
 
 // NewCoreCRDs returns a new *CoreCRDs.
-func NewCoreCRDs(path string) *CoreCRDs {
-	return &CoreCRDs{Path: path}
+func NewCoreCRDs(path string, s *runtime.Scheme) *CoreCRDs {
+	return &CoreCRDs{Path: path, Scheme: s}
 }
 
 // CoreCRDs makes sure the CRDs are installed.
 type CoreCRDs struct {
-	Path string
+	Path   string
+	Scheme *runtime.Scheme
 }
 
 // Run applies all CRDs in the given directory.
@@ -53,11 +54,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 		return errors.Wrap(err, "cannot init filesystem")
 	}
 	defer func() { _ = r.Close() }()
-	s := runtime.NewScheme()
-	if err := extv1.AddToScheme(s); err != nil {
-		return errors.Wrap(err, "cannot add crd to scheme")
-	}
-	p := parser.New(runtime.NewScheme(), s)
+	p := parser.New(runtime.NewScheme(), c.Scheme)
 	pkg, err := p.Parse(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")

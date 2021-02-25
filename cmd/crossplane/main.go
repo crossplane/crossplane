@@ -20,6 +20,13 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/crossplane/crossplane/apis"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/kubernetes/scheme"
+
 	"gopkg.in/alecthomas/kingpin.v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -34,9 +41,8 @@ func main() {
 		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
 		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
 	)
-
-	c := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
-	r := rbac.FromKingpin(app.Command("rbac", "Start Crossplane RBAC Manager controllers."))
+	c, ci := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
+	r, ri := rbac.FromKingpin(app.Command("rbac", "Start Crossplane RBAC Manager controllers."))
 	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
@@ -48,12 +54,26 @@ func main() {
 		// logger when we're running in debug mode.
 		ctrl.SetLogger(zl)
 	}
+	// Note that the controller managers scheme must be a superset of the
+	// package manager's object scheme; it must contain all object types that
+	// may appear in a Crossplane package. This is because the package manager
+	// uses the controller manager's client (and thus scheme) to create packaged
+	// objects.
+	s := runtime.NewScheme()
+	utilruntime.Must(scheme.AddToScheme(s))
+	utilruntime.Must(extv1.AddToScheme(s))
+	utilruntime.Must(extv1beta1.AddToScheme(s))
+	utilruntime.Must(apis.AddToScheme(s))
 
 	switch cmd {
 	case c.Name:
-		kingpin.FatalIfError(c.Run(logging.NewLogrLogger(zl.WithName("crossplane"))), "cannot run crossplane")
+		kingpin.FatalIfError(c.Run(s, logging.NewLogrLogger(zl.WithName("core"))), "cannot run crossplane")
+	case ci.Name:
+		kingpin.FatalIfError(ci.Run(s, logging.NewLogrLogger(zl.WithName("core init"))), "cannot initialize crossplane")
 	case r.Name:
-		kingpin.FatalIfError(r.Run(logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
+		kingpin.FatalIfError(r.Run(s, logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
+	case ri.Name:
+		kingpin.FatalIfError(ri.Run(s, logging.NewLogrLogger(zl.WithName("rbac init"))), "cannot initialize RBAC manager")
 	default:
 		kingpin.FatalUsage("unknown command %s", cmd)
 	}

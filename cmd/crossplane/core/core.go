@@ -17,25 +17,18 @@ limitations under the License.
 package core
 
 import (
-	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/apis"
+
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
-	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -46,64 +39,35 @@ type Command struct {
 	CacheDir       string
 	LeaderElection bool
 	Sync           time.Duration
-	Providers      []string
-	Configurations []string
 }
 
 // FromKingpin produces the core Crossplane command from a Kingpin command.
-func FromKingpin(cmd *kingpin.CmdClause) *Command {
-	c := &Command{Name: cmd.FullCommand()}
+func FromKingpin(cmd *kingpin.CmdClause) (*Command, *InitCommand) {
+	startCmd := cmd.Command("start", "Start Crossplane controllers.")
+	c := &Command{Name: startCmd.FullCommand()}
 	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
-	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").ExistingDirVar(&c.CacheDir)
+	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").StringVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
-	cmd.Flag("provider", "Pre-install a Provider by giving its image URI. This argument can be repeated.").StringsVar(&c.Providers)
-	cmd.Flag("configuration", "Pre-install a Configuration by giving its image URI. This argument can be repeated.").StringsVar(&c.Configurations)
-	return c
+	initCmd := cmd.Command("init", "Make cluster ready for Crossplane controllers.")
+	init := &InitCommand{Name: initCmd.FullCommand()}
+	initCmd.Flag("provider", "Pre-install a Provider by giving its image URI. This argument can be repeated.").StringsVar(&init.Providers)
+	initCmd.Flag("configuration", "Pre-install a Configuration by giving its image URI. This argument can be repeated.").StringsVar(&init.Configurations)
+	return c, init
 }
 
 // Run core Crossplane controllers.
-func (c *Command) Run(log logging.Logger) error {
-	s := runtime.NewScheme()
-	// Note that the controller managers scheme must be a superset of the
-	// package manager's object scheme; it must contain all object types that
-	// may appear in a Crossplane package. This is because the package manager
-	// uses the controller manager's client (and thus scheme) to create packaged
-	// objects.
-	for _, f := range []func(scheme *runtime.Scheme) error{
-		scheme.AddToScheme,
-		extv1.AddToScheme,
-		extv1beta1.AddToScheme,
-		apis.AddToScheme,
-	} {
-		if err := f(s); err != nil {
-			return err
-		}
-	}
+func (c *Command) Run(s *runtime.Scheme, log logging.Logger) error {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
 	}
-
-	cl, err := client.New(cfg, client.Options{Scheme: s})
-	if err != nil {
-		return errors.Wrap(err, "cannot create new kubernetes client")
-	}
-	i := initializer.New(cl,
-		initializer.NewCoreCRDs("/crds"),
-		initializer.NewLockObject(),
-		initializer.NewPackageInstaller(c.Providers, c.Configurations),
-	)
-	if err := i.Init(context.TODO()); err != nil {
-		return errors.Wrap(err, "cannot initialize core")
-	}
-	log.Info("Initialization has been completed")
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
 		Scheme:           s,
 		LeaderElection:   c.LeaderElection,
-		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
+		LeaderElectionID: "crossplane-leader-election-core",
 		SyncPeriod:       &c.Sync,
 	})
 	if err != nil {
