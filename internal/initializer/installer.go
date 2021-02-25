@@ -29,6 +29,10 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
+const (
+	errApplyPackage = "cannot apply package"
+)
+
 var replacer = strings.NewReplacer(
 	"(", "",
 	"|", "",
@@ -88,7 +92,7 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, p := range pkgs {
 		if err := pa.Apply(ctx, p); err != nil {
-			return errors.Wrap(err, "cannot apply package")
+			return errors.Wrap(err, errApplyPackage)
 		}
 	}
 	return nil

@@ -20,18 +20,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/crossplane/crossplane/apis"
+	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
-
-	"gopkg.in/alecthomas/kingpin.v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )

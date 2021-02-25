@@ -54,7 +54,7 @@ func (c *InitCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.NewCRDWaiter([]string{
 			fmt.Sprintf("%s.%s", "compositeresourcedefinitions", v1.Group),
 			fmt.Sprintf("%s.%s", "providerrevisions", pkgv1.Group),
-		}, time.Minute, log),
+		}, time.Minute, time.Second, log),
 	)
 	if err := i.Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")

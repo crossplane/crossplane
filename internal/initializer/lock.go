@@ -28,6 +28,10 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
+const (
+	errApplyLock = "cannot apply lock object"
+)
+
 // NewLockObject returns a new *LockObject initializer.
 func NewLockObject() *LockObject {
 	return &LockObject{}
@@ -43,5 +47,5 @@ func (lo *LockObject) Run(ctx context.Context, kube client.Client) error {
 			Name: "lock",
 		},
 	}
-	return errors.Wrap(resource.NewAPIPatchingApplicator(kube).Apply(ctx, l), "cannot apply lock object")
+	return errors.Wrap(resource.NewAPIPatchingApplicator(kube).Apply(ctx, l), errApplyLock)
 }

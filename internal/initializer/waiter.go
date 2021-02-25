@@ -30,9 +30,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
+const (
+	errGetCRD             = "cannot get crd"
+	errFmtTimeoutExceeded = "%f seconds timeout for waiting CRDs to be ready is exceeded"
+)
+
 // NewCRDWaiter returns a new *CRDWaiter initializer.
-func NewCRDWaiter(names []string, timeout time.Duration, log logging.Logger) *CRDWaiter {
-	return &CRDWaiter{Names: names, Timeout: timeout, log: log}
+func NewCRDWaiter(names []string, timeout time.Duration, period time.Duration, log logging.Logger) *CRDWaiter {
+	return &CRDWaiter{Names: names, Timeout: timeout, Period: period, log: log}
 }
 
 // CRDWaiter blocks the execution until all the CRDs whose names are given are
@@ -40,6 +45,7 @@ func NewCRDWaiter(names []string, timeout time.Duration, log logging.Logger) *CR
 type CRDWaiter struct {
 	Names   []string
 	Timeout time.Duration
+	Period  time.Duration
 	log     logging.Logger
 }
 
@@ -57,7 +63,7 @@ func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 			nn := types.NamespacedName{Name: n}
 			err := kube.Get(ctx, nn, crd)
 			if err != nil && !kerrors.IsNotFound(err) {
-				return err
+				return errors.Wrap(err, errGetCRD)
 			}
 			if kerrors.IsNotFound(err) {
 				break
@@ -67,12 +73,11 @@ func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
 		if present == len(cw.Names) {
 			return nil
 		}
-		cw.log.Info("Waiting for another second")
-		time.Sleep(time.Second * 1)
-		current = current.Add(time.Second * 1)
 		if current.After(ending) {
-			return errors.New("timeout for waiting CRDs to be ready is exceeded")
+			return errors.New(fmt.Sprintf(errFmtTimeoutExceeded, cw.Timeout.Seconds()))
 		}
-
+		current = current.Add(cw.Period)
+		cw.log.Info(fmt.Sprintf("Waiting for another %f seconds", cw.Period.Seconds()))
+		time.Sleep(cw.Period)
 	}
 }
