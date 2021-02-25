@@ -45,14 +45,14 @@ With Crossplane you can:
 
 ## Releases
 
-Currently supported releases, as well as the next upcoming release are listed
+Currently maintained releases, as well as the next upcoming release are listed
 below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release | Current Patch | Support Type | Release Date |    EOL    |
-|:-------:|:-------------:|:------------:|:------------:|:---------:|
-|   v1.0  |     v1.0.0    |      LTS     | Dec 14, 2020 | July 2022 |
-|   v1.1  |    Upcoming   |    Interim   |  Mar 2, 2021 |  May 2021 |
+| Release | Current Patch | Release Date |     EOL     |
+|:-------:|:-------------:|:------------:|:-----------:|
+|   v1.0  |     v1.0.0    | Dec 14, 2020 |  June 2021  |
+|   v1.1  |    Upcoming   |  Mar 2, 2021 | August 2021 |
 
 ## Getting Started
 
