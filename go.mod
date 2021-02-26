@@ -8,7 +8,6 @@ require (
 	github.com/crossplane/crossplane-runtime v0.12.1-0.20210128000612-240e79c8a694
 	github.com/docker/cli v0.0.0-20200915230204-cd8016b6bcc5 // indirect
 	github.com/docker/docker v17.12.0-ce-rc1.0.20200926000217-2617742802f6+incompatible // indirect
-	github.com/go-logr/logr v0.3.0
 	github.com/google/go-cmp v0.5.2
 	github.com/google/go-containerregistry v0.2.1
 	github.com/imdario/mergo v0.3.11

@@ -19,7 +19,6 @@ package rbac
 import (
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -46,8 +45,7 @@ type Cmd struct {
 }
 
 // Run the RBAC manager.
-func (c *Cmd) Run(zl *logr.Logger) error {
-	log := logging.NewLogrLogger((*zl).WithName("rbac"))
+func (c *Cmd) Run(log logging.Logger) error {
 	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
 
 	cfg, err := ctrl.GetConfig()

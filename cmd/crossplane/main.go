@@ -20,20 +20,22 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
-	"github.com/go-logr/logr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
 
 type debugFlag bool
 
-func (d *debugFlag) AfterApply(zl *logr.Logger) error { // nolint:unparam
-	*zl = zap.New(zap.UseDevMode(bool(*d)))
+func (d *debugFlag) AfterApply(ctx *kong.Context) error { // nolint:unparam
+	zl := zap.New(zap.UseDevMode(bool(*d)))
 	if *d {
-		ctrl.SetLogger(*zl)
+		ctx.BindTo(logging.NewLogrLogger(zl.WithName("crossplane")), &cli.Core)
+		ctx.BindTo(logging.NewLogrLogger(zl.WithName("rbac")), &cli.Rbac)
+		ctrl.SetLogger(zl)
 	}
 	return nil
 }
@@ -54,7 +56,8 @@ func main() {
 	ctx := kong.Parse(&cli,
 		kong.Name("crossplane"),
 		kong.Description("An open source multicloud control plane."),
-		kong.Bind(&zl),
+		kong.BindTo(logging.NewLogrLogger(zl.WithName("crossplane")), &cli.Core),
+		kong.BindTo(logging.NewLogrLogger(zl.WithName("rbac")), &cli.Rbac),
 		kong.UsageOnError(),
 		kong.Vars{
 			"rbac_manage_default_var": rbac.ManagementPolicyAll,

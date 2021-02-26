@@ -19,7 +19,6 @@ package core
 import (
 	"time"
 
-	"github.com/go-logr/logr"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -42,8 +41,7 @@ type Cmd struct {
 }
 
 // Run core Crossplane controllers.
-func (c *Cmd) Run(zl *logr.Logger) error {
-	log := logging.NewLogrLogger((*zl).WithName("crossplane"))
+func (c *Cmd) Run(log logging.Logger) error {
 	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	cfg, err := ctrl.GetConfig()
