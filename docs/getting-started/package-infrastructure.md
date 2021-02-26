@@ -1,13 +1,13 @@
 ---
 title: Package Infrastructure
 toc: true
-weight: 5
+weight: 3
 indent: true
 ---
 
 # Package Infrastructure
 
-In a [previous section] we learned that Crossplane can be configured with new
+In the [previous section] we learned that Crossplane can be configured with new
 composite resources (XRs) that are [composed] of other resources, allowing you
 to define and offer resources that group and abstract infrastructure primitives.
 We use two special Crossplane resources to define and configure new XRs and
@@ -29,7 +29,8 @@ creates a connection `Secret` with keys for `username`, `password`, and
 
 ## Create a Configuration Directory
 
-Our configuration will consist of three files:
+We are going to build the same configuration package that we previously
+installed. It will consist of three files:
 
 * `crossplane.yaml` - Metadata about the configuration.
 * `definition.yaml` - The XRD.
@@ -52,6 +53,10 @@ cd crossplane-config
 
 We'll create the aforementioned three files in this directory, then build them
 into a package.
+
+> Note that `definition.yaml` and `composition.yaml` could be created directly
+> in the Crossplane cluster without packaging them into a configuration. This
+> can be useful for testing compositions before pushing them to a registry.
 
 ## Create CompositeResourceDefinition
 
@@ -578,6 +583,12 @@ metadata:
     guide: quickstart
     provider: aws
     vpc: default
+spec:
+  crossplane:
+    version: ">=v1.0.0-0"
+  dependsOn:
+    - provider: crossplane/provider-aws
+      version: ">=v0.14.0"
 ```
 
 ```console
@@ -605,6 +616,12 @@ metadata:
     guide: quickstart
     provider: aws
     vpc: new
+spec:
+  crossplane:
+    version: ">=v1.0.0-0"
+  dependsOn:
+    - provider: crossplane/provider-aws
+      version: ">=v0.14.0"
 ```
 
 ```console
@@ -631,6 +648,12 @@ metadata:
   annotations:
     guide: quickstart
     provider: gcp
+spec:
+  crossplane:
+    version: ">=v1.0.0-0"
+  dependsOn:
+    - provider: crossplane/provider-gcp
+      version: ">=v0.13.0"
 ```
 
 ```console
@@ -657,6 +680,12 @@ metadata:
   annotations:
     guide: quickstart
     provider: azure
+spec:
+  crossplane:
+    version: ">=v1.0.0-0"
+  dependsOn:
+    - provider: crossplane/provider-azure
+      version: ">=v0.13.0"
 ```
 
 ```console
@@ -683,6 +712,12 @@ metadata:
   annotations:
     guide: quickstart
     provider: alibaba
+spec:
+  crossplane:
+    version: ">=v1.0.0-0"
+  dependsOn:
+    - provider: crossplane/provider-alibaba
+      version: ">=v0.4.0"
 ```
 
 ```console
@@ -716,7 +751,7 @@ rm -rf crossplane-config
 
 <!-- Named Links -->
 
-[previous section]: compose-infrastructure.md
+[previous section]: provision-infrastructure.md
 [composed]: ../concepts/composition.md
 [composition]: ../concepts/composition.md
 [Docker Hub]: https://hub.docker.com/
