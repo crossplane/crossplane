@@ -17,6 +17,7 @@ show off [demos] integrating with the projects they work on.
 - [Upgrading to v1.0]
 - [Vault Provider Credential Injection]
 - [Run Applications Using OAM]
+- [Using Managed Resources Directly]
 
 <!-- Named Links -->
 
@@ -27,3 +28,4 @@ show off [demos] integrating with the projects they work on.
 [Upgrading to v1.0]: upgrading-to-v1.0.md
 [Vault Provider Credential Injection]: vault-injection.md
 [Run Applications Using OAM]: oam-applications.md
+[Using Managed Resources Directly]: direct-managed.md
