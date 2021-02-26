@@ -384,7 +384,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(recorder),
-	)}
+	), MaxConcurrentReconciles: maxConcurrency}
 
 	u := &kunstructured.Unstructured{}
 	u.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
