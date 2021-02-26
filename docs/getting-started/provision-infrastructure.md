@@ -1,258 +1,333 @@
 ---
 title: Provision Infrastructure
 toc: true
-weight: 3
+weight: 2
 indent: true
 ---
 
-# Provision Infrastructure
+# Compose Infrastructure
 
-Crossplane allows you to provision infrastructure anywhere using the Kubernetes
-API. Once you have [installed a provider] and [configured your credentials], you
-can create any infrastructure currently supported by the provider. Let's start
-by provisioning a database on your provider of choice.
+In the [last section] we installed packages that extend Kubernetes with
+infrastructure abstractions and used them to provision resources on a cloud
+provider. These abstractions compose managed resources -- Kubernetes custom
+resources that offer a high fidelity representation of an infrastructure
+primitive, like an SQL instance or a firewall rule. Crossplane goes beyond
+simply modelling infrastructure primitives as custom resources - it enables you
+to define new custom resources with schemas of your choosing. We call these
+"composite resources" (XRs).
 
-Each provider below offers their own flavor of a managed database. When you
-install a provider it extends Crossplane by adding support for several "managed
-resources". A managed resource is a cluster-scoped Kubernetes custom resource
-that represents an infrastructure object, such as a database instance.
+XRs are always cluster scoped - they exist outside of any namespace. This allows
+an XR to represent infrastructure that might be consumed from several different
+namespaces. This is often true for VPC networks - an infrastructure operator may
+wish to define a VPC network XR and an SQL instance XR, only the latter of which
+may be managed by application operators. The application operators are
+restricted to their team's namespace, but their SQL instances should all be
+attached to the VPC network that the infrastructure operator manages. Crossplane
+enables scenarios like this  by allowing the infrastructure operator to offer
+their application operators a _composite resource claim_ (XRC). An XRC is a
+namespaced proxy for an XR; the schema of an XRC is identical to that of its
+corresponding XR. When an application operator creates an XRC, a corresponding
+backing XR is created automatically.
+
+We use two special Crossplane resources to define and configure new XRs and
+XRCs:
+
+- A `CompositeResourceDefinition` (XRD) _defines_ a new kind of composite
+  resource, including its schema. An XRD may optionally _offer_ a claim.
+- A `Composition` specifies which resources a composite resource will be
+  composed of, and how they should be configured. You can create multiple
+  `Composition` options for each composite resource.
+
+XRDs and Compositions may be packaged and installed as a _configuration_. A
+configuration is a [package] of composition configuration that can easily be
+installed to Crossplane by creating a declarative `Configuration` resource, or
+by using `kubectl crossplane install configuration`. In the examples below we
+will install a configuration that defines a new `CompositePostgreSQLInstance` XR
+that takes a single `storageGB` parameter, and creates a connection `Secret`
+with keys for `username`, `password`, and `endpoint`. A `Configuration` exists
+for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
+
+## Claim Your Infrastructure
+
+The `Configuration` package we installed in the last section:
+
+- Defines a `CompositePostgreSQLInstance` XR.
+- Offers a `PostgreSQLInstance` claim (XRC) for said XR.
+- Creates a `Composition` that can satisfy our XR.
+
+This means that we can create a `PostgreSQLInstance` XRC in the `default`
+namespace to provision a PostgreSQL instance and all the supporting
+infrastructure (VPCs, firewall rules, resource groups, etc) that it may need!
 
 <ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-<li><a href="#alibaba-tab-1" data-toggle="tab">Alibaba</a></li>
+<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS (Default VPC)</a></li>
+<li><a href="#aws-new-tab-2" data-toggle="tab">AWS (New VPC)</a></li>
+<li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
+<li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
+<li><a href="#alibaba-tab-2" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+<div class="tab-pane fade in active" id="aws-tab-2" markdown="1">
 
-The AWS provider supports provisioning an [RDS] instance via the `RDSInstance`
-managed resource it adds to Crossplane.
-
-```yaml
-apiVersion: database.aws.crossplane.io/v1beta1
-kind: RDSInstance
-metadata:
-  name: rdspostgresql
-spec:
-  forProvider:
-    region: us-east-1
-    dbInstanceClass: db.t2.small
-    masterUsername: masteruser
-    allocatedStorage: 20
-    engine: postgres
-    engineVersion: "9.6"
-    skipFinalSnapshotBeforeDeletion: true
-  writeConnectionSecretToRef:
-    namespace: crossplane-system
-    name: aws-rdspostgresql-conn
-```
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/aws.yaml
-```
-
-Creating the above instance will cause Crossplane to provision an RDS instance
-on AWS. You can view the progress with the following command:
-
-```console
-kubectl get rdsinstance rdspostgresql
-```
-
-When provisioning is complete, you should see `READY: True` in the output. You
-can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
-
-```console
-kubectl describe secret aws-rdspostgresql-conn -n crossplane-system
-```
-
-You can then delete the `RDSInstance`:
-
-```console
-kubectl delete rdsinstance rdspostgresql
-```
-
-</div>
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
-
-The GCP provider supports provisioning a [CloudSQL] instance with the
-`CloudSQLInstance` managed resource it adds to Crossplane.
+> Note that this resource will create an RDS instance using your default VPC,
+> which may or may not allow connections from the internet depending on how it
+> is configured.
 
 ```yaml
-apiVersion: database.gcp.crossplane.io/v1beta1
-kind: CloudSQLInstance
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
 metadata:
-  name: cloudsqlpostgresql
+  name: my-db
+  namespace: default
 spec:
-  forProvider:
-    databaseVersion: POSTGRES_9_6
-    region: us-central1
-    settings:
-      tier: db-custom-1-3840
-      dataDiskType: PD_SSD
-      dataDiskSizeGb: 10
+  parameters:
+    storageGB: 20
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      vpc: default
   writeConnectionSecretToRef:
-    namespace: crossplane-system
-    name: cloudsqlpostgresql-conn
+    name: db-conn
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/gcp.yaml
-```
-
-Creating the above instance will cause Crossplane to provision a CloudSQL
-instance on GCP. You can view the progress with the following command:
-
-```console
-kubectl get cloudsqlinstance cloudsqlpostgresql
-```
-
-When provisioning is complete, you should see `READY: True` in the output. You
-can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
-
-```console
-kubectl describe secret cloudsqlpostgresql-conn -n crossplane-system
-```
-
-You can then delete the `CloudSQLInstance`:
-
-```console
-kubectl delete cloudsqlinstance cloudsqlpostgresql
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
-<div class="tab-pane fade" id="azure-tab-1" markdown="1">
+<div class="tab-pane fade" id="aws-new-tab-2" markdown="1">
 
-The Azure provider supports provisioning an [Azure Database for PostgreSQL]
-instance with the `PostgreSQLServer` managed resource it adds to Crossplane.
-
-> Note: provisioning an Azure Database for PostgreSQL requires the presence of a
-> [Resource Group] in your Azure account. We go ahead and provision a new
-> `ResourceGroup` here in case you do not already have a suitable one in your
-> account.
+> Note that this resource also includes several networking managed resources
+> that are required to provision a publicly available PostgreSQL instance.
+> Composition enables scenarios such as this, as well as far more complex ones.
+> See the [composition] documentation for more information.
 
 ```yaml
-apiVersion: azure.crossplane.io/v1alpha3
-kind: ResourceGroup
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
 metadata:
-  name: sqlserverpostgresql-rg
+  name: my-db
+  namespace: default
 spec:
-  location: West US 2
----
-apiVersion: database.azure.crossplane.io/v1beta1
-kind: PostgreSQLServer
-metadata:
-  name: sqlserverpostgresql
-spec:
-  forProvider:
-    administratorLogin: myadmin
-    resourceGroupNameRef:
-      name: sqlserverpostgresql-rg
-    location: West US 2
-    sslEnforcement: Disabled
-    version: "9.6"
-    sku:
-      tier: GeneralPurpose
-      capacity: 2
-      family: Gen5
-    storageProfile:
-      storageMB: 20480
+  parameters:
+    storageGB: 20
+  compositionSelector:
+    matchLabels:
+      provider: aws
+      vpc: new
   writeConnectionSecretToRef:
-    namespace: crossplane-system
-    name: sqlserverpostgresql-conn
+    name: db-conn
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/azure.yaml
-```
-
-Creating the above instance will cause Crossplane to provision a PostgreSQL
-database instance on Azure. You can view the progress with the following
-command:
-
-```console
-kubectl get postgresqlserver sqlserverpostgresql
-```
-
-When provisioning is complete, you should see `READY: True` in the output. You
-can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
-
-```console
-kubectl describe secret sqlserverpostgresql-conn -n crossplane-system
-```
-
-You can then delete the `PostgreSQLServer`:
-
-```console
-kubectl delete postgresqlserver sqlserverpostgresql
-kubectl delete resourcegroup sqlserverpostgresql-rg
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
-<div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
-
-The Alibaba provider supports provisioning an [ApsaraDB for RDS] instance with
-the `RDSInstance` managed resource it adds to Crossplane.
+<div class="tab-pane fade" id="gcp-tab-2" markdown="1">
 
 ```yaml
-apiVersion: database.alibaba.crossplane.io/v1alpha1
-kind: RDSInstance
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
 metadata:
-  name: rdspostgresql
+  name: my-db
+  namespace: default
 spec:
-  forProvider:
-    engine: PostgreSQL
-    engineVersion: "9.4"
-    dbInstanceClass: rds.pg.s1.small
-    dbInstanceStorageInGB: 20
-    securityIPList: "0.0.0.0/0"
-    masterUsername: "test123"
+  parameters:
+    storageGB: 20
+  compositionSelector:
+    matchLabels:
+      provider: gcp
   writeConnectionSecretToRef:
-    namespace: crossplane-system
-    name: alibaba-rdspostgresql-conn
+    name: db-conn
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/alibaba.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-gcp.yaml
 ```
 
-Creating the above instance will cause Crossplane to provision an RDS instance
-on Alibaba. You can view the progress with the following command:
+</div>
+<div class="tab-pane fade" id="azure-tab-2" markdown="1">
 
-```console
-kubectl get rdsinstance rdspostgresql
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: my-db
+  namespace: default
+spec:
+  parameters:
+    storageGB: 20
+  compositionSelector:
+    matchLabels:
+      provider: azure
+  writeConnectionSecretToRef:
+    name: db-conn
 ```
 
-When provisioning is complete, you should see `READY: True` in the output. You
-can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
-
 ```console
-kubectl describe secret alibaba-rdspostgresql-conn -n crossplane-system
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-azure.yaml
 ```
 
-You can then delete the `RDSInstance`:
+</div>
+<div class="tab-pane fade" id="alibaba-tab-2" markdown="1">
+
+```yaml
+apiVersion: database.example.org/v1alpha1
+kind: PostgreSQLInstance
+metadata:
+  name: my-db
+  namespace: default
+spec:
+  parameters:
+    storageGB: 20
+  compositionSelector:
+    matchLabels:
+      provider: alibaba
+  writeConnectionSecretToRef:
+    name: db-conn
+```
 
 ```console
-kubectl delete rdsinstance rdspostgresql
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-alibaba.yaml
 ```
 
 </div>
 </div>
+
+After creating the `PostgreSQLInstance` Crossplane will begin provisioning a
+database instance on your provider of choice. Once provisioning is complete, you
+should see `READY: True` in the output when you run:
+
+```console
+kubectl get postgresqlinstance my-db
+```
+
+> Note: while waiting for the `PostgreSQLInstance` to become ready, you
+> may want to look at other resources in your cluster. The following commands
+> will allow you to view groups of Crossplane resources:
+>
+> - `kubectl get claim`: get all resources of all claim kinds, like `PostgreSQLInstance`.
+> - `kubectl get composite`: get all resources that are of composite kind, like `CompositePostgreSQLInstance`.
+> - `kubectl get managed`: get all resources that represent a unit of external
+>   infrastructure.
+> - `kubectl get <name-of-provider>`: get all resources related to `<provider>`.
+> - `kubectl get crossplane`: get all resources related to Crossplane.
+
+Try the following command to watch your provisioned resources become ready:
+
+```console
+kubectl get crossplane -l crossplane.io/claim-name=my-db
+```
+
+Once your `PostgreSQLInstance` is ready, you should see a `Secret` in the `default`
+namespace named `db-conn` that contains keys that we defined in XRD. If they were
+filled by the composition, then they should appear:
+
+```console
+$ kubectl describe secrets db-conn
+Name:         db-conn
+Namespace:    default
+...
+
+Type:  connection.crossplane.io/v1alpha1
+
+Data
+====
+password:  27 bytes
+port:      4 bytes
+username:  25 bytes
+endpoint:  45 bytes
+```
+
+## Consume Your Infrastructure
+
+Because connection secrets are written as a Kubernetes `Secret` they can easily
+be consumed by Kubernetes primitives. The most basic building block in
+Kubernetes is the `Pod`. Let's define a `Pod` that will show that we are able to
+connect to our newly provisioned database.
+
+> Note that if you're using a hosted Crossplane you'll need to copy the db-conn
+> connection secret over to your own Kubernetes cluster and run this pod there.
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: see-db
+  namespace: default
+spec:
+  containers:
+  - name: see-db
+    image: postgres:9.6
+    command: ['psql']
+    args: ['-c', 'SELECT current_database();']
+    env:
+    - name: PGDATABASE
+      value: postgres
+    - name: PGHOST
+      valueFrom:
+        secretKeyRef:
+          name: db-conn
+          key: endpoint
+    - name: PGUSER
+      valueFrom:
+        secretKeyRef:
+          name: db-conn
+          key: username
+    - name: PGPASSWORD
+      valueFrom:
+        secretKeyRef:
+          name: db-conn
+          key: password
+    - name: PGPORT
+      valueFrom:
+        secretKeyRef:
+          name: db-conn
+          key: port
+```
+
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/pod.yaml
+```
+
+This `Pod` simply connects to a PostgreSQL database and prints its name, so you
+should see the following output (or similar) after creating it if you run
+`kubectl logs see-db`:
+
+```SQL
+ current_database
+------------------
+ postgres
+(1 row)
+```
+
+## Clean Up
+
+To clean up the `Pod`, run:
+
+```console
+kubectl delete pod see-db
+```
+
+To clean up the infrastructure that was provisioned, you can delete the
+`PostgreSQLInstance` XRC:
+
+```console
+kubectl delete postgresqlinstance my-db
+```
 
 ## Next Steps
 
-Now that you have seen how to provision individual managed resources, let's take
-a look at how we can compose several managed resources into new resources with
-APIs of our choosing in the [next section].
+Now you have seen how to provision and consume complex infrastructure via
+composition. In the [next section] you will learn how compose and package your
+own infrastructure APIs.
 
 <!-- Named Links -->
 
-[installed a provider]: install-configure.md
-[configured your credentials]: install-configure.md
-[RDS]: https://aws.amazon.com/rds/
-[CloudSQL]: https://cloud.google.com/sql
-[Azure Database for PostgreSQL]: https://azure.microsoft.com/en-us/services/postgresql/
-[Resource Group]: https://docs.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal#what-is-a-resource-group
-[ApsaraDB for RDS]: https://www.alibabacloud.com/product/apsaradb-for-rds-postgresql
-[next section]: compose-infrastructure.md
+[last section]: install-configure.md
+[composition]: ../concepts/composition.md
+[package]: ../concepts/packages.md
+[setup]: install-configure.md
+[next section]: package-infrastructure.md
