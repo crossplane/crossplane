@@ -201,29 +201,31 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 </div>
 </div>
 
-## Select Provider
+## Select a Getting Started Configuration
 
-Now from your terminal, install and configure a provider for Crossplane to use
-for infrastructure provisioning:
+Now from your terminal, install and configure one of the example `Configuration`
+packages:
+
 <ul class="nav nav-tabs">
-<li class="active"><a href="#provider-tab-aws" data-toggle="tab">AWS</a></li>
-<li><a href="#provider-tab-gcp" data-toggle="tab">GCP</a></li>
-<li><a href="#provider-tab-azure" data-toggle="tab">Azure</a></li>
-<li><a href="#provider-tab-alibaba" data-toggle="tab">Alibaba</a></li>
+<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
+<li><a href="#aws-new-tab-1" data-toggle="tab">AWS (New VPC)</a></li>
+<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
+<li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
+<li><a href="#alibaba-tab-1" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
-<div class="tab-pane fade in active" id="provider-tab-aws" markdown="1">
+<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
 
-### Install AWS Provider
+### Install Configuration Package
 
 ```console
-kubectl crossplane install provider crossplane/provider-aws:v0.16.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:latest
 ```
 
-Wait until the provider becomes healthy:
+Wait until all packages become healthy:
 ```
-kubectl get provider.pkg --watch
+kubectl get pkg --watch
 ```
 
 ### Get AWS Account Keyfile
@@ -263,17 +265,67 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ```
 
 </div>
-<div class="tab-pane fade" id="provider-tab-gcp" markdown="1">
+<div class="tab-pane fade" id="aws-new-tab-1" markdown="1">
 
-### Install GCP Provider
+### Install Configuration Package
 
 ```console
-kubectl crossplane install provider crossplane/provider-gcp:v0.14.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:latest
 ```
 
-Wait until the provider becomes healthy:
+Wait until all packages become healthy:
 ```
-kubectl get provider.pkg --watch
+kubectl get pkg --watch
+```
+
+### Get AWS Account Keyfile
+
+Using an AWS account with permissions to manage RDS databases:
+
+```console
+AWS_PROFILE=default && echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $AWS_PROFILE)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $AWS_PROFILE)" > creds.conf
+```
+
+### Create a Provider Secret
+
+```console
+kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./creds.conf
+```
+
+### Configure the Provider
+
+We will create the following `ProviderConfig` object to configure credentials
+for AWS Provider:
+
+```yaml
+apiVersion: aws.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-creds
+      key: key
+```
+```console
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+```
+
+</div>
+<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+
+### Install Configuration Package
+
+```console
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:latest
+```
+
+Wait until all packages become healthy:
+```
+kubectl get pkg --watch
 ```
 
 ### Get GCP Account Keyfile
@@ -329,17 +381,17 @@ spec:
 ```
 
 </div>
-<div class="tab-pane fade" id="provider-tab-azure" markdown="1">
+<div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
-### Install Azure Provider
+### Install Configuration Package
 
 ```console
-kubectl crossplane install provider crossplane/provider-azure:v0.14.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:latest
 ```
 
-Wait until the provider becomes healthy:
+Wait until all packages become healthy:
 ```
-kubectl get provider.pkg --watch
+kubectl get pkg --watch
 ```
 
 ### Get Azure Principal Keyfile
@@ -394,17 +446,17 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 ```
 
 </div>
-<div class="tab-pane fade" id="provider-tab-alibaba" markdown="1">
+<div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
-### Install Alibaba Provider
+### Install Configuration Package
 
 ```console
-kubectl crossplane install provider crossplane/provider-alibaba:v0.5.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:latest
 ```
 
-Wait until the provider becomes healthy:
+Wait until all packages become healthy:
 ```
-kubectl get provider.pkg --watch
+kubectl get pkg --watch
 ```
 
 ### Create a Provider Secret
@@ -444,63 +496,25 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ## Next Steps
 
-Now that you have a provider configured, you can [provision infrastructure].
+Now that you have extended the Kubernetes API, you can [provision infrastructure].
 
 ## More Info
 
 See [Install] and [Configure] docs for installing alternate versions and more
 detailed instructions.
 
-## Uninstall Provider
-
-Let's check whether there are any managed resources before deleting the
-provider.
-
-```console
-kubectl get managed
-```
-
-If there are any, please delete them first, so you don't lose the track of them.
-Then delete all the `ProviderConfig`s you created. An example command if you used
-AWS Provider:
-```
-kubectl delete providerconfig.aws --all
-```
-
-List installed providers:
-```console
-kubectl get provider.pkg
-```
-
-Delete the one you want to delete:
-```
-kubectl delete provider.pkg <provider-name>
-```
-
-## Uninstall Crossplane
-
-```console
-helm delete crossplane --namespace crossplane-system
-
-kubectl delete namespace crossplane-system
-```
-
-Helm does not delete CRD objects. You can delete the ones Crossplane created with
-the following commands:
-```
-kubectl patch lock lock -p '{"metadata":{"finalizers": []}}' --type=merge
-kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
-```
+See [Uninstall] docs for cleaning up resources, packages, and Crossplane itself.
 
 <!-- Named Links -->
 
-[provision infrastructure]: provision-infrastructure.md 
-[Install]: ../reference/install.md 
-[Configure]: ../reference/configure.md 
-[Kubernetes cluster]: https://kubernetes.io/docs/setup/ 
-[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/ 
-[Helm]:https://docs.helm.sh/using_helm/ 
-[Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/ 
-[Crossplane packages]: ../concepts/packages.md 
+[provision infrastructure]: provision-infrastructure.md
+[Install]: ../reference/install.md
+[Configure]: ../reference/configure.md
+[Uninstall]: ../reference/uninstall.md
+[Kubernetes cluster]: https://kubernetes.io/docs/setup/
+[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
+[Helm]:https://docs.helm.sh/using_helm/
+[Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/
+[Crossplane packages]: ../concepts/packages.md
 [Slack]: http://slack.crossplane.io/
 [Upbound Cloud]: https://upbound.io
