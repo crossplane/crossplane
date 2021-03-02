@@ -203,8 +203,30 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 
 ## Select a Getting Started Configuration
 
-Now from your terminal, install and configure one of the example `Configuration`
-packages:
+Crossplane goes beyond simply modelling infrastructure primitives as custom
+resources - it enables you to define new custom resources with schemas of your
+choosing. We call these "composite resources" (XRs). Composite resources compose
+managed resources -- Kubernetes custom resources that offer a high fidelity
+representation of an infrastructure primitive, like an SQL instance or a
+firewall rule.
+
+We use two special Crossplane resources to define and configure these new custom
+resources:
+
+- A `CompositeResourceDefinition` (XRD) _defines_ a new kind of composite
+  resource, including its schema. An XRD may optionally _offer_ a claim (XRC).
+- A `Composition` specifies which resources a composite resource will be
+  composed of, and how they should be configured. You can create multiple
+  `Composition` options for each composite resource.
+
+XRDs and Compositions may be packaged and installed as a _configuration_. A
+configuration is a [package] of composition configuration that can easily be
+installed to Crossplane by creating a declarative `Configuration` resource, or
+by using `kubectl crossplane install configuration`. In the examples below we
+will install a configuration that defines a new `CompositePostgreSQLInstance` XR
+that takes a single `storageGB` parameter, and creates a connection `Secret`
+with keys for `username`, `password`, and `endpoint`. A `Configuration` exists
+for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
@@ -239,7 +261,7 @@ AWS_PROFILE=default && echo -e "[default]\naws_access_key_id = $(aws configure g
 ### Create a Provider Secret
 
 ```console
-kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./creds.conf
+kubectl create secret generic aws-creds -n crossplane-system --from-file=creds=./creds.conf
 ```
 
 ### Configure the Provider
@@ -258,7 +280,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: aws-creds
-      key: key
+      key: creds
 ```
 ```console
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
@@ -289,7 +311,7 @@ AWS_PROFILE=default && echo -e "[default]\naws_access_key_id = $(aws configure g
 ### Create a Provider Secret
 
 ```console
-kubectl create secret generic aws-creds -n crossplane-system --from-file=key=./creds.conf
+kubectl create secret generic aws-creds -n crossplane-system --from-file=creds=./creds.conf
 ```
 
 ### Configure the Provider
@@ -308,7 +330,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: aws-creds
-      key: key
+      key: creds
 ```
 ```console
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
@@ -355,7 +377,7 @@ gcloud iam service-accounts keys create creds.json --project $PROJECT_ID --iam-a
 ### Create a Provider Secret
 
 ```console
-kubectl create secret generic gcp-creds -n crossplane-system --from-file=key=./creds.json
+kubectl create secret generic gcp-creds -n crossplane-system --from-file=creds=./creds.json
 ```
 
 ### Configure the Provider
@@ -377,7 +399,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: gcp-creds
-      key: key" | kubectl apply -f -
+      key: creds" | kubectl apply -f -
 ```
 
 </div>
@@ -420,7 +442,7 @@ az ad app permission admin-consent --id "${AZURE_CLIENT_ID}"
 ### Create a Provider Secret
 
 ```console
-kubectl create secret generic azure-creds -n crossplane-system --from-file=key=./creds.json
+kubectl create secret generic azure-creds -n crossplane-system --from-file=creds=./creds.json
 ```
 
 ### Configure the Provider
@@ -439,7 +461,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: azure-creds
-      key: key
+      key: creds
 ```
 ```console
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
@@ -496,7 +518,8 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ## Next Steps
 
-Now that you have extended the Kubernetes API, you can [provision infrastructure].
+Now that you have configured Crossplane with support for `PostgreSQLInstance`,
+you can [provision infrastructure].
 
 ## More Info
 
@@ -507,6 +530,7 @@ See [Uninstall] docs for cleaning up resources, packages, and Crossplane itself.
 
 <!-- Named Links -->
 
+[package]: ../concepts/packages.md
 [provision infrastructure]: provision-infrastructure.md
 [Install]: ../reference/install.md
 [Configure]: ../reference/configure.md
