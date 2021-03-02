@@ -240,6 +240,10 @@ for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 
 ### Install Configuration Package
 
+> If you prefer to see the contents of this configuration package and how it is
+> constructed prior to install, skip ahead to the [create a configuration]
+> section.
+
 ```console
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:latest
 ```
@@ -290,6 +294,10 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 
 ### Install Configuration Package
 
+> If you prefer to see the contents of this configuration package and how it is
+> constructed prior to install, skip ahead to the [create a configuration]
+> section.
+
 ```console
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:latest
 ```
@@ -339,6 +347,10 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
 ### Install Configuration Package
+
+> If you prefer to see the contents of this configuration package and how it is
+> constructed prior to install, skip ahead to the [create a configuration]
+> section.
 
 ```console
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:latest
@@ -405,6 +417,10 @@ spec:
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
 ### Install Configuration Package
+
+> If you prefer to see the contents of this configuration package and how it is
+> constructed prior to install, skip ahead to the [create a configuration]
+> section.
 
 ```console
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:latest
@@ -485,6 +501,7 @@ See [Uninstall] docs for cleaning up resources, packages, and Crossplane itself.
 
 [package]: ../concepts/packages.md
 [provision infrastructure]: provision-infrastructure.md
+[create a configuration]: create-configuration.md
 [Install]: ../reference/install.md
 [Configure]: ../reference/configure.md
 [Uninstall]: ../reference/uninstall.md
