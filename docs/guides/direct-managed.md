@@ -10,14 +10,19 @@ indent: true
 Crossplane allows you to provision infrastructure anywhere using the Kubernetes
 API. While users are encouraged to make use of [composition] to expose
 infrastructure resources, you may opt to use managed resources directly. Once
-you have [installed a provider] and [configured your credentials], you can create
-any infrastructure currently supported by the provider. Let's start by
+you have [installed a provider] and [configured your credentials], you can
+create any infrastructure currently supported by the provider. Let's start by
 provisioning a database on your provider of choice.
 
 Each provider below offers their own flavor of a managed database. When you
 install a provider it extends Crossplane by adding support for several "managed
 resources". A managed resource is a cluster-scoped Kubernetes custom resource
-that represents an infrastructure object, such as a database instance.
+that represents an infrastructure object, such as a database instance. Managed
+resources are cluster-scoped because they are only intended to be used directly
+when an infrastructure admin is creating a single resource that is intended to
+be shared across teams and namespaces. Infrastructure consumers, such as
+application teams, are expected to _always_ provision and interact with
+infrastructure via claims (XRCs).
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
