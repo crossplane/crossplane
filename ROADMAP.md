@@ -7,10 +7,11 @@ Any dates listed below and the specific issues that will ship in a given milesto
 ## Table of Contents
 
 * [What's next](#whats-next)
-  * [v1.1.0 Provider Code Generation, Multi-Language Support, Composition Enhancements](#v110-provider-code-generation-multi-language-support-composition-enhancements)
+  * [v1.2.0 More cloud services, pluggable webhooks, enhanced back-off support](#v120-more-cloud-services-pluggable-webhooks-enhanced-back-off-support)
   * [Under Consideration](#under-consideration)
 
 * [Released](#released)
+  * [v1.1.0 Composition enhancements, provider code gen, security, and rate limiting](#v110-composition-enhancements-provider-code-gen-security-and-rate-limiting)
   * [v1.0.0 Stable v1 APIs, package dep resolution, Prom metrics, and more](#v100-stable-v1-apis-package-dep-resolution-prom-metrics-and-more)
   * [v0.14.0 Hardening, robustness, v1beta1 APIs in core](#v0140-hardening-robustness-v1beta1-apis-in-core) 
   * [v0.13.0 Paving the way for a v1.0 release of Crossplane](#v0130-paving-the-way-for-a-v10-release-of-crossplane)
@@ -29,44 +30,41 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 ## What's Next
 
-### v1.1.0 Provider Code Generation, Multi-Language Support, Composition Enhancements
+### v1.2.0 More cloud services, pluggable webhooks, enhanced back-off support
 
 * General
-  * First-class multi-language support for defining `Compositions` and `Configuration` packages.
-    * https://github.com/crossplane-contrib/crossplane-cdk8s
-    * enhancements and community feedback
-  * Managed resources can accept an array of resource references for cross-resource references (CRR)
-
-* Composition
-  * Bi-directional patching for status [#1639](https://github.com/crossplane/crossplane/issues/1639)
-  * Revision support for incremental upgrades [#1481](https://github.com/crossplane/crossplane/issues/1481)
-  * Support taking values from members to fill a connection secret [#1609](https://github.com/crossplane/crossplane/issues/1609)
+  * Pluggable webhooks support [#1152](https://github.com/crossplane/crossplane/issues/1152)
+  * Enhanced back-off across core controllers [#2157](https://github.com/crossplane/crossplane/issues/2157)
+  * Enhanced integration testing [#1033](https://github.com/crossplane/crossplane/issues/1033)
 
 * Providers
+  * AWS Bucket Late Init support [provider-aws#536](https://github.com/crossplane/provider-aws/pull/536)
   * Code Generation of Providers (towards 100% coverage)
     * AWS ACK Code Generation of the Crossplane provider-aws
-      * auto generate all available types that ACK supports from [aws-sdk-go/models/apis](https://github.com/aws/aws-sdk-go/blob/master/models/apis)
+      * support additional resources from [aws-sdk-go/models/apis](https://github.com/aws/aws-sdk-go/blob/master/models/apis)
+      * RDS DBCluster [provider-aws#546](https://github.com/crossplane/provider-aws/pull/546)
+      * SNS services [provider-aws#451](https://github.com/crossplane/provider-aws/issues/451)
+      * Generate reference and selector fields [provider-aws#484](https://github.com/crossplane/provider-aws/issues/484)
+      * Generate late-init function [provider-aws#491](https://github.com/crossplane/provider-aws/issues/491)
+      * Generate is-up-to-date function [provider-aws#490](https://github.com/crossplane/provider-aws/issues/490)
     * Azure Code Generation of the Crossplane provider-azure
       * auto generate available types from the Azure metadata
     * Clouds that don't have code gen pipelines
       * Wrap stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
 
-* Package Manager
-  * Conversion webhooks to support installing multiple API versions at the same time
-
 ### Under Consideration
 
 * General
-  * First-class multi-language support for defining `Compositions` and `Configuration` packages.
-    * https://github.com/crossplane-contrib/crossplane-cdk8s
-    * alpha release
-  * Per-namespace mapping of IRSA and workload identity for finer grained infra permissions in multi-tenant clusters
-  * Enhanced integration testing [#1033](https://github.com/crossplane/crossplane/issues/1033)
+  * Observe-only Crossplane resources (e.g. VPC, Subnet) for use in Compositions - [#1772](https://github.com/crossplane/crossplane/issues/1722)
+  * Iterate on and formalize the Crossplane Resource Model (XRM) [#2068](https://github.com/crossplane/crossplane/issues/2068)
+  * Managed resources can accept an array of resource references for cross-resource references (CRR)
+  * Per-namespace mapping of IRSA and workload identity for finer grained infra permissions in multi-tenant clusters [#2116](https://github.com/crossplane/crossplane/issues/2116)
+  * First-class multi-language support for defining `Compositions` and `Configuration` packages [#1955](https://github.com/crossplane/crossplane/issues/1955)
 
 * Composition
-  * Validation webhooks
-  * Additional conversion strategies for XRDs with multiple version of an XR defined
+  * Revision support for incremental upgrades [#1481](https://github.com/crossplane/crossplane/issues/1481)
   * `CustomComposition` support for use with cdk8s sidecar, TYY, and others [#1678](https://github.com/crossplane/crossplane/issues/1678)
+  * Additional conversion strategies for XRDs with multiple version of an XR defined
 
 * Package Manager
   * Conversion webhooks to support installing multiple API versions at the same time
@@ -77,29 +75,58 @@ Any dates listed below and the specific issues that will ship in a given milesto
       * auto generate all available types in the [aws-sdk-go/models/apis](https://github.com/aws/aws-sdk-go/blob/master/models/apis)
     * Azure Code Generation of the Crossplane provider-azure
       * auto generate all available types from the Azure metadata.
+      * Proposal for alignment with ASO's deployment management scheme [provider-azure#193](https://github.com/crossplane/provider-azure/issues/193)
+    * GCP Provider
+      * Explore code generation of a native Crossplane provider-gcp
     * Clouds that don't have code gen pipelines
       * Wrap stateless Terraform providers [#262](https://github.com/crossplane/crossplane/issues/262)
+      * VMWare vSphere Provider (v1alpha1)
+        * using codegen & stateless Terraform Providers
+        * https://github.com/crossplane-contrib/provider-terraform-vsphere
 
-  * GCP Provider
-    * Explore code generation of a native Crossplane provider-gcp
     * GCP: DNS, SSL, and Ingress support #1123 [#1123](https://github.com/crossplane/crossplane/issues/1123)
     * GCP storage buckets to v1beta1 [crossplane/provider-gcp#130](https://github.com/crossplane/provider-gcp/issues/130)
 
-  * Expanded Rook support
-    * Support additional Rook storage providers
-    * Install & configure Rook into a target cluster
-
   * Additional providers being incubated in https://github.com/crossplane-contrib
 
-* GitLab Auto DevOps Phase 2 - provision managed services from GitLab pipelines
+* GitLab Integration with Crossplane v1.0+
   * Currently the auto deploy app only supports PostgreSQL DBs
   * Support additional managed services from GitLab ADO pipelines
   * Add support for MySQL, Redis, Buckets, and more.
+  * Upgrade to Crossplane v1.0+ with XRDs & Compositions with default cloud service catalogs
 
 * Ease-of-use and improved experience
   * Standalone mode allowing Crossplane to run in a single container or process [#274](https://github.com/crossplane/crossplane/issues/274)
 
 ## Released
+
+### v1.1.0 Composition enhancements, provider code gen, security, and rate limiting
+
+* General
+  * Support Fs and Env ProviderConfig credential sources [crossplane-runtime#236](https://github.com/crossplane/crossplane-runtime/issues/236), [#2070](https://github.com/crossplane/crossplane/issues/2070) 
+    * AWS [provider-aws#518](https://github.com/crossplane/provider-aws/pull/518)
+    * Azure [provider-azure#218](https://github.com/crossplane/provider-azure/pull/218)
+    * GCP [provider-gcp#301](https://github.com/crossplane/provider-gcp/pull/301)
+  * [Guide for using Vault for Provider credentials](https://crossplane.io/docs/master/guides/vault-injection.html)
+  * Rate limiting support in the `ManagedReconciler` [#40](https://github.com/crossplane/crossplane-runtime/issues/40) - see related [blog post](https://danielmangum.com/posts/controller-runtime-client-go-rate-limiting/)
+
+* Composition
+  * Bi-directional patching for status [#1639](https://github.com/crossplane/crossplane/issues/1639)
+  * Support taking values from members to fill a connection secret [#1609](https://github.com/crossplane/crossplane/issues/1609)
+  * Support for required `fromFieldPath` patches [#2094](https://github.com/crossplane/crossplane/issues/2094)
+  * Support for reordering resources in a Composition template [#1909](https://github.com/crossplane/crossplane/issues/1909)
+  * Deduplicate repeated patches via new `patchSets` field [#1972](https://github.com/crossplane/crossplane/issues/1972)
+
+* Providers
+  * AWS networking and VPC resources to v1beta1 [provider-aws#145](https://github.com/crossplane/provider-aws/issues/145)
+  * AWS tag update support for IAMRoles [#2118](https://github.com/crossplane/crossplane/issues/2118)
+  * AWS code generation of Crossplane Provider resources using the AWS Go Code Generation Pipeline:
+    * [Code Generation Guide](https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md)
+    * [Generate Crossplane resources for all services available in ACK - with v1alpha1 support](https://github.com/crossplane/crossplane/issues/1980)
+    * [AWS Secrets Manager](https://github.com/crossplane/provider-aws/pull/469) is now code generated from the ACK codegen pipeline
+    * Replace hooks.go with `Update` functionality [provider-aws#483](https://github.com/crossplane/provider-aws/issues/483)
+    * Support alternate names for `ReadMany` target `.Items` [provider-aws#492](https://github.com/crossplane/provider-aws/issues/492)
+  * [VMWare vSphere Provider (Experimental)](https://github.com/crossplane-contrib/provider-terraform-vsphere) - using codegen & stateless Terraform Providers
 
 ### v1.0.0 Stable v1 APIs, package dep resolution, Prom metrics, and more
 
@@ -110,6 +137,8 @@ Any dates listed below and the specific issues that will ship in a given milesto
 
 * Composition
   * Claim update propagation to its underlying composite resource [#1649](https://github.com/crossplane/crossplane/issues/1649)
+  * Experimental `CustomComposition` [#1995](https://github.com/crossplane/crossplane/issues/1995)
+    * See example: https://github.com/eladb/cdk8s-operator/pull/16
 
 * Package Manager
   * Basic dependency resolution for packages [#1842](https://github.com/crossplane/crossplane/issues/1842)
@@ -131,6 +160,8 @@ Any dates listed below and the specific issues that will ship in a given milesto
         * https://github.com/crossplane-contrib/provider-terraform-aws
         * https://github.com/crossplane-contrib/terraform-runtime
         * https://github.com/crossplane-contrib/terraform-provider-gen
+
+* Experimental cdk8s support: https://github.com/crossplane-contrib/crossplane-cdk8s
 
 ### [v0.14.0 Hardening, robustness, v1beta1 APIs in core](https://github.com/crossplane/crossplane/releases/tag/v0.14.0)
 
