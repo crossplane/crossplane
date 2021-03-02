@@ -28,7 +28,6 @@ infrastructure via claims (XRCs).
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
 <li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-<li><a href="#alibaba-tab-1" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -194,54 +193,6 @@ You can then delete the `PostgreSQLServer`:
 ```console
 kubectl delete postgresqlserver sqlserverpostgresql
 kubectl delete resourcegroup sqlserverpostgresql-rg
-```
-
-</div>
-<div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
-
-The Alibaba provider supports provisioning an [ApsaraDB for RDS] instance with
-the `RDSInstance` managed resource it adds to Crossplane.
-
-```yaml
-apiVersion: database.alibaba.crossplane.io/v1alpha1
-kind: RDSInstance
-metadata:
-  name: rdspostgresql
-spec:
-  forProvider:
-    engine: PostgreSQL
-    engineVersion: "9.4"
-    dbInstanceClass: rds.pg.s1.small
-    dbInstanceStorageInGB: 20
-    securityIPList: "0.0.0.0/0"
-    masterUsername: "test123"
-  writeConnectionSecretToRef:
-    namespace: crossplane-system
-    name: alibaba-rdspostgresql-conn
-```
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/alibaba.yaml
-```
-
-Creating the above instance will cause Crossplane to provision an RDS instance
-on Alibaba. You can view the progress with the following command:
-
-```console
-kubectl get rdsinstance rdspostgresql
-```
-
-When provisioning is complete, you should see `READY: True` in the output. You
-can take a look at its connection secret that is referenced under `spec.writeConnectionSecretToRef`:
-
-```console
-kubectl describe secret alibaba-rdspostgresql-conn -n crossplane-system
-```
-
-You can then delete the `RDSInstance`:
-
-```console
-kubectl delete rdsinstance rdspostgresql
 ```
 
 </div>

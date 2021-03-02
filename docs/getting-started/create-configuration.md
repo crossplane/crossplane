@@ -112,7 +112,6 @@ instance on the chosen provider.
 <li><a href="#aws-new-tab-2" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
-<li><a href="#alibaba-tab-2" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -556,7 +555,6 @@ so that Crossplane users may install it.
 <li><a href="#aws-new-tab-3" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-3" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-3" data-toggle="tab">Azure</a></li>
-<li><a href="#alibaba-tab-3" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -684,38 +682,6 @@ REG=my-package-repo
 
 kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
-```
-
-> Note that the Crossplane CLI will not follow symbolic links for files in the
-> root package directory.
-
-</div>
-<div class="tab-pane fade" id="alibaba-tab-3" markdown="1">
-
-```yaml
-apiVersion: meta.pkg.crossplane.io/v1
-kind: Configuration
-metadata:
-  name: getting-started-with-alibaba
-  annotations:
-    guide: quickstart
-    provider: alibaba
-spec:
-  crossplane:
-    version: ">=v1.0.0-0"
-  dependsOn:
-    - provider: crossplane/provider-alibaba
-      version: ">=v0.4.0"
-```
-
-```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/alibaba/crossplane.yaml
-
-# Set this to the Docker Hub username or OCI registry you wish to use.
-REG=my-package-repo
-
-kubectl crossplane build configuration
-kubectl crossplane push configuration ${REG}/getting-started-with-alibaba:master
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
