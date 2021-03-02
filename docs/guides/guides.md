@@ -14,7 +14,7 @@ where Crossplane maintainers welcome guests from the cloud-native community and
 show off [demos] integrating with the projects they work on.
 
 - [Upgrading to v0.14]
-- [Upgrading to v1.0]
+- [Upgrading to v1.x]
 - [Vault Provider Credential Injection]
 - [Run Applications Using OAM]
 - [Using Managed Resources Directly]
@@ -25,7 +25,7 @@ show off [demos] integrating with the projects they work on.
 [The Binding Status]: https://youtube.com/playlist?list=PL510POnNVaaYFuK-B_SIUrpIonCtLVOzT
 [demos]: https://github.com/crossplane/tbs
 [Upgrading to v0.14]: upgrading-to-v0.14.md
-[Upgrading to v1.0]: upgrading-to-v1.0.md
+[Upgrading to v1.x]: upgrading-to-v1.x.md
 [Vault Provider Credential Injection]: vault-injection.md
 [Run Applications Using OAM]: oam-applications.md
 [Using Managed Resources Directly]: direct-managed.md
