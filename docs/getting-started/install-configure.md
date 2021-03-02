@@ -233,7 +233,6 @@ for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 <li><a href="#aws-new-tab-1" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-<li><a href="#alibaba-tab-1" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -465,52 +464,6 @@ spec:
 ```
 ```console
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
-```
-
-</div>
-<div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
-
-### Install Configuration Package
-
-```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:latest
-```
-
-Wait until all packages become healthy:
-```
-kubectl get pkg --watch
-```
-
-### Create a Provider Secret
-
-```console
-# Replace <your-key> and <your-secret> with your actual key id and key secret.
-kubectl create secret generic alibaba-creds --from-literal=accessKeyId=<your-key> --from-literal=accessKeySecret=<your-secret> -n crossplane-system
-```
-
-### Configure the Provider
-
-We will create the following `ProviderConfig` object to configure credentials
-for Alibaba Provider:
-
-```yaml
-apiVersion: alibaba.crossplane.io/v1alpha1
-kind: ProviderConfig
-metadata:
-  name: default
-spec:
-  region: cn-beijing
-  credentials:
-    source: Secret
-    secretRef:
-      namespace: crossplane-system
-      name: alibaba-creds
-      # "key" field does not have any effect right now but it has to be given.
-      # See https://github.com/crossplane/crossplane-runtime/issues/215
-      key: credentials 
-```
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/alibaba/providerconfig.yaml
 ```
 
 </div>

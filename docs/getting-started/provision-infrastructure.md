@@ -37,7 +37,6 @@ infrastructure (VPCs, firewall rules, resource groups, etc) that it may need!
 <li><a href="#aws-new-tab-2" data-toggle="tab">AWS (New VPC)</a></li>
 <li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
 <li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
-<li><a href="#alibaba-tab-2" data-toggle="tab">Alibaba</a></li>
 </ul>
 <br>
 <div class="tab-content">
@@ -141,29 +140,6 @@ spec:
 
 ```console
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-azure.yaml
-```
-
-</div>
-<div class="tab-pane fade" id="alibaba-tab-2" markdown="1">
-
-```yaml
-apiVersion: database.example.org/v1alpha1
-kind: PostgreSQLInstance
-metadata:
-  name: my-db
-  namespace: default
-spec:
-  parameters:
-    storageGB: 20
-  compositionSelector:
-    matchLabels:
-      provider: alibaba
-  writeConnectionSecretToRef:
-    name: db-conn
-```
-
-```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-alibaba.yaml
 ```
 
 </div>
