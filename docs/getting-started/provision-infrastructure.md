@@ -1,51 +1,24 @@
 ---
 title: Provision Infrastructure
 toc: true
-weight: 2
+weight: 3
 indent: true
 ---
 
-# Compose Infrastructure
+# Provision Infrastructure
 
-In the [last section] we installed packages that extend Kubernetes with
-infrastructure abstractions and used them to provision resources on a cloud
-provider. These abstractions compose managed resources -- Kubernetes custom
-resources that offer a high fidelity representation of an infrastructure
-primitive, like an SQL instance or a firewall rule. Crossplane goes beyond
-simply modelling infrastructure primitives as custom resources - it enables you
-to define new custom resources with schemas of your choosing. We call these
-"composite resources" (XRs).
-
-XRs are always cluster scoped - they exist outside of any namespace. This allows
-an XR to represent infrastructure that might be consumed from several different
-namespaces. This is often true for VPC networks - an infrastructure operator may
-wish to define a VPC network XR and an SQL instance XR, only the latter of which
-may be managed by application operators. The application operators are
-restricted to their team's namespace, but their SQL instances should all be
-attached to the VPC network that the infrastructure operator manages. Crossplane
-enables scenarios like this  by allowing the infrastructure operator to offer
-their application operators a _composite resource claim_ (XRC). An XRC is a
-namespaced proxy for an XR; the schema of an XRC is identical to that of its
-corresponding XR. When an application operator creates an XRC, a corresponding
-backing XR is created automatically.
-
-We use two special Crossplane resources to define and configure new XRs and
-XRCs:
-
-- A `CompositeResourceDefinition` (XRD) _defines_ a new kind of composite
-  resource, including its schema. An XRD may optionally _offer_ a claim.
-- A `Composition` specifies which resources a composite resource will be
-  composed of, and how they should be configured. You can create multiple
-  `Composition` options for each composite resource.
-
-XRDs and Compositions may be packaged and installed as a _configuration_. A
-configuration is a [package] of composition configuration that can easily be
-installed to Crossplane by creating a declarative `Configuration` resource, or
-by using `kubectl crossplane install configuration`. In the examples below we
-will install a configuration that defines a new `CompositePostgreSQLInstance` XR
-that takes a single `storageGB` parameter, and creates a connection `Secret`
-with keys for `username`, `password`, and `endpoint`. A `Configuration` exists
-for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
+Composite resources (XRs) are always cluster scoped - they exist outside of any
+namespace. This allows an XR to represent infrastructure that might be consumed
+from several different namespaces. This is often true for VPC networks - an
+infrastructure operator may wish to define a VPC network XR and an SQL instance
+XR, only the latter of which may be managed by application operators. The
+application operators are restricted to their team's namespace, but their SQL
+instances should all be attached to the VPC network that the infrastructure
+operator manages. Crossplane enables scenarios like this  by allowing the
+infrastructure operator to offer their application operators a _composite
+resource claim_ (XRC). An XRC is a namespaced proxy for an XR; the schema of an
+XRC is identical to that of its corresponding XR. When an application operator
+creates an XRC, a corresponding backing XR is created automatically.
 
 ## Claim Your Infrastructure
 
@@ -326,8 +299,6 @@ own infrastructure APIs.
 
 <!-- Named Links -->
 
-[last section]: install-configure.md
 [composition]: ../concepts/composition.md
-[package]: ../concepts/packages.md
 [setup]: install-configure.md
-[next section]: package-infrastructure.md
+[next section]: create-configuration.md

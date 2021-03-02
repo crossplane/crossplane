@@ -1,31 +1,19 @@
 ---
-title: Package Infrastructure
+title: Create a Configuration
 toc: true
-weight: 3
+weight: 4
 indent: true
 ---
 
-# Package Infrastructure
+# Create a Configuration
 
-In the [previous section] we learned that Crossplane can be configured with new
-composite resources (XRs) that are [composed] of other resources, allowing you
-to define and offer resources that group and abstract infrastructure primitives.
-We use two special Crossplane resources to define and configure new XRs and
-XRCs:
-
-- A `CompositeResourceDefinition` (XRD) _defines_ a new kind of composite
-  resource, including its schema. An XRD may optionally _offer_ a claim.
-- A `Composition` specifies which resources a composite resource will be
-  composed of, and how they should be configured. You can create multiple
-  `Composition` options for each composite resource.
-
-XRDs and Compositions may be [packaged] as a _configuration_, that may easily be
-installed to Crossplane by creating a declarative `Configuration` resource, or
-by using `kubectl crossplane install configuration`. In the examples below we
-will build and push a configuration that defines a new
-`CompositePostgreSQLInstance` XR that takes a single `storageGB` parameter, and
-creates a connection `Secret` with keys for `username`, `password`, and
-`endpoint`.
+In the [previous section] we were able to create a PostgreSQL database because
+we had installed a configuration package that defined the `PostgreSQLInstance`
+type and a `Composition` of managed resources that mapped to it. Crossplane
+allows you to define your own composite resources (XRs) and compositions, then
+package them up to be easily distributed as OCI images. This allows you to
+construct a reproducible platform that exposes infrastructure APIs at your
+desired level of abstraction, and can be installed into any Crossplane cluster.
 
 ## Create a Configuration Directory
 
