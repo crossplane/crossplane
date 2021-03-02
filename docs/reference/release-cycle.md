@@ -12,42 +12,27 @@ cadence. A cycle is comprised of three general stages:
 - Week 7: [Feature Freeze]
 - Week 8: [Code Freeze]
 
-This results in six releases per year, with every third release being considered
-an LTS (Long Term Support) release. The Crossplane community supports three LTS
-releases at a time, meaning that a user that depends on an LTS release will not
-be required to upgrade their version for up to 1.5 years. The Crossplane
-community also supports the latest release, whether it is an LTS release or not.
+This results in six releases per year, with the most recent three releases being
+maintained at any given time. When a new release is cut, the fourth most recent
+release reaches end of life (EOL). Users can expect any given release to be
+maintained for six months.
 
-![Release Diagram](../media/crossplane-releases.png)
+### Definition of Maintenance
 
-For example, Crossplane v1.0.0 was the first LTS release, so the next one will
-be v1.1.0 in February 2021. At that time, the Crossplane community will support
-both v1.0.0 and v1.1.0. When v1.2.0 is released in April 2021, the community
-will then support v1.0.0 and v1.2.0. The next release, v1.3.0, will be an LTS
-release. The Crossplane community will support v1.0.0 and v1.3.0 until the
-v1.4.0 release, at which point it will support all three. This pattern would
-continue until the release of v1.9.0, at which time support for v1.0.0 will be
-dropped.
-
-This means that the Crossplane community will support at most four releases
-(three LTS + one interim) at at a time.
-
-### Definition of Support
-
-The Crossplane community defines support in that relevant bug fixes that are
+The Crossplane community defines maintenance in that relevant bug fixes that are
 merged to the main development branch will be eligible to be back-ported to the
-release branch of any currently supported version, and patch releases will be
+release branch of any currently maintained version, and patch releases will be
 cut appropriately. It is also possible that a fix may be merged directly to the
-release branch if no longer applicable on the main development branch. Support
-does not indicate any SLA on response time for user support in the form of Slack
-messages or issues, but problems will be addressed on a best effort basis by
-maintainers and contributors for currently supported releases.
+release branch if no longer applicable on the main development branch.
+Maintenance does not indicate any SLA on response time for user support in the
+form of Slack messages or issues, but problems will be addressed on a best
+effort basis by maintainers and contributors for currently maintained releases.
 
 ### Patch Releases
 
 _This policy is subject to change in the future._
 
-Patch releases are cut for currently supported minor versions on an as-needed
+Patch releases are cut for currently maintained minor versions on an as-needed
 basis. Any critical back-ported fixes will be included in a patch release as
 soon as possible after merge.
 
@@ -99,8 +84,6 @@ branch with the following exceptions:
   during code freeze requires application for and approval of an exception by
   Crossplane maintainers. This process is currently informal, but may be
   formalized in the future.
-
-
 
 <!-- Named links -->
 
