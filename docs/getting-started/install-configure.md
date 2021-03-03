@@ -222,11 +222,13 @@ resources:
 XRDs and Compositions may be packaged and installed as a _configuration_. A
 configuration is a [package] of composition configuration that can easily be
 installed to Crossplane by creating a declarative `Configuration` resource, or
-by using `kubectl crossplane install configuration`. In the examples below we
-will install a configuration that defines a new `CompositePostgreSQLInstance` XR
-that takes a single `storageGB` parameter, and creates a connection `Secret`
-with keys for `username`, `password`, and `endpoint`. A `Configuration` exists
-for each provider that can satisfy a `PostgreSQLInstance`. Let's get started!
+by using `kubectl crossplane install configuration`.
+
+In the examples below we will install a configuration that defines a new
+`CompositePostgreSQLInstance` XR and `PostgreSQLInstance` XRC that takes a
+single `storageGB` parameter, and creates a connection `Secret` with keys for
+`username`, `password`, and `endpoint`. A `Configuration` exists for each
+provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 
 <ul class="nav nav-tabs">
 <li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
