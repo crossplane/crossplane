@@ -1,7 +1,7 @@
 ---
-title: Run Applications
+title: OAM
 toc: true
-weight: 5
+weight: 240
 indent: true
 ---
 
@@ -474,7 +474,7 @@ kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master
 
 [Open Application Model]: https://oam.dev/
 [composing]: compose-infrastructure.md
-[Service Tracker Diagram]: run-applications-diagram.jpg
+[Service Tracker Diagram]: ../media/run-applications-diagram.jpg
 [_workloads_]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/3.workload.md
 [_traits_]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/6.traits.md
 [_components_]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/4.component.md
@@ -482,5 +482,5 @@ kubectl delete -f https://raw.githubusercontent.com/crossplane/crossplane/master
 [`ContainerizedWorkload`]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/core/workloads/containerized_workload/containerized_workload.md
 [`ManualScalerTrait`]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/core/traits/manual_scaler_trait.md
 [_application scope_]: https://github.com/oam-dev/spec/blob/1.0.0-alpha2/5.application_scopes.md
-[Service Tracker Dashboard]: run-applications-dash.png
-[Service Tracker Flights]: run-applications-flights.png
+[Service Tracker Dashboard]:../media/run-applications-dash.png
+[Service Tracker Flights]: ../media/run-applications-flights.png
