@@ -93,7 +93,8 @@ CRD_DIR = cluster/charts/crossplane/crds
 
 gen-install-doc:
 	@$(INFO) Generating install documentation from Helm chart
-	@head -7 docs/reference/install.md | cat - cluster/charts/crossplane/README.md | tee docs/reference/install.md >/dev/null
+	@head -7 docs/reference/install.md | cat - cluster/charts/crossplane/README.md > reference-install.tmp
+	@mv reference-install.tmp docs/reference/install.md
 	@$(OK) Successfully generated install documentation
 
 gen-kustomize-crds:
