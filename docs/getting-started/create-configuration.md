@@ -580,10 +580,17 @@ spec:
 ```console
 curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws/crossplane.yaml
 
+kubectl crossplane build configuration
+```
+
+You should see a file in your working directory with a `.xpkg` extension. The
+Crossplane CLI will automatically tag and push it to the registry of your
+choosing in the next step if it is the only `.xpkg` in the directory. Otherwise
+you may specify a specific package by using the `-f` flag.
+
+```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-
-kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-aws:master
 ```
 
@@ -613,10 +620,17 @@ spec:
 ```console
 curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws-with-vpc/crossplane.yaml
 
+kubectl crossplane build configuration
+```
+
+You should see a file in your working directory with a `.xpkg` extension. The
+Crossplane CLI will automatically tag and push it to the registry of your
+choosing in the next step if it is the only `.xpkg` in the directory. Otherwise
+you may specify a specific package by using the `-f` flag.
+
+```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-
-kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:master
 ```
 
@@ -645,10 +659,17 @@ spec:
 ```console
 curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/gcp/crossplane.yaml
 
+kubectl crossplane build configuration
+```
+
+You should see a file in your working directory with a `.xpkg` extension. The
+Crossplane CLI will automatically tag and push it to the registry of your
+choosing in the next step if it is the only `.xpkg` in the directory. Otherwise
+you may specify a specific package by using the `-f` flag.
+
+```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-
-kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-gcp:master
 ```
 
@@ -677,10 +698,17 @@ spec:
 ```console
 curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/azure/crossplane.yaml
 
+kubectl crossplane build configuration
+```
+
+You should see a file in your working directory with a `.xpkg` extension. The
+Crossplane CLI will automatically tag and push it to the registry of your
+choosing in the next step if it is the only `.xpkg` in the directory. Otherwise
+you may specify a specific package by using the `-f` flag.
+
+```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-
-kubectl crossplane build configuration
 kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
 ```
 
@@ -692,7 +720,7 @@ kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
 
 That's it! You've now built and pushed your package. Take a look at the
 Crossplane [packages] documentation for more information about installing and
-working with packages.
+working with packages, or read about other Crossplane [concepts].
 
 ## Clean Up
 
@@ -710,4 +738,4 @@ rm -rf crossplane-config
 [composition]: ../concepts/composition.md
 [Docker Hub]: https://hub.docker.com/
 [packages]: ../concepts/packages.md
-[packaged]: ../concepts/packages.md
+[concepts]: ../concepts/overview.md

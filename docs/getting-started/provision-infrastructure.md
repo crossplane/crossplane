@@ -18,7 +18,9 @@ operator manages. Crossplane enables scenarios like this  by allowing the
 infrastructure operator to offer their application operators a _composite
 resource claim_ (XRC). An XRC is a namespaced proxy for an XR; the schema of an
 XRC is identical to that of its corresponding XR. When an application operator
-creates an XRC, a corresponding backing XR is created automatically.
+creates an XRC, a corresponding backing XR is created automatically. This model
+has similarities to [Persistent Volumes (PV) and Persistent Volume Claims (PVC)]
+in Kubernetes.
 
 ## Claim Your Infrastructure
 
@@ -275,6 +277,7 @@ own infrastructure APIs.
 
 <!-- Named Links -->
 
+[Persistent Volumes (PV) and Persistent Volume Claims (PVC)]: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
 [composition]: ../concepts/composition.md
 [setup]: install-configure.md
 [next section]: create-configuration.md
