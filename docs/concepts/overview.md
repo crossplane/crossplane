@@ -88,31 +88,6 @@ operator facing, but may optionally offer an application developer facing
 composite resource claim that acts as a proxy for a composite resource. You can
 learn more about all of these concepts in the [composition documentation].
 
-## OAM
-
-Crossplane supports application management as the Kubernetes implementation of
-the [Open Application Model]. As such, Crossplane currently implements the
-following OAM API types as Kubernetes custom resources.
-
-* `WorkloadDefinition`: defines the kind of components that an application
-  developer can use in an application, along with the component's schema.
-  * Crossplane also implements the core `ContainerizedWorkload` type.
-    Infrastructure owners may define any resource as a workload type by
-    referencing it in a `WorkloadDefinition`.
-* `Component`: describe functional units that may be instantiated as part of a
-  larger distributed application. For example, each micro-service in an
-  application is described as a `Component`.
-* `Trait`: a discretionary runtime overlay that augments a component workload
-  type with additional features. It represents an opportunity for those in the
-  application operator role to make specific decisions about the configuration
-  of components, without having to involve the developer.
-  * Crossplane also implements the core `ManualScalerTrait` type.
-* `ApplicationConfiguration`: includes one or more component instances, each
-  represented by a component definition that defines how an instance of a
-  component spec should be deployed.
-
-For more information, take a look at the [OAM documentation].
-
 <!-- Named Links -->
 
 [Crossplane Concepts]: crossplane-concepts.png
@@ -127,5 +102,3 @@ For more information, take a look at the [OAM documentation].
 [doc.crds.dev]: https://doc.crds.dev
 [managed resources documentation]: managed-resources.md
 [composition documentation]: composition.md
-[Open Application Model]: https://oam.dev/
-[OAM documentation]: oam.md
