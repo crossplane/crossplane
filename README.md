@@ -49,10 +49,11 @@ Currently maintained releases, as well as the next upcoming release are listed
 below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release | Current Patch | Release Date |     EOL     |
-|:-------:|:-------------:|:------------:|:-----------:|
-|   v1.0  |     v1.0.0    | Dec 14, 2020 |  June 2021  |
-|   v1.1  |    Upcoming   |  Mar 2, 2021 | August 2021 |
+| Release | Current Patch | Release Date |      EOL     |
+|:-------:|:-------------:|:------------:|:------------:|
+|   v1.0  |     v1.0.0    | Dec 14, 2020 |   June 2021  |
+|   v1.1  |     v1.1.0    |  Mar 3, 2021 |  August 2021 |
+|   v1.2  |    Upcoming   | Apr 27, 2021 | October 2021 |
 
 ## Getting Started
 
