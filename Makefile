@@ -85,11 +85,16 @@ fallthrough: submodules
 manifests:
 	@$(WARN) Deprecated. Please run make generate instead.
 
-generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate gen-kustomize-crds gen-install-doc
-	@$(OK) Finished vendoring and generating
+CRD_DIR = cluster/crds
 
+crds.clean:
+	@$(INFO) cleaning generated CRDs
+	@find $(CRD_DIR) -name '*.yaml' -exec sed -i.sed -e '1,2d' {} \; || $(FAIL)
+	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
+	@$(OK) cleaned generated CRDs
 
-CRD_DIR = cluster/charts/crossplane/crds
+generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate crds.clean gen-kustomize-crds gen-install-doc
+	@$(OK) Finished generating
 
 gen-install-doc:
 	@$(INFO) Generating install documentation from Helm chart
@@ -142,11 +147,11 @@ submodules:
 
 # Install CRDs into a cluster. This is for convenience.
 install-crds: $(KUBECTL) reviewable
-	$(KUBECTL) apply -f cluster/charts/crossplane-types/crds/
+	$(KUBECTL) apply -f $(CRD_DIR)
 
 # Uninstall CRDs from a cluster. This is for convenience.
 uninstall-crds:
-	$(KUBECTL) delete -f cluster/charts/crossplane-types/crds/
+	$(KUBECTL) delete -f $(CRD_DIR)
 
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,

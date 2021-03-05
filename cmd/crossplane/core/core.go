@@ -17,18 +17,16 @@ limitations under the License.
 package core
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
-	"github.com/crossplane/crossplane/apis"
+
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -44,49 +42,36 @@ type Command struct {
 }
 
 // FromKingpin produces the core Crossplane command from a Kingpin command.
-func FromKingpin(cmd *kingpin.CmdClause) *Command {
-	c := &Command{Name: cmd.FullCommand()}
+func FromKingpin(cmd *kingpin.CmdClause) (*Command, *InitCommand) {
+	startCmd := cmd.Command("start", "Start Crossplane controllers.")
+	c := &Command{Name: startCmd.FullCommand()}
 	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
-	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").ExistingDirVar(&c.CacheDir)
+	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").StringVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
-	return c
+	initCmd := cmd.Command("init", "Make cluster ready for Crossplane controllers.")
+	init := &InitCommand{Name: initCmd.FullCommand()}
+	initCmd.Flag("provider", "Pre-install a Provider by giving its image URI. This argument can be repeated.").StringsVar(&init.Providers)
+	initCmd.Flag("configuration", "Pre-install a Configuration by giving its image URI. This argument can be repeated.").StringsVar(&init.Configurations)
+	return c, init
 }
 
 // Run core Crossplane controllers.
-func (c *Command) Run(log logging.Logger) error {
-	log.Debug("Starting", "sync-period", c.Sync.String())
-
+func (c *Command) Run(s *runtime.Scheme, log logging.Logger) error {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
 	}
+	log.Debug("Starting", "sync-period", c.Sync.String())
 
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+		Scheme:           s,
 		LeaderElection:   c.LeaderElection,
-		LeaderElectionID: fmt.Sprintf("crossplane-leader-election-%s", c.Name),
+		LeaderElectionID: "crossplane-leader-election-core",
 		SyncPeriod:       &c.Sync,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")
-	}
-
-	// Note that the controller managers scheme must be a superset of the
-	// package manager's object scheme; it must contain all object types that
-	// may appear in a Crossplane package. This is because the package manager
-	// uses the controller manager's client (and thus scheme) to create packaged
-	// objects.
-
-	if err := extv1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add CustomResourceDefinition v1 API to scheme")
-	}
-
-	if err := extv1beta1.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add CustomResourceDefinition v1beta1 API to scheme")
-	}
-
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
-		return errors.Wrap(err, "Cannot add core Crossplane APIs to scheme")
 	}
 
 	if err := apiextensions.Setup(mgr, log); err != nil {

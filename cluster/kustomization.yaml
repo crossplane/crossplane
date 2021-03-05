@@ -1,11 +1,11 @@
 # This kustomization can be used to remotely install all Crossplane CRDs
 # by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master
 resources:
-- charts/crossplane/crds/apiextensions.crossplane.io_compositeresourcedefinitions.yaml
-- charts/crossplane/crds/apiextensions.crossplane.io_compositions.yaml
-- charts/crossplane/crds/pkg.crossplane.io_configurationrevisions.yaml
-- charts/crossplane/crds/pkg.crossplane.io_configurations.yaml
-- charts/crossplane/crds/pkg.crossplane.io_controllerconfigs.yaml
-- charts/crossplane/crds/pkg.crossplane.io_locks.yaml
-- charts/crossplane/crds/pkg.crossplane.io_providerrevisions.yaml
-- charts/crossplane/crds/pkg.crossplane.io_providers.yaml
+- crds/apiextensions.crossplane.io_compositeresourcedefinitions.yaml
+- crds/apiextensions.crossplane.io_compositions.yaml
+- crds/pkg.crossplane.io_configurationrevisions.yaml
+- crds/pkg.crossplane.io_configurations.yaml
+- crds/pkg.crossplane.io_controllerconfigs.yaml
+- crds/pkg.crossplane.io_locks.yaml
+- crds/pkg.crossplane.io_providerrevisions.yaml
+- crds/pkg.crossplane.io_providers.yaml
