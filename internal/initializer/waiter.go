@@ -18,7 +18,6 @@ package initializer
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -52,32 +51,31 @@ type CRDWaiter struct {
 // Run continuously checks whether the list of CRDs whose names are given are
 // present in the cluster.
 func (cw *CRDWaiter) Run(ctx context.Context, kube client.Client) error {
-	beginning := time.Now()
-	ending := beginning.Add(cw.Timeout)
-	current := beginning
-	cw.log.Info(fmt.Sprintf("Started waiting for the following CRDs to be present: %v", cw.Names))
+	timeout := time.After(cw.Timeout)
+	ticker := time.NewTicker(cw.Period)
+	defer ticker.Stop()
 	for {
-		present := 0
-		for _, n := range cw.Names {
-			crd := &v1.CustomResourceDefinition{}
-			nn := types.NamespacedName{Name: n}
-			err := kube.Get(ctx, nn, crd)
-			if err != nil && !kerrors.IsNotFound(err) {
-				return errors.Wrap(err, errGetCRD)
+		select {
+		case <-ticker.C:
+			cw.log.Info("Waiting for required CRDs to be present", "names", cw.Names, "poll-interval", cw.Period)
+			present := 0
+			for _, n := range cw.Names {
+				crd := &v1.CustomResourceDefinition{}
+				nn := types.NamespacedName{Name: n}
+				err := kube.Get(ctx, nn, crd)
+				if err != nil && !kerrors.IsNotFound(err) {
+					return errors.Wrap(err, errGetCRD)
+				}
+				if kerrors.IsNotFound(err) {
+					break
+				}
+				present++
 			}
-			if kerrors.IsNotFound(err) {
-				break
+			if present == len(cw.Names) {
+				return nil
 			}
-			present++
+		case <-timeout:
+			return errors.Errorf(errFmtTimeoutExceeded, cw.Timeout.Seconds())
 		}
-		if present == len(cw.Names) {
-			return nil
-		}
-		if current.After(ending) {
-			return errors.New(fmt.Sprintf(errFmtTimeoutExceeded, cw.Timeout.Seconds()))
-		}
-		current = current.Add(cw.Period)
-		cw.log.Info(fmt.Sprintf("Waiting for another %f seconds", cw.Period.Seconds()))
-		time.Sleep(cw.Period)
 	}
 }

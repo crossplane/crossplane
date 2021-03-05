@@ -24,7 +24,6 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -59,10 +58,10 @@ func main() {
 	// uses the controller manager's client (and thus scheme) to create packaged
 	// objects.
 	s := runtime.NewScheme()
-	utilruntime.Must(scheme.AddToScheme(s))
-	utilruntime.Must(extv1.AddToScheme(s))
-	utilruntime.Must(extv1beta1.AddToScheme(s))
-	utilruntime.Must(apis.AddToScheme(s))
+	kingpin.FatalIfError(scheme.AddToScheme(s), "cannot add client-go scheme")
+	kingpin.FatalIfError(extv1.AddToScheme(s), "cannot add client-go extensions v1 scheme")
+	kingpin.FatalIfError(extv1beta1.AddToScheme(s), "cannot add client-go extensions v1beta1 scheme")
+	kingpin.FatalIfError(apis.AddToScheme(s), "cannot add crossplane scheme")
 
 	switch cmd {
 	case c.Name:

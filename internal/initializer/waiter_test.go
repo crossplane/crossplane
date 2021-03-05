@@ -48,7 +48,8 @@ func TestCRDWaiter(t *testing.T) {
 		"SuccessFirstRun": {
 			args: args{
 				names:   []string{"arbitrary.crd.name"},
-				timeout: 1 * time.Second,
+				period:  1 * time.Second,
+				timeout: 2 * time.Second,
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						return nil
@@ -59,7 +60,7 @@ func TestCRDWaiter(t *testing.T) {
 		"Timeout": {
 			args: args{
 				names:   []string{"arbitrary.crd.name"},
-				timeout: 0 * time.Second,
+				timeout: 2 * time.Millisecond,
 				period:  1 * time.Millisecond,
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
@@ -68,12 +69,13 @@ func TestCRDWaiter(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtTimeoutExceeded, 0*time.Second.Seconds()),
+				err: errors.Errorf(errFmtTimeoutExceeded, 2*time.Millisecond.Seconds()),
 			},
 		},
 		"FailGet": {
 			args: args{
 				names:   []string{"arbitrary.crd.name"},
+				period:  1 * time.Millisecond,
 				timeout: 1 * time.Second,
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {

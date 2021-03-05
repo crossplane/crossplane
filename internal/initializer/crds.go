@@ -41,7 +41,7 @@ type CoreCRDs struct {
 }
 
 // Run applies all CRDs in the given directory.
-func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolint:gocyclo
+func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 	r, err := parser.NewFsBackend(afero.NewOsFs(),
 		parser.FsDir(c.Path),
 		parser.FsFilters(
