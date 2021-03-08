@@ -122,7 +122,7 @@ Kubernetes API.
 * Join our regular community meetings.
 * Provide feedback on our [roadmap](ROADMAP.md).
 
-The Crossplane community meeting takes place every other [Monday at 10:00am
+The Crossplane community meeting takes place every other [Thursday at 10:00am
 Pacific Time]. Anyone who wants to discuss the direction of the project, design
 and implementation reviews, or raise general questions with the broader
 community is encouraged to join.
