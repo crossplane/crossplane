@@ -318,13 +318,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// TODO(negz): We should make sure the composite resource references the
 		// claim before we try to delete it.
 
-		if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot delete composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-			record.Event(cm, event.Warning(reasonDelete, err))
-			return reconcile.Result{RequeueAfter: aShortWait}, nil
+		if meta.WasCreated(cp) {
+			if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
+				// If we didn't hit this error last time we'll be requeued
+				// implicitly due to the status update. Otherwise we want to retry
+				// after a brief wait, in case this was a transient error.
+				log.Debug("Cannot delete composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+				record.Event(cm, event.Warning(reasonDelete, err))
+				return reconcile.Result{RequeueAfter: aShortWait}, nil
+			}
 		}
 
 		log.Debug("Successfully deleted composite resource")
