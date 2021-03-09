@@ -27,8 +27,8 @@ Actions](https://github.com/features/actions) for pipelines.
    branch (typically documentation).
 1. **tag release**: Run the `Tag` action on the _release branch_ with the
    desired version (e.g. `v0.14.0`).
-1. **build/publish**: Run the `CI` action on the release branch with the version
-   that was just tagged.
+1. **build/publish**: Run the `CI` and `Configurations` action on the release
+   branch with the version that was just tagged.
 1. **tag next pre-release**: Run the `tag` action on the main development branch
    with the `rc.0` for the next release (e.g. `v0.15.0-rc.0`).
 1. **verify**: Verify all artifacts have been published successfully, perform
@@ -155,6 +155,11 @@ Run the `CI` action on the release branch. This will build and publish the
 official release with the correct version tag and all of its release artifacts
 will be published.
 
+If there are any `Configuration` packages that are built in the repo, you must
+also run the `Configurations` action on the release branch. This will build,
+tag, and publish the `Configuration` packages to the configured OCI image
+registry.
+
 After the pipeline runs successfully, you should verify that all artifacts have
 been published to:
 
@@ -167,6 +172,7 @@ For all repos with Helm charts:
 
 For crossplane/crossplane:
 * [Docs website](https://crossplane.io/docs/latest)
+* [Configuration Packages](https://cloud.upbound.io/browse)
 
 ### Tag Next Pre-release
 
