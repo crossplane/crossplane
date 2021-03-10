@@ -517,6 +517,7 @@ const (
 	ConvertTransformTypeString  = "string"
 	ConvertTransformTypeBool    = "bool"
 	ConvertTransformTypeInt     = "int"
+	ConvertTransformTypeInt64   = "int64"
 	ConvertTransformTypeFloat64 = "float64"
 )
 
@@ -526,8 +527,8 @@ type conversionPair struct {
 }
 
 var conversions = map[conversionPair]func(interface{}) (interface{}, error){
-	{From: ConvertTransformTypeString, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) {
-		return strconv.Atoi(i.(string))
+	{From: ConvertTransformTypeString, To: ConvertTransformTypeInt64}: func(i interface{}) (interface{}, error) {
+		return strconv.ParseInt(i.(string), 10, 64)
 	},
 	{From: ConvertTransformTypeString, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) {
 		return strconv.ParseBool(i.(string))
@@ -536,24 +537,24 @@ var conversions = map[conversionPair]func(interface{}) (interface{}, error){
 		return strconv.ParseFloat(i.(string), 64)
 	},
 
-	{From: ConvertTransformTypeInt, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return strconv.Itoa(i.(int)), nil
+	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return strconv.FormatInt(i.(int64), 10), nil
 	},
-	{From: ConvertTransformTypeInt, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return i.(int) == 1, nil
+	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return i.(int64) == 1, nil
 	},
-	{From: ConvertTransformTypeInt, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return float64(i.(int)), nil
+	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return float64(i.(int64)), nil
 	},
 
 	{From: ConvertTransformTypeBool, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return strconv.FormatBool(i.(bool)), nil
 	},
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt64}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		if i.(bool) {
-			return 1, nil
+			return int64(1), nil
 		}
-		return 0, nil
+		return int64(0), nil
 	},
 	{From: ConvertTransformTypeBool, To: ConvertTransformTypeFloat64}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		if i.(bool) {
@@ -565,8 +566,8 @@ var conversions = map[conversionPair]func(interface{}) (interface{}, error){
 	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeString}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
 	},
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt}: func(i interface{}) (interface{}, error) { // nolint:unparam
-		return int(i.(float64)), nil
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt64}: func(i interface{}) (interface{}, error) { // nolint:unparam
+		return int64(i.(float64)), nil
 	},
 	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeBool}: func(i interface{}) (interface{}, error) { // nolint:unparam
 		return i.(float64) == float64(1), nil
@@ -576,21 +577,29 @@ var conversions = map[conversionPair]func(interface{}) (interface{}, error){
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
 	// ToType is the type of the output of this transform.
-	// +kubebuilder:validation:Enum=string;int;bool;float64
+	// +kubebuilder:validation:Enum=string;int;int64;bool;float64
 	ToType string `json:"toType"`
 }
 
 // Resolve runs the String transform.
 func (s *ConvertTransform) Resolve(input interface{}) (interface{}, error) {
-	switch reflect.TypeOf(input).Kind().String() {
-	case s.ToType:
+	from := reflect.TypeOf(input).Kind().String()
+	if from == ConvertTransformTypeInt {
+		from = ConvertTransformTypeInt64
+	}
+	to := s.ToType
+	if to == ConvertTransformTypeInt {
+		to = ConvertTransformTypeInt64
+	}
+	switch from {
+	case to:
 		return input, nil
-	case ConvertTransformTypeString, ConvertTransformTypeBool, ConvertTransformTypeInt, ConvertTransformTypeFloat64:
+	case ConvertTransformTypeString, ConvertTransformTypeBool, ConvertTransformTypeInt64, ConvertTransformTypeFloat64:
 		break
 	default:
 		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String())
 	}
-	f, ok := conversions[conversionPair{From: reflect.TypeOf(input).Kind().String(), To: s.ToType}]
+	f, ok := conversions[conversionPair{From: from, To: to}]
 	if !ok {
 		return nil, errors.Errorf(errFmtConversionPairNotSupported, reflect.TypeOf(input).Kind().String(), s.ToType)
 	}

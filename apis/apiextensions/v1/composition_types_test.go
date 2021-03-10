@@ -438,6 +438,24 @@ func TestConvertResolve(t *testing.T) {
 				o: true,
 			},
 		},
+		"SameTypeNoOp": {
+			args: args{
+				i:  true,
+				ot: ConvertTransformTypeBool,
+			},
+			want: want{
+				o: true,
+			},
+		},
+		"IntAliasToInt64": {
+			args: args{
+				i:  int64(1),
+				ot: ConvertTransformTypeInt,
+			},
+			want: want{
+				o: int64(1),
+			},
+		},
 		"InputTypeNotSupported": {
 			args: args{
 				i:  []int{64},
