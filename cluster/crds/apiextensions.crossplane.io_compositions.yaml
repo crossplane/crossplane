@@ -94,6 +94,7 @@ spec:
                                       enum:
                                       - string
                                       - int
+                                      - int64
                                       - bool
                                       - float64
                                       type: string
@@ -225,6 +226,7 @@ spec:
                                       enum:
                                       - string
                                       - int
+                                      - int64
                                       - bool
                                       - float64
                                       type: string
