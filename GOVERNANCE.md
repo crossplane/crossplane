@@ -186,7 +186,7 @@ Responsibilities include:
 The current list of maintainers for each repository is published and updated in each repo’s
 [OWNERS.md](OWNERS.md) file.
 
-### Becoming a maintainer
+### Becoming a Maintainer
 
 To become a maintainer for a given repository, you need to demonstrate the following:
 
@@ -256,18 +256,25 @@ fairly low.  Adding new members has the following benefits:
 When adding a new member to the organization, they should meet some of the following suggested
 requirements, which are open to the discretion of the steering committee:
 
-* Participated in the community in some tangible way, for example by:
+Community members who wish to become members of the Crossplane organization
+should meet the following requirements, which are open to the discretion of the
+steering committee:
+
+* Have [enabled 2FA](https://github.com/settings/security) on their GitHub account.
+* Have joined the [Crossplane slack channel](https://slack.crossplane.io/).
+* Are actively contributing to the Crossplane project. Examples include:
   * opening issues
   * providing feedback on the project
   * engaging in discussions on issues, pull requests, Slack, etc.
   * attending community meetings
-* Expressed interest in fixing issues and submitting pull requests of their own
-* Evangelized and promoted Crossplane within the ecosystem
+* Have reached out to two current Crossplane organization members who have
+  agreed to sponsor their membership request.
 
-Community members that want to join the organization as a member should reach out directly to the
-[steering committee members](OWNERS.md), via
-any of the methods in the [README.md](https://github.com/crossplane/crossplane#get-involved). New
-members should be asked to set the visibility of their Crossplane organization membership to public.
+Community members that want to join the organization should follow the [new
+member
+process](https://github.com/crossplane/org/blob/main/processes/new-member.md)
+outlined in the `crossplane/org` repository. New members should be asked to set
+the visibility of their Crossplane organization membership to public.
 
 ## Updating the Governance
 
