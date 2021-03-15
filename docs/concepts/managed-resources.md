@@ -42,7 +42,7 @@ spec:
       namespace: crossplane-system
   providerConfigRef:
     name: default
-  reclaimPolicy: Delete
+  deletionPolicy: Delete
 ```
 
 In Kubernetes, `spec` top field represents the desired state of the user.
@@ -118,7 +118,7 @@ of an `RDSInstance`.
 
 Some infrastructure tools such as Terraform delete and recreate the resource to
 accommodate those changes but Crossplane does not take that route. Unless the
-managed resource is deleted and its `reclaimPolicy` is `Delete`, its controller
+managed resource is deleted and its `deletionPolicy` is `Delete`, its controller
 never deletes the external resource in the provider.
 
 > Immutable fields are marked as `immutable` in Crossplane codebase but
