@@ -123,9 +123,9 @@ Kubernetes API.
 * Provide feedback on our [roadmap](ROADMAP.md).
 
 The Crossplane community meeting takes place every other [Thursday at 10:00am
-Pacific Time]. Anyone who wants to discuss the direction of the project, design
-and implementation reviews, or raise general questions with the broader
-community is encouraged to join.
+Pacific Time][community meeting time]. Anyone who wants to discuss the direction
+of the project, design and implementation reviews, or raise general questions
+with the broader community is encouraged to join.
 
 * Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
 * [Current agenda and past meeting notes]
@@ -161,6 +161,6 @@ Crossplane is under the Apache 2.0 license.
 [Email]: mailto:info@crossplane.io
 [issue against Crossplane]: https://github.com/crossplane/crossplane/issues
 [contributing guide]: CONTRIBUTING.md
-[Monday at 10:00am Pacific Time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
+[community meeting time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
