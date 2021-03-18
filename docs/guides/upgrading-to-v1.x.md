@@ -15,7 +15,7 @@ the currently installed version, run:
 
 ```console
 # Update to the latest CRDs.
-kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=release-1.0
+kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=release-1.1
 
 # Update to the latest stable Helm chart
 helm --namespace crossplane-system upgrade crossplane crossplane-stable/crossplane
