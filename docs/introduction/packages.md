@@ -385,7 +385,7 @@ spec:
   podSecurityContext:
     fsGroup: 2000
 ---
-apiVersion: pkg.crossplane.io/v1alpha1
+apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: provider-aws
