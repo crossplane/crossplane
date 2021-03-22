@@ -59,14 +59,10 @@ fi
 
 chmod +x kubectl-crossplane
 
-YELLOW_FOREGROUND=`tput setaf 3`
-RESET=`tput sgr0`
-
-echo "kubectl plugin downloaded successfully!"
-echo
-echo "${YELLOW_FOREGROUND}Run the following commands to finish installing it:"
-echo "sudo mv kubectl-crossplane $(dirname $(which kubectl))"
-echo "kubectl crossplane --help${RESET}"
+echo "kubectl plugin downloaded successfully! Run the following commands to finish installing it:"
+echo 
+echo sudo mv kubectl-crossplane $(dirname $(which kubectl))
+echo kubectl crossplane --help
 echo
 echo "Visit https://crossplane.io to get started. 🚀"
 echo "Have a nice day! 👋\n"
