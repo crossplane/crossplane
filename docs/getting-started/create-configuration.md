@@ -247,7 +247,7 @@ spec:
             vpcIdSelector:
               matchControllerRef: true
             availabilityZone: us-east-1c
-    - name: subnet-c
+    - name: dbsubnetgroup
       base:
         apiVersion: database.aws.crossplane.io/v1beta1
         kind: DBSubnetGroup
