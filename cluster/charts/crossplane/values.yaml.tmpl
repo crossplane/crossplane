@@ -73,7 +73,7 @@ alpha:
 metrics:
   enabled: false
 
-# List of extra environment variables to set in the deployment.
+# List of extra environment variables to set in the crossplane deployment.
 # EXAMPLE
 # extraEnvironmentVars:
 #   sample.key=value1
@@ -83,4 +83,16 @@ metrics:
 #     value: "value1"
 #   - name: ANOTHER_KEY
 #     value: "value2"
-extraEnvironmentVars: {}
+extraEnvVarsCrossplane: {}
+
+# List of extra environment variables to set in the crossplane rbac manager deployment.
+# EXAMPLE
+# extraEnvironmentVars:
+#   sample.key=value1
+#   ANOTHER.KEY=value2
+# RESULT
+#   - name: sample_key
+#     value: "value1"
+#   - name: ANOTHER_KEY
+#     value: "value2"
+extraEnvVarsRBACManager: {}

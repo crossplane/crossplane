@@ -105,7 +105,8 @@ and their default values.
 | `rbacManager.tolerations` | Enable tolerations for RBAC Managers pod | `{}` |
 | `alpha.oam.enabled` | Deploy the `crossplane/oam-kubernetes-runtime` Helm chart | `false` |
 | `metrics.enabled` | Expose Crossplane and RBAC Manager metrics endpoint | `false` |
-| `extraEnvironmentVars` | List of extra environment variables to set | `{}` |
+| `extraEnvVarsCrossplane` | List of extra environment variables to set in the crossplane deployment | `{}` |
+| `extraEnvVarsRBACManager` | List of extra environment variables to set in the crossplane rbac manager deployment | `{}` |
 
 ### Command Line
 
