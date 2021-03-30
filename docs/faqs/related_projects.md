@@ -46,7 +46,7 @@ works with the Kubernetes API. GCP Config Connector is closed-source.
 The [AWS Controllers for Kubernetes] is a recent project that implements a set of
 Kubernetes controllers that are able to provision managed services in AWS. It
 defines a set of CRDs for managed services like DynamoDB, and controllers that
-can provision them via AWS CloudFormation. It is similar to Crossplane in that
+can provision them. It is similar to Crossplane in that
 it can provision managed services in AWS. Crossplane goes further by
 enabling you to provision managed services from any cloud provider and the
 ability to define, compose, and publish your own infrastructure API types in
