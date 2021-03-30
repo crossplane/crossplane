@@ -69,6 +69,10 @@ spec:
         env:
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
+        {{- range $key, $value := .Values.extraEnvVarsRBACManager }}
+          - name: {{ $key | replace "." "_" }}
+            value: {{ $value | quote }}
+        {{- end}}
       {{- if .Values.rbacManager.nodeSelector }}
       nodeSelector: {{ toYaml .Values.rbacManager.nodeSelector | nindent 8 }}
       {{- end }}
