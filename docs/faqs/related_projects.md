@@ -41,12 +41,12 @@ approach with a strong separation of concerns, that enables applications to
 easily and safely consume the infrastructure they need, using any tool that
 works with the Kubernetes API. GCP Config Connector is closed-source.
 
-## AWS Service Operator
+## AWS Controllers for Kubernetes
 
-The [AWS Service Operator] is a recent project that implements a set of
+The [AWS Controllers for Kubernetes] is a recent project that implements a set of
 Kubernetes controllers that are able to provision managed services in AWS. It
 defines a set of CRDs for managed services like DynamoDB, and controllers that
-can provision them via AWS CloudFormation. It is similar to Crossplane in that
+can provision them. It is similar to Crossplane in that
 it can provision managed services in AWS. Crossplane goes further by
 enabling you to provision managed services from any cloud provider and the
 ability to define, compose, and publish your own infrastructure API types in
@@ -82,6 +82,6 @@ plane.
 [Kubernetes Service Catalog]: https://kubernetes.io/docs/concepts/extend-kubernetes/service-catalog/
 [GCP OSB]: https://cloud.google.com/kubernetes-engine/docs/concepts/google-cloud-platform-service-broker
 [GCP Config Connector]: https://cloud.google.com/config-connector/docs/overview
-[AWS Service Operator]: https://github.com/awslabs/aws-service-operator
+[AWS Controllers for Kubernetes]: https://github.com/aws-controllers-k8s/community
 [Terraform]: https://www.terraform.io/
 [Pulumi]: https://www.pulumi.com/
