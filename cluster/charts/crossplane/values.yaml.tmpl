@@ -44,8 +44,8 @@ resourcesCrossplane:
     memory: 256Mi
 
 securityContextCrossplane:
-  runAsUser: 2000
-  runAsGroup: 2000
+  runAsUser: 65532
+  runAsGroup: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
 
@@ -63,6 +63,8 @@ resourcesRBACManager:
     memory: 256Mi
 
 securityContextRBACManager:
+  runAsUser: 65532
+  runAsGroup: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
 
