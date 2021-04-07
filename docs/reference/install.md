@@ -87,8 +87,8 @@ and their default values.
 | `resourcesCrossplane.limits.memory` | Memory resource limits for Crossplane | `512Mi` |
 | `resourcesCrossplane.requests.cpu` | CPU resource requests for Crossplane | `100m` |
 | `resourcesCrossplane.requests.memory` | Memory resource requests for Crossplane | `256Mi` |
-| `securityContextCrossplane.runAsUser` | Run as user for Crossplane | `2000` |
-| `securityContextCrossplane.runAsGroup` | Run as group for Crossplane | `2000` |
+| `securityContextCrossplane.runAsUser` | Run as user for Crossplane | `65532` |
+| `securityContextCrossplane.runAsGroup` | Run as group for Crossplane | `65532` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Allow privilege escalation for Crossplane | `false` |
 | `securityContextCrossplane.readOnlyRootFilesystem` | ReadOnly root filesystem for Crossplane | `true` |
 | `provider.packages` | The list of Provider packages to install together with Crossplane | `[]` |
@@ -101,6 +101,8 @@ and their default values.
 | `resourcesRBACManager.limits.memory` | Memory resource limits for RBAC Manager | `512Mi` |
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for RBAC Manager | `100m` |
 | `resourcesRBACManager.requests.memory` | Memory resource requests for RBAC Manager | `256Mi` |
+| `securityContextRBACManager.runAsUser` | Run as user for RBAC Manager | `65532` |
+| `securityContextRBACManager.runAsGroup` | Run as group for RBAC Manager | `65532` |
 | `securityContextRBACManager.allowPrivilegeEscalation` | Allow privilege escalation for RBAC Manager | `false` |
 | `securityContextRBACManager.readOnlyRootFilesystem` | ReadOnly root filesystem for RBAC Manager | `true` |
 | `rbacManager.affinity` | Enable affinity for RBAC Managers pod | `{}` |

@@ -57,7 +57,7 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	if err != nil {
 		return nil, err
 	}
-	return remote.Image(ref, remote.WithAuthFromKeychain(auth))
+	return remote.Image(ref, remote.WithAuthFromKeychain(auth), remote.WithContext(ctx))
 }
 
 // Head fetches a package descriptor.
@@ -69,7 +69,7 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	return remote.Head(ref, remote.WithAuthFromKeychain(auth))
+	return remote.Head(ref, remote.WithAuthFromKeychain(auth), remote.WithContext(ctx))
 }
 
 // Tags fetches a package's tags.
@@ -81,7 +81,7 @@ func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	return remote.List(ref.Context(), remote.WithAuthFromKeychain(auth))
+	return remote.List(ref.Context(), remote.WithAuthFromKeychain(auth), remote.WithContext(ctx))
 }
 
 // NopFetcher always returns an empty image and never returns error.

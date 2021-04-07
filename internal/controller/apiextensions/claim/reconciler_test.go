@@ -98,6 +98,37 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: aShortWait},
 			},
 		},
+		"CompositeAlreadyDeleted": {
+			reason: "We should not try to delete if the resource is already gone.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *claim.Unstructured:
+									o.SetResourceReference(&corev1.ObjectReference{})
+									now := metav1.Now()
+									o.SetDeletionTimestamp(&now)
+									o.SetFinalizers([]string{finalizer})
+									return nil
+								case *composite.Unstructured:
+									return kerrors.NewNotFound(schema.GroupResource{}, "")
+								}
+								return nil
+							}),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"DeleteCompositeError": {
 			reason: "We should requeue after a short wait if we encounter an error while deleting the referenced composite resource",
 			args: args{
@@ -106,10 +137,13 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*claim.Unstructured); ok {
+								switch o := obj.(type) {
+								case *claim.Unstructured:
 									now := metav1.Now()
 									o.SetDeletionTimestamp(&now)
 									o.SetResourceReference(&corev1.ObjectReference{})
+								case *composite.Unstructured:
+									o.SetCreationTimestamp(metav1.Now())
 								}
 								return nil
 							}),
