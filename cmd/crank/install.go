@@ -30,6 +30,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
 	"github.com/crossplane/crossplane/internal/version"
@@ -113,6 +114,7 @@ type installProviderCmd struct {
 	Name                 string   `arg:"" optional:"" help:"Name of Provider."`
 	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
 	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
+	Config               string   `help:"Specify a ControllerConfig for this Provider."`
 	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
 }
 
@@ -148,6 +150,11 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 				PackagePullSecrets:       packagePullSecrets,
 			},
 		},
+	}
+	if c.Config != "" {
+		cr.Spec.ControllerConfigReference = &xpv1.Reference{
+			Name: c.Config,
+		}
 	}
 	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
 	res, err := kube.Providers().Create(context.Background(), cr, metav1.CreateOptions{})
