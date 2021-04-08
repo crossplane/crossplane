@@ -11,8 +11,7 @@ indent: true
 
 Observability is crucial to Crossplane users; both those operating Crossplane
 and those using Crossplane to operate their infrastructure. Crossplane currently
-approaches observability via Kubernetes events and structured logs. Timeseries
-metrics are desired but [not yet implemented].
+approaches observability via Kubernetes events and structured logs.
 
 ## Goals
 
@@ -186,7 +185,6 @@ implementations.
 
 <!-- Named Links -->
 
-[not yet implemented]: https://github.com/crossplane/crossplane/issues/314
 [Events]: https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#event-v1-core
 [debugging an application cluster]: https://kubernetes.io/docs/tasks/debug-application-cluster/
 [Dave Cheney article]: https://dave.cheney.net/2015/11/05/lets-talk-about-logging
