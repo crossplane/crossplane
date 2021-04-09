@@ -379,7 +379,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 
 // applyFromManyFieldPathsPatch patches the composed resource, using a list of
 // source fields on the composite resource. Without a transform, values are turned into their
-// string representation and concatenated. Use a string transform with Many placeholders
+// string representation and concatenated. Use a string transform with many placeholders
 // to control the format more explicitly.
 func (c *Patch) applyFromManyFieldPathsPatch(from, to runtime.Object) error { // nolint:gocyclo
 	if len(c.FromManyFieldPaths) == 0 {
