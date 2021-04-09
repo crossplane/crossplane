@@ -400,12 +400,16 @@ func (c *Patch) applyFromManyFieldPathsPatch(from, to runtime.Object) error { //
 
 	in := make([]interface{}, len(c.FromManyFieldPaths))
 
-	// Get value of each source field, or error
+	// Get value of each source field
 	for i, sp := range c.FromManyFieldPaths {
 		iv, err := fieldpath.Pave(fromMap).GetValue(sp)
 
-		// If field is not found, do not patch.
-		if fieldpath.IsNotFound(err) {
+		// If any source field is not found, we will not
+		// apply the patch. This is to avoid situations
+		// where a user-defined transform is expecting a
+		// fixed number of inputs (e.g. a string transform
+		// with format string %s-%s-%d).
+		if IsOptionalFieldPathNotFound(err, c.Policy) {
 			return nil
 		}
 
