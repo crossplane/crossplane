@@ -45,7 +45,7 @@ func (c *updateConfigCmd) Run(k *kong.Context) error { // nolint:gocyclo
 		return errors.Wrap(warnIfNotFound(err), "cannot update configuration")
 	}
 	pkg := prevConf.Spec.Package
-	pkgReference, err := name.ParseReference(pkg)
+	pkgReference, err := name.ParseReference(pkg, name.WithDefaultRegistry(""))
 	if err != nil {
 		return errors.Wrap(warnIfNotFound(err), "cannot update configuration")
 	}
@@ -82,7 +82,7 @@ func (c *updateProviderCmd) Run(k *kong.Context) error { // nolint:gocyclo
 		return errors.Wrap(warnIfNotFound(err), "cannot update provider")
 	}
 	pkg := preProv.Spec.Package
-	pkgReference, err := name.ParseReference(pkg)
+	pkgReference, err := name.ParseReference(pkg, name.WithDefaultRegistry(""))
 	if err != nil {
 		return errors.Wrap(warnIfNotFound(err), "cannot update provider")
 	}
