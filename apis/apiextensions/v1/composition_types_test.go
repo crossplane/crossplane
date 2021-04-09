@@ -449,10 +449,10 @@ func TestStringResolve(t *testing.T) {
 func TestConvertResolve(t *testing.T) {
 	type args struct {
 		ot string
-		i  interface{}
+		i  []interface{}
 	}
 	type want struct {
-		o   []interface{}
+		o   interface{}
 		err error
 	}
 
@@ -462,7 +462,7 @@ func TestConvertResolve(t *testing.T) {
 	}{
 		"StringToBool": {
 			args: args{
-				i:  "true",
+				i:  []interface{}{"true"},
 				ot: ConvertTransformTypeBool,
 			},
 			want: want{
@@ -471,44 +471,46 @@ func TestConvertResolve(t *testing.T) {
 		},
 		"SameTypeNoOp": {
 			args: args{
-				i:  true,
+				i:  []interface{}{true},
 				ot: ConvertTransformTypeBool,
 			},
 			want: want{
-				o: true,
+				o: []interface{}{true},
 			},
 		},
 		"IntAliasToInt64": {
 			args: args{
-				i:  int64(1),
+				i:  []interface{}{int64(1)},
 				ot: ConvertTransformTypeInt,
 			},
 			want: want{
-				o: int64(1),
+				o: []interface{}{int64(1)},
 			},
 		},
 		"InputTypeNotSupported": {
 			args: args{
-				i:  []int{64},
+				i:  []interface{}{[]int{64}},
 				ot: ConvertTransformTypeString,
 			},
 			want: want{
+				o:   []interface{}(nil),
 				err: errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String()),
 			},
 		},
 		"ConversionPairNotSupported": {
 			args: args{
-				i:  "[64]",
+				i:  []interface{}{"[64]"},
 				ot: "[]int",
 			},
 			want: want{
+				o:   []interface{}(nil),
 				err: errors.Errorf(errFmtConversionPairNotSupported, "string", "[]int"),
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve(tc.i)
+			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve(tc.i...)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -923,7 +925,7 @@ func TestPatchApply(t *testing.T) {
 						Name: "cd",
 					},
 				},
-				err: nil,
+				err: errors.Errorf(errFmtRequiredField, "FromManyFieldPaths", PatchTypeFromManyCompositeFieldPaths),
 			},
 		},
 	}
@@ -944,6 +946,84 @@ func TestPatchApply(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nApply(err): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestOptionalFieldPathNotFound(t *testing.T) {
+	errBoom := errors.New("boom")
+	errNotFound := func() error {
+		p := &fieldpath.Paved{}
+		_, err := p.GetValue("boom")
+		return err
+	}
+	required := FromFieldPathPolicyRequired
+	optional := FromFieldPathPolicyOptional
+	type args struct {
+		err error
+		p   *PatchPolicy
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want bool
+	}{
+		"NotAnError": {
+			reason: "Should perform patch if no error finding field.",
+			args:   args{},
+			want:   false,
+		},
+		"NotFieldNotFoundError": {
+			reason: "Should return error if something other than field not found.",
+			args: args{
+				err: errBoom,
+			},
+			want: false,
+		},
+		"DefaultOptionalNoPolicy": {
+			reason: "Should return no-op if field not found and no patch policy specified.",
+			args: args{
+				err: errNotFound(),
+			},
+			want: true,
+		},
+		"DefaultOptionalNoPathPolicy": {
+			reason: "Should return no-op if field not found and empty patch policy specified.",
+			args: args{
+				p:   &PatchPolicy{},
+				err: errNotFound(),
+			},
+			want: true,
+		},
+		"OptionalNotFound": {
+			reason: "Should return no-op if field not found and optional patch policy explicitly specified.",
+			args: args{
+				p: &PatchPolicy{
+					FromFieldPath: &optional,
+				},
+				err: errNotFound(),
+			},
+			want: true,
+		},
+		"RequiredNotFound": {
+			reason: "Should return error if field not found and required patch policy explicitly specified.",
+			args: args{
+				p: &PatchPolicy{
+					FromFieldPath: &required,
+				},
+				err: errNotFound(),
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsOptionalFieldPathNotFound(tc.args.err, tc.args.p)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("IsOptionalFieldPathNotFound(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
