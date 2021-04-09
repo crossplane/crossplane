@@ -44,10 +44,14 @@ spec:
         description: A ConfigurationRevision that has been added to Crossplane.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -55,7 +59,8 @@ spec:
             description: PackageRevisionSpec specifies the desired state of a PackageRevision.
             properties:
               controllerConfigRef:
-                description: ControllerConfigRef references a ControllerConfig resource that will be used to configure the packaged controller Deployment.
+                description: ControllerConfigRef references a ControllerConfig resource
+                  that will be used to configure the packaged controller Deployment.
                 properties:
                   name:
                     description: Name of the referenced object.
@@ -64,36 +69,50 @@ spec:
                 - name
                 type: object
               desiredState:
-                description: DesiredState of the PackageRevision. Can be either Active or Inactive.
+                description: DesiredState of the PackageRevision. Can be either Active
+                  or Inactive.
                 type: string
               ignoreCrossplaneConstraints:
                 default: false
-                description: IgnoreCrossplaneConstraints indicates to the package manager whether to honor Crossplane version constrains specified by the package. Default is false.
+                description: IgnoreCrossplaneConstraints indicates to the package
+                  manager whether to honor Crossplane version constrains specified
+                  by the package. Default is false.
                 type: boolean
               image:
-                description: Package image used by install Pod to extract package contents.
+                description: Package image used by install Pod to extract package
+                  contents.
                 type: string
               packagePullPolicy:
                 default: IfNotPresent
-                description: PackagePullPolicy defines the pull policy for the package. It is also applied to any images pulled for the package, such as a provider's controller image. Default is IfNotPresent.
+                description: PackagePullPolicy defines the pull policy for the package.
+                  It is also applied to any images pulled for the package, such as
+                  a provider's controller image. Default is IfNotPresent.
                 type: string
               packagePullSecrets:
-                description: PackagePullSecrets are named secrets in the same namespace that can be used to fetch packages from private registries. They are also applied to any images pulled for the package, such as a provider's controller image.
+                description: PackagePullSecrets are named secrets in the same namespace
+                  that can be used to fetch packages from private registries. They
+                  are also applied to any images pulled for the package, such as a
+                  provider's controller image.
                 items:
-                  description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                  description: LocalObjectReference contains enough information to
+                    let you locate the referenced object inside the same namespace.
                   properties:
                     name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        TODO: Add other useful fields. apiVersion, kind, uid?'
                       type: string
                   type: object
                 type: array
               revision:
-                description: Revision number. Indicates when the revision will be garbage collected based on the parent's RevisionHistoryLimit.
+                description: Revision number. Indicates when the revision will be
+                  garbage collected based on the parent's RevisionHistoryLimit.
                 format: int64
                 type: integer
               skipDependencyResolution:
                 default: false
-                description: SkipDependencyResolution indicates to the package manager whether to skip resolving dependencies for a package. Setting this value to true may have unintended consequences. Default is false.
+                description: SkipDependencyResolution indicates to the package manager
+                  whether to skip resolving dependencies for a package. Setting this
+                  value to true may have unintended consequences. Default is false.
                 type: boolean
             required:
             - desiredState
@@ -101,7 +120,8 @@ spec:
             - revision
             type: object
           status:
-            description: PackageRevisionStatus represents the observed state of a PackageRevision.
+            description: PackageRevisionStatus represents the observed state of a
+              PackageRevision.
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -109,20 +129,25 @@ spec:
                   description: A Condition that may apply to a resource.
                   properties:
                     lastTransitionTime:
-                      description: LastTransitionTime is the last time this condition transitioned from one status to another.
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
                       format: date-time
                       type: string
                     message:
-                      description: A Message containing details about this condition's last transition from one status to another, if any.
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
                       type: string
                     reason:
-                      description: A Reason for this condition's last transition from one status to another.
+                      description: A Reason for this condition's last transition from
+                        one status to another.
                       type: string
                     status:
-                      description: Status of this condition; is it currently True, False, or Unknown?
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
                       type: string
                     type:
-                      description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
                       type: string
                   required:
                   - lastTransitionTime
@@ -153,7 +178,9 @@ spec:
               objectRefs:
                 description: References to objects owned by PackageRevision.
                 items:
-                  description: A TypedReference refers to an object by Name, Kind, and APIVersion. It is commonly used to reference cluster-scoped objects or objects where the namespace is already known.
+                  description: A TypedReference refers to an object by Name, Kind,
+                    and APIVersion. It is commonly used to reference cluster-scoped
+                    objects or objects where the namespace is already known.
                   properties:
                     apiVersion:
                       description: APIVersion of the referenced object.
@@ -174,32 +201,50 @@ spec:
                   type: object
                 type: array
               permissionRequests:
-                description: PermissionRequests made by this package. The package declares that its controller needs these permissions to run. The RBAC manager is responsible for granting them.
+                description: PermissionRequests made by this package. The package
+                  declares that its controller needs these permissions to run. The
+                  RBAC manager is responsible for granting them.
                 items:
-                  description: PolicyRule holds information that describes a policy rule, but does not contain information about who the rule applies to or which namespace the rule applies to.
+                  description: PolicyRule holds information that describes a policy
+                    rule, but does not contain information about who the rule applies
+                    to or which namespace the rule applies to.
                   properties:
                     apiGroups:
-                      description: APIGroups is the name of the APIGroup that contains the resources.  If multiple API groups are specified, any action requested against one of the enumerated resources in any API group will be allowed.
+                      description: APIGroups is the name of the APIGroup that contains
+                        the resources.  If multiple API groups are specified, any
+                        action requested against one of the enumerated resources in
+                        any API group will be allowed.
                       items:
                         type: string
                       type: array
                     nonResourceURLs:
-                      description: NonResourceURLs is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for ClusterRoles referenced from a ClusterRoleBinding. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
+                      description: NonResourceURLs is a set of partial urls that a
+                        user should have access to.  *s are allowed, but only as the
+                        full, final step in the path Since non-resource URLs are not
+                        namespaced, this field is only applicable for ClusterRoles
+                        referenced from a ClusterRoleBinding. Rules can either apply
+                        to API resources (such as "pods" or "secrets") or non-resource
+                        URL paths (such as "/api"),  but not both.
                       items:
                         type: string
                       type: array
                     resourceNames:
-                      description: ResourceNames is an optional white list of names that the rule applies to.  An empty set means that everything is allowed.
+                      description: ResourceNames is an optional white list of names
+                        that the rule applies to.  An empty set means that everything
+                        is allowed.
                       items:
                         type: string
                       type: array
                     resources:
-                      description: Resources is a list of resources this rule applies to.  ResourceAll represents all resources.
+                      description: Resources is a list of resources this rule applies
+                        to.  ResourceAll represents all resources.
                       items:
                         type: string
                       type: array
                     verbs:
-                      description: Verbs is a list of Verbs that apply to ALL the ResourceKinds and AttributeRestrictions contained in this rule.  VerbAll represents all kinds.
+                      description: Verbs is a list of Verbs that apply to ALL the
+                        ResourceKinds and AttributeRestrictions contained in this
+                        rule.  VerbAll represents all kinds.
                       items:
                         type: string
                       type: array
@@ -241,10 +286,14 @@ spec:
         description: A ConfigurationRevision that has been added to Crossplane.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -252,7 +301,8 @@ spec:
             description: PackageRevisionSpec specifies the desired state of a PackageRevision.
             properties:
               controllerConfigRef:
-                description: ControllerConfigRef references a ControllerConfig resource that will be used to configure the packaged controller Deployment.
+                description: ControllerConfigRef references a ControllerConfig resource
+                  that will be used to configure the packaged controller Deployment.
                 properties:
                   name:
                     description: Name of the referenced object.
@@ -261,36 +311,50 @@ spec:
                 - name
                 type: object
               desiredState:
-                description: DesiredState of the PackageRevision. Can be either Active or Inactive.
+                description: DesiredState of the PackageRevision. Can be either Active
+                  or Inactive.
                 type: string
               ignoreCrossplaneConstraints:
                 default: false
-                description: IgnoreCrossplaneConstraints indicates to the package manager whether to honor Crossplane version constrains specified by the package. Default is false.
+                description: IgnoreCrossplaneConstraints indicates to the package
+                  manager whether to honor Crossplane version constrains specified
+                  by the package. Default is false.
                 type: boolean
               image:
-                description: Package image used by install Pod to extract package contents.
+                description: Package image used by install Pod to extract package
+                  contents.
                 type: string
               packagePullPolicy:
                 default: IfNotPresent
-                description: PackagePullPolicy defines the pull policy for the package. It is also applied to any images pulled for the package, such as a provider's controller image. Default is IfNotPresent.
+                description: PackagePullPolicy defines the pull policy for the package.
+                  It is also applied to any images pulled for the package, such as
+                  a provider's controller image. Default is IfNotPresent.
                 type: string
               packagePullSecrets:
-                description: PackagePullSecrets are named secrets in the same namespace that can be used to fetch packages from private registries. They are also applied to any images pulled for the package, such as a provider's controller image.
+                description: PackagePullSecrets are named secrets in the same namespace
+                  that can be used to fetch packages from private registries. They
+                  are also applied to any images pulled for the package, such as a
+                  provider's controller image.
                 items:
-                  description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                  description: LocalObjectReference contains enough information to
+                    let you locate the referenced object inside the same namespace.
                   properties:
                     name:
-                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        TODO: Add other useful fields. apiVersion, kind, uid?'
                       type: string
                   type: object
                 type: array
               revision:
-                description: Revision number. Indicates when the revision will be garbage collected based on the parent's RevisionHistoryLimit.
+                description: Revision number. Indicates when the revision will be
+                  garbage collected based on the parent's RevisionHistoryLimit.
                 format: int64
                 type: integer
               skipDependencyResolution:
                 default: false
-                description: SkipDependencyResolution indicates to the package manager whether to skip resolving dependencies for a package. Setting this value to true may have unintended consequences. Default is false.
+                description: SkipDependencyResolution indicates to the package manager
+                  whether to skip resolving dependencies for a package. Setting this
+                  value to true may have unintended consequences. Default is false.
                 type: boolean
             required:
             - desiredState
@@ -298,7 +362,8 @@ spec:
             - revision
             type: object
           status:
-            description: PackageRevisionStatus represents the observed state of a PackageRevision.
+            description: PackageRevisionStatus represents the observed state of a
+              PackageRevision.
             properties:
               conditions:
                 description: Conditions of the resource.
@@ -306,20 +371,25 @@ spec:
                   description: A Condition that may apply to a resource.
                   properties:
                     lastTransitionTime:
-                      description: LastTransitionTime is the last time this condition transitioned from one status to another.
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
                       format: date-time
                       type: string
                     message:
-                      description: A Message containing details about this condition's last transition from one status to another, if any.
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
                       type: string
                     reason:
-                      description: A Reason for this condition's last transition from one status to another.
+                      description: A Reason for this condition's last transition from
+                        one status to another.
                       type: string
                     status:
-                      description: Status of this condition; is it currently True, False, or Unknown?
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
                       type: string
                     type:
-                      description: Type of this condition. At most one of each condition type may apply to a resource at any point in time.
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
                       type: string
                   required:
                   - lastTransitionTime
@@ -350,7 +420,9 @@ spec:
               objectRefs:
                 description: References to objects owned by PackageRevision.
                 items:
-                  description: A TypedReference refers to an object by Name, Kind, and APIVersion. It is commonly used to reference cluster-scoped objects or objects where the namespace is already known.
+                  description: A TypedReference refers to an object by Name, Kind,
+                    and APIVersion. It is commonly used to reference cluster-scoped
+                    objects or objects where the namespace is already known.
                   properties:
                     apiVersion:
                       description: APIVersion of the referenced object.
@@ -371,32 +443,50 @@ spec:
                   type: object
                 type: array
               permissionRequests:
-                description: PermissionRequests made by this package. The package declares that its controller needs these permissions to run. The RBAC manager is responsible for granting them.
+                description: PermissionRequests made by this package. The package
+                  declares that its controller needs these permissions to run. The
+                  RBAC manager is responsible for granting them.
                 items:
-                  description: PolicyRule holds information that describes a policy rule, but does not contain information about who the rule applies to or which namespace the rule applies to.
+                  description: PolicyRule holds information that describes a policy
+                    rule, but does not contain information about who the rule applies
+                    to or which namespace the rule applies to.
                   properties:
                     apiGroups:
-                      description: APIGroups is the name of the APIGroup that contains the resources.  If multiple API groups are specified, any action requested against one of the enumerated resources in any API group will be allowed.
+                      description: APIGroups is the name of the APIGroup that contains
+                        the resources.  If multiple API groups are specified, any
+                        action requested against one of the enumerated resources in
+                        any API group will be allowed.
                       items:
                         type: string
                       type: array
                     nonResourceURLs:
-                      description: NonResourceURLs is a set of partial urls that a user should have access to.  *s are allowed, but only as the full, final step in the path Since non-resource URLs are not namespaced, this field is only applicable for ClusterRoles referenced from a ClusterRoleBinding. Rules can either apply to API resources (such as "pods" or "secrets") or non-resource URL paths (such as "/api"),  but not both.
+                      description: NonResourceURLs is a set of partial urls that a
+                        user should have access to.  *s are allowed, but only as the
+                        full, final step in the path Since non-resource URLs are not
+                        namespaced, this field is only applicable for ClusterRoles
+                        referenced from a ClusterRoleBinding. Rules can either apply
+                        to API resources (such as "pods" or "secrets") or non-resource
+                        URL paths (such as "/api"),  but not both.
                       items:
                         type: string
                       type: array
                     resourceNames:
-                      description: ResourceNames is an optional white list of names that the rule applies to.  An empty set means that everything is allowed.
+                      description: ResourceNames is an optional white list of names
+                        that the rule applies to.  An empty set means that everything
+                        is allowed.
                       items:
                         type: string
                       type: array
                     resources:
-                      description: Resources is a list of resources this rule applies to.  ResourceAll represents all resources.
+                      description: Resources is a list of resources this rule applies
+                        to.  ResourceAll represents all resources.
                       items:
                         type: string
                       type: array
                     verbs:
-                      description: Verbs is a list of Verbs that apply to ALL the ResourceKinds and AttributeRestrictions contained in this rule.  VerbAll represents all kinds.
+                      description: Verbs is a list of Verbs that apply to ALL the
+                        ResourceKinds and AttributeRestrictions contained in this
+                        rule.  VerbAll represents all kinds.
                       items:
                         type: string
                       type: array

@@ -19,13 +19,18 @@ spec:
   - name: v1
     schema:
       openAPIV3Schema:
-        description: A Configuration is the description of a Crossplane Configuration package.
+        description: A Configuration is the description of a Crossplane Configuration
+          package.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -33,10 +38,12 @@ spec:
             description: ConfigurationSpec specifies the configuration of a Configuration.
             properties:
               crossplane:
-                description: Semantic version constraints of Crossplane that package is compatible with.
+                description: Semantic version constraints of Crossplane that package
+                  is compatible with.
                 properties:
                   version:
-                    description: Semantic version constraints of Crossplane that package is compatible with.
+                    description: Semantic version constraints of Crossplane that package
+                      is compatible with.
                     type: string
                 required:
                 - version
@@ -44,16 +51,19 @@ spec:
               dependsOn:
                 description: Dependencies on other packages.
                 items:
-                  description: Dependency is a dependency on another package. One of Provider or Configuration may be supplied.
+                  description: Dependency is a dependency on another package. One
+                    of Provider or Configuration may be supplied.
                   properties:
                     configuration:
-                      description: Configuration is the name of a Configuration package image.
+                      description: Configuration is the name of a Configuration package
+                        image.
                       type: string
                     provider:
                       description: Provider is the name of a Provider package image.
                       type: string
                     version:
-                      description: Version is the semantic version constraints of the dependency image.
+                      description: Version is the semantic version constraints of
+                        the dependency image.
                       type: string
                   required:
                   - version
@@ -68,13 +78,18 @@ spec:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A Configuration is the description of a Crossplane Configuration package.
+        description: A Configuration is the description of a Crossplane Configuration
+          package.
         properties:
           apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
             type: string
           kind:
-            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
             type: string
           metadata:
             type: object
@@ -82,10 +97,12 @@ spec:
             description: ConfigurationSpec specifies the configuration of a Configuration.
             properties:
               crossplane:
-                description: Semantic version constraints of Crossplane that package is compatible with.
+                description: Semantic version constraints of Crossplane that package
+                  is compatible with.
                 properties:
                   version:
-                    description: Semantic version constraints of Crossplane that package is compatible with.
+                    description: Semantic version constraints of Crossplane that package
+                      is compatible with.
                     type: string
                 required:
                 - version
@@ -93,16 +110,19 @@ spec:
               dependsOn:
                 description: Dependencies on other packages.
                 items:
-                  description: Dependency is a dependency on another package. One of Provider or Configuration may be supplied.
+                  description: Dependency is a dependency on another package. One
+                    of Provider or Configuration may be supplied.
                   properties:
                     configuration:
-                      description: Configuration is the name of a Configuration package image.
+                      description: Configuration is the name of a Configuration package
+                        image.
                       type: string
                     provider:
                       description: Provider is the name of a Provider package image.
                       type: string
                     version:
-                      description: Version is the semantic version constraints of the dependency image.
+                      description: Version is the semantic version constraints of
+                        the dependency image.
                       type: string
                   required:
                   - version
