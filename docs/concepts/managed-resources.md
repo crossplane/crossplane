@@ -259,7 +259,7 @@ Kubernetes types, like [Velero][velero].
 
 If you'd like to backup and restore manually, you can simply export them and
 save YAMLs in your file system. When you reload them, as we've discovered in
-import section, their `crosssplane.io/external-name` annotation and required
+import section, their `crossplane.io/external-name` annotation and required
 fields are there and those are enough to import a resource. The tool you're
 using needs to store `annotations` and `spec` fields, which most tools do
 including Velero.
