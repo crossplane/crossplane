@@ -54,7 +54,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:master"
+  package: "crossplane/provider-aws:master"
 ```
 
 The field `spec.package` is where you refer to the container image of the
