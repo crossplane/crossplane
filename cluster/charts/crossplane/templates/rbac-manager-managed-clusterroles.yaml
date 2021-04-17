@@ -68,6 +68,7 @@ aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
       rbac.crossplane.io/aggregate-to-browse: "true"
+{{- if not .Values.rbacManager.skipAggregatedClusterRoles }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -273,5 +274,6 @@ rules:
 - apiGroups: [""]
   resources: [events]
   verbs: [get, list, watch]
-{{- end}}
-{{- end}}
+{{- end }}
+{{- end }}
+{{- end }}

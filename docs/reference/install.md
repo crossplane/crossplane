@@ -112,6 +112,7 @@ and their default values.
 | `rbacManager.leaderElection` | Enable leader election for RBAC Managers pod | `true` |
 | `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
 | `rbacManager.tolerations` | Enable tolerations for RBAC Managers pod | `{}` |
+| `rbacManager.skipAggregatedClusterRoles` | Opt out of deploying aggregated ClusterRoles | `false` |
 | `alpha.oam.enabled` | Deploy the `crossplane/oam-kubernetes-runtime` Helm chart | `false` |
 | `metrics.enabled` | Expose Crossplane and RBAC Manager metrics endpoint | `false` |
 | `extraEnvVarsCrossplane` | List of extra environment variables to set in the crossplane deployment | `{}` |
