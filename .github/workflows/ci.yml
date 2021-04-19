@@ -47,6 +47,11 @@ jobs:
         with:
           submodules: true
 
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
       - name: Find the Go Build Cache
         id: go
         run: echo "::set-output name=cache::$(go env GOCACHE)"
@@ -68,14 +73,14 @@ jobs:
       - name: Vendor Dependencies
         run: make vendor vendor.check
 
-      # This action uses its own setup-go, which always seems to use the latest
-      # stable version of Go. We could run 'make lint' to ensure our desired Go
-      # version, but we prefer this action because it leaves 'annotations' (i.e.
-      # it comments on PRs to point out linter violations).
+      # We could run 'make lint' to ensure our desired Go version, but we prefer
+      # this action because it leaves 'annotations' (i.e. it comments on PRs to
+      # point out linter violations).
       - name: Lint
         uses: golangci/golangci-lint-action@v2
         with:
           version: ${{ env.GOLANGCI_VERSION }}
+          skip-go-installation: true
 
   check-diff:
     runs-on: ubuntu-18.04
