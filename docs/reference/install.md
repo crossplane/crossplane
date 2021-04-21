@@ -76,7 +76,7 @@ and their default values.
 | `affinity` | Enable affinity for Crossplane pod | `{}` |
 | `image.repository` | Image | `crossplane/crossplane` |
 | `image.tag` | Image tag | `master` |
-| `image.pullPolicy` | Image pull policy | `Always` |
+| `image.pullPolicy` | Image pull policy used in all containers | `IfNotPresent` |
 | `imagePullSecrets` | Names of image pull secrets to use | `dockerhub` |
 | `replicas` | The number of replicas to run for the Crossplane pods | `1` |
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager (if enabled) pods | `RollingUpdate` |
