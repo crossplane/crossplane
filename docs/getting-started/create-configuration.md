@@ -92,7 +92,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/definition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/definition.yaml
 ```
 
 > You might notice that the XRD we created specifies both "names" and "claim
@@ -169,7 +169,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/aws/composition.yaml
 ```
 
 </div>
@@ -343,7 +343,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws-with-vpc/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/aws-with-vpc/composition.yaml
 ```
 
 </div>
@@ -399,7 +399,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/gcp/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/gcp/composition.yaml
 ```
 
 </div>
@@ -485,7 +485,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/azure/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/azure/composition.yaml
 ```
 
 </div>
@@ -535,7 +535,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/alibaba/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/alibaba/composition.yaml
 ```
 
 </div>
@@ -578,7 +578,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/aws/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -618,7 +618,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws-with-vpc/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/aws-with-vpc/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -657,7 +657,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/gcp/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/gcp/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -696,7 +696,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/azure/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.2/docs/snippets/package/azure/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
