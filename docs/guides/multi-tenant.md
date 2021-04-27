@@ -9,6 +9,20 @@ This guide describes how to use Crossplane effectively in multi-tenant
 environments by utilizing Kubernetes primitives and compatible policy
 enforcement projects in the cloud-native ecosystem.
 
+## TL;DR
+
+Infrastructure operators in multi-tenant Crossplane environments typically
+utilize composition and Kubernetes RBAC to define lightweight, standardized
+policies that dictate what level of self-service developers are given when
+requesting infrastructure. This is primarily achieved through exposing abstract
+resource types at the namespace scope, defining `Roles` for teams and
+individuals within that namespace, and patching the `spec.providerConfigRef` of
+the underlying managed resources so that they use a specific `ProviderConfig`
+and credentials when provisioned from each namespace. Larger organizations, or
+those with more complex environments, may choose to incorporate third-party
+policy engines, or scale to multiple Crossplane clusters. The following sections
+describe each of these scenarios in greater detail.
+
 - [Background](#background)
     - [Cluster Scoped Managed Resources](#cluster-scoped-managed-resources)
     - [Namespace Scoped Claims](#namespace-scoped-claims)
@@ -228,6 +242,11 @@ resources:
 This would result in the `RDSInstance` using the `ProviderConfig` of whatever
 namespace the corresponding `MySQLInstance` was created in.
 
+> Note that this model currently only allows for a single `ProviderConfig` per
+> namespace. However, future Crossplane releases should allow for defining a set
+> of `ProviderConfig` that can be selected from using [Multiple Source Field
+> patching]. 
+
 ### Policy Enforcement with Open Policy Agent
 
 In some Crossplane deployment models, only using composition and RBAC to define
@@ -292,6 +311,7 @@ dedicated control planes to many tenants within a single organization.
 [Rego]: https://www.openpolicyagent.org/docs/latest/policy-language/
 [Gatekeeper]: https://open-policy-agent.github.io/gatekeeper/website/docs/
 [here]: https://youtu.be/TaF0_syejXc
+[Multiple Source Field patching]: https://github.com/crossplane/crossplane/pull/2093
 [Configuration packages]: ../concepts/packages.md
 [OCI images]: https://github.com/opencontainers/image-spec
 [EKS Cluster]: https://doc.crds.dev/github.com/crossplane/provider-aws/eks.aws.crossplane.io/Cluster/v1beta1@v0.17.0
