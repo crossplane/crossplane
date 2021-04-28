@@ -5,6 +5,8 @@ weight: 240
 indent: true
 ---
 
+# Multi-Tenant Crossplane
+
 This guide describes how to use Crossplane effectively in multi-tenant
 environments by utilizing Kubernetes primitives and compatible policy
 enforcement projects in the cloud-native ecosystem.
