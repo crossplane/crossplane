@@ -137,6 +137,13 @@ func TestPatchTypeReplacement(t *testing.T) {
 									FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-1"),
 								},
 								{
+									Type: PatchTypeFromConstantValue,
+									ConstantValue: &ConstantValue{
+										Type:   ConstantTypeString,
+										String: pointer.StringPtr("constant-value"),
+									},
+								},
+								{
 									Type:          PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-2"),
 									Transforms: []Transform{{
@@ -188,6 +195,13 @@ func TestPatchTypeReplacement(t *testing.T) {
 							{
 								Type:          PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-1"),
+							},
+							{
+								Type: PatchTypeFromConstantValue,
+								ConstantValue: &ConstantValue{
+									Type:   ConstantTypeString,
+									String: pointer.StringPtr("constant-value"),
+								},
 							},
 							{
 								Type:          PatchTypeFromCompositeFieldPath,
@@ -489,6 +503,127 @@ func TestConvertResolve(t *testing.T) {
 	}
 }
 
+func TestGetConstantValue(t *testing.T) {
+	type args struct {
+		ct ConstantValue
+	}
+
+	type want struct {
+		o   interface{}
+		err error
+	}
+
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"UndefinedType": {
+			args: args{
+				ct: ConstantValue{},
+			},
+			want: want{
+				o:   nil,
+				err: errors.New(errConstantValueTypeNotDefined),
+			},
+		},
+		"UnsupportedType": {
+			args: args{
+				ct: ConstantValue{
+					Type:   "badType",
+					String: pointer.StringPtr("value"),
+				},
+			},
+			want: want{
+				o:   nil,
+				err: errors.Errorf(errConstantValueTypeNotSupported, "badType"),
+			},
+		},
+		"StringType": {
+			args: args{
+				ct: ConstantValue{
+					Type:   "string",
+					String: pointer.StringPtr("crossplane"),
+				},
+			},
+			want: want{
+				o:   interface{}(pointer.StringPtr("crossplane")),
+				err: nil,
+			},
+		},
+		"StringTypeMissingValue": {
+			args: args{
+				ct: ConstantValue{
+					Type: "string",
+				},
+			},
+			want: want{
+				o:   nil,
+				err: errors.Errorf(errRequiredValue, ConstantTypeString),
+			},
+		},
+		"Int64Type": {
+			args: args{
+				ct: ConstantValue{
+					Type: "int64",
+					Int:  pointer.Int64Ptr(5),
+				},
+			},
+			want: want{
+				o:   interface{}(pointer.Int64Ptr(5)),
+				err: nil,
+			},
+		},
+		"Int64TypeMissingValue": {
+			args: args{
+				ct: ConstantValue{
+					Type: "int64",
+				},
+			},
+			want: want{
+				o:   nil,
+				err: errors.Errorf(errRequiredValue, ConstantTypeInt),
+			},
+		},
+		"BoolType": {
+			args: args{
+				ct: ConstantValue{
+					Type: "bool",
+					Bool: pointer.BoolPtr(true),
+				},
+			},
+			want: want{
+				o:   interface{}(pointer.BoolPtr(true)),
+				err: nil,
+			},
+		},
+		"BoolTypeMissingValue": {
+			args: args{
+				ct: ConstantValue{
+					Type: "bool",
+				},
+			},
+			want: want{
+				o:   nil,
+				err: errors.Errorf(errRequiredValue, ConstantTypeBool),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.args.ct.GetValue()
+
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+
+}
+
 func TestPatchApply(t *testing.T) {
 	now := metav1.NewTime(time.Unix(0, 0))
 	lpt := fake.ConnectionDetailsLastPublishedTimer{
@@ -780,6 +915,85 @@ func TestPatchApply(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"InvalidConstantValuePatchMissingToField": {
+			reason: "Should return error when ToFieldPath not set in a FromConstantValue",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeFromConstantValue,
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+			},
+			want: want{
+				err: errors.Errorf(errRequiredField, "ToFieldPath", PatchTypeFromConstantValue),
+			},
+		},
+		"InvalidConstantValuePatchMissingConstantValue": {
+			reason: "Should return error when ConstantValue is not set",
+			args: args{
+				patch: Patch{
+					Type:        PatchTypeFromConstantValue,
+					ToFieldPath: pointer.StringPtr("objectMeta.generateName"),
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+			},
+			want: want{
+				err: errors.Errorf(errConstantValue, PatchTypeFromConstantValue),
+			},
+		},
+		"ValidConstantValuePatchString": {
+			reason: "Should patch with a constant Value",
+			args: args{
+				patch: Patch{
+					Type:        PatchTypeFromConstantValue,
+					ToFieldPath: pointer.StringPtr("objectMeta.generateName"),
+					ConstantValue: &ConstantValue{
+						Type:   ConstantTypeString,
+						String: pointer.StringPtr("prefix"),
+					},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:         "cd",
+						GenerateName: "prefix",
 						Labels: map[string]string{
 							"Test": "blah",
 						}},

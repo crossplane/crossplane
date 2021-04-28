@@ -76,6 +76,28 @@ spec:
                           a value from the composite resource to the composed resource,
                           applying any defined transformers.
                         properties:
+                          constantValue:
+                            description: ConstantValue is a constant value to patch
+                              instead of a reference to a field patch.
+                            properties:
+                              bool:
+                                description: Bool is a constant boolean value
+                                type: boolean
+                              int:
+                                description: Int is a constant integer value
+                                format: int64
+                                type: integer
+                              string:
+                                description: String is a contstant string value
+                                type: string
+                              type:
+                                description: Type of the Constant, defaults to string.
+                                enum:
+                                - bool
+                                - int
+                                - string
+                                type: string
+                            type: object
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on
                               the resource whose value is to be used as input. Required
@@ -181,6 +203,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
+                            - FromConstantValue
                             type: string
                         type: object
                       type: array
@@ -269,6 +292,28 @@ spec:
                           a value from the composite resource to the composed resource,
                           applying any defined transformers.
                         properties:
+                          constantValue:
+                            description: ConstantValue is a constant value to patch
+                              instead of a reference to a field patch.
+                            properties:
+                              bool:
+                                description: Bool is a constant boolean value
+                                type: boolean
+                              int:
+                                description: Int is a constant integer value
+                                format: int64
+                                type: integer
+                              string:
+                                description: String is a contstant string value
+                                type: string
+                              type:
+                                description: Type of the Constant, defaults to string.
+                                enum:
+                                - bool
+                                - int
+                                - string
+                                type: string
+                            type: object
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on
                               the resource whose value is to be used as input. Required
@@ -374,6 +419,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
+                            - FromConstantValue
                             type: string
                         type: object
                       type: array

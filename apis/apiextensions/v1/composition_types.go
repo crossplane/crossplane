@@ -47,6 +47,11 @@ const (
 	errFmtTransformTypeFailed          = "%s transform could not resolve"
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
+
+	errConstantValue                 = "type %s requires constantValue to be set"
+	errConstantValueTypeNotDefined   = "constantValue type not defined"
+	errConstantValueTypeNotSupported = "constantValue type %s is not supported"
+	errRequiredValue                 = "constant value for for type %s is missing"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -205,6 +210,7 @@ const (
 	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
 	PatchTypePatchSet               PatchType = "PatchSet"
 	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
+	PatchTypeFromConstantValue      PatchType = "FromConstantValue"
 )
 
 // Patch objects are applied between composite and composed resources. Their
@@ -215,7 +221,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;FromConstantValue
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -243,6 +249,11 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+
+	// ConstantValue is a constant value to patch instead of a reference to a
+	// field patch.
+	// +optional
+	ConstantValue *ConstantValue `json:"constantValue,omitempty"`
 }
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -265,6 +276,64 @@ type PatchPolicy struct {
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
 }
 
+// ConstantType is the type of constant
+type ConstantType string
+
+// Accepted ConstantTypes
+const (
+	ConstantTypeBool   ConstantType = "bool"
+	ConstantTypeString ConstantType = "string"
+	ConstantTypeInt    ConstantType = "int64"
+)
+
+// A ConstantValue is constant value to patch
+type ConstantValue struct {
+	// Type of the Constant, defaults to string.
+	// +kubebuilder:validation:Enum=bool;int;string
+	// +kubebuilder:validation:Default=string
+	// +optional
+	Type ConstantType `json:"type"`
+
+	// Bool is a constant boolean value
+	// +kubebuilder:validation:Type=boolean
+	// +optional
+	Bool *bool `json:"bool,omitempty"`
+
+	// String is a contstant string value
+	// +optional
+	String *string `json:"string,omitempty"`
+
+	// Int is a constant integer value
+	// +kubebuilder:validation:Type=integer
+	// +optional
+	Int *int64 `json:"int,omitempty"`
+}
+
+// GetValue gets the value of a constantValue
+func (cv *ConstantValue) GetValue() (interface{}, error) {
+	switch cv.Type {
+	case "":
+		return nil, errors.New(errConstantValueTypeNotDefined)
+	case ConstantTypeString:
+		if cv.String == nil {
+			return nil, errors.Errorf(errRequiredValue, ConstantTypeString)
+		}
+		return cv.String, nil
+	case ConstantTypeInt:
+		if cv.Int == nil {
+			return nil, errors.Errorf(errRequiredValue, ConstantTypeInt)
+		}
+		return cv.Int, nil
+	case ConstantTypeBool:
+		if cv.Bool == nil {
+			return nil, errors.Errorf(errRequiredValue, ConstantTypeBool)
+		}
+		return cv.Bool, nil
+	default:
+		return nil, errors.Errorf(errConstantValueTypeNotSupported, cv.Type)
+	}
+}
+
 // Apply executes a patching operation between the from and to resources.
 // Applies all patch types unless an 'only' filter is supplied.
 func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
@@ -277,6 +346,8 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 		return c.applyFromFieldPathPatch(from, to)
 	case PatchTypeToCompositeFieldPath:
 		return c.applyFromFieldPathPatch(to, from)
+	case PatchTypeFromConstantValue:
+		return c.applyFromConstantValuePatch(to)
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
@@ -296,6 +367,36 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 		}
 	}
 	return true
+}
+
+// applyFromConstantValuePatch patches the "to" resource with a constant value
+// Transformations are not supported.
+func (c *Patch) applyFromConstantValuePatch(to runtime.Object) error {
+
+	// ToFieldPatch must be specified for a FromConstantValue
+	if c.ToFieldPath == nil {
+		return errors.Errorf(errRequiredField, "ToFieldPath", c.Type)
+	}
+
+	if c.ConstantValue == nil {
+		return errors.Errorf(errConstantValue, PatchTypeFromConstantValue)
+	}
+
+	value, err := c.ConstantValue.GetValue()
+	if err != nil {
+		return err
+	}
+
+	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
+	if err != nil {
+		return err
+	}
+
+	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, value); err != nil {
+		return err
+	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
+
 }
 
 // applyFromFieldPathPatch patches the "to" resource, using a source field
@@ -607,7 +708,7 @@ const (
 	ConnectionDetailTypeUnknown                 ConnectionDetailType = "Unknown"
 	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey"
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
-	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
+	ConnectionDetailTypeFromValue               ConnectionDetailType = "From Value"
 )
 
 // ConnectionDetail includes the information about the propagation of the connection
