@@ -17,8 +17,10 @@ possible, but they’re also opinionated. Common functionality like status
 conditions and references work the same no matter which provider you're using -
 all managed resources comply with the Crossplane Resource Model, or XRM. Despite
 the name, 'provider' doesn’t necessarily mean 'cloud provider'. The Crossplane
-community has built providers that add support for managing databases on a SQL
-server, managing Helm releases, and ordering pizza.
+community has built providers that add support for managing databases on a [SQL
+server](https://github.com/crossplane-contrib/provider-sql), managing
+[Helm releases](https://github.com/crossplane-contrib/provider-helm/),
+and [ordering pizza](https://blog.crossplane.io/providers-101-ordering-pizza-with-kubernetes-and-crossplane/).
 
 Composition allows platform builders to define new custom resources that are
 composed of managed resources. We call these composite resources, or XRs. An XR
