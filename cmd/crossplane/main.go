@@ -23,7 +23,9 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -58,6 +60,11 @@ func main() {
 	// uses the controller manager's client (and thus scheme) to create packaged
 	// objects.
 	s := runtime.NewScheme()
+
+	// This is required when using scheme.AddToScheme in order to avoid issues
+	// like https://github.com/crossplane/crossplane/issues/2284.
+	metav1.AddToGroupVersion(s, schema.GroupVersion{Version: "v1"})
+
 	kingpin.FatalIfError(scheme.AddToScheme(s), "cannot add client-go scheme")
 	kingpin.FatalIfError(extv1.AddToScheme(s), "cannot add client-go extensions v1 scheme")
 	kingpin.FatalIfError(extv1beta1.AddToScheme(s), "cannot add client-go extensions v1beta1 scheme")
