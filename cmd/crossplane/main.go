@@ -21,10 +21,12 @@ import (
 	"path/filepath"
 
 	"gopkg.in/alecthomas/kingpin.v2"
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
@@ -58,10 +60,12 @@ func main() {
 	// uses the controller manager's client (and thus scheme) to create packaged
 	// objects.
 	s := runtime.NewScheme()
-	kingpin.FatalIfError(scheme.AddToScheme(s), "cannot add client-go scheme")
-	kingpin.FatalIfError(extv1.AddToScheme(s), "cannot add client-go extensions v1 scheme")
-	kingpin.FatalIfError(extv1beta1.AddToScheme(s), "cannot add client-go extensions v1beta1 scheme")
-	kingpin.FatalIfError(apis.AddToScheme(s), "cannot add crossplane scheme")
+	kingpin.FatalIfError(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
+	kingpin.FatalIfError(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
+	kingpin.FatalIfError(rbacv1.AddToScheme(s), "cannot add rbac v1 Kubernetes API types to scheme")
+	kingpin.FatalIfError(extv1.AddToScheme(s), "cannot add apiextensions v1 Kubernetes API types to scheme")
+	kingpin.FatalIfError(extv1beta1.AddToScheme(s), "cannot add apiextensions v1beta1 Kubernetes API types to scheme")
+	kingpin.FatalIfError(apis.AddToScheme(s), "cannot add Crossplane API types to scheme")
 
 	switch cmd {
 	case c.Name:
