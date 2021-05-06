@@ -53,12 +53,12 @@ documentation].
 |:-------:|:---------------:|:------------:|:-------------:|
 |   v1.0  |     [v1.0.0]    | Dec 14, 2020 |   June 2021   |
 |   v1.1  |     [v1.1.1]    |  Mar 3, 2021 |  August 2021  |
-|   v1.2  |     [v1.2.0]    | Apr 27, 2021 | October 2021  |
+|   v1.2  |     [v1.2.1]    | Apr 27, 2021 | October 2021  |
 |   v1.3  |     Upcoming    | Jun 29, 2021 | December 2021 |
 
 [v1.0.0]: https://github.com/crossplane/crossplane/releases/tag/v1.0.0
 [v1.1.1]: https://github.com/crossplane/crossplane/releases/tag/v1.1.1
-[v1.2.0]: https://github.com/crossplane/crossplane/releases/tag/v1.2.0
+[v1.2.1]: https://github.com/crossplane/crossplane/releases/tag/v1.2.1
 
 ## Getting Started
 
