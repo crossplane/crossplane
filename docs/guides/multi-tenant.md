@@ -35,6 +35,7 @@ describe each of these scenarios in greater detail.
 - [Multi Cluster Multi Tenancy](#multi-cluster-multi-tenancy)
   - [Reproducible Platforms with Configuration Packages](#reproducible-platforms-with-configuration-packages)
   - [Control Plane of Control Planes](#control-plane-of-control-planes)
+  - [Service Provisioning using Open Service Broker API](#service-provisioning-using-open-service-broker-api)
 
 ## Background
 
@@ -303,6 +304,21 @@ This advanced pattern allows for full management of Crossplane clusters using
 Crossplane itself, and when done properly, is a scalable solution to providing
 dedicated control planes to many tenants within a single organization.
 
+### Service Provisioning using Open Service Broker API
+
+Another way to achieve multi-cluster multi-tenancy is by leveraging the
+possibilities of the [Open Service Broker API] specification and tie it
+together with Crossplane.
+
+A possible architecture could look like this: Crossplane and the
+[Crossplane Service Broker] are running on the central control plane cluster.
+The Crossplane objects which represent the service offerings and service plans,
+the XRDs and Compositions, leverage [provider-helm] to spin up service instances
+on one or many service clusters. The end-user uses the [Kubernetes Service Catalog]
+to order services via the Crossplane Service Broker. A demo of this concept can be
+found under [vshn/application-catalog-demo].
+
+This way even a tight integration of Crossplane in to [Cloudfoundry] is possible.
 
 <!-- Named Links -->
 [managed resources]: ../concepts/managed-resources.md
@@ -319,3 +335,8 @@ dedicated control planes to many tenants within a single organization.
 [EKS Cluster]: https://doc.crds.dev/github.com/crossplane/provider-aws/eks.aws.crossplane.io/Cluster/v1beta1@v0.17.0
 [provider-aws]: https://github.com/crossplane/provider-aws
 [provider-helm]: https://github.com/crossplane-contrib/provider-helm
+[Open Service Broker API]: https://github.com/openservicebrokerapi/servicebroker
+[Crossplane Service Broker]: https://github.com/vshn/crossplane-service-broker
+[Cloudfoundry]: https://www.cloudfoundry.org/
+[Kubernetes Service Catalog]: https://github.com/kubernetes-sigs/service-catalog
+[vshn/application-catalog-demo]: https://github.com/vshn/application-catalog-demo
