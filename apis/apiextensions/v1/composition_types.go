@@ -283,7 +283,7 @@ type ConstantType string
 const (
 	ConstantTypeBool   ConstantType = "bool"
 	ConstantTypeString ConstantType = "string"
-	ConstantTypeInt    ConstantType = "int64"
+	ConstantTypeInt    ConstantType = "int"
 )
 
 // A ConstantValue is constant value to patch
@@ -395,6 +395,7 @@ func (c *Patch) applyFromConstantValuePatch(to runtime.Object) error {
 	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, value); err != nil {
 		return err
 	}
+
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 
 }
