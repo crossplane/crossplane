@@ -561,10 +561,10 @@ func TestGetConstantValue(t *testing.T) {
 				err: errors.Errorf(errRequiredValue, ConstantTypeString),
 			},
 		},
-		"Int64Type": {
+		"IntType": {
 			args: args{
 				ct: ConstantValue{
-					Type: "int64",
+					Type: "int",
 					Int:  pointer.Int64Ptr(5),
 				},
 			},
@@ -573,10 +573,10 @@ func TestGetConstantValue(t *testing.T) {
 				err: nil,
 			},
 		},
-		"Int64TypeMissingValue": {
+		"IntTypeMissingValue": {
 			args: args{
 				ct: ConstantValue{
-					Type: "int64",
+					Type: "int",
 				},
 			},
 			want: want{
