@@ -63,8 +63,9 @@ metadata:
       provider-example is a really great Crossplane provider...
 
     # The provider's SVG icon URI. The SVG should be optimized for 24, 48, 65px
-    # and 2x versions.
-    meta.crossplane.io/iconData: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4KBIWXMA
+    # and 2x versions. Consumers are encouraged to support at least data URIs.
+    # https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    meta.crossplane.io/iconURI: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4KBIWXMA
 
     # A mapping of concepts to friendly, human centric names.
     friendly-name.meta.crossplane.io/database.example.org: "Databases"
