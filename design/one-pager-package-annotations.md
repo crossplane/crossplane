@@ -67,9 +67,15 @@ metadata:
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     meta.crossplane.io/iconURI: data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciLz4KBIWXMA
 
-    # A mapping of concepts to friendly, human centric names.
+    # A 'human-friendly' name for this package.
+    friendly-name.meta.crossplane.io: "Example Provider"
+
+    # A 'human-friendly' name for an API group defined by this package.
     friendly-name.meta.crossplane.io/database.example.org: "Databases"
-    friendly-name.meta.crossplane.io/database.example.org/ExampleDBInstance: "ExampleDB Instance"
+
+    # A 'human-friendly' name for a an API kind defined by this package. Note
+    # that the format is title case kind followed by API group.
+    friendly-name.meta.crossplane.io/CloudSQLInstance.database.example.org: "CloudSQL Instance"
 spec:
   controller:
     image: crossplane/provider-example:v0.1.0
