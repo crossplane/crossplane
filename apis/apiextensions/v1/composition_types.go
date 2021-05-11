@@ -48,10 +48,10 @@ const (
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
 
-	errConstantValue                 = "type %s requires constantValue to be set"
-	errConstantValueTypeNotDefined   = "constantValue type not defined"
-	errConstantValueTypeNotSupported = "constantValue type %s is not supported"
-	errRequiredValue                 = "constant value for for type %s is missing"
+	errConstantValueTypeNotDefined      = "constantValue type not defined"
+	errFmtConstantValue                 = "type %s requires constantValue to be set"
+	errFmtConstantValueTypeNotSupported = "constantValue type %s is not supported"
+	errFmtRequiredValue                 = "constant value for for type %s is missing"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -316,21 +316,21 @@ func (cv *ConstantValue) GetValue() (interface{}, error) {
 		return nil, errors.New(errConstantValueTypeNotDefined)
 	case ConstantTypeString:
 		if cv.String == nil {
-			return nil, errors.Errorf(errRequiredValue, ConstantTypeString)
+			return nil, errors.Errorf(errFmtRequiredValue, ConstantTypeString)
 		}
 		return cv.String, nil
 	case ConstantTypeInt:
 		if cv.Int == nil {
-			return nil, errors.Errorf(errRequiredValue, ConstantTypeInt)
+			return nil, errors.Errorf(errFmtRequiredValue, ConstantTypeInt)
 		}
 		return cv.Int, nil
 	case ConstantTypeBool:
 		if cv.Bool == nil {
-			return nil, errors.Errorf(errRequiredValue, ConstantTypeBool)
+			return nil, errors.Errorf(errFmtRequiredValue, ConstantTypeBool)
 		}
 		return cv.Bool, nil
 	default:
-		return nil, errors.Errorf(errConstantValueTypeNotSupported, cv.Type)
+		return nil, errors.Errorf(errFmtConstantValueTypeNotSupported, cv.Type)
 	}
 }
 
@@ -379,7 +379,7 @@ func (c *Patch) applyFromConstantValuePatch(to runtime.Object) error {
 	}
 
 	if c.ConstantValue == nil {
-		return errors.Errorf(errConstantValue, PatchTypeFromConstantValue)
+		return errors.Errorf(errFmtConstantValue, PatchTypeFromConstantValue)
 	}
 
 	value, err := c.ConstantValue.GetValue()
@@ -709,7 +709,7 @@ const (
 	ConnectionDetailTypeUnknown                 ConnectionDetailType = "Unknown"
 	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey"
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
-	ConnectionDetailTypeFromValue               ConnectionDetailType = "From Value"
+	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
 )
 
 // ConnectionDetail includes the information about the propagation of the connection

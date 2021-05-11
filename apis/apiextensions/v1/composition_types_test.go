@@ -504,46 +504,36 @@ func TestConvertResolve(t *testing.T) {
 }
 
 func TestGetConstantValue(t *testing.T) {
-	type args struct {
-		ct ConstantValue
-	}
-
 	type want struct {
 		o   interface{}
 		err error
 	}
 
 	cases := map[string]struct {
-		args
+		cv ConstantValue
 		want
 	}{
 		"UndefinedType": {
-			args: args{
-				ct: ConstantValue{},
-			},
+			cv: ConstantValue{},
 			want: want{
 				o:   nil,
 				err: errors.New(errConstantValueTypeNotDefined),
 			},
 		},
 		"UnsupportedType": {
-			args: args{
-				ct: ConstantValue{
-					Type:   "badType",
-					String: pointer.StringPtr("value"),
-				},
+			cv: ConstantValue{
+				Type:   "badType",
+				String: pointer.StringPtr("value"),
 			},
 			want: want{
 				o:   nil,
-				err: errors.Errorf(errConstantValueTypeNotSupported, "badType"),
+				err: errors.Errorf(errFmtConstantValueTypeNotSupported, "badType"),
 			},
 		},
 		"StringType": {
-			args: args{
-				ct: ConstantValue{
-					Type:   "string",
-					String: pointer.StringPtr("crossplane"),
-				},
+			cv: ConstantValue{
+				Type:   "string",
+				String: pointer.StringPtr("crossplane"),
 			},
 			want: want{
 				o:   interface{}(pointer.StringPtr("crossplane")),
@@ -551,22 +541,18 @@ func TestGetConstantValue(t *testing.T) {
 			},
 		},
 		"StringTypeMissingValue": {
-			args: args{
-				ct: ConstantValue{
-					Type: "string",
-				},
+			cv: ConstantValue{
+				Type: "string",
 			},
 			want: want{
 				o:   nil,
-				err: errors.Errorf(errRequiredValue, ConstantTypeString),
+				err: errors.Errorf(errFmtRequiredValue, ConstantTypeString),
 			},
 		},
 		"IntType": {
-			args: args{
-				ct: ConstantValue{
-					Type: "int",
-					Int:  pointer.Int64Ptr(5),
-				},
+			cv: ConstantValue{
+				Type: "int",
+				Int:  pointer.Int64Ptr(5),
 			},
 			want: want{
 				o:   interface{}(pointer.Int64Ptr(5)),
@@ -574,22 +560,18 @@ func TestGetConstantValue(t *testing.T) {
 			},
 		},
 		"IntTypeMissingValue": {
-			args: args{
-				ct: ConstantValue{
-					Type: "int",
-				},
+			cv: ConstantValue{
+				Type: "int",
 			},
 			want: want{
 				o:   nil,
-				err: errors.Errorf(errRequiredValue, ConstantTypeInt),
+				err: errors.Errorf(errFmtRequiredValue, ConstantTypeInt),
 			},
 		},
 		"BoolType": {
-			args: args{
-				ct: ConstantValue{
-					Type: "bool",
-					Bool: pointer.BoolPtr(true),
-				},
+			cv: ConstantValue{
+				Type: "bool",
+				Bool: pointer.BoolPtr(true),
 			},
 			want: want{
 				o:   interface{}(pointer.BoolPtr(true)),
@@ -597,21 +579,19 @@ func TestGetConstantValue(t *testing.T) {
 			},
 		},
 		"BoolTypeMissingValue": {
-			args: args{
-				ct: ConstantValue{
-					Type: "bool",
-				},
+			cv: ConstantValue{
+				Type: "bool",
 			},
 			want: want{
 				o:   nil,
-				err: errors.Errorf(errRequiredValue, ConstantTypeBool),
+				err: errors.Errorf(errFmtRequiredValue, ConstantTypeBool),
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.ct.GetValue()
+			got, err := tc.cv.GetValue()
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -950,7 +930,7 @@ func TestPatchApply(t *testing.T) {
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
 			},
 			want: want{
-				err: errors.Errorf(errConstantValue, PatchTypeFromConstantValue),
+				err: errors.Errorf(errFmtConstantValue, PatchTypeFromConstantValue),
 			},
 		},
 		"ValidConstantValuePatchString": {
