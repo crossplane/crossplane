@@ -295,7 +295,6 @@ type ConstantValue struct {
 	Type ConstantType `json:"type"`
 
 	// Bool is a constant boolean value
-	// +kubebuilder:validation:Type=boolean
 	// +optional
 	Bool *bool `json:"bool,omitempty"`
 
@@ -304,7 +303,6 @@ type ConstantValue struct {
 	String *string `json:"string,omitempty"`
 
 	// Int is a constant integer value
-	// +kubebuilder:validation:Type=integer
 	// +optional
 	Int *int64 `json:"int,omitempty"`
 }
