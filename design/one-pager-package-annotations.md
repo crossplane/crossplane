@@ -71,11 +71,11 @@ metadata:
     friendly-name.meta.crossplane.io: "Example Provider"
 
     # A 'human-friendly' name for an API group defined by this package.
-    friendly-name.meta.crossplane.io/database.example.org: "Databases"
+    friendly-group-name.meta.crossplane.io/database.example.org: "Databases"
 
     # A 'human-friendly' name for a an API kind defined by this package. Note
-    # that the format is title case kind followed by API group.
-    friendly-name.meta.crossplane.io/CloudSQLInstance.database.example.org: "CloudSQL Instance"
+    # that the kind is singular, not plural (i.e. instance not instances).
+    friendly-kind-name.meta.crossplane.io/cloudsqlinstance.database.example.org: "CloudSQL Instance"
 spec:
   controller:
     image: crossplane/provider-example:v0.1.0
