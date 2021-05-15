@@ -81,6 +81,31 @@ spec:
                               the resource whose value is to be used as input. Required
                               when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
+                          fromFn:
+                            description: FromFn is a function whose output is patched
+                              instead of a reference to a field path
+                            properties:
+                              randomString:
+                                description: RandomString is function to generate
+                                  random string using the input charset and length;
+                                  required when fromFnType is randomString
+                                properties:
+                                  charset:
+                                    description: Charset is the character set to be
+                                      used to generate random string
+                                    type: string
+                                  length:
+                                    description: Length is the length of the random
+                                      string to be generated
+                                    format: int32
+                                    type: integer
+                                type: object
+                              type:
+                                description: Type of FromFn to be executed
+                                enum:
+                                - randomString
+                                type: string
+                            type: object
                           patchSetName:
                             description: PatchSetName to include patches from. Required
                               when type is PatchSet.
@@ -181,6 +206,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
+                            - FromFn
                             type: string
                         type: object
                       type: array
@@ -274,6 +300,31 @@ spec:
                               the resource whose value is to be used as input. Required
                               when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
+                          fromFn:
+                            description: FromFn is a function whose output is patched
+                              instead of a reference to a field path
+                            properties:
+                              randomString:
+                                description: RandomString is function to generate
+                                  random string using the input charset and length;
+                                  required when fromFnType is randomString
+                                properties:
+                                  charset:
+                                    description: Charset is the character set to be
+                                      used to generate random string
+                                    type: string
+                                  length:
+                                    description: Length is the length of the random
+                                      string to be generated
+                                    format: int32
+                                    type: integer
+                                type: object
+                              type:
+                                description: Type of FromFn to be executed
+                                enum:
+                                - randomString
+                                type: string
+                            type: object
                           patchSetName:
                             description: PatchSetName to include patches from. Required
                               when type is PatchSet.
@@ -374,6 +425,7 @@ spec:
                             - FromCompositeFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
+                            - FromFn
                             type: string
                         type: object
                       type: array

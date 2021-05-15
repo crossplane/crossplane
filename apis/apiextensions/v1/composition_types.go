@@ -19,6 +19,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand" // #nosec G404
 	"reflect"
 	"strconv"
 
@@ -47,6 +48,11 @@ const (
 	errFmtTransformTypeFailed          = "%s transform could not resolve"
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
+
+	errFmtFromFnTypeNotSupported       = "fromFn type %s is not supported"
+	errFromFnTypeNotDefined            = "fromFn type not defined"
+	defaultRandomStringCharset         = "abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&"
+	defaultRandomStringLength    int32 = 32
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -205,6 +211,7 @@ const (
 	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
 	PatchTypePatchSet               PatchType = "PatchSet"
 	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
+	PatchTypeFromFn                 PatchType = "FromFn"
 )
 
 // Patch objects are applied between composite and composed resources. Their
@@ -215,7 +222,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;FromFn
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -243,6 +250,73 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+
+	// FromFn is a function whose output is patched instead of a reference to a
+	// field path
+	// +optional
+	FromFn *FromFn `json:"fromFn,omitempty"`
+}
+
+// FromFnType is the type of FromFn to be used
+// +kubebuilder:validation:Enum=randomString
+type FromFnType string
+
+// Accepted FromFnTypes
+const (
+	FromFnTypeRandomString FromFnType = "randomString"
+)
+
+// FromFn is the function to be used for patch
+type FromFn struct {
+	// Type of FromFn to be executed
+	// +optional
+	Type FromFnType `json:"type,omitempty"`
+
+	// RandomString is function to generate random string using the input charset
+	// and length; required when fromFnType is randomString
+	// +optional
+	RandomString *RandomString `json:"randomString,omitempty"`
+}
+
+// GetFnValue gets the output value of the fromFn specified
+func (fn *FromFn) GetFnValue() (interface{}, error) {
+	switch fn.Type {
+	case "":
+		return nil, errors.New(errFromFnTypeNotDefined)
+	case FromFnTypeRandomString:
+		if fn.RandomString == nil {
+			length, charset := defaultRandomStringLength, defaultRandomStringCharset
+			return (&RandomString{&length, &charset}).GetValue()
+		}
+		return fn.RandomString.GetValue()
+	default:
+		return nil, errors.Errorf(errFmtFromFnTypeNotSupported, fn.Type)
+	}
+}
+
+// RandomString is one of FromFn type to generate a random string
+// using the provided charset and length
+type RandomString struct {
+	// Length is the length of the random string to be generated
+	// +kubebuilder:validation:Default=32
+	// +optional
+	Length *int32 `json:"length,omitempty"` //default: 32
+
+	// Charset is the character set to be used to generate random string
+	// +kubebuilder:validation:Default=abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&
+	// +optional
+	Charset *string `json:"charset,omitempty"`
+}
+
+// GetValue returns a random string using the charset and length
+// from RandomString object
+func (rs *RandomString) GetValue() (string, error) {
+	charRunes := []rune(*rs.Charset)
+	outputRunes := make([]rune, *rs.Length)
+	for i := range outputRunes {
+		outputRunes[i] = charRunes[rand.Intn(len(charRunes))] // #nosec G404
+	}
+	return string(outputRunes), nil
 }
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -277,6 +351,8 @@ func (c *Patch) Apply(from, to runtime.Object, only ...PatchType) error {
 		return c.applyFromFieldPathPatch(from, to)
 	case PatchTypeToCompositeFieldPath:
 		return c.applyFromFieldPathPatch(to, from)
+	case PatchTypeFromFn:
+		return c.applyFromFnPatch(to)
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
@@ -346,6 +422,42 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, out); err != nil {
 		return err
 	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
+}
+
+// applyFromFnPatch patches the "to" resource using a function defined in
+// the FromFn. Values may be transformed if any are defined on
+// the patch.
+func (c *Patch) applyFromFnPatch(to runtime.Object) error {
+	if c.ToFieldPath == nil {
+		return errors.Errorf(errRequiredField, "ToFieldPath", c.Type)
+	}
+
+	if c.FromFn == nil {
+		return errors.Errorf(errRequiredField, "FromFn", c.Type)
+	}
+
+	fnValue, err := c.FromFn.GetFnValue()
+	if err != nil {
+		return err
+	}
+
+	out := fnValue
+	for i, f := range c.Transforms {
+		if out, err = f.Transform(out); err != nil {
+			return errors.Wrapf(err, errFmtTransformAtIndex, i)
+		}
+	}
+
+	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
+	if err != nil {
+		return err
+	}
+
+	if err := fieldpath.Pave(toMap).SetValue(*c.ToFieldPath, out); err != nil {
+		return err
+	}
+
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
