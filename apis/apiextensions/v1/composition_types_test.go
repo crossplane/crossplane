@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"math/rand"
 	"reflect"
 	"testing"
 	"time"
@@ -787,9 +788,153 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"InvalidFromFnPatchMissingToField": {
+			reason: "Should return error when ToFieldPath not set in a FromFn Patch",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeFromFn,
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf(errRequiredField, "ToFieldPath", "FromFn"),
+			},
+		},
+		"InvalidFromFnPatchMissingFromFn": {
+			reason: "Should return error when FromFn not set in FromFn type patch",
+			args: args{
+				patch: Patch{
+					Type:        PatchTypeFromFn,
+					ToFieldPath: pointer.StringPtr("objectMeta.generateName"),
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf(errRequiredField, "FromFn", "FromFn"),
+			},
+		},
+		"ValidFromFnPatchRandomString": {
+			reason: "Should patch with a random string",
+			args: args{
+				patch: Patch{
+					Type:        PatchTypeFromFn,
+					ToFieldPath: pointer.StringPtr("objectMeta.generateName"),
+					FromFn: &FromFn{
+						Type: FromFnTypeRandomString,
+					},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:         "cd",
+						GenerateName: "f5jBI6en8*57qD8a4IpfOGF2IDHMeea1",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+		},
+		"ValidFromFnPatchRandomStringTransformer": {
+			reason: "Should patch with a random string passed through string transformer",
+			args: args{
+				patch: Patch{
+					Type:        PatchTypeFromFn,
+					ToFieldPath: pointer.StringPtr("objectMeta.generateName"),
+					FromFn: &FromFn{
+						Type: FromFnTypeRandomString,
+					},
+					Transforms: []Transform{{
+						Type: TransformTypeString,
+						String: &StringTransform{
+							Format: "%s-test",
+						},
+					}},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:         "cd",
+						GenerateName: "f5jBI6en8*57qD8a4IpfOGF2IDHMeea1-test",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			rand.Seed(0) // a init seed to get deterministic results
 			ncp := tc.args.cp.DeepCopyObject()
 			err := tc.args.patch.Apply(ncp, tc.args.cd, tc.args.only...)
 
@@ -883,6 +1028,56 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 			got := IsOptionalFieldPathNotFound(tc.args.err, tc.args.p)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IsOptionalFieldPathNotFound(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestGetFromFnValue(t *testing.T) {
+	type want struct {
+		o   interface{}
+		err error
+	}
+
+	cases := map[string]struct {
+		fn FromFn
+		want
+	}{
+		"UndefinedType": {
+			fn: FromFn{},
+			want: want{
+				o:   nil,
+				err: errors.New(errFromFnTypeNotDefined),
+			},
+		},
+		"UnsupportedType": {
+			fn: FromFn{
+				Type: "badType",
+			},
+			want: want{
+				o:   nil,
+				err: errors.Errorf(errFmtFromFnTypeNotSupported, "badType"),
+			},
+		},
+		"randomStringType": {
+			fn: FromFn{
+				Type: "randomString",
+			},
+			want: want{
+				o:   interface{}("f5jBI6en8*57qD8a4IpfOGF2IDHMeea1"),
+				err: nil,
+			},
+		},
+	}
+	for name, tc := range cases {
+		rand.Seed(0)
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.fn.GetFnValue()
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
 			}
 		})
 	}
