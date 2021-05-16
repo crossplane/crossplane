@@ -268,7 +268,7 @@ spec:
               matchControllerRef: true
     - name: routetable
       base:
-        apiVersion: ec2.aws.crossplane.io/v1alpha4
+        apiVersion: ec2.aws.crossplane.io/v1beta1
         kind: RouteTable
         spec:
           forProvider:
