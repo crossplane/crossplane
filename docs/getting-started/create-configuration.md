@@ -571,10 +571,10 @@ metadata:
     vpc: default
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.2.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: ">=v0.14.0"
+      version: "v0.18.1"
 ```
 
 ```console
@@ -611,10 +611,10 @@ metadata:
     vpc: new
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.2.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: "v0.16.0"
+      version: "v0.18.1"
 ```
 
 ```console
