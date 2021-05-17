@@ -91,10 +91,12 @@ spec:
                                   required when fromFnType is randomString
                                 properties:
                                   charset:
+                                    default: abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&
                                     description: Charset is the character set to be
                                       used to generate random string
                                     type: string
                                   length:
+                                    default: 32
                                     description: Length is the length of the random
                                       string to be generated
                                     format: int32
@@ -310,10 +312,12 @@ spec:
                                   required when fromFnType is randomString
                                 properties:
                                   charset:
+                                    default: abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&
                                     description: Charset is the character set to be
                                       used to generate random string
                                     type: string
                                   length:
+                                    default: 32
                                     description: Length is the length of the random
                                       string to be generated
                                     format: int32

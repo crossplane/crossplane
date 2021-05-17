@@ -286,7 +286,7 @@ func (fn *FromFn) GetFnValue() (interface{}, error) {
 	case FromFnTypeRandomString:
 		if fn.RandomString == nil {
 			length, charset := defaultRandomStringLength, defaultRandomStringCharset
-			return (&RandomString{&length, &charset}).GetValue()
+			return (&RandomString{&length, charset}).GetValue()
 		}
 		return fn.RandomString.GetValue()
 	default:
@@ -298,20 +298,20 @@ func (fn *FromFn) GetFnValue() (interface{}, error) {
 // using the provided charset and length
 type RandomString struct {
 	// Length is the length of the random string to be generated
-	// +kubebuilder:validation:Default=32
+	// +kubebuilder:default=32
 	// +optional
 	Length *int32 `json:"length,omitempty"` //default: 32
 
 	// Charset is the character set to be used to generate random string
-	// +kubebuilder:validation:Default=abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&
+	// +kubebuilder:default=abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&
 	// +optional
-	Charset *string `json:"charset,omitempty"`
+	Charset string `json:"charset,omitempty"`
 }
 
 // GetValue returns a random string using the charset and length
 // from RandomString object
 func (rs *RandomString) GetValue() (string, error) {
-	charRunes := []rune(*rs.Charset)
+	charRunes := []rune(rs.Charset)
 	outputRunes := make([]rune, *rs.Length)
 	for i := range outputRunes {
 		outputRunes[i] = charRunes[rand.Intn(len(charRunes))] // #nosec G404
