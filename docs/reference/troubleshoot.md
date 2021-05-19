@@ -80,13 +80,43 @@ namespace. To get the current Crossplane logs, run the following:
 kubectl -n crossplane-system logs -lapp=crossplane
 ```
 
-Remember that much of Crossplane's functionality is provided by providers. You
-can use `kubectl logs` to view provider logs too.
-
 > Note that Crossplane emits few logs by default - events are typically the best
 > place to look for information about what Crossplane is doing. You may need to
-> restart Crossplane (or your provider) with the `--debug` flag if you can't 
-> find what you're looking for.
+> restart Crossplane with the `--debug` flag if you can't find what you're
+> looking for.
+
+## Provider Logs
+
+Remember that much of Crossplane's functionality is provided by providers. You
+can use `kubectl logs` to view provider logs too. By convention, they also emit
+few logs by default.
+
+```shell
+kubectl -n crossplane-system logs <name-of-provider-pod>
+```
+
+All providers maintained by the Crossplane community mirror Crossplane's support
+of the `--debug` flag. The easiest way to set flags on a provider is to create a
+`ControllerConfig` and reference it from the `Provider`:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: debug-config
+spec:
+  args:
+    - --debug
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws
+spec:
+  package: crossplane/provider-aws:v0.18.1
+  controllerConfigRef:
+    name: debug-config
+```
 
 ## Pausing Crossplane
 
@@ -106,8 +136,30 @@ unpause Crossplane simply by scaling its deployment back up:
 kubectl -n crossplane-system scale --replicas=1 deployment/crossplane
 ```
 
-Remember that much of Crossplane's functionality is provided by Providers. You
-can use `kubectl scale` to pause Provider controller pods too.
+## Pausing Providers
+
+Providers can also be paused when troubleshooting an issue or orchestrating a
+complex migration of resources. Creating and referencing a `ControllerConfig` is
+the easiest way to scale down a provider, and the `ControllerConfig` can be
+modified or the reference can be removed to scale it back up:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: scale-config
+spec:
+  replicas: 0
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws
+spec:
+  package: crossplane/provider-aws:v0.18.1
+  controllerConfigRef:
+    name: scale-config
+```
 
 ## Deleting When a Resource Hangs
 
