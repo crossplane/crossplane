@@ -1,8 +1,0 @@
-Thanks for installing Crossplane!
-
-Your next steps are:
-
-1. Install Providers: https://crossplane.io/docs/master/getting-started/install-configure.html
-2. Provision Infrastructure: https://crossplane.io/docs/master/getting-started/provision-infrastructure.html
-3. Publish Infrastructure: https://crossplane.io/docs/master/getting-started/publish-infrastructure.html
-4. Run Applications: https://crossplane.io/docs/master/getting-started/run-applications.html
