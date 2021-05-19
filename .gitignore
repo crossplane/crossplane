@@ -6,6 +6,7 @@
 cover.out
 /vendor
 /.vendor-new
+.DS_Store
 
 # gitlab example
 # exclude files generate by running the example
