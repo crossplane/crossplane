@@ -1,5 +1,0 @@
-dependencies:
-- name: oam-kubernetes-runtime
-  version: 0.2.2
-  repository: "https://charts.crossplane.io/alpha"
-  condition: alpha.oam.enabled
