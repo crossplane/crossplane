@@ -19,7 +19,7 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand" // #nosec G404
+	"math/rand"
 	"reflect"
 	"strconv"
 
@@ -48,11 +48,14 @@ const (
 	errFmtTransformTypeFailed          = "%s transform could not resolve"
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
-
 	errFmtFromFnTypeNotSupported       = "fromFn type %s is not supported"
-	errFromFnTypeNotDefined            = "fromFn type not defined"
-	defaultRandomStringCharset         = "abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&"
-	defaultRandomStringLength    int32 = 32
+
+	errFromFnTypeNotDefined = "fromFn type not defined"
+)
+
+const (
+	defaultRandomStringCharset       = "abcdedfghijklmnopqrstABCDEFGHIJKLMNOP0123456789+*%&"
+	defaultRandomStringLength  int32 = 32
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -314,7 +317,10 @@ func (rs *RandomString) GetValue() (string, error) {
 	charRunes := []rune(rs.Charset)
 	outputRunes := make([]rune, *rs.Length)
 	for i := range outputRunes {
-		outputRunes[i] = charRunes[rand.Intn(len(charRunes))] // #nosec G404
+		// No lint exception added to allow the use of math/rand
+		// instead of crypto/rand. Usecase here doesn't require
+		// a strong random number generator.
+		outputRunes[i] = charRunes[rand.Intn(len(charRunes))] //nolint: gosec
 	}
 	return string(outputRunes), nil
 }
