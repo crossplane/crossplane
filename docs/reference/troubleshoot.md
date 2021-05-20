@@ -11,7 +11,9 @@ indent: true
 * [Resource Status and Conditions]
 * [Resource Events]
 * [Crossplane Logs]
+* [Provider Logs]
 * [Pausing Crossplane]
+* [Pausing Providers]
 * [Deleting When a Resource Hangs]
 
 ## Requested Resource Not Found
@@ -118,6 +120,9 @@ spec:
     name: debug-config
 ```
 
+> Note that a reference to a `ControllerConfig` can be added to an already
+> installed `Provider` and it will update its `Deployment` accordingly.
+
 ## Pausing Crossplane
 
 Sometimes, for example when you encounter a bug, it can be useful to pause
@@ -161,6 +166,9 @@ spec:
     name: scale-config
 ```
 
+> Note that a reference to a `ControllerConfig` can be added to an already
+> installed `Provider` and it will update its `Deployment` accordingly.
+
 ## Deleting When a Resource Hangs
 
 The resources that Crossplane manages will automatically be cleaned up so as not
@@ -194,5 +202,7 @@ kubectl patch cloudsqlinstance my-db -p '{"metadata":{"finalizers": []}}' --type
 [Resource Status and Conditions]: #resource-status-and-conditions
 [Resource Events]: #resource-events
 [Crossplane Logs]: #crossplane-logs
+[Provider Logs]: #provider-logs
 [Pausing Crossplane]: #pausing-crossplane
+[Pausing Providers]: #pausing-providers
 [Deleting When a Resource Hangs]: #deleting-when-a-resource-hangs
