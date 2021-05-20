@@ -614,7 +614,7 @@ spec:
     version: ">=v1.0.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: ">=v0.14.0"
+      version: "v0.16.0"
 ```
 
 ```console
