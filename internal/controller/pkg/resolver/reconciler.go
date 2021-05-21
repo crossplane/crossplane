@@ -55,6 +55,7 @@ const (
 
 	errGetLock              = "cannot get package lock"
 	errAddFinalizer         = "cannot add lock finalizer"
+	errRemoveFinalizer      = "cannot remove lock finalizer"
 	errBuildDAG             = "cannot build DAG"
 	errSortDAG              = "cannot sort DAG"
 	errMissingDependencyFmt = "missing package (%s) is not a dependency"
@@ -172,9 +173,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetLock)
 	}
 
-	// NOTE(hasheddan): we add a finalizer and never remove it to guard against
-	// a user accidentally deleting the lock, which should never be done.
-	// Consider instead recreating the lock if it is not present.
+	// If no packages exist in Lock then we remove finalizer and wait until a
+	// package is added to reconcile again. This allows for cleanup of the Lock
+	// when uninstalling Crossplane after all packages have already been
+	// uninstalled.
+	if len(lock.Packages) == 0 {
+		if err := r.lock.RemoveFinalizer(ctx, lock); err != nil {
+			log.Debug(errRemoveFinalizer, "error", err)
+			return reconcile.Result{RequeueAfter: shortWait}, nil
+		}
+		return reconcile.Result{}, nil
+	}
+
 	if err := r.lock.AddFinalizer(ctx, lock); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		return reconcile.Result{RequeueAfter: shortWait}, nil
