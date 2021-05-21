@@ -82,7 +82,6 @@ Helm does not delete CRD objects. You can delete the ones Crossplane created
 with the following commands:
 
 ```console
-kubectl patch lock lock -p '{"metadata":{"finalizers": []}}' --type=merge
 kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
 ```
 
