@@ -29,7 +29,20 @@ helm --namespace crossplane-system upgrade crossplane crossplane-stable/crosspla
 
 ## Upgrading to v1.2.x and Subsequent Versions
 
-To upgrade from the currently installed version, run:
+Since `v1.2.0`, we do not include any custom resource instances in our Helm chart.
+This means the `Lock` object and `Provider`s and `Configuration`s you might have
+possibly installed via Helm values will get deleted when you upgrade to `v1.2.x`.
+The following commands will instruct Helm not to delete any instances of those
+types:
+
+```console
+for name in $(kubectl get locks.pkg.crossplane.io -o name); do kubectl annotate $name 'helm.sh/resource-policy=keep'; done
+for name in $(kubectl get providers.pkg.crossplane.io -o name); do kubectl annotate $name 'helm.sh/resource-policy=keep'; done
+for name in $(kubectl get configurations.pkg.crossplane.io -o name); do kubectl annotate $name 'helm.sh/resource-policy=keep'; done
+```
+
+After annotations are in place you can upgrade from the currently installed version
+by running:
 
 ```console
 # Update to the latest stable Helm chart for the desired version
