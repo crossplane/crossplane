@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -68,6 +69,8 @@ const (
 	errPostHook = "cannot run post establish hook for package"
 
 	errEstablishControl = "cannot establish control of object"
+
+	errUpdateAnnotations = "cannot update annotations for package revision"
 )
 
 // Event reasons.
@@ -388,6 +391,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
+
+	pr.SetAnnotations(pkgMeta.(metav1.ObjectMetaAccessor).GetObjectMeta().GetAnnotations())
+	if err := r.client.Update(ctx, pr); err != nil {
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		log.Debug(errUpdateAnnotations, "error", err)
+		pr.SetConditions(v1.Unhealthy())
+		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
+
 	// Check Crossplane constraints if they exist.
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
 		if err := xpkg.PackageCrossplaneCompatible(r.versioner)(pkgMeta); err != nil {

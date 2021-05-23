@@ -131,10 +131,13 @@ func (m *MockDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRev
 	return m.MockRemoveSelf()
 }
 
+// Make sure not to use tabs instead of spaces in the providerBytes
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
   name: test
+  annotations:
+    author: crossplane
 spec:
   controller:
     image: crossplane/provider-test-controller:v0.0.1
@@ -476,7 +479,18 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetConditions(v1.Unhealthy())
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -564,8 +578,20 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetSkipDependencyResolution(pointer.BoolPtr(false))
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.UnknownHealth())
 
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetSkipDependencyResolution(pointer.BoolPtr(false))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -605,8 +631,19 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Unhealthy())
 
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -649,8 +686,19 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Unhealthy())
 
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -695,6 +743,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Healthy())
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -702,6 +751,17 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					}),
@@ -740,6 +800,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Healthy())
 								want.SetIgnoreCrossplaneConstraints(&trueVal)
 
@@ -748,6 +809,19 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetIgnoreCrossplaneConstraints(&trueVal)
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					}),
@@ -785,6 +859,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Unhealthy())
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -793,6 +868,16 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ProviderRevision{}
+								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
 						},
 					}),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
@@ -831,6 +916,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Healthy())
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -838,6 +924,17 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionInactive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+
 							MockDelete: test.NewMockDeleteFn(nil),
 						},
 					}),
@@ -875,6 +972,7 @@ func TestReconcile(t *testing.T) {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.Unhealthy())
 
 								if diff := cmp.Diff(want, o); diff != "" {
@@ -883,6 +981,16 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockDelete: test.NewMockDeleteFn(nil),
+							MockUpdate: test.NewMockUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionInactive)
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
 						},
 					}),
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
