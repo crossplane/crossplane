@@ -394,7 +394,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	pr.SetAnnotations(pkgMeta.(metav1.ObjectMetaAccessor).GetObjectMeta().GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
-		r.record.Event(pr, event.Warning(reasonSync, err))
+		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errUpdateAnnotations)))
 		log.Debug(errUpdateAnnotations, "error", err)
 		pr.SetConditions(v1.Unhealthy())
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.client.Status().Update(ctx, pr), errUpdateStatus)

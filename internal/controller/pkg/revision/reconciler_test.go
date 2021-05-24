@@ -131,7 +131,6 @@ func (m *MockDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRev
 	return m.MockRemoveSelf()
 }
 
-// Make sure not to use tabs instead of spaces in the providerBytes
 var providerBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
