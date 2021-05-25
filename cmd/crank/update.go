@@ -39,7 +39,14 @@ type updateConfigCmd struct {
 
 // Run runs the Configuration update cmd.
 func (c *updateConfigCmd) Run(k *kong.Context) error { // nolint:gocyclo
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	kubeConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, errKubeConfig)
+	}
+	kube, err := typedclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return errors.Wrap(err, errKubeClient)
+	}
 	prevConf, err := kube.Configurations().Get(context.Background(), c.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(warnIfNotFound(err), "cannot update configuration")
@@ -76,7 +83,14 @@ type updateProviderCmd struct {
 
 // Run runs the Provider update cmd.
 func (c *updateProviderCmd) Run(k *kong.Context) error { // nolint:gocyclo
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	kubeConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, errKubeConfig)
+	}
+	kube, err := typedclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return errors.Wrap(err, errKubeClient)
+	}
 	preProv, err := kube.Providers().Get(context.Background(), c.Name, metav1.GetOptions{})
 	if err != nil {
 		return errors.Wrap(warnIfNotFound(err), "cannot update provider")

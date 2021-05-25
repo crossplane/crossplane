@@ -42,6 +42,8 @@ import (
 
 const (
 	errPkgIdentifier = "invalid package image identifier"
+	errKubeConfig    = "failed to get kube-config"
+	errKubeClient    = "failed to create kube client"
 )
 
 // installCmd installs a package.
@@ -98,7 +100,14 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 			},
 		},
 	}
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	kubeConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, errKubeConfig)
+	}
+	kube, err := typedclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return errors.Wrap(err, errKubeClient)
+	}
 	res, err := kube.Configurations().Create(context.Background(), cr, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
@@ -156,7 +165,14 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 			Name: c.Config,
 		}
 	}
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	kubeConfig, err := ctrl.GetConfig()
+	if err != nil {
+		return errors.Wrap(err, errKubeConfig)
+	}
+	kube, err := typedclient.NewForConfig(kubeConfig)
+	if err != nil {
+		return errors.Wrap(err, errKubeClient)
+	}
 	res, err := kube.Providers().Create(context.Background(), cr, metav1.CreateOptions{})
 	if err != nil {
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
