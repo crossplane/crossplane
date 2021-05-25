@@ -58,7 +58,7 @@ type PackageInstaller struct {
 	Providers      []string
 }
 
-// Run makes sure Lock object exists.
+// Run makes sure all specified packages exist.
 func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	pkgs := make([]client.Object, len(pi.Providers)+len(pi.Configurations))
 	lastIndex := 0
