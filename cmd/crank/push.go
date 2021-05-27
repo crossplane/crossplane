@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -43,30 +44,41 @@ type pushCmd struct {
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(child *pushChild) error {
+func (c *pushCmd) Run(child *pushChild, logger logging.Logger) error {
+	logger = logger.WithValues("tag", child.tag)
 	tag, err := name.NewTag(child.tag)
 	if err != nil {
+		logger.Debug("Failed to create tag for package", "error", err)
 		return err
 	}
 
 	// If package is not defined, attempt to find single package in current
 	// directory.
 	if c.Package == "" {
+		logger.Debug("Trying to find package in current directory")
 		wd, err := os.Getwd()
 		if err != nil {
+			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errGetwd))
 			return errors.Wrap(err, errGetwd)
 		}
 		path, err := xpkg.FindXpkgInDir(child.fs, wd)
 		if err != nil {
+			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errFindPackageinWd))
 			return errors.Wrap(err, errFindPackageinWd)
 		}
 		c.Package = path
+		logger.Debug("Found package in directory", "path", path)
 	}
 	img, err := tarball.ImageFromPath(c.Package, nil)
 	if err != nil {
+		logger.Debug("Failed to create image from package tarball", "error", err)
 		return err
 	}
-	return remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain))
+	if err := remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
+		logger.Debug("Failed to push created image to remote location", "error", err)
+		return err
+	}
+	return nil
 }
 
 type pushChild struct {

@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -72,7 +73,7 @@ func TestBuild(t *testing.T) {
 				PackageRoot: tc.args.root,
 				Ignore:      tc.args.ignore,
 			}
-			err := b.Run(tc.args.child)
+			err := b.Run(tc.args.child, logging.NewNopLogger())
 
 			if diff := cmp.Diff(tc.want, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want error, +got error:\n%s", tc.reason, diff)

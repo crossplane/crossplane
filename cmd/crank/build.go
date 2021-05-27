@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -46,7 +47,8 @@ type buildCmd struct {
 }
 
 // Run runs the build cmd.
-func (c *buildCmd) Run(child *buildChild) error {
+func (c *buildCmd) Run(child *buildChild, logger logging.Logger) error {
+	logger = logger.WithValues("Name", child.name)
 	root, err := filepath.Abs(c.PackageRoot)
 	if err != nil {
 		return err
@@ -54,30 +56,37 @@ func (c *buildCmd) Run(child *buildChild) error {
 
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
+		logger.Debug("Failed to build meta scheme for package parser", "error", err)
 		return errors.New("cannot build meta scheme for package parser")
 	}
+	logger.Debug("Successfully built meta scheme for package parser")
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
+	logger.Debug("Successfully built Object scheme for package parser")
 	img, err := xpkg.Build(context.Background(),
 		parser.NewFsBackend(child.fs, parser.FsDir(root), parser.FsFilters(buildFilters(root, c.Ignore)...)),
 		parser.New(metaScheme, objScheme),
 		child.linter)
 	if err != nil {
+		logger.Debug(errBuildPackage, "error", err)
 		return errors.Wrap(err, errBuildPackage)
 	}
+	logger.Debug("Successfully built package")
 
 	hash, err := img.Digest()
 	if err != nil {
+		logger.Debug(errImageDigest, "error", err)
 		return errors.Wrap(err, errImageDigest)
 	}
-
+	logger.Debug("Successfully found package digest")
 	pkgName := child.name
 	if pkgName == "" {
 		metaPath := filepath.Join(root, xpkg.MetaFile)
 		pkgName, err = xpkg.ParseNameFromMeta(child.fs, metaPath)
 		if err != nil {
+			logger.Debug(errGetNameFromMeta, "error", err)
 			return errors.Wrap(err, errGetNameFromMeta)
 		}
 		pkgName = xpkg.FriendlyID(pkgName, hash.Hex)
@@ -85,10 +94,16 @@ func (c *buildCmd) Run(child *buildChild) error {
 
 	f, err := child.fs.Create(xpkg.BuildPath(root, pkgName))
 	if err != nil {
+		logger.Debug(errCreatePackage, "error", err)
 		return errors.Wrap(err, errCreatePackage)
 	}
+	logger.Debug("Successfully created package image file")
 	defer func() { _ = f.Close() }()
-	return tarball.Write(nil, img, f)
+	if err := tarball.Write(nil, img, f); err != nil {
+		logger.Debug("Failed to write package image", "error", err)
+		return err
+	}
+	return nil
 }
 
 // default build filters skip directories, empty files, and files without YAML
