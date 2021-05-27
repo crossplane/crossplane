@@ -1,0 +1,29 @@
+name: Backport
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  # NOTE(negz): I tested many backport GitHub actions before landing on this
+  # one. Many do not support merge commits, or do not support pull requests with
+  # more than one commit. This one does. It also handily links backport PRs with
+  # new PRs, and provides commentary and instructions when it can't backport.
+  # The main gotchas with this action are that it _only_ supports merge commits,
+  # and that PRs _must_ be labelled before they're merged to trigger a backport.
+  open-pr:
+    name: 
+    runs-on: ubuntu-18.04
+    if: github.event.pull_request.merged
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Open Backport PR
+        uses: zeebe-io/backport-action@fffca395ae6b8ebad6799624ef9bac77b6c907c3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_workspace: ${{ github.workspace }}
+          version: fffca395ae6b8ebad6799624ef9bac77b6c907c3 
+
