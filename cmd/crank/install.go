@@ -31,6 +31,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
 	"github.com/crossplane/crossplane/internal/version"
@@ -42,6 +43,8 @@ import (
 
 const (
 	errPkgIdentifier = "invalid package image identifier"
+	errKubeConfig    = "failed to get kubeconfig"
+	errKubeClient    = "failed to create kube client"
 )
 
 // installCmd installs a package.
@@ -66,7 +69,7 @@ type installConfigCmd struct {
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context) error {
+func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -75,10 +78,12 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 	if pkgName == "" {
 		ref, err := name.ParseReference(c.Package)
 		if err != nil {
+			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
+	logger = logger.WithValues("configurationName", pkgName)
 	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
 		packagePullSecrets[i] = corev1.LocalObjectReference{
@@ -98,9 +103,21 @@ func (c *installConfigCmd) Run(k *kong.Context) error {
 			},
 		},
 	}
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	kubeConfig, err := ctrl.GetConfig()
+	if err != nil {
+		logger.Debug(errKubeConfig, "error", err)
+		return errors.Wrap(err, errKubeConfig)
+	}
+	logger.Debug("Found kubeconfig")
+	kube, err := typedclient.NewForConfig(kubeConfig)
+	if err != nil {
+		logger.Debug(errKubeConfig, "error", err)
+		return errors.Wrap(err, errKubeClient)
+	}
+	logger.Debug("Created Kubernetes client")
 	res, err := kube.Configurations().Create(context.Background(), cr, metav1.CreateOptions{})
 	if err != nil {
+		logger.Debug("Failed to create configuration", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
@@ -119,7 +136,7 @@ type installProviderCmd struct {
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context) error {
+func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -128,10 +145,12 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 	if pkgName == "" {
 		ref, err := name.ParseReference(c.Package)
 		if err != nil {
+			logger.Debug(errPkgIdentifier, "error", err)
 			return errors.Wrap(err, errPkgIdentifier)
 		}
 		pkgName = xpkg.ToDNSLabel(ref.Context().RepositoryStr())
 	}
+	logger = logger.WithValues("providerName", pkgName)
 	packagePullSecrets := make([]corev1.LocalObjectReference, len(c.PackagePullSecrets))
 	for i, s := range c.PackagePullSecrets {
 		packagePullSecrets[i] = corev1.LocalObjectReference{
@@ -156,9 +175,21 @@ func (c *installProviderCmd) Run(k *kong.Context) error {
 			Name: c.Config,
 		}
 	}
-	kube := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
+	kubeConfig, err := ctrl.GetConfig()
+	if err != nil {
+		logger.Debug(errKubeConfig, "error", err)
+		return errors.Wrap(err, errKubeConfig)
+	}
+	logger.Debug("Found kubeconfig")
+	kube, err := typedclient.NewForConfig(kubeConfig)
+	if err != nil {
+		logger.Debug(errKubeClient, "error", err)
+		return errors.Wrap(err, errKubeClient)
+	}
+	logger.Debug("Created kubernetes client")
 	res, err := kube.Providers().Create(context.Background(), cr, metav1.CreateOptions{})
 	if err != nil {
+		logger.Debug("Failed to create provider", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
