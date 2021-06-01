@@ -102,6 +102,9 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		if cc.Spec.Image != nil {
 			d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
 		}
+		if cc.Spec.ImagePullPolicy != nil {
+			d.Spec.Template.Spec.Containers[0].ImagePullPolicy = *cc.Spec.ImagePullPolicy
+		}
 		if cc.Spec.NodeSelector != nil {
 			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
 		}
