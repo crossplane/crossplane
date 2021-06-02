@@ -23,9 +23,9 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -112,7 +112,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt reconciliation.
 							l := o.(*v1alpha1.Lock)
 							l.Packages = append(l.Packages, v1alpha1.LockPackage{
@@ -142,7 +142,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -179,7 +179,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -219,7 +219,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -258,7 +258,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -301,7 +301,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -348,7 +348,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -395,7 +395,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
@@ -444,7 +444,7 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
