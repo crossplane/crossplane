@@ -18,6 +18,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/spf13/afero"
@@ -70,12 +71,13 @@ func main() {
 		fs: afero.NewOsFs(),
 	}
 	logger := logging.NewNopLogger()
+	waitDuration := time.Duration(0)
 	ctx := kong.Parse(&cli,
 		kong.Name("kubectl crossplane"),
 		kong.Description("A command line tool for interacting with Crossplane."),
 		// Binding a variable to kong context makes it available to all commands
 		// at runtime.
-		kong.Bind(buildChild, pushChild),
+		kong.Bind(buildChild, pushChild, waitDuration),
 		kong.BindTo(logger, (*logging.Logger)(nil)),
 		kong.UsageOnError())
 	err := ctx.Run()

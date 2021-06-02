@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -47,10 +48,18 @@ const (
 	errKubeClient    = "failed to create kube client"
 )
 
+type waitFlag bool
+
 // installCmd installs a package.
 type installCmd struct {
+	WaitFlag      waitFlag           `name:"wait" help:"Wait for installation of package"`
 	Configuration installConfigCmd   `cmd:"" help:"Install a Configuration package."`
 	Provider      installProviderCmd `cmd:"" help:"Install a Provider package."`
+}
+
+func (w waitFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
+	ctx.Bind(5 * time.Minute)
+	return nil
 }
 
 // Run runs the install cmd.
@@ -69,7 +78,7 @@ type installConfigCmd struct {
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger, waitDuration time.Duration) error { //nolint:gocyclo
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -120,6 +129,30 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Failed to create configuration", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
+	if err = waitUntil(waitDuration, func() error {
+		logger.Debug("Waiting for the configuration to be ready")
+		res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
+		if err != nil {
+			logger.Debug("Failed to fetch created configuration", "error", err)
+			return errors.Wrap(err, "failed to fetch configuration")
+		}
+		var configStatus corev1.ConditionStatus
+		for _, condition := range res.Status.Conditions {
+			if condition.Type == v1.TypeHealthy {
+				configStatus = condition.Status
+			}
+		}
+		if configStatus == corev1.ConditionTrue {
+			logger.Debug("Configurtion is ready")
+			return nil
+		}
+
+		logger.Debug("Configuration is not ready")
+		return errors.Errorf("Configuration is not ready")
+	}); err != nil {
+		logger.Debug("Configuration not ready in wait duration", "error", err)
+		return err
+	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
 	return err
 }
@@ -136,7 +169,7 @@ type installProviderCmd struct {
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger, waitDuration time.Duration) error { //nolint:gocyclo
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -192,6 +225,30 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Failed to create provider", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
+	if err = waitUntil(waitDuration, func() error {
+		logger.Debug("Waiting for the provider to be ready")
+		res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
+		if err != nil {
+			logger.Debug("Failed to fetch created provider", "error", err)
+			return errors.Wrap(err, "failed to fetch provider")
+		}
+		var configStatus corev1.ConditionStatus
+		for _, condition := range res.Status.Conditions {
+			if condition.Type == v1.TypeHealthy {
+				configStatus = condition.Status
+			}
+		}
+		if configStatus == corev1.ConditionTrue {
+			logger.Debug("Provider is ready")
+			return nil
+		}
+
+		logger.Debug("Provider is not ready")
+		return errors.Errorf("Provider is not ready")
+	}); err != nil {
+		logger.Debug("Provider not ready in wait duration", "error", err)
+		return err
+	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
 	return err
 }
@@ -205,4 +262,17 @@ func warnIfNotFound(err error) error {
 		return err
 	}
 	return errors.WithMessagef(err, "kubectl-crossplane plugin %s might be out of date", version.New().GetVersionString())
+}
+
+func waitUntil(waitDuration time.Duration, try func() error) error {
+	until := time.Now().Add(waitDuration)
+	var err error
+	for until.After(time.Now()) {
+		err = try()
+		if err == nil {
+			return nil
+		}
+		time.Sleep(10 * time.Second)
+	}
+	return errors.Wrap(err, "Package not ready in wait duration")
 }
