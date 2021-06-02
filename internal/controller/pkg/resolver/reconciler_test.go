@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -80,11 +81,50 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetLock),
 			},
 		},
+		"ErrRemoveFinalizer": {
+			reason: "We should requeue after short wait if we fail to remove finalizer.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return errBoom
+					}}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: shortWait},
+			},
+		},
+		"SuccessfulEmptyList": {
+			reason: "We should not return error and not requeue if no packages in lock.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: test.NewMockClient(),
+				},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+			},
+		},
 		"ErrAddFinalizer": {
 			reason: "We should requeue after short wait if we fail to add finalizer.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt reconciliation.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -101,7 +141,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if we fail to initialize DAG.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -123,7 +178,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if we fail to sort DAG.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -148,7 +218,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not return error and not requeue if no missing dependencies.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -172,7 +257,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if dependency is invalid.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -200,7 +300,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should requeue after short wait if fail to fetch tags to account for network issues.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -232,7 +347,22 @@ func TestReconcile(t *testing.T) {
 			reason: "We should not requeue if valid version does not exist for dependency.",
 			args: args{
 				mgr: &fake.Manager{
-					Client: test.NewMockClient(),
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
+						MockUpdate: test.NewMockUpdateFn(nil),
+					},
 				},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: []ReconcilerOption{
@@ -265,7 +395,19 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
 						MockCreate: test.NewMockCreateFn(errBoom),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
@@ -302,7 +444,19 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(nil),
+						MockGet: test.NewMockGetFn(nil, func(o runtime.Object) error {
+							// Populate package list so we attempt
+							// reconciliation. This is overridden by the mock
+							// DAG.
+							l := o.(*v1alpha1.Lock)
+							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+								Name:    "cool-package",
+								Type:    v1alpha1.ProviderPackageType,
+								Source:  "cool-repo/cool-image",
+								Version: "v0.0.1",
+							})
+							return nil
+						}),
 						MockCreate: test.NewMockCreateFn(nil),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
