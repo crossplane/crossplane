@@ -125,13 +125,13 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
-		"SuccessfulNotExistsEstablishOwnership": {
-			reason: "Establishment should be successful if we can establish ownership for a parent of new objects.",
+		"SuccessfulNotExistsDoNotCreate": {
+			reason: "Establishment should be successful if we skip creating a resource we do not want to control.",
 			args: args{
 				est: &APIEstablisher{
 					client: &test.MockClient{
 						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(nil),
+						MockCreate: test.NewMockCreateFn(errBoom),
 					},
 				},
 				objs: []runtime.Object{

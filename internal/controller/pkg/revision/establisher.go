@@ -99,8 +99,12 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 				Current: nil,
 				Exists:  false,
 			})
-			if err := e.create(ctx, d, parent, control, client.DryRunAll); err != nil {
-				return nil, err
+			// We will not create a resource if we are not going to control it,
+			// so we don't need to check with dry run.
+			if control {
+				if err := e.create(ctx, d, parent, client.DryRunAll); err != nil {
+					return nil, err
+				}
 			}
 			continue
 		}
@@ -120,8 +124,13 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 
 	for _, cd := range allObjs {
 		if !cd.Exists {
-			if err := e.create(ctx, cd.Desired, parent, control); err != nil {
-				return nil, err
+			// Only create a missing resource if we are going to control it.
+			// This prevents an inactive revision from racing to create a
+			// resource before an active revision of the same parent.
+			if control {
+				if err := e.create(ctx, cd.Desired, parent); err != nil {
+					return nil, err
+				}
 			}
 			resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
 			continue
@@ -136,11 +145,8 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	return resourceRefs, nil
 }
 
-func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, control bool, opts ...client.CreateOption) error {
+func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, opts ...client.CreateOption) error {
 	ref := meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
-	if !control {
-		ref = meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
-	}
 	// Overwrite any owner references on the desired object.
 	obj.SetOwnerReferences([]metav1.OwnerReference{ref})
 	return e.client.Create(ctx, obj, opts...)
