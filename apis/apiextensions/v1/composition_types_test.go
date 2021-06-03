@@ -787,6 +787,330 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"MissingCombineFromCompositeConfig": {
+			reason: "Should return an error if Combine config is not passed",
+			args: args{
+				patch: Patch{
+					Type:        PatchTypeCombineFromComposite,
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: errors.Errorf(errRequiredField, "Combine", PatchTypeCombineFromComposite),
+			},
+		},
+		"MissingCombineStrategyFromCompositeConfig": {
+			reason: "Should return an error if Combine strategy config is not passed",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeCombineFromComposite,
+					Combine: &Combine{
+						Variables: []CombineVariable{
+							{FromFieldPath: "objectMeta.labels.source1"},
+							{FromFieldPath: "objectMeta.labels.source2"},
+						},
+						Strategy: CombineStrategyString,
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: errors.Errorf(errFmtCombineConfigMissing, CombineStrategyString),
+			},
+		},
+		"MissingCombineVariablesFromCompositeConfig": {
+			reason: "Should return an error if no variables have been passed",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeCombineFromComposite,
+					Combine: &Combine{
+						Variables: []CombineVariable{},
+						Strategy:  CombineStrategyString,
+						String:    &StringCombine{Format: "%s-%s"},
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: errors.New(errCombineRequiresVariables),
+			},
+		},
+		"NoOpOptionalInputFieldFromCompositeConfig": {
+			// Note: OptionalFieldPathNotFound is tested below, but we want to
+			// test that we abort the patch if _any_ of our source fields are
+			// not available.
+			reason: "Should return no error and not apply patch if an optional variable is missing",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeCombineFromComposite,
+					Combine: &Combine{
+						Variables: []CombineVariable{
+							{FromFieldPath: "objectMeta.labels.source1"},
+							{FromFieldPath: "objectMeta.labels.source2"},
+							{FromFieldPath: "objectMeta.labels.source3"},
+						},
+						Strategy: CombineStrategyString,
+						String:   &StringCombine{Format: "%s-%s"},
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source3": "baz",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source3": "baz",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"ValidCombineFromComposite": {
+			reason: "Should correctly apply a CombineFromComposite patch with valid settings",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeCombineFromComposite,
+					Combine: &Combine{
+						Variables: []CombineVariable{
+							{FromFieldPath: "objectMeta.labels.source1"},
+							{FromFieldPath: "objectMeta.labels.source2"},
+						},
+						Strategy: CombineStrategyString,
+						String:   &StringCombine{Format: "%s-%s"},
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test":        "blah",
+							"destination": "foo-bar",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"ValidCombineToComposite": {
+			reason: "Should correctly apply a CombineToComposite patch with valid settings",
+			args: args{
+				patch: Patch{
+					Type: PatchTypeCombineToComposite,
+					Combine: &Combine{
+						Variables: []CombineVariable{
+							{FromFieldPath: "objectMeta.labels.source1"},
+							{FromFieldPath: "objectMeta.labels.source2"},
+						},
+						Strategy: CombineStrategyString,
+						String:   &StringCombine{Format: "%s-%s"},
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test":        "blah",
+							"destination": "foo-bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						}},
+				},
+				err: nil,
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
