@@ -27,6 +27,8 @@ import (
 // +genclient:nonNamespaced
 
 // Configuration is the CRD type for a request to add a configuration to Crossplane.
+// [DEPRECATED]: Please use the identical v1 API instead. The v1beta1 API is
+// scheduled to be removed in Crossplane v1.6.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="INSTALLED",type="string",JSONPath=".status.conditions[?(@.type=='Installed')].status"
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
@@ -67,6 +69,8 @@ type ConfigurationList struct {
 // +genclient:nonNamespaced
 
 // A ConfigurationRevision that has been added to Crossplane.
+// [DEPRECATED]: Please use the identical v1 API instead. The v1beta1 API is
+// scheduled to be removed in Crossplane v1.6.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="HEALTHY",type="string",JSONPath=".status.conditions[?(@.type=='Healthy')].status"
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"

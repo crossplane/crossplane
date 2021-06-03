@@ -172,8 +172,9 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: Configuration is the CRD type for a request to add a configuration
-          to Crossplane.
+        description: 'Configuration is the CRD type for a request to add a configuration
+          to Crossplane. [DEPRECATED]: Please use the identical v1 API instead. The
+          v1beta1 API is scheduled to be removed in Crossplane v1.6.'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

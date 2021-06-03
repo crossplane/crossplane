@@ -332,6 +332,8 @@ type CompositionStatus struct {
 
 // Composition defines the group of resources to be created when a compatible
 // type is created with reference to the composition.
+// [DEPRECATED]: Please use the identical v1 API instead. The v1beta1 API is
+// scheduled to be removed in Crossplane v1.6.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
