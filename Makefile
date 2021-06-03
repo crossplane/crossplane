@@ -95,7 +95,7 @@ crds.clean:
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate: $(HELM) $(KUSTOMIZE) go.vendor go.generate crds.clean gen-kustomize-crds gen-install-doc
+generate: $(HELM) go.vendor go.generate crds.clean gen-kustomize-crds gen-install-doc
 	@$(OK) Finished generating
 
 gen-install-doc:
