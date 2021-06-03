@@ -283,7 +283,9 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: A ProviderRevision that has been added to Crossplane.
+        description: 'A ProviderRevision that has been added to Crossplane. [DEPRECATED]:
+          Please use the identical v1 API instead. The v1beta1 API is scheduled to
+          be removed in Crossplane v1.6.'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
