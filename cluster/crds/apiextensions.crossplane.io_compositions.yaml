@@ -474,8 +474,10 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: Composition defines the group of resources to be created when
-          a compatible type is created with reference to the composition.
+        description: 'Composition defines the group of resources to be created when
+          a compatible type is created with reference to the composition. [DEPRECATED]:
+          Please use the identical v1 API instead. The v1beta1 API is scheduled to
+          be removed in Crossplane v1.6.'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
