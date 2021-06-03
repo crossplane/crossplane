@@ -230,6 +230,10 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 	}
 
 	for _, ref := range cr.GetResourceReferences() {
+		// If reference does not have a name then we haven't rendered it yet.
+		if ref.Name == "" {
+			continue
+		}
 		cd := composed.New(composed.FromReference(ref))
 		nn := types.NamespacedName{Namespace: ref.Namespace, Name: ref.Name}
 		err := a.client.Get(ctx, nn, cd)
