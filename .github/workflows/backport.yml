@@ -1,8 +1,14 @@
 name: Backport
 
 on:
-  pull_request:
+  # NOTE(negz): This is a risky target, but we run this action only when and if
+  # a PR is closed, then filter down to specifically merged PRs. We also don't
+  # invoke any scripts, etc from within the repo. I believe the fact that we'll
+  # be able to review PRs before this runs makes this fairly safe.
+  # https://securitylab.github.com/research/github-actions-preventing-pwn-requests/
+  pull_request_target:
     types: [closed]
+  # See also commands.yml for the /backport triggered variant of this workflow.
 
 jobs:
   # NOTE(negz): I tested many backport GitHub actions before landing on this
@@ -12,7 +18,6 @@ jobs:
   # The main gotchas with this action are that it _only_ supports merge commits,
   # and that PRs _must_ be labelled before they're merged to trigger a backport.
   open-pr:
-    name: 
     runs-on: ubuntu-18.04
     if: github.event.pull_request.merged
     steps:
@@ -20,10 +25,10 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
       - name: Open Backport PR
-        uses: zeebe-io/backport-action@fffca395ae6b8ebad6799624ef9bac77b6c907c3
+        uses: zeebe-io/backport-action@v0.0.4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_workspace: ${{ github.workspace }}
-          version: fffca395ae6b8ebad6799624ef9bac77b6c907c3 
-
+          version: v0.0.4
