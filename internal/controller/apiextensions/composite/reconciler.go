@@ -341,6 +341,13 @@ type Reconciler struct {
 	record event.Recorder
 }
 
+// composedRendered is a wrapper around a composed resource that tracks whether
+// it was successfully rendered or not.
+type composedRendered struct {
+	resource resource.Composed
+	rendered bool
+}
+
 // Reconcile a composite resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
 	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
@@ -415,20 +422,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	// We want to ensure we can render all of our composed resources before we
-	// apply any of them. We prefer to avoid creating or updating any composed
-	// resources if we know we won't be able to create or update all of them.
+	// We optimistically render all composed resources that we are able to with
+	// the expectation that any that we fail to render will subsequently have
+	// their error corrected by manual intervention or propagation of a required
+	// input.
 	refs := make([]corev1.ObjectReference, len(tas))
-	cds := make([]resource.Composed, len(tas))
+	cds := make([]composedRendered, len(tas))
 	for i, ta := range tas {
 		cd := composed.New(composed.FromReference(ta.Reference))
+		rendered := true
 		if err := r.composed.Render(ctx, cr, cd, ta.Template); err != nil {
 			log.Debug(errRenderCD, "error", err, "index", i)
 			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			rendered = false
 		}
 
-		cds[i] = cd
+		cds[i] = composedRendered{
+			resource: cd,
+			rendered: rendered,
+		}
 		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
 	}
 
@@ -448,7 +460,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// issues observing and processing one composed resource won't block the
 	// application of another.
 	for _, cd := range cds {
-		if err := r.client.Apply(ctx, cd, resource.MustBeControllableBy(cr.GetUID())); err != nil {
+		// If we were unable to render the composed resource we should not try
+		// and apply it.
+		if !cd.rendered {
+			continue
+		}
+		if err := r.client.Apply(ctx, cd.resource, resource.MustBeControllableBy(cr.GetUID())); err != nil {
 			log.Debug(errApply, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -460,13 +477,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, tpl := range comp.Spec.Resources {
 		cd := cds[i]
 
-		if err := r.composite.Render(ctx, cr, cd, tpl); err != nil {
+		// If we were unable to render the composed resource we should not try
+		// and to observe it.
+		if !cd.rendered {
+			continue
+		}
+
+		if err := r.composite.Render(ctx, cr, cd.resource, tpl); err != nil {
 			log.Debug(errRenderCR, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
-		c, err := r.composed.FetchConnectionDetails(ctx, cd, tpl)
+		c, err := r.composed.FetchConnectionDetails(ctx, cd.resource, tpl)
 		if err != nil {
 			log.Debug(errFetchSecret, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
@@ -477,7 +500,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			conn[key] = val
 		}
 
-		rdy, err := r.composed.IsReady(ctx, cd, tpl)
+		rdy, err := r.composed.IsReady(ctx, cd.resource, tpl)
 		if err != nil {
 			log.Debug(errReadiness, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
