@@ -257,7 +257,7 @@ func TestForCompositeResource(t *testing.T) {
 													"name":       {Type: "string"},
 													"kind":       {Type: "string"},
 												},
-												Required: []string{"apiVersion", "kind", "name"},
+												Required: []string{"apiVersion", "kind"},
 											},
 										},
 									},
