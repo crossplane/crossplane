@@ -22,6 +22,7 @@ package v1
 
 import (
 	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -526,6 +527,11 @@ func (in *PatchPolicy) DeepCopyInto(out *PatchPolicy) {
 	if in.FromFieldPath != nil {
 		in, out := &in.FromFieldPath, &out.FromFieldPath
 		*out = new(FromFieldPathPolicy)
+		**out = **in
+	}
+	if in.MergeOptions != nil {
+		in, out := &in.MergeOptions, &out.MergeOptions
+		*out = new(fieldpath.MergeOptions)
 		**out = **in
 	}
 }

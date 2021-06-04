@@ -252,6 +252,13 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+
+	// holds whether this patch has been filtered
+	filtered bool `json:"-"`
+}
+
+func (c Patch) IsFiltered() bool {
+	return c.filtered
 }
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -271,7 +278,8 @@ type PatchPolicy struct {
 	// the specified path does not exist.
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
-	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	FromFieldPath *FromFieldPathPolicy    `json:"fromFieldPath,omitempty"`
+	MergeOptions  *fieldpath.MergeOptions `json:"mergeOptions,omitempty"`
 }
 
 // A Combine configures a patch that combines more than
@@ -381,6 +389,7 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 			return false
 		}
 	}
+	c.filtered = true
 	return true
 }
 
@@ -393,24 +402,6 @@ func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
 		}
 	}
 	return input, nil
-}
-
-// patchFieldValueToObject, given a path, value and "to" object, will
-// apply the value to the "to" object at the given path, returning
-// any errors as they occur.
-func patchFieldValueToObject(path string, value interface{}, to runtime.Object) error {
-	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
-		return fieldpath.Pave(u.UnstructuredContent()).SetValue(path, value)
-	}
-
-	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
-	if err != nil {
-		return err
-	}
-	if err := fieldpath.Pave(toMap).SetValue(path, value); err != nil {
-		return err
-	}
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
 }
 
 // applyFromFieldPathPatch patches the "to" resource, using a source field
@@ -426,12 +417,12 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		c.ToFieldPath = c.FromFieldPath
 	}
 
-	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+	fromPaved, _, err := fieldpath.ToPaved(from)
 	if err != nil {
 		return err
 	}
 
-	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
+	in, err := fromPaved.GetValue(*c.FromFieldPath)
 	if IsOptionalFieldPathNotFound(err, c.Policy) {
 		return nil
 	}
@@ -445,7 +436,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return patchFieldValueToObject(*c.ToFieldPath, out, to)
+	return fieldpath.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of
@@ -510,7 +501,7 @@ func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return patchFieldValueToObject(*c.ToFieldPath, out, to)
+	return fieldpath.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // IsOptionalFieldPathNotFound returns true if the supplied error indicates a

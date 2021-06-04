@@ -465,7 +465,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if !cd.rendered {
 			continue
 		}
-		if err := r.client.Apply(ctx, cd.resource, resource.MustBeControllableBy(cr.GetUID())); err != nil {
+		if err := r.client.Apply(ctx, cd.resource,
+			append(MergeOptions(tas), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
 			log.Debug(errApply, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil

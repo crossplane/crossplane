@@ -344,8 +344,8 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	cd.SetNamespace(namespace)
 
 	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
-	for i, p := range t.Patches {
-		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
+	for i := 0; i < len(t.Patches); i++ {
+		if err := t.Patches[i].Apply(cp, cd, onlyPatches...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}
@@ -567,4 +567,17 @@ func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bo
 		}
 	}
 	return true, nil
+}
+
+func MergeOptions(tas []TemplateAssociation) []resource.ApplyOption {
+	var opts []resource.ApplyOption
+	for _, ta := range tas {
+		for _, p := range ta.Template.Patches {
+			if p.IsFiltered() || p.Policy == nil || p.ToFieldPath == nil {
+				continue
+			}
+			opts = append(opts, resource.WithMergeOptions(*p.ToFieldPath, p.Policy.MergeOptions))
+		}
+	}
+	return opts
 }
