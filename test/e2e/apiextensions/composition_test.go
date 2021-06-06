@@ -37,7 +37,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	extv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
@@ -321,30 +323,11 @@ func TestCompositeResourceGetsReady(t *testing.T) {
 						t.Fatalf("Get nop-res %q: %v", nopresource.GetName(), err)
 					}
 
-					conditionList, found, err := unstructured.NestedSlice(d.Object, "status", "conditions")
+					nopObj := composed.Unstructured{Unstructured: *d}
+					isReady := nopObj.GetCondition(xpv1.TypeReady)
 
-					n := len(conditionList)
-
-					if err != nil {
-						t.Fatalf("Get nop-example %q: %v", d.GetName(), err)
-					}
-					t.Logf("%v", conditionList)
-
-					if !found || n == 0 {
-						return false, nil
-					}
-
-					// Fetch the latest transaction
-					tmp := conditionList[n-1]
-
-					isReady, _, err := unstructured.NestedString(tmp.(map[string]interface{}), "status")
-
-					if err != nil {
-						t.Fatalf("Get nop-example %q: %v", d.GetName(), err)
-					}
-
-					if isReady != "True" {
-						t.Logf("nop-example %q is not yet Ready", xrd.GetName())
+					if isReady.Status != corev1.ConditionTrue {
+						t.Logf("nop-example %q is not yet Ready", nopresource.GetName())
 						return false, nil
 					}
 
@@ -668,38 +651,20 @@ func TestNopResourcesGetReady(t *testing.T) {
 					}
 
 					for _, d := range list.Items {
-						conditionList, found, err := unstructured.NestedSlice(d.Object, "status", "conditions")
+						nopObj := composed.Unstructured{Unstructured: d}
+						isReady := nopObj.GetCondition(xpv1.TypeReady)
 
-						if err != nil {
-							t.Fatalf("Get nopresource conditions %q: %v", d.GetName(), err)
-						}
-
-						n := len(conditionList)
 						creationTimestamp := d.GetCreationTimestamp().Time
-
-						if !found || n == 0 {
-							return false, nil
+						if isReady.Status != corev1.ConditionTrue && time.Since(creationTimestamp) > time.Duration(22*time.Second) {
+							t.Fatalf("Nopresource condition status False after 20 seconds %q: ", d.GetName())
 						}
 
-						for _, tmp := range conditionList {
+						if isReady.Status == corev1.ConditionTrue && time.Since(creationTimestamp) < time.Duration(20*time.Second) {
+							t.Fatalf("Nopresource condition status True before 20 seconds %q: ", d.GetName())
+						}
 
-							isReady, _, err := unstructured.NestedString(tmp.(map[string]interface{}), "status")
-
-							if err != nil {
-								t.Fatalf("Get nopresource condition status %q: %v", d.GetName(), err)
-							}
-
-							if isReady != "True" && time.Since(creationTimestamp) > time.Duration(22*time.Second) {
-								t.Fatalf("Nopresource condition status False after 20 seconds %q: ", d.GetName())
-							}
-
-							if isReady == "True" && time.Since(creationTimestamp) < time.Duration(20*time.Second) {
-								t.Fatalf("Nopresource condition status True before 20 seconds %q: ", d.GetName())
-							}
-
-							if isReady != "True" {
-								return false, nil
-							}
+						if isReady.Status != corev1.ConditionTrue {
+							return false, nil
 						}
 					}
 
