@@ -29,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	wait "k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -46,20 +47,25 @@ const (
 	errPkgIdentifier = "invalid package image identifier"
 	errKubeConfig    = "failed to get kubeconfig"
 	errKubeClient    = "failed to create kube client"
+
+	errFmtPkgNotReadyTimeout = "%s is not ready in timeout duration"
+	errFmtFetchPkg           = "Failed to fetch %s object"
 )
 
-type waitFlag bool
+const (
+	msgFmtPkgReady    = "%s is ready"
+	msgFmtPkgNotReady = "%s is not ready"
+	msgFmtPkgWaiting  = "Waiting for the %s to be ready"
+)
+
+const (
+	waitInterval = 10 * time.Second
+)
 
 // installCmd installs a package.
 type installCmd struct {
-	WaitFlag      waitFlag           `name:"wait" help:"Wait for installation of package"`
 	Configuration installConfigCmd   `cmd:"" help:"Install a Configuration package."`
 	Provider      installProviderCmd `cmd:"" help:"Install a Provider package."`
-}
-
-func (w waitFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
-	ctx.Bind(5 * time.Minute)
-	return nil
 }
 
 // Run runs the install cmd.
@@ -71,14 +77,15 @@ func (c *installCmd) Run(b *buildChild) error {
 type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
-	Name                 string   `arg:"" optional:"" help:"Name of Configuration."`
-	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
-	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
+	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
+	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
+	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger, waitDuration time.Duration) error { //nolint:gocyclo
+func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -129,12 +136,12 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger, waitDurat
 		logger.Debug("Failed to create configuration", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
-	if err = waitUntil(waitDuration, func() error {
-		logger.Debug("Waiting for the configuration to be ready")
+	if err = wait.PollImmediate(waitInterval, c.Wait, func() (bool, error) {
+		logger.Debug(fmt.Sprintf(msgFmtPkgWaiting, "configuration"))
 		res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
 		if err != nil {
-			logger.Debug("Failed to fetch created configuration", "error", err)
-			return errors.Wrap(err, "failed to fetch configuration")
+			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "configuration"), "error", err)
+			return false, errors.Wrap(err, fmt.Sprintf(errFmtFetchPkg, "configuration"))
 		}
 		var configStatus corev1.ConditionStatus
 		for _, condition := range res.Status.Conditions {
@@ -143,15 +150,15 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger, waitDurat
 			}
 		}
 		if configStatus == corev1.ConditionTrue {
-			logger.Debug("Configurtion is ready")
-			return nil
+			logger.Debug(fmt.Sprintf(msgFmtPkgReady, "configuration"))
+			return true, nil
 		}
 
-		logger.Debug("Configuration is not ready")
-		return errors.Errorf("Configuration is not ready")
+		logger.Debug(fmt.Sprintf(msgFmtPkgNotReady, "configuration"))
+		return false, nil
 	}); err != nil {
-		logger.Debug("Configuration not ready in wait duration", "error", err)
-		return err
+		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"), "error", err)
+		return errors.Wrap(err, fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"))
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
 	return err
@@ -161,15 +168,16 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger, waitDurat
 type installProviderCmd struct {
 	Package string `arg:"" help:"Image containing Provider package."`
 
-	Name                 string   `arg:"" optional:"" help:"Name of Provider."`
-	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
-	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
-	Config               string   `help:"Specify a ControllerConfig for this Provider."`
-	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
+	Name                 string        `arg:"" optional:"" help:"Name of Provider."`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
+	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
+	Config               string        `help:"Specify a ControllerConfig for this Provider."`
+	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger, waitDuration time.Duration) error { //nolint:gocyclo
+func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -225,12 +233,12 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger, waitDur
 		logger.Debug("Failed to create provider", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
-	if err = waitUntil(waitDuration, func() error {
-		logger.Debug("Waiting for the provider to be ready")
+	if err := wait.PollImmediate(waitInterval, c.Wait, func() (done bool, err error) {
+		logger.Debug(fmt.Sprintf(msgFmtPkgWaiting, "provider"))
 		res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
 		if err != nil {
-			logger.Debug("Failed to fetch created provider", "error", err)
-			return errors.Wrap(err, "failed to fetch provider")
+			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "provider"), "error", err)
+			return false, errors.Wrap(err, fmt.Sprintf(errFmtFetchPkg, "provider"))
 		}
 		var configStatus corev1.ConditionStatus
 		for _, condition := range res.Status.Conditions {
@@ -239,15 +247,15 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger, waitDur
 			}
 		}
 		if configStatus == corev1.ConditionTrue {
-			logger.Debug("Provider is ready")
-			return nil
+			logger.Debug(fmt.Sprintf(msgFmtPkgReady, "provider"))
+			return true, nil
 		}
 
-		logger.Debug("Provider is not ready")
-		return errors.Errorf("Provider is not ready")
+		logger.Debug(fmt.Sprintf(msgFmtPkgNotReady, "provider"))
+		return false, nil
 	}); err != nil {
-		logger.Debug("Provider not ready in wait duration", "error", err)
-		return err
+		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"), "error", err)
+		return errors.Wrap(err, fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"))
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
 	return err
@@ -262,17 +270,4 @@ func warnIfNotFound(err error) error {
 		return err
 	}
 	return errors.WithMessagef(err, "kubectl-crossplane plugin %s might be out of date", version.New().GetVersionString())
-}
-
-func waitUntil(waitDuration time.Duration, try func() error) error {
-	until := time.Now().Add(waitDuration)
-	var err error
-	for until.After(time.Now()) {
-		err = try()
-		if err == nil {
-			return nil
-		}
-		time.Sleep(10 * time.Second)
-	}
-	return errors.Wrap(err, "Package not ready in wait duration")
 }
