@@ -119,7 +119,7 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.0.0
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.0.1
 ```
 
 > Note that OAM is an alpha feature that is disabled by default. Make sure to
