@@ -103,7 +103,7 @@ gen-install-doc:
 	@mv reference-install.tmp docs/reference/install.md
 	@$(OK) Successfully generated install documentation
 
-gen-kustomize-crds: $(KUSTOMIZE)
+gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
 	@rm cluster/kustomization.yaml
 	@echo "# This kustomization can be used to remotely install all Crossplane CRDs" >> cluster/kustomization.yaml
