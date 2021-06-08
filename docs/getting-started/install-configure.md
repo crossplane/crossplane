@@ -119,7 +119,7 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.1.1
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.1.2
 ```
 
 > Note that OAM is an alpha feature that is disabled by default. Make sure to
@@ -247,7 +247,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.1.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.1.2
 ```
 
 Wait until all packages become healthy:
@@ -301,7 +301,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.1.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.1.2
 ```
 
 Wait until all packages become healthy:
@@ -355,7 +355,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.1.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.1.2
 ```
 
 Wait until all packages become healthy:
@@ -425,7 +425,7 @@ spec:
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.1.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.1.2
 ```
 
 Wait until all packages become healthy:
