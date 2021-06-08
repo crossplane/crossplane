@@ -32,7 +32,7 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.0.0
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.0.1
 ```
 
 ### Master
@@ -124,7 +124,7 @@ Alternatively, a yaml file that specifies the values for the above parameters
 (`values.yaml`) can be provided while installing the chart.
 
 ```console
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.0.0 -f values.yaml
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.0.1 -f values.yaml
 ```
 
 Here are the sample settings to get you started.

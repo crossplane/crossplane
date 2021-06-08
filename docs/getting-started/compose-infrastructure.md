@@ -73,7 +73,7 @@ We will now install a `Configuration` that:
 > an RDS instance that will allow traffic from the internet.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.0.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.0.1
 ```
 
 </div>
@@ -85,28 +85,28 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 > complex ones. See the [composition] documentation for more information.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.0.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.0.1
 ```
 
 </div>
 <div class="tab-pane fade" id="gcp-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.0.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.0.1
 ```
 
 </div>
 <div class="tab-pane fade" id="azure-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.0.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.0.1
 ```
 
 </div>
 <div class="tab-pane fade" id="alibaba-tab-1" markdown="1">
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:v1.0.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-alibaba:v1.0.1
 ```
 
 </div>
