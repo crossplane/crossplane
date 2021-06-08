@@ -260,7 +260,12 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
+							MockUpdate:       test.NewMockUpdateFn(nil),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
+						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+							return nil
+						}),
 					}),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
@@ -271,6 +276,12 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return errBoom
+					})),
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
+						return false, nil
 					})),
 				},
 			},
