@@ -53,9 +53,13 @@ const (
 )
 
 const (
-	msgFmtPkgReady    = "%s is ready"
-	msgFmtPkgNotReady = "%s is not ready"
-	msgFmtPkgWaiting  = "Waiting for the %s to be ready"
+	msgConfigurationReady    = "Configuration is ready"
+	msgConfigurationNotReady = "Configuration is not ready"
+	msgConfigurationWaiting  = "Waiting for the Configuration to be ready"
+
+	msgProviderReady    = "Provider is ready"
+	msgProviderNotReady = "Provider is not ready"
+	msgProviderWaiting  = "Waiting for the Provider to be ready"
 )
 
 const (
@@ -137,28 +141,23 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
 	if err = wait.PollImmediate(waitInterval, c.Wait, func() (bool, error) {
-		logger.Debug(fmt.Sprintf(msgFmtPkgWaiting, "configuration"))
+		logger.Debug(msgConfigurationWaiting)
 		res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
 		if err != nil {
 			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "configuration"), "error", err)
-			return false, errors.Wrap(err, fmt.Sprintf(errFmtFetchPkg, "configuration"))
+			return false, errors.Wrapf(err, errFmtFetchPkg, "configuration")
 		}
-		var configStatus corev1.ConditionStatus
-		for _, condition := range res.Status.Conditions {
-			if condition.Type == v1.TypeHealthy {
-				configStatus = condition.Status
-			}
-		}
-		if configStatus == corev1.ConditionTrue {
-			logger.Debug(fmt.Sprintf(msgFmtPkgReady, "configuration"))
+		condition := res.GetCondition(v1.TypeHealthy)
+		if condition.Status == corev1.ConditionTrue {
+			logger.Debug(msgConfigurationReady)
 			return true, nil
 		}
 
-		logger.Debug(fmt.Sprintf(msgFmtPkgNotReady, "configuration"))
+		logger.Debug(msgConfigurationNotReady)
 		return false, nil
 	}); err != nil {
 		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"), "error", err)
-		return errors.Wrap(err, fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"))
+		return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Configuration")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
 	return err
@@ -234,28 +233,23 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
 	if err := wait.PollImmediate(waitInterval, c.Wait, func() (done bool, err error) {
-		logger.Debug(fmt.Sprintf(msgFmtPkgWaiting, "provider"))
+		logger.Debug(msgProviderWaiting)
 		res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
 		if err != nil {
 			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "provider"), "error", err)
-			return false, errors.Wrap(err, fmt.Sprintf(errFmtFetchPkg, "provider"))
+			return false, errors.Wrapf(err, errFmtFetchPkg, "provider")
 		}
-		var configStatus corev1.ConditionStatus
-		for _, condition := range res.Status.Conditions {
-			if condition.Type == v1.TypeHealthy {
-				configStatus = condition.Status
-			}
-		}
-		if configStatus == corev1.ConditionTrue {
-			logger.Debug(fmt.Sprintf(msgFmtPkgReady, "provider"))
+		condition := res.GetCondition(v1.TypeHealthy)
+		if condition.Status == corev1.ConditionTrue {
+			logger.Debug(msgProviderReady)
 			return true, nil
 		}
 
-		logger.Debug(fmt.Sprintf(msgFmtPkgNotReady, "provider"))
+		logger.Debug(msgProviderNotReady)
 		return false, nil
 	}); err != nil {
 		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"), "error", err)
-		return errors.Wrap(err, fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"))
+		return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Provider")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
 	return err
