@@ -35,11 +35,11 @@ const (
 	errMathNoMultiplier         = "no input is given"
 	errMathInputNonNumber       = "input is required to be a number for math transformer"
 	errPatchSetType             = "a patch in a PatchSet cannot be of type PatchSet"
-	errRequiredField            = "%s is required by type %s"
-	errUndefinedPatchSet        = "cannot find PatchSet by name %s"
-	errInvalidPatchType         = "patch type %s is unsupported"
 	errCombineRequiresVariables = "combine patch types require at least one variable"
 
+	errFmtRequiredField                = "%s is required by type %s"
+	errFmtUndefinedPatchSet            = "cannot find PatchSet by name %s"
+	errFmtInvalidPatchType             = "patch type %s is unsupported"
 	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
 	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
 	errFmtTransformAtIndex             = "transform at index %d returned error"
@@ -98,11 +98,11 @@ func (cs *CompositionSpec) InlinePatchSets() error {
 				continue
 			}
 			if p.PatchSetName == nil {
-				return errors.Errorf(errRequiredField, "PatchSetName", p.Type)
+				return errors.Errorf(errFmtRequiredField, "PatchSetName", p.Type)
 			}
 			ps, ok := pn[*p.PatchSetName]
 			if !ok {
-				return errors.Errorf(errUndefinedPatchSet, *p.PatchSetName)
+				return errors.Errorf(errFmtUndefinedPatchSet, *p.PatchSetName)
 			}
 			po = append(po, ps...)
 		}
@@ -367,7 +367,7 @@ func (c *Patch) Apply(cp, cd runtime.Object, only ...PatchType) error {
 	case PatchTypePatchSet:
 		// Already resolved - nothing to do.
 	}
-	return errors.Errorf(errInvalidPatchType, c.Type)
+	return errors.Errorf(errFmtInvalidPatchType, c.Type)
 }
 
 // filterPatch returns true if patch should be filtered (not applied)
@@ -419,7 +419,7 @@ func patchFieldValueToObject(path string, value interface{}, to runtime.Object) 
 // the patch.
 func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 	if c.FromFieldPath == nil {
-		return errors.Errorf(errRequiredField, "FromFieldPath", c.Type)
+		return errors.Errorf(errFmtRequiredField, "FromFieldPath", c.Type)
 	}
 
 	// Default to patching the same field on the composed resource.
@@ -456,12 +456,12 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 	// Combine patch requires configuration
 	if c.Combine == nil {
-		return errors.Errorf(errRequiredField, "Combine", c.Type)
+		return errors.Errorf(errFmtRequiredField, "Combine", c.Type)
 	}
 	// Destination field path is required since we can't default to multiple
 	// fields.
 	if c.ToFieldPath == nil {
-		return errors.Errorf(errRequiredField, "ToFieldPath", c.Type)
+		return errors.Errorf(errFmtRequiredField, "ToFieldPath", c.Type)
 	}
 
 	vl := len(c.Combine.Variables)
