@@ -144,6 +144,8 @@ const (
 	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
 	PatchTypePatchSet               PatchType = "PatchSet"
 	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
+	PatchTypeCombineFromComposite   PatchType = "CombineFromComposite"
+	PatchTypeCombineToComposite     PatchType = "CombineToComposite"
 )
 
 // Patch objects are applied between composite and composed resources. Their
@@ -154,7 +156,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -163,6 +165,10 @@ type Patch struct {
 	// ToCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
+
+	// Combine is the patch configuration for a CombineFromComposite or
+	// CombineToComposite patch.
+	Combine *Combine `json:"combine,omitempty"`
 
 	// ToFieldPath is the path of the field on the resource whose value will
 	// be changed with the result of transforms. Leave empty if you'd like to
@@ -202,6 +208,50 @@ type PatchPolicy struct {
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+}
+
+// A Combine configures a patch that combines more than
+// one input field into a single output field.
+type Combine struct {
+	// Variables are the list of variables whose values will be retrieved and
+	// combined.
+	// +kubebuilder:validation:MinItems=1
+	Variables []CombineVariable `json:"variables"`
+
+	// Strategy defines the strategy to use to combine the input variable values.
+	// Currently only string is supported.
+	// +kubebuilder:validation:Enum=string
+	Strategy CombineStrategy `json:"strategy"`
+
+	// String declares that input variables should be combined into a single
+	// string, using the relevant settings for formatting purposes.
+	// +optional
+	String *StringCombine `json:"string,omitempty"`
+}
+
+// A CombineVariable defines the source of a value that is combined with
+// others to form and patch an output value. Currently, this only supports
+// retrieving values from a field path.
+type CombineVariable struct {
+	// FromFieldPath is the path of the field on the source whose value is
+	// to be used as input.
+	FromFieldPath string `json:"fromFieldPath"`
+}
+
+// A CombineStrategy determines what strategy will be applied to combine
+// variables.
+type CombineStrategy string
+
+// CombineStrategy strategy definitions.
+const (
+	CombineStrategyString CombineStrategy = "string"
+)
+
+// A StringCombine combines multiple input values into a single string.
+type StringCombine struct {
+	// Format the input using a Go format string. See
+	// https://golang.org/pkg/fmt/ for details.
+	Format string `json:"fmt"`
 }
 
 // TransformType is type of the transform function to be chosen.

@@ -284,8 +284,8 @@ type Combine struct {
 	Variables []CombineVariable `json:"variables"`
 
 	// Strategy defines the strategy to use to combine the input variable values.
-	// Currently only String is supported.
-	// +kubebuilder:validation:Enum=String
+	// Currently only string is supported.
+	// +kubebuilder:validation:Enum=string
 	Strategy CombineStrategy `json:"strategy"`
 
 	// String declares that input variables should be combined into a single
@@ -332,9 +332,7 @@ type CombineStrategy string
 
 // CombineStrategy strategy definitions.
 const (
-	CombineStrategyString CombineStrategy = "String"
-	// Additional:
-	// CombineStrategyGoTemplate CombineStrategy = "GoTemplate"
+	CombineStrategyString CombineStrategy = "string"
 )
 
 // A StringCombine combines multiple input values into a single string.
@@ -419,12 +417,7 @@ func patchFieldValueToObject(path string, value interface{}, to runtime.Object) 
 // applyFromFieldPathPatch patches the "to" resource, using a source field
 // on the "from" resource. Values may be transformed if any are defined on
 // the patch.
-func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // nolint:gocyclo
-	// NOTE(benagricola): The cyclomatic complexity here is from error checking
-	// at each stage of the patching process, in addition to Apply methods now
-	// being responsible for checking the validity of their input fields
-	// (necessary because with multiple patch types, the input fields
-	// must be +optional).
+func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 	if c.FromFieldPath == nil {
 		return errors.Errorf(errRequiredField, "FromFieldPath", c.Type)
 	}
@@ -460,7 +453,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error { // noli
 // input variables and combining them into a single output value.
 // The single output value may then be further transformed if they are defined
 // on the patch.
-func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error { // nolint:gocyclo
+func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 	// Combine patch requires configuration
 	if c.Combine == nil {
 		return errors.Errorf(errRequiredField, "Combine", c.Type)
