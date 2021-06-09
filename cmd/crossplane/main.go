@@ -22,6 +22,7 @@ import (
 
 	"gopkg.in/alecthomas/kingpin.v2"
 	appsv1 "k8s.io/api/apps/v1"
+	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -63,6 +64,7 @@ func main() {
 	kingpin.FatalIfError(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
 	kingpin.FatalIfError(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
 	kingpin.FatalIfError(rbacv1.AddToScheme(s), "cannot add rbac v1 Kubernetes API types to scheme")
+	kingpin.FatalIfError(coordinationv1.AddToScheme(s), "cannot add coordination v1 Kubernetes API types to scheme")
 	kingpin.FatalIfError(extv1.AddToScheme(s), "cannot add apiextensions v1 Kubernetes API types to scheme")
 	kingpin.FatalIfError(extv1beta1.AddToScheme(s), "cannot add apiextensions v1beta1 Kubernetes API types to scheme")
 	kingpin.FatalIfError(apis.AddToScheme(s), "cannot add Crossplane API types to scheme")
