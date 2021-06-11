@@ -185,6 +185,9 @@ spec:
               address:
                 description: Address of this MySQL server.
                 type: string
+              dsn:
+                description: DSN (Data Source Name) of the MySQL server.
+                type: string
 ```
 
 Refer to the Kubernetes documentation on [structural schemas] for full details
@@ -532,6 +535,30 @@ spec:
     # to the composite resource using the "CombineToComposite" patch type. This
     # type can be configured in the same way as the "CombineFromComposite" patch
     # type above, but its' source and destination resources are switched.
+    - type: CombineToComposite
+      combine:
+        variables:
+          # These refer to field paths on the Composed resource. Note that both
+          # spec (user input) and status can be combined.
+          - fromFieldPath: "spec.parameters.administratorLogin"
+          - fromFieldPath: "status.atProvider.fullyQualifiedDomainName"
+        strategy: string
+        # Here, our administratorLogin parameter and fullyQualifiedDomainName
+        # status are formatted to a single output string representing a
+        # DSN. This can be useful where other resources need to consume or
+        # connect to this resource, but the necessary information is either
+        # not exposed in connection details (see below) or the consuming
+        # system does not support retrieving connection information from 
+        # those details.
+        string:
+          fmt: "mysql://%s@%s:3306/my-database-name"
+      toFieldPath: status.dsn
+      # Do not report an error when source fields are unset. The
+      # fullyQualifiedDomainName status field will not be set until the MySQL
+      # server is provisioned, and we do not want to abort rendering of our
+      # resources while the field is unset.
+      policy:
+        fromFieldPath: Optional
 
     # In addition to a base and patches, this composed MySQLServer declares that
     # it can fulfil the connectionSecretKeys contract required by the definition
