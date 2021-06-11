@@ -185,7 +185,7 @@ spec:
               address:
                 description: Address of this MySQL server.
                 type: string
-              dsn:
+              adminDSN:
                 description: DSN (Data Source Name) of the MySQL server.
                 type: string
 ```
@@ -267,6 +267,9 @@ Spec:
             Properties:
               Address:
                 Description:  Address of this MySQL server.
+                Type:         string
+              Admin DSN:
+                Description:  DSN (Data Source Name) of the MySQL server.
                 Type:         string
             Type:             object
         Type:                 object
@@ -545,14 +548,14 @@ spec:
         strategy: string
         # Here, our administratorLogin parameter and fullyQualifiedDomainName
         # status are formatted to a single output string representing a
-        # DSN. This can be useful where other resources need to consume or
+        # DSN. This may be useful where other resources need to consume or
         # connect to this resource, but the necessary information is either
         # not exposed in connection details (see below) or the consuming
         # system does not support retrieving connection information from 
         # those details.
         string:
           fmt: "mysql://%s@%s:3306/my-database-name"
-      toFieldPath: status.dsn
+      toFieldPath: status.adminDSN
       # Do not report an error when source fields are unset. The
       # fullyQualifiedDomainName status field will not be set until the MySQL
       # server is provisioned, and we do not want to abort rendering of our
@@ -793,7 +796,8 @@ Spec:
     Name:       example-mysqlinstance
     Namespace:  infra-secrets
 Status:
-  Address:  example.mysql.database.azure.com
+  Address:    example.mysql.database.azure.com
+  Admin DSN:  mysql://admin@example.mysql.database.azure.com:3306/my-database-name
   Conditions:
     Last Transition Time:  2020-05-15T06:56:46Z
     Reason:                Resource is available for use
@@ -928,7 +932,8 @@ Spec:
   Write Connection Secret To Ref:
     Name:  example-mysqlinstance
 Status:
-  Address:  example.mysql.database.azure.com
+  Address:    example.mysql.database.azure.com
+  Admin DSN:  mysql://admin@example.mysql.database.azure.com:3306/my-database-name
   Conditions:
     Last Transition Time:  2020-05-15T07:26:49Z
     Reason:                Resource is available for use
