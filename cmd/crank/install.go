@@ -140,24 +140,26 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 		logger.Debug("Failed to create configuration", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
-	if err = wait.PollImmediate(waitInterval, c.Wait, func() (bool, error) {
-		logger.Debug(msgConfigurationWaiting)
-		res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
-		if err != nil {
-			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "configuration"), "error", err)
-			return false, errors.Wrapf(err, errFmtFetchPkg, "configuration")
-		}
-		condition := res.GetCondition(v1.TypeHealthy)
-		if condition.Status == corev1.ConditionTrue {
-			logger.Debug(msgConfigurationReady)
-			return true, nil
-		}
+	if c.Wait != 0 {
+		if err = wait.PollImmediate(waitInterval, c.Wait, func() (bool, error) {
+			logger.Debug(msgConfigurationWaiting)
+			res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
+			if err != nil {
+				logger.Debug(fmt.Sprintf(errFmtFetchPkg, "configuration"), "error", err)
+				return false, errors.Wrapf(err, errFmtFetchPkg, "configuration")
+			}
+			condition := res.GetCondition(v1.TypeHealthy)
+			if condition.Status == corev1.ConditionTrue {
+				logger.Debug(msgConfigurationReady)
+				return true, nil
+			}
 
-		logger.Debug(msgConfigurationNotReady)
-		return false, nil
-	}); err != nil {
-		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"), "error", err)
-		return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Configuration")
+			logger.Debug(msgConfigurationNotReady)
+			return false, nil
+		}); err != nil {
+			logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"), "error", err)
+			return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Configuration")
+		}
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
 	return err
@@ -232,24 +234,26 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Failed to create provider", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
-	if err := wait.PollImmediate(waitInterval, c.Wait, func() (done bool, err error) {
-		logger.Debug(msgProviderWaiting)
-		res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
-		if err != nil {
-			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "provider"), "error", err)
-			return false, errors.Wrapf(err, errFmtFetchPkg, "provider")
-		}
-		condition := res.GetCondition(v1.TypeHealthy)
-		if condition.Status == corev1.ConditionTrue {
-			logger.Debug(msgProviderReady)
-			return true, nil
-		}
+	if c.Wait != 0 {
+		if err := wait.PollImmediate(waitInterval, c.Wait, func() (done bool, err error) {
+			logger.Debug(msgProviderWaiting)
+			res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
+			if err != nil {
+				logger.Debug(fmt.Sprintf(errFmtFetchPkg, "provider"), "error", err)
+				return false, errors.Wrapf(err, errFmtFetchPkg, "provider")
+			}
+			condition := res.GetCondition(v1.TypeHealthy)
+			if condition.Status == corev1.ConditionTrue {
+				logger.Debug(msgProviderReady)
+				return true, nil
+			}
 
-		logger.Debug(msgProviderNotReady)
-		return false, nil
-	}); err != nil {
-		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"), "error", err)
-		return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Provider")
+			logger.Debug(msgProviderNotReady)
+			return false, nil
+		}); err != nil {
+			logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"), "error", err)
+			return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Provider")
+		}
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
 	return err
