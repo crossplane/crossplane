@@ -63,7 +63,7 @@ const (
 )
 
 const (
-	waitInterval = 10 * time.Second
+	waitInterval = 3 * time.Second
 )
 
 // installCmd installs a package.
