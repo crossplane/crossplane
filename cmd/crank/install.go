@@ -82,7 +82,7 @@ type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
 	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of package."`
 	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`

@@ -54,7 +54,7 @@ func (v verboseFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
 
 var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
-	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements"`
+	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
 	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
 	Install installCmd `cmd:"" help:"Install Crossplane packages."`
