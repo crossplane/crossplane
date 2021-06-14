@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -28,6 +29,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	wait "k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -45,6 +47,23 @@ const (
 	errPkgIdentifier = "invalid package image identifier"
 	errKubeConfig    = "failed to get kubeconfig"
 	errKubeClient    = "failed to create kube client"
+
+	errFmtPkgNotReadyTimeout = "%s is not ready in timeout duration"
+	errFmtFetchPkg           = "Failed to fetch %s object"
+)
+
+const (
+	msgConfigurationReady    = "Configuration is ready"
+	msgConfigurationNotReady = "Configuration is not ready"
+	msgConfigurationWaiting  = "Waiting for the Configuration to be ready"
+
+	msgProviderReady    = "Provider is ready"
+	msgProviderNotReady = "Provider is not ready"
+	msgProviderWaiting  = "Waiting for the Provider to be ready"
+)
+
+const (
+	waitInterval = 10 * time.Second
 )
 
 // installCmd installs a package.
@@ -62,14 +81,15 @@ func (c *installCmd) Run(b *buildChild) error {
 type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
-	Name                 string   `arg:"" optional:"" help:"Name of Configuration."`
-	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
-	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
+	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
+	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
+	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -120,6 +140,25 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 		logger.Debug("Failed to create configuration", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
+	if err = wait.PollImmediate(waitInterval, c.Wait, func() (bool, error) {
+		logger.Debug(msgConfigurationWaiting)
+		res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
+		if err != nil {
+			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "configuration"), "error", err)
+			return false, errors.Wrapf(err, errFmtFetchPkg, "configuration")
+		}
+		condition := res.GetCondition(v1.TypeHealthy)
+		if condition.Status == corev1.ConditionTrue {
+			logger.Debug(msgConfigurationReady)
+			return true, nil
+		}
+
+		logger.Debug(msgConfigurationNotReady)
+		return false, nil
+	}); err != nil {
+		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"), "error", err)
+		return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Configuration")
+	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
 	return err
 }
@@ -128,15 +167,16 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 type installProviderCmd struct {
 	Package string `arg:"" help:"Image containing Provider package."`
 
-	Name                 string   `arg:"" optional:"" help:"Name of Provider."`
-	RevisionHistoryLimit int64    `short:"r" help:"Revision history limit."`
-	ManualActivation     bool     `short:"m" help:"Enable manual revision activation policy."`
-	Config               string   `help:"Specify a ControllerConfig for this Provider."`
-	PackagePullSecrets   []string `help:"List of secrets used to pull package."`
+	Name                 string        `arg:"" optional:"" help:"Name of Provider."`
+	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
+	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
+	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
+	Config               string        `help:"Specify a ControllerConfig for this Provider."`
+	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -191,6 +231,25 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 	if err != nil {
 		logger.Debug("Failed to create provider", "error", warnIfNotFound(err))
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
+	}
+	if err := wait.PollImmediate(waitInterval, c.Wait, func() (done bool, err error) {
+		logger.Debug(msgProviderWaiting)
+		res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
+		if err != nil {
+			logger.Debug(fmt.Sprintf(errFmtFetchPkg, "provider"), "error", err)
+			return false, errors.Wrapf(err, errFmtFetchPkg, "provider")
+		}
+		condition := res.GetCondition(v1.TypeHealthy)
+		if condition.Status == corev1.ConditionTrue {
+			logger.Debug(msgProviderReady)
+			return true, nil
+		}
+
+		logger.Debug(msgProviderNotReady)
+		return false, nil
+	}); err != nil {
+		logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"), "error", err)
+		return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Provider")
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
 	return err
