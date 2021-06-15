@@ -27,6 +27,18 @@ purposes of Crossplane packages are as follows:
   the cluster, and checking if dependency versions are valid if they are already
   installed.
 
+## Table of Contents
+
+The following packaging operations are covered in detail below:
+
+- [Building a Package](#building-a-package)
+  - [Provider Packages](#provider-packages)
+  - [Configuration Packages](#configuration-packages)
+- [Pushing a Package](#pushing-a-package)
+- [Installing a Package](#installing-a-package)
+- [The Package Cache](#the-package-cache)
+  - [Pre-Populating the Package Cache](#pre-populating-the-package-cache)
+
 ## Building a Package
 
 As stated above, Crossplane packages are just opinionated OCI images, meaning
@@ -70,9 +82,9 @@ spec:
 
 See all available fields in the [official documentation][provider-docs].
 
-> Note: The `meta.pkg.crossplane.io` group does contain custom resources that
-> may be installed into the cluster. They are strictly used as metadata in a
-> Crossplane package.
+> Note: The `meta.pkg.crossplane.io` group does not contain custom resources
+> that may be installed into the cluster. They are strictly used as metadata in
+> a Crossplane package.
 
 A Provider package may optionally contain one or more CRDs. These CRDs will be
 installed prior to the creation of the Provider's `Deployment`. Crossplane will
@@ -398,6 +410,47 @@ spec:
 You can find all configurable values in the [official `ControllerConfig`
 documentation][controller-config-docs].
 
+## The Package Cache
+
+When a package is installed into a cluster, Crossplane fetches the package image
+and stores its contents in a dedicated package cache. By default, this cache is
+backed by an [`emptyDir` Volume][emptyDir-volume], meaning that all cached data
+is lost when a `Pod` restarts. Users who wish for cache contents to be persisted
+between `Pod` restarts may opt to instead use a [`persistentVolumeClaim`
+(PVC)][pvc] by setting the `packageCache.pvc` Helm chart parameter to the name
+of the PVC.
+
+### Pre-Populating the Package Cache
+
+Because the package cache can be backed by any storage medium, users are able to
+optionally to pre-populate the cache with images that are not present on an
+external [OCI registry]. To utilize a package that has been manually stored in
+the cache, users must specify the name of the package in `spec.package` and use
+`packagePullPolicy: Never`. For instance, if a user built a `Configuration`
+package named `mycoolpkg.xpkg` and loaded it into the volume that was to be used
+for the package cache (i.e. copied the `.xpkg` file into the storage medium
+backing the PVC), the package could be utilized with the following manifest:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: my-cool-pkg
+spec:
+  package: mycoolpkg
+  packagePullPolicy: Never
+```
+
+Importantly, as long as a package is being used as the `spec.package` of a
+`Configuration` or `Provider`, it must remain in the cache. For this reason, it
+is recommended that users opt for a durable storage medium when manually loading
+packages into the cache.
+
+In addition, if manually loading a `Provider` package into the cache, users must
+ensure that the controller image that it references is able to be pulled by the
+cluster nodes. This can be accomplished either by pushing it to a registry, or
+by [pre-pulling images] onto nodes in the cluster.
+
 
 <!-- Named Links -->
 
@@ -413,3 +466,7 @@ documentation][controller-config-docs].
 [controller-config-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/ControllerConfig/v1alpha1
 [package format]: https://github.com/crossplane/crossplane/blob/1aa83092172bdf0d2ed64754d33517c612ff7368/design/one-pager-package-format-v2.md
 [provider-gcp]: https://github.com/crossplane/provider-gcp/tree/master/package
+[emptyDir-volume]: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir
+[pvc]: https://kubernetes.io/docs/concepts/storage/volumes/#persistentvolumeclaim
+[OCI registry]: https://github.com/opencontainers/distribution-spec
+[pre-pulling images]: https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
