@@ -32,7 +32,7 @@ import (
 
 const (
 	errGetwd           = "failed to get working directory while searching for package"
-	errFindPackageinWd = "failed to find a package current working directory"
+	errFindPackageinWd = "failed to find a package in current working directory"
 )
 
 // pushCmd pushes a package.
