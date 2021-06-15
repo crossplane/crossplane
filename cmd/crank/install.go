@@ -29,7 +29,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	wait "k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/client-go/tools/cache"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -49,7 +50,7 @@ const (
 	errKubeClient    = "failed to create kube client"
 
 	errFmtPkgNotReadyTimeout = "%s is not ready in timeout duration"
-	errFmtFetchPkg           = "Failed to fetch %s object"
+	errFmtWatchPkg           = "Failed to watch for %s object"
 )
 
 const (
@@ -60,10 +61,6 @@ const (
 	msgProviderReady    = "Provider is ready"
 	msgProviderNotReady = "Provider is not ready"
 	msgProviderWaiting  = "Waiting for the Provider to be ready"
-)
-
-const (
-	waitInterval = 3 * time.Second
 )
 
 // installCmd installs a package.
@@ -141,24 +138,28 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 		return errors.Wrap(warnIfNotFound(err), "cannot create configuration")
 	}
 	if c.Wait != 0 {
-		if err = wait.PollImmediate(waitInterval, c.Wait, func() (bool, error) {
-			logger.Debug(msgConfigurationWaiting)
-			res, err := kube.Configurations().Get(context.Background(), pkgName, metav1.GetOptions{})
-			if err != nil {
-				logger.Debug(fmt.Sprintf(errFmtFetchPkg, "configuration"), "error", err)
-				return false, errors.Wrapf(err, errFmtFetchPkg, "configuration")
+		logger.Debug(msgConfigurationWaiting)
+		watchList := cache.NewListWatchFromClient(kube.RESTClient(), "configurations", corev1.NamespaceAll, fields.Everything())
+		waitSeconds := int64(c.Wait.Seconds())
+		watcher, err := watchList.Watch(metav1.ListOptions{Watch: true, TimeoutSeconds: &waitSeconds})
+		defer watcher.Stop()
+		if err != nil {
+			logger.Debug(fmt.Sprintf(errFmtWatchPkg, "Configuration"), "error", err)
+			return err
+		}
+		for {
+			event, ok := <-watcher.ResultChan()
+			if !ok {
+				logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"))
+				return errors.Errorf(errFmtPkgNotReadyTimeout, "Configuration")
 			}
-			condition := res.GetCondition(v1.TypeHealthy)
-			if condition.Status == corev1.ConditionTrue {
+			obj := (event.Object).(*v1.Configuration)
+			cond := obj.GetCondition(v1.TypeHealthy)
+			if obj.ObjectMeta.Name == pkgName && cond.Status == corev1.ConditionTrue {
 				logger.Debug(msgConfigurationReady)
-				return true, nil
+				break
 			}
-
 			logger.Debug(msgConfigurationNotReady)
-			return false, nil
-		}); err != nil {
-			logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Configuration"), "error", err)
-			return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Configuration")
 		}
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ConfigurationGroupKind), res.GetName())
@@ -235,24 +236,28 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 		return errors.Wrap(warnIfNotFound(err), "cannot create provider")
 	}
 	if c.Wait != 0 {
-		if err := wait.PollImmediate(waitInterval, c.Wait, func() (done bool, err error) {
-			logger.Debug(msgProviderWaiting)
-			res, err := kube.Providers().Get(context.Background(), pkgName, metav1.GetOptions{})
-			if err != nil {
-				logger.Debug(fmt.Sprintf(errFmtFetchPkg, "provider"), "error", err)
-				return false, errors.Wrapf(err, errFmtFetchPkg, "provider")
+		logger.Debug(msgProviderWaiting)
+		watchList := cache.NewListWatchFromClient(kube.RESTClient(), "providers", corev1.NamespaceAll, fields.Everything())
+		waitSeconds := int64(c.Wait.Seconds())
+		watcher, err := watchList.Watch(metav1.ListOptions{Watch: true, TimeoutSeconds: &waitSeconds})
+		defer watcher.Stop()
+		if err != nil {
+			logger.Debug(fmt.Sprintf(errFmtWatchPkg, "Provider"), "error", err)
+			return err
+		}
+		for {
+			event, ok := <-watcher.ResultChan()
+			if !ok {
+				logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"))
+				return errors.Errorf(errFmtPkgNotReadyTimeout, "Provider")
 			}
-			condition := res.GetCondition(v1.TypeHealthy)
-			if condition.Status == corev1.ConditionTrue {
-				logger.Debug(msgProviderReady)
-				return true, nil
+			obj := (event.Object).(*v1.Provider)
+			cond := obj.GetCondition(v1.TypeHealthy)
+			if obj.ObjectMeta.Name == pkgName && cond.Status == corev1.ConditionTrue {
+				logger.Debug(msgProviderReady, "pkgName", obj.ObjectMeta.Name)
+				break
 			}
-
 			logger.Debug(msgProviderNotReady)
-			return false, nil
-		}); err != nil {
-			logger.Debug(fmt.Sprintf(errFmtPkgNotReadyTimeout, "Provider"), "error", err)
-			return errors.Wrapf(err, errFmtPkgNotReadyTimeout, "Provider")
 		}
 	}
 	_, err = fmt.Fprintf(k.Stdout, "%s/%s created\n", strings.ToLower(v1.ProviderGroupKind), res.GetName())
