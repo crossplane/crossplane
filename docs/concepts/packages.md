@@ -70,9 +70,9 @@ spec:
 
 See all available fields in the [official documentation][provider-docs].
 
-> Note: The `meta.pkg.crossplane.io` group does contain custom resources that
-> may be installed into the cluster. They are strictly used as metadata in a
-> Crossplane package.
+> Note: The `meta.pkg.crossplane.io` group does not contain custom resources
+> that may be installed into the cluster. They are strictly used as metadata in
+> a Crossplane package.
 
 A Provider package may optionally contain one or more CRDs. These CRDs will be
 installed prior to the creation of the Provider's `Deployment`. Crossplane will
