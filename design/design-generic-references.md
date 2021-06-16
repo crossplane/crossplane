@@ -1,4 +1,4 @@
-# Crossplane Agent for Consumption
+# Generic Resource References
 
 * Owner: Muvaffak Onuş (@muvaf)
 * Reviewers: Crossplane Maintainers
@@ -19,10 +19,12 @@ the provider. There are several cases where this is not possible:
   field in Route53 could get populated by a URL of an S3 bucket or access endpoint
   of an RDS Instance.
 * Instead of hard-coding region for all managed resources, you may want to refer
-  to a `ConfigMap` and let the managed resource take that information from there.
-* In Composition, you can trade values of the fields only between the children of
-  the same composite instance, but there are cases where you'd like to use a separate
-  composite-independent resource to store the information and serve all composites.
+  to a `ConfigMap` or a `Secret` and let the managed resource take that
+  information from there.
+* In Composition, you can use values of the fields only between the children of
+  the same composite instance, but there are cases where you'd like to use a
+  separate resource that is not bound to any composite instance to store the
+  information and serve all composites.
 
 In order to enable such use cases, we need a generic version of the cross-resource
 references where you can specify all metadata required to find the referenced
@@ -39,108 +41,100 @@ regarding multi-kind references, the API will look like the following:
 ```yaml
 # A generic reference to another managed resource.
 spec:
-  references:
-  - group: ec2.aws.crossplane.io
-    version: v1alpha1
-    resource: vpcs
-    name: main-vpc
-    fromFieldPath: spec.forProvider.cidrBlock
+  externalValues:
+  - fromObject:
+      group: ec2.aws.crossplane.io
+      version: v1alpha1
+      resource: vpcs
+      name: main-vpc
+      fieldPath: spec.forProvider.cidrBlock
     toFieldPath: spec.cidrBlock
 ```
 ```yaml
 # A generic reference to a namespaced Kubernetes resource.
 spec:
-  references:
-  - version: v1
-    # group is omitted since it is empty for ConfigMap.
-    resource: configmaps
-    name: common-settings
-    namespace: crossplane-system
-    fromFieldPath: data.region
+  externalValues:
+  - fromObject:
+      version: v1
+      resource: configmaps
+      name: common-settings
+      namespace: crossplane-system
+      fieldPath: data.region
     toFieldPath: spec.forProvider.region
 ```
 
-The syntax of `fromFieldPath` and `toFieldPath` fields will be similar to what we
-use in Composition, in line with [Kubernetes API Conventions](https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#selecting-fields).
+The syntax of `fieldPath` and `toFieldPath` fields will be similar to what we
+use in Composition, in line with [Kubernetes API Conventions](https://github.com/kubernetes/community/blob/744e270/contributors/devel/sig-architecture/api-conventions.md#selecting-fields).
 
 The provider pods will resolve the references via managed reconciler, hence they
 will need at least read-only permissions for any resource that's been referenced
-by an instance. Currently, every provider [has read access](https://github.com/crossplane/crossplane/blob/master/internal/controller/rbac/provider/roles/roles.go#L66)
+by an instance. Currently, every provider [has read access](https://github.com/crossplane/crossplane/blob/d8f57a8/internal/controller/rbac/provider/roles/roles.go#L66)
 to all of its own kinds, `Secret`s, `ConfigMap`s, `Lease`s and `Event`s in all
 namespaces. In order to reference resources other than the ones listed, users will
-have to create necessary RBAC resources manually.
+have to create necessary RBAC resources manually to grant the permissions.
 
 ### Implementation
 
-Since the field will exist in all managed resources, the API struct and the generic
+The field will exist in all managed resources, the API struct and the generic
 resolver will live in Crossplane Runtime and be integrated into managed reconciler.
 Providers will only have to update their runtime dependency and regenerate their
 CRDs to get the feature in.
 
-The API struct will look roughly as the following:
-```go
-type GenericReference struct {
-    Resource      string `json:"resource"`
-    Name          string `json:"name"`
-    FromFieldPath string `json:"fromFieldPath"`
-    ToFieldPath   string `json:"toFieldPath"`
-    
-    // +optional
-    Group *string `json:"group,omitempty"`
-    // +optional
-    Version *string `json:"version,omitempty"`
-    // +optional
-    Namespace *string `json:"namespace,omitempty"`
-}
-```
+In core Crossplane, the generic composite reconciler will use the same generic
+reference resolver and it will run it before creating any composed resource
+because unresolved fields may cause managed resources to provision resources
+with missing configuration.
 
-One of the caveat with following the new conventions is that controller-runtime
+One of the caveats with following the new conventions is that controller-runtime
 utilities mostly assume that you have Group-Version-Kind of the resource you're
 operating with. In order to use Group-Version-Resource, we will make use of
-`EquivalentResourceRegistry` object as a translator between the two, implemented
-as an alternative to [`MustCreateObject`](https://github.com/crossplane/crossplane-runtime/blob/406fe0b/pkg/resource/resource.go#L145).
+[`EquivalentResourceRegistry`](https://github.com/kubernetes/apimachinery/blob/bf1bfd9/pkg/runtime/mapper.go#L44)
+object as a translator between the two, implemented as an alternative to
+[`MustCreateObject`](https://github.com/crossplane/crossplane-runtime/blob/406fe0b/pkg/resource/resource.go#L145).
 After getting a `runtime.Object`, all controller-runtime utilities should be
 available to use.
 
-The resolver will make use of fieldpath library we're using for composition to
-get and set the values unknown types and once it is done. In line with cross-resource
-references, if the field on the referenced object, pointed by `toFieldPath`, already
-has a value then the resolver will skip it, meaning it will resolve only once and
-users will need to delete that value for resolver to set it again.
+The resolver will make use of `fieldpath` library we're using for composition to
+get and set the values unknown types and once it is done, an update request will
+be issued. In line with cross-resource references, if the field on the referenced
+object, pointed by `toFieldPath`, already has a value then the resolver will
+skip it, meaning it will resolve only once and users will need to delete that
+value for resolver to set it again.
 
 ## Alternatives Considered
 
-### More Open-ended API
-
-A variation of the following suggestion was made in the initial issue [#1770](https://github.com/crossplane/crossplane/issues/1770).
+### Simpler API
 
 ```yaml
 spec:
-  fieldModifiers:
-    - fromRef:
-        apiVersion: ec2.aws.crossplane.io/v1beta1
-        kind: VPC
-        name: my-vpc
-        fieldPath: metadata.annotations[crossplane.io/external-name]
-      toFieldPath: spec.forProvider.vpcId
+  externalValues:
+    - group: ec2.aws.crossplane.io
+      version: v1alpha1
+      resource: vpcs
+      name: main-vpc
+      fromFieldPath: spec.forProvider.cidrBlock
+      toFieldPath: spec.cidrBlock
 ```
 
-This API would allow future source additions to `fromRef` by exposing a type
-discriminator. However, it's likely that any additions will start to compete with
-what you can do with composition patches. Converting this to the new API convention,
-it's a pretty good alternative to the proposal above since it's safer but I'd like
-to see more use cases where we'd like to implement different source types.
+We could certainly have gone with this approach as well but having everything at
+the same level increases the risk of having to break the API to add new features.
+Although it's probably safe that we will not see many new types of sources be
+added, because a lot of use cases are already covered by composition patch types,
+it could be desirable to have multiple source objects to construct a single value
+for example and that'd be a new type. So, we're taking the safer approach of
+letting the API be more open-ended for future developments and pay a small UX
+fee in exchange.
 
 ### Multiple Source References
 
-Composition allows information to flow from resource to another due to the nature
-of how patches are designed. However, there could be cases where you'd like to
-construct a single value using information from multiple resources, like an ARN.
-An API that would allow this could look like the following:
+Composition allows information to flow from single resource to another due to
+the nature of how patches are designed. However, there could be cases where you'd
+like to construct a single value using information from multiple resources, like
+an ARN. An API that would allow this could look like the following:
 
 ```yaml
 spec:
-  references:
+  externalValues:
   - combine:
     - version: v1
       resource: configmaps
@@ -158,7 +152,7 @@ spec:
 Or alternatively:
 ```yaml
 spec:
-  references:
+  externalValues:
   - variables:
     - name: region
       fromRef:
@@ -178,23 +172,26 @@ spec:
     toFieldPath: "spec.forProvider.directoryArn"
 ```
 
-The advantage of this option is that it will allow composite resource to get
-information from multiple resources to construct a single value, which is not
-possible today. However, it's questionable how much necessary this is since
+The advantage of this option is that it will allow composite/managed resource to
+get information from multiple resources to construct a single value, which is not
+possible today in any way. However, it's questionable how necessary it is since
 we haven't seen many users reporting that they need this functionality.
 
 ## Future Considerations
 
 ### Transforms
 
-The retrieved value may not be in the form that's useful for the target resource
-directly and may need some formatting. If we see a great need for that, we can
-move the transforms from composition to Crossplane Runtime and use it in
-`GenericReference` object as well.
+The retrieved value may not be in the form that's useful for the referencer
+resource directly and may need some formatting. If we see a great need for that,
+we can move the transforms from composition to Crossplane Runtime and reuse it
+reference struct as well.
 
 ### More Limited RBAC
 
-Currently providers have access to all `Secret`s in the cluster. While this will
+Currently, providers have access to all `Secret`s in the cluster. While this will
 provide a nice UX for generic reference users, it may not be desirable for security
 minded folks since it'd cause giving managed resource permission mean giving access
 to any `Secret` in the cluster. See [#2384](https://github.com/crossplane/crossplane/issues/2384).
+
+We can consider new settings in `Provider` or `ControllerConfig` to let users
+control this behavior with more granularity.
