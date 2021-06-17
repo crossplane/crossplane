@@ -9,7 +9,7 @@ on:
       channel:
         description: 'Release channel'
         required: true
-        default: 'alpha'
+        default: 'stable'
 
 env:
   # Common users. We can't run a step 'if secrets.AWS_USR != ""' but we can run
