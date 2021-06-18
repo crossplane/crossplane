@@ -48,7 +48,7 @@ spec:
     masterUsername: masteruser
     allocatedStorage: 20
     engine: postgres
-    engineVersion: "9.6"
+    engineVersion: "12"
     skipFinalSnapshotBeforeDeletion: true
   writeConnectionSecretToRef:
     namespace: crossplane-system
