@@ -33,10 +33,9 @@ put it in the referencer object.
 
 ## Proposal
 
-All managed resources and composite resources will have a top-level spec field
-that lists the generic references. They will be resolved in order and failure of
-any will cause reconciliation to fail. Inspired from the
-[latest developments in API conventions](https://github.com/kubernetes/community/pull/5748)
+All managed resources will have a top-level spec field that lists the generic
+references. They will be resolved in order and failure of any will cause
+reconciliation to fail. Inspired from the [latest developments in API conventions](https://github.com/kubernetes/community/pull/5748)
 regarding multi-kind references, the API will look like the following:
 ```yaml
 # A generic reference to another managed resource.
@@ -75,15 +74,14 @@ have to create necessary RBAC resources manually to grant the permissions.
 
 ### Implementation
 
-The field will exist in all managed resources, the API struct and the generic
-resolver will live in Crossplane Runtime and be integrated into managed reconciler.
-Providers will only have to update their runtime dependency and regenerate their
-CRDs to get the feature in.
+The new field will exist in all managed resources and the cross-resource reference
+fields will stay as is and we'll continue adding them wherever possible. They will
+still be the main way to refer to another resource. The generic references will
+help in cases where that's not possible or not implemented yet.
 
-In core Crossplane, the generic composite reconciler will use the same generic
-reference resolver and it will run it before creating any composed resource
-because unresolved fields may cause managed resources to provision resources
-with missing configuration.
+The API struct and the generic resolver will live in Crossplane Runtime and be
+integrated into managed reconciler. Providers will only have to update their
+runtime dependency and regenerate their CRDs to get the feature in.
 
 One of the caveats with following the new conventions is that controller-runtime
 utilities mostly assume that you have Group-Version-Kind of the resource you're
@@ -100,6 +98,41 @@ be issued. In line with cross-resource references, if the field on the reference
 object, pointed by `toFieldPath`, already has a value then the resolver will
 skip it, meaning it will resolve only once and users will need to delete that
 value for resolver to set it again.
+
+## Future Considerations
+
+### Transforms
+
+The retrieved value may not be in the form that's useful for the referencer
+resource directly and may need some formatting. If we see a great need for that,
+we can move the transform machinery from Crossplane to Crossplane Runtime and
+reuse it.
+
+### More Limited RBAC
+
+Currently, providers have access to all `Secret`s in the cluster. While this will
+provide a nice UX for generic reference users, it may not be desirable for security
+minded folks since it'd cause giving managed resource permission mean giving access
+to any `Secret` in the cluster. See [#2384](https://github.com/crossplane/crossplane/issues/2384).
+
+We can consider new settings in `Provider` or `ControllerConfig` to let users
+control this behavior with more granularity.
+
+### Composite Resources
+
+We could possibly have this on composite resources as well to keep them similar
+to managed resources, hence improving nested composition construction experience.
+But while its implementation would be straight-forward, there are some issues like
+whether we should let claim authors propagate this field as well and would that
+mean letting them access everything provider has access to, which is not few.
+
+### Obscure References
+
+There could be cases where you'd like to fetch a value from another resource but
+don't want to expose it on the managed resource object, i.e. make it available to
+controller to be inclduded in the calls but not visible on the CR. We could think
+of ways letting controller know that by either giving `toFieldPath: OBSCURED` or
+`makeAvailableAs: <some key in a map>`.
 
 ## Alternatives Considered
 
@@ -172,26 +205,7 @@ spec:
     toFieldPath: "spec.forProvider.directoryArn"
 ```
 
-The advantage of this option is that it will allow composite/managed resource to
+The advantage of this option is that it will allow composite/managed resources to
 get information from multiple resources to construct a single value, which is not
 possible today in any way. However, it's questionable how necessary it is since
 we haven't seen many users reporting that they need this functionality.
-
-## Future Considerations
-
-### Transforms
-
-The retrieved value may not be in the form that's useful for the referencer
-resource directly and may need some formatting. If we see a great need for that,
-we can move the transforms from composition to Crossplane Runtime and reuse it
-reference struct as well.
-
-### More Limited RBAC
-
-Currently, providers have access to all `Secret`s in the cluster. While this will
-provide a nice UX for generic reference users, it may not be desirable for security
-minded folks since it'd cause giving managed resource permission mean giving access
-to any `Secret` in the cluster. See [#2384](https://github.com/crossplane/crossplane/issues/2384).
-
-We can consider new settings in `Provider` or `ControllerConfig` to let users
-control this behavior with more granularity.
