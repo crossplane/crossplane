@@ -211,7 +211,7 @@ metadata:
 spec:
   containers:
   - name: see-db
-    image: postgres:9.6
+    image: postgres:12
     command: ['psql']
     args: ['-c', 'SELECT current_database();']
     env:

@@ -147,7 +147,7 @@ spec:
             dbInstanceClass: db.t2.small
             masterUsername: masteruser
             engine: postgres
-            engineVersion: "9.6"
+            engineVersion: "12"
             skipFinalSnapshotBeforeDeletion: true
             publiclyAccessible: true
           writeConnectionSecretToRef:
