@@ -36,7 +36,7 @@ const (
 	errUnsupportedClaimSpec = "composite resource claim spec was not an object"
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
-	errExternalNameMismatch = "mismatch of external names between claim and managed resource"
+	errExternalNameMismatch = "mismatch of external names between claim and composite resource"
 
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
