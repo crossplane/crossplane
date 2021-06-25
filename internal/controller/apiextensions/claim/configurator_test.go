@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -201,7 +202,7 @@ func TestCompositeConfigure(t *testing.T) {
 									// composite resource value, since it has
 									// most likely already taken effect and
 									// cannot be updated retroactively.
-									meta.AnnotationKeyExternalName: "wat",
+									meta.AnnotationKeyExternalName: name,
 									"xrc":                          "annotation",
 								},
 							},
@@ -264,6 +265,90 @@ func TestCompositeConfigure(t *testing.T) {
 							},
 							"spec": map[string]interface{}{
 								"coolness": 23,
+							},
+						},
+					},
+				},
+			},
+		},
+		"NameMismatchExistingXR": {
+			reason: "If there is an external-name mismatch between a claim and a statically provisioned composite resource it's bound to, an error is expected",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+								"annotations": map[string]interface{}{
+									// This should be reset to the equivalent
+									// composite resource value, since it has
+									// most likely already taken effect and
+									// cannot be updated retroactively.
+									meta.AnnotationKeyExternalName: "wat",
+									"xrc":                          "annotation",
+								},
+							},
+							"spec": map[string]interface{}{
+								"coolness": 23,
+
+								// These should be filtered out.
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"name": name,
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+								"labels": map[string]interface{}{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: name,
+									"xr":                           "annotation",
+								},
+							},
+							"spec": map[string]interface{}{
+								// This should be overridden with the value of
+								// the equivalent claim field.
+								"coolness": 42,
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errExternalNameMismatch),
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"name": name,
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+								"labels": map[string]interface{}{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: "wat",
+									"xr":                           "annotation",
+									"xrc":                          "annotation",
+								},
+							},
+							"spec": map[string]interface{}{
+								"coolness": 42, // expected not to be reconciled because of external-name mismatch
 							},
 						},
 					},
