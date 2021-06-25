@@ -36,6 +36,7 @@ const (
 	errUnsupportedClaimSpec = "composite resource claim spec was not an object"
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
+	errExternalNameMismatch = "mismatch of external names between claim and managed resource"
 
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
@@ -48,7 +49,7 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 	// It's possible we're being asked to configure a statically provisioned
 	// composite resource in which case we should respect its existing name and
 	// external name.
-	en, enExists := cp.GetAnnotations()[meta.AnnotationKeyExternalName] // we may also add this as a utility to crossplane-runtime
+	en := meta.GetExternalName(cp)
 	if !meta.WasCreated(cp) {
 		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
 	}
@@ -64,10 +65,14 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 	// external name (even if that external name was empty) in order to ensure
 	// we don't try to rename anything after the fact.
 	if meta.WasCreated(cp) {
-		if enExists {
+		enCm := meta.GetExternalName(cm)
+		// if there is a mismatch between claim's external-name and composite's external-name
+		if enCm != "" && enCm != en {
+			return errors.New(errExternalNameMismatch)
+		}
+		// fix(2353): do not introduce a superfluous extern-name (empty external-names are treated as invalid)
+		if en != "" {
 			meta.SetExternalName(cp, en)
-		} else {
-			meta.RemoveAnnotations(cp, meta.AnnotationKeyExternalName)
 		}
 	}
 

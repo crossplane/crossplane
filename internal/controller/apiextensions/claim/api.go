@@ -64,10 +64,9 @@ func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp res
 	}
 
 	// Propagate the actual external name back from the composite to the claim.
-	if en, enExists := cp.GetAnnotations()[meta.AnnotationKeyExternalName]; enExists { // we may also add this as a utility to crossplane-runtime
+	en := meta.GetExternalName(cp)
+	if meta.GetExternalName(cm) == "" && en != "" {
 		meta.SetExternalName(cm, en)
-	} else {
-		meta.RemoveAnnotations(cm, meta.AnnotationKeyExternalName)
 	}
 
 	// We set the claim's resource reference first in order to reduce the chance
