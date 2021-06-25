@@ -19,10 +19,8 @@ package core
 import (
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -33,34 +31,28 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-// Command configuration for the core Crossplane controllers.
+// Command runs the core crossplane controllers
 type Command struct {
-	Name           string
-	Namespace      string
-	Registry       string
-	CacheDir       string
-	LeaderElection bool
-	Sync           time.Duration
+	Start startCommand `cmd:"" help:"Start Crossplane controllers."`
+	Init  initCommand  `cmd:"" help:"Make cluster ready for Crossplane controllers."`
 }
 
-// FromKingpin produces the core Crossplane command from a Kingpin command.
-func FromKingpin(cmd *kingpin.CmdClause) (*Command, *InitCommand) {
-	startCmd := cmd.Command("start", "Start Crossplane controllers.")
-	c := &Command{Name: startCmd.FullCommand()}
-	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
-	cmd.Flag("registry", "Default registry used to fetch packages when not specified in tag.").Short('r').Default(name.DefaultRegistry).Envar("REGISTRY").StringVar(&c.Registry)
-	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").StringVar(&c.CacheDir)
-	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
-	initCmd := cmd.Command("init", "Make cluster ready for Crossplane controllers.")
-	init := &InitCommand{Name: initCmd.FullCommand()}
-	initCmd.Flag("provider", "Pre-install a Provider by giving its image URI. This argument can be repeated.").StringsVar(&init.Providers)
-	initCmd.Flag("configuration", "Pre-install a Configuration by giving its image URI. This argument can be repeated.").StringsVar(&init.Configurations)
-	return c, init
+// Run runs the core command
+func (c *Command) Run() error {
+	return nil
+}
+
+type startCommand struct {
+	Namespace      string        `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	CacheDir       string        `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
+	LeaderElection bool          `short:"l" help:"Use leader election for the conroller manager." default:"false" env:"LEADER_ELECTION"`
+	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." env:"REGISTRY"`
+	Sync           time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
 }
 
 // Run core Crossplane controllers.
-func (c *Command) Run(s *runtime.Scheme, log logging.Logger) error {
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
+	log.WithValues("CmdName", "core start")
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")

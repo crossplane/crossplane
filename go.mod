@@ -6,7 +6,6 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.2.11
-	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/aws/aws-sdk-go v1.31.6 // indirect
 	github.com/crossplane/crossplane-runtime v0.14.0
 	github.com/docker/cli v0.0.0-20200915230204-cd8016b6bcc5 // indirect
@@ -17,7 +16,6 @@ require (
 	github.com/imdario/mergo v0.3.11
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.4.1
-	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	k8s.io/api v0.20.1
 	k8s.io/apiextensions-apiserver v0.20.1
 	k8s.io/apimachinery v0.20.1
