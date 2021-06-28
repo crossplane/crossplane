@@ -2,7 +2,7 @@
 
 * Owner: Hasan Turken (@turkenh)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Deprecated
 
 ## Terminology
 
