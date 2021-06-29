@@ -197,7 +197,7 @@ type Reconciler struct {
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
-func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace string, registry string) error {
+func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string) error {
 	name := "packages/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 
@@ -237,7 +237,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
-func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace string, registry string) error {
+func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
 

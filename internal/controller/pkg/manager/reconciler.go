@@ -138,7 +138,7 @@ type Reconciler struct {
 }
 
 // SetupProvider adds a controller that reconciles Providers.
-func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string, registry string) error {
+func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry string) error {
 	name := "packages/" + strings.ToLower(v1.ProviderGroupKind)
 	np := func() v1.Package { return &v1.Provider{} }
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
@@ -166,7 +166,7 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace string, registr
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
-func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace string, registry string) error {
+func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry string) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationGroupKind)
 	np := func() v1.Package { return &v1.Configuration{} }
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }

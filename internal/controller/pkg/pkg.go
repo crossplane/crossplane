@@ -27,7 +27,7 @@ import (
 )
 
 // Setup package controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace string, registry string) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace, registry string) error {
 	for _, setup := range []func(ctrl.Manager, logging.Logger, string, string) error{
 		manager.SetupConfiguration,
 		manager.SetupProvider,

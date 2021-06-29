@@ -112,9 +112,10 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		return found, installed, invalid, err
 	}
 
+	lockRef := xpkg.ParsePackageSourceFromReference(prRef)
 	selfIndex := intPointer(-1)
 	d := m.newDag()
-	implied, err := d.Init(v1alpha1.ToNodes(lock.Packages...), dag.FindIndex(prRef.Context().String(), selfIndex))
+	implied, err := d.Init(v1alpha1.ToNodes(lock.Packages...), dag.FindIndex(lockRef, selfIndex))
 	if err != nil {
 		return found, installed, invalid, err
 	}
@@ -133,7 +134,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	self := v1alpha1.LockPackage{
 		Name:         pr.GetName(),
 		Type:         m.packageType,
-		Source:       prRef.Context().String(),
+		Source:       lockRef,
 		Version:      prRef.Identifier(),
 		Dependencies: sources,
 	}
@@ -163,7 +164,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		}
 	}
 
-	tree, err := d.TraceNode(prRef.Context().String())
+	tree, err := d.TraceNode(lockRef)
 	if err != nil {
 		return found, installed, invalid, err
 	}
@@ -231,8 +232,9 @@ func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.Package
 	}
 
 	// Find self and remove. If we don't exist, its a no-op.
+	lockRef := xpkg.ParsePackageSourceFromReference(prRef)
 	for i, lp := range lock.Packages {
-		if lp.Source == prRef.Context().String() {
+		if lp.Source == lockRef {
 			lock.Packages = append(lock.Packages[:i], lock.Packages[i+1:]...)
 			return m.client.Update(ctx, lock)
 		}
