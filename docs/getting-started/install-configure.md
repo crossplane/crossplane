@@ -114,7 +114,7 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.3.0
 ```
 
 </div>
@@ -234,7 +234,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.3.0
 ```
 
 Wait until all packages become healthy:
@@ -275,7 +275,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.3/docs/snippets/configure/aws/providerconfig.yaml
 ```
 
 </div>
@@ -288,7 +288,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.3.0
 ```
 
 Wait until all packages become healthy:
@@ -329,7 +329,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.3/docs/snippets/configure/aws/providerconfig.yaml
 ```
 
 </div>
@@ -342,7 +342,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.3.0
 ```
 
 Wait until all packages become healthy:
@@ -412,7 +412,7 @@ spec:
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:latest
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.3.0
 ```
 
 Wait until all packages become healthy:
@@ -468,7 +468,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.3/docs/snippets/configure/azure/providerconfig.yaml
 ```
 
 </div>
