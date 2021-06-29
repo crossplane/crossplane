@@ -57,8 +57,8 @@ documentation].
 |   v1.3  |     Upcoming    | Jun 29, 2021 | December 2021 |
 
 [v1.0.1]: https://github.com/crossplane/crossplane/releases/tag/v1.0.1
-[v1.1.2]: https://github.com/crossplane/crossplane/releases/tag/v1.1.3
-[v1.2.2]: https://github.com/crossplane/crossplane/releases/tag/v1.2.3
+[v1.1.3]: https://github.com/crossplane/crossplane/releases/tag/v1.1.3
+[v1.2.3]: https://github.com/crossplane/crossplane/releases/tag/v1.2.3
 
 ## Getting Started
 
