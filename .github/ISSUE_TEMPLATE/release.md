@@ -42,7 +42,7 @@ I have:
   release branch ([PR][docs-update-pr]).
 - [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with
   the proper release version ([Tag][tag]).
-- [ ] Run the [CI workflow][ci-worklow] on the release branch and verified that
+- [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that
   the tagged build version exists on the [releases.crossplane.io] `build`
   channel. ([build][release-build]).
 - [ ] Run the [Configurations workflow][configurations-workflow] on the release
