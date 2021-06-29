@@ -37,7 +37,9 @@ type Command struct {
 	Init  initCommand  `cmd:"" help:"Make cluster ready for Crossplane controllers."`
 }
 
-// Run runs the core command
+// Run is the no-op method required for kong call tree
+// Kong requires each node in the calling path to have associated
+// Run method.
 func (c *Command) Run() error {
 	return nil
 }
@@ -52,7 +54,6 @@ type startCommand struct {
 
 // Run core Crossplane controllers.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
-	log.WithValues("CmdName", "core start")
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")

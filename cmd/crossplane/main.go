@@ -17,8 +17,6 @@ limitations under the License.
 package main
 
 import (
-	"strings"
-
 	"github.com/alecthomas/kong"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -45,18 +43,28 @@ var cli struct {
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
 }
 
+// BeforeApply binds the dev mode logger to the kong context
+// when debugFlag is passed.
+// This method requires unparam lint exception as Kong expects
+// an error value in return from Hook methods but in our case
+// there are no error introducing steps.
 func (d debugFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
-	zl := zap.New(zap.UseDevMode(true))
+	zl := zap.New(zap.UseDevMode(true)).WithName("crossplane")
+	// BindTo uses reflect.TypeOf to get reflection type of used interface
+	// A *logging.Logger value here is used to find the reflection type here.
+	// Please refer: https://golang.org/pkg/reflect/#TypeOf
 	ctx.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil))
+	// The controller-runtime runs with a no-op logger by default. It is
+	// *very* verbose even at info level, so we only provide it a real
+	// logger when we're running in debug mode.
 	ctrl.SetLogger(zl)
 	return nil
 }
 
 func main() {
-	// // NOTE(negz): We must setup our logger after calling kingpin.MustParse in
-	// // order to ensure the debug flag has been parsed and set.
-	zl := zap.New(zap.UseDevMode(false))
-	ctrl.SetLogger(zl)
+	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
+	// order to ensure the debug flag has been parsed and set.
+	zl := zap.New().WithName("crossplane")
 
 	// Note that the controller managers scheme must be a superset of the
 	// package manager's object scheme; it must contain all object types that
@@ -70,15 +78,7 @@ func main() {
 		kong.Description("An open source multicloud control plane."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
 		kong.UsageOnError(),
-		kong.Vars{
-			"rbac_manage_default_var": rbac.ManagementPolicyAll,
-			"rbac_manage_enum_var": strings.Join(
-				[]string{
-					rbac.ManagementPolicyAll,
-					rbac.ManagementPolicyBasic,
-				},
-				", "),
-		},
+		rbac.KongVars,
 	)
 	ctx.FatalIfErrorf(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
@@ -87,6 +87,5 @@ func main() {
 	ctx.FatalIfErrorf(extv1.AddToScheme(s), "cannot add apiextensions v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(extv1beta1.AddToScheme(s), "cannot add apiextensions v1beta1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(apis.AddToScheme(s), "cannot add Crossplane API types to scheme")
-	err := ctx.Run(s)
-	ctx.FatalIfErrorf(err)
+	ctx.FatalIfErrorf(ctx.Run(s))
 }

@@ -37,7 +37,6 @@ type initCommand struct {
 
 // Run starts the initialization process.
 func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
-	log.WithValues("CmdName", "core init")
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
