@@ -275,7 +275,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.3/docs/snippets/configure/aws/providerconfig.yaml
 ```
 
 </div>
@@ -329,7 +329,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.3/docs/snippets/configure/aws/providerconfig.yaml
 ```
 
 </div>
@@ -468,7 +468,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.3/docs/snippets/configure/azure/providerconfig.yaml
 ```
 
 </div>
