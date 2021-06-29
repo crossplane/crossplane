@@ -57,6 +57,8 @@ I have:
   [releases.crossplane.io] `stable` channel ([build][stable-build]).
 - [ ] Published a [new release] for the tagged version, with the same name as
   the version and descriptive release notes ([release][release]).
+- [ ] Updated the [releases table] in the `README.md` on `master`
+  ([PR][release-table-pr]).
 - [ ] Ensured that users have been notified of the release on all communication
   channels:
     - [ ] [Slack][slack]
@@ -86,6 +88,7 @@ I have:
 [release]: <!-- Link to release notes -->
 [slack]: <!-- Link to message in Crossplane slack -->
 [twitter]: <!-- Link to tweet -->
+[release-table-pr]: <!-- Link to merged PR, e.g. https://github.com/crossplane/crossplane/pull/2388 -->
 
 ### Notes
 
@@ -96,3 +99,4 @@ I have:
 [releases.crossplane.io]: https://releases.crossplane.io
 [registry.upbound.io]: https://cloud.upbound.io/browse
 [new release]: https://github.com/crossplane/crossplane/releases/new
+[releases table]: https://github.com/crossplane/crossplane#releases
