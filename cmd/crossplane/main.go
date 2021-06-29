@@ -62,8 +62,6 @@ func (d debugFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
 }
 
 func main() {
-	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
-	// order to ensure the debug flag has been parsed and set.
 	zl := zap.New().WithName("crossplane")
 
 	// Note that the controller managers scheme must be a superset of the
