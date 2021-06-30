@@ -63,7 +63,10 @@ func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp res
 		return errors.New(errBindClaimConflict)
 	}
 
-	// Propagate the actual external name back from the composite to the claim.
+	// Propagate the actual external name back from the composite to the claim
+	// if the claim does not have one yet.
+	// For dynamically provisioned composites, claim's external name is the
+	// authoritative source.
 	en := meta.GetExternalName(cp)
 	if meta.GetExternalName(cm) == "" && en != "" {
 		meta.SetExternalName(cm, en)

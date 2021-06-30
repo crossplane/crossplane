@@ -198,10 +198,11 @@ func TestCompositeConfigure(t *testing.T) {
 								"namespace": ns,
 								"name":      name,
 								"annotations": map[string]interface{}{
-									// This should be reset to the equivalent
-									// composite resource value, since it has
-									// most likely already taken effect and
-									// cannot be updated retroactively.
+									// If the claim is bound to an existing XR,
+									// an external-name exists on the claim, and
+									// XR already has an external name assigned,
+									// these names should match for successful
+									// reconciliation.
 									meta.AnnotationKeyExternalName: name,
 									"xrc":                          "annotation",
 								},
@@ -281,10 +282,11 @@ func TestCompositeConfigure(t *testing.T) {
 								"namespace": ns,
 								"name":      name,
 								"annotations": map[string]interface{}{
-									// This should be reset to the equivalent
-									// composite resource value, since it has
-									// most likely already taken effect and
-									// cannot be updated retroactively.
+									// If the claim is bound to an existing XR,
+									// an external-name exists on the claim, and
+									// XR already has an external name assigned,
+									// but these names are not the same, then
+									// we now expect a reconciliation error.
 									meta.AnnotationKeyExternalName: "wat",
 									"xrc":                          "annotation",
 								},
