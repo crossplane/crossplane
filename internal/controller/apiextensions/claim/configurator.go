@@ -70,7 +70,8 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 		if enCm != "" && enCm != en {
 			return errors.New(errExternalNameMismatch)
 		}
-		// fix(2353): do not introduce a superfluous extern-name (empty external-names are treated as invalid)
+		// Fix(2353): do not introduce a superfluous extern-name
+		// (empty external-names are treated as invalid)
 		if en != "" {
 			meta.SetExternalName(cp, en)
 		}
