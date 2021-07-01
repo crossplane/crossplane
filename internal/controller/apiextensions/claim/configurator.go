@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
+
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -63,7 +64,11 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 	// external name (even if that external name was empty) in order to ensure
 	// we don't try to rename anything after the fact.
 	if meta.WasCreated(cp) {
-		meta.SetExternalName(cp, en)
+		// Fix(2353): do not introduce a superfluous extern-name
+		// (empty external-names are treated as invalid)
+		if en != "" {
+			meta.SetExternalName(cp, en)
+		}
 	}
 
 	ucm, ok := cm.(*claim.Unstructured)
