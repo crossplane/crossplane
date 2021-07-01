@@ -36,7 +36,6 @@ const (
 	errUnsupportedClaimSpec = "composite resource claim spec was not an object"
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
-	errExternalNameMismatch = "mismatch of external names between claim and composite resource"
 
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
@@ -65,11 +64,6 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 	// external name (even if that external name was empty) in order to ensure
 	// we don't try to rename anything after the fact.
 	if meta.WasCreated(cp) {
-		enCm := meta.GetExternalName(cm)
-		// if there is a mismatch between claim's external-name and composite's external-name
-		if enCm != "" && enCm != en {
-			return errors.New(errExternalNameMismatch)
-		}
 		// Fix(2353): do not introduce a superfluous extern-name
 		// (empty external-names are treated as invalid)
 		if en != "" {
