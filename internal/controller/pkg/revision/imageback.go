@@ -44,17 +44,32 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	pr      v1.PackageRevision
-	cache   xpkg.Cache
-	fetcher xpkg.Fetcher
+	pr       v1.PackageRevision
+	registry string
+	cache    xpkg.Cache
+	fetcher  xpkg.Fetcher
+}
+
+// An ImageBackendOption sets configuration for an image backend.
+type ImageBackendOption func(i *ImageBackend)
+
+// WithDefaultRegistry sets the default registry that an image backend will use.
+func WithDefaultRegistry(registry string) ImageBackendOption {
+	return func(i *ImageBackend) {
+		i.registry = registry
+	}
 }
 
 // NewImageBackend creates a new image backend.
-func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher) *ImageBackend {
-	return &ImageBackend{
+func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBackend {
+	i := &ImageBackend{
 		cache:   cache,
 		fetcher: fetcher,
 	}
+	for _, opt := range opts {
+		opt(i)
+	}
+	return i
 }
 
 // Init initializes an ImageBackend.
@@ -75,7 +90,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		}
 	} else {
 		// Ensure source is a valid image reference.
-		ref, err := name.ParseReference(i.pr.GetSource())
+		ref, err := name.ParseReference(i.pr.GetSource(), name.WithDefaultRegistry(i.registry))
 		if err != nil {
 			return nil, errors.Wrap(err, errBadReference)
 		}

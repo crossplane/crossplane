@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/name"
 )
 
 func TestFriendlyID(t *testing.T) {
@@ -123,6 +124,57 @@ func TestToDNSLabel(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want, want); diff != "" {
 				t.Errorf("\n%s\nToDNSLabel(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestSourceFromReference(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		arg    name.Reference
+		want   string
+	}{
+		"SuccessfulTagWithDocker": {
+			reason: "If registry is docker.io it should be reflected in parsed source.",
+			arg: func() name.Reference {
+				ref, _ := name.ParseReference("docker.io/hasheddan/xpkg-test:v0.1.0")
+				return ref
+			}(),
+			want: "docker.io/hasheddan/xpkg-test",
+		},
+		"SuccessfulTagWithDockerIndex": {
+			reason: "If registry is index.docker.io it should be reflected in parsed source.",
+			arg: func() name.Reference {
+				ref, _ := name.ParseReference("index.docker.io/hasheddan/xpkg-test:v0.1.0")
+				return ref
+			}(),
+			want: "index.docker.io/hasheddan/xpkg-test",
+		},
+		"SuccessfulTagWithRegistryDefaulting": {
+			reason: "If no registry is supplied, but defaulting is enabled, default registry should not be reflected in parsed source.",
+			arg: func() name.Reference {
+				ref, _ := name.ParseReference("hasheddan/xpkg-test:v0.1.0", name.WithDefaultRegistry("registry.upbound.io"))
+				return ref
+			}(),
+			want: "hasheddan/xpkg-test",
+		},
+		"SuccessfulDigestWithRegistryDefaulting": {
+			reason: "If no registry is supplied, but defaulting is enabled, default registry should not be reflected in parsed source.",
+			arg: func() name.Reference {
+				ref, _ := name.ParseReference("hasheddan/xpkg-test@sha256:c88b938d6e7b2ed43d40b71e5a55df9c60fa653bea0c0961f3294fac46d5b56e", name.WithDefaultRegistry("registry.upbound.io"))
+				return ref
+			}(),
+			want: "hasheddan/xpkg-test",
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			want := ParsePackageSourceFromReference(tc.arg)
+
+			if diff := cmp.Diff(tc.want, want); diff != "" {
+				t.Errorf("\n%s\nParseSourceFromReference(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

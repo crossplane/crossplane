@@ -27,21 +27,23 @@ import (
 )
 
 // Setup package controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace string) error {
-	for _, setup := range []func(ctrl.Manager, logging.Logger, string) error{
+func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace, registry string) error {
+	for _, setup := range []func(ctrl.Manager, logging.Logger, string, string) error{
 		manager.SetupConfiguration,
 		manager.SetupProvider,
-		resolver.Setup,
 	} {
-		if err := setup(mgr, l, namespace); err != nil {
+		if err := setup(mgr, l, namespace, registry); err != nil {
 			return err
 		}
 	}
-	for _, setup := range []func(ctrl.Manager, logging.Logger, xpkg.Cache, string) error{
+	if err := resolver.Setup(mgr, l, namespace); err != nil {
+		return err
+	}
+	for _, setup := range []func(ctrl.Manager, logging.Logger, xpkg.Cache, string, string) error{
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 	} {
-		if err := setup(mgr, l, c, namespace); err != nil {
+		if err := setup(mgr, l, c, namespace, registry); err != nil {
 			return err
 		}
 	}

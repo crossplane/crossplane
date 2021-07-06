@@ -36,6 +36,7 @@ import (
 type Command struct {
 	Name           string
 	Namespace      string
+	Registry       string
 	CacheDir       string
 	LeaderElection bool
 	Sync           time.Duration
@@ -46,6 +47,7 @@ func FromKingpin(cmd *kingpin.CmdClause) (*Command, *InitCommand) {
 	startCmd := cmd.Command("start", "Start Crossplane controllers.")
 	c := &Command{Name: startCmd.FullCommand()}
 	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
+	cmd.Flag("registry", "Default registry used to fetch packages when not specified in tag.").Short('r').Envar("REGISTRY").StringVar(&c.Registry)
 	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").StringVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
@@ -80,7 +82,7 @@ func (c *Command) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	pkgCache := xpkg.NewImageCache(c.CacheDir, afero.NewOsFs())
 
-	if err := pkg.Setup(mgr, log, pkgCache, c.Namespace); err != nil {
+	if err := pkg.Setup(mgr, log, pkgCache, c.Namespace, c.Registry); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 

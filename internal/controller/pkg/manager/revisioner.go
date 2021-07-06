@@ -38,14 +38,29 @@ type Revisioner interface {
 
 // PackageRevisioner extracts a revision name for a package source.
 type PackageRevisioner struct {
-	fetcher xpkg.Fetcher
+	fetcher  xpkg.Fetcher
+	registry string
+}
+
+// A PackageRevisionerOption sets configuration for a package revisioner.
+type PackageRevisionerOption func(r *PackageRevisioner)
+
+// WithDefaultRegistry sets the default registry that a package revisioner will use.
+func WithDefaultRegistry(registry string) PackageRevisionerOption {
+	return func(r *PackageRevisioner) {
+		r.registry = registry
+	}
 }
 
 // NewPackageRevisioner returns a new PackageRevisioner.
-func NewPackageRevisioner(fetcher xpkg.Fetcher) *PackageRevisioner {
-	return &PackageRevisioner{
+func NewPackageRevisioner(fetcher xpkg.Fetcher, opts ...PackageRevisionerOption) *PackageRevisioner {
+	r := &PackageRevisioner{
 		fetcher: fetcher,
 	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }
 
 // Revision extracts a revision name for a package source.
@@ -59,7 +74,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string,
 			return p.GetCurrentRevision(), nil
 		}
 	}
-	ref, err := name.ParseReference(p.GetSource())
+	ref, err := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
 	if err != nil {
 		return "", err
 	}
