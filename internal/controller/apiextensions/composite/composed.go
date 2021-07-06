@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -335,6 +336,14 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		return errors.New(errNamePrefix)
 	}
 
+	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
+	for i, p := range t.Patches {
+		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
+			return errors.Wrapf(err, errFmtPatch, i)
+		}
+	}
+
+	// Fix(2416): composed labels and annotations should be rendered after patches are applied
 	meta.AddLabels(cd, map[string]string{
 		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
 		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
@@ -351,13 +360,6 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
 	cd.SetNamespace(namespace)
-
-	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
-	for i, p := range t.Patches {
-		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, i)
-		}
-	}
 
 	// We do this last to ensure that a Composition cannot influence owner (and
 	// especially controller) references.
