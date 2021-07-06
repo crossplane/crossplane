@@ -332,6 +332,13 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		return errors.New(errNamePrefix)
 	}
 
+	// Unmarshalling the template will overwrite any existing fields, so we must
+	// restore the existing name, if any. We also set generate name in case we
+	// haven't yet named this composed resource.
+	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+	cd.SetName(name)
+	cd.SetNamespace(namespace)
+
 	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath}
 	for i, p := range t.Patches {
 		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
@@ -349,13 +356,6 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	if t.Name != nil {
 		SetCompositionResourceName(cd, *t.Name)
 	}
-
-	// Unmarshalling the template will overwrite any existing fields, so we must
-	// restore the existing name, if any. We also set generate name in case we
-	// haven't yet named this composed resource.
-	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
-	cd.SetName(name)
-	cd.SetNamespace(namespace)
 
 	// We do this last to ensure that a Composition cannot influence owner (and
 	// especially controller) references.
