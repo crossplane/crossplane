@@ -19,6 +19,7 @@ package core
 import (
 	"time"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"gopkg.in/alecthomas/kingpin.v2"
@@ -47,7 +48,7 @@ func FromKingpin(cmd *kingpin.CmdClause) (*Command, *InitCommand) {
 	startCmd := cmd.Command("start", "Start Crossplane controllers.")
 	c := &Command{Name: startCmd.FullCommand()}
 	cmd.Flag("namespace", "Namespace used to unpack and run packages.").Short('n').Default("crossplane-system").OverrideDefaultFromEnvar("POD_NAMESPACE").StringVar(&c.Namespace)
-	cmd.Flag("registry", "Default registry used to fetch packages when not specified in tag.").Short('r').Envar("REGISTRY").StringVar(&c.Registry)
+	cmd.Flag("registry", "Default registry used to fetch packages when not specified in tag.").Short('r').Default(name.DefaultRegistry).Envar("REGISTRY").StringVar(&c.Registry)
 	cmd.Flag("cache-dir", "Directory used for caching package images.").Short('c').Default("/cache").OverrideDefaultFromEnvar("CACHE_DIR").StringVar(&c.CacheDir)
 	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
 	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
