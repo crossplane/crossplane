@@ -640,7 +640,10 @@ func TestNopResourcesGetReady(t *testing.T) {
 				if err := wait.PollImmediate(2*time.Second, 90*time.Second, func() (done bool, err error) {
 
 					// Get 2 nopresources created by the provider
-					list, _ := dc.Resource(obj).List(context.TODO(), metav1.ListOptions{})
+					list, err := dc.Resource(obj).List(context.TODO(), metav1.ListOptions{})
+					if err != nil {
+						t.Fatalf("List NopResources: %v", err)
+					}
 
 					if len(list.Items) == 0 {
 						return false, nil
