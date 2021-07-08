@@ -29,15 +29,14 @@ import (
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
-// InitCommand configuration for the initialization of core Crossplane controllers.
-type InitCommand struct {
-	Name           string
+// initCommand configuration for the initialization of core Crossplane controllers.
+type initCommand struct {
 	Providers      []string
 	Configurations []string
 }
 
 // Run starts the initialization process.
-func (c *InitCommand) Run(s *runtime.Scheme, log logging.Logger) error {
+func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")

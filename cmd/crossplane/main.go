@@ -17,10 +17,7 @@ limitations under the License.
 package main
 
 import (
-	"os"
-	"path/filepath"
-
-	"gopkg.in/alecthomas/kingpin.v2"
+	"github.com/alecthomas/kong"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -37,48 +34,57 @@ import (
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
 
-func main() {
-	var (
-		app   = kingpin.New(filepath.Base(os.Args[0]), "An open source multicloud control plane.").DefaultEnvars()
-		debug = app.Flag("debug", "Run with debug logging.").Short('d').Bool()
-	)
-	c, ci := core.FromKingpin(app.Command("core", "Start core Crossplane controllers.").Default())
-	r, ri := rbac.FromKingpin(app.Command("rbac", "Start Crossplane RBAC Manager controllers."))
-	cmd := kingpin.MustParse(app.Parse(os.Args[1:]))
+type debugFlag bool
 
-	// NOTE(negz): We must setup our logger after calling kingpin.MustParse in
-	// order to ensure the debug flag has been parsed and set.
-	zl := zap.New(zap.UseDevMode(*debug))
-	if *debug {
-		// The controller-runtime runs with a no-op logger by default. It is
-		// *very* verbose even at info level, so we only provide it a real
-		// logger when we're running in debug mode.
-		ctrl.SetLogger(zl)
-	}
+var cli struct {
+	Debug debugFlag `short:"d" help:"Print verbose logging statements."`
+
+	Core core.Command `cmd:"" help:"Start core Crossplane controllers." default:"1"`
+	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+}
+
+// BeforeApply binds the dev mode logger to the kong context
+// when debugFlag is passed.
+// This method requires unparam lint exception as Kong expects
+// an error value in return from Hook methods but in our case
+// there are no error introducing steps.
+func (d debugFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
+	zl := zap.New(zap.UseDevMode(true)).WithName("crossplane")
+	// BindTo uses reflect.TypeOf to get reflection type of used interface
+	// A *logging.Logger value here is used to find the reflection type here.
+	// Please refer: https://golang.org/pkg/reflect/#TypeOf
+	ctx.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil))
+	// The controller-runtime runs with a no-op logger by default. It is
+	// *very* verbose even at info level, so we only provide it a real
+	// logger when we're running in debug mode.
+	ctrl.SetLogger(zl)
+	return nil
+}
+
+func main() {
+	zl := zap.New().WithName("crossplane")
+
 	// Note that the controller managers scheme must be a superset of the
 	// package manager's object scheme; it must contain all object types that
 	// may appear in a Crossplane package. This is because the package manager
 	// uses the controller manager's client (and thus scheme) to create packaged
 	// objects.
 	s := runtime.NewScheme()
-	kingpin.FatalIfError(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
-	kingpin.FatalIfError(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
-	kingpin.FatalIfError(rbacv1.AddToScheme(s), "cannot add rbac v1 Kubernetes API types to scheme")
-	kingpin.FatalIfError(coordinationv1.AddToScheme(s), "cannot add coordination v1 Kubernetes API types to scheme")
-	kingpin.FatalIfError(extv1.AddToScheme(s), "cannot add apiextensions v1 Kubernetes API types to scheme")
-	kingpin.FatalIfError(extv1beta1.AddToScheme(s), "cannot add apiextensions v1beta1 Kubernetes API types to scheme")
-	kingpin.FatalIfError(apis.AddToScheme(s), "cannot add Crossplane API types to scheme")
 
-	switch cmd {
-	case c.Name:
-		kingpin.FatalIfError(c.Run(s, logging.NewLogrLogger(zl.WithName("core"))), "cannot run crossplane")
-	case ci.Name:
-		kingpin.FatalIfError(ci.Run(s, logging.NewLogrLogger(zl.WithName("core init"))), "cannot initialize crossplane")
-	case r.Name:
-		kingpin.FatalIfError(r.Run(s, logging.NewLogrLogger(zl.WithName("rbac"))), "cannot run RBAC manager")
-	case ri.Name:
-		kingpin.FatalIfError(ri.Run(s, logging.NewLogrLogger(zl.WithName("rbac init"))), "cannot initialize RBAC manager")
-	default:
-		kingpin.FatalUsage("unknown command %s", cmd)
-	}
+	ctx := kong.Parse(&cli,
+		kong.Name("crossplane"),
+		kong.Description("An open source multicloud control plane."),
+		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
+		kong.UsageOnError(),
+		rbac.KongVars,
+		core.KongVars,
+	)
+	ctx.FatalIfErrorf(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(rbacv1.AddToScheme(s), "cannot add rbac v1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(coordinationv1.AddToScheme(s), "cannot add coordination v1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(extv1.AddToScheme(s), "cannot add apiextensions v1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(extv1beta1.AddToScheme(s), "cannot add apiextensions v1beta1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(apis.AddToScheme(s), "cannot add Crossplane API types to scheme")
+	ctx.FatalIfErrorf(ctx.Run(s))
 }

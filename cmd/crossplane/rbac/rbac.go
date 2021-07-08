@@ -17,10 +17,11 @@ limitations under the License.
 package rbac
 
 import (
+	"strings"
 	"time"
 
+	"github.com/alecthomas/kong"
 	"github.com/pkg/errors"
-	"gopkg.in/alecthomas/kingpin.v2"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -35,28 +36,40 @@ const (
 	ManagementPolicyBasic = string(rbac.ManagementPolicyBasic)
 )
 
-// Command configuration for the RBAC manager.
-type Command struct {
-	Name                string
-	Sync                time.Duration
-	LeaderElection      bool
-	ManagementPolicy    string
-	ProviderClusterRole string
+// KongVars represent the kong variables associated with the CLI parser
+// required for the RBAC enum interpolation.
+var KongVars = kong.Vars{
+	"rbac_manage_default_var": ManagementPolicyAll,
+	"rbac_manage_enum_var": strings.Join(
+		[]string{
+			ManagementPolicyAll,
+			ManagementPolicyBasic,
+		},
+		", "),
 }
 
-// FromKingpin produces the RBAC manager command from a Kingpin command.
-func FromKingpin(cmd *kingpin.CmdClause) (*Command, *InitCommand) {
-	startCmd := cmd.Command("start", "Start Crossplane RBAC controllers.")
-	c := &Command{Name: startCmd.FullCommand()}
-	cmd.Flag("sync", "Controller manager sync period duration such as 300ms, 1.5h or 2h45m").Short('s').Default("1h").DurationVar(&c.Sync)
-	cmd.Flag("manage", "RBAC management policy.").Short('m').Default(ManagementPolicyAll).EnumVar(&c.ManagementPolicy, ManagementPolicyAll, ManagementPolicyBasic)
-	cmd.Flag("provider-clusterrole", "A ClusterRole enumerating the permissions provider packages may request.").StringVar(&c.ProviderClusterRole)
-	cmd.Flag("leader-election", "Use leader election for the conroller manager.").Short('l').Default("false").OverrideDefaultFromEnvar("LEADER_ELECTION").BoolVar(&c.LeaderElection)
-	return c, &InitCommand{Name: cmd.Command("init", "Initialize RBAC Manager.").FullCommand()}
+// Command runs the crossplane RBAC controllers
+type Command struct {
+	Start startCommand `cmd:"" help:"Start Crossplane RBAC controllers."`
+	Init  initCommand  `cmd:"" help:"Initialize RBAC Manager."`
+}
+
+// Run is the no-op method required for kong call tree.
+// Kong requires each node in the calling path to have associated
+// Run method.
+func (c *Command) Run() error {
+	return nil
+}
+
+type startCommand struct {
+	ProviderClusterRole string        `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
+	LeaderElection      bool          `name:"leader-election" short:"l" help:"Use leader election for the conroller manager." env:"LEADER_ELECTION"`
+	Sync                time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
+	ManagementPolicy    string        `name:"manage" short:"m" help:"RBAC management policy." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
 }
 
 // Run the RBAC manager.
-func (c *Command) Run(s *runtime.Scheme, log logging.Logger) error {
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot get config")
