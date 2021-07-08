@@ -77,6 +77,7 @@ func main() {
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
 		kong.UsageOnError(),
 		rbac.KongVars,
+		core.KongVars,
 	)
 	ctx.FatalIfErrorf(corev1.AddToScheme(s), "cannot add core v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(appsv1.AddToScheme(s), "cannot add apps v1 Kubernetes API types to scheme")

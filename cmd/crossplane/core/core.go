@@ -19,6 +19,8 @@ package core
 import (
 	"time"
 
+	"github.com/alecthomas/kong"
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +39,12 @@ type Command struct {
 	Init  initCommand  `cmd:"" help:"Make cluster ready for Crossplane controllers."`
 }
 
+// KongVars represent the kong variables associated with the CLI parser
+// required for the RBAC enum interpolation.
+var KongVars = kong.Vars{
+	"default_registry": name.DefaultRegistry,
+}
+
 // Run is the no-op method required for kong call tree
 // Kong requires each node in the calling path to have associated
 // Run method.
@@ -48,7 +56,7 @@ type startCommand struct {
 	Namespace      string        `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
 	CacheDir       string        `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
 	LeaderElection bool          `short:"l" help:"Use leader election for the conroller manager." default:"false" env:"LEADER_ELECTION"`
-	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." env:"REGISTRY"`
+	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 	Sync           time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
 }
 
