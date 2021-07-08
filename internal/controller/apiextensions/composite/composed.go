@@ -346,7 +346,7 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		}
 	}
 
-	// Fix(2416): composed labels and annotations should be rendered after patches are applied
+	// Composed labels and annotations should be rendered after patches are applied
 	meta.AddLabels(cd, map[string]string{
 		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
 		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
