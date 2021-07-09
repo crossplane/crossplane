@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -331,16 +332,6 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		return errors.New(errNamePrefix)
 	}
 
-	meta.AddLabels(cd, map[string]string{
-		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
-		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
-		xcrd.LabelKeyClaimNamespace:        cp.GetLabels()[xcrd.LabelKeyClaimNamespace],
-	})
-
-	if t.Name != nil {
-		SetCompositionResourceName(cd, *t.Name)
-	}
-
 	// Unmarshalling the template will overwrite any existing fields, so we must
 	// restore the existing name, if any. We also set generate name in case we
 	// haven't yet named this composed resource.
@@ -353,6 +344,17 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
+	}
+
+	// Composed labels and annotations should be rendered after patches are applied
+	meta.AddLabels(cd, map[string]string{
+		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
+		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
+		xcrd.LabelKeyClaimNamespace:        cp.GetLabels()[xcrd.LabelKeyClaimNamespace],
+	})
+
+	if t.Name != nil {
+		SetCompositionResourceName(cd, *t.Name)
 	}
 
 	// We do this last to ensure that a Composition cannot influence owner (and
