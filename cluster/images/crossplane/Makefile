@@ -1,7 +1,7 @@
 # ====================================================================================
 # Setup Project
 
-PLATFORMS := linux_amd64 linux_arm64 linux_arm
+PLATFORMS := linux_amd64 linux_arm64 linux_arm linux_ppc64le
 include ../../../build/makelib/common.mk
 
 # ====================================================================================
