@@ -1,5 +1,9 @@
 # Resource Connectivity
 
+> Note that while this design document is still broadly accurate, it discusses
+> some defunct concepts like resource classes, and an earlier iteration of
+> resource claims that was unrelated to today's Composition resource claims.
+
 * Owners:
   * Nic Cope (@negz)
   * Javad Taheri (@soorena776)
