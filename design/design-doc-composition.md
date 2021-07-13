@@ -1396,7 +1396,7 @@ resources (using Crossplane composition).
 [cross resource reference]: one-pager-cross-resource-referencing.md
 [above example]: #example-google-cloud-sql-instance
 [managed instange group]: https://cloud.google.com/compute/docs/instance-groups/creating-groups-of-managed-instances
-[architecture-diagram]: design-doc-composition.png
+[architecture-diagram]: images/composition.png
 [field path notation]: https://github.com/kubernetes/community/blob/26337/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
 [fmt syntax]: https://golang.org/pkg/fmt/
 [templating-controller]: https://github.com/crossplane/templating-controller/

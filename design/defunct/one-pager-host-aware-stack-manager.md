@@ -38,7 +38,7 @@ Stack Manager should support configuring different Kubernetes API Servers for sc
 custom resources. This will enable deploying multiple isolated Crossplane instances watching dedicated Kubernetes
 API instances (i.e. multiple API instances running in different namespaces) on a single Host Kubernetes cluster.
 
-![host-aware-stack-manager](images/host-aware-stack-manager.png)
+![host-aware-stack-manager](../images/host-aware-stack-manager.png)
 
 ## Required Changes
 

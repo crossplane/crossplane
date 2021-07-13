@@ -741,4 +741,4 @@ cluster like requirements.
 
 
 
-[sync-diagram]: images/agent-diagram.png
+[sync-diagram]: ../images/agent-diagram.png

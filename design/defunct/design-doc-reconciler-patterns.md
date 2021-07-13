@@ -348,7 +348,7 @@ Description: this is the case when we are returning “unhandled” error, at wh
 
 ### Reconcile Loop
 
-![alt_text](images/Reconciler-Patterns-Recncile.png)
+![alt_text](../images/Reconciler-Patterns-Recncile.png)
 
 <sub>Fig 2. Reconcile Loop</sub>
 
@@ -487,7 +487,7 @@ Upon deletion of the crossplane resource object, the controller will attempt to 
 This condition typically handled as “no-op”, i.e. successful deletion.
    </td>
    <td>
-   <img src="images/Reconciler-Patterns-Delete.png" width="" alt="alt_text" title="image_tooltip">
+   <img src="../images/Reconciler-Patterns-Delete.png" width="" alt="alt_text" title="image_tooltip">
 </p>
 <sub>Fig 3. Delete</sub>
    </td>
@@ -525,7 +525,7 @@ If the managed resource has an active operation (“creating”, “updating”,
    </td>
    <td>
 
-<img src="images/Reconciler-Patterns-Sync.png" width="" alt="alt_text" title="image_tooltip">
+<img src="../images/Reconciler-Patterns-Sync.png" width="" alt="alt_text" title="image_tooltip">
 
 <sub>Fig 4. Sync</sub>
    </td>
@@ -586,7 +586,7 @@ When applicable, upon successful creation, the controller can perform managed re
    </td>
    <td>
 
-<img src="images/Reconciler-Patterns-Create.png" width="" alt="alt_text" title="image_tooltip">
+<img src="../images/Reconciler-Patterns-Create.png" width="" alt="alt_text" title="image_tooltip">
 
 <sub>Fig 5. Create</sub>
    </td>
@@ -609,7 +609,7 @@ All errors are returned to the caller.
    </td>
    <td>
 
-<img src="images/Reconciler-Patterns-Creds.png" width="" alt="alt_text" title="image_tooltip">
+<img src="../images/Reconciler-Patterns-Creds.png" width="" alt="alt_text" title="image_tooltip">
 
 <sub>Fig 6.Credentials</sub>
    </td>
@@ -639,7 +639,7 @@ Where successDuration is requeue delay upon successful.
    </td>
    <td>
 
-<img src="images/Reconciler-Patterns-Update.png" width="" alt="alt_text" title="image_tooltip">
+<img src="../images/Reconciler-Patterns-Update.png" width="" alt="alt_text" title="image_tooltip">
 
 <sub>Fig 7. Update</sub>`
    </td>
