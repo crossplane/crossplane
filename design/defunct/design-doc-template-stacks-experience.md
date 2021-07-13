@@ -2,7 +2,7 @@
 
 * Owner: Daniel Suskin (@suskin)
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.0
+* Status: Defunct
 
 ## Outline
 

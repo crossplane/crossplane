@@ -1,7 +1,7 @@
 # Workload Scheduler
 * Owner: Illya Chekrygin (@ichekrygin)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, revision 1.0
+* Status: Defunct
 
 ## Abstract
 From the Crossplane Intro blog:

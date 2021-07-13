@@ -2,7 +2,7 @@
 
 * Owner: Jared Watts (@jbw976)
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.3
+* Status: Defunct
 
 ## Revisions
 

@@ -2,7 +2,7 @@
 
 * Owner: Daniel Suskin (@suskin)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Defunct
 
 How do we think about developer experience? What does "developer
 experience" mean?

@@ -1,7 +1,7 @@
 # Strongly Typed Resource Classes
 * Owner: Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, revision 1.2
+* Status: Defunct
 
 ## Revisions
 * 1.1

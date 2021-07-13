@@ -1,7 +1,7 @@
 # Resource Reclaim Policy
 * Owner: Daniel Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Defunct
 
 ## Terminology
 
