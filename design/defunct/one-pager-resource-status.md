@@ -2,7 +2,7 @@
 
 - Owner: Steven Rathbauer ([@rathpc](https://github.com/rathpc))
 - Reviewers: Crossplane Maintainers
-- Status: Draft, revision 1.0
+- Status: Defunct
 
 ## Problem
 

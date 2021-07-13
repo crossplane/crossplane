@@ -1,18 +1,18 @@
 # Crossplane Design Documents
+
 This directory contains all documents informing Crossplane's design. Crossplane
 designs must transition through up to three of the following phases:
 
-
 1. Proposals. A proposal is simply a Github issue against this reposistory with
-   the [`proposal` label](https://github.com/crossplane/crossplane/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3Aproposal).
-   Proposals need not be more than two to three paragraphs.
+   the [`proposal` label][proposal-label]. Proposals need not be more than two
+   to three paragraphs.
 2. One-pagers. A One-pager is a brief document pitching an idea for further
    experimentation. One-pagers, as the name suggests, are usually around one
    page long. They provide just enough context to achieve buy-in from Crossplane
    maintainers.
 3. Design documents. A design document is a longer, more detailed design. Design
-   documents should typically be preceeded by a one-pager and/or a good amount of
-   research and experimentation.
+   documents should typically be preceeded by a one-pager and/or a good amount
+   of research and experimentation.
 
 All designs must start as a proposal. In some simple cases this proposal alone
 is sufficient to move forward with a design. As the complexity or controversy of
@@ -57,3 +57,18 @@ indicated clearly. Use one of the following statuses:
   current or impending state of the codebase either because they were never
   accepted or because they were accepted but are no longer reflective of the
   state of the codebase.
+
+Note that in some cases designs are "semi defunct". These designs are deemed
+relevant enough to keep in the "accepted" state rather than marking them
+completely defunct, but may:
+
+* Be only partially implemented.
+* Reference defunct concepts, like resource classes or Crossplane workloads.
+* Have iterated either conceptually, API wise, or code wise since initial
+  implementation.
+
+The current convention for such documents is to leave them in the "Accepted"
+state, but add a prominent note at the top of the document explaining the way(s)
+in which they are no longer accurate.
+
+[proposal-label]: https://github.com/crossplane/crossplane/issues?utf8=%E2%9C%93&q=is%3Aissue+label%3Aproposal

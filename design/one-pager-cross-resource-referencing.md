@@ -1,6 +1,10 @@
 
 # Cross Resource Referencing
 
+> Note that while the problem and API proposed by this design document remain
+> relevant, some of the implementation details (i.e. the code that resolves
+> references) have since changed.
+
 * Owner: Javad Taheri (@soorena776)
 * Reviewers: Crossplane Maintainers
 * Status: Accepted

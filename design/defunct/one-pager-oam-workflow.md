@@ -1,7 +1,7 @@
 # OAM POC Workflow
 * Owner: Dan Mangum (@hasheddan)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Defunct
 
 This document describes a basic workflow for utilizing OAM types as implemented
 in [1276](https://github.com/crossplane/crossplane/pull/1276). The controllers

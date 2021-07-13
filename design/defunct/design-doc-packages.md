@@ -1,7 +1,7 @@
 # Crossplane Packages
 * Owner: Jared Watts (@jbw976)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, revision 1.2
+* Status: Defunct
 
 This document aims to provide details about the experience and implementation for Crossplane Packages, which can add new functionality/support, types, and controllers to Crossplane.
 

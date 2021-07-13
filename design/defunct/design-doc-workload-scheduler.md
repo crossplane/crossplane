@@ -1,7 +1,7 @@
 # Workload Scheduler
 * Owner: Illya Chekrygin (@ichekrygin)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, revision 1.0
+* Status: Defunct
 
 ## Abstract
 From the Crossplane Intro blog:
@@ -68,7 +68,7 @@ This is the “main” use case for the workload scheduler: select the best matc
 ## Algorithm
 Workload scheduler picks the most appropriate Kubernetes cluster out of the list of candidates in two steps: predicates and filters[^2].
 
-![alt text](images/scheduler-funnel.png "scheduler funnel")[^2]
+![alt text](../images/scheduler-funnel.png "scheduler funnel")[^2]
 
 ### Kubernetes Clusters predicates
 Predicates are pure functions which take a Kubernetes cluster and a workload and return a boolean whether that workload fits onto the Kubernetes cluster or not. 

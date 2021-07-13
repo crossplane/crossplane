@@ -1,7 +1,7 @@
 # Simple Resource Class Selection
 * Owner: Nic Cope (@negz)
 * Reviewers: Crossplane Maintainers
-* Status: Accepted, Revision 1.0
+* Status: Defunct
 
 ## Background
 

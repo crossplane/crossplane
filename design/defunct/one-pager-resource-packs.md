@@ -2,7 +2,7 @@
 
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Defunct
 
 ## Terminology
 

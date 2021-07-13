@@ -2,7 +2,7 @@
 
 * Owner: Marques Johansson (@displague)
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.0
+* Status: Defunct
 
 ## Outline
 

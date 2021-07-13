@@ -2,7 +2,7 @@
 
 * Owner: Jared Watts (@jbw976)
 * Reviewers: Crossplane Maintainers
-* Status: Draft, revision 1.3
+* Status: Defunct
 
 ## Revisions
 
@@ -148,7 +148,7 @@ Because the package is given a `ClusterRole` and `ClusterRoleBinding`, its permi
 
 The diagram below summarizes the artifacts in the control plane after the GCP package has been installed and a couple example `MySQLInstance` claims have been created.
 
-![Diagram of a Cluster Package Installed](./images/cluster-package-installed.png)
+![Diagram of a Cluster Package Installed](./../images/cluster-package-installed.png)
 
 ### Environment
 
@@ -224,7 +224,7 @@ The diagram shows the result of the following sequence of actions:
 
 This flow demonstrates how a namespace package indirectly consumes a cluster package and is represented in the diagram below:
 
-![Diagram of a Namespace Package Installed](./images/namespace-package-installed.png)
+![Diagram of a Namespace Package Installed](./../images/namespace-package-installed.png)
 
 ### Multiple Versions
 

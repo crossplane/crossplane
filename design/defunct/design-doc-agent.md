@@ -2,7 +2,7 @@
 
 * Owner: Muvaffak Onuş (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Defunct
 
 ## Background
 
@@ -741,4 +741,4 @@ cluster like requirements.
 
 
 
-[sync-diagram]: images/agent-diagram.png
+[sync-diagram]: ../images/agent-diagram.png
