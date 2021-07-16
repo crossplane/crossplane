@@ -367,20 +367,21 @@ func (c *Combine) Combine(vars []interface{}) (interface{}, error) {
 	return out, errors.Wrapf(err, errFmtCombineStrategyFailed, string(c.Strategy))
 }
 
-// InlinePatchSets dereferences PatchSets and includes their patches inline. The
-// updated CompositionSpec should not be persisted to the API server.
-func (cs *CompositionSpec) InlinePatchSets() error {
+// ComposedTemplates returns a revision's composed resource templates with any
+// patchsets dereferenced.
+func (rs *CompositionSpec) ComposedTemplates() ([]ComposedTemplate, error) {
 	pn := make(map[string][]Patch)
-	for _, s := range cs.PatchSets {
+	for _, s := range rs.PatchSets {
 		for _, p := range s.Patches {
 			if p.Type == PatchTypePatchSet {
-				return errors.New(errPatchSetType)
+				return nil, errors.New(errPatchSetType)
 			}
 		}
 		pn[s.Name] = s.Patches
 	}
 
-	for i, r := range cs.Resources {
+	ct := make([]ComposedTemplate, len(rs.Resources))
+	for i, r := range rs.Resources {
 		po := []Patch{}
 		for _, p := range r.Patches {
 			if p.Type != PatchTypePatchSet {
@@ -388,15 +389,16 @@ func (cs *CompositionSpec) InlinePatchSets() error {
 				continue
 			}
 			if p.PatchSetName == nil {
-				return errors.Errorf(errFmtRequiredField, "PatchSetName", p.Type)
+				return nil, errors.Errorf(errFmtRequiredField, "PatchSetName", p.Type)
 			}
 			ps, ok := pn[*p.PatchSetName]
 			if !ok {
-				return errors.Errorf(errFmtUndefinedPatchSet, *p.PatchSetName)
+				return nil, errors.Errorf(errFmtUndefinedPatchSet, *p.PatchSetName)
 			}
 			po = append(po, ps...)
 		}
-		cs.Resources[i].Patches = po
+		ct[i] = r
+		ct[i].Patches = po
 	}
-	return nil
+	return ct, nil
 }

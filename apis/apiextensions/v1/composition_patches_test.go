@@ -753,14 +753,14 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 	}
 }
 
-func TestInlinePatchSets(t *testing.T) {
+func TestComposedTemplates(t *testing.T) {
 	type args struct {
-		comp CompositionSpec
+		cs CompositionSpec
 	}
 
 	type want struct {
-		resources []ComposedTemplate
-		err       error
+		ct  []ComposedTemplate
+		err error
 	}
 
 	cases := map[string]struct {
@@ -771,7 +771,7 @@ func TestInlinePatchSets(t *testing.T) {
 		"NoCompositionPatchSets": {
 			reason: "Patches defined on a composite resource should be applied correctly if no PatchSets are defined on the composition",
 			args: args{
-				comp: CompositionSpec{
+				cs: CompositionSpec{
 					Resources: []ComposedTemplate{
 						{
 							Patches: []Patch{
@@ -789,7 +789,7 @@ func TestInlinePatchSets(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []ComposedTemplate{
+				ct: []ComposedTemplate{
 					{
 						Patches: []Patch{
 							{
@@ -808,7 +808,7 @@ func TestInlinePatchSets(t *testing.T) {
 		"UndefinedPatchSet": {
 			reason: "Should return error and not modify the patches field when referring to an undefined PatchSet",
 			args: args{
-				comp: CompositionSpec{
+				cs: CompositionSpec{
 					Resources: []ComposedTemplate{{
 						Patches: []Patch{
 							{
@@ -820,21 +820,13 @@ func TestInlinePatchSets(t *testing.T) {
 				},
 			},
 			want: want{
-				resources: []ComposedTemplate{{
-					Patches: []Patch{
-						{
-							Type:         PatchTypePatchSet,
-							PatchSetName: pointer.StringPtr("patch-set-1"),
-						},
-					},
-				}},
 				err: errors.Errorf(errFmtUndefinedPatchSet, "patch-set-1"),
 			},
 		},
 		"DefinedPatchSets": {
 			reason: "Should de-reference PatchSets defined on the Composition when referenced in a composed resource",
 			args: args{
-				comp: CompositionSpec{
+				cs: CompositionSpec{
 					// PatchSets, existing patches and references
 					// should output in the correct order.
 					PatchSets: []PatchSet{
@@ -904,7 +896,7 @@ func TestInlinePatchSets(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				resources: []ComposedTemplate{
+				ct: []ComposedTemplate{
 					{
 						Patches: []Patch{
 							{
@@ -957,13 +949,13 @@ func TestInlinePatchSets(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.args.comp.InlinePatchSets()
+			got, err := tc.args.cs.ComposedTemplates()
 
-			if diff := cmp.Diff(tc.want.resources, tc.args.comp.Resources); diff != "" {
-				t.Errorf("\n%s\nInlinePatchSets(b): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.ct, got); diff != "" {
+				t.Errorf("\n%s\nrs.ComposedTemplates(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nInlinePatchSets(b): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nrs.ComposedTemplates(...)): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

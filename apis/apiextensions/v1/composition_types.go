@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// CompositionSpec specifies the desired state of the composition.
+// CompositionSpec specifies desired state of a composition.
 type CompositionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
@@ -189,8 +189,7 @@ type ConnectionDetail struct {
 // +genclient
 // +genclient:nonNamespaced
 
-// Composition defines the group of resources to be created when a compatible
-// type is created with reference to the composition.
+// A Composition specifies how a composite resource should be composed.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane

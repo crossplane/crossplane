@@ -181,15 +181,15 @@ func AssociateByOrder(t []v1.ComposedTemplate, r []corev1.ObjectReference) []Tem
 
 // A CompositionTemplateAssociator returns an array of template associations.
 type CompositionTemplateAssociator interface {
-	AssociateTemplates(context.Context, resource.Composite, *v1.Composition) ([]TemplateAssociation, error)
+	AssociateTemplates(context.Context, resource.Composite, []v1.ComposedTemplate) ([]TemplateAssociation, error)
 }
 
 // A CompositionTemplateAssociatorFn returns an array of template associations.
-type CompositionTemplateAssociatorFn func(context.Context, resource.Composite, *v1.Composition) ([]TemplateAssociation, error)
+type CompositionTemplateAssociatorFn func(context.Context, resource.Composite, []v1.ComposedTemplate) ([]TemplateAssociation, error)
 
 // AssociateTemplates with composed resources.
-func (fn CompositionTemplateAssociatorFn) AssociateTemplates(ctx context.Context, cr resource.Composite, comp *v1.Composition) ([]TemplateAssociation, error) {
-	return fn(ctx, cr, comp)
+func (fn CompositionTemplateAssociatorFn) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+	return fn(ctx, cr, ct)
 }
 
 // A GarbageCollectingAssociator associates a Composition's resource templates
@@ -210,24 +210,24 @@ func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociato
 }
 
 // AssociateTemplates with composed resources.
-func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, comp *v1.Composition) ([]TemplateAssociation, error) { //nolint:gocyclo
+func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) { //nolint:gocyclo
 	// NOTE(negz): This method is a little over our complexity goal. Be wary of
 	// making it more complex.
 
 	templates := map[string]int{}
-	for i, t := range comp.Spec.Resources {
+	for i, t := range ct {
 		if t.Name == nil {
 			// If our templates aren't named we fall back to assuming that the
 			// existing resource reference array (if any) already matches the
 			// order of our resource template array.
-			return AssociateByOrder(comp.Spec.Resources, cr.GetResourceReferences()), nil
+			return AssociateByOrder(ct, cr.GetResourceReferences()), nil
 		}
 		templates[*t.Name] = i
 	}
 
-	tas := make([]TemplateAssociation, len(comp.Spec.Resources))
-	for i := range comp.Spec.Resources {
-		tas[i] = TemplateAssociation{Template: comp.Spec.Resources[i]}
+	tas := make([]TemplateAssociation, len(ct))
+	for i := range ct {
+		tas[i] = TemplateAssociation{Template: ct[i]}
 	}
 
 	for _, ref := range cr.GetResourceReferences() {
@@ -257,7 +257,7 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			// reference array already matches the order of our resource
 			// template array. Existing composed resources should be annotated
 			// at render time with the name of the template used to create them.
-			return AssociateByOrder(comp.Spec.Resources, cr.GetResourceReferences()), nil
+			return AssociateByOrder(ct, cr.GetResourceReferences()), nil
 		}
 
 		// Inject the reference to this existing resource into the references
