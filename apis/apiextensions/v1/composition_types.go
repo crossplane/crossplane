@@ -22,7 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// CompositionSpec specifies the desired state of the definition.
+// CompositionSpec specifies the desired state of the composition.
 type CompositionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
