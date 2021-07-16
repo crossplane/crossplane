@@ -40,7 +40,7 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// InCompositeResourceDefinition type metadata.
+// CompositeResourceDefinition type metadata.
 var (
 	CompositeResourceDefinitionKind             = reflect.TypeOf(CompositeResourceDefinition{}).Name()
 	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
