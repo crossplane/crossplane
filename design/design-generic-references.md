@@ -40,26 +40,42 @@ regarding multi-kind references, the API will look like the following:
 ```yaml
 # A generic reference to another managed resource.
 spec:
-  externalValues:
+  patches:
   - fromObject:
-      group: ec2.aws.crossplane.io
-      version: v1alpha1
-      resource: vpcs
-      name: main-vpc
+      apiVersion: ec2.aws.crossplane.io/v1alpha1
+      kind: VPC
+      name: main-vpc # optional, matchLabels can be used instead.
       fieldPath: spec.forProvider.cidrBlock
     toFieldPath: spec.cidrBlock
 ```
 ```yaml
 # A generic reference to a namespaced Kubernetes resource.
 spec:
-  externalValues:
+  patches:
   - fromObject:
-      version: v1
-      resource: configmaps
+      apiVersion: v1
+      kind: ConfigMap
       name: common-settings
       namespace: crossplane-system
       fieldPath: data.region
     toFieldPath: spec.forProvider.region
+```
+
+There will be a selector as well in order to find the target object. It will write
+the `name` and/or `namespace` of the first object it finds during resolution.
+
+```yaml
+# A generic selector to another managed resource.
+spec:
+  patches:
+  - fromObject:
+      apiVersion: ec2.aws.crossplane.io/v1alpha1
+      kind: VPC
+      # selector resolver will populate name and namespace fields.
+      matchLabels:
+        class: main-vpc
+      fieldPath: spec.forProvider.cidrBlock
+    toFieldPath: spec.cidrBlock
 ```
 
 The syntax of `fieldPath` and `toFieldPath` fields will be similar to what we
@@ -74,23 +90,14 @@ have to create necessary RBAC resources manually to grant the permissions.
 
 ### Implementation
 
-The new field will exist in all managed resources and the cross-resource reference
-fields will stay as is and we'll continue adding them wherever possible. They will
+The new field will exist in all managed resources, and the cross-resource reference
+fields will stay as is, and we'll continue adding them wherever possible. They will
 still be the main way to refer to another resource. The generic references will
 help in cases where that's not possible or not implemented yet.
 
 The API struct and the generic resolver will live in Crossplane Runtime and be
 integrated into managed reconciler. Providers will only have to update their
 runtime dependency and regenerate their CRDs to get the feature in.
-
-One of the caveats with following the new conventions is that controller-runtime
-utilities mostly assume that you have Group-Version-Kind of the resource you're
-operating with. In order to use Group-Version-Resource, we will make use of
-[`EquivalentResourceRegistry`](https://github.com/kubernetes/apimachinery/blob/bf1bfd9/pkg/runtime/mapper.go#L44)
-object as a translator between the two, implemented as an alternative to
-[`MustCreateObject`](https://github.com/crossplane/crossplane-runtime/blob/406fe0b/pkg/resource/resource.go#L145).
-After getting a `runtime.Object`, all controller-runtime utilities should be
-available to use.
 
 The resolver will make use of `fieldpath` library we're using for composition to
 get and set the values unknown types and once it is done, an update request will
@@ -208,4 +215,8 @@ spec:
 The advantage of this option is that it will allow composite/managed resources to
 get information from multiple resources to construct a single value, which is not
 possible today in any way. However, it's questionable how necessary it is since
-we haven't seen many users reporting that they need this functionality.
+we haven't seen many users reporting that they need this functionality. But we'd
+like to keep the API open-ended for this case. Hence we dumped the identification
+information of the input under a specific field rather than keeping all of it
+as top-level fields. So, we can add multiple source references by adding another
+optional top-level field in the future.
