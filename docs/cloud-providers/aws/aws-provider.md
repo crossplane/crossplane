@@ -30,6 +30,7 @@ provider` instance in Crossplane:
 ```bash
 curl -O https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
 curl -O https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/setup.sh
+chmod +x setup.sh
 ./setup.sh [--profile aws_profile]
 ```
 

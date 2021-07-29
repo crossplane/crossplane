@@ -239,7 +239,7 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 
 Wait until all packages become healthy:
 ```
-kubectl get pkg --watch
+watch kubectl get pkg
 ```
 
 ### Get AWS Account Keyfile
@@ -293,7 +293,7 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 
 Wait until all packages become healthy:
 ```
-kubectl get pkg --watch
+watch kubectl get pkg
 ```
 
 ### Get AWS Account Keyfile
@@ -347,7 +347,7 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 
 Wait until all packages become healthy:
 ```
-kubectl get pkg --watch
+watch kubectl get pkg
 ```
 
 ### Get GCP Account Keyfile
@@ -417,7 +417,7 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 
 Wait until all packages become healthy:
 ```
-kubectl get pkg --watch
+watch kubectl get pkg
 ```
 
 ### Get Azure Principal Keyfile
