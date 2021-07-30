@@ -13,7 +13,7 @@ include ../../../build/makelib/image.mk
 # ====================================================================================
 # Targets
 
-ifeq ($(PLATFORM),$(filter $(PLATFORM),darwin_amd64 windows_amd64)) 
+ifeq ($(PLATFORM),$(filter $(PLATFORM),darwin_amd64 darwin_arm64 windows_amd64)) 
 $(info Skipping image build for $(PLATFORM))
 img.build:
 else

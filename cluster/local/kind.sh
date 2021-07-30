@@ -13,7 +13,7 @@ eval $(make --no-print-directory -C ${scriptdir}/../.. build.vars)
 # ensure the tools we need are installed
 make ${KIND} ${KUBECTL} ${HELM3}
 
-BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-amd64"
+BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-${TARGETARCH}"
 DEFAULT_NAMESPACE="crossplane-system"
 
 function copy_image_to_cluster() {
@@ -42,7 +42,7 @@ function check_context() {
 }
 
 # configure kind
-KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.16.15@sha256:a89c771f7de234e6547d43695c7ab047809ffc71a0c3b65aa54eda051c45ed20"}
+KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.16.15"}
 KIND_NAME=${KIND_NAME:-"kind"}
 case "${1:-}" in
   up)
