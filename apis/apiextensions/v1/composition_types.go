@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath/object"
 )
 
 const (
@@ -257,6 +258,7 @@ type Patch struct {
 	filtered bool `json:"-"`
 }
 
+// IsFiltered returns whether this patch has been filtered for processing
 func (c Patch) IsFiltered() bool {
 	return c.filtered
 }
@@ -278,8 +280,8 @@ type PatchPolicy struct {
 	// the specified path does not exist.
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
-	FromFieldPath *FromFieldPathPolicy    `json:"fromFieldPath,omitempty"`
-	MergeOptions  *fieldpath.MergeOptions `json:"mergeOptions,omitempty"`
+	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
 }
 
 // A Combine configures a patch that combines more than
@@ -417,7 +419,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		c.ToFieldPath = c.FromFieldPath
 	}
 
-	fromPaved, _, err := fieldpath.ToPaved(from)
+	fromPaved, _, err := object.ToPaved(from)
 	if err != nil {
 		return err
 	}
@@ -436,7 +438,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return fieldpath.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
+	return object.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of
@@ -501,7 +503,7 @@ func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return fieldpath.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
+	return object.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // IsOptionalFieldPathNotFound returns true if the supplied error indicates a

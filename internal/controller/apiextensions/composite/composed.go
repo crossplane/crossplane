@@ -569,6 +569,8 @@ func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bo
 	return true, nil
 }
 
+// MergeOptions returns merge options for an unfiltered patch specification
+// as an array of apply options.
 func MergeOptions(tas []TemplateAssociation) []resource.ApplyOption {
 	var opts []resource.ApplyOption
 	for _, ta := range tas {
