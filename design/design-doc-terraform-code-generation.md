@@ -137,8 +137,12 @@ in our code to avoid that.
 From the three options listed, interacting with Terraform CLI via HCL will get us
 faster to the finish line and will open up less bug surface. The main driver of
 this decision is the simplicity of the workflow, i.e. there will be very few
-places where we'd have to interact with Terraform Go structs, which are not designed
-for such interaction.
+places where we'd have to interact with Terraform Go structs and reimplement what's
+already there.
+
+Note that schema generation is not affected by our decision of at what layer we
+will interact with Terraform at runtime; the resulting CRDs will be same with maybe
+quite small differences.
 
 ### Schema Generation
 
@@ -146,10 +150,11 @@ Every Terraform provider exposes a [`*schema.Schema`][schema-schema] object per
 resource type that has all information related to a field, such as whether it's
 immutable, computed, required etc. In our pipeline, we will iterate through
 each [`*schema.Schema`][schema-schema] and generate spec and status structs and
-fields. We will use standard Go `types` library to encode the information and
-then print it using standard Go templating tooling. These structs will need to
-be convertible to and from JSON, which will be handled by multiple field tags.
-An example output will be like following:
+fields, see Terraform AWS Provider for an example of that struct. Then ee will use
+standard Go `types` library to encode the information and then print it using
+standard Go templating tooling. These structs will need to be convertible to and
+from JSON with different keys depending on where they are used. An example output
+will look like the following:
 
 ```go
 // VPCParameters define the desired state of an AWS Virtual Private Cloud.
@@ -205,8 +210,8 @@ We will have a single implementation of [`ExternalClient`][external-client] that
 will be used across all providers built on top of Terraform. However, since
 connection details differ between provider APIs, there will be single implementation
 of [`ExternalConnecter`][external-connecter] struct for every provider implemented
-manually, which will instantiate the generic [`ExternalClient`][external-client]
-struct per CRD.
+manually, which will instantiate a generic [`ExternalClient`][external-client]
+object per CRD.
 
 The Terraform controller will have two main parts:
 * Scheduler
@@ -216,6 +221,115 @@ The Terraform controller will have two main parts:
 
 #### Scheduler
 
+Scheduler will be responsible for managing all interactions with Terraform CLI.
+The separation of concerns between the scheduler, and the reconciler will be handled
+by an interface so that if we decide
+
+We'd like it to hide the fact that Terraform operations are
+blocking, so it will act like a server that the reconciler hits whenever it needs
+to do an operation and get a response immediately so that reconciliations do not
+get stuck waiting for the operation to complete.
+
+A rough sketch of the scheduler interface could look like the following:
+
+```go
+type Scheduler interface {
+	// Equivalent of "terraform show --json" that will be used to refresh the
+	// state and fetch it.
+    Show(uuid string, input []byte) (*ShowResult, error)
+    
+    // Equivalent of "terraform apply -auto-approve --json" that will be used
+    // by Create and Update operations. It returns immediately; either returns
+    // information about ongoing operation or starts the operation.
+	Apply(uuid string, input []byte) (*ApplyResult, error)
+    
+    // Equivalent of "terraform plan --json" that will be used by Observe in order
+    // to see if there is any diff that would require issuing an Update.
+    Plan(uuid string, input []byte) (*PlanResult, error)
+    
+    // Equivalent of "terraform destroy --json" that will be used by Delete.
+    Destroy(uuid string, input []byte) (*DestroyResult, error)
+}
+```
+
+As you might have noticed, the interface is rather tightly coupled with Terraform
+CLI interface. While it's intriguing to have a more generic interface and have the
+flexibility of changing the option we chose only at that level, that's usually
+not the case and much more than what interface exposes would get changed. So, we
+propose not to optimize for flexibility at this level. From provider maintainers'
+perspective, since the controller code won't be generated but imported commonly,
+change cost will be low already.
+
+#### Reconciler
+
+We call it reconciler for the lack of a better word, but in reality it's just an
+implementation of the existing [`ExternalClient`][external-client], hence the actual
+reconciler is the generic managed reconciler that is used by all managed resource
+controllers.
+
+The main responsibility of the reconciler is to utilize the functions of the
+scheduler to implement Crossplane functionality. When we look at what a fully-fledged
+[`ExternalClient`][external-client] implementation does together with functionality
+in managed reconciler, the following list is what needs to be handled by the
+generated provider.
+
+* Setup Function
+  * Wiring up the connector
+    * Code will be generated.
+* Connect
+  * Fetch the credentials
+    * Manually written per provider, used by all CRDs.
+  * Set up the client
+    * Runtime includes helpers but mostly manually written per provider.
+* Observe
+  * Status update
+    * Unmarshal result of `Show` into status.
+  * Late initialization
+    * Unmarshal result of `Show` into spec and late-init with existing spec using reflection.
+  * Readiness check
+    * If the last `Apply` operation is completed. 
+  * Check if update is needed
+    * Result of `Plan` function.
+  * Connection details
+    * `sensitive_attributes` in `Show` result will be published.
+* Create
+  * Create call
+    * Call `Apply`
+  * Connection details
+    * `sensitive_attributes` in `Show` result will be published.
+* Update
+  * Update call(s)
+    * Call `Apply`
+  * Connection details
+    * `sensitive_attributes` in `Show` result will be published.
+* Delete
+  * Delete call
+    * Call `Destroy`
+* Referencer resolution
+  * [Managed resource patches][managed-resource-patches] will be used initially.
+  * Since the transforms can be complicated to define in YAML, a helper in Go to
+    inject referencer fields will be implemented. It will be used in the generator
+    code that lives in provider repository. 
+* Initializers
+  * External name annotation
+    * `Id()` and `SetId()` [functions][id-setid] of `ResourceData` [can be used][tf-id-example]
+      with the fallback of accepting a fieldpath in the configuration object of
+      the code generator.
+  * Default tags
+    * Most Terraform schemas include `tags` field. A generic utility to check whether
+      the field exists, and if so, add the default tags.
+
+## Implementation
+
+Conceptually, there are two main parts to be implemented as part of this design.
+One is the code generator and the other one is the tools that will be used by
+the generated code.
+
+### Code Generator
+
+
+
+
 
 
 [jsoniter]: https://github.com/scoutapp/jsoniter-go
@@ -223,3 +337,6 @@ The Terraform controller will have two main parts:
 [schema-schema]: https://github.com/hashicorp/terraform-plugin-sdk/blob/9321fe1/helper/schema/schema.go#L37
 [external-client]: https://github.com/crossplane/crossplane-runtime/blob/5193d24/pkg/reconciler/managed/reconciler.go#L187
 [external-connecter]: https://github.com/crossplane/crossplane-runtime/blob/5193d24/pkg/reconciler/managed/reconciler.go#L166
+[id-setid]: https://github.com/hashicorp/terraform-plugin-sdk/blob/aabfaf5/helper/schema/resource_data.go#L246
+[tf-id-example]: https://github.com/hashicorp/terraform-provider-aws/blob/2692792/aws/resource_aws_rds_cluster.go#L933
+[managed-resource-patches]: https://github.com/crossplane/crossplane/issues/1770
