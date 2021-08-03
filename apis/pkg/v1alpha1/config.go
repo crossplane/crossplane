@@ -142,6 +142,15 @@ type PodObjectMeta struct {
 	// More info: http://kubernetes.io/docs/user-guide/annotations
 	// +optional
 	Annotations map[string]string `json:"annotations,omitempty"`
+
+	// Map of string keys and values that can be used to organize and
+	// categorize (scope and select) objects. This will only affect
+	// labels on the pod, not the pod selector. Labels will be merged
+	// with internal labels used by crossplane, and labels with the
+	// crossplane.io/ namespaces might be overwritten.
+	// More info: http://kubernetes.io/docs/user-guide/labels
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 // +kubebuilder:object:root=true
