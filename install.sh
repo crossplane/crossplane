@@ -32,7 +32,7 @@ case $OS in
     ;;
   Darwin)
     case $ARCH in
-      amd64)
+      x86_64|amd64)
         OS_ARCH=darwin_amd64
         ;;
       arm64)
