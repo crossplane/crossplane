@@ -833,8 +833,8 @@ spec:
                       organize and categorize (scope and select) objects. This will
                       only affect labels on the pod, not the pod selector. Labels
                       will be merged with internal labels used by crossplane, and
-                      labels with the crossplane.io/ namespaces might be overwritten.
-                      More info: http://kubernetes.io/docs/user-guide/labels'
+                      labels with a crossplane.io key might be overwritten. More info:
+                      http://kubernetes.io/docs/user-guide/labels'
                     type: object
                 type: object
               nodeName:
