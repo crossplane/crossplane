@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath/object"
 )
 
 const (
@@ -254,13 +253,8 @@ type Patch struct {
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
 
-	// holds whether this patch has been filtered
-	filtered bool `json:"-"`
-}
-
-// IsFiltered returns whether this patch has been filtered for processing
-func (c Patch) IsFiltered() bool {
-	return c.filtered
+	// Filtered holds whether this patch has been filtered
+	Filtered bool `json:"-"`
 }
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -391,7 +385,7 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 			return false
 		}
 	}
-	c.filtered = true
+	c.Filtered = true
 	return true
 }
 
@@ -419,7 +413,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		c.ToFieldPath = c.FromFieldPath
 	}
 
-	fromPaved, _, err := object.ToPaved(from)
+	fromPaved, err := fieldpath.PaveObject(from)
 	if err != nil {
 		return err
 	}
@@ -438,7 +432,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return object.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
+	return PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of
@@ -503,7 +497,7 @@ func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return object.PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
+	return PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // IsOptionalFieldPathNotFound returns true if the supplied error indicates a
@@ -828,4 +822,21 @@ type CompositionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Composition `json:"items"`
+}
+
+// PatchFieldValueToObject applies the value to the "to" object at the given
+// path with the given merge options, returning any errors as they occur.
+// If no merge options is supplied, then destination field is replaced
+// with the given value.
+func PatchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+	paved, err := fieldpath.PaveObject(to)
+	if err != nil {
+		return err
+	}
+
+	if err := paved.MergeValue(fieldPath, value, mo); err != nil {
+		return err
+	}
+
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(paved.UnstructuredContent(), to)
 }
