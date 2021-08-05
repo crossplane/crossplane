@@ -313,16 +313,13 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(of)))
 	}
 	kube := unstructured.NewClient(mgr.GetClient())
-	appl := resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)}
 
 	r := &Reconciler{
-		client:       appl,
+		client:       resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 		newComposite: nc,
 
 		composition: composition{
-			// TODO(negz): This revision based implementation should
-			// only be enabled when a feature flag is enabled.
-			CompositionFetcher: NewAPIRevisionFetcher(appl),
+			CompositionFetcher: NewAPICompositionFetcher(kube),
 			CompositionValidator: ValidationChain{
 				CompositionValidatorFn(RejectMixedTemplates),
 				CompositionValidatorFn(RejectDuplicateNames),

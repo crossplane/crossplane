@@ -43,6 +43,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/feature"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -106,7 +107,7 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, log logging.Logger, f *feature.Flags) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -116,7 +117,8 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
 			WithLogger(log.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
+			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			WithFeatureFlags(f)))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -133,6 +135,14 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
+	}
+}
+
+// WithFeatureFlags lets the Reconciler know which feature flags are enabled.
+// No flags are enabled by default.
+func WithFeatureFlags(f *feature.Flags) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.flags = f
 	}
 }
 
@@ -194,6 +204,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
+		flags:  &feature.Flags{},
 	}
 
 	for _, f := range opts {
@@ -211,6 +222,7 @@ type Reconciler struct {
 
 	log    logging.Logger
 	record event.Recorder
+	flags  *feature.Flags
 }
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
@@ -374,8 +386,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
-	o := kcontroller.Options{Reconciler: composite.NewReconciler(r.mgr,
-		resource.CompositeKind(d.GetCompositeGroupVersionKind()),
+
+	o := []composite.ReconcilerOption{
 		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, recorder),
@@ -384,12 +396,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(recorder),
-	), MaxConcurrentReconciles: maxConcurrency}
+	}
+
+	// We only want to enable CompositionRevision support if the relevant
+	// feature flag is enabled. Otherwise we start the XR Reconciler with
+	// its default CompositionFetcher.
+	if r.flags.Enabled(feature.FlagEnableAlphaCompositionRevisions) {
+		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
+		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
+	}
+
+	ko := kcontroller.Options{
+		Reconciler:              composite.NewReconciler(r.mgr, resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...),
+		MaxConcurrentReconciles: maxConcurrency}
 
 	u := &kunstructured.Unstructured{}
 	u.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
-	if err := r.composite.Start(composite.ControllerName(d.GetName()), o, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
+	if err := r.composite.Start(composite.ControllerName(d.GetName()), ko, controller.For(u, &handler.EnqueueRequestForObject{})); err != nil {
 		log.Debug(errStartController, "error", err)
 		r.record.Event(d, event.Warning(reasonEstablishXR, errors.Wrap(err, errStartController)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil

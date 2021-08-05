@@ -16,6 +16,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.4.1
+	golang.org/x/tools v0.1.0
 	k8s.io/api v0.21.2
 	k8s.io/apiextensions-apiserver v0.21.2
 	k8s.io/apimachinery v0.21.2
