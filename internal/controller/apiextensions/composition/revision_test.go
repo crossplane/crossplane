@@ -17,7 +17,6 @@ limitations under the License.
 package composition
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -145,7 +144,7 @@ func TestNewCompositionRevision(t *testing.T) {
 	ctrl := true
 	want := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%d", comp.GetName(), rev),
+			GenerateName: comp.GetName() + "-",
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionName:     comp.GetName(),
 				v1alpha1.LabelCompositionSpecHash: hash,

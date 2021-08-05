@@ -17,8 +17,6 @@ limitations under the License.
 package composition
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -31,7 +29,7 @@ import (
 func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) *v1alpha1.CompositionRevision {
 	cr := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%d", c.GetName(), revision),
+			GenerateName: c.GetName() + "-",
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionName:     c.GetName(),
 				v1alpha1.LabelCompositionSpecHash: compSpecHash,
