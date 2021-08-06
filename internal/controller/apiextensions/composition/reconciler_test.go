@@ -79,7 +79,7 @@ func TestReconcile(t *testing.T) {
 				Controller: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: hash(comp.Spec),
+				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
 			},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
@@ -227,7 +227,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
-							want := NewCompositionRevision(comp, rev2.Spec.Revision+1, hash(comp.Spec))
+							want := NewCompositionRevision(comp, rev2.Spec.Revision+1, comp.Spec.Hash())
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("Create(): -want, +got:\n%s", diff)

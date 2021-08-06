@@ -187,14 +187,20 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 
-	var latestRev int64 = 0
+	currentHash := comp.Spec.Hash()
+
 	var latestIdx int = -1
 	for i := range rl.Items {
 		if !metav1.IsControlledBy(&rl.Items[i], comp) {
 			continue
 		}
-		if rl.Items[i].Spec.Revision > latestRev {
-			latestRev = rl.Items[i].Spec.Revision
+
+		// We use the hash, not the revision number, to determine which
+		// revision is current. This is because the Composition may have
+		// been reverted to an older state. When this happens we don't
+		// create a new CompositionRevision; rather the prior revision
+		// becomes effectively 'current'.
+		if rl.Items[i].GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
 			latestIdx = i
 		}
 	}

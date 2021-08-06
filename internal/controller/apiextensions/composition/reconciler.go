@@ -18,8 +18,6 @@ package composition
 
 import (
 	"context"
-	"fmt"
-	"hash/fnv"
 	"strconv"
 	"strings"
 	"time"
@@ -30,7 +28,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -133,7 +130,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	currentHash := hash(comp.Spec)
+	currentHash := comp.Spec.Hash()
 
 	log = log.WithValues(
 		"uid", comp.GetUID(),
@@ -175,16 +172,4 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("Created new revision", "revision", latestRev+1)
 	r.record.Event(comp, event.Normal(reasonCreateRev, "Created new revision", "revision", strconv.FormatInt(latestRev+1, 10)))
 	return reconcile.Result{}, nil
-}
-
-func hash(cs v1.CompositionSpec) string {
-	h := fnv.New64a()
-	y, err := yaml.Marshal(cs)
-	if err != nil {
-		// I believe this should be impossible given we're marshalling a
-		// known, strongly typed struct.
-		return "unknown"
-	}
-	h.Write(y) //nolint:errcheck // Writing to a hash never errors.
-	return fmt.Sprintf("%x", h.Sum64())
 }

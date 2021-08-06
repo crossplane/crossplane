@@ -208,14 +208,20 @@ func TestFetchRevision(t *testing.T) {
 		},
 	}
 
+	// We don't own this revision.
 	rev3 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-3",
+			Name: comp.GetName() + "-jfdm2",
 		},
 	}
+
+	// The latest revision.
 	rev2 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-2",
+			Name: comp.GetName() + "-dl2nd",
+			Labels: map[string]string{
+				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
+			},
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:        comp.GetUID(),
 				Controller: &ctrl,
@@ -223,9 +229,14 @@ func TestFetchRevision(t *testing.T) {
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
 	}
+
+	// An older revision
 	rev1 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-1",
+			Name: comp.GetName() + "-mdk12",
+			Labels: map[string]string{
+				v1alpha1.LabelCompositionSpecHash: "I'm different!",
+			},
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:        comp.GetUID(),
 				Controller: &ctrl,
@@ -385,7 +396,7 @@ func TestFetchRevision(t *testing.T) {
 							Items: []v1alpha1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
-								*rev1,
+								*rev2,
 							},
 						}
 						return nil
@@ -401,7 +412,7 @@ func TestFetchRevision(t *testing.T) {
 							Ref: &corev1.ObjectReference{
 								APIVersion: v1alpha1.SchemeGroupVersion.String(),
 								Kind:       v1alpha1.CompositionRevisionKind,
-								Name:       rev1.GetName(),
+								Name:       rev2.GetName(),
 							},
 						},
 						CompositionUpdater: fake.CompositionUpdater{Policy: &manual},
@@ -500,7 +511,7 @@ func TestFetchRevision(t *testing.T) {
 							Items: []v1alpha1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
-								*rev1,
+								*rev2,
 							},
 						}
 						return nil
