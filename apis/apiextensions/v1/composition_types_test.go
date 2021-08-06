@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
@@ -238,7 +237,7 @@ func TestPatchTypeReplacement(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := tc.args.comp.InlinePatchSets()
 
-			if diff := cmp.Diff(tc.want.resources, tc.args.comp.Resources, cmpopts.IgnoreUnexported(Patch{})); diff != "" {
+			if diff := cmp.Diff(tc.want.resources, tc.args.comp.Resources); diff != "" {
 				t.Errorf("\n%s\nInlinePatchSets(b): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
