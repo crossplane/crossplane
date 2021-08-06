@@ -523,43 +523,6 @@ spec:
             - compositeTypeRef
             - resources
             type: object
-          status:
-            description: CompositionStatus shows the observed state of the composition.
-            properties:
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  description: A Condition that may apply to a resource.
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime is the last time this condition
-                        transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: A Message containing details about this condition's
-                        last transition from one status to another, if any.
-                      type: string
-                    reason:
-                      description: A Reason for this condition's last transition from
-                        one status to another.
-                      type: string
-                    status:
-                      description: Status of this condition; is it currently True,
-                        False, or Unknown?
-                      type: string
-                    type:
-                      description: Type of this condition. At most one of each condition
-                        type may apply to a resource at any point in time.
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
-            type: object
         type: object
     served: true
     storage: true
@@ -1071,43 +1034,6 @@ spec:
             required:
             - compositeTypeRef
             - resources
-            type: object
-          status:
-            description: CompositionStatus shows the observed state of the composition.
-            properties:
-              conditions:
-                description: Conditions of the resource.
-                items:
-                  description: A Condition that may apply to a resource.
-                  properties:
-                    lastTransitionTime:
-                      description: LastTransitionTime is the last time this condition
-                        transitioned from one status to another.
-                      format: date-time
-                      type: string
-                    message:
-                      description: A Message containing details about this condition's
-                        last transition from one status to another, if any.
-                      type: string
-                    reason:
-                      description: A Reason for this condition's last transition from
-                        one status to another.
-                      type: string
-                    status:
-                      description: Status of this condition; is it currently True,
-                        False, or Unknown?
-                      type: string
-                    type:
-                      description: Type of this condition. At most one of each condition
-                        type may apply to a resource at any point in time.
-                      type: string
-                  required:
-                  - lastTransitionTime
-                  - reason
-                  - status
-                  - type
-                  type: object
-                type: array
             type: object
         type: object
     served: true

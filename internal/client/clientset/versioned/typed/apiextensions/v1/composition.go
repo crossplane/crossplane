@@ -40,7 +40,6 @@ type CompositionsGetter interface {
 type CompositionInterface interface {
 	Create(ctx context.Context, composition *v1.Composition, opts metav1.CreateOptions) (*v1.Composition, error)
 	Update(ctx context.Context, composition *v1.Composition, opts metav1.UpdateOptions) (*v1.Composition, error)
-	UpdateStatus(ctx context.Context, composition *v1.Composition, opts metav1.UpdateOptions) (*v1.Composition, error)
 	Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error
 	Get(ctx context.Context, name string, opts metav1.GetOptions) (*v1.Composition, error)
@@ -122,21 +121,6 @@ func (c *compositions) Update(ctx context.Context, composition *v1.Composition, 
 	err = c.client.Put().
 		Resource("compositions").
 		Name(composition.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(composition).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *compositions) UpdateStatus(ctx context.Context, composition *v1.Composition, opts metav1.UpdateOptions) (result *v1.Composition, err error) {
-	result = &v1.Composition{}
-	err = c.client.Put().
-		Resource("compositions").
-		Name(composition.Name).
-		SubResource("status").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(composition).
 		Do(ctx).

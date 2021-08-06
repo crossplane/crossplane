@@ -20,8 +20,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // CompositionSpec specifies the desired state of the definition.
@@ -371,11 +369,6 @@ type ConnectionDetail struct {
 	Value *string `json:"value,omitempty"`
 }
 
-// CompositionStatus shows the observed state of the composition.
-type CompositionStatus struct {
-	xpv1.ConditionedStatus `json:",inline"`
-}
-
 // +kubebuilder:object:root=true
 // +genclient
 // +genclient:nonNamespaced
@@ -391,8 +384,7 @@ type Composition struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   CompositionSpec   `json:"spec,omitempty"`
-	Status CompositionStatus `json:"status,omitempty"`
+	Spec CompositionSpec `json:"spec,omitempty"`
 }
 
 // +kubebuilder:object:root=true

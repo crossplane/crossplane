@@ -96,17 +96,6 @@ func (c *FakeCompositions) Update(ctx context.Context, composition *apiextension
 	return obj.(*apiextensionsv1.Composition), err
 }
 
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeCompositions) UpdateStatus(ctx context.Context, composition *apiextensionsv1.Composition, opts v1.UpdateOptions) (*apiextensionsv1.Composition, error) {
-	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(compositionsResource, "status", composition), &apiextensionsv1.Composition{})
-	if obj == nil {
-		return nil, err
-	}
-	return obj.(*apiextensionsv1.Composition), err
-}
-
 // Delete takes name of the composition and deletes it. Returns an error if one occurs.
 func (c *FakeCompositions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
