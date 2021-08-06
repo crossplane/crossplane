@@ -27,7 +27,7 @@ const (
 
 // KeepClaimSpecProps is the list of XRC spec properties to keep
 // when translating an XRC into an XR.
-var KeepClaimSpecProps = []string{"compositionRef", "compositionSelector"}
+var KeepClaimSpecProps = []string{"compositionRef", "compositionSelector", "compositionRevisionRef", "compositionUpdatePolicy"}
 
 // TODO(negz): Add descriptions to schema fields.
 
