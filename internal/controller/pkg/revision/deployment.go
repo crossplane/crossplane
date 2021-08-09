@@ -63,7 +63,6 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      provider.GetName(),
 					Namespace: namespace,
-					Labels:    map[string]string{"pkg.crossplane.io/revision": revision.GetName()},
 				},
 				Spec: corev1.PodSpec{
 					SecurityContext: &corev1.PodSecurityContext{
@@ -91,6 +90,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			},
 		},
 	}
+	templateLabels := make(map[string]string)
 	if cc != nil {
 		s.Labels = cc.Labels
 		s.Annotations = cc.Annotations
@@ -99,6 +99,13 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		if cc.Spec.Metadata != nil {
 			d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
 		}
+
+		if cc.Spec.Metadata != nil {
+			for k, v := range cc.Spec.Metadata.Labels {
+				templateLabels[k] = v
+			}
+		}
+
 		if cc.Spec.Replicas != nil {
 			d.Spec.Replicas = cc.Spec.Replicas
 		}
@@ -154,5 +161,10 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			d.Spec.Template.Spec.Containers[0].Env = cc.Spec.Env
 		}
 	}
+	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
+		templateLabels[k] = v
+	}
+	d.Spec.Template.Labels = templateLabels
+
 	return s, d
 }
