@@ -583,6 +583,9 @@ func TestClaimConfigure(t *testing.T) {
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: "nope",
+								},
 							},
 							"spec": map[string]interface{}{
 								"someField":                  "someValue",
@@ -599,6 +602,9 @@ func TestClaimConfigure(t *testing.T) {
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name + "-12345",
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: name,
+								},
 							},
 							"spec": map[string]interface{}{
 								"coolness": 23,
@@ -619,6 +625,9 @@ func TestClaimConfigure(t *testing.T) {
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: name,
+								},
 							},
 							"spec": map[string]interface{}{
 								"someField":                  "someValue",

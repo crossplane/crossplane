@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -60,48 +59,6 @@ func TestBind(t *testing.T) {
 		want      error
 		wantClaim resource.CompositeClaim
 	}{
-		"ReconcileXRCExtNameFromXR": {
-			reason: "If existing XR already has an external-name, XRC's external-name should be set from it",
-			fields: fields{
-				c: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
-				},
-			},
-			args: args{
-				cm: &fake.CompositeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: map[string]string{
-							meta.AnnotationKeyExternalName: "name-from-claim",
-						},
-					},
-					CompositeResourceReferencer: fake.CompositeResourceReferencer{
-						Ref: &corev1.ObjectReference{
-							Name: "wat",
-						},
-					},
-				},
-				cp: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "wat",
-						Annotations: map[string]string{
-							meta.AnnotationKeyExternalName: "name-from-composite",
-						},
-					},
-				},
-			},
-			wantClaim: &fake.CompositeClaim{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						meta.AnnotationKeyExternalName: "name-from-composite",
-					},
-				},
-				CompositeResourceReferencer: fake.CompositeResourceReferencer{
-					Ref: &corev1.ObjectReference{
-						Name: "wat",
-					},
-				},
-			},
-		},
 		"CompositeRefConflict": {
 			reason: "An error should be returned if the claim is bound to another composite resource",
 			args: args{
