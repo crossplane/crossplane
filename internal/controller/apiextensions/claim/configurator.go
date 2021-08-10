@@ -37,36 +37,32 @@ const (
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
 
+	errName = "cannot use dry-run create to name composite resource"
+
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
 )
 
-// ConfigureComposite configures the supplied composite resource. The composite resource name
-// is derived from the supplied claim, as {name}-{random-string}. The claim's
-// external name annotation, if any, is propagated to the composite resource.
-func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
-	// It's possible we're being asked to configure a statically provisioned
-	// composite resource in which case we should respect its existing name and
-	// external name.
-	en := meta.GetExternalName(cp)
-	if !meta.WasCreated(cp) {
-		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-	}
+// An APIDryRunCompositeConfigurator configures composite resources. It may
+// perform a dry-run create against an API server in order to name and validate
+// the configured resource.
+type APIDryRunCompositeConfigurator struct {
+	client client.Client
+}
 
-	meta.AddAnnotations(cp, cm.GetAnnotations())
-	meta.AddLabels(cp, cm.GetLabels())
-	meta.AddLabels(cp, map[string]string{
-		xcrd.LabelKeyClaimName:      cm.GetName(),
-		xcrd.LabelKeyClaimNamespace: cm.GetNamespace(),
-	})
+// NewAPIDryRunCompositeConfigurator returns a Configurator of composite
+// resources that may perform a dry-run create against an API server in order to
+// name and validate the configured resource.
+func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfigurator {
+	return &APIDryRunCompositeConfigurator{client: c}
+}
 
-	// If our composite resource already exists we want to restore its
-	// original external name (if set) in order to ensure we don't try to
-	// rename anything after the fact.
-	if meta.WasCreated(cp) && en != "" {
-		meta.SetExternalName(cp, en)
-	}
-
+// Configure the supplied composite resource by propagating configuration from
+// the supplied claim. Both create and update scenarios are supported; i.e. the
+// composite may or may not have been created in the API server when passed to
+// this method. The configured composite may be submitted to an API server via a
+// dry run create in order to name and validate it.
+func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -82,6 +78,25 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 		return errors.New(errUnsupportedClaimSpec)
 	}
 
+	// It's possible we're being asked to configure a statically provisioned
+	// composite resource in which case we should respect its existing name and
+	// external name.
+	en := meta.GetExternalName(ucp)
+
+	meta.AddAnnotations(ucp, ucm.GetAnnotations())
+	meta.AddLabels(ucp, cm.GetLabels())
+	meta.AddLabels(ucp, map[string]string{
+		xcrd.LabelKeyClaimName:      ucm.GetName(),
+		xcrd.LabelKeyClaimNamespace: ucm.GetNamespace(),
+	})
+
+	// If our composite resource already exists we want to restore its
+	// original external name (if set) in order to ensure we don't try to
+	// rename anything after the fact.
+	if meta.WasCreated(ucp) && en != "" {
+		meta.SetExternalName(ucp, en)
+	}
+
 	// Delete base claim fields when configuring composite spec
 	baseClaimSpec := xcrd.CompositeResourceClaimSpecProps()
 
@@ -91,6 +106,16 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 	}
 	claimSpecFilter := xcrd.GetPropFields(baseClaimSpec)
 	ucp.Object["spec"] = filter(spec, claimSpecFilter...)
+
+	if !meta.WasCreated(cp) {
+		// The API server returns an available name derived from
+		// generateName when we perform a dry-run create. This name is
+		// likely (but not guaranteed) to be available when we create
+		// the composite resource. If the API server generates a name
+		// that is unavailable it will return a 500 ServerTimeout error.
+		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+		return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+	}
 
 	return nil
 }
