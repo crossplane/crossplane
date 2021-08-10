@@ -60,15 +60,11 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 		xcrd.LabelKeyClaimNamespace: cm.GetNamespace(),
 	})
 
-	// If our composite resource already exists we want to restore its original
-	// external name (even if that external name was empty) in order to ensure
-	// we don't try to rename anything after the fact.
-	if meta.WasCreated(cp) {
-		// Fix(2353): do not introduce a superfluous extern-name
-		// (empty external-names are treated as invalid)
-		if en != "" {
-			meta.SetExternalName(cp, en)
-		}
+	// If our composite resource already exists we want to restore its
+	// original external name (if set) in order to ensure we don't try to
+	// rename anything after the fact.
+	if meta.WasCreated(cp) && en != "" {
+		meta.SetExternalName(cp, en)
 	}
 
 	ucm, ok := cm.(*claim.Unstructured)
