@@ -24,7 +24,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -143,10 +142,10 @@ type crComposite struct {
 	ConnectionPropagator
 }
 
-func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
+func defaultCRComposite(c client.Client) crComposite {
 	return crComposite{
 		Configurator:         ConfiguratorFn(ConfigureComposite),
-		ConnectionPropagator: NewAPIConnectionPropagator(c, t),
+		ConnectionPropagator: NewAPIConnectionPropagator(c),
 	}
 }
 
@@ -156,10 +155,10 @@ type crClaim struct {
 	Configurator
 }
 
-func defaultCRClaim(c client.Client, t runtime.ObjectTyper) crClaim {
+func defaultCRClaim(c client.Client) crClaim {
 	return crClaim{
 		Finalizer:    resource.NewAPIFinalizer(c, finalizer),
-		Binder:       NewAPIBinder(c, t),
+		Binder:       NewAPIBinder(c),
 		Configurator: NewAPIClaimConfigurator(c),
 	}
 }
@@ -247,8 +246,8 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 		newComposite: func() resource.Composite {
 			return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(with)))
 		},
-		composite: defaultCRComposite(c, m.GetScheme()),
-		claim:     defaultCRClaim(c, m.GetScheme()),
+		composite: defaultCRComposite(c),
+		claim:     defaultCRClaim(c),
 		log:       logging.NewNopLogger(),
 		record:    event.NewNopRecorder(),
 	}
