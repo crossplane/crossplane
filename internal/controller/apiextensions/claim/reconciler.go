@@ -386,7 +386,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("Successfully applied composite resource")
 	record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 
-	// TODO(negz): Can we back-propagate the external-name in this guy?
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
 		log.Debug("Cannot configure composite resource claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonClaimConfigure, err))
