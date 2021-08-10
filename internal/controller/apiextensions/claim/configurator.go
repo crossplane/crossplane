@@ -95,6 +95,7 @@ func ConfigureComposite(_ context.Context, cm resource.CompositeClaim, cp resour
 	}
 	claimSpecFilter := xcrd.GetPropFields(baseClaimSpec)
 	ucp.Object["spec"] = filter(spec, claimSpecFilter...)
+
 	return nil
 }
 
