@@ -60,16 +60,6 @@ func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp res
 		return errors.New(errBindClaimConflict)
 	}
 
-	// Propagate the actual external name back from the composite to the
-	// claim if it's set. The name we're propagating here will may be a name
-	// the XR must enforce (i.e. overriding any requested by the claim) but
-	// will often actually just be propagating back a name that was already
-	// propagated forward from the claim to the XR during the
-	// preceding configure phase.
-	if en := meta.GetExternalName(cp); en != "" {
-		meta.SetExternalName(cm, en)
-	}
-
 	cm.SetResourceReference(proposed)
 	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
