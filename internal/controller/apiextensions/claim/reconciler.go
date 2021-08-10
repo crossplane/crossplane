@@ -144,7 +144,7 @@ type crComposite struct {
 
 func defaultCRComposite(c client.Client) crComposite {
 	return crComposite{
-		Configurator:         ConfiguratorFn(ConfigureComposite),
+		Configurator:         NewAPIDryRunCompositeConfigurator(c),
 		ConnectionPropagator: NewAPIConnectionPropagator(c),
 	}
 }
