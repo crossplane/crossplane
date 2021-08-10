@@ -56,8 +56,18 @@ func NewAPIBinder(c client.Client) *APIBinder {
 func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 	existing := cm.GetResourceReference()
 	proposed := meta.ReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())
-	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+	equal := cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID"))
+
+	// We refuse to 're-bind' a claim that is already bound to a different
+	// composite resource.
+	if existing != nil && !equal {
 		return errors.New(errBindClaimConflict)
+	}
+
+	// There's no need to call update if the claim already references this
+	// composite resource.
+	if equal {
+		return nil
 	}
 
 	cm.SetResourceReference(proposed)

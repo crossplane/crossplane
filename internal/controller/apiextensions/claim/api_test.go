@@ -52,12 +52,16 @@ func TestBind(t *testing.T) {
 		cp  resource.Composite
 	}
 
+	type want struct {
+		cm  resource.CompositeClaim
+		err error
+	}
+
 	cases := map[string]struct {
-		reason    string
-		fields    fields
-		args      args
-		want      error
-		wantClaim resource.CompositeClaim
+		reason string
+		fields fields
+		args   args
+		want   want
 	}{
 		"CompositeRefConflict": {
 			reason: "An error should be returned if the claim is bound to another composite resource",
@@ -75,7 +79,16 @@ func TestBind(t *testing.T) {
 					},
 				},
 			},
-			want: errors.New(errBindClaimConflict),
+			want: want{
+				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{
+							Name: "who",
+						},
+					},
+				},
+				err: errors.New(errBindClaimConflict),
+			},
 		},
 		"UpdateClaimError": {
 			reason: "Errors updating the claim should be returned",
@@ -86,30 +99,50 @@ func TestBind(t *testing.T) {
 			},
 			args: args{
 				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{},
+				},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "who"}},
+			},
+			want: want{
+				cm: &fake.CompositeClaim{
 					CompositeResourceReferencer: fake.CompositeResourceReferencer{
-						Ref: &corev1.ObjectReference{},
+						Ref: &corev1.ObjectReference{
+							Name: "who",
+						},
 					},
 				},
-				cp: &fake.Composite{},
+				err: errors.Wrap(errBoom, errUpdateClaim),
 			},
-			want: errors.Wrap(errBoom, errUpdateClaim),
+		},
+		"NoOp": {
+			reason: "We should return without calling Update if the claim already references the composite",
+			args: args{
+				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{Name: "coolXR"},
+					},
+				},
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Name: "coolXR"}},
+			},
+			want: want{
+				cm: &fake.CompositeClaim{
+					CompositeResourceReferencer: fake.CompositeResourceReferencer{
+						Ref: &corev1.ObjectReference{Name: "coolXR"},
+					},
+				},
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			b := NewAPIBinder(tc.fields.c)
-			got := b.Bind(tc.args.ctx, tc.args.cm, tc.args.cp)
-			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+			err := b.Bind(tc.args.ctx, tc.args.cm, tc.args.cp)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("b.Bind(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
 				t.Errorf("b.Bind(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
-			}
-			if got != nil {
-				return
-			}
-
-			// if no error, then assert the claim
-			if diff := cmp.Diff(tc.wantClaim, tc.args.cm); diff != "" {
-				t.Errorf("b.Bind(...): %s\n-wantClaim, +gotClaim:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
