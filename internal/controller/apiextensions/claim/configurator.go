@@ -166,8 +166,8 @@ func NewAPIClaimConfigurator(client client.Client) *APIClaimConfigurator {
 
 // Configure the supplied claims with fields from the composite.
 // This includes late-initializing spec values and updating status fields in claim.
-func (c *APIClaimConfigurator) Configure(ctx context.Context, cr resource.CompositeClaim, cp resource.Composite) error {
-	ucr, ok := cr.(*claim.Unstructured)
+func (c *APIClaimConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
 	}
@@ -176,23 +176,36 @@ func (c *APIClaimConfigurator) Configure(ctx context.Context, cr resource.Compos
 		return nil
 	}
 
-	if err := merge(ucr.Object["status"], ucp.Object["status"],
+	if err := merge(ucm.Object["status"], ucp.Object["status"],
 		// Status fields from composite overwrite non-empty fields in claim
 		withMergeOptions(mergo.WithOverride),
 		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)); err != nil {
 		return errors.Wrap(err, errMergeClaimStatus)
 	}
 
-	if err := c.client.Status().Update(ctx, cr); err != nil {
+	if err := c.client.Status().Update(ctx, cm); err != nil {
 		return errors.Wrap(err, errUpdateClaimStatus)
 	}
 
-	if err := merge(ucr.Object["spec"], ucp.Object["spec"],
+	// Propagate the actual external name back from the composite to the
+	// claim if it's set. The name we're propagating here will may be a name
+	// the XR must enforce (i.e. overriding any requested by the claim) but
+	// will often actually just be propagating back a name that was already
+	// propagated forward from the claim to the XR during the
+	// preceding configure phase.
+	if en := meta.GetExternalName(cp); en != "" {
+		meta.SetExternalName(cm, en)
+	}
+
+	// TODO(negz): Is the srcFilter below responsible for the XR's
+	// compositionRef not being propagated back to the claim per
+	// https://github.com/crossplane/crossplane/issues/2263 ?
+	if err := merge(ucm.Object["spec"], ucp.Object["spec"],
 		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceSpecProps())...)); err != nil {
 		return errors.Wrap(err, errMergeClaimSpec)
 	}
 
-	return errors.Wrap(c.client.Update(ctx, cr), errUpdateClaim)
+	return errors.Wrap(c.client.Update(ctx, cm), errUpdateClaim)
 }
 
 type mergeConfig struct {
