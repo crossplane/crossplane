@@ -137,58 +137,6 @@ func TestBind(t *testing.T) {
 			},
 			want: errors.Wrap(errBoom, errUpdateClaim),
 		},
-		"ClaimRefConflict": {
-			reason: "An error should be returned if the composite resource is bound to another claim",
-			fields: fields{
-				c: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil),
-				},
-			},
-			args: args{
-				cm: &fake.CompositeClaim{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "wat",
-					},
-					CompositeResourceReferencer: fake.CompositeResourceReferencer{
-						Ref: &corev1.ObjectReference{},
-					},
-				},
-				cp: &fake.Composite{
-					ClaimReferencer: fake.ClaimReferencer{
-						Ref: &corev1.ObjectReference{
-							Name: "who",
-						},
-					},
-				},
-			},
-			want: errors.New(errBindCompositeConflict),
-		},
-		"UpdateCompositeError": {
-			reason: "Errors updating the composite resource should be returned",
-			fields: fields{
-				c: &test.MockClient{
-					MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-						if _, ok := obj.(*fake.Composite); ok {
-							return errBoom
-						}
-						return nil
-					}),
-				},
-			},
-			args: args{
-				cm: &fake.CompositeClaim{
-					CompositeResourceReferencer: fake.CompositeResourceReferencer{
-						Ref: &corev1.ObjectReference{},
-					},
-				},
-				cp: &fake.Composite{
-					ClaimReferencer: fake.ClaimReferencer{
-						Ref: &corev1.ObjectReference{},
-					},
-				},
-			},
-			want: errors.Wrap(errBoom, errUpdateComposite),
-		},
 	}
 
 	for name, tc := range cases {
