@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -290,24 +289,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
-		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); err != nil {
-			// If our referenced composite doesn't exist and we're not being
-			// deleted we want to requeue after a short wait for someone to
-			// (re)create it. We must explicitly requeue because our
-			// EnqueueRequestForClaim handler can only enqueue reconciles for
-			// composite resources that have their claim reference set, so we
-			// can't expect to be queued implicitly when the composite resource
-			// we want to bind to appears. If the error was anything other than
-			// NotFound we want to retry after a short wait, too. If our
-			// referenced composite resource doesn't exist and we're being
-			// deleted we want to fall through to the below meta.WasDeleted
-			// block, where we can safely 'delete' the non-existent composite
-			// and remove our finalizer.
-			if !kerrors.IsNotFound(err) || !meta.WasDeleted(cm) {
-				log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-				record.Event(cm, event.Warning(reasonBind, err))
-				return reconcile.Result{RequeueAfter: aShortWait}, nil
-			}
+		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); resource.IgnoreNotFound(err) != nil {
+			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(cm, event.Warning(reasonBind, err))
+			return reconcile.Result{RequeueAfter: aShortWait}, nil
 		}
 	}
 
@@ -372,6 +357,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	record = record.WithAnnotations("composite-name", cp.GetName())
 	log = log.WithValues("composite-name", cp.GetName())
 
+	// We want to make sure we bind the claim to the composite (i.e. that we
+	// set the claim's resourceRef) before we ever create the composite. We
+	// use resourceRef to determine whether or not we need to create a new
+	// composite resource. If we first created the composite then set the
+	// resourceRef we'd risk leaking composite resources, e.g. if we hit an
+	// error between when we created the composite resource and when we
+	// persisted its resourceRef.
+	if err := r.claim.Bind(ctx, cm, cp); err != nil {
+		// If we didn't hit this error last time we'll be requeued implicitly
+		// due to the status update. Otherwise we want to retry after a brief
+		// wait, in case this was a transient error.
+		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(cm, event.Warning(reasonBind, err))
+		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+
 	if err := r.client.Apply(ctx, cp); err != nil {
 		// If we didn't hit this error last time we'll be requeued
 		// implicitly due to the status update. Otherwise we want to retry
@@ -384,16 +386,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log.Debug("Successfully applied composite resource")
 	record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 
-	if err := r.claim.Bind(ctx, cm, cp); err != nil {
-		// If we didn't hit this error last time we'll be requeued implicitly
-		// due to the status update. Otherwise we want to retry after a brief
-		// wait, in case this was a transient error.
-		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-	}
-
+	// TODO(negz): Can we back-propagate the external-name in this guy?
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
 		log.Debug("Cannot configure composite resource claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
 		record.Event(cm, event.Warning(reasonClaimConfigure, err))

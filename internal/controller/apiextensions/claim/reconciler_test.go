@@ -259,6 +259,33 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{RequeueAfter: aShortWait},
 			},
 		},
+		"BindError": {
+			reason: "We should requeue after a short wait if we encounter an error binding the composite resource",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*claim.Unstructured); ok {
+									o.SetResourceReference(&corev1.ObjectReference{})
+								}
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: aShortWait},
+			},
+		},
 		"ApplyError": {
 			reason: "We should requeue after a short wait if we encounter an error applying the composite resource",
 			args: args{
@@ -281,36 +308,7 @@ func TestReconcile(t *testing.T) {
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
 					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: aShortWait},
-			},
-		},
-		"BindError": {
-			reason: "We should requeue after a short wait if we encounter an error binding the composite resource",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*claim.Unstructured); ok {
-									o.SetResourceReference(&corev1.ObjectReference{})
-								}
-								return nil
-							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithClaimFinalizer(resource.FinalizerFns{
-						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
-					}),
-					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
-					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 				},
 			},
 			want: want{

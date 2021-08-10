@@ -39,6 +39,8 @@ import (
 func TestCompositeConfigure(t *testing.T) {
 	ns := "spacename"
 	name := "cool"
+	apiVersion := "v"
+	kind := "k"
 	now := metav1.Now()
 	errBoom := errors.New("boom")
 
@@ -114,6 +116,53 @@ func TestCompositeConfigure(t *testing.T) {
 				err: errors.New(errUnsupportedClaimSpec),
 			},
 		},
+		"AlreadyClaimedError": {
+			reason: "We should return an error if we appear to be configuring a composite resource claimed by a different... claim.",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec": map[string]interface{}{
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       "some-other-claim",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec": map[string]interface{}{
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       "some-other-claim",
+								},
+							},
+						},
+					},
+				},
+				err: errors.New(errBindCompositeConflict),
+			},
+		},
 		"DryRunError": {
 			reason: "We should return any error we encounter while dry-run creating a dynamically provisioned composite",
 			c: &test.MockClient{
@@ -123,6 +172,8 @@ func TestCompositeConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]interface{}{
+							"apiVersion": apiVersion,
+							"kind":       kind,
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
@@ -158,6 +209,12 @@ func TestCompositeConfigure(t *testing.T) {
 								"coolness":            23,
 								"compositionRef":      "ref",
 								"compositionSelector": "ref",
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
 							},
 						},
 					},
@@ -174,6 +231,8 @@ func TestCompositeConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]interface{}{
+							"apiVersion": apiVersion,
+							"kind":       kind,
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
@@ -209,6 +268,12 @@ func TestCompositeConfigure(t *testing.T) {
 								"coolness":            23,
 								"compositionRef":      "ref",
 								"compositionSelector": "ref",
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
 							},
 						},
 					},
@@ -221,6 +286,8 @@ func TestCompositeConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]interface{}{
+							"apiVersion": apiVersion,
+							"kind":       kind,
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
@@ -292,6 +359,12 @@ func TestCompositeConfigure(t *testing.T) {
 							},
 							"spec": map[string]interface{}{
 								"coolness": 23,
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
 							},
 						},
 					},

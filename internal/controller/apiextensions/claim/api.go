@@ -34,13 +34,11 @@ import (
 
 // Error strings.
 const (
-	errUpdateClaim           = "cannot update composite resource claim"
-	errUpdateComposite       = "cannot update composite resource"
-	errBindClaimConflict     = "cannot bind claim that references a different composite resource"
-	errBindCompositeConflict = "cannot bind composite resource that references a different claim"
-	errGetSecret             = "cannot get composite resource's connection secret"
-	errSecretConflict        = "cannot establish control of existing connection secret"
-	errCreateOrUpdateSecret  = "cannot create or update connection secret"
+	errUpdateClaim          = "cannot update composite resource claim"
+	errBindClaimConflict    = "cannot bind claim that references a different composite resource"
+	errGetSecret            = "cannot get composite resource's connection secret"
+	errSecretConflict       = "cannot establish control of existing connection secret"
+	errCreateOrUpdateSecret = "cannot create or update connection secret"
 )
 
 // An APIBinder binds claims to composites by updating them in a Kubernetes API
@@ -57,37 +55,23 @@ func NewAPIBinder(c client.Client) *APIBinder {
 // Bind the supplied claim to the supplied composite.
 func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 	existing := cm.GetResourceReference()
-
 	proposed := meta.ReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())
 	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
 		return errors.New(errBindClaimConflict)
 	}
 
-	// Propagate the actual external name back from the composite to the claim
-	// if it's set.
-	// For dynamically provisioned composites, claim's external name is the
-	// source initially (if set) as expected.
+	// Propagate the actual external name back from the composite to the
+	// claim if it's set. The name we're propagating here will may be a name
+	// the XR must enforce (i.e. overriding any requested by the claim) but
+	// will often actually just be propagating back a name that was already
+	// propagated forward from the claim to the XR during the
+	// preceding configure phase.
 	if en := meta.GetExternalName(cp); en != "" {
 		meta.SetExternalName(cm, en)
 	}
 
-	// We set the claim's resource reference first in order to reduce the chance
-	// of leaking newly created composite resources. We want as few calls that
-	// could fail and trigger a requeue between composite creation and reference
-	// persistence as possible.
 	cm.SetResourceReference(proposed)
-	if err := a.client.Update(ctx, cm); err != nil {
-		return errors.Wrap(err, errUpdateClaim)
-	}
-
-	existing = cp.GetClaimReference()
-	proposed = meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
-	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
-		return errors.New(errBindCompositeConflict)
-	}
-
-	cp.SetClaimReference(proposed)
-	return errors.Wrap(a.client.Update(ctx, cp), errUpdateComposite)
+	return errors.Wrap(a.client.Update(ctx, cm), errUpdateClaim)
 }
 
 // An APIConnectionPropagator propagates connection details by reading
