@@ -15,8 +15,8 @@ indent: true
 * [Pausing Crossplane]
 * [Pausing Providers]
 * [Deleting When a Resource Hangs]
-* [Handling Crossplane Package Dependency]
 * [Installing Crossplane Package]
+* [Handling Crossplane Package Dependency]
 
 ## Requested Resource Not Found
 
@@ -197,23 +197,71 @@ For example, for a `CloudSQLInstance` managed resource (`database.gcp.crossplane
 kubectl patch cloudsqlinstance my-db -p '{"metadata":{"finalizers": []}}' --type=merge
 ```
 
+## Installing Crossplane Package
+
+After installing [Crossplane package], to verify the install results or 
+troubleshoot any issue spotted during the installation, there are a few things 
+you can do.
+
+Run below command to list all Crossplane resources available on your cluster:
+
+```console
+kubectl get crossplane
+```
+
+If you installed a Provider package, pay attention to the `Provider` and 
+`ProviderRevision` resource. Especially the `INSTALLED` and `HEALTHY` column. 
+They all need to be `TRUE`. Otherwise, there must be some errors that occurred
+during the installation.
+
+If you installed a Configuration package, pay attention to the `Configuration` 
+and `ConfigurationRevision` resource. Again, the `INSTALLED` and `HEALTHY` 
+column for these resources need to be `TRUE`. Besides that, you should also see 
+the `CompositeResourceDefinition` and `Composition` resources included in this 
+package are listed if the package is installed successfully.
+
+If you only care about the installed packages, you can also run below command
+which will show you all installed Configuration and Provider packages:
+
+```console
+kubectl get pkg
+```
+
+When there are errors, you can run below command to check detailed information 
+for the packages that are getting installed.
+
+```console
+kubectl get lock -o yaml
+```
+
+To inspect a particular package for troubleshooting, you can run 
+`kubectl describe` against the corresponding resources, e.g. the `Provider` and 
+`ProviderRevision` resource for Provider package, or the `Configuration` and 
+`ConfigurationRevision` resource for Configuration package. Usually, you should 
+be able to know the error reason by checking the `Status` and `Events` field for 
+these resources.
+
 ## Handling Crossplane Package Dependency
 
-When use `crossplane.yaml` to define Crossplane package, you can specify packages that 
-the current package depends on including the version constraint using `spec.dependsOn`.
+When using `crossplane.yaml` to define a Crossplane Configuration package, you 
+can specify packages that it depends on by including `spec.dependsOn`. You can 
+also specify version constraints for dependency packages.
 
-Please make sure you provide the fully qualified address to the dependent package, but do
-not append the package version (i.e. the OCI image tag) after the package name. This may
-lead to the missing dependency error when Crossplane tries to install the dependency.
+When you define a dependency package, please make sure you provide the fully 
+qualified address to the dependency package, but do not append the package 
+version (i.e. the OCI image tag) after the package name. This may lead to the 
+missing dependency error when Crossplane tries to install the dependency.
 
-When specify the version constraint, you should strictly follow the [semver spec](https://github.com/Masterminds/semver#basic-comparisons). Otherwise,
-it may not be able to find the appropriate version for the dependent package even it says
-the dependency is found. This may lead to the incompatible dependency error during the installation.
+When specifying the version constraint, you should strictly follow the 
+[semver spec]. Otherwise, it may not be able to find the appropriate version for 
+the dependency package even it says the dependency is found. This may lead to an 
+incompatible dependency error during the installation.
 
-Below is an example where a configuration package depends on a provider pulled from `crossplane/provider-aws`.
-It defines `">v0.16.0-0` as the version constraint which means all versions after `v0.16.0` including
-all prerelease versions, in the form of `-xyz` after the normal version string, will be considered when
-Crossplane tries to find the best match.
+Below is an example where a Configuration package depends on a provider pulled 
+from `crossplane/provider-aws`. It defines `">v0.16.0-0` as the version 
+constraint which means all versions after `v0.16.0` including all prerelease 
+versions, in the form of `-xyz` after the normal version string, will be 
+considered when Crossplane tries to find the best match.
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
@@ -230,37 +278,6 @@ spec:
       version: ">v0.16.0-0"
 ```
 
-## Installing Crossplane Package
-
-After install Crossplane package, to verify the install results or troubleshoot any issue spot during the
-installation, there are a few things you can do.
-
-List all Crossplane resources available on your cluster:
-
-```console
-kubectl get crossplane
-```
-
-If you installed provider package, pay attention to the `Provider` and `ProviderRevision` resource. Especially
-the `INSTALLED` and `HEALTHY` column. They all need to be `TRUE`. Otherwise, there must be some errors occurred
-during the installation.
-
-If you installed configuration package, pay attention to the `Configuration` and `ConfigurationRevision` resource.
-Again, the `INSTALLED` and `HEALTHY` column for these resources need to be `TRUE`. Besides that, you should also 
-see the `CompositeResourceDefinition` and `Composition` resources included in this package are listed if the package 
-is installed successfully.
-
-When there are errors, you can run below command to check detailed information for the packages that are getting installed.
-
-```console
-kubectl get lock -o yaml
-```
-
-To inspect a particular package for troubleshooting, you can run `kubectl describe` against the corresponding resources,
-e.g. the `Provider` and `ProviderRevision` resource for provider package, or the `Configuration` and `ConfigurationRevision`
-resource for configuration package. Usually, you should be able to know the error reason by checking the `Status` and 
-`Events` field for these resources.
-
 <!-- Named Links -->
 
 [Requested Resource Not Found]: #requested-resource-not-found
@@ -272,5 +289,7 @@ resource for configuration package. Usually, you should be able to know the erro
 [Pausing Crossplane]: #pausing-crossplane
 [Pausing Providers]: #pausing-providers
 [Deleting When a Resource Hangs]: #deleting-when-a-resource-hangs
-[Handling Crossplane Package Dependency]: #handling-crossplane-package-dependency
 [Installing Crossplane Package]: #installing-crossplane-package
+[Crossplane package]: https://crossplane.io/docs/v1.3/concepts/packages.html
+[Handling Crossplane Package Dependency]: #handling-crossplane-package-dependency
+[semver spec]: https://github.com/Masterminds/semver#basic-comparisons
