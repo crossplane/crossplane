@@ -20,8 +20,11 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -37,7 +40,8 @@ const (
 	errUnsupportedDstObject = "destination object was not valid object"
 	errUnsupportedSrcObject = "source object was not valid object"
 
-	errName = "cannot use dry-run create to name composite resource"
+	errName                  = "cannot use dry-run create to name composite resource"
+	errBindCompositeConflict = "cannot bind composite resource that references a different claim"
 
 	errMergeClaimSpec   = "unable to merge claim spec"
 	errMergeClaimStatus = "unable to merge claim status"
@@ -78,6 +82,12 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 		return errors.New(errUnsupportedClaimSpec)
 	}
 
+	existing := ucp.GetClaimReference()
+	proposed := meta.ReferenceTo(ucm, ucm.GetObjectKind().GroupVersionKind())
+	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+		return errors.New(errBindCompositeConflict)
+	}
+
 	// It's possible we're being asked to configure a statically provisioned
 	// composite resource in which case we should respect its existing name and
 	// external name.
@@ -106,6 +116,11 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 	claimSpecFilter := xcrd.GetPropFields(baseClaimSpec)
 	ucp.Object["spec"] = filter(spec, claimSpecFilter...)
+
+	// Note that we overwrite the entire composite spec above, so we wait
+	// until this point to set the claim reference. We compute the reference
+	// earlier so we can return early if it would not be allowed.
+	ucp.SetClaimReference(proposed)
 
 	if !meta.WasCreated(cp) {
 		// The API server returns an available name derived from
