@@ -47,18 +47,18 @@ const (
 // server.
 type APIBinder struct {
 	client client.Client
-	typer  runtime.ObjectTyper
 }
 
 // NewAPIBinder returns a new APIBinder.
-func NewAPIBinder(c client.Client, t runtime.ObjectTyper) *APIBinder {
-	return &APIBinder{client: c, typer: t}
+func NewAPIBinder(c client.Client) *APIBinder {
+	return &APIBinder{client: c}
 }
 
 // Bind the supplied claim to the supplied composite.
 func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
 	existing := cm.GetResourceReference()
-	proposed := meta.ReferenceTo(cp, resource.MustGetKind(cp, a.typer))
+
+	proposed := meta.ReferenceTo(cp, cp.GetObjectKind().GroupVersionKind())
 	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
 		return errors.New(errBindClaimConflict)
 	}
@@ -81,7 +81,7 @@ func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp res
 	}
 
 	existing = cp.GetClaimReference()
-	proposed = meta.ReferenceTo(cm, resource.MustGetKind(cm, a.typer))
+	proposed = meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
 	if existing != nil && !cmp.Equal(existing, proposed, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
 		return errors.New(errBindCompositeConflict)
 	}
@@ -94,14 +94,12 @@ func (a *APIBinder) Bind(ctx context.Context, cm resource.CompositeClaim, cp res
 // them from and writing them to a Kubernetes API server.
 type APIConnectionPropagator struct {
 	client resource.ClientApplicator
-	typer  runtime.ObjectTyper
 }
 
 // NewAPIConnectionPropagator returns a new APIConnectionPropagator.
-func NewAPIConnectionPropagator(c client.Client, t runtime.ObjectTyper) *APIConnectionPropagator {
+func NewAPIConnectionPropagator(c client.Client) *APIConnectionPropagator {
 	return &APIConnectionPropagator{
 		client: resource.ClientApplicator{Client: c, Applicator: resource.NewAPIUpdatingApplicator(c)},
-		typer:  t,
 	}
 }
 
@@ -128,7 +126,7 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to re
 		return false, errors.New(errSecretConflict)
 	}
 
-	ts := resource.LocalConnectionSecretFor(to, resource.MustGetKind(to, a.typer))
+	ts := resource.LocalConnectionSecretFor(to, to.GetObjectKind().GroupVersionKind())
 	ts.Data = fs.Data
 
 	err := a.client.Apply(ctx, ts,
