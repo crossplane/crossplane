@@ -40,6 +40,7 @@ import (
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	name := "coolclaim"
 
 	type args struct {
 		mgr  manager.Manager
@@ -129,6 +130,35 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: false},
 			},
 		},
+		"DeleteUnboundCompositeError": {
+			reason: "We should return without requeuing if we try to delete a composite resource that does not reference us",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								switch o := obj.(type) {
+								case *claim.Unstructured:
+									now := metav1.Now()
+									o.SetName(name)
+									o.SetDeletionTimestamp(&now)
+									o.SetResourceReference(&corev1.ObjectReference{})
+								case *composite.Unstructured:
+									o.SetCreationTimestamp(metav1.Now())
+									o.SetClaimReference(&corev1.ObjectReference{Name: "some-other-claim"})
+								}
+								return nil
+							}),
+							MockDelete: test.NewMockDeleteFn(errBoom),
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"DeleteCompositeError": {
 			reason: "We should requeue after a short wait if we encounter an error while deleting the referenced composite resource",
 			args: args{
@@ -140,10 +170,12 @@ func TestReconcile(t *testing.T) {
 								switch o := obj.(type) {
 								case *claim.Unstructured:
 									now := metav1.Now()
+									o.SetName(name)
 									o.SetDeletionTimestamp(&now)
 									o.SetResourceReference(&corev1.ObjectReference{})
 								case *composite.Unstructured:
 									o.SetCreationTimestamp(metav1.Now())
+									o.SetClaimReference(&corev1.ObjectReference{Name: name})
 								}
 								return nil
 							}),
