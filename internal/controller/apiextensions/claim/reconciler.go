@@ -20,6 +20,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -299,10 +301,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(cm) {
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
-		// TODO(negz): We should make sure the composite resource references the
-		// claim before we try to delete it.
-
 		if meta.WasCreated(cp) {
+			ref := cp.GetClaimReference()
+			want := meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
+			if !cmp.Equal(want, ref, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+				// We don't requeue in this situation because the claim will need
+				// human intervention before we can proceed (e.g. fixing the ref),
+				// and we'll be queued implicitly when the claim is edited.
+				err := errors.New("Refusing to delete composite resource that is not bound to this claim")
+				log.Debug("Cannot delete composite resource", "error", err)
+				record.Event(cm, event.Warning(reasonDelete, err))
+				return reconcile.Result{Requeue: false}, nil
+			}
+
 			if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
 				// If we didn't hit this error last time we'll be requeued
 				// implicitly due to the status update. Otherwise we want to retry
