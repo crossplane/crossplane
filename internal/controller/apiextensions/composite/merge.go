@@ -24,8 +24,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // mergePath merges the value at the given field path of the src object into
@@ -45,7 +43,7 @@ func mergePath(path string, dst, src runtime.Object, mergeOptions *xpv1.MergeOpt
 		return err
 	}
 
-	return v1.PatchFieldValueToObject(path, val, dst, mergeOptions)
+	return patchFieldValueToObject(path, val, dst, mergeOptions)
 }
 
 // mergeReplace merges the value at path from dst into
@@ -83,4 +81,21 @@ func mergeOptions(tas []TemplateAssociation) []resource.ApplyOption {
 		}
 	}
 	return opts
+}
+
+// patchFieldValueToObject applies the value to the "to" object at the given
+// path with the given merge options, returning any errors as they occur.
+// If no merge options is supplied, then destination field is replaced
+// with the given value.
+func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+	paved, err := fieldpath.PaveObject(to)
+	if err != nil {
+		return err
+	}
+
+	if err := paved.MergeValue(fieldPath, value, mo); err != nil {
+		return err
+	}
+
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(paved.UnstructuredContent(), to)
 }

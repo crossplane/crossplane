@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
@@ -432,7 +433,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
+	return patchFieldValueToObject(*c.ToFieldPath, out, to)
 }
 
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of
@@ -497,7 +498,7 @@ func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return PatchFieldValueToObject(*c.ToFieldPath, out, to, nil)
+	return patchFieldValueToObject(*c.ToFieldPath, out, to)
 }
 
 // IsOptionalFieldPathNotFound returns true if the supplied error indicates a
@@ -824,17 +825,13 @@ type CompositionList struct {
 	Items           []Composition `json:"items"`
 }
 
-// PatchFieldValueToObject applies the value to the "to" object at the given
-// path with the given merge options, returning any errors as they occur.
-// If no merge options is supplied, then destination field is replaced
-// with the given value.
-func PatchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object) error {
 	paved, err := fieldpath.PaveObject(to)
 	if err != nil {
 		return err
 	}
 
-	if err := paved.MergeValue(fieldPath, value, mo); err != nil {
+	if err := paved.MergeValue(fieldPath, value, nil); err != nil {
 		return err
 	}
 
