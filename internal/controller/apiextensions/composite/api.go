@@ -183,7 +183,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	}
 
 	rl := &v1alpha1.CompositionRevisionList{}
-	if err := f.ca.List(ctx, rl); err != nil {
+	if err := f.ca.List(ctx, rl, client.MatchingLabels{v1alpha1.LabelCompositionName: comp.GetName()}); err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 
