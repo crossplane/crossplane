@@ -370,18 +370,7 @@ func TestMergeOptions(t *testing.T) {
 		args       args
 		wantLength int
 	}{
-		"FilteredPatch": {
-			args: args{
-				patches: []v1.Patch{
-					{
-						ToFieldPath: &testPath,
-						Policy:      &v1.PatchPolicy{},
-						Filtered:    true,
-					},
-				},
-			},
-		},
-		"UnfilteredPatchNoPolicy": {
+		"PatchNoPolicy": {
 			args: args{
 				patches: []v1.Patch{
 					{
@@ -390,7 +379,7 @@ func TestMergeOptions(t *testing.T) {
 				},
 			},
 		},
-		"UnfilteredPatchNoToFieldPath": {
+		"PatchNoToFieldPath": {
 			args: args{
 				patches: []v1.Patch{
 					{
@@ -399,7 +388,7 @@ func TestMergeOptions(t *testing.T) {
 				},
 			},
 		},
-		"UnfilteredPatch": {
+		"PatchEmptyPolicy": {
 			args: args{
 				patches: []v1.Patch{
 					{
@@ -410,7 +399,7 @@ func TestMergeOptions(t *testing.T) {
 			},
 			wantLength: 1,
 		},
-		"TwoUnfilteredPatches": {
+		"TwoPatches": {
 			args: args{
 				patches: []v1.Patch{
 					{
@@ -428,14 +417,7 @@ func TestMergeOptions(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			tas := []TemplateAssociation{
-				{
-					Template: v1.ComposedTemplate{
-						Patches: tc.args.patches,
-					},
-				},
-			}
-			if got := mergeOptions(tas); len(got) != tc.wantLength {
+			if got := mergeOptions(tc.args.patches); len(got) != tc.wantLength {
 				t.Errorf("mergeOptions(...): want length %v, got length %v", tc.wantLength, len(got))
 			}
 		})

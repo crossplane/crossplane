@@ -24,6 +24,8 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // mergePath merges the value at the given field path of the src object into
@@ -70,15 +72,13 @@ func withMergeOptions(fieldPath string, mergeOptions *xpv1.MergeOptions) resourc
 
 // mergeOptions returns merge options for an unfiltered patch specification
 // as an array of apply options.
-func mergeOptions(tas []TemplateAssociation) []resource.ApplyOption {
-	var opts []resource.ApplyOption
-	for _, ta := range tas {
-		for _, p := range ta.Template.Patches {
-			if p.Filtered || p.Policy == nil || p.ToFieldPath == nil {
-				continue
-			}
-			opts = append(opts, withMergeOptions(*p.ToFieldPath, p.Policy.MergeOptions))
+func mergeOptions(pas []v1.Patch) []resource.ApplyOption {
+	opts := make([]resource.ApplyOption, 0, len(pas))
+	for _, p := range pas {
+		if p.Policy == nil || p.ToFieldPath == nil {
+			continue
 		}
+		opts = append(opts, withMergeOptions(*p.ToFieldPath, p.Policy.MergeOptions))
 	}
 	return opts
 }

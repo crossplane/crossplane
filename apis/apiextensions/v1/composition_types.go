@@ -253,9 +253,6 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
-
-	// Filtered holds whether this patch has been filtered
-	Filtered bool `json:"-"`
 }
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -386,7 +383,6 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 			return false
 		}
 	}
-	c.Filtered = true
 	return true
 }
 

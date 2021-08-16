@@ -344,7 +344,7 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	cd.SetNamespace(namespace)
 
 	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
-	for i := 0; i < len(t.Patches); i++ {
+	for i := range t.Patches {
 		if err := t.Patches[i].Apply(cp, cd, onlyPatches...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}

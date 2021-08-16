@@ -344,8 +344,9 @@ type Reconciler struct {
 // composedRendered is a wrapper around a composed resource that tracks whether
 // it was successfully rendered or not.
 type composedRendered struct {
-	resource resource.Composed
-	rendered bool
+	resource        resource.Composed
+	rendered        bool
+	filteredPatches []v1.Patch
 }
 
 // Reconcile a composite resource.
@@ -440,6 +441,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		cds[i] = composedRendered{
 			resource: cd,
 			rendered: rendered,
+			filteredPatches: filterPatches(ta.Template.Patches, v1.PatchTypeFromCompositeFieldPath,
+				v1.PatchTypeCombineFromComposite),
 		}
 		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
 	}
@@ -465,7 +468,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if !cd.rendered {
 			continue
 		}
-		if err := r.client.Apply(ctx, cd.resource, append(mergeOptions(tas), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
+		if err := r.client.Apply(ctx, cd.resource, append(mergeOptions(cd.filteredPatches), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
 			log.Debug(errApply, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -515,7 +518,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We pass a deepcopy because the update method doesn't update status,
 	// but calling update resets any pending status changes.
 	updated := cr.DeepCopyObject().(client.Object)
-	if err := r.client.Update(ctx, updated); err != nil {
+	if err := r.client.Apply(ctx, updated, mergeOptions(filterToXRPatches(tas))...); err != nil {
 		log.Debug(errUpdate, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -557,4 +560,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+}
+
+func filterToXRPatches(tas []TemplateAssociation) []v1.Patch {
+	filtered := make([]v1.Patch, 0, len(tas))
+	for _, ta := range tas {
+		filtered = append(filtered, filterPatches(ta.Template.Patches,
+			v1.PatchTypeToCompositeFieldPath, v1.PatchTypeCombineToComposite)...)
+	}
+	return filtered
+}
+
+func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
+	filtered := make([]v1.Patch, 0, len(pas))
+	for _, p := range pas {
+		for _, t := range onlyTypes {
+			if t == p.Type {
+				filtered = append(filtered, p)
+				break
+			}
+		}
+	}
+	return filtered
 }
