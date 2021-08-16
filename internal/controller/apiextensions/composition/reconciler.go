@@ -122,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	comp := &v1.Composition{}
 	if err := r.client.Get(ctx, req.NamespacedName, comp); err != nil {
 		log.Debug(errGet, "error", err)
-		r.record.Event(comp, event.Warning(reasonCreateRev, err))
+		r.record.Event(comp, event.Warning(reasonCreateRev, errors.Wrap(err, errGet)))
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
@@ -142,7 +142,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	rl := &v1alpha1.CompositionRevisionList{}
 	if err := r.client.List(ctx, rl, client.MatchingLabels{v1alpha1.LabelCompositionName: comp.GetName()}); err != nil {
 		log.Debug(errListRevs, "error", err)
-		r.record.Event(comp, event.Warning(reasonCreateRev, err))
+		r.record.Event(comp, event.Warning(reasonCreateRev, errors.Wrap(err, errListRevs)))
 		return reconcile.Result{}, errors.Wrap(err, errListRevs)
 	}
 
