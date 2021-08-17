@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -494,16 +495,16 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								// annotation will be set by mock composite render
-								if obj.GetAnnotations()["composite-rendered"] == "true" {
-									return errBoom
-								}
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, obj client.Object, ao ...resource.ApplyOption) error {
+							// annotation will be set by mock composite render
+							if obj.GetAnnotations()["composite-rendered"] == "true" {
+								return errBoom
+							}
 							return nil
 						}),
 					}),
@@ -548,17 +549,17 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								// annotation will be set by mock composite render
-								if obj.GetAnnotations()["composite-rendered"] == "true" {
-									// Set composite resource version to indicate update was not a no-op.
-									obj.SetResourceVersion("1")
-								}
+							MockUpdate: test.NewMockUpdateFn(nil, func(_ client.Object) error {
 								return nil
 							}),
 							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
+						Applicator: resource.ApplyFn(func(c context.Context, obj client.Object, ao ...resource.ApplyOption) error {
+							// annotation will be set by mock composite render
+							if obj.GetAnnotations()["composite-rendered"] == "true" {
+								// Set composite resource version to indicate update was not a no-op.
+								obj.SetResourceVersion("1")
+							}
 							return nil
 						}),
 					}),
@@ -729,6 +730,64 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestFilterToXRPatches(t *testing.T) {
+	toXR1 := v1.Patch{
+		Type: v1.PatchTypeToCompositeFieldPath,
+	}
+	toXR2 := v1.Patch{
+		Type: v1.PatchTypeCombineToComposite,
+	}
+	fromXR1 := v1.Patch{
+		Type: v1.PatchTypeFromCompositeFieldPath,
+	}
+	fromXR2 := v1.Patch{
+		Type: v1.PatchTypeCombineFromComposite,
+	}
+	type args struct {
+		tas []TemplateAssociation
+	}
+	tests := map[string]struct {
+		args args
+		want []v1.Patch
+	}{
+		"NonEmptyToXRPatches": {
+			args: args{
+				tas: []TemplateAssociation{
+					{
+						Template: v1.ComposedTemplate{
+							Patches: []v1.Patch{toXR1, toXR2, fromXR1, fromXR2},
+						},
+					},
+				},
+			},
+			want: []v1.Patch{toXR1, toXR2},
+		},
+		"NoToXRPatches": {
+			args: args{
+				tas: []TemplateAssociation{
+					{
+						Template: v1.ComposedTemplate{
+							Patches: []v1.Patch{fromXR1, fromXR2},
+						},
+					},
+				},
+			},
+			want: []v1.Patch{},
+		},
+		"EmptyToXRPatches": {
+			args: args{},
+			want: []v1.Patch{},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			if diff := cmp.Diff(tc.want, filterToXRPatches(tc.args.tas)); diff != "" {
+				t.Errorf("\nfilterToXRPatches(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

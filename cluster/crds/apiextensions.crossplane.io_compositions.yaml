@@ -147,6 +147,19 @@ spec:
                                 - Optional
                                 - Required
                                 type: string
+                              mergeOptions:
+                                description: MergeOptions Specifies merge options
+                                  on a field path
+                                properties:
+                                  appendSlice:
+                                    description: Specifies that already existing elements
+                                      in a merged slice should be preserved
+                                    type: boolean
+                                  keepMapValues:
+                                    description: Specifies that already existing values
+                                      in a merged map should be preserved
+                                    type: boolean
+                                type: object
                             type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the
@@ -389,6 +402,19 @@ spec:
                                 - Optional
                                 - Required
                                 type: string
+                              mergeOptions:
+                                description: MergeOptions Specifies merge options
+                                  on a field path
+                                properties:
+                                  appendSlice:
+                                    description: Specifies that already existing elements
+                                      in a merged slice should be preserved
+                                    type: boolean
+                                  keepMapValues:
+                                    description: Specifies that already existing values
+                                      in a merged map should be preserved
+                                    type: boolean
+                                type: object
                             type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the

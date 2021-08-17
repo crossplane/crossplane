@@ -343,9 +343,8 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	cd.SetName(name)
 	cd.SetNamespace(namespace)
 
-	onlyPatches := []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
-	for i, p := range t.Patches {
-		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
+	for i := range t.Patches {
+		if err := t.Patches[i].Apply(cp, cd, patchTypesFromXR()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}
@@ -387,9 +386,8 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 // RenderComposite renders the supplied composite resource using the supplied composed
 // resource and template.
 func RenderComposite(_ context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-	onlyPatches := []v1.PatchType{v1.PatchTypeToCompositeFieldPath, v1.PatchTypeCombineToComposite}
 	for i, p := range t.Patches {
-		if err := p.Apply(cp, cd, onlyPatches...); err != nil {
+		if err := p.Apply(cp, cd, patchTypesToXR()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}

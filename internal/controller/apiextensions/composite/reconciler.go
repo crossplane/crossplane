@@ -341,11 +341,13 @@ type Reconciler struct {
 	record event.Recorder
 }
 
-// composedRendered is a wrapper around a composed resource that tracks whether
-// it was successfully rendered or not.
-type composedRendered struct {
-	resource resource.Composed
-	rendered bool
+// composedRenderState is a wrapper around a composed resource that tracks whether
+// it was successfully rendered or not, together with a list of patches defined
+// on its template that have been applied (not filtered out).
+type composedRenderState struct {
+	resource       resource.Composed
+	rendered       bool
+	appliedPatches []v1.Patch
 }
 
 // Reconcile a composite resource.
@@ -427,7 +429,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// their error corrected by manual intervention or propagation of a required
 	// input.
 	refs := make([]corev1.ObjectReference, len(tas))
-	cds := make([]composedRendered, len(tas))
+	cds := make([]composedRenderState, len(tas))
 	for i, ta := range tas {
 		cd := composed.New(composed.FromReference(ta.Reference))
 		rendered := true
@@ -437,9 +439,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			rendered = false
 		}
 
-		cds[i] = composedRendered{
-			resource: cd,
-			rendered: rendered,
+		cds[i] = composedRenderState{
+			resource:       cd,
+			rendered:       rendered,
+			appliedPatches: filterPatches(ta.Template.Patches, patchTypesFromXR()...),
 		}
 		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
 	}
@@ -465,7 +468,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if !cd.rendered {
 			continue
 		}
-		if err := r.client.Apply(ctx, cd.resource, resource.MustBeControllableBy(cr.GetUID())); err != nil {
+		if err := r.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
 			log.Debug(errApply, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
 			return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -515,7 +518,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We pass a deepcopy because the update method doesn't update status,
 	// but calling update resets any pending status changes.
 	updated := cr.DeepCopyObject().(client.Object)
-	if err := r.client.Update(ctx, updated); err != nil {
+	// call Apply so that we do not just replace fields on existing XR but
+	// merge fields for which a merge configuration has been specified.
+	// For fields for which a merge configuration does not exist, the
+	// behavior will be a replace from updated.
+	if err := r.client.Apply(ctx, updated, mergeOptions(filterToXRPatches(tas))...); err != nil {
 		log.Debug(errUpdate, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -557,4 +564,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+}
+
+// filterToXRPatches selects patches defined in composed templates,
+// whose type is one of the XR-targeting patches
+// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite)
+func filterToXRPatches(tas []TemplateAssociation) []v1.Patch {
+	filtered := make([]v1.Patch, 0, len(tas))
+	for _, ta := range tas {
+		filtered = append(filtered, filterPatches(ta.Template.Patches,
+			patchTypesToXR()...)...)
+	}
+	return filtered
+}
+
+// filterPatches selects patches whose type belong to the list onlyTypes
+func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
+	filtered := make([]v1.Patch, 0, len(pas))
+	for _, p := range pas {
+		for _, t := range onlyTypes {
+			if t == p.Type {
+				filtered = append(filtered, p)
+				break
+			}
+		}
+	}
+	return filtered
 }

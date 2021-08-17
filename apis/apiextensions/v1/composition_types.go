@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 )
 
@@ -272,6 +273,7 @@ type PatchPolicy struct {
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
 }
 
 // A Combine configures a patch that combines more than
@@ -395,24 +397,6 @@ func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
 	return input, nil
 }
 
-// patchFieldValueToObject, given a path, value and "to" object, will
-// apply the value to the "to" object at the given path, returning
-// any errors as they occur.
-func patchFieldValueToObject(path string, value interface{}, to runtime.Object) error {
-	if u, ok := to.(interface{ UnstructuredContent() map[string]interface{} }); ok {
-		return fieldpath.Pave(u.UnstructuredContent()).SetValue(path, value)
-	}
-
-	toMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(to)
-	if err != nil {
-		return err
-	}
-	if err := fieldpath.Pave(toMap).SetValue(path, value); err != nil {
-		return err
-	}
-	return runtime.DefaultUnstructuredConverter.FromUnstructured(toMap, to)
-}
-
 // applyFromFieldPathPatch patches the "to" resource, using a source field
 // on the "from" resource. Values may be transformed if any are defined on
 // the patch.
@@ -426,12 +410,12 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		c.ToFieldPath = c.FromFieldPath
 	}
 
-	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+	fromPaved, err := fieldpath.PaveObject(from)
 	if err != nil {
 		return err
 	}
 
-	in, err := fieldpath.Pave(fromMap).GetValue(*c.FromFieldPath)
+	in, err := fromPaved.GetValue(*c.FromFieldPath)
 	if IsOptionalFieldPathNotFound(err, c.Policy) {
 		return nil
 	}
@@ -835,4 +819,17 @@ type CompositionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 	Items           []Composition `json:"items"`
+}
+
+func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object) error {
+	paved, err := fieldpath.PaveObject(to)
+	if err != nil {
+		return err
+	}
+
+	if err := paved.MergeValue(fieldPath, value, nil); err != nil {
+		return err
+	}
+
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(paved.UnstructuredContent(), to)
 }
