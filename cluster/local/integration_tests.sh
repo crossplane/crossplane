@@ -38,8 +38,8 @@ projectdir="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)"
 # get the build environment variables from the special build.vars target in the main makefile
 eval $(make --no-print-directory -C ${projectdir} build.vars)
 
-HOSTARCH="${HOSTARCH:-amd64}"
-BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-${HOSTARCH}"
+SAFEHOSTARCH="${SAFEHOSTARCH:-amd64}"
+BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-${SAFEHOSTARCH}"
 
 helm_tag="$(cat ${projectdir}/_output/version)"
 CROSSPLANE_IMAGE="${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}"
