@@ -145,6 +145,20 @@ install-crds: $(KUBECTL) reviewable
 uninstall-crds:
 	$(KUBECTL) delete -f $(CRD_DIR)
 
+# Compile e2e tests.
+# TODO(hasheddan): integrate this functionality into build submodule. The build
+# submodule currently distinguishes tests and integration tests, but it only
+# builds tests and does not support passing build tags only to the test build.
+# Note that we are not publishing the builds that come from this step.
+e2e-tests-compile:
+	@$(INFO) Checking that e2e tests compile
+	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/apiextensions.test ./test/e2e/apiextensions --tags=e2e
+	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/pkg.test ./test/e2e/pkg --tags=e2e
+	@$(OK) Verified e2e tests compile
+
+# Compile e2e tests for each platform.
+build.code.platform: e2e-tests-compile
+
 # This is for running out-of-cluster locally, and is for convenience. Running
 # this make target will print out the command which was used. For more control,
 # try running the binary directly with different arguments.
@@ -153,7 +167,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug
 
-.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds gen-install-doc
+.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds gen-install-doc e2e-tests-compile
 
 # ====================================================================================
 # Special Targets
