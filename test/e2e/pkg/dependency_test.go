@@ -31,8 +31,8 @@ import (
 	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
 )
 
 const (
@@ -50,12 +50,12 @@ func TestDependencies(t *testing.T) {
 			body: func() error {
 				ctx := context.Background()
 				c := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
-				cr := &v1beta1.Configuration{
+				cr := &v1.Configuration{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: configName,
 					},
-					Spec: v1beta1.ConfigurationSpec{
-						PackageSpec: v1beta1.PackageSpec{
+					Spec: v1.ConfigurationSpec{
+						PackageSpec: v1.PackageSpec{
 							Package: configPackage,
 						},
 					},
@@ -73,10 +73,10 @@ func TestDependencies(t *testing.T) {
 						return false, nil
 					}
 					for _, p := range l.Items {
-						if p.GetCondition(v1beta1.TypeInstalled).Status != corev1.ConditionTrue {
+						if p.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
 							return false, nil
 						}
-						if p.GetCondition(v1beta1.TypeHealthy).Status != corev1.ConditionTrue {
+						if p.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
 							return false, nil
 						}
 					}
@@ -110,12 +110,12 @@ func TestDependencies(t *testing.T) {
 			body: func() error {
 				ctx := context.Background()
 				c := typedclient.NewForConfigOrDie(ctrl.GetConfigOrDie())
-				cr := &v1beta1.Configuration{
+				cr := &v1.Configuration{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: configName,
 					},
-					Spec: v1beta1.ConfigurationSpec{
-						PackageSpec: v1beta1.PackageSpec{
+					Spec: v1.ConfigurationSpec{
+						PackageSpec: v1.PackageSpec{
 							Package:                  configPackage,
 							SkipDependencyResolution: pointer.BoolPtr(true),
 						},
@@ -129,10 +129,10 @@ func TestDependencies(t *testing.T) {
 					if err != nil {
 						return false, err
 					}
-					if config.GetCondition(v1beta1.TypeInstalled).Status != corev1.ConditionTrue {
+					if config.GetCondition(v1.TypeInstalled).Status != corev1.ConditionTrue {
 						return false, nil
 					}
-					if config.GetCondition(v1beta1.TypeHealthy).Status != corev1.ConditionTrue {
+					if config.GetCondition(v1.TypeHealthy).Status != corev1.ConditionTrue {
 						return false, nil
 					}
 					l, err := c.Providers().List(ctx, metav1.ListOptions{})
