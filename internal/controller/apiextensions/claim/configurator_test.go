@@ -39,7 +39,10 @@ import (
 func TestCompositeConfigure(t *testing.T) {
 	ns := "spacename"
 	name := "cool"
+	apiVersion := "v"
+	kind := "k"
 	now := metav1.Now()
+	errBoom := errors.New("boom")
 
 	type args struct {
 		ctx context.Context
@@ -54,6 +57,7 @@ func TestCompositeConfigure(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
+		c      client.Client
 		args   args
 		want   want
 	}{
@@ -69,15 +73,7 @@ func TestCompositeConfigure(t *testing.T) {
 				cp: &fake.Composite{},
 			},
 			want: want{
-				cp: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: name + "-",
-						Labels: map[string]string{
-							xcrd.LabelKeyClaimNamespace: ns,
-							xcrd.LabelKeyClaimName:      name,
-						},
-					},
-				},
+				cp: &fake.Composite{},
 			},
 		},
 		"CompositeNotUnstructured": {
@@ -96,15 +92,7 @@ func TestCompositeConfigure(t *testing.T) {
 				cp: &fake.Composite{},
 			},
 			want: want{
-				cp: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						GenerateName: name + "-",
-						Labels: map[string]string{
-							xcrd.LabelKeyClaimNamespace: ns,
-							xcrd.LabelKeyClaimName:      name,
-						},
-					},
-				},
+				cp: &fake.Composite{},
 			},
 		},
 		"UnsupportedSpecError": {
@@ -124,28 +112,68 @@ func TestCompositeConfigure(t *testing.T) {
 				cp: &composite.Unstructured{},
 			},
 			want: want{
-				cp: &composite.Unstructured{
+				cp:  &composite.Unstructured{},
+				err: errors.New(errUnsupportedClaimSpec),
+			},
+		},
+		"AlreadyClaimedError": {
+			reason: "We should return an error if we appear to be configuring a composite resource claimed by a different... claim.",
+			args: args{
+				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]interface{}{
 							"metadata": map[string]interface{}{
-								"generateName": name + "-",
-								"labels": map[string]interface{}{
-									xcrd.LabelKeyClaimNamespace: ns,
-									xcrd.LabelKeyClaimName:      name,
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec": map[string]interface{}{
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       "some-other-claim",
 								},
 							},
 						},
 					},
 				},
-				err: errors.New(errUnsupportedClaimSpec),
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"spec": map[string]interface{}{
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       "some-other-claim",
+								},
+							},
+						},
+					},
+				},
+				err: errors.New(errBindCompositeConflict),
 			},
 		},
-		"ConfiguredNewXR": {
-			reason: "A dynamically provisioned composite resource should be configured according to the claim",
+		"DryRunError": {
+			reason: "We should return any error we encounter while dry-run creating a dynamically provisioned composite",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(errBoom),
+			},
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]interface{}{
+							"apiVersion": apiVersion,
+							"kind":       kind,
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
@@ -181,6 +209,71 @@ func TestCompositeConfigure(t *testing.T) {
 								"coolness":            23,
 								"compositionRef":      "ref",
 								"compositionSelector": "ref",
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+						},
+					},
+				},
+				err: errors.Wrap(errBoom, errName),
+			},
+		},
+		"ConfiguredNewXR": {
+			reason: "A dynamically provisioned composite resource should be configured according to the claim",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]interface{}{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]interface{}{
+								"coolness": 23,
+
+								// These should be preserved.
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+
+								// These should be filtered out.
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]interface{}{
+							"metadata": map[string]interface{}{
+								"generateName": name + "-",
+								"labels": map[string]interface{}{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]interface{}{
+								"coolness":            23,
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
 							},
 						},
 					},
@@ -193,6 +286,8 @@ func TestCompositeConfigure(t *testing.T) {
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
 						Object: map[string]interface{}{
+							"apiVersion": apiVersion,
+							"kind":       kind,
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
@@ -264,6 +359,12 @@ func TestCompositeConfigure(t *testing.T) {
 							},
 							"spec": map[string]interface{}{
 								"coolness": 23,
+								"claimRef": map[string]interface{}{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
 							},
 						},
 					},
@@ -274,12 +375,13 @@ func TestCompositeConfigure(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := ConfigureComposite(tc.args.ctx, tc.args.cm, tc.args.cp)
+			c := NewAPIDryRunCompositeConfigurator(tc.c)
+			got := c.Configure(tc.args.ctx, tc.args.cm, tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
-				t.Errorf("ConfigureComposite(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
+				t.Errorf("Configure(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
-				t.Errorf("ConfigureComposite(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
+				t.Errorf("Configure(...): %s\n-want, +got:\n%s\n", tc.reason, diff)
 			}
 		})
 	}
@@ -481,6 +583,9 @@ func TestClaimConfigure(t *testing.T) {
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: "nope",
+								},
 							},
 							"spec": map[string]interface{}{
 								"someField":                  "someValue",
@@ -497,6 +602,9 @@ func TestClaimConfigure(t *testing.T) {
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name + "-12345",
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: name,
+								},
 							},
 							"spec": map[string]interface{}{
 								"coolness": 23,
@@ -517,6 +625,9 @@ func TestClaimConfigure(t *testing.T) {
 							"metadata": map[string]interface{}{
 								"namespace": ns,
 								"name":      name,
+								"annotations": map[string]interface{}{
+									meta.AnnotationKeyExternalName: name,
+								},
 							},
 							"spec": map[string]interface{}{
 								"someField":                  "someValue",

@@ -20,11 +20,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -143,10 +143,10 @@ type crComposite struct {
 	ConnectionPropagator
 }
 
-func defaultCRComposite(c client.Client, t runtime.ObjectTyper) crComposite {
+func defaultCRComposite(c client.Client) crComposite {
 	return crComposite{
-		Configurator:         ConfiguratorFn(ConfigureComposite),
-		ConnectionPropagator: NewAPIConnectionPropagator(c, t),
+		Configurator:         NewAPIDryRunCompositeConfigurator(c),
+		ConnectionPropagator: NewAPIConnectionPropagator(c),
 	}
 }
 
@@ -156,10 +156,10 @@ type crClaim struct {
 	Configurator
 }
 
-func defaultCRClaim(c client.Client, t runtime.ObjectTyper) crClaim {
+func defaultCRClaim(c client.Client) crClaim {
 	return crClaim{
 		Finalizer:    resource.NewAPIFinalizer(c, finalizer),
-		Binder:       NewAPIBinder(c, t),
+		Binder:       NewAPIBinder(c),
 		Configurator: NewAPIClaimConfigurator(c),
 	}
 }
@@ -247,8 +247,8 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 		newComposite: func() resource.Composite {
 			return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(with)))
 		},
-		composite: defaultCRComposite(c, m.GetScheme()),
-		claim:     defaultCRClaim(c, m.GetScheme()),
+		composite: defaultCRComposite(c),
+		claim:     defaultCRClaim(c),
 		log:       logging.NewNopLogger(),
 		record:    event.NewNopRecorder(),
 	}
@@ -291,34 +291,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
-		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); err != nil {
-			// If our referenced composite doesn't exist and we're not being
-			// deleted we want to requeue after a short wait for someone to
-			// (re)create it. We must explicitly requeue because our
-			// EnqueueRequestForClaim handler can only enqueue reconciles for
-			// composite resources that have their claim reference set, so we
-			// can't expect to be queued implicitly when the composite resource
-			// we want to bind to appears. If the error was anything other than
-			// NotFound we want to retry after a short wait, too. If our
-			// referenced composite resource doesn't exist and we're being
-			// deleted we want to fall through to the below meta.WasDeleted
-			// block, where we can safely 'delete' the non-existent composite
-			// and remove our finalizer.
-			if !kerrors.IsNotFound(err) || !meta.WasDeleted(cm) {
-				log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-				record.Event(cm, event.Warning(reasonBind, err))
-				return reconcile.Result{RequeueAfter: aShortWait}, nil
-			}
+		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); resource.IgnoreNotFound(err) != nil {
+			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			record.Event(cm, event.Warning(reasonBind, err))
+			return reconcile.Result{RequeueAfter: aShortWait}, nil
 		}
 	}
 
 	if meta.WasDeleted(cm) {
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
-		// TODO(negz): We should make sure the composite resource references the
-		// claim before we try to delete it.
-
 		if meta.WasCreated(cp) {
+			ref := cp.GetClaimReference()
+			want := meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
+			if !cmp.Equal(want, ref, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
+				// We don't requeue in this situation because the claim will need
+				// human intervention before we can proceed (e.g. fixing the ref),
+				// and we'll be queued implicitly when the claim is edited.
+				err := errors.New("Refusing to delete composite resource that is not bound to this claim")
+				log.Debug("Cannot delete composite resource", "error", err)
+				record.Event(cm, event.Warning(reasonDelete, err))
+				return reconcile.Result{Requeue: false}, nil
+			}
+
 			if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
 				// If we didn't hit this error last time we'll be requeued
 				// implicitly due to the status update. Otherwise we want to retry
@@ -373,6 +368,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	record = record.WithAnnotations("composite-name", cp.GetName())
 	log = log.WithValues("composite-name", cp.GetName())
 
+	// We want to make sure we bind the claim to the composite (i.e. that we
+	// set the claim's resourceRef) before we ever create the composite. We
+	// use resourceRef to determine whether or not we need to create a new
+	// composite resource. If we first created the composite then set the
+	// resourceRef we'd risk leaking composite resources, e.g. if we hit an
+	// error between when we created the composite resource and when we
+	// persisted its resourceRef.
+	if err := r.claim.Bind(ctx, cm, cp); err != nil {
+		// If we didn't hit this error last time we'll be requeued implicitly
+		// due to the status update. Otherwise we want to retry after a brief
+		// wait, in case this was a transient error.
+		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		record.Event(cm, event.Warning(reasonBind, err))
+		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
+		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+
 	if err := r.client.Apply(ctx, cp); err != nil {
 		// If we didn't hit this error last time we'll be requeued
 		// implicitly due to the status update. Otherwise we want to retry
@@ -384,16 +396,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	log.Debug("Successfully applied composite resource")
 	record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
-
-	if err := r.claim.Bind(ctx, cm, cp); err != nil {
-		// If we didn't hit this error last time we'll be requeued implicitly
-		// due to the status update. Otherwise we want to retry after a brief
-		// wait, in case this was a transient error.
-		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
-		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
-	}
 
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
 		log.Debug("Cannot configure composite resource claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
