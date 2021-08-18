@@ -107,14 +107,17 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 		meta.SetExternalName(ucp, en)
 	}
 
-	// Delete base claim fields when configuring composite spec
-	baseClaimSpec := xcrd.CompositeResourceClaimSpecProps()
-
-	// keep any necessary fields between claim and composite
-	for _, field := range xcrd.KeepClaimSpecProps {
-		delete(baseClaimSpec, field)
+	// We want to propagate the claim's spec to the composite's spec, but
+	// first we must filter out any well-known fields that are unique to
+	// claims. We do this by:
+	// 1. Grabbing a map whose keys represent all well-known claim fields.
+	// 2. Deleting any well-known fields that we want to propagate.
+	// 3. Using the resulting map keys to filter the claim's spec.
+	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps()
+	for _, field := range xcrd.PropagateClaimSpecProps {
+		delete(wellKnownClaimFields, field)
 	}
-	claimSpecFilter := xcrd.GetPropFields(baseClaimSpec)
+	claimSpecFilter := xcrd.GetPropFields(wellKnownClaimFields)
 	ucp.Object["spec"] = filter(spec, claimSpecFilter...)
 
 	// Note that we overwrite the entire composite spec above, so we wait

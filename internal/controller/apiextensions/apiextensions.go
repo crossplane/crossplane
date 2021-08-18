@@ -21,19 +21,27 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/definition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
+	"github.com/crossplane/crossplane/internal/feature"
 )
 
 // Setup API extensions controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger) error {
-	for _, setup := range []func(ctrl.Manager, logging.Logger) error{
-		definition.Setup,
-		offered.Setup,
-	} {
-		if err := setup(mgr, l); err != nil {
+func Setup(mgr ctrl.Manager, l logging.Logger, f *feature.Flags) error {
+
+	// The Composition controller only deals in the management of
+	// CompositionRevisions, so we don't need it at all unless the
+	// CompositionRevision feature flag is enabled.
+	if f.Enabled(feature.FlagEnableAlphaCompositionRevisions) {
+		if err := composition.Setup(mgr, l); err != nil {
 			return err
 		}
 	}
-	return nil
+
+	if err := definition.Setup(mgr, l, f); err != nil {
+		return err
+	}
+
+	return offered.Setup(mgr, l)
 }

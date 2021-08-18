@@ -53,7 +53,7 @@ const (
 	errUpdate       = "cannot update composite resource"
 	errUpdateStatus = "cannot update composite resource status"
 	errSelectComp   = "cannot select Composition"
-	errGetComp      = "cannot get Composition"
+	errFetchComp    = "cannot fetch Composition"
 	errConfigure    = "cannot configure composite resource"
 	errPublish      = "cannot publish connection details"
 	errRenderCD     = "cannot render composed resource"
@@ -113,6 +113,21 @@ type CompositionSelectorFn func(ctx context.Context, cr resource.Composite) erro
 
 // SelectComposition for the supplied composite resource.
 func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resource.Composite) error {
+	return fn(ctx, cr)
+}
+
+// A CompositionFetcher fetches an appropriate Composition for the supplied
+// composite resource.
+type CompositionFetcher interface {
+	Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error)
+}
+
+// A CompositionFetcherFn fetches an appropriate Composition for the supplied
+// composite resource.
+type CompositionFetcherFn func(ctx context.Context, cr resource.Composite) (*v1.Composition, error)
+
+// Fetch an appropriate Composition for the supplied Composite resource.
+func (fn CompositionFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) {
 	return fn(ctx, cr)
 }
 
@@ -195,6 +210,14 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 	}
 }
 
+// WithCompositionFetcher specifies how the composition to be used should be
+// fetched.
+func WithCompositionFetcher(f CompositionFetcher) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composition.CompositionFetcher = f
+	}
+}
+
 // WithCompositionValidator specifies how the Reconciler should validate
 // Compositions.
 func WithCompositionValidator(v CompositionValidator) ReconcilerOption {
@@ -236,9 +259,9 @@ func WithReadinessChecker(c ReadinessChecker) ReconcilerOption {
 
 // WithCompositionSelector specifies how the composition to be used should be
 // selected.
-func WithCompositionSelector(p CompositionSelector) ReconcilerOption {
+func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.CompositionSelector = p
+		r.composite.CompositionSelector = s
 	}
 }
 
@@ -266,6 +289,7 @@ func WithCompositeRenderer(rd Renderer) ReconcilerOption {
 }
 
 type composition struct {
+	CompositionFetcher
 	CompositionValidator
 	CompositionTemplateAssociator
 }
@@ -291,13 +315,11 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
-		client: resource.ClientApplicator{
-			Client:     kube,
-			Applicator: resource.NewAPIPatchingApplicator(kube),
-		},
+		client:       resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 		newComposite: nc,
 
 		composition: composition{
+			CompositionFetcher: NewAPICompositionFetcher(kube),
 			CompositionValidator: ValidationChain{
 				CompositionValidatorFn(RejectMixedTemplates),
 				CompositionValidatorFn(RejectDuplicateNames),
@@ -381,11 +403,19 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 	r.record.Event(cr, event.Normal(reasonResolve, "Successfully selected composition"))
 
-	// TODO(muvaf): We should lock the deletion of Composition via finalizer
-	// because its deletion will break the field propagation.
-	comp := &v1.Composition{}
-	if err := r.client.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
-		log.Debug(errGetComp, "error", err)
+	// Note that this 'Composition' will be derived from a
+	// CompositionRevision if the relevant feature flag is enabled.
+	comp, err := r.composition.Fetch(ctx, cr)
+	if err != nil {
+		log.Debug(errFetchComp, "error", err)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{RequeueAfter: shortWait}, nil
+	}
+
+	// TODO(negz): Composition validation should be handled by a validation
+	// webhook, not by this controller.
+	if err := r.composition.Validate(comp); err != nil {
+		log.Debug(errValidate, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
@@ -396,28 +426,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	log = log.WithValues(
-		"composition-uid", comp.GetUID(),
-		"composition-version", comp.GetResourceVersion(),
-		"composition-name", comp.GetName(),
-	)
-
-	// TODO(negz): Composition validation should be handled by a validation
-	// webhook, not by this controller.
-	if err := r.composition.Validate(comp); err != nil {
-		log.Debug(errValidate, "error", err)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
-	}
-
 	// Inline PatchSets from Composition Spec before composing resources.
-	if err := comp.Spec.InlinePatchSets(); err != nil {
+	ct, err := comp.Spec.ComposedTemplates()
+	if err != nil {
 		log.Debug(errInline, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
 	}
 
-	tas, err := r.composition.AssociateTemplates(ctx, cr, comp)
+	tas, err := r.composition.AssociateTemplates(ctx, cr, ct)
 	if err != nil {
 		log.Debug(errAssociate, "error", err)
 		r.record.Event(cr, event.Warning(reasonCompose, err))

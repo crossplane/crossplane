@@ -2,6 +2,7 @@
 # by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master
 resources:
 - crds/apiextensions.crossplane.io_compositeresourcedefinitions.yaml
+- crds/apiextensions.crossplane.io_compositionrevisions.yaml
 - crds/apiextensions.crossplane.io_compositions.yaml
 - crds/pkg.crossplane.io_configurationrevisions.yaml
 - crds/pkg.crossplane.io_configurations.yaml

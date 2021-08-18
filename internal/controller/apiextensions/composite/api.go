@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -35,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -42,11 +44,15 @@ import (
 const (
 	errApplySecret = "cannot apply connection secret"
 
-	errNoCompatibleComposition  = "no compatible composition has been found"
-	errListCompositions         = "cannot list compositions"
-	errUpdateComposite          = "cannot update composite resource"
-	errCompositionNotCompatible = "referenced composition is not compatible with this composite resource"
-	errGetXRD                   = "cannot get composite resource definition"
+	errNoCompatibleComposition         = "no compatible Compositions found"
+	errNoCompatibleCompositionRevision = "no compatible CompositionRevisions found"
+	errGetComposition                  = "cannot get Composition"
+	errGetCompositionRevision          = "cannot get CompositionRevision"
+	errListCompositions                = "cannot list Compositions"
+	errListCompositionRevisions        = "cannot list CompositionRevisions"
+	errUpdateComposite                 = "cannot update composite resource"
+	errCompositionNotCompatible        = "referenced composition is not compatible with this composite resource"
+	errGetXRD                          = "cannot get composite resource definition"
 )
 
 // Event reasons.
@@ -110,6 +116,107 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o re
 // that will be garbage collected by Kubernetes when the managed resource is
 // deleted.
 func (a *APIFilteredSecretPublisher) UnpublishConnection(_ context.Context, _ resource.ConnectionSecretOwner, _ managed.ConnectionDetails) error {
+	return nil
+}
+
+// An APICompositionFetcher fetches the Composition referenced by a composite
+// resource.
+type APICompositionFetcher struct {
+	reader client.Reader
+}
+
+// NewAPICompositionFetcher returns a CompositionFetcher that fetches the
+// Composition referenced by a composite resource.
+func NewAPICompositionFetcher(r client.Reader) *APICompositionFetcher {
+	return &APICompositionFetcher{reader: r}
+}
+
+// Fetch the Composition referenced by the supplied composite resource. Panics
+// if the composite resource's composition reference is nil.
+func (f *APICompositionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) {
+	comp := &v1.Composition{}
+	err := f.reader.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp)
+	return comp, errors.Wrap(err, errGetComposition)
+}
+
+// An APIRevisionFetcher selects the appropriate CompositionRevision for a
+// composite resource, fetches it, and returns it as a Composition. This is done
+// for compatibility with existing Composition logic while CompositionRevisions
+// are in alpha.
+type APIRevisionFetcher struct {
+	ca resource.ClientApplicator
+}
+
+// NewAPIRevisionFetcher returns a RevisionFetcher that fetches the
+// Revision referenced by a composite resource.
+func NewAPIRevisionFetcher(ca resource.ClientApplicator) *APIRevisionFetcher {
+	return &APIRevisionFetcher{ca: ca}
+}
+
+// Fetch the appropriate CompositionRevision for the supplied composite
+// resource and convert it to a Composition. Panics if the composite resource's
+// composition reference is nil, but handles setting the composition revision
+// reference.
+func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) {
+	ref := cr.GetCompositionRevisionReference()
+	pol := cr.GetCompositionUpdatePolicy()
+
+	// We've already selected a revision, and our update policy is manual.
+	// Just fetch and return the selected revision.
+	if ref != nil && pol != nil && *pol == xpv1.UpdateManual {
+		rev := &v1alpha1.CompositionRevision{}
+		err := f.ca.Get(ctx, meta.NamespacedNameOf(ref), rev)
+		return AsComposition(rev), errors.Wrap(err, errGetCompositionRevision)
+	}
+
+	// We either haven't yet selected a revision, or our update policy is
+	// automatic. Either way we need to determine the latest revision.
+
+	comp := &v1.Composition{}
+	if err := f.ca.Get(ctx, meta.NamespacedNameOf(cr.GetCompositionReference()), comp); err != nil {
+		return nil, errors.Wrap(err, errGetComposition)
+	}
+
+	rl := &v1alpha1.CompositionRevisionList{}
+	if err := f.ca.List(ctx, rl, client.MatchingLabels{v1alpha1.LabelCompositionName: comp.GetName()}); err != nil {
+		return nil, errors.Wrap(err, errListCompositionRevisions)
+	}
+
+	current := currentRevision(comp, rl.Items)
+	if current == nil {
+		return nil, errors.New(errNoCompatibleCompositionRevision)
+	}
+
+	if ref == nil || ref.Name != current.GetName() {
+		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1alpha1.CompositionRevisionGroupVersionKind))
+		if err := f.ca.Apply(ctx, cr); err != nil {
+			return nil, errors.Wrap(err, errUpdate)
+		}
+	}
+
+	return AsComposition(current), nil
+}
+
+// currentRevision returns the current revision of the supplied composition. It
+// returns nil if none of the supplied revisions appear to be currentRevision.
+// We use a hash of the spec, not the revision number, to determine which
+// revision is currentRevision. This is because the Composition may have been
+// reverted to an older state. When this happens we don't create a new
+// CompositionRevision; rather the prior revision becomes effectively
+// 'currentRevision'.
+func currentRevision(c *v1.Composition, revs []v1alpha1.CompositionRevision) *v1alpha1.CompositionRevision {
+	currentHash := c.Spec.Hash()
+
+	for i := range revs {
+		if !metav1.IsControlledBy(&revs[i], c) {
+			continue
+		}
+
+		if revs[i].GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
+			return &revs[i]
+		}
+	}
+
 	return nil
 }
 

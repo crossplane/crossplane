@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/Azure/go-autorest/autorest/validation v0.2.0 // indirect
 	github.com/Masterminds/semver v1.5.0
-	github.com/alecthomas/kong v0.2.11
+	github.com/alecthomas/kong v0.2.17
 	github.com/aws/aws-sdk-go v1.31.6 // indirect
 	github.com/crossplane/crossplane-runtime v0.14.1-0.20210812020058-ba474e81c62c
 	github.com/docker/cli v0.0.0-20200915230204-cd8016b6bcc5 // indirect
@@ -16,6 +16,7 @@ require (
 	github.com/imdario/mergo v0.3.12
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/afero v1.4.1
+	golang.org/x/tools v0.1.0
 	k8s.io/api v0.21.2
 	k8s.io/apiextensions-apiserver v0.21.2
 	k8s.io/apimachinery v0.21.2

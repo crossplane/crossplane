@@ -30,6 +30,7 @@ import (
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
+	"github.com/crossplane/crossplane/internal/feature"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -58,6 +59,8 @@ type startCommand struct {
 	LeaderElection bool          `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
 	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 	Sync           time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
+
+	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
 }
 
 // Run core Crossplane controllers.
@@ -78,7 +81,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "Cannot create manager")
 	}
 
-	if err := apiextensions.Setup(mgr, log); err != nil {
+	f := &feature.Flags{}
+	if c.EnableCompositionRevisions {
+		f.Enable(feature.FlagEnableAlphaCompositionRevisions)
+		log.Info("Alpha feature enabled", "flag", feature.FlagEnableAlphaCompositionRevisions.String())
+	}
+
+	if err := apiextensions.Setup(mgr, log, f); err != nil {
 		return errors.Wrap(err, "Cannot setup API extension controllers")
 	}
 

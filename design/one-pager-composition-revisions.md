@@ -116,9 +116,9 @@ spec:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: CompositionRevision
 metadata:
-  # The revision's name is derived by appending the revision number to the
-  # Composition's name.
-  name: example-1
+  # The revision's name is derived from the composition's name using the API
+  # server's GenerateName support.
+  name: example-fklem2
   labels:
     crossplane.io/composition-name: example
     crossplane.io/composition-spec-hash: 707e5bf63687fce7

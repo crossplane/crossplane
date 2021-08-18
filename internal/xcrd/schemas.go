@@ -25,9 +25,9 @@ const (
 	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
-// KeepClaimSpecProps is the list of XRC spec properties to keep
+// PropagateClaimSpecProps is the list of XRC spec properties to propagate
 // when translating an XRC into an XR.
-var KeepClaimSpecProps = []string{"compositionRef", "compositionSelector"}
+var PropagateClaimSpecProps = []string{"compositionRef", "compositionSelector", "compositionRevisionRef", "compositionUpdatePolicy"}
 
 // TODO(negz): Add descriptions to schema fields.
 
@@ -85,6 +85,23 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 					},
 				},
 			},
+		},
+		"compositionRevisionRef": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name": {Type: "string"},
+			},
+			Description: "Alpha: This field may be deprecated or changed without notice.",
+		},
+		"compositionUpdatePolicy": {
+			Type: "string",
+			Enum: []extv1.JSON{
+				{Raw: []byte(`"Automatic"`)},
+				{Raw: []byte(`"Manual"`)},
+			},
+			Default:     &extv1.JSON{Raw: []byte(`"Automatic"`)},
+			Description: "Alpha: This field may be deprecated or changed without notice.",
 		},
 		"claimRef": {
 			Type:     "object",
@@ -145,6 +162,21 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 					},
 				},
 			},
+		},
+		"compositionRevisionRef": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name": {Type: "string"},
+			},
+		},
+		"compositionUpdatePolicy": {
+			Type: "string",
+			Enum: []extv1.JSON{
+				{Raw: []byte(`"Automatic"`)},
+				{Raw: []byte(`"Manual"`)},
+			},
+			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
 		"resourceRef": {
 			Type:     "object",

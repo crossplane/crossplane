@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1alpha1
 
 import (
 	"reflect"
@@ -26,7 +26,7 @@ import (
 // Package type metadata.
 const (
 	Group   = "apiextensions.crossplane.io"
-	Version = "v1beta1"
+	Version = "v1alpha1"
 )
 
 var (
@@ -40,23 +40,14 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// CompositeResourceDefinition type metadata.
-var (
-	CompositeResourceDefinitionKind             = reflect.TypeOf(CompositeResourceDefinition{}).Name()
-	CompositeResourceDefinitionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositeResourceDefinitionKind}.String()
-	CompositeResourceDefinitionKindAPIVersion   = CompositeResourceDefinitionKind + "." + SchemeGroupVersion.String()
-	CompositeResourceDefinitionGroupVersionKind = SchemeGroupVersion.WithKind(CompositeResourceDefinitionKind)
-)
-
 // Composition type metadata.
 var (
-	CompositionKind             = reflect.TypeOf(Composition{}).Name()
-	CompositionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionKind}.String()
-	CompositionKindAPIVersion   = CompositionKind + "." + SchemeGroupVersion.String()
-	CompositionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionKind)
+	CompositionRevisionKind             = reflect.TypeOf(CompositionRevision{}).Name()
+	CompositionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionRevisionKind}.String()
+	CompositionRevisionKindAPIVersion   = CompositionRevisionKind + "." + SchemeGroupVersion.String()
+	CompositionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionRevisionKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{})
-	SchemeBuilder.Register(&Composition{}, &CompositionList{})
+	SchemeBuilder.Register(&CompositionRevision{}, &CompositionRevisionList{})
 }

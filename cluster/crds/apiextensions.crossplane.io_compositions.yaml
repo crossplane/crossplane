@@ -23,8 +23,7 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: Composition defines the group of resources to be created when
-          a compatible type is created with reference to the composition.
+        description: A Composition specifies how a composite resource should be composed.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -39,7 +38,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: CompositionSpec specifies the desired state of the definition.
+            description: CompositionSpec specifies desired state of a composition.
             properties:
               compositeTypeRef:
                 description: CompositeTypeRef specifies the type of composite resource
