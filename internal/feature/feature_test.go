@@ -25,7 +25,7 @@ import (
 func TestEnable(t *testing.T) {
 	var cool Flag = -1
 
-	t.Run("EnableOnZeroValue", func(t *testing.T) {
+	t.Run("EnableMutatesZeroValue", func(t *testing.T) {
 		f := &Flags{}
 		f.Enable(cool)
 
@@ -37,7 +37,7 @@ func TestEnable(t *testing.T) {
 		}
 	})
 
-	t.Run("EnabledOnZeroValue", func(t *testing.T) {
+	t.Run("EnabledOnZeroValueReturnsFalse", func(t *testing.T) {
 		f := &Flags{}
 
 		want := false
