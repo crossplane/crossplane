@@ -60,7 +60,7 @@ type startCommand struct {
 	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 	Sync           time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
 
-	EnableAlphaCompositionRevisions bool `help:"Enable alpha support for CompositionRevisions."`
+	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
 }
 
 // Run core Crossplane controllers.
@@ -82,7 +82,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 
 	f := &feature.Flags{}
-	if c.EnableAlphaCompositionRevisions {
+	if c.EnableCompositionRevisions {
 		f.Enable(feature.FlagEnableAlphaCompositionRevisions)
 		log.Info("Alpha feature enabled", "flag", feature.FlagEnableAlphaCompositionRevisions.String())
 	}
