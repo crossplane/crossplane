@@ -157,12 +157,7 @@ func NewAPIRevisionFetcher(ca resource.ClientApplicator) *APIRevisionFetcher {
 // resource and convert it to a Composition. Panics if the composite resource's
 // composition reference is nil, but handles setting the composition revision
 // reference.
-func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) { //nolint:gocyclo
-	// NOTE(negz): This method is slightly over our complexity goal, but it
-	// is intended to be temporary and is readable as is. If it lives past
-	// the alpha stage of CompositionRevision support it may be worth
-	// breaking CompositionRevision selection out into a separate method.
-
+func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) {
 	ref := cr.GetCompositionRevisionReference()
 	pol := cr.GetCompositionUpdatePolicy()
 
@@ -187,37 +182,42 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 
-	currentHash := comp.Spec.Hash()
-
-	var latestIdx int = -1
-	for i := range rl.Items {
-		if !metav1.IsControlledBy(&rl.Items[i], comp) {
-			continue
-		}
-
-		// We use the hash, not the revision number, to determine which
-		// revision is current. This is because the Composition may have
-		// been reverted to an older state. When this happens we don't
-		// create a new CompositionRevision; rather the prior revision
-		// becomes effectively 'current'.
-		if rl.Items[i].GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
-			latestIdx = i
-		}
-	}
-
-	if latestIdx == -1 {
+	current := currentRevision(comp, rl.Items)
+	if current == nil {
 		return nil, errors.New(errNoCompatibleCompositionRevision)
 	}
 
-	latest := &rl.Items[latestIdx]
-	if ref == nil || ref != nil && ref.Name != latest.GetName() {
-		cr.SetCompositionRevisionReference(meta.ReferenceTo(latest, v1alpha1.CompositionRevisionGroupVersionKind))
+	if ref == nil || ref.Name != current.GetName() {
+		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1alpha1.CompositionRevisionGroupVersionKind))
 		if err := f.ca.Apply(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}
 	}
 
-	return AsComposition(latest), nil
+	return AsComposition(current), nil
+}
+
+// currentRevision returns the current revision of the supplied composition. It
+// returns nil if none of the supplied revisions appear to be currentRevision.
+// We use a hash of the spec, not the revision number, to determine which
+// revision is currentRevision. This is because the Composition may have been
+// reverted to an older state. When this happens we don't create a new
+// CompositionRevision; rather the prior revision becomes effectively
+// 'currentRevision'.
+func currentRevision(c *v1.Composition, revs []v1alpha1.CompositionRevision) *v1alpha1.CompositionRevision {
+	currentHash := c.Spec.Hash()
+
+	for i := range revs {
+		if !metav1.IsControlledBy(&revs[i], c) {
+			continue
+		}
+
+		if revs[i].GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
+			return &revs[i]
+		}
+	}
+
+	return nil
 }
 
 // NewCompositionSelectorChain returns a new CompositionSelectorChain.
