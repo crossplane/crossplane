@@ -13,22 +13,25 @@ registered in your Kubernetes cluster and its controller should be watching the
 Custom Resources those CRDs define. Provider packages contain many Custom
 Resource Definitions and their controllers.
 
-Here is the list of current providers:
+Here is the list of prominent providers:
 
 ### AWS Provider
 
 * [GitHub][provider-aws]
 * [API Reference][aws-reference]
+* [Amazon Web Services (AWS) IAM User]
 
 ### GCP Provider
 
 * [GitHub][provider-gcp]
 * [API Reference][gcp-reference]
+* [Google Cloud Platform (GCP) Service Account]
 
 ### Azure Provider
 
 * [GitHub][provider-azure]
 * [API Reference][azure-reference]
+* [Microsoft Azure Service Principal]
 
 ### Rook Provider
 
@@ -134,3 +137,6 @@ will attempt to use a `ProviderConfig` named `default`.
 [provider-alibaba]: https://github.com/crossplane/provider-alibaba
 [alibaba-reference]: https://doc.crds.dev/github.com/crossplane/provider-alibaba
 [getting-started]: ../getting-started/install-configure.md
+[Google Cloud Platform (GCP) Service Account]: ../cloud-providers/gcp/gcp-provider.md
+[Microsoft Azure Service Principal]: ../cloud-providers/azure/azure-provider.md
+[Amazon Web Services (AWS) IAM User]: ../cloud-providers/aws/aws-provider.md
