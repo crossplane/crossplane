@@ -191,7 +191,6 @@ type ConnectionDetail struct {
 
 // A Composition specifies how a composite resource should be composed.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
 type Composition struct {
 	metav1.TypeMeta   `json:",inline"`

@@ -442,6 +442,7 @@ type CompositionRevisionStatus struct {
 // +kubebuilder:printcolumn:name="CURRENT",type="string",JSONPath=".status.conditions[?(@.type=='Current')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:subresource:status
 type CompositionRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
