@@ -150,7 +150,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, errListRevs)
 	}
 
-	var latestRev, revertedToRev int64
+	var latestRev, existingRev int64
 	for i := range rl.Items {
 		rev := &rl.Items[i]
 		if !metav1.IsControlledBy(rev, comp) {
@@ -163,7 +163,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		want := v1alpha1.CompositionSpecDiffers()
 		if rev.GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
-			revertedToRev = rev.Spec.Revision
+			existingRev = rev.Spec.Revision
 			want = v1alpha1.CompositionSpecMatches()
 		}
 
@@ -182,8 +182,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 	}
 
-	if revertedToRev > 0 {
-		log.Debug("Composition spec returned to previous state. No new revision needed.", "reverted-to-revision", revertedToRev)
+	// We start from revision 1, so 0 indicates we didn't find one.
+	if existingRev > 0 {
+		log.Debug("No new revision needed.", "current-revision", existingRev)
 		return reconcile.Result{}, nil
 	}
 
