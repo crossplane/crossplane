@@ -45,14 +45,16 @@ const (
 
 // Error strings
 const (
-	errGet       = "cannot get Composition"
-	errListRevs  = "cannot list CompositionRevisions"
-	errCreateRev = "cannot create CompositionRevision"
+	errGet             = "cannot get Composition"
+	errListRevs        = "cannot list CompositionRevisions"
+	errCreateRev       = "cannot create CompositionRevision"
+	errUpdateRevStatus = "cannot update CompositionRevision status"
 )
 
 // Event reasons.
 const (
 	reasonCreateRev event.Reason = "CreateRevision"
+	reasonUpdateRev event.Reason = "UpdateRevision"
 )
 
 // Setup adds a controller that reconciles Compositions by creating new
@@ -112,7 +114,9 @@ type Reconciler struct {
 }
 
 // Reconcile a Composition.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
+	// NOTE(negz): This method is a little over our complexity goal. Be wary
+	// of making it more complex.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -146,21 +150,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(err, errListRevs)
 	}
 
-	var latestRev int64
+	var latestRev, revertedToRev int64
 	for i := range rl.Items {
 		rev := &rl.Items[i]
 		if !metav1.IsControlledBy(rev, comp) {
 			continue
 		}
 
-		if rev.GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
-			log.Debug("Composition spec returned to previous state. No new revision needed.")
-			return reconcile.Result{}, nil
-		}
-
 		if rev.Spec.Revision > latestRev {
 			latestRev = rev.Spec.Revision
 		}
+
+		want := v1alpha1.CompositionSpecDiffers()
+		if rev.GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
+			revertedToRev = rev.Spec.Revision
+			want = v1alpha1.CompositionSpecMatches()
+		}
+
+		// No need to update this revision's status; it already has the
+		// appropriate 'Current' condition.
+		if got := rev.Status.GetCondition(v1alpha1.TypeCurrent); got.Status == want.Status {
+			continue
+		}
+
+		// Toggle the 'Current' condition of this revision.
+		rev.Status.SetConditions(want)
+		if err := r.client.Status().Update(ctx, rev); err != nil {
+			log.Debug(errUpdateRevStatus, "error", err)
+			r.record.Event(comp, event.Warning(reasonUpdateRev, err))
+			return reconcile.Result{}, errors.Wrap(err, errUpdateRevStatus)
+		}
+	}
+
+	if revertedToRev > 0 {
+		log.Debug("Composition spec returned to previous state. No new revision needed.", "reverted-to-revision", revertedToRev)
+		return reconcile.Result{}, nil
 	}
 
 	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1, currentHash)); err != nil {

@@ -20,6 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 const (
@@ -423,6 +425,12 @@ type ConnectionDetail struct {
 	Value *string `json:"value,omitempty"`
 }
 
+// CompositionRevisionStatus shows the observed state of the composition
+// revision.
+type CompositionRevisionStatus struct {
+	xpv1.ConditionedStatus `json:",inline"`
+}
+
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
 // +genclient
@@ -431,13 +439,15 @@ type ConnectionDetail struct {
 // A CompositionRevision represents a revision in time of a Composition.
 // Revisions are created by Crossplane; they should be treated as immutable.
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
+// +kubebuilder:printcolumn:name="CURRENT",type="string",JSONPath=".status.conditions[?(@.type=='Current')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
 type CompositionRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec CompositionRevisionSpec `json:"spec,omitempty"`
+	Spec   CompositionRevisionSpec   `json:"spec,omitempty"`
+	Status CompositionRevisionStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

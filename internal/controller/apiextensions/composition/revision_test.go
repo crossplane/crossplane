@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -257,6 +259,13 @@ func TestNewCompositionRevision(t *testing.T) {
 					MatchInteger: 42,
 				}},
 			}},
+		},
+		Status: v1alpha1.CompositionRevisionStatus{
+			ConditionedStatus: xpv1.ConditionedStatus{
+				Conditions: []xpv1.Condition{
+					v1alpha1.CompositionSpecMatches(),
+				},
+			},
 		},
 	}
 
