@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -230,6 +231,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
 
@@ -441,5 +443,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	pr.SetConditions(v1.Healthy())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
