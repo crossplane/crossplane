@@ -27,6 +27,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: A CompositionRevision represents a revision in time of a Composition.
+          Revisions are created by Crossplane; they should be treated as immutable.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
