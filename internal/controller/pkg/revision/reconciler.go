@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -235,6 +236,9 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&appsv1.Deployment{}).
+		Watches(&source.Kind{Type: &v1alpha1.ControllerConfig{}}, &EnqueueRequestForReferencingProviderRevisions{
+			client: mgr.GetClient(),
+		}).
 		Complete(r)
 }
 
