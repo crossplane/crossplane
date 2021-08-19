@@ -20,6 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 const (
@@ -98,26 +100,31 @@ type ComposedTemplate struct {
 	// length and order of the resources array should be treated as immutable.
 	// Either all or no entries must be named.
 	// +optional
+	// +immutable
 	Name *string `json:"name,omitempty"`
 
 	// Base is the target resource that the patches will be applied on.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
+	// +immutable
 	Base runtime.RawExtension `json:"base"`
 
 	// Patches will be applied as overlay to the base resource.
 	// +optional
+	// +immutable
 	Patches []Patch `json:"patches,omitempty"`
 
 	// ConnectionDetails lists the propagation secret keys from this target
 	// resource to the composition instance connection secret.
 	// +optional
+	// +immutable
 	ConnectionDetails []ConnectionDetail `json:"connectionDetails,omitempty"`
 
 	// ReadinessChecks allows users to define custom readiness checks. All checks
 	// have to return true in order for resource to be considered ready. The
 	// default readiness check is to have the "Ready" condition to be "True".
 	// +optional
+	// +immutable
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
@@ -137,18 +144,22 @@ const (
 type ReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
 	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
+	// +immutable
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
 	// +optional
+	// +immutable
 	FieldPath string `json:"fieldPath,omitempty"`
 
 	// MatchString is the value you'd like to match if you're using "MatchString" type.
 	// +optional
+	// +immutable
 	MatchString string `json:"matchString,omitempty"`
 
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	// +optional
+	// +immutable
 	MatchInteger int64 `json:"matchInteger,omitempty"`
 }
 
@@ -172,6 +183,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
+	// +immutable
 	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
@@ -180,10 +192,13 @@ type Patch struct {
 	// to be used as input. Required when type is FromCompositeFieldPath or
 	// ToCompositeFieldPath.
 	// +optional
+	// +immutable
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
 	// Combine is the patch configuration for a CombineFromComposite or
 	// CombineToComposite patch.
+	// +optional
+	// +immutable
 	Combine *Combine `json:"combine,omitempty"`
 
 	// ToFieldPath is the path of the field on the resource whose value will
@@ -194,15 +209,18 @@ type Patch struct {
 
 	// PatchSetName to include patches from. Required when type is PatchSet.
 	// +optional
+	// +immutable
 	PatchSetName *string `json:"patchSetName,omitempty"`
 
 	// Transforms are the list of functions that are used as a FIFO pipe for the
 	// input to be transformed.
 	// +optional
+	// +immutable
 	Transforms []Transform `json:"transforms,omitempty"`
 
 	// Policy configures the specifics of patching behaviour.
 	// +optional
+	// +immutable
 	Policy *PatchPolicy `json:"policy,omitempty"`
 }
 
@@ -223,6 +241,7 @@ type PatchPolicy struct {
 	// the specified path does not exist.
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
+	// +immutable
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
 }
 
@@ -232,16 +251,19 @@ type Combine struct {
 	// Variables are the list of variables whose values will be retrieved and
 	// combined.
 	// +kubebuilder:validation:MinItems=1
+	// +immutable
 	Variables []CombineVariable `json:"variables"`
 
 	// Strategy defines the strategy to use to combine the input variable values.
 	// Currently only string is supported.
 	// +kubebuilder:validation:Enum=string
+	// +immutable
 	Strategy CombineStrategy `json:"strategy"`
 
 	// String declares that input variables should be combined into a single
 	// string, using the relevant settings for formatting purposes.
 	// +optional
+	// +immutable
 	String *StringCombine `json:"string,omitempty"`
 }
 
@@ -251,6 +273,7 @@ type Combine struct {
 type CombineVariable struct {
 	// FromFieldPath is the path of the field on the source whose value is
 	// to be used as input.
+	// +immutable
 	FromFieldPath string `json:"fromFieldPath"`
 }
 
@@ -267,6 +290,7 @@ const (
 type StringCombine struct {
 	// Format the input using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
+	// +immutable
 	Format string `json:"fmt"`
 }
 
@@ -287,24 +311,29 @@ type Transform struct {
 
 	// Type of the transform to be run.
 	// +kubebuilder:validation:Enum=map;math;string;convert
+	// +immutable
 	Type TransformType `json:"type"`
 
 	// Math is used to transform the input via mathematical operations such as
 	// multiplication.
 	// +optional
+	// +immutable
 	Math *MathTransform `json:"math,omitempty"`
 
 	// Map uses the input as a key in the given map and returns the value.
 	// +optional
+	// +immutable
 	Map *MapTransform `json:"map,omitempty"`
 
 	// String is used to transform the input into a string or a different kind
 	// of string. Note that the input does not necessarily need to be a string.
 	// +optional
+	// +immutable
 	String *StringTransform `json:"string,omitempty"`
 
 	// Convert is used to cast the input into the given output type.
 	// +optional
+	// +immutable
 	Convert *ConvertTransform `json:"convert,omitempty"`
 }
 
@@ -313,6 +342,7 @@ type Transform struct {
 type MathTransform struct {
 	// Multiply the value.
 	// +optional
+	// +immutable
 	Multiply *int64 `json:"multiply,omitempty"`
 }
 
@@ -322,6 +352,7 @@ type MapTransform struct {
 
 	// Pairs is the map that will be used for transform.
 	// +optional
+	// +immutable
 	Pairs map[string]string `json:",inline"`
 }
 
@@ -329,12 +360,14 @@ type MapTransform struct {
 type StringTransform struct {
 	// Format the input using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
+	// +immutable
 	Format string `json:"fmt"`
 }
 
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
 	// ToType is the type of the output of this transform.
+	// +immutable
 	// +kubebuilder:validation:Enum=string;int;int64;bool;float64
 	ToType string `json:"toType"`
 }
@@ -357,6 +390,7 @@ type ConnectionDetail struct {
 	// connection secret of the composition instance. Leave empty if you'd like
 	// to use the same key name.
 	// +optional
+	// +immutable
 	Name *string `json:"name,omitempty"`
 
 	// Type sets the connection detail fetching behaviour to be used. Each
@@ -364,18 +398,21 @@ type ConnectionDetail struct {
 	// ConnectionDetail object. If the type is omitted Crossplane will attempt
 	// to infer it based on which other fields were specified.
 	// +optional
+	// +immutable
 	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromValue
 	Type *ConnectionDetailType `json:"type,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
 	// from the given target resource's secret.
 	// +optional
+	// +immutable
 	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
 
 	// FromFieldPath is the path of the field on the composed resource whose
 	// value to be used as input. Name must be specified if the type is
 	// FromFieldPath is specified.
 	// +optional
+	// +immutable
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
 	// Value that will be propagated to the connection secret of the composition
@@ -384,7 +421,14 @@ type ConnectionDetail struct {
 	// secret values, for example a well-known port. Supercedes
 	// FromConnectionSecretKey when set.
 	// +optional
+	// +immutable
 	Value *string `json:"value,omitempty"`
+}
+
+// CompositionRevisionStatus shows the observed state of the composition
+// revision.
+type CompositionRevisionStatus struct {
+	xpv1.ConditionedStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
@@ -393,14 +437,18 @@ type ConnectionDetail struct {
 // +genclient:nonNamespaced
 
 // A CompositionRevision represents a revision in time of a Composition.
+// Revisions are created by Crossplane; they should be treated as immutable.
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
+// +kubebuilder:printcolumn:name="CURRENT",type="string",JSONPath=".status.conditions[?(@.type=='Current')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:subresource:status
 type CompositionRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec CompositionRevisionSpec `json:"spec,omitempty"`
+	Spec   CompositionRevisionSpec   `json:"spec,omitempty"`
+	Status CompositionRevisionStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true

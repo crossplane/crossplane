@@ -20,6 +20,9 @@ spec:
     - jsonPath: .spec.revision
       name: REVISION
       type: string
+    - jsonPath: .status.conditions[?(@.type=='Current')].status
+      name: CURRENT
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
@@ -27,6 +30,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: A CompositionRevision represents a revision in time of a Composition.
+          Revisions are created by Crossplane; they should be treated as immutable.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -531,10 +535,49 @@ spec:
             - resources
             - revision
             type: object
+          status:
+            description: CompositionRevisionStatus shows the observed state of the
+              composition revision.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
+                      type: string
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}
 status:
   acceptedNames:
     kind: ""

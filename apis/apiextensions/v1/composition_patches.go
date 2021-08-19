@@ -92,6 +92,7 @@ type Patch struct {
 
 	// Combine is the patch configuration for a CombineFromComposite or
 	// CombineToComposite patch.
+	// +optional
 	Combine *Combine `json:"combine,omitempty"`
 
 	// ToFieldPath is the path of the field on the resource whose value will
