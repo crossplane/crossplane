@@ -776,7 +776,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"SuccessfulActiveRevisionIgnoreConstraints": {
@@ -836,7 +836,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrEstablishActiveRevision": {
@@ -949,7 +949,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrEstablishInactiveRevision": {
