@@ -20,9 +20,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// CompositionSpec specifies the desired state of the definition.
+// CompositionSpec specifies the desired state of the composition.
 type CompositionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
@@ -206,6 +208,7 @@ type PatchPolicy struct {
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
 }
 
 // A Combine configures a patch that combines more than
@@ -347,7 +350,7 @@ type ConnectionDetail struct {
 	// to infer it based on which other fields were specified.
 	// +optional
 	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromValue
-	Type ConnectionDetailType `json:"type,omitempty"`
+	Type *ConnectionDetailType `json:"type,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
 	// from the given target resource's secret.

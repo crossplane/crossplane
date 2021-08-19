@@ -21,8 +21,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane-runtime/apis/common/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -188,7 +188,7 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	in.Names.DeepCopyInto(&out.Names)
 	if in.ClaimNames != nil {
 		in, out := &in.ClaimNames, &out.ClaimNames
-		*out = new(v1.CustomResourceDefinitionNames)
+		*out = new(apiextensionsv1.CustomResourceDefinitionNames)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.ConnectionSecretKeys != nil {
@@ -198,12 +198,12 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	}
 	if in.DefaultCompositionRef != nil {
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
-		*out = new(commonv1.Reference)
+		*out = new(v1.Reference)
 		**out = **in
 	}
 	if in.EnforcedCompositionRef != nil {
 		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
-		*out = new(commonv1.Reference)
+		*out = new(v1.Reference)
 		**out = **in
 	}
 	if in.Versions != nil {
@@ -252,7 +252,7 @@ func (in *CompositeResourceDefinitionVersion) DeepCopyInto(out *CompositeResourc
 	}
 	if in.AdditionalPrinterColumns != nil {
 		in, out := &in.AdditionalPrinterColumns, &out.AdditionalPrinterColumns
-		*out = make([]v1.CustomResourceColumnDefinition, len(*in))
+		*out = make([]apiextensionsv1.CustomResourceColumnDefinition, len(*in))
 		copy(*out, *in)
 	}
 }
@@ -382,6 +382,11 @@ func (in *ConnectionDetail) DeepCopyInto(out *ConnectionDetail) {
 	if in.Name != nil {
 		in, out := &in.Name, &out.Name
 		*out = new(string)
+		**out = **in
+	}
+	if in.Type != nil {
+		in, out := &in.Type, &out.Type
+		*out = new(ConnectionDetailType)
 		**out = **in
 	}
 	if in.FromConnectionSecretKey != nil {
@@ -522,6 +527,11 @@ func (in *PatchPolicy) DeepCopyInto(out *PatchPolicy) {
 		in, out := &in.FromFieldPath, &out.FromFieldPath
 		*out = new(FromFieldPathPolicy)
 		**out = **in
+	}
+	if in.MergeOptions != nil {
+		in, out := &in.MergeOptions, &out.MergeOptions
+		*out = new(v1.MergeOptions)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
