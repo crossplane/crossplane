@@ -822,7 +822,7 @@ Events:
 Composite resource claims represent a need for a particular kind of composite
 resource, for example the above `MySQLInstance`. Claims are a proxy for the kind
 of resource they claim, allowing platform customers to provision and consume an
-XR. An claim may request a pre-existing, statically provisioned XR or it may
+XR. A claim may request a pre-existing, statically provisioned XR or it may
 dynamically provision one on-demand.
 
 The below claim explicitly requests the `CompositeMySQLInstance` authored in the
