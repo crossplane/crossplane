@@ -35,7 +35,7 @@ type adder interface {
 }
 
 // EnqueueRequestForReferencingProviderRevisions enqueues a request for all
-// provider revisions tha reference a ControllerConfig when the given
+// provider revisions that reference a ControllerConfig when the given
 // ControllerConfig changes.
 type EnqueueRequestForReferencingProviderRevisions struct {
 	client client.Client
