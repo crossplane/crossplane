@@ -25,7 +25,7 @@ and [ordering pizza](https://blog.crossplane.io/providers-101-ordering-pizza-wit
 Composition allows platform builders to define new custom resources that are
 composed of managed resources. We call these composite resources, or XRs. An XR
 typically groups together a handful of managed resources into one logical
-resource, exposing only the settings that the platform builer deems useful and
+resource, exposing only the settings that the platform builder deems useful and
 deferring the rest to an API-server-side template we call a 'Composition'.
 
 Composition can be used to build a catalogue of custom resources and classes of
@@ -822,7 +822,7 @@ Events:
 Composite resource claims represent a need for a particular kind of composite
 resource, for example the above `MySQLInstance`. Claims are a proxy for the kind
 of resource they claim, allowing platform customers to provision and consume an
-XR. An claim may request a pre-existing, statically provisioned XR or it may
+XR. A claim may request a pre-existing, statically provisioned XR or it may
 dynamically provision one on-demand.
 
 The below claim explicitly requests the `CompositeMySQLInstance` authored in the
