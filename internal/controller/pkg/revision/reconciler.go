@@ -22,12 +22,14 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -233,6 +235,10 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
+		Owns(&appsv1.Deployment{}).
+		Watches(&source.Kind{Type: &v1alpha1.ControllerConfig{}}, &EnqueueRequestForReferencingProviderRevisions{
+			client: mgr.GetClient(),
+		}).
 		Complete(r)
 }
 
@@ -453,5 +459,5 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	pr.SetConditions(v1.Healthy())
-	return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 }
