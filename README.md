@@ -52,12 +52,12 @@ documentation].
 | Release |  Current Patch  | Release Date |      EOL      |
 |:-------:|:---------------:|:------------:|:-------------:|
 |   v1.1  |     [v1.1.3]    |  Mar 3, 2021 |  August 2021  |
-|   v1.2  |     [v1.2.3]    | Apr 27, 2021 | October 2021  |
+|   v1.2  |     [v1.2.4]    | Apr 27, 2021 | October 2021  |
 |   v1.3  |     [v1.3.1]    | Jun 29, 2021 | December 2021 |
 |   v1.4  |     Upcoming    | Aug 31, 2021 | February 2022 |
 
 [v1.1.3]: https://github.com/crossplane/crossplane/releases/tag/v1.1.3
-[v1.2.3]: https://github.com/crossplane/crossplane/releases/tag/v1.2.3
+[v1.2.4]: https://github.com/crossplane/crossplane/releases/tag/v1.2.4
 [v1.3.1]: https://github.com/crossplane/crossplane/releases/tag/v1.3.1
 
 ## Getting Started
