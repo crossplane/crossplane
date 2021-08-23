@@ -114,7 +114,7 @@ kubectl create namespace crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.3.0
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --version 1.3.1
 ```
 
 </div>
@@ -234,7 +234,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.3.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.3.1
 ```
 
 Wait until all packages become healthy:
@@ -288,7 +288,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.3.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.3.1
 ```
 
 Wait until all packages become healthy:
@@ -342,7 +342,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.3.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.3.1
 ```
 
 Wait until all packages become healthy:
@@ -412,7 +412,7 @@ spec:
 > section.
 
 ```console
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.3.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.3.1
 ```
 
 Wait until all packages become healthy:
