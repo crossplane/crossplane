@@ -59,6 +59,7 @@ type startCommand struct {
 	CacheDir       string        `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
 	LeaderElection bool          `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
 	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
+	CABundlePath   string        `short:"b" help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
 	Sync           time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
 
 	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
@@ -94,7 +95,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	pkgCache := xpkg.NewImageCache(c.CacheDir, afero.NewOsFs())
 
-	if err := pkg.Setup(mgr, log, pkgCache, c.Namespace, c.Registry); err != nil {
+	if err := pkg.Setup(mgr, log, pkgCache, c.Namespace, c.Registry, c.CABundlePath); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 

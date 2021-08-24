@@ -76,6 +76,10 @@ spec:
                 fieldPath: metadata.namespace
           - name: LEADER_ELECTION
             value: "{{ .Values.leaderElection }}"
+          {{- if .Values.registryCaBundleConfig.key }}
+          - name: CA_BUNDLE_PATH
+            value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
+          {{- end}}
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
@@ -83,6 +87,10 @@ spec:
         volumeMounts:
           - mountPath: /cache
             name: package-cache
+            {{- if .Values.registryCaBundleConfig.name }}
+          - mountPath: /certs
+            name: ca-certs
+            {{- end }}
       volumes:
       - name: package-cache
         {{- if .Values.packageCache.pvc }}
@@ -93,6 +101,14 @@ spec:
           medium: {{ .Values.packageCache.medium }}
           sizeLimit: {{ .Values.packageCache.sizeLimit }}
         {{- end }}
+      {{- if .Values.registryCaBundleConfig.name }}
+      - name: ca-certs
+        configMap:
+          name: {{ .Values.registryCaBundleConfig.name }}
+          items:
+            - key: {{ .Values.registryCaBundleConfig.key }}
+              path: {{ .Values.registryCaBundleConfig.key }}
+      {{- end }}
       {{- if .Values.nodeSelector }}
       nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
       {{- end }}

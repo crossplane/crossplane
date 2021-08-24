@@ -18,6 +18,12 @@ package xpkg
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -38,13 +44,41 @@ type Fetcher interface {
 type K8sFetcher struct {
 	client    kubernetes.Interface
 	namespace string
+	transport http.RoundTripper
 }
 
 // NewK8sFetcher creates a new K8sFetcher.
-func NewK8sFetcher(client kubernetes.Interface, namespace string) *K8sFetcher {
+func NewK8sFetcher(client kubernetes.Interface, namespace, caBundlePath string) *K8sFetcher {
+
+	var customCATransport http.RoundTripper = http.DefaultTransport
+
+	if caBundlePath != "" {
+		// Get the SystemCertPool, continue with an empty pool on error
+		rootCAs, _ := x509.SystemCertPool()
+		if rootCAs == nil {
+			rootCAs = x509.NewCertPool()
+		}
+
+		// Read in the cert file
+		certs, err := ioutil.ReadFile(filepath.Clean(caBundlePath))
+		if err != nil {
+			// TODO: how to access log/logr?
+			log.Fatalf("Failed to append %q to RootCAs: %v", caBundlePath, err)
+		}
+
+		// Append our cert to the system pool
+		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+			// TODO: how to access log/logr?
+			log.Println("No certs appended, using system certs only")
+		}
+
+		customCATransport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+	}
+
 	return &K8sFetcher{
 		client:    client,
 		namespace: namespace,
+		transport: customCATransport,
 	}
 }
 
@@ -57,7 +91,7 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	if err != nil {
 		return nil, err
 	}
-	return remote.Image(ref, remote.WithAuthFromKeychain(auth), remote.WithContext(ctx))
+	return remote.Image(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
 }
 
 // Head fetches a package descriptor.
@@ -69,7 +103,7 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	return remote.Head(ref, remote.WithAuthFromKeychain(auth), remote.WithContext(ctx))
+	return remote.Head(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
 }
 
 // Tags fetches a package's tags.
@@ -81,7 +115,7 @@ func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	return remote.List(ref.Context(), remote.WithAuthFromKeychain(auth), remote.WithContext(ctx))
+	return remote.List(ref.Context(), remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
 }
 
 // NopFetcher always returns an empty image and never returns error.

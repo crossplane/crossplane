@@ -128,7 +128,7 @@ func Setup(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 	r := NewReconciler(mgr,
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithFetcher(xpkg.NewK8sFetcher(clientset, namespace)),
+		WithFetcher(xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
