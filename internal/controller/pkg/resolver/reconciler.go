@@ -124,11 +124,15 @@ func Setup(mgr ctrl.Manager, l logging.Logger, namespace string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher")
+	}
 
 	r := NewReconciler(mgr,
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithFetcher(xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)),
+		WithFetcher(fetcher),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).

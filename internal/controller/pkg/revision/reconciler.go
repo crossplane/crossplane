@@ -217,6 +217,10 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher for package parser")
+	}
 
 	r := NewReconciler(mgr,
 		WithCache(cache),
@@ -227,7 +231,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 		}, namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace, caBundlePath), WithDefaultRegistry(registry))),
+		WithParserBackend(NewImageBackend(cache, fetcher, WithDefaultRegistry(registry))),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -261,6 +265,10 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher for package parser")
+	}
 
 	r := NewReconciler(mgr,
 		WithCache(cache),
@@ -268,7 +276,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace, caBundlePath), WithDefaultRegistry(registry))),
+		WithParserBackend(NewImageBackend(cache, fetcher, WithDefaultRegistry(registry))),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),

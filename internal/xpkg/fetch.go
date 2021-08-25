@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"path/filepath"
 
@@ -30,6 +29,7 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -48,38 +48,42 @@ type K8sFetcher struct {
 }
 
 // NewK8sFetcher creates a new K8sFetcher.
-func NewK8sFetcher(client kubernetes.Interface, namespace, caBundlePath string) *K8sFetcher {
+func NewK8sFetcher(client kubernetes.Interface, namespace, caBundlePath string) (*K8sFetcher, error) {
+
+	// return early with default transport if no additional CAs
+	if caBundlePath == "" {
+		return &K8sFetcher{
+			client:    client,
+			namespace: namespace,
+			transport: http.DefaultTransport,
+		}, nil
+	}
+
+	// Get the SystemCertPool, continue with an empty pool on error
+	rootCAs, _ := x509.SystemCertPool()
+	if rootCAs == nil {
+		rootCAs = x509.NewCertPool()
+	}
+
+	// Read in the cert file
+	certs, err := ioutil.ReadFile(filepath.Clean(caBundlePath))
+	if err != nil {
+		return nil, errors.Wrapf(err, "Failed to append %q to RootCAs", caBundlePath)
+	}
+
+	// Append our cert to the system pool
+	if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+		return nil, errors.Errorf("No certificates could be parsed from %q", caBundlePath)
+	}
 
 	var customCATransport http.RoundTripper = http.DefaultTransport
-
-	if caBundlePath != "" {
-		// Get the SystemCertPool, continue with an empty pool on error
-		rootCAs, _ := x509.SystemCertPool()
-		if rootCAs == nil {
-			rootCAs = x509.NewCertPool()
-		}
-
-		// Read in the cert file
-		certs, err := ioutil.ReadFile(filepath.Clean(caBundlePath))
-		if err != nil {
-			// TODO: how to access log/logr?
-			log.Fatalf("Failed to append %q to RootCAs: %v", caBundlePath, err)
-		}
-
-		// Append our cert to the system pool
-		if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
-			// TODO: how to access log/logr?
-			log.Println("No certs appended, using system certs only")
-		}
-
-		customCATransport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
-	}
+	customCATransport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
 
 	return &K8sFetcher{
 		client:    client,
 		namespace: namespace,
 		transport: customCATransport,
-	}
+	}, nil
 }
 
 // Fetch fetches a package image.

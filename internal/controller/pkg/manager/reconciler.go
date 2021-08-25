@@ -147,12 +147,16 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry, caBu
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher")
+	}
 
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(xpkg.NewK8sFetcher(clientset, namespace, caBundlePath), WithDefaultRegistry(registry))),
+		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(registry))),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
@@ -175,12 +179,16 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry,
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher")
+	}
 
 	r := NewReconciler(mgr,
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(xpkg.NewK8sFetcher(clientset, namespace, caBundlePath), WithDefaultRegistry(registry))),
+		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(registry))),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
