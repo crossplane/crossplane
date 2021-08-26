@@ -10,6 +10,7 @@ spec:
   names:
     categories:
     - crossplane
+    - pkgrev
     kind: ProviderRevision
     listKind: ProviderRevisionList
     plural: providerrevisions
