@@ -85,6 +85,13 @@ roughly classified as following:
 | Calls to API | call `create/update/delete/read` funcs | call `create/update/delete/read` funcs | `terraform apply/destroy` |
 | Connection Details | iterate over `create` result | iterate over `create` result | `sensitive_attributes` in tfstate |
 
+> Note that even if we import provider code, we need to work with `cty` format
+> because the input provider functions expect is of type [`schema.ResourceData`][resource-data],
+> which can be generated only if you have [`terraform.InstanceState`][instance-state]
+> because all of its fields are internal. While state can be constructed, due to
+> its structure of [how it stores][instance-state-map] key/values, using `cty`
+> empowered with the schema of the resource would be the best choice.
+
 > "leaking" in this context means that there are resource-specific details we can't
 > generate.
 
@@ -514,3 +521,6 @@ hand-crafted code and no other tool has as much coverage as Terraform.
 [crossplane-tools]: https://github.com/crossplane/crossplane-tools/
 [ack-guide]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
 [secret-key-selector]: https://github.com/crossplane/crossplane-runtime/blob/36fc69eff96ecb5856f156fec077ed3f3c3b30b1/apis/common/v1/resource.go#L72
+[instance-state]: https://github.com/hashicorp/terraform-plugin-sdk/blob/0e34772/helper/schema/resource.go#L859
+[resource-data]: https://github.com/hashicorp/terraform-plugin-sdk/blob/0e34772dad547d6b69148f57d95b324af9929542/helper/schema/resource_data.go#L22
+[instance-state-map]: https://github.com/hashicorp/terraform-plugin-sdk/blob/0e34772dad547d6b69148f57d95b324af9929542/terraform/state.go#L1330
