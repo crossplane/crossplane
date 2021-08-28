@@ -1,4 +1,4 @@
-# Code Generation Against Terraform
+# Terrajet: Code Generation for Terraform-based Providers
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
 * Status: Draft
@@ -486,9 +486,7 @@ in Terraform CLI had to be implemented and in some cases, like `cty` conversion,
 it used code generation instead of generic marshaling like Terraform CLI.
 Additionally, due to the fact that that effort wasn't finished, it didn't cover
 all Terraform logic, hence there are places where we need to keep implementing
-functionality of CLI. ~~Also, some functionality is half-baked, for example,
-generated schema generation doesn't support nested structs, hence many resources
-cannot be supported.~~ (need more investigation)
+functionality of CLI.
 
 Overall, the cost of writing the pipeline from scratch targeting the CLI is lower
 than to understand the existing code, spot the broken parts, adopt it and make
