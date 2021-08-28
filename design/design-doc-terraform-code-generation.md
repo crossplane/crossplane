@@ -22,12 +22,16 @@ project to generate fully-fledged resources, albeit still need manual additions
 to make sure corner cases are handled.
 
 The main challenge with the code generation efforts is that the corresponding APIs
-are usually not as consistent since each API is usually developed by a different
-group in the organization. Hence we need resource specific logic to be implemented
-manually. However, we are not alone in this space. Terraform community has been
-building declarative API for many infrastructure services handling those corner
-cases. As Crossplane community, we'd like to build on top of the shoulders of the
-giants and leverage that support that's been developed for years.
+are usually not as consistent to have a generic pipeline that works for every API.
+Hence, while we can generate the parts that are generic across the board, we still
+need resource specific logic to be implemented manually, just like our [provider-aws
+pipeline][ack-guide].
+
+Fortunately, we are not alone in this space. Terraform is a powerful tool that
+provisions infrastructure in a declarative fashion and the challenges they had 
+regarding the provider API communication are very similar to ours. As Crossplane
+community, we'd like to build on top of the shoulders of the giants and leverage
+the support that's been developed over the years.
 
 ## Goals
 
@@ -38,12 +42,12 @@ able to:
 * Offload resource-specific logic to Terraform CLI and/or Terraform Provider as
   much as possible so that we can get hands-off generation,
 * Generate managed resources that satisfy Crossplane Resource Model requirements,
-* Target any Terraform provider available.
+* Be able to target any Terraform provider available.
 
 While it'd be nice to generate a whole provider from scratch, that's not quite
 what we aim for. The main goal of the code generation effort is to generate
 things that scale with the number of managed resources. For example, it should be
-fine to manually write `ProviderConfig` CRD and its logic but we should do our
+fine to manually write `ProviderConfig` CRD and its logic, but we should do our
 best to offload custom diff operations to Terraform.
 
 ## Options
@@ -57,7 +61,7 @@ In order to make a decision, let's inspect what makes up a managed resource supp
 and see how they cover those requirements.
 
 The Go code that needs to be written to add support for a managed resource can be
-classified as following:
+roughly classified as following:
 * CRD Structs
   * Separate Spec and Status structs
 * Translation Functions
@@ -74,7 +78,7 @@ classified as following:
 | --- | --- | --- | ---|
 | Separate Spec and Status structs | Iterate over schema.Provider | Iterate over schema.Provider | Iterate over schema.Provider |
 | Spec -> API Input | Generated `cty` Translation | Generated `cty` Translation | JSON Marshalling (multi-key) |
-| Target SDK Struct -> Spec Late Initialization | Generated `cty` Translation | Generated `cty` Translation | JSON Marshalling (multi-key) and reflection |
+| Target SDK Struct -> Spec Late Initialization | Generated `cty` Translation | Generated `cty` Translation | JSON Marshalling (multi-key) and reflection/code-generation |
 | API Output -> Status | Generated `cty` Translation | Generated `cty` Translation | JSON Marshalling (multi-key) |
 | Spec <-> API Output Comparison for up-to-date check | Generated `cty` Translation (leaking) | Generated `cty` Translation (leaking) | `terraform plan` diff |
 | Readiness Check | `create/update` completion | `create/update` completion | `terraform apply` completion |
@@ -88,7 +92,7 @@ classified as following:
 > us define multiple keys for the same field to cover snake case Terraform struct
 > fields and camel case CRD struct fields.
 
-### Import Provider
+### Import Provider Go Code
 
 The main advantage of this approach is that we're closer to the actual API calls
 that are made to the external API, which would possibly make things run faster
@@ -97,14 +101,15 @@ since we eliminate HCL middleware.
 On the other hand, we'd have to do some operations Terraform CLI does, like
 diff'ing, importing, conversion of JSON/HCL to `cty` and such. Providers do give
 you the customization functions whenever needed, but the main pipeline of execution
-lives in Terraform CLI. 
+lives in Terraform CLI. So, we would have to reimplement those parts of Terraform
+CLI.
 
 Additionally, the mechanics of providers naturally include core Terraform code
 structs that we'd need to develop logic to work on and that'd increase
 our bug surface since they are not intended to be called by something other than
 Terraform CLI code.
 
-### Talk to Provider
+### Talk to Provider Server
 
 When Terraform starts executing an action, it spawns the provider gRPC server and
 talks with it. Similarly, Crossplane provider process could bring up a server
@@ -165,42 +170,43 @@ designed for its specific needs and whatever the CLI doesn't need is not exposed
 For example, [`ResourceDiff`][resource-diff] struct here has many fields and
 functions that are not exposed. So the implementation we'd be doing if we went
 with other two options will be very similar to how Terraform CLI implemented these
-functions.
+functions already.
 
 #### Optionality for the Future
 
 As explained in detail below, we'll have an interface that includes all operations
 that a usual Crossplane controller needs on top of the `ExternalClient`, like
 `IsUpToDate`, `GetConnectionDetails` etc. We'll hide away all the interaction
-with Terraform behind that interface and after we get the initial XRM-compliant
+with Terraform behind that interface, and after we get the initial XRM-compliant
 coverage, we can get back to the shortcomings of this approach and assess whether
 it'd be worth switching to importing provider option. If we decide to change, there
-will be more than underlying implementation change but the cost will be lowered
-by that interface and by that time we'd have breadth of coverage our users need
-already.
+will definitely be more than underlying implementation to change but the cost
+will be lowered by that interface and by that time we'd have breadth of coverage
+our users need already.
 
 Overall, the CLI is not the cleanest option, but it is the one that will get us
-breadth of coverage we want in a short amount of time and then the chance of
-iterations to see what works best for Crossplane users.
+breadth of coverage we want in a short amount of time with good stability promise
+and then the chance of iterations to see what works best for Crossplane users.
 
 ## Implementation
 
 Conceptually, there are two main parts to be implemented as part of this design.
-One is the code generator, and the other one is the tools that will be used by
+One is the code generator, and the other one is the common tools that will be used by
 the generated code.
 
 As opposed to usual code generation tools that are fairly scoped, a code generator
 for a fully-fledged controller has several moving parts, which makes configuration
 more complex than others. Hence, we need a medium that supports complex statements
-that is specific to provider and/or resource. In order to achieve that, we'll have
-a repository with code generation tooling and every provider will have its own
-pipeline generated in `cmd/generator/main.go`. For the most parts, it will be a
-struct with simple inputs like Terraform Provider URL and such but when we need
-complex configuration, we'll have all capabilities of Go.
+that is specific to provider and/or resource so that provider developers are
+able to introduce unusual configurations and corner cases. In order to achieve
+that, we'll have a repository with code generation tooling and every provider
+will have its own pipeline generated in `cmd/generator/main.go`. For the most
+parts, it will be a struct with simple inputs like Terraform Provider URL and
+such but when we need complex configuration, we'll have all capabilities of Go.
 
-All code generator utilities to be used in that Go program will live in `crossplane/terrajet`
-repository together with the common tools that will be imported by the generated
-provider code.
+All code generator utilities to be used in that Go program will live in
+`crossplane/terrajet` repository together with the common tools that will be
+imported by the generated provider code.
 
 ### Schema Generation
 
@@ -243,7 +249,8 @@ type VPCParameters struct {
 As you might have noticed, the field tags Terraform uses are snake case whereas
 the JSON tags we use should be camel case and Go field name should be upper camel.
 A small utility for doing back and forth with these strings will be introduced.
-The source of truth will always be the string from Terraform Provider schema.
+The source of truth will always be the snake case string from Terraform Provider
+schema.
 
 ### Translation Functions
 
@@ -256,6 +263,8 @@ to be generated. Namely, the following mechanisms will be used for each:
 * Target SDK Struct -> Spec Late Initialization
   * `jsoniter.Marshal` (using `tf` key) on empty `Parameters` object
   * Recursive iteration of fields of two `Parameters` object using `reflect` library to late-initialize. 
+    * Alternatively, we can look into generating the late initialization function
+      since both structs are known.
 * API Output -> Status
   * `jsoniter.Unmarshal` (using `tf` key) using output of `terraform show --json`
 * Spec <-> API Output Comparison for up-to-date check
@@ -362,7 +371,8 @@ generated provider.
   * Delete call
     * Call `Destroy`
 * Referencer resolution
-  * [Managed resource patches][managed-resource-patches] will be used initially.
+  * [Managed resource patches][managed-resource-patches] will be used initially
+    if available.
   * Since the transforms can be complicated to define in YAML, a helper in Go to
     inject referencer fields will be implemented. It will be used in the generator
     code that lives in provider repository. 
@@ -374,6 +384,19 @@ generated provider.
   * Default tags
     * Most Terraform schemas include `tags` field. A generic utility to check whether
       the field exists, and if so, add the default tags will cover this functionality.
+
+#### Terraform State
+
+Since the CRDs are generated using the schema of Terraform resource, copying the
+related portions of `tfstate` to spec and status will let us store the state in
+etcd. In each reconciliation, we'll construct `tfstate` from the fields of custom
+resource instance.
+
+There are two exceptions though: resource id and sensitive attributes. We'll store
+the resource id as the external name of the resource, i.e. `metadata.annotations[crossplane.io/external-name]`
+and the sensitive attributes will be stored in the connection detail secret of the
+resource. For sensitive inputs, we'll have a mechanism to add a [`SecretKeySelector`][secret-key-selector]
+for that field and use it to get the input from a `Secret` user pointed to.
 
 #### References
 
@@ -422,9 +445,10 @@ information.
 There are a few risks associated with interacting with Terraform CLI. Firstly,
 execution of Terraform CLI requires provider binary to exist in its workspace
 folder. Additionally, each execution brings up a separate provider server to talk
-to. So, we'll need to manage a pool of workspace folders and put the `main.tf` and
-`terraform.tfstate` files of the managed resource when a reconciliation request
-comes in.
+to. We'll investigate how to make all Terraform invocations use the same provider.
+But in the worst case, we'd need to manage a pool of workspace folders and put
+the `main.tf` and `terraform.tfstate` files of the managed resource when a
+reconciliation request comes in.
 
 ## Future Considerations
 
@@ -433,8 +457,8 @@ comes in.
 Conceptually, Terraform modules correspond to composition in Crossplane. However,
 migrating a Terraform module to composition means a whole rewrite. We can possibly
 generate a CRD in runtime with given Terraform module schema and reconcile it using
-Terraform CLI. Hence, users would be able to bring their modules as is and expose
-them as managed resource.
+Terraform CLI. Hence, users would be able to bring their modules as is but expose
+them as managed resource that they can use directly or in a composition.
 
 ### Use Declarative Libraries of Providers
 
@@ -487,3 +511,6 @@ hand-crafted code and no other tool has as much coverage as Terraform.
 [resolve-references]: https://github.com/crossplane/crossplane-runtime/blob/f2440d9/pkg/reference/reference.go#L105
 [dcl]: https://github.com/GoogleCloudPlatform/declarative-resource-client-library/blob/338dce1/services/google/compute/firewall_policy_rule.go#L321
 [ack-codegen]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
+[crossplane-tools]: https://github.com/crossplane/crossplane-tools/
+[ack-guide]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
+[secret-key-selector]: https://github.com/crossplane/crossplane-runtime/blob/36fc69eff96ecb5856f156fec077ed3f3c3b30b1/apis/common/v1/resource.go#L72
