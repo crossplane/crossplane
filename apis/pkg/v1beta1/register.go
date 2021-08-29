@@ -72,9 +72,18 @@ var (
 	ProviderRevisionGroupVersionKind = SchemeGroupVersion.WithKind(ProviderRevisionKind)
 )
 
+// Lock type metadata.
+var (
+	LockKind             = reflect.TypeOf(Lock{}).Name()
+	LockGroupKind        = schema.GroupKind{Group: Group, Kind: LockKind}.String()
+	LockKindAPIVersion   = LockKind + "." + SchemeGroupVersion.String()
+	LockGroupVersionKind = SchemeGroupVersion.WithKind(LockKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&Configuration{}, &ConfigurationList{})
 	SchemeBuilder.Register(&ConfigurationRevision{}, &ConfigurationRevisionList{})
 	SchemeBuilder.Register(&Provider{}, &ProviderList{})
 	SchemeBuilder.Register(&ProviderRevision{}, &ProviderRevisionList{})
+	SchemeBuilder.Register(&Lock{}, &LockList{})
 }
