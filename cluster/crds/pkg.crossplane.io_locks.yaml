@@ -21,7 +21,9 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: Lock is the CRD type that tracks package dependencies.
+        description: 'Lock is the CRD type that tracks package dependencies. [DEPRECATED]:
+          Please use the identical v1beta1 API instead. The v1alpha1 API is scheduled
+          to be removed in Crossplane v1.7.'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation

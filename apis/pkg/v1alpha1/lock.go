@@ -120,6 +120,8 @@ func (d *Dependency) AddNeighbors(...dag.Node) error {
 // +genclient:nonNamespaced
 
 // Lock is the CRD type that tracks package dependencies.
+// [DEPRECATED]: Please use the identical v1beta1 API instead. The v1alpha1 API
+// is scheduled to be removed in Crossplane v1.7.
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster
