@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2021 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -120,8 +120,7 @@ func (d *Dependency) AddNeighbors(...dag.Node) error {
 // +genclient:nonNamespaced
 
 // Lock is the CRD type that tracks package dependencies.
-// [DEPRECATED]: Please use the identical v1beta1 API instead. The v1alpha1 API
-// is scheduled to be removed in Crossplane v1.7.
+// +kubebuilder:storageversion
 // +kubebuilder:subresource:status
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster

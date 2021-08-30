@@ -36,6 +36,10 @@ func (c *FakePkgV1beta1) ConfigurationRevisions() v1beta1.ConfigurationRevisionI
 	return &FakeConfigurationRevisions{c}
 }
 
+func (c *FakePkgV1beta1) Locks() v1beta1.LockInterface {
+	return &FakeLocks{c}
+}
+
 func (c *FakePkgV1beta1) Providers() v1beta1.ProviderInterface {
 	return &FakeProviders{c}
 }
