@@ -33,7 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	fakedag "github.com/crossplane/crossplane/internal/dag/fake"
 	fakexpkg "github.com/crossplane/crossplane/internal/xpkg/fake"
@@ -114,10 +114,10 @@ func TestReconcile(t *testing.T) {
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
 							// Populate package list so we attempt reconciliation.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -146,10 +146,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -183,10 +183,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -223,10 +223,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -262,10 +262,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -280,7 +280,7 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1alpha1.Dependency{
+									&v1beta1.Dependency{
 										Package: "not.a.valid.package",
 									},
 								}, nil
@@ -305,10 +305,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -323,7 +323,7 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1alpha1.Dependency{
+									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-b",
 										Constraints: "*",
 									},
@@ -352,10 +352,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -370,7 +370,7 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1alpha1.Dependency{
+									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-b",
 										Constraints: ">v1.0.0",
 									},
@@ -399,10 +399,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -418,10 +418,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1alpha1.Dependency{
+									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
-										Type:        v1alpha1.ConfigurationPackageType,
+										Type:        v1beta1.ConfigurationPackageType,
 									},
 								}, nil
 							},
@@ -448,10 +448,10 @@ func TestReconcile(t *testing.T) {
 							// Populate package list so we attempt
 							// reconciliation. This is overridden by the mock
 							// DAG.
-							l := o.(*v1alpha1.Lock)
-							l.Packages = append(l.Packages, v1alpha1.LockPackage{
+							l := o.(*v1beta1.Lock)
+							l.Packages = append(l.Packages, v1beta1.LockPackage{
 								Name:    "cool-package",
-								Type:    v1alpha1.ProviderPackageType,
+								Type:    v1beta1.ProviderPackageType,
 								Source:  "cool-repo/cool-image",
 								Version: "v0.0.1",
 							})
@@ -467,10 +467,10 @@ func TestReconcile(t *testing.T) {
 						return &fakedag.MockDag{
 							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
 								return []dag.Node{
-									&v1alpha1.Dependency{
+									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-c",
 										Constraints: ">v1.0.0",
-										Type:        v1alpha1.ConfigurationPackageType,
+										Type:        v1beta1.ConfigurationPackageType,
 									},
 								}, nil
 							},
