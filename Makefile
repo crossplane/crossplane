@@ -4,6 +4,8 @@
 PROJECT_NAME := crossplane
 PROJECT_REPO := github.com/crossplane/$(PROJECT_NAME)
 
+DOCS_VERSION_ACTIVE = false
+
 PLATFORMS ?= linux_amd64 linux_arm64 linux_arm darwin_amd64 windows_amd64
 # -include will silently skip missing files, which allows us
 # to load those files with a target in the Makefile. If only
