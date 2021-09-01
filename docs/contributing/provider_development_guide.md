@@ -117,7 +117,7 @@ type FavouriteDBInstance struct {
     metav1.TypeMeta   `json:",inline"`
     metav1.ObjectMeta `json:"metadata,omitempty"`
 
-    Spec   FavouriteDBInstanceeSpec   `json:"spec,omitempty"`
+    Spec   FavouriteDBInstanceeSpec  `json:"spec,omitempty"`
     Status FavouriteDBInstanceStatus `json:"status,omitempty"`
 }
 ```
