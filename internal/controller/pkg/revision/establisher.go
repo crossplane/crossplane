@@ -18,10 +18,10 @@ package revision
 
 import (
 	"context"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -150,7 +150,7 @@ func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
 	falseVal := false
-	refs := make([]v1.OwnerReference, len(parent.GetOwnerReferences())+1)
+	refs := make([]metav1.OwnerReference, len(parent.GetOwnerReferences())+1)
 	for i, ownerRef := range parent.GetOwnerReferences() {
 		nonControllerRef := ownerRef.DeepCopy()
 		nonControllerRef.Controller = &falseVal
@@ -167,7 +167,7 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
 	falseVal := false
-	pkgRefs := make([]v1.OwnerReference, len(parent.GetOwnerReferences()))
+	pkgRefs := make([]metav1.OwnerReference, len(parent.GetOwnerReferences()))
 	for i, ownerRef := range parent.GetOwnerReferences() {
 		nonControllerRef := ownerRef.DeepCopy()
 		nonControllerRef.Controller = &falseVal
@@ -175,7 +175,7 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	}
 	if !control {
 		refs := append(pkgRefs, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
-		for _,  ref := range refs {
+		for _, ref := range refs {
 			meta.AddOwnerReference(current, ref)
 		}
 		return e.client.Update(ctx, current, opts...)

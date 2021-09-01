@@ -72,7 +72,16 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent:  &v1.ProviderRevision{},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+					},
+				},
 				control: true,
 			},
 			want: want{
@@ -95,7 +104,16 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 						},
 					},
 				},
-				parent:  &v1.ProviderRevision{},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+					},
+				},
 				control: true,
 			},
 			want: want{
