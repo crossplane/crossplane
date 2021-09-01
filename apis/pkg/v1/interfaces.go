@@ -18,10 +18,17 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+)
+
+const (
+	// ParentLabel is used as key for the owner package label we add to the
+	// revisions. Its corresponding value should be the name of the owner package.
+	ParentLabel = "pkg.crossplane.io/package"
 )
 
 // RevisionActivationPolicy indicates how a package should activate its
@@ -44,6 +51,18 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 		stringRefs[i] = ref.Name
 	}
 	return stringRefs
+}
+
+// GetPackageOwnerReference returns the owner reference that points to the owner
+// package of given revision, if it can find one.
+func GetPackageOwnerReference(rev resource.Object) (metav1.OwnerReference, bool) {
+	name := rev.GetLabels()[ParentLabel]
+	for _, owner := range rev.GetOwnerReferences() {
+		if owner.Name == name {
+			return owner, true
+		}
+	}
+	return metav1.OwnerReference{}, false
 }
 
 var _ Package = &Provider{}

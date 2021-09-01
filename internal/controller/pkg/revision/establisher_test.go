@@ -80,6 +80,9 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 								UID:  "some-unique-uid-2312",
 							},
 						},
+						Labels: map[string]string{
+							v1.ParentLabel: "provider-name",
+						},
 					},
 				},
 				control: true,
@@ -111,6 +114,9 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 								Name: "provider-name",
 								UID:  "some-unique-uid-2312",
 							},
+						},
+						Labels: map[string]string{
+							v1.ParentLabel: "provider-name",
 						},
 					},
 				},

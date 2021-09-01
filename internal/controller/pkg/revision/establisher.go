@@ -24,11 +24,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 const (
@@ -146,17 +149,16 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 }
 
 func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent resource.Object, opts ...client.CreateOption) error {
+	refs := []metav1.OwnerReference{
+		meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())),
+	}
 	// We add the parent as `owner` of the resources so that the resource doesn't
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
-	falseVal := false
-	refs := make([]metav1.OwnerReference, len(parent.GetOwnerReferences())+1)
-	for i, ownerRef := range parent.GetOwnerReferences() {
-		nonControllerRef := ownerRef.DeepCopy()
-		nonControllerRef.Controller = &falseVal
-		refs[i] = *nonControllerRef
+	if pkgRef, ok := v1.GetPackageOwnerReference(parent); ok {
+		pkgRef.Controller = pointer.BoolPtr(false)
+		refs = append(refs, pkgRef)
 	}
-	refs[len(refs)-1] = meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))
 	// Overwrite any owner references on the desired object.
 	obj.SetOwnerReferences(refs)
 	return e.client.Create(ctx, obj, opts...)
@@ -166,18 +168,13 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// We add the parent as `owner` of the resources so that the resource doesn't
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
-	falseVal := false
-	pkgRefs := make([]metav1.OwnerReference, len(parent.GetOwnerReferences()))
-	for i, ownerRef := range parent.GetOwnerReferences() {
-		nonControllerRef := ownerRef.DeepCopy()
-		nonControllerRef.Controller = &falseVal
-		pkgRefs[i] = *nonControllerRef
+	if pkgRef, ok := v1.GetPackageOwnerReference(parent); ok {
+		pkgRef.Controller = pointer.BoolPtr(false)
+		meta.AddOwnerReference(current, pkgRef)
 	}
+
 	if !control {
-		refs := append(pkgRefs, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
-		for _, ref := range refs {
-			meta.AddOwnerReference(current, ref)
-		}
+		meta.AddOwnerReference(current, meta.AsOwner(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind())))
 		return e.client.Update(ctx, current, opts...)
 	}
 
@@ -186,9 +183,6 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// a controller reference to the parent, and setting the desired resource
 	// version to that of the current.
 	desired.SetOwnerReferences(current.GetOwnerReferences())
-	for _, ref := range pkgRefs {
-		meta.AddOwnerReference(desired, ref)
-	}
 	if err := meta.AddControllerReference(desired, meta.AsController(meta.TypedReferenceTo(parent, parent.GetObjectKind().GroupVersionKind()))); err != nil {
 		return err
 	}
