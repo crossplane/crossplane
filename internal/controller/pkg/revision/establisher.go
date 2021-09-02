@@ -155,7 +155,7 @@ func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent
 	// We add the parent as `owner` of the resources so that the resource doesn't
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
-	if pkgRef, ok := v1.GetPackageOwnerReference(parent); ok {
+	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 		pkgRef.Controller = pointer.BoolPtr(false)
 		refs = append(refs, pkgRef)
 	}
@@ -168,7 +168,7 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// We add the parent as `owner` of the resources so that the resource doesn't
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
-	if pkgRef, ok := v1.GetPackageOwnerReference(parent); ok {
+	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 		pkgRef.Controller = pointer.BoolPtr(false)
 		meta.AddOwnerReference(current, pkgRef)
 	}
@@ -188,4 +188,16 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	}
 	desired.SetResourceVersion(current.GetResourceVersion())
 	return e.client.Update(ctx, desired, opts...)
+}
+
+// GetPackageOwnerReference returns the owner reference that points to the owner
+// package of given revision, if it can find one.
+func GetPackageOwnerReference(rev resource.Object) (metav1.OwnerReference, bool) {
+	name := rev.GetLabels()[v1.LabelParentPackage]
+	for _, owner := range rev.GetOwnerReferences() {
+		if owner.Name == name {
+			return owner, true
+		}
+	}
+	return metav1.OwnerReference{}, false
 }

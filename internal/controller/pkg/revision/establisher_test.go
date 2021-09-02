@@ -27,6 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -81,7 +82,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							},
 						},
 						Labels: map[string]string{
-							v1.ParentLabel: "provider-name",
+							v1.LabelParentPackage: "provider-name",
 						},
 					},
 				},
@@ -116,7 +117,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 							},
 						},
 						Labels: map[string]string{
-							v1.ParentLabel: "provider-name",
+							v1.LabelParentPackage: "provider-name",
 						},
 					},
 				},
@@ -237,6 +238,69 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestGetPackageOwnerReference(t *testing.T) {
+	type args struct {
+		revision resource.Object
+	}
+	type want struct {
+		ref metav1.OwnerReference
+		ok  bool
+	}
+	ref := metav1.OwnerReference{
+		APIVersion: "v1",
+		Kind:       "Provider",
+		Name:       "provider-name",
+		UID:        types.UID("some-random-uid"),
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Found": {
+			reason: "We need to correctly find the owner reference of the parent package",
+			args: args{
+				revision: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{},
+							ref,
+							{
+								Name: "something-else",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+				},
+			},
+			want: want{
+				ref: ref,
+				ok:  true,
+			},
+		},
+		"NotFound": {
+			args: args{
+				revision: &v1.ProviderRevision{},
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			result, ok := GetPackageOwnerReference(tc.args.revision)
+
+			if diff := cmp.Diff(tc.want.ref, result); diff != "" {
+				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.ok, ok); diff != "" {
+				t.Errorf("\n%s\ne.GetPackageOwnerReference(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
