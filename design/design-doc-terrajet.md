@@ -114,7 +114,9 @@ CLI.
 Additionally, the mechanics of providers naturally include core Terraform code
 structs that we'd need to develop logic to work on and that'd increase
 our bug surface since they are not intended to be called by something other than
-Terraform CLI code.
+Terraform CLI code. This fact has some consequences around how the authors of the
+providers organize their code as well. For example, Azure provider stores everything
+under `internal` package which would force us to fork the provider.
 
 ### Talk to Provider Server
 
@@ -178,6 +180,12 @@ For example, [`ResourceDiff`][resource-diff] struct here has many fields and
 functions that are not exposed. So the implementation we'd be doing if we went
 with other two options will be very similar to how Terraform CLI implemented these
 functions already.
+
+Additionally, we see that some providers hide everything under `internal` package.
+This makes it essential to fork the code for the importing option. In other options,
+we still need to import the provider to get the schema to be used for generating
+the CRD types, but that happens during development time, so we can have some
+workarounds making the generator access the schema.
 
 #### Optionality for the Future
 
