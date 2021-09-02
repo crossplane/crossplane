@@ -24,6 +24,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
+const (
+	// LabelParentPackage is used as key for the owner package label we add to the
+	// revisions. Its corresponding value should be the name of the owner package.
+	LabelParentPackage = "pkg.crossplane.io/package"
+)
+
 // RevisionActivationPolicy indicates how a package should activate its
 // revisions.
 type RevisionActivationPolicy string

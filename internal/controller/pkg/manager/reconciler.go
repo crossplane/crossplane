@@ -40,7 +40,6 @@ import (
 )
 
 const (
-	parentLabel      = "pkg.crossplane.io/package"
 	reconcileTimeout = 1 * time.Minute
 
 	shortWait     = 30 * time.Second
@@ -236,7 +235,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Get existing package revisions.
 	prs := r.newPackageRevisionList()
-	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{parentLabel: p.GetName()})); resource.IgnoreNotFound(err) != nil {
+	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
 		log.Debug(errListRevisions, "error", err)
 		r.record.Event(p, event.Warning(reasonList, errors.Wrap(err, errListRevisions)))
 		return reconcile.Result{RequeueAfter: shortWait}, nil
@@ -334,7 +333,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Create the non-existent package revision.
 	pr.SetName(revisionName)
-	pr.SetLabels(map[string]string{parentLabel: p.GetName()})
+	pr.SetLabels(map[string]string{v1.LabelParentPackage: p.GetName()})
 	pr.SetSource(p.GetSource())
 	pr.SetPackagePullPolicy(p.GetPackagePullPolicy())
 	pr.SetPackagePullSecrets(p.GetPackagePullSecrets())
