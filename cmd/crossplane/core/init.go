@@ -31,8 +31,8 @@ import (
 
 // initCommand configuration for the initialization of core Crossplane controllers.
 type initCommand struct {
-	Providers      []string
-	Configurations []string
+	Providers      []string `name:"provider" help:"Pre-install a Provider by giving its image URI. This argument can be repeated."`
+	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 }
 
 // Run starts the initialization process.
