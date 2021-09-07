@@ -238,6 +238,7 @@ metadata:
   annotations:
     crossplane.io/external-name: existing-network
 spec:
+  forProvider: {}
   providerConfigRef:
     name: default
 ```
