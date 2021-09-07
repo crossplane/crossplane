@@ -413,6 +413,22 @@ and the sensitive attributes will be stored in the connection detail secret of t
 resource. For sensitive inputs, we'll have a mechanism to add a [`SecretKeySelector`][secret-key-selector]
 for that field and use it to get the input from a `Secret` user pointed to.
 
+#### API Representation
+
+Crossplane tries to match the corresponding provider API as closely as possible
+with a clear separation, i.e. dedicated `spec.forProvider`. While Terraform also
+does that for most resources, there are occasionally fields in the Terraform schema
+of the resource that configures the behavior of Terraform execution rather than
+only the request made to the provider API. For example, `force_destroy` is a field
+in S3 Bucket Terraform schema but there is no corresponding API call - Terraform
+just deletes all objects in the bucket before calling deletion.
+
+For such cases, we'll expose configuration points for provider authors to provide
+per-resource exception information. They will be able to remove/add specific fields,
+manipulate their JSON tags or code comments. Since authors will call the pipeline
+in a Go context, they will be able to reuse same exception information for many
+resources if it's generic enough.
+
 #### References
 
 > It is still to be decided whether we'll keep current cross-resource references.
