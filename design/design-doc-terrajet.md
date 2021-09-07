@@ -507,6 +507,20 @@ exceptional cases that need to be handled and customizations that should be
 implemented per resource. Terraform community has done that for years with
 hand-crafted code and no other tool has as much coverage as Terraform.
 
+## Prior Art
+
+There are many projects in infrastructure space that builds on top of Terraform.
+Each of the projects have their own limitations, additional features and different
+license restrictions.
+
+* [Crossplane: Terraform Provider Runtime](https://github.com/crossplane/crossplane/blob/e2d7278/design/design-doc-terraform-provider-runtime.md)
+* [Crossplane: provider-terraform](https://github.com/crossplane-contrib/provider-terraform)
+* [Hashicorp Terraform Cloud Operator](https://github.com/hashicorp/terraform-k8s)
+* [Rancher Terraform Controller](https://github.com/rancher/terraform-controller)
+* [OAM Terraform Controller](https://github.com/oam-dev/terraform-controller)
+* [Kubeform](https://github.com/kubeform/kubeform)
+* [Terraform Operator](https://github.com/isaaguilar/terraform-operator)
+
 [jsoniter]: https://github.com/scoutapp/jsoniter-go
 [json-multipletagkey]: https://github.com/scoutapp/jsoniter-go/blob/ca39e5a/config.go#L22
 [schema-schema]: https://github.com/hashicorp/terraform-plugin-sdk/blob/9321fe1/helper/schema/schema.go#L37
