@@ -286,7 +286,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return errBoom
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
@@ -400,7 +400,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
 				},
@@ -441,7 +441,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, c resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
@@ -485,7 +485,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
@@ -536,7 +536,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
@@ -591,7 +591,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
@@ -676,7 +676,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
@@ -724,7 +724,7 @@ func TestReconcile(t *testing.T) {
 					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 						return nil
 					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composite, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
 						return cd, nil
 					})),
 					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {

@@ -19,6 +19,7 @@ package composite
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
@@ -516,6 +517,12 @@ func TestFetch(t *testing.T) {
 	fromKey := v1.ConnectionDetailTypeFromConnectionSecretKey
 	fromVal := v1.ConnectionDetailTypeFromValue
 	fromField := v1.ConnectionDetailTypeFromFieldPath
+	fromCompositeField := v1.ConnectionDetailTypeFromCompositeFieldPath
+
+	now := metav1.NewTime(time.Unix(0, 0))
+	lpt := fake.ConnectionDetailsLastPublishedTimer{
+		Time: &now,
+	}
 
 	sref := &xpv1.SecretReference{Name: "foo", Namespace: "bar"}
 	s := &corev1.Secret{
@@ -528,6 +535,7 @@ func TestFetch(t *testing.T) {
 	type args struct {
 		kube client.Client
 		cd   resource.Composed
+		cp   resource.Composite
 		t    v1.ComposedTemplate
 	}
 	type want struct {
@@ -550,6 +558,9 @@ func TestFetch(t *testing.T) {
 			args: args{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
@@ -577,6 +588,9 @@ func TestFetch(t *testing.T) {
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetSecret),
@@ -596,6 +610,9 @@ func TestFetch(t *testing.T) {
 					return errBoom
 				}},
 				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
@@ -643,6 +660,9 @@ func TestFetch(t *testing.T) {
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Name: pointer.StringPtr("missingvalue"),
@@ -668,6 +688,9 @@ func TestFetch(t *testing.T) {
 					return errBoom
 				}},
 				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
@@ -697,6 +720,9 @@ func TestFetch(t *testing.T) {
 				cd: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Type: &fromKey,
@@ -721,6 +747,9 @@ func TestFetch(t *testing.T) {
 					return errBoom
 				}},
 				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
@@ -748,6 +777,9 @@ func TestFetch(t *testing.T) {
 					return errBoom
 				}},
 				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
@@ -779,6 +811,9 @@ func TestFetch(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test",
 					},
+				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
@@ -813,6 +848,9 @@ func TestFetch(t *testing.T) {
 						Generation: 4,
 					},
 				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Name:          pointer.StringPtr("generation"),
@@ -827,11 +865,147 @@ func TestFetch(t *testing.T) {
 				},
 			},
 		},
+		"ErrConnectionDetailFromCompositeFieldPathNotSet": {
+			reason: "Should error if ConnectionDetailTypeFromCompositeFieldPath type FromCompositeFieldPath is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Type: &fromCompositeField,
+						Name: pointer.StringPtr("missingname"),
+					},
+				}},
+			},
+			want: want{
+				err: errors.Errorf(errFmtConnDetailCompositePath, v1.ConnectionDetailTypeFromCompositeFieldPath),
+			},
+		},
+		"ErrConnectionDetailFromCompositeFieldPathNameNotSet": {
+			reason: "Should error if ConnectionDetailTypeFromCompositeFieldPath type Name is not set",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Type:                   &fromCompositeField,
+						FromCompositeFieldPath: pointer.StringPtr("fieldpath"),
+					},
+				}},
+			},
+			want: want{
+				err: errors.Errorf(errFmtConnDetailCompositePath, v1.ConnectionDetailTypeFromCompositeFieldPath),
+			},
+		},
+		"SuccessCompositeFieldPath": {
+			reason: "Should publish only the selected set of secret keys",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Name:                   pointer.StringPtr("name"),
+						FromCompositeFieldPath: pointer.StringPtr("objectMeta.name"),
+						Type:                   &fromCompositeField,
+					},
+				}},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"name": []byte("test"),
+				},
+			},
+		},
+		"SuccessCompositeFieldPathMarshal": {
+			reason: "Should publish the secret keys as a JSON value",
+			args: args{
+				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+					if sobj, ok := obj.(*corev1.Secret); ok {
+						if key.Name == sref.Name && key.Namespace == sref.Namespace {
+							s.DeepCopyInto(sobj)
+							return nil
+						}
+					}
+					t.Errorf("wrong secret is queried")
+					return errBoom
+				}},
+				cd: &fake.Composed{
+					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 4,
+					},
+				},
+				cp: &fake.Composite{
+					ConnectionSecretWriterTo:            fake.ConnectionSecretWriterTo{Ref: sref},
+					ConnectionDetailsLastPublishedTimer: lpt,
+					ObjectMeta: metav1.ObjectMeta{
+						Generation: 4,
+					},
+				},
+				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
+					{
+						Name:                   pointer.StringPtr("generation"),
+						FromCompositeFieldPath: pointer.StringPtr("objectMeta.generation"),
+						Type:                   &fromCompositeField,
+					},
+				}},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{
+					"generation": []byte("4"),
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := &APIConnectionDetailsFetcher{client: tc.args.kube}
-			conn, err := c.FetchConnectionDetails(context.Background(), tc.args.cd, tc.args.t)
+			conn, err := c.FetchConnectionDetails(context.Background(), tc.args.cp, tc.args.cd, tc.args.t)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
 			}

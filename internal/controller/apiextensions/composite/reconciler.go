@@ -160,16 +160,16 @@ func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resou
 
 // ConnectionDetailsFetcher fetches the connection details of the Composed resource.
 type ConnectionDetailsFetcher interface {
-	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
+	FetchConnectionDetails(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
 }
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
 // composed resource, if any.
-type ConnectionDetailsFetcherFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
+type ConnectionDetailsFetcherFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
 
 // FetchConnectionDetails calls the FetchConnectionDetailsFn.
-func (f ConnectionDetailsFetcherFn) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-	return f(ctx, cd, t)
+func (f ConnectionDetailsFetcherFn) FetchConnectionDetails(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+	return f(ctx, cp, cd, t)
 }
 
 // A ReadinessChecker checks whether a composed resource is ready or not.
@@ -509,7 +509,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{RequeueAfter: shortWait}, nil
 		}
 
-		c, err := r.composed.FetchConnectionDetails(ctx, cd.resource, tpl)
+		c, err := r.composed.FetchConnectionDetails(ctx, cr, cd.resource, tpl)
 		if err != nil {
 			log.Debug(errFetchSecret, "error", err)
 			r.record.Event(cr, event.Warning(reasonCompose, err))

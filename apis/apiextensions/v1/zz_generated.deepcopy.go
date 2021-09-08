@@ -399,6 +399,11 @@ func (in *ConnectionDetail) DeepCopyInto(out *ConnectionDetail) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.FromCompositeFieldPath != nil {
+		in, out := &in.FromCompositeFieldPath, &out.FromCompositeFieldPath
+		*out = new(string)
+		**out = **in
+	}
 	if in.Value != nil {
 		in, out := &in.Value, &out.Value
 		*out = new(string)

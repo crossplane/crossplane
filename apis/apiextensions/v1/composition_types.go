@@ -145,6 +145,7 @@ const (
 	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey"
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
 	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
+	ConnectionDetailTypeFromCompositeFieldPath  ConnectionDetailType = "FromCompositeFieldPath"
 )
 
 // ConnectionDetail includes the information about the propagation of the connection
@@ -161,7 +162,7 @@ type ConnectionDetail struct {
 	// ConnectionDetail object. If the type is omitted Crossplane will attempt
 	// to infer it based on which other fields were specified.
 	// +optional
-	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromValue
+	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromCompositeFieldPath;FromValue
 	Type *ConnectionDetailType `json:"type,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
@@ -174,6 +175,12 @@ type ConnectionDetail struct {
 	// FromFieldPath is specified.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
+
+	// FromCompositeFieldPath is the path of the field on the composite resource whose
+	// value to be used as input. Name must be specified if the type is
+	// FromCompositeFieldPath is specified.
+	// +optional
+	FromCompositeFieldPath *string `json:"fromCompositeFieldPath,omitempty"`
 
 	// Value that will be propagated to the connection secret of the composition
 	// instance. Typically you should use FromConnectionSecretKey instead, but

@@ -55,10 +55,11 @@ const (
 	errKindChanged = "cannot change the kind of an existing composed resource"
 	errName        = "cannot use dry-run create to name composed resource"
 
-	errFmtPatch          = "cannot apply the patch at index %d"
-	errFmtConnDetailKey  = "connection detail of type %q key is not set"
-	errFmtConnDetailVal  = "connection detail of type %q value is not set"
-	errFmtConnDetailPath = "connection detail of type %q fromFieldPath is not set"
+	errFmtPatch                   = "cannot apply the patch at index %d"
+	errFmtConnDetailKey           = "connection detail of type %q key is not set"
+	errFmtConnDetailVal           = "connection detail of type %q value is not set"
+	errFmtConnDetailPath          = "connection detail of type %q fromFieldPath is not set"
+	errFmtConnDetailCompositePath = "connection detail of type %q fromCompositeFieldPath is not set"
 )
 
 // Annotation keys.
@@ -408,7 +409,7 @@ func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetche
 }
 
 // FetchConnectionDetails of the supplied composed resource, if any.
-func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
+func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
 	data := map[string][]byte{}
 	if sref := cd.GetWriteConnectionSecretToReference(); sref != nil {
 		// It's possible that the composed resource does want to write a
@@ -460,7 +461,16 @@ func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Conte
 			case d.FromFieldPath == nil:
 				return nil, errors.Errorf(errFmtConnDetailPath, tp)
 			default:
-				_ = extractFieldPathValue(cd, d, conn)
+				_ = extractFieldPathValue(cd, d, conn, *d.FromFieldPath)
+			}
+		case v1.ConnectionDetailTypeFromCompositeFieldPath:
+			switch {
+			case d.Name == nil:
+				return nil, errors.Errorf(errFmtConnDetailCompositePath, tp)
+			case d.FromCompositeFieldPath == nil:
+				return nil, errors.Errorf(errFmtConnDetailCompositePath, tp)
+			default:
+				_ = extractFieldPathValue(cp, d, conn, *d.FromCompositeFieldPath)
 			}
 		case v1.ConnectionDetailTypeUnknown:
 			// We weren't able to determine the type of this connection detail.
@@ -487,24 +497,26 @@ func connectionDetailType(d v1.ConnectionDetail) v1.ConnectionDetailType {
 		return v1.ConnectionDetailTypeFromConnectionSecretKey
 	case d.FromFieldPath != nil:
 		return v1.ConnectionDetailTypeFromFieldPath
+	case d.FromCompositeFieldPath != nil:
+		return v1.ConnectionDetailTypeFromCompositeFieldPath
 	default:
 		return v1.ConnectionDetailTypeUnknown
 	}
 }
 
-func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn managed.ConnectionDetails) error {
+func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn managed.ConnectionDetails, fieldPath string) error {
 	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
 	if err != nil {
 		return err
 	}
 
-	str, err := fieldpath.Pave(fromMap).GetString(*detail.FromFieldPath)
+	str, err := fieldpath.Pave(fromMap).GetString(fieldPath)
 	if err == nil {
 		conn[*detail.Name] = []byte(str)
 		return nil
 	}
 
-	in, err := fieldpath.Pave(fromMap).GetValue(*detail.FromFieldPath)
+	in, err := fieldpath.Pave(fromMap).GetValue(fieldPath)
 	if err != nil {
 		return err
 	}
