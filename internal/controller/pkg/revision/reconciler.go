@@ -47,7 +47,7 @@ import (
 )
 
 const (
-	reconcileTimeout = 1 * time.Minute
+	reconcileTimeout = 3 * time.Minute
 
 	shortWait = 30 * time.Second
 	longWait  = 1 * time.Minute
