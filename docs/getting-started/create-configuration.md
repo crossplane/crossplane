@@ -574,7 +574,7 @@ spec:
     version: ">=v1.2.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: "v0.18.1"
+      version: "v0.18.2"
 ```
 
 ```console
@@ -614,7 +614,7 @@ spec:
     version: ">=v1.2.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: "v0.18.1"
+      version: "v0.18.2"
 ```
 
 ```console
