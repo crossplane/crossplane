@@ -36,9 +36,9 @@ spec:
           args:
           - core
           - init
-          {{- range $arg := .Values.provider.packages }}
+          {{- if $arg := .Values.provider.packages }}
           - --providers
-          - "{{ $arg }}"
+          - "{{ join "," $arg }}"
           {{- end }}
           {{- range $arg := .Values.configuration.packages }}
           - --configuration
