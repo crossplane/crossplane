@@ -37,7 +37,7 @@ spec:
           - core
           - init
           {{- range $arg := .Values.provider.packages }}
-          - --provider
+          - --providers
           - "{{ $arg }}"
           {{- end }}
           {{- range $arg := .Values.configuration.packages }}
