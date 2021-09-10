@@ -1,7 +1,7 @@
 # Terrajet: Code Generation for Terraform-based Providers
 * Owner: Muvaffak Onus (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Approved
 
 ## Background
 
