@@ -8,10 +8,11 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
