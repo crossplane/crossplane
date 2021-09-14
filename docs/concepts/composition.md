@@ -510,7 +510,7 @@ spec:
           # the value of a source field in the same manner as the
           # FromCompositeFieldPath patch type.
           - fromFieldPath: spec.parameters.location
-          - fromFieldPath: metadata.annotations[crossplane.io/claim-name]
+          - fromFieldPath: metadata.labels[crossplane.io/claim-name]
         strategy: string
         string:
           # Patch output e.g: us-west-my-sql-server where location = "us-west"
