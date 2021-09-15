@@ -8,8 +8,7 @@ metadata:
     vpc: new
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.2.0-0"
   dependsOn:
-    # TODO(negz): Update Composition for compatibility with v0.17.0.
     - provider: crossplane/provider-aws
-      version: "v0.16.0"
+      version: "v0.18.2"
