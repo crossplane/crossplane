@@ -25,10 +25,10 @@ package xcrd
 import (
 	"encoding/json"
 
-	"github.com/pkg/errors"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )

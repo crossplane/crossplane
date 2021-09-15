@@ -21,10 +21,11 @@ import (
 
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/pkg/errors"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 

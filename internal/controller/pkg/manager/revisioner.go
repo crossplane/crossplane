@@ -20,9 +20,9 @@ import (
 	"context"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )

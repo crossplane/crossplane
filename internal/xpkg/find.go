@@ -19,8 +19,9 @@ package xpkg
 import (
 	"path/filepath"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/afero"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 const (

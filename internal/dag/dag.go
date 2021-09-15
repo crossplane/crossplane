@@ -17,7 +17,7 @@ limitations under the License.
 package dag
 
 import (
-	"github.com/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // Node is a node in DAG.
