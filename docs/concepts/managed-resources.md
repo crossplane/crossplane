@@ -268,6 +268,19 @@ source of truth for the external resource. This means that if someone changed a
 configuration in the UI of the provider, like AWS Console, Crossplane will
 change it back to what's given under `spec`.
 
+#### Connection Details
+
+Some Crossplane resources support writing connection details - things like URLs,
+usernames, endpoints, and passwords to a Kubernetes `Secret`. You can specify
+the secret to write by setting the `spec.writeConnectionSecretToRef` field. Note
+that while all managed resources have a `writeConnectionSecretToRef` field, not
+all managed resources actually have connection details to write - many will
+write an empty `Secret`.
+
+> Which managed resources have connection details and what connection details
+> they have is currently undocumented. This is tracked in
+> [this issue][issue-1143].
+
 #### Immutable Properties
 
 There are configuration parameters in external resources that cloud providers do
@@ -430,3 +443,4 @@ including Velero.
 [api-reference]: ../api-docs/overview.md
 [provider]: providers.md
 [issue-727]: https://github.com/crossplane/crossplane/issues/727
+[issue-1143]: https://github.com/crossplane/crossplane/issues/1143
