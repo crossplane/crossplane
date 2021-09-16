@@ -9,17 +9,22 @@ indent: true
 
 ## Overview
 
-Managed resources are the Crossplane representation of the cloud
-[provider][provider] resources and they are considered primitive low level
-custom resources that can be used directly to provision external cloud resources
-for an application or as part of an infrastructure composition.
+A Managed Resource is Crossplane's representation of a resource in an external
+system - most commonly a cloud provider. Managed Resources are opinionated, XRM
+compliant Kubernetes Custom Resources that are installed by a Crossplane
+[provider].
 
-For example, `RDSInstance` in AWS Provider corresponds to an actual RDS Instance
-in AWS. There is a one-to-one relationship and the changes on managed resources
-are reflected directly on the corresponding resource in the provider.
+For example, `RDSInstance` in the AWS Provider corresponds to an actual RDS
+Instance in AWS. There is a one-to-one relationship and the changes on managed
+resources are reflected directly on the corresponding resource in the provider.
+Similarly, the `Database` types in the SQL provider represent a PostgreSQL or
+MySQL database. You can browse [API Reference][api-reference] to discover all
+available managed resources.
 
-You can browse [API Reference][api-reference] to discover all available managed
-resources.
+Managed Resources are the building blocks of Crossplane. They're designed to be
+_composed_ into higher level, opinionated Custom Resources that Crossplane calls
+Composite Resources or XRs - not used directly. See the
+[Composition][composition] documentation for more information.
 
 ## Syntax
 
@@ -111,9 +116,7 @@ change it back to what's given under `spec`.
 #### Immutable Properties
 
 There are configuration parameters in external resources that cloud providers do
-not allow to be changed. If the corresponding field in the managed resource is
-changed by the user, Crossplane submits the new desired state to the provider
-and returns the error, if any. For example, in AWS, you cannot change the region
+not allow to be changed. For example, in AWS, you cannot change the region
 of an `RDSInstance`.
 
 Some infrastructure tools such as Terraform delete and recreate the resource to
@@ -121,8 +124,9 @@ accommodate those changes but Crossplane does not take that route. Unless the
 managed resource is deleted and its `deletionPolicy` is `Delete`, its controller
 never deletes the external resource in the provider.
 
-> Immutable fields are marked as `immutable` in Crossplane codebase but
-Kubernetes does not yet have immutable field notation in CRDs.
+> Kubernetes does not yet support immutable fields for custom resources. This
+> means Crossplane will allow immutable fields to be changed, but will not
+> actually make the desired change. This is tracked in [this issue][issue-727].
 
 ### External Name
 
@@ -265,7 +269,9 @@ fields are there and those are enough to import a resource. The tool you're
 using needs to store `annotations` and `spec` fields, which most tools do
 including Velero.
 
+[composition]: composition.md
 [api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
 [velero]: https://velero.io/
 [api-reference]: ../api-docs/overview.md
 [provider]: providers.md
+[issue-727]: https://github.com/crossplane/crossplane/issues/727
