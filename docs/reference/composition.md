@@ -228,18 +228,6 @@ for Crossplane machinery, and will be ignored if your schema includes them:
 
 ## Compositions
 
-> You might find while reading through this documentation that Crossplane is
-> missing some functionality you need to compose resources. If that's the case,
-> please [raise an issue] against the crossplane/crossplane repository, with as
-> much detail **about your use case** as possible. Please understand that the
-> Crossplane maintainers are growing the feature set of the `Composition` type
-> conservatively. We highly value the input of our users and community, but we
-> also feel it's critical to avoid bloat and complexity. We therefore wish to
-> carefully consider each new addition. We feel some features may be better
-> suited for a real, expressive programming language and intend to build an
-> alternative to the `Composition` type as it is documented here per
-> [this proposal][issue-2524].
-
 You'll encounter a lot of 'field paths' when reading or writing a `Composition`.
 Field paths reference a field within a Kubernetes object via a simple string
 'path'. [API conventions][field-paths] describe the syntax as:
@@ -612,6 +600,19 @@ not considered to be 'empty', and thus will pass the readiness check.
 - type: NonEmpty
   fieldPath: status.atProvider.online
 ```
+
+### Missing Functionality
+
+You might find while reading through this reference that Crossplane is missing
+some functionality you need to compose resources. If that's the case, please
+[raise an issue] with as much detail **about your use case** as possible. Please
+understand that the Crossplane maintainers are growing the feature set of the
+`Composition` type conservatively. We highly value the input of our users and
+community, but we also feel it's critical to avoid bloat and complexity. We
+therefore wish to carefully consider each new addition. We feel some features
+may be better suited for a real, expressive programming language and intend to
+build an alternative to the `Composition` type as it is documented here per
+[this proposal][issue-2524].
 
 ## Tips, Tricks, and Troubleshooting
 

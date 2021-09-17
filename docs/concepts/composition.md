@@ -15,15 +15,16 @@ for short.
 
 ![Diagram of claims, XRs, and Managed Resources][xrs-and-mrs]
 
-> If you're already familiar with Composite Resources and looking for a detailed
-> configuration reference or some tips, tricks, and troubleshooting information,
-> try the [Composition Reference][xr-ref].
-
 Composite Resources are designed to let you build your own platform with your
 own opinionated concepts and APIs without needing to write a Kubernetes
 controller from scratch. Instead, you define the schema of your XR and teach
 Crossplane which Managed Resources it should compose (i.e. create) when someone
 creates the XR you defined.
+
+
+If you're already familiar with Composite Resources and looking for a detailed
+configuration reference or some tips, tricks, and troubleshooting information,
+try the [Composition Reference][xr-ref].
 
 Below is an example of a Composite Resource:
 
@@ -120,10 +121,10 @@ Resource. Each `Composition` creates a link between an XR and a set of one or
 more Managed Resources - when the XR is created, updated, or deleted the set of
 Managed Resources are created, updated or deleted accordingly.
 
-> You can add multiple Compositions for each XRD, and choose which should be
-> used when XRs are created. This allows a Composition to act like a "class of
-> service" - for example you could configure one Composition for each
-> environment you support, such as production, staging, and development.
+You can add multiple Compositions for each XRD, and choose which should be used
+when XRs are created. This allows a Composition to act like a "class of service"
+- for example you could configure one Composition for each environment you
+support, such as production, staging, and development.
 
 A basic `Composition` for the above `XPostgreSQLInstance` might look like this:
 
@@ -180,7 +181,10 @@ small subset of the functionality a `Composition` enables - take a look at the
 Crossplane uses Composite Resource Claims (or just claims, for short) to allow
 application operators to provision and manage XRs. When we talk about using XRs
 it's typically implied that the XR is being used via a claim. Claims are almost
-identical to their corresponding XRs.
+identical to their corresponding XRs. It helps to think of a claim as an
+application team’s interface to an XR. You could also think of claims as the
+public (app team) facing part of the opinionated platform API, while XRs are the
+private (platform team) facing part.
 
 A claim for the `XPostgreSQLInstance` XR above would look like this:
 
@@ -198,13 +202,6 @@ spec:
   writeConnectionSecretToRef:
     name: my-db-connection-details
 ```
-
-> We designed Crossplane to be a tool platform teams can use to offer
-> opinionated platform APIs to the application teams they support. The platform
-> team offers those APIs using claims. It helps to think of the claim as an
-> application team’s interface to a composite resource. You could also think of
-> claims as the public (app team) facing part of the opinionated platform API,
-> while composite resources are the private (platform team) facing part.
 
 There are three key differences between an XR and a claim:
 
