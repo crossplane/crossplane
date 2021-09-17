@@ -21,7 +21,6 @@ controller from scratch. Instead, you define the schema of your XR and teach
 Crossplane which Managed Resources it should compose (i.e. create) when someone
 creates the XR you defined.
 
-
 If you're already familiar with Composite Resources and looking for a detailed
 configuration reference or some tips, tricks, and troubleshooting information,
 try the [Composition Reference][xr-ref].
@@ -109,10 +108,10 @@ spec:
             - parameters
 ```
 
-> You might notice that the `XPostgreSQLInstance` example above has some fields
-> that don't appear in the XRD, like the `writeConnectionSecretToRef` and
-> `compositionRef` fields. This is because Crossplane automatically injects some
-> standard Crossplane Resource Model (XRM) fields into all XRs.
+You might notice that the `XPostgreSQLInstance` example above has some fields
+that don't appear in the XRD, like the `writeConnectionSecretToRef` and
+`compositionRef` fields. This is because Crossplane automatically injects some
+standard Crossplane Resource Model (XRM) fields into all XRs.
 
 ### Configuring Composition
 
@@ -122,8 +121,8 @@ more Managed Resources - when the XR is created, updated, or deleted the set of
 Managed Resources are created, updated or deleted accordingly.
 
 You can add multiple Compositions for each XRD, and choose which should be used
-when XRs are created. This allows a Composition to act like a "class of service"
-- for example you could configure one Composition for each environment you
+when XRs are created. This allows a Composition to act like a class of service -
+for example you could configure one Composition for each environment you
 support, such as production, staging, and development.
 
 A basic `Composition` for the above `XPostgreSQLInstance` might look like this:
@@ -221,14 +220,14 @@ Not all XRs offer a claim - doing so is optional. See the XRD section of the
 Claims may seem a little superfluous at first, but they enable some handy
 scenarios, including:
 
-* **Private XRs.** Sometimes a platform team might not want a type of XR to be
+- **Private XRs.** Sometimes a platform team might not want a type of XR to be
   directly consumed by their application teams. For example because the XR
   represents 'supporting' infrastructure - imagine a VPC `XNetwork` XR. App
   teams might create `PostgreSQLInstance` claims that use an `XNetwork`, but
   they shouldn't be creating their own. Similarly, some kinds of XR might be
   intended only for 'nested' use - intended only to be composed by other XRs.
 
-* **Global XRs**. Not all infrastructure is conceptually namespaced. Say your
+- **Global XRs**. Not all infrastructure is conceptually namespaced. Say your
   organisation uses team scoped namespaces. A `PostgreSQLInstance` that belongs
   to Team A should probably be part of the `team-a` namespace - you'd represent
   this by creating a `PostgreSQLInstance` claim in that namespace. On the other
@@ -236,7 +235,7 @@ scenarios, including:
   by XRs from many different namespaces - it doesn't exist to serve a particular
   team.
 
-* **Pre-provisioned XRs**. Finally, separating claims from XRs allows a platform
+- **Pre-provisioned XRs**. Finally, separating claims from XRs allows a platform
   team to pre-provision certain kinds of XR. Typically an XR is created
   on-demand in response to the creation of a claim, but it's also possible for a
   claim to instead request an existing XR. This can allow application teams to
