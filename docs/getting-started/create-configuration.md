@@ -49,18 +49,18 @@ into a package.
 ## Create CompositeResourceDefinition
 
 First we'll create a `CompositeResourceDefinition` (XRD) to define the schema of
-our `CompositePostgreSQLInstance` and its `PostgreSQLInstance` resource claim.
+our `XPostgreSQLInstance` and its `PostgreSQLInstance` resource claim.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: compositepostgresqlinstances.database.example.org
+  name: xpostgresqlinstances.database.example.org
 spec:
   group: database.example.org
   names:
-    kind: CompositePostgreSQLInstance
-    plural: compositepostgresqlinstances
+    kind: XPostgreSQLInstance
+    plural: xpostgresqlinstances
   claimNames:
     kind: PostgreSQLInstance
     plural: postgresqlinstances
@@ -101,7 +101,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.4/doc
 
 ## Create Compositions
 
-Now we'll specify which managed resources our `CompositePostgreSQLInstance` XR
+Now we'll specify which managed resources our `XPostgreSQLInstance` XR
 and its claim could be composed of, and how they should be configured. We do
 this by defining a `Composition` that can satisfy the XR we defined above. In
 this case, our `Composition` will specify how to provision a public PostgreSQL
@@ -126,7 +126,7 @@ instance on the chosen provider.
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.aws.database.example.org
+  name: xpostgresqlinstances.aws.database.example.org
   labels:
     provider: aws
     guide: quickstart
@@ -135,7 +135,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: rdsinstance
       base:
@@ -193,7 +193,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: vpc
       base:
@@ -353,7 +353,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.4/doc
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.gcp.database.example.org
+  name: xpostgresqlinstances.gcp.database.example.org
   labels:
     provider: gcp
     guide: quickstart
@@ -361,7 +361,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: cloudsqlinstance
       base:
@@ -415,7 +415,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.4/doc
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.azure.database.example.org
+  name: xpostgresqlinstances.azure.database.example.org
   labels:
     provider: azure
     guide: quickstart
@@ -423,7 +423,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: resourcegroup
       base:
@@ -495,7 +495,7 @@ curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.4/doc
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.alibaba.database.example.org
+  name: xpostgresqlinstances.alibaba.database.example.org
   labels:
     provider: alibaba
     guide: quickstart
@@ -503,7 +503,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: rdsinstance
       base:
