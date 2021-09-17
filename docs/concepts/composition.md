@@ -212,20 +212,21 @@ There are three key differences between an XR and a claim:
    contains both a reference to the claim an array of references to the managed
    resources it composes.
 
-![Diagram showing the relationship between claims and XRs][claims-and-xrs]
-
 Not all XRs offer a claim - doing so is optional. See the XRD section of the
-[Composition reference][xr-ref] to learn how to specif to offer a claim.
+[Composition reference][xr-ref] to learn how to offer a claim.
+
+![Diagram showing the relationship between claims and XRs][claims-and-xrs]
 
 Claims may seem a little superfluous at first, but they enable some handy
 scenarios, including:
 
 - **Private XRs.** Sometimes a platform team might not want a type of XR to be
   directly consumed by their application teams. For example because the XR
-  represents 'supporting' infrastructure - imagine a VPC `XNetwork` XR. App
-  teams might create `PostgreSQLInstance` claims that use an `XNetwork`, but
-  they shouldn't be creating their own. Similarly, some kinds of XR might be
-  intended only for 'nested' use - intended only to be composed by other XRs.
+  represents 'supporting' infrastructure - consider the above VPC `XNetwork` XR. App
+  teams might create `PostgreSQLInstance` claims that _reference_ (i.e. consume)
+  an `XNetwork`, but they shouldn't be _creating their own_. Similarly, some
+  kinds of XR might be intended only for 'nested' use - intended only to be
+  composed by other XRs.
 
 - **Global XRs**. Not all infrastructure is conceptually namespaced. Say your
   organisation uses team scoped namespaces. A `PostgreSQLInstance` that belongs
