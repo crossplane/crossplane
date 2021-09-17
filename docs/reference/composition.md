@@ -10,7 +10,7 @@ indent: true
 This reference provides detailed examples of defining, configuring, and using
 Composite Resources in Crossplane. You can also refer to Crossplane's [API
 documentation][api-docs] for more details. If you're looking for a more general
-overview of what Composite Resources and Composition is in Crossplane, try the
+overview of Composite Resources and Composition in Crossplane, try the
 [Composite Resources][xr-concepts] page under Concepts.
 
 ## Composite Resources and Claims
@@ -47,14 +47,16 @@ spec:
   compositionRef:
     name: production-us-east
   # The compositionSelector allows you to match a Composition by labels rather
-  # than naming one explicitly.
+  # than naming one explicitly. It is used to set the compositionRef if none is
+  # specified explicitly.
   compositionSelector:
     matchLabels:
       environment: production
       region: us-east
       provider: gcp
   # The resourceRefs array contains references to all of the resources of which
-  # this XR is composed.
+  # this XR is composed. Despite being in spec this field isn't intended to be
+  # configured by humans - Crossplane will take care of keeping it updated.
   resourceRefs:
   - apiVersion: database.gcp.crossplane.io/v1beta1
     kind: CloudSQLInstance
@@ -129,9 +131,9 @@ status:
 ```
 
 > If your XR or claim isn't working as you'd expect you can try running `kubectl
-> describe xrd` for details - pay particular attention to any events and status
-> conditions. You may need to follow the references from claim to XR to composed
-> resources to find out what's happening.
+> describe` against it for details - pay particular attention to any events and
+> status conditions. You may need to follow the references from claim to XR to
+> composed resources to find out what's happening.
 
 ## CompositeResourceDefinitions
 
@@ -154,8 +156,9 @@ spec:
     plural: xpostgresqlinstances
   # This type of XR offers a claim. Omit claimNames if you don't want to do so.
   # The claimNames must be different from the names above - a common convention
-  # is that names are prefixed with 'X' while claims are not. This lets app team
-  # members think of creating a claim as (e.g.) 'creating a PostgreSQLInstance'.
+  # is that names are prefixed with 'X' while claim names are not. This lets app
+  # team members think of creating a claim as (e.g.) 'creating a
+  # PostgreSQLInstance'.
   claimNames:
     kind: PostgreSQLInstance
     plural: postgresqlinstances
@@ -169,8 +172,9 @@ spec:
   defaultCompositionRef:
     name: example
   # Each type of XR may be served at different versions - e.g. v1alpha1, v1beta1
-  # and v1. Currently Crossplane requires that all versions have an identical
-  # schema.
+  # and v1 - simultaneously. Currently Crossplane requires that all versions
+  # have an identical schema, so this is mostly useful to 'promote' a type of XR
+  # from alpha to beta to production ready.
   versions:
   - name: v1alpha1
     # Served specifies that XRs should be served at this version. It can be set
@@ -224,23 +228,21 @@ for Crossplane machinery, and will be ignored if your schema includes them:
 
 ## Compositions
 
-Below is a detailed example of a `Composition`.
-
 > You might find while reading through this documentation that Crossplane is
 > missing some functionality you need to compose resources. If that's the case,
 > please [raise an issue] against the crossplane/crossplane repository, with as
-> much detail **about your use case** as possible.
->
-> Please understand that the Crossplane maintainers are growing the feature set
-> of the `Composition` type slowly and carefully. We feel it's critical to avoid
-> bloat and complexity, and therefore exercise the right to carefully consider
-> each new addition. We feel some features may be better suited for a real,
-> expressive programming language and intend to build an alternative to the
-> `Composition` type per [this proposal][issue-2524].
+> much detail **about your use case** as possible. Please understand that the
+> Crossplane maintainers are growing the feature set of the `Composition` type
+> conservatively. We highly value the input of our users and community, but we
+> also feel it's critical to avoid bloat and complexity. We therefore wish to
+> carefully consider each new addition. We feel some features may be better
+> suited for a real, expressive programming language and intend to build an
+> alternative to the `Composition` type as it is documented here per
+> [this proposal][issue-2524].
 
 You'll encounter a lot of 'field paths' when reading or writing a `Composition`.
-Field paths reference a field within a Kubernetes object via a simple string.
-[API conventions][field-paths] describe the syntax as:
+Field paths reference a field within a Kubernetes object via a simple string
+'path'. [API conventions][field-paths] describe the syntax as:
 
 > Standard JavaScript syntax for accessing that field, assuming the JSON object
 > was transformed into a JavaScript object, without the leading dot, such as
@@ -260,6 +262,10 @@ Field paths reference a field within a Kubernetes object via a simple string.
 * `metadata.name.` - Trailing period.
 * `spec.containers[]` - Empty brackets.
 * `spec.containers.[0].name` - Period before open bracket.
+
+Below is a detailed example of a `Composition`. While detailed, this example
+doesn't include every patch, transform, connection detail, and readiness check
+type. Keep reading below to discover those.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
@@ -292,12 +298,14 @@ spec:
     # It's good practice to provide a unique name for each entry. Note that
     # this identifies the resources entry within the Composition - it's not
     # the name the CloudSQLInstance. The 'name' field will be required in a
-    # future release of Crossplane.
+    # future version of this API.
   - name: cloudsqlinstance
 
     # The 'base' template for the CloudSQLInstance Crossplane will create.
     # You can use the base template to specify fields that never change, or
-    # default values for fields that may optionally be patched over.
+    # default values for fields that may optionally be patched over. Bases must
+    # be a valid Crossplane resource - a Managed Resource, Composite Resource,
+    # or a ProviderConfig.
     base:
       apiVersion: database.gcp.crossplane.io/v1beta1
       kind: CloudSQLInstance
@@ -315,9 +323,11 @@ spec:
     # Each resource can optionally specify a set of 'patches' that copy fields
     # from (or to) the XR.
     patches:
+      # FromCompositeFieldPath is the default when 'type' is omitted, but it's
+      # good practice to always include the type for readability.
     - type: FromCompositeFieldPath
-      fromFieldPath: "spec.parameters.size"
-      toFieldPath: "spec.forProvider.settings.tier"
+      fromFieldPath: spec.parameters.size
+      toFieldPath: spec.forProvider.settings.tier
 
       # Each patch can optionally specify one or more 'transforms', which
       # transform the 'from' field's value before applying it to the 'to' field.
@@ -329,9 +339,9 @@ spec:
           medium: db-custom-1-3840
 
       policy:
-        # By default a patch from a field path that does not exist is a no-op.
-        # Use the 'Required' policy to instead block and return an error when
-        # the field path does not exist.
+        # By default a patch from a field path that does not exist is simply
+        # skipped until it does. Use the 'Required' policy to instead block and
+        # return an error when the field path does not exist.
         fromFieldPath: Required
 
         # You can patch entire objects or arrays from one resource to another.
@@ -381,8 +391,8 @@ commonly used to expose a composed resource spec field as an XR spec field.
 # Patch from the XR's spec.parameters.size field to the composed resource's
 # spec.forProvider.settings.tier field.
 - type: FromCompositeFieldPath
-  fromFieldPath: "spec.parameters.size"
-  toFieldPath: "spec.forProvider.settings.tier"
+  fromFieldPath: spec.parameters.size
+  toFieldPath: spec.forProvider.settings.tier
 ```
 
 `ToCompositeFieldPath`. The inverse of `FromCompositeFieldPath`. This type
@@ -394,8 +404,8 @@ field.
 # Patch from the composed resource's status.atProvider.zone field to the XR's
 # status.zone field.
 - type: ToCompositeFieldPath
-  fromFieldPath: "status.atProvider.zone"
-  toFieldPath: "status.zone"
+  fromFieldPath: status.atProvider.zone
+  toFieldPath: status.zone
 ```
 
 `CombineFromComposite`. Combines multiple fields from the XR to produce one
@@ -436,21 +446,14 @@ would be set to `us-west-db`.
 - type: CombineToComposite
   combine:
     variables:
-      - fromFieldPath: "spec.parameters.administratorLogin"
-      - fromFieldPath: "status.atProvider.fullyQualifiedDomainName"
+      - fromFieldPath: spec.parameters.administratorLogin
+      - fromFieldPath: status.atProvider.fullyQualifiedDomainName
     strategy: string
     # Here, our administratorLogin parameter and fullyQualifiedDomainName
-    # status are formatted to a single output string representing a
-    # DSN.
+    # status are formatted to a single output string representing a DSN.
     string:
       fmt: "mysql://%s@%s:3306/my-database-name"
   toFieldPath: status.adminDSN
-  # Do not report an error when source fields are unset. The
-  # fullyQualifiedDomainName status field will not be set until the MySQL
-  # server is provisioned, and we do not want to abort rendering of our
-  # resources while the field is unset.
-  policy:
-    fromFieldPath: Optional
 ```
 
 `PatchSet`. References a named set of patches defined in the `spec.patchSets`
@@ -463,8 +466,8 @@ array of a `Composition`.
   patchSetName: metadata
 ```
 
-> Note that the `patchSets` array may not contain patches of `type: PatchSet`,
-> and that `transforms` and `patchPolicy` are ignored by `type: PatchSet`.
+The `patchSets` array may not contain patches of `type: PatchSet`. The
+`transforms` and `patchPolicy` fields are ignored by `type: PatchSet`.
 
 ### Transform Types
 
@@ -505,7 +508,7 @@ supported.
 ```
 
 `convert`. Transforms values of one type to another, for example from a string
-to an integer. The following values are supported by the `from` and `to fields:
+to an integer. The following values are supported by the `from` and `to` fields:
 
 * `string`
 * `bool`
@@ -601,8 +604,10 @@ the composed resource. The name of this check can be a little confusing in that
 a field that exists with a zero value (e.g. an empty string or zero integer) is
 not considered to be 'empty', and thus will pass the readiness check.
 
+`None`. Considers the composed resource to be ready as soon as it exists.
+
 ```yaml
-# The comopsed resource will be considered ready if and when 'online' status
+# The composed resource will be considered ready if and when 'online' status
 # field  exists.
 - type: NonEmpty
   fieldPath: status.atProvider.online
@@ -627,24 +632,25 @@ kubectl describe postgresqlinstance.database.example.org my-db
 
 Per Kubernetes convention, Crossplane keeps errors close to the place they
 happen. This means that if your claim is not becoming ready due to an issue with
-your `Composition`, or with a composed resource you'll need to "follow the
+your `Composition` or with a composed resource you'll need to "follow the
 references" to find out why. Your claim will only tell you that the XR is not
 yet ready.
 
 To follow the references:
 
 1. Find your XR by running `kubectl describe` on your claim and looking for its
-   "Resource Ref" (aka `spec.resourceRef`.)
+   "Resource Ref" (aka `spec.resourceRef`).
 1. Run `kubectl describe` on your XR. This is where you'll find out about issues
-   with the `Composition` you're using, if any. If there are no issues but your
-   XR doesn't seem to be becoming ready, take a look for the "Resource Refs" (or
-   `spec.resourceRefs`) to find your composed resources.
+   with the `Composition` you're using, if any.
+1. If there are no issues but your XR doesn't seem to be becoming ready, take a
+   look for the "Resource Refs" (or `spec.resourceRefs`) to find your composed
+   resources.
 1. Run `kubectl describe` on each referenced composed resource to determine
    whether it is ready and what issues, if any, it is encountering.
 
-## Composite Resource Connection Secrets
+### Composite Resource Connection Secrets
 
-Claims and Composite Resource connection secrets are often derived from the
+Claim and Composite Resource connection secrets are often derived from the
 connection secrets of the managed resources they compose. This is a common
 source of confusion because several things need to align for it to work:
 
@@ -653,8 +659,9 @@ source of confusion because several things need to align for it to work:
    composed resource.
 1. If connection details are derived from a composed resource's connection
    secret that composed resource must specify its `writeConnectionSecretToRef`.
+1. The claim and XR must both specify a `writeConnectionSecretToRef`.
 
-Finally, you can't currently edit a XRD's connection details after the fact. The
+Finally, you can't currently edit a XRD's supported connection details. The
 XRD's `spec.connectionSecretKeys` is effectively immutable. This may change in
 future per [this issue][issue-2024]
 
@@ -690,8 +697,8 @@ look at [github.com/crossplane-contrib][crossplane-contrib] to find many of
 them. Keep in mind that you can mix and match managed resources from different
 providers within a `Composition` to create Composite Resources. For example you
 might use provider-aws and provider-sql to create an XR that provisions an
-`RDSInstance` then creates an SQL `Database` and `User`, or `provider-gcp` and
-`provider-helm` to create a GKE cluster and deploy Helm charts to it.
+`RDSInstance` then creates an SQL `Database` and `User`, or provider-gcp and
+provider-helm to create a `GKECluster` and deploy a Helm Chart `Release` to it.
 
 Often when mixing and matching providers you'll need to compose a
 `ProviderConfig` for one provider that loads credentials from the connection
@@ -715,6 +722,7 @@ so:
 
 [api-docs]: ../api-docs/crossplane.md
 [xr-concepts]: ../concepts/composition.md
+[crd-docs]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 [raise an issue]: https://github.com/crossplane/crossplane/issues/new?assignees=&labels=enhancement&template=feature_request.md
 [issue-2524]: https://github.com/crossplane/crossplane/issues/2524
 [field-paths]:  https://github.com/kubernetes/community/blob/61f3d0/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
