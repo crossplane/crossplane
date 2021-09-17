@@ -26,7 +26,7 @@ in Kubernetes.
 
 The `Configuration` package we installed in the last section:
 
-- Defines a `CompositePostgreSQLInstance` XR.
+- Defines a `XPostgreSQLInstance` XR.
 - Offers a `PostgreSQLInstance` claim (XRC) for said XR.
 - Creates a `Composition` that can satisfy our XR.
 
@@ -160,7 +160,7 @@ kubectl get postgresqlinstance my-db
 > will allow you to view groups of Crossplane resources:
 >
 > - `kubectl get claim`: get all resources of all claim kinds, like `PostgreSQLInstance`.
-> - `kubectl get composite`: get all resources that are of composite kind, like `CompositePostgreSQLInstance`.
+> - `kubectl get composite`: get all resources that are of composite kind, like `XPostgreSQLInstance`.
 > - `kubectl get managed`: get all resources that represent a unit of external
 >   infrastructure.
 > - `kubectl get <name-of-provider>`: get all resources related to `<provider>`.

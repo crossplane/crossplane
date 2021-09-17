@@ -119,12 +119,12 @@ defined will have a namespace-scoped variant.
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: compositemysqlinstances.example.org
+  name: xmysqlinstances.example.org
 spec:
   group: example.org
   names:
-    kind: CompositeMySQLInstance
-    plural: compositemysqlinstances
+    kind: XMySQLInstance
+    plural: xmysqlinstances
   claimNames:
     kind: MySQLInstance
     plural: mysqlinstances
@@ -133,8 +133,8 @@ spec:
 
 When the example above is created, Crossplane will produce two
 [CustomResourceDefinitions]:
-1. A cluster-scoped type with `kind: CompositeMySQLInstance`. This is referred
-   to as a **Composite Resource (XR)**.
+1. A cluster-scoped type with `kind: XMySQLInstance`. This is referred to as a
+   **Composite Resource (XR)**.
 2. A namespace-scoped type with `kind: MySQLInstance`. This is referred to as a
    **Claim (XRC)**.
 
@@ -164,13 +164,13 @@ This feature serves as a lightweight policy mechanism by only giving the
 consumer the ability to customize the underlying resources to the extent the
 platform builder desires. For instance, in the examples above, a platform
 builder may choose to define a `spec.location` field in the schema of the
-`CompositeMySQLInstance` that is an enum with options `east` and `west`. In the
+`XMySQLInstance` that is an enum with options `east` and `west`. In the
 Composition, those fields could map to the `RDSInstance` `spec.region` field,
 making the value either `us-east-1` or `us-west-1`. If no other patches were
 defined for the `RDSInstance`, giving a user the ability (using RBAC) to create
-a `CompositeMySQLInstance` / `MySQLInstance` would be akin to giving the ability
-to create a very specifically configured `RDSInstance`, where they can only
-decide the region where it lives and they are restricted to two options.
+a `XMySQLInstance` / `MySQLInstance` would be akin to giving the ability to
+create a very specifically configured `RDSInstance`, where they can only decide
+the region where it lives and they are restricted to two options.
 
 This model is in contrast to many infrastructure as code tools where the end
 user must have provider credentials to create the underlying resources that are
@@ -190,11 +190,11 @@ applied with namespace restrictions. Most users in a cluster do not have access
 to cluster-scoped resources as they are considered only relevant to
 infrastructure admins by both Kubernetes and Crossplane.
 
-Building on our simple `CompositeMySQLInstance` / `MySQLInstance` example, a
-platform builder may choose to define permissions on `MySQLInstance` at the
-namespace scope using a `Role`. This allows for giving users the ability to
-create and and manage `MySQLInstances` in their given namespace, but not the
-ability to see those defined in other namespaces.
+Building on our simple `XMySQLInstance` / `MySQLInstance` example, a platform
+builder may choose to define permissions on `MySQLInstance` at the namespace
+scope using a `Role`. This allows for giving users the ability to create and and
+manage `MySQLInstances` in their given namespace, but not the ability to see
+those defined in other namespaces.
 
 Futhermore, because the `metadata.namespace` is a field on the XRC, patching can
 be utilized to configure managed resources based on the namespace in which the

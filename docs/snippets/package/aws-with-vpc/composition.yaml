@@ -11,7 +11,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: vpc
       base:

@@ -2,7 +2,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.aws.database.example.org
+  name: xpostgresqlinstances.aws.database.example.org
   labels:
     provider: aws
     guide: quickstart
@@ -11,7 +11,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: rdsinstance
       base:
