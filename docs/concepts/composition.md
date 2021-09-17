@@ -13,13 +13,18 @@ Crossplane Composite Resources are opinionated Kubernetes Custom Resources that
 are _composed_ of [Managed Resources][managed-resources]. We often call them XRs
 for short.
 
+![Diagram of claims, XRs, and Managed Resources][xrs-and-mrs]
+
+> If you're already familiar with Composite Resources and looking for a detailed
+> configuration reference or some tips, tricks, and troubleshooting information,
+> try the [Composition Reference][xr-ref].
+
 Composite Resources are designed to let you build your own platform with your
 own opinionated concepts and APIs without needing to write a Kubernetes
 controller from scratch. Instead, you define the schema of your XR and teach
 Crossplane which Managed Resources it should compose (i.e. create) when someone
 creates the XR you defined.
 
-![Diagram of claims, XRs, and Managed Resources][xrs-and-mrs]
 
 Below is an example of a Composite Resource:
 
@@ -41,10 +46,6 @@ spec:
 You define your own XRs, so they can be of whatever API version and kind you
 like, and contain whatever spec and status fields you need.
 
-> If you're already familiar with Composite Resources and looking for a detailed
-> configuration reference or some tips, tricks, and troubleshooting information,
-> try the [Composition Reference][xr-ref].
-
 ## How It Works
 
 The first step towards using Composite Resources is configuring Crossplane so
@@ -52,13 +53,13 @@ that it knows what XRs you'd like to exist, and what to do when someone creates
 one of those XRs. This is done using a `CompositeResourceDefinition` resource
 and one or more `Composition` resources.
 
-![Diagram combining all Composition concepts][how-it-works]
-
 Once you've configured Crossplane with the details of your new XR you can either
 create one directly, or use a _claim_. Typically only the folks responsible for
 configuring Crossplane (often a platform or SRE team) have permission to create
 XRs directly. Everyone else manages XRs via a lightweight proxy resource called
 a Composite Resource Claim (or claim for short). More on that later.
+
+![Diagram combining all Composition concepts][how-it-works]
 
 > If you're coming from the Terraform world you can think of an XRD as similar
 > to the `variable` blocks of a Terraform module, while the `Composition` is
@@ -121,8 +122,8 @@ more Managed Resources - when the XR is created, updated, or deleted the set of
 Managed Resources are created, updated or deleted accordingly.
 
 > You can add multiple Compositions for each XRD, and choose which should be
-> used when XRs are created or claims. This allows a Composition to act like a
-> "class of service" - for example you could configure one Composition for each
+> used when XRs are created. This allows a Composition to act like a "class of
+> service" - for example you could configure one Composition for each
 > environment you support, such as production, staging, and development.
 
 A basic `Composition` for the above `XPostgreSQLInstance` might look like this:
@@ -158,8 +159,8 @@ spec:
                 - value: "0.0.0.0/0"
     patches:
     - type: FromCompositeFieldPath
-      fromFieldPath: "spec.parameters.storageGB"
-      toFieldPath: "spec.forProvider.settings.dataDiskSizeGb"
+      fromFieldPath: spec.parameters.storageGB
+      toFieldPath: spec.forProvider.settings.dataDiskSizeGb
 ```
 
 The above `Composition` tells Crossplane that when someone creates an
@@ -167,10 +168,10 @@ The above `Composition` tells Crossplane that when someone creates an
 response. The `storageGB` field of the `XPostgreSQLInstance` should be used to
 configure the `dataDiskSizeGb` field of the `CloudSQLInstance`. This is only a
 small subset of the functionality a `Composition` enables - take a look at the
-reference below to learn more.
+[reference page][xr-ref] to learn more.
 
 > We almost always talk about XRs composing Managed Resources, but actually an
-> XR can also compose other XRs to allow nested layers of abstraction. We don't
+> XR can also compose other XRs to allow nested layers of abstraction. XRs don't
 > support composing arbitrary Kubernetes resources (e.g. Deployments, operators,
 > etc) directly but you can do so using our [Kubernetes][provider-kubernetes]
 > and [Helm][provider-helm] providers.
@@ -181,8 +182,6 @@ Crossplane uses Composite Resource Claims (or just claims, for short) to allow
 application operators to provision and manage XRs. When we talk about using XRs
 it's typically implied that the XR is being used via a claim. Claims are almost
 identical to their corresponding XRs.
-
-![Diagram showing the relationship between claims and XRs][claims-and-xrs]
 
 A claim for the `XPostgreSQLInstance` XR above would look like this:
 
@@ -201,45 +200,52 @@ spec:
     name: my-db-connection-details
 ```
 
-There are three key differences between an XR and a claim:
-
-1. Claims are namespaced, while XRs (and Managed Resources) are cluster scoped.
-1. Claims are of a `kind` from the XR - by convention the XR kind without the
-   proceeding `X` - e.g. a `PostgreSQLInstance` claims an `XPostgreSQLInstance`.
-1. An active claim contains a reference to its corresponding XR, while an XR
-   contains an array of references to its composed managed resources.
-
-Not all XRs offer a claim - doing so is optional. See the XRD reference below to
-learn how to offer a claim. Claims may seem a little superfluous at first, but
-they enable three handy scenarios:
-
-**Private XRs.** Sometimes a platform team might not want a type of XR to be
-directly consumed by their application teams. For example because the XR
-represents 'supporting' infrastructure - imagine a VPC `XNetwork` XR. App teams
-might create `PostgreSQLInstance` claims that use an `XNetwork`, but they
-shouldn't be creating their own`. Similarly, some kinds of XR might be intended
-only for 'nested' use - intended only to be composed by other XRs.
-
-**Global XRs**. Not all infrastructure is conceptually namespaced. Say your
-organisation uses team scoped namespaces. A `PostgreSQLInstance` that belongs to
-Team A should probably be part of the `team-a` namespace - you'd represent this
-by creating a `PostgreSQLInstance` claim in that namespace. On the other hand
-the `XNetwork` XR we mentioned previously could be referenced (i.e. used) by XRs
-from many different namespaces - it doesn't exist to serve a particular team.
-
-**Pre-provisioned XRs**. Finally, separating claims from XRs allows a platform
-team to pre-provision certain kinds of XR. Typically an XR is created on-demand
-in response to the creation of a claim, but it's actually possible to a claim to
-instead request an existing XR. This can allow application teams to instantly
-claim infrastructure like database instances that would otherwise take minutes
-to provision on-demand.
-
 > We designed Crossplane to be a tool platform teams can use to offer
 > opinionated platform APIs to the application teams they support. The platform
 > team offers those APIs using claims. It helps to think of the claim as an
 > application team’s interface to a composite resource. You could also think of
 > claims as the public (app team) facing part of the opinionated platform API,
 > while composite resources are the private (platform team) facing part.
+
+There are three key differences between an XR and a claim:
+
+1. Claims are namespaced, while XRs (and Managed Resources) are cluster scoped.
+1. Claims are of a different `kind` than the XR - by convention the XR's `kind`
+   without the proceeding `X`. For example a `PostgreSQLInstance` claims an
+   `XPostgreSQLInstance`.
+1. An active claim contains a reference to its corresponding XR, while an XR
+   contains both a reference to the claim an array of references to the managed
+   resources it composes.
+
+![Diagram showing the relationship between claims and XRs][claims-and-xrs]
+
+Not all XRs offer a claim - doing so is optional. See the XRD section of the
+[Composition reference][xr-ref] to learn how to specif to offer a claim.
+
+Claims may seem a little superfluous at first, but they enable some handy
+scenarios, including:
+
+* **Private XRs.** Sometimes a platform team might not want a type of XR to be
+  directly consumed by their application teams. For example because the XR
+  represents 'supporting' infrastructure - imagine a VPC `XNetwork` XR. App
+  teams might create `PostgreSQLInstance` claims that use an `XNetwork`, but
+  they shouldn't be creating their own. Similarly, some kinds of XR might be
+  intended only for 'nested' use - intended only to be composed by other XRs.
+
+* **Global XRs**. Not all infrastructure is conceptually namespaced. Say your
+  organisation uses team scoped namespaces. A `PostgreSQLInstance` that belongs
+  to Team A should probably be part of the `team-a` namespace - you'd represent
+  this by creating a `PostgreSQLInstance` claim in that namespace. On the other
+  hand the `XNetwork` XR we mentioned previously could be referenced (i.e. used)
+  by XRs from many different namespaces - it doesn't exist to serve a particular
+  team.
+
+* **Pre-provisioned XRs**. Finally, separating claims from XRs allows a platform
+  team to pre-provision certain kinds of XR. Typically an XR is created
+  on-demand in response to the creation of a claim, but it's also possible for a
+  claim to instead request an existing XR. This can allow application teams to
+  instantly claim infrastructure like database instances that would otherwise
+  take minutes to provision on-demand.
 
 [managed-resources]: managed-resources.md
 [xrs-and-mrs]: ../media/composition-xrs-and-mrs.svg
