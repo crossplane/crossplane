@@ -25,7 +25,6 @@ controller from scratch. Instead, you define the schema of your XR and teach
 Crossplane which Managed Resources it should compose (i.e. create) when someone
 creates the XR you defined.
 
-
 Below is an example of a Composite Resource:
 
 ```yaml
@@ -50,8 +49,8 @@ like, and contain whatever spec and status fields you need.
 
 The first step towards using Composite Resources is configuring Crossplane so
 that it knows what XRs you'd like to exist, and what to do when someone creates
-one of those XRs. This is done using a `CompositeResourceDefinition` resource
-and one or more `Composition` resources.
+one of those XRs. This is done using a `CompositeResourceDefinition` (XRD)
+resource and one or more `Composition` resources.
 
 Once you've configured Crossplane with the details of your new XR you can either
 create one directly, or use a _claim_. Typically only the folks responsible for
