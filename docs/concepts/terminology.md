@@ -71,7 +71,7 @@ not appropriate in that context.
 A “Composite Resource” or “XR” is an API type defined using Crossplane. A
 composite resource’s API type is arbitrary - dictated by the concept the author
 wishes to expose as an API, for example an “AcmeCoDB”. A common convention is
-for types to start with the word “Composite” - e.g. “CompositeAcmeCoDB”.
+for types to start with "X" - e.g. "XAcmeCoDB".
 
 We talk about Crossplane being a tool teams can use to define their own
 opinionated platform APIs. Those APIs are made up of composite resources; when
@@ -84,7 +84,7 @@ concept. In fact, the composite resource _is_ the high level concept.
 
 The term “Composite Resource” refers to a class of types, so avoid using Pascal
 case - “Composite Resource” not CompositeResource. Use pascal case when
-referring to a distinct type of composite resource - e.g. a CompositeAcmeCoDB.
+referring to a distinct type of composite resource - e.g. a XAcmeCoDB.
 
 > Folks accustomed to Terraform might think of a composite resource as a
 > `tfvars` file that supplies values for the variables a Terraform module uses
@@ -107,11 +107,11 @@ claims as the public (app team) facing part of the opinionated platform API,
 while composite resources are the private (platform team) facing part.
 
 A common convention is for a claim to be of the same type as its corresponding
-composite resource, but without the "Composite" prefix. So an "AcmeCoDB" would
-be a type of claim, and a "CompositeAcmeCoDB" would be the corresponding type of
-composite resource. This allows claim consumers to be relatively ignorant of
-Crossplane and composition, and to instead simply think about managing “an
-AcmeCo DB” while the platform team worries about the implementation details.
+composite resource, but without the "X" prefix. So an "AcmeCoDB" would be a type
+of claim, and a "XAcmeCoDB" would be the corresponding type of composite
+resource. This allows claim consumers to be relatively ignorant of Crossplane
+and composition, and to instead simply think about managing “an AcmeCo DB” while
+the platform team worries about the implementation details.
 
 The term “Composite Resource Claim” refers to a class of types, so avoid using
 Pascal case - “Composite Resource Claim” not CompositeResourceClaim. Use Pascal
