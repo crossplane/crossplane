@@ -9,10 +9,10 @@ indent: true
 
 ## Overview
 
-A Managed Resource is Crossplane's representation of a resource in an external
-system - most commonly a cloud provider. Managed Resources are opinionated, XRM
-compliant Kubernetes Custom Resources that are installed by a Crossplane
-[provider].
+A Managed Resource (MR) is Crossplane's representation of a resource in an external
+system - most commonly a cloud provider. Managed Resources are opinionated,
+Crossplane Resource Model ([XRM][term-xrm]) compliant Kubernetes Custom
+Resources that are installed by a Crossplane [provider].
 
 For example, `RDSInstance` in the AWS Provider corresponds to an actual RDS
 Instance in AWS. There is a one-to-one relationship and the changes on managed
@@ -437,6 +437,7 @@ fields are there and those are enough to import a resource. The tool you're
 using needs to store `annotations` and `spec` fields, which most tools do
 including Velero.
 
+[term-xrm]: terminology.md#crossplane-resource-model
 [composition]: composition.md
 [api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
 [velero]: https://velero.io/
