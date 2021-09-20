@@ -47,10 +47,10 @@ import (
 
 var _ parser.Backend = &ErrBackend{}
 
-type ErrBackend struct{}
+type ErrBackend struct{ err error }
 
 func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.ReadCloser, error) {
-	return nil, errors.New("test err")
+	return nil, e.err
 }
 
 var _ Establisher = &MockEstablisher{}
@@ -179,7 +179,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrGetPackageRevision": {
@@ -195,12 +195,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r:   reconcile.Result{},
 				err: errors.Wrap(errBoom, errGetPackageRevision),
 			},
 		},
 		"ErrDeletedClearCache": {
-			reason: "We should requeue after short wait if revision is deleted and we fail to clear image cache.",
+			reason: "We should return an error if revision is deleted and we fail to clear image cache.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -222,11 +221,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errDeleteCache),
 			},
 		},
 		"ErrDeletedRemoveSelf": {
-			reason: "We should requeue after short wait if revision is deleted and we fail to remove it from package Lock.",
+			reason: "We should return an error if revision is deleted and we fail to remove it from package Lock.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -259,11 +258,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errRemoveLock),
 			},
 		},
 		"ErrDeletedRemoveFinalizer": {
-			reason: "We should requeue after short wait if revision is deleted and we fail to remove finalizer.",
+			reason: "We should return an error if revision is deleted and we fail to remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -288,7 +287,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errRemoveFinalizer),
 			},
 		},
 		"SuccessfulDeleted": {
@@ -312,16 +311,16 @@ func TestReconcile(t *testing.T) {
 						},
 					}),
 					WithFinalizer(resource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ resource.Object) error {
-						return errBoom
+						return nil
 					}}),
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrAddFinalizer": {
-			reason: "We should requeue after short wait if we fail to add finalizer.",
+			reason: "We should return an error if we fail to add finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -338,11 +337,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
 		"ErrInitParserBackend": {
-			reason: "We should requeue after short wait if we fail to initialize parser backend.",
+			reason: "We should return an error if we fail to initialize parser backend.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -372,15 +371,15 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParserBackend(&ErrBackend{}),
+					WithParserBackend(&ErrBackend{err: errBoom}),
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errInitParserBackend),
 			},
 		},
 		"ErrParse": {
-			reason: "We should requeue after short wait if fail to parse package.",
+			reason: "We should return an error if fail to parse the package.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -415,11 +414,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errors.New(`no kind "Provider" is registered for version "meta.pkg.crossplane.io/v1" in scheme "pkg/runtime/scheme.go:100"`), errParsePackage),
 			},
 		},
 		"ErrLint": {
-			reason: "We should requeue after long wait if linting returns an error.",
+			reason: "We should return an error if fail to lint the package.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -455,7 +454,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
+				err: errors.Wrap(errBoom, errLintPackage),
 			},
 		},
 		"ErrCrossplaneConstraints": {
@@ -514,7 +513,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrOneMeta": {
-			reason: "We should requeue after long wait if not exactly one meta package type.",
+			reason: "We should return an error if not exactly one meta package type.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -550,11 +549,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
+				err: errors.New(errNotOneMeta),
 			},
 		},
 		"ErrResolveDependencies": {
-			reason: "We should requeue after short wait if we fail to resolve dependencies.",
+			reason: "We should return an error if we fail to resolve dependencies.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -608,11 +607,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errResolveDeps),
 			},
 		},
 		"ErrPreHook": {
-			reason: "We should requeue after short wait if pre establishment hook returns an error.",
+			reason: "We should return an error if pre establishment hook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -663,11 +662,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errPreHook),
 			},
 		},
 		"ErrPostHook": {
-			reason: "We should requeue after short wait if post establishment hook returns an error.",
+			reason: "We should return an error if post establishment hook returns an error.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -720,7 +719,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errPostHook),
 			},
 		},
 		"SuccessfulActiveRevision": {
@@ -840,7 +839,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrEstablishActiveRevision": {
-			reason: "An active revision that fails to establish control should requeue after short wait.",
+			reason: "An active revision that fails to establish control should return an error.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -893,7 +892,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errEstablishControl),
 			},
 		},
 		"SuccessfulInactiveRevision": {
@@ -953,7 +952,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrEstablishInactiveRevision": {
-			reason: "An inactive revision that fails to establish ownership should requeue after short wait.",
+			reason: "An inactive revision that fails to establish ownership should return an error.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -1006,7 +1005,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errEstablishControl),
 			},
 		},
 	}

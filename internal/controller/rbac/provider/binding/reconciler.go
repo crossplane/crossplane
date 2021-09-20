@@ -42,8 +42,6 @@ import (
 )
 
 const (
-	shortWait = 30 * time.Second
-
 	timeout = 2 * time.Minute
 
 	errGetPR        = "cannot get ProviderRevision"
@@ -161,8 +159,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := &corev1.ServiceAccountList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListSAs, "error", err)
-		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errListSAs)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListSAs)
+		r.record.Event(pr, event.Warning(reasonBind, err))
+		return reconcile.Result{}, err
 	}
 
 	// Filter down to the ServiceAccounts that are owned by this
@@ -204,8 +203,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID())); err != nil {
 		log.Debug(errApplyBinding, "error", err)
-		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errApplyBinding)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errApplyBinding)
+		r.record.Event(pr, event.Warning(reasonBind, err))
+		return reconcile.Result{}, err
 	}
 	log.Debug("Applied system ClusterRoleBinding")
 	r.record.Event(pr, event.Normal(reasonBind, "Bound system ClusterRole to provider ServiceAccount(s)"))

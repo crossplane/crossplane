@@ -67,6 +67,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Composition{}).
 		Owns(&v1alpha1.CompositionRevision{}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(NewReconciler(mgr,
 			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))

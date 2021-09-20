@@ -42,18 +42,13 @@ import (
 
 const (
 	reconcileTimeout = 1 * time.Minute
-
-	shortWait     = 30 * time.Second
-	veryShortWait = 5 * time.Second
-	pullWait      = 1 * time.Minute
 )
 
 func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
-	r := reconcile.Result{}
 	if p != nil && *p == corev1.PullAlways {
-		r.RequeueAfter = pullWait
+		return reconcile.Result{Requeue: true}
 	}
-	return r
+	return reconcile.Result{Requeue: false}
 }
 
 const (
@@ -169,6 +164,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Provider{}).
 		Owns(&v1.ProviderRevision{}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(r)
 }
 
@@ -201,6 +197,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.Configuration{}).
 		Owns(&v1.ConfigurationRevision{}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(r)
 }
 
@@ -233,8 +230,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	p := r.newPackage()
 	if err := r.client.Get(ctx, req.NamespacedName, p); err != nil {
-		// There's no need to requeue if we no longer exist. Otherwise we'll be
-		// requeued implicitly because we return an error.
+		// There's no need to requeue if we no longer exist. Otherwise
+		// we'll be requeued implicitly because we return an error.
 		log.Debug(errGetPackage, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackage)
 	}
@@ -249,22 +246,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	prs := r.newPackageRevisionList()
 	if err := r.client.List(ctx, prs, client.MatchingLabels(map[string]string{v1.LabelParentPackage: p.GetName()})); resource.IgnoreNotFound(err) != nil {
 		log.Debug(errListRevisions, "error", err)
-		r.record.Event(p, event.Warning(reasonList, errors.Wrap(err, errListRevisions)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListRevisions)
+		r.record.Event(p, event.Warning(reasonList, err))
+		return reconcile.Result{}, err
 	}
 
 	revisionName, err := r.pkg.Revision(ctx, p)
 	if err != nil {
-		p.SetConditions(v1.Unpacking())
 		log.Debug(errUnpack, "error", err)
-		r.record.Event(p, event.Warning(reasonUnpack, errors.Wrap(err, errUnpack)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+		err = errors.Wrap(err, errUnpack)
+		r.record.Event(p, event.Warning(reasonUnpack, err))
+		return reconcile.Result{}, err
 	}
 
 	if revisionName == "" {
 		p.SetConditions(v1.Unpacking())
 		r.record.Event(p, event.Normal(reasonUnpack, "Waiting for unpack to complete"))
-		return reconcile.Result{RequeueAfter: veryShortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
 	}
 
 	// Set the current revision and identifier.
@@ -286,28 +284,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			maxRevision = revisionNum
 		}
 
-		// Set oldest revision to the lowest numbered revision and record its
-		// index.
+		// Set oldest revision to the lowest numbered revision and
+		// record its index.
 		if revisionNum < oldestRevision {
 			oldestRevision = revisionNum
 			oldestRevisionIndex = index
 		}
-		// If revision name is same as current revision, then revision already exists.
+		// If revision name is same as current revision, then revision
+		// already exists.
 		if rev.GetName() == p.GetCurrentRevision() {
 			pr = rev
-			// Finish iterating through all revisions to make sure all
-			// non-current revisions are inactive.
+			// Finish iterating through all revisions to make sure
+			// all non-current revisions are inactive.
 			continue
 		}
 		if rev.GetDesiredState() == v1.PackageRevisionActive {
-			// If revision is not the current revision, set to inactive. This
-			// should always be done, regardless of the package's revision
-			// activation policy.
+			// If revision is not the current revision, set to
+			// inactive. This should always be done, regardless of
+			// the package's revision activation policy.
 			rev.SetDesiredState(v1.PackageRevisionInactive)
 			if err := r.client.Apply(ctx, rev, resource.MustBeControllableBy(p.GetUID())); err != nil {
 				log.Debug(errUpdateInactivePackageRevision, "error", err)
-				r.record.Event(p, event.Warning(reasonTransitionRevision, errors.Wrap(err, errUpdateInactivePackageRevision)))
-				return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+				err = errors.Wrap(err, errUpdateInactivePackageRevision)
+				r.record.Event(p, event.Warning(reasonTransitionRevision, err))
+				return reconcile.Result{}, err
 			}
 		}
 	}
@@ -325,8 +325,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// Find the oldest revision and delete it.
 		if err := r.client.Delete(ctx, gcRev); err != nil {
 			log.Debug(errGCPackageRevision, "error", err)
-			r.record.Event(p, event.Warning(reasonGarbageCollect, errors.Wrap(err, errGCPackageRevision)))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+			err = errors.Wrap(err, errGCPackageRevision)
+			r.record.Event(p, event.Warning(reasonGarbageCollect, err))
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -353,8 +354,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
 
-	// If current revision is not active and we have an automatic or undefined
-	// activation policy, always activate.
+	// If current revision is not active and we have an automatic or
+	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {
 		pr.SetDesiredState(v1.PackageRevisionActive)
 	}
@@ -364,8 +365,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	meta.AddOwnerReference(pr, controlRef)
 	if err := r.client.Apply(ctx, pr, resource.MustBeControllableBy(p.GetUID())); err != nil {
 		log.Debug(errApplyPackageRevision, "error", err)
-		r.record.Event(p, event.Warning(reasonInstall, errors.Wrap(err, errApplyPackageRevision)))
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+		err = errors.Wrap(err, errApplyPackageRevision)
+		r.record.Event(p, event.Warning(reasonInstall, err))
+		return reconcile.Result{}, err
 	}
 
 	p.SetConditions(v1.Active())

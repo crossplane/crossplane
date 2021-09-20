@@ -70,11 +70,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"GetCompositeResourceError": {
-			reason: "We should return errors encountered while getting the composite resource.",
+			reason: "We should return error encountered while getting the composite resource.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -86,12 +86,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r:   reconcile.Result{},
 				err: errors.Wrap(errBoom, errGet),
 			},
 		},
 		"SelectCompositionError": {
-			reason: "We should requeue after a short wait if we encounter an error while selecting a composition.",
+			reason: "We should return any error encountered while selecting a composition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -106,11 +105,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errSelectComp),
 			},
 		},
 		"FetchCompositionError": {
-			reason: "We should requeue after a short wait if we encounter an error while fetching a composition.",
+			reason: "We should return any error encountered while fetching a composition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -129,11 +128,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errFetchComp),
 			},
 		},
 		"ValidateCompositionError": {
-			reason: "We should requeue after a short wait if we encounter an error while validating our Composition.",
+			reason: "We should return any error encountered while validating our Composition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -153,11 +152,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errValidate),
 			},
 		},
 		"ConfigureCompositeError": {
-			reason: "We should requeue after a short wait if we encounter an error while configuring the composite resource.",
+			reason: "We should return any error encountered while configuring the composite resource.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -180,11 +179,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errConfigure),
 			},
 		},
 		"ComposedTemplatesError": {
-			reason: "We should requeue after a short wait if we encounter an error while inlining a composition's patchsets.",
+			reason: "We should return any error encountered while inlining a composition's patchsets.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -218,11 +217,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errors.New("cannot find PatchSet by name nonexistent-patchset"), errInline),
 			},
 		},
 		"AssociateTemplatesError": {
-			reason: "We should requeue after a short wait if we encounter an error while associating Composition templates with composed resources.",
+			reason: "We should return any error encountered while associating Composition templates with composed resources.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -251,55 +250,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
-			},
-		},
-		"RenderComposedError": {
-			reason: "We should requeue after a short wait if we encounter an error while rendering a composed resource.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-						return errBoom
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return false, nil
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errAssociate),
 			},
 		},
 		"UpdateCompositeError": {
-			reason: "We should requeue after a short wait if we encounter an error while updating our composite resource with references.",
+			reason: "We should return any error encountered while updating our composite resource with references.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -329,11 +284,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errUpdateComposite),
 			},
 		},
 		"ApplyComposedError": {
-			reason: "We should requeue after a short wait if we encounter an error while applying a composed resource.",
+			reason: "We should return any error encountered while applying a composed resource.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -366,11 +321,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errApply),
 			},
 		},
 		"FetchConnectionDetailsError": {
-			reason: "We should requeue after a short wait if we encounter an error while fetching a composed resource's connection details.",
+			reason: "We should return any error encountered while fetching a composed resource's connection details.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -406,11 +361,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errFetchSecret),
 			},
 		},
 		"CheckReadinessError": {
-			reason: "We should requeue after a short wait if we encounter an error while checking whether a composed resource is ready.",
+			reason: "We should return any error encountered while checking whether a composed resource is ready.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -450,11 +405,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errReadiness),
 			},
 		},
 		"CompositeRenderError": {
-			reason: "We should requeue after a short wait if we encounter an error while rendering the Composite.",
+			reason: "We should return any error encountered while rendering the Composite.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -497,11 +452,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errRenderCR),
 			},
 		},
 		"CompositeUpdateError": {
-			reason: "We should requeue after a short wait if we encounter an error while updating the Composite.",
+			reason: "We should return any error encountered while updating the Composite.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -551,7 +506,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errUpdateComposite),
 			},
 		},
 		"CompositeUpdateEarlyExit": {
@@ -606,11 +561,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"PublishConnectionDetailsError": {
-			reason: "We should requeue after a short wait if we encounter an error while publishing connection details.",
+			reason: "We should return any error encountered while publishing connection details.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -641,11 +596,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errPublish),
 			},
 		},
 		"ComposedResourcesNotReady": {
-			reason: "We should requeue after a short wait if any of our composed resources are not yet ready.",
+			reason: "We should requeue if any of our composed resources are not yet ready.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -689,11 +644,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"ComposedResourcesReady": {
-			reason: "We should requeue after a long wait if all of our composed resources are ready.",
+			reason: "We should requeue after our poll interval if all of our composed resources are ready.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -741,7 +696,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: longWait},
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
 			},
 		},
 	}

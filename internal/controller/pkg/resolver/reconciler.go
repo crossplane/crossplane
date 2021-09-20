@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
@@ -45,8 +44,6 @@ import (
 
 const (
 	reconcileTimeout = 1 * time.Minute
-
-	shortWait = 30 * time.Second
 
 	packageTagFmt = "%s:%s"
 )
@@ -79,13 +76,6 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 	}
 }
 
-// WithRecorder specifies how the Reconciler should record Kubernetes events.
-func WithRecorder(er event.Recorder) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.record = er
-	}
-}
-
 // WithFinalizer specifies how the Reconciler should finalize package revisions.
 func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -111,7 +101,6 @@ func WithFetcher(f xpkg.Fetcher) ReconcilerOption {
 type Reconciler struct {
 	client  client.Client
 	log     logging.Logger
-	record  event.Recorder
 	lock    resource.Finalizer
 	newDag  dag.NewDAGFn
 	fetcher xpkg.Fetcher
@@ -132,7 +121,6 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 		WithFetcher(f),
 	)
 
@@ -141,6 +129,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1beta1.Lock{}).
 		Owns(&v1.ConfigurationRevision{}).
 		Owns(&v1.ProviderRevision{}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(r)
 }
 
@@ -150,7 +139,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		client:  mgr.GetClient(),
 		lock:    resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 		log:     logging.NewNopLogger(),
-		record:  event.NewNopRecorder(),
 		newDag:  dag.NewMapDag,
 		fetcher: xpkg.NewNopFetcher(),
 	}
@@ -172,27 +160,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	lock := &v1beta1.Lock{}
 	if err := r.client.Get(ctx, req.NamespacedName, lock); err != nil {
-		// There's no need to requeue if we no longer exist. Otherwise we'll be
-		// requeued implicitly because we return an error.
+		// There's no need to requeue if we no longer exist. Otherwise
+		// we'll be requeued implicitly because we return an error.
 		log.Debug(errGetLock, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetLock)
 	}
 
-	// If no packages exist in Lock then we remove finalizer and wait until a
-	// package is added to reconcile again. This allows for cleanup of the Lock
-	// when uninstalling Crossplane after all packages have already been
-	// uninstalled.
+	// If no packages exist in Lock then we remove finalizer and wait until
+	// a package is added to reconcile again. This allows for cleanup of the
+	// Lock when uninstalling Crossplane after all packages have already
+	// been uninstalled.
 	if len(lock.Packages) == 0 {
 		if err := r.lock.RemoveFinalizer(ctx, lock); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			return reconcile.Result{}, errors.Wrap(err, errRemoveFinalizer)
 		}
 		return reconcile.Result{}, nil
 	}
 
 	if err := r.lock.AddFinalizer(ctx, lock); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		return reconcile.Result{}, errors.Wrap(err, errAddFinalizer)
 	}
 
 	log = log.WithValues(
@@ -204,38 +192,40 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	dag := r.newDag()
 	implied, err := dag.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
+		log.Debug(errBuildDAG, "error", err)
 		return reconcile.Result{}, errors.Wrap(err, errBuildDAG)
 	}
 
-	// Make sure we don't have any cyclical imports. If we do, refuse to install
-	// additional packages.
+	// Make sure we don't have any cyclical imports. If we do, refuse to
+	// install additional packages.
 	_, err = dag.Sort()
 	if err != nil {
+		log.Debug(errSortDAG, "error", err)
 		return reconcile.Result{}, errors.Wrap(err, errSortDAG)
 	}
 
 	if len(implied) == 0 {
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	// If we are missing a node, we want to create it. The resolver never
-	// modifies the Lock. We only create the first implied node as we will be
-	// requeued when it adds itself to the Lock, at which point we will check
-	// for missing nodes again.
+	// modifies the Lock. We only create the first implied node as we will
+	// be requeued when it adds itself to the Lock, at which point we will
+	// check for missing nodes again.
 	dep, ok := implied[0].(*v1beta1.Dependency)
 	if !ok {
 		log.Debug(errInvalidDependency, "error", errors.Errorf(errMissingDependencyFmt, dep.Identifier()))
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: false}, nil
 	}
 	c, err := semver.NewConstraint(dep.Constraints)
 	if err != nil {
 		log.Debug(errInvalidConstraint, "error", err)
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: false}, nil
 	}
 	ref, err := name.ParseReference(dep.Package)
 	if err != nil {
 		log.Debug(errInvalidDependency, "error", err)
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	// NOTE(hasheddan): we will be unable to fetch tags for private
@@ -244,7 +234,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	tags, err := r.fetcher.Tags(ctx, ref)
 	if err != nil {
 		log.Debug(errFetchTags, "error", err)
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		return reconcile.Result{}, errors.Wrap(err, errFetchTags)
 	}
 
 	vs := []*semver.Version{}
@@ -269,7 +259,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// dictating constraints.
 	if addVer == "" {
 		log.Debug(errNoValidVersion, errors.Errorf(errNoValidVersionFmt, dep.Identifier(), dep.Constraints))
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	var pack v1.Package
@@ -280,7 +270,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pack = &v1.Provider{}
 	default:
 		log.Debug(errInvalidPackageType)
-		return reconcile.Result{}, nil
+		return reconcile.Result{Requeue: false}, nil
 	}
 
 	// NOTE(hasheddan): packages are currently created with default
@@ -294,8 +284,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// it creates.
 	if err := r.client.Create(ctx, pack); err != nil {
 		log.Debug(errCreateDependency, "error", err)
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		return reconcile.Result{}, errors.Wrap(err, errCreateDependency)
 	}
 
-	return reconcile.Result{}, nil
+	return reconcile.Result{Requeue: false}, nil
 }

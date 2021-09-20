@@ -46,13 +46,8 @@ import (
 )
 
 const (
-	// TODO(negz): Use exponential backoff instead of RetryAfter durations.
-	tinyWait  = 3 * time.Second
-	shortWait = 30 * time.Second
-
-	timeout        = 1 * time.Minute
-	maxConcurrency = 5
-	finalizer      = "offered.apiextensions.crossplane.io"
+	timeout   = 1 * time.Minute
+	finalizer = "offered.apiextensions.crossplane.io"
 )
 
 // Error strings.
@@ -118,7 +113,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		For(&v1.CompositeResourceDefinition{}).
 		Owns(&extv1.CustomResourceDefinition{}).
 		WithEventFilter(resource.NewPredicates(OffersClaim())).
-		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(NewReconciler(mgr,
 			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
@@ -138,6 +133,14 @@ func WithLogger(log logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
+	}
+}
+
+// WithOptions lets the Reconciler know which options to pass to new composite
+// resource claim controllers.
+func WithOptions(o controller.Options) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.options = o
 	}
 }
 
@@ -193,6 +196,8 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
+
+		options: controller.DefaultOptions(),
 	}
 
 	for _, f := range opts {
@@ -216,14 +221,15 @@ type Reconciler struct {
 
 	log    logging.Logger
 	record event.Recorder
+
+	options controller.Options
 }
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
 // resource claim and starting a controller to reconcile it.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
-	// complexity goal. Be wary when adding branches, and look for functionality
-	// that could be reasonably moved into an injected dependency.
+	// NOTE(negz): This method is over our complexity goal. Be wary of
+	// adding more.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -246,8 +252,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	crd, err := r.claim.Render(d)
 	if err != nil {
 		log.Debug(errRenderCRD, "error", err)
+		err = errors.Wrap(err, errRenderCRD)
 		r.record.Event(d, event.Warning(reasonRenderCRD, err))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		return reconcile.Result{}, err
 	}
 
 	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource claim CustomResourceDefinition"))
@@ -256,38 +263,45 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		d.Status.SetConditions(v1.TerminatingClaim())
 		if err := r.client.Status().Update(ctx, d); err != nil {
 			log.Debug(errUpdateStatus, "error", err)
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errUpdateStatus)
+			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+			return reconcile.Result{}, err
 		}
 
 		nn := types.NamespacedName{Name: crd.GetName()}
 		if err := r.client.Get(ctx, nn, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errGetCRD)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errGetCRD)
+			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+			return reconcile.Result{}, err
 		}
 
-		// The CRD has no creation timestamp, or we don't control it. Most
-		// likely we successfully deleted it on a previous reconcile. It's also
-		// possible that we're being asked to delete it before we got around to
-		// creating it, or that we lost control of it around the same time we
-		// were deleted. In the (presumably exceedingly rare) latter case we'll
-		// orphan the CRD.
+		// The CRD has no creation timestamp, or we don't control it.
+		// Most likely we successfully deleted it on a previous
+		// reconcile. It's also possible that we're being asked to
+		// delete it before we got around to creating it, or that we
+		// lost control of it around the same time we were deleted. In
+		// the (presumably exceedingly rare) latter case we'll orphan
+		// the CRD.
 		if !meta.WasCreated(crd) || !metav1.IsControlledBy(crd, d) {
-			// It's likely that we've already stopped this controller on a
-			// previous reconcile, but we try again just in case. This is a
-			// no-op if the controller was already stopped.
+			// It's likely that we've already stopped this
+			// controller on a previous reconcile, but we try again
+			// just in case. This is a no-op if the controller was
+			// already stopped.
 			r.claim.Stop(claim.ControllerName(d.GetName()))
 			log.Debug("Stopped composite resource claim controller")
 			r.record.Event(d, event.Normal(reasonRedactXRC, "Stopped composite resource claim controller"))
 
 			if err := r.claim.RemoveFinalizer(ctx, d); err != nil {
 				log.Debug(errRemoveFinalizer, "error", err)
-				r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errRemoveFinalizer)))
-				return reconcile.Result{RequeueAfter: shortWait}, nil
+				err = errors.Wrap(err, errRemoveFinalizer)
+				r.record.Event(d, event.Warning(reasonRedactXRC, err))
+				return reconcile.Result{}, err
 			}
 
-			// We're all done deleting and have removed our finalizer. There's
-			// no need to requeue because there's nothing left to do.
+			// We're all done deleting and have removed our
+			// finalizer. There's no need to requeue because there's
+			// nothing left to do.
 			return reconcile.Result{Requeue: false}, nil
 		}
 
@@ -295,78 +309,87 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		l.SetGroupVersionKind(d.GetClaimGroupVersionKind())
 		if err := r.client.List(ctx, l); resource.Ignore(kmeta.IsNoMatchError, err) != nil {
 			log.Debug(errListCRs, "error", err)
-			r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errListCRs)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errListCRs)
+			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+			return reconcile.Result{}, err
 		}
 
-		// Ensure all the custom resources we defined are gone before stopping
-		// the controller we started to reconcile them. This ensures the
-		// controller has a chance to execute its cleanup logic, if any.
+		// Ensure all the custom resources we defined are gone before
+		// stopping the controller we started to reconcile them. This
+		// ensures the controller has a chance to execute its cleanup
+		// logic, if any.
 		if len(l.Items) > 0 {
-			// TODO(negz): DeleteAllOf does not work here, despite working in
-			// the definition controller. Could this be due to claims being
-			// namespaced rather than cluster scoped?
+			// TODO(negz): DeleteAllOf does not work here, despite
+			// working in the definition controller. Could this be
+			// due to claims being namespaced rather than cluster
+			// scoped?
 			for i := range l.Items {
 				if err := r.client.Delete(ctx, &l.Items[i]); resource.IgnoreNotFound(err) != nil {
 					log.Debug(errDeleteCR, "error", err)
-					r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errDeleteCR)))
-					return reconcile.Result{RequeueAfter: shortWait}, nil
+					err = errors.Wrap(err, errDeleteCR)
+					r.record.Event(d, event.Warning(reasonRedactXRC, err))
+					return reconcile.Result{}, err
 				}
 			}
 
-			// We requeue to confirm that all the custom resources we just
-			// deleted are actually gone. We need to requeue after a tiny wait
-			// because we won't be requeued implicitly when the CRs are deleted.
+			// We requeue to confirm that all the custom resources
+			// we just deleted are actually gone. We need to requeue
+			// because we won't be requeued implicitly when the CRs
+			// are deleted.
 			log.Debug(waitCRDelete)
 			r.record.Event(d, event.Normal(reasonRedactXRC, waitCRDelete))
-			return reconcile.Result{RequeueAfter: tinyWait}, nil
+			return reconcile.Result{Requeue: true}, nil
 		}
 
-		// The controller should be stopped before the deletion of CRD so that
-		// it doesn't crash.
+		// The controller should be stopped before the deletion of CRD
+		// so that it doesn't crash.
 		r.claim.Stop(claim.ControllerName(d.GetName()))
 		log.Debug("Stopped composite resource claim controller")
 		r.record.Event(d, event.Normal(reasonRedactXRC, "Stopped composite resource claim controller"))
 
 		if err := r.client.Delete(ctx, crd); resource.IgnoreNotFound(err) != nil {
 			log.Debug(errDeleteCRD, "error", err)
-			r.record.Event(d, event.Warning(reasonRedactXRC, errors.Wrap(err, errDeleteCRD)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errDeleteCRD)
+			r.record.Event(d, event.Warning(reasonRedactXRC, err))
+			return reconcile.Result{}, err
 		}
 		log.Debug("Deleted composite resource claim CustomResourceDefinition")
 		r.record.Event(d, event.Normal(reasonRedactXRC, "Deleted composite resource claim CustomResourceDefinition"))
 
 		// We should be requeued implicitly because we're watching the
-		// CustomResourceDefinition that we just deleted, but we requeue after
-		// a tiny wait just in case the CRD isn't gone after the first requeue.
-		return reconcile.Result{RequeueAfter: tinyWait}, nil
+		// CustomResourceDefinition that we just deleted, but we requeue
+		// after just in case the CRD isn't gone after the first
+		// requeue.
+		return reconcile.Result{Requeue: true}, nil
 	}
 
 	if err := r.claim.AddFinalizer(ctx, d); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errAddFinalizer)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errAddFinalizer)
+		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+		return reconcile.Result{}, err
 	}
 
 	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
 		log.Debug(errApplyCRD, "error", err)
-		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errApplyCRD)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errApplyCRD)
+		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+		return reconcile.Result{}, err
 	}
 	r.record.Event(d, event.Normal(reasonOfferXRC, "Applied composite resource claim CustomResourceDefinition"))
 
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
 		r.record.Event(d, event.Normal(reasonOfferXRC, waitCRDEstablish))
-		return reconcile.Result{RequeueAfter: tinyWait}, nil
+		return reconcile.Result{Requeue: true}, nil
 	}
 
-	o := kcontroller.Options{Reconciler: claim.NewReconciler(r.mgr,
+	ko := r.options.ForControllerRuntime()
+	ko.Reconciler = claim.NewReconciler(r.mgr,
 		resource.CompositeClaimKind(d.GetClaimGroupVersionKind()),
 		resource.CompositeKind(d.GetCompositeGroupVersionKind()),
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
-		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
-	), MaxConcurrentReconciles: maxConcurrency}
+		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))))
 
 	if err := r.claim.Err(claim.ControllerName(d.GetName())); err != nil {
 		log.Debug("Composite resource controller encountered an error", "error", err)
@@ -390,13 +413,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	cp := &kunstructured.Unstructured{}
 	cp.SetGroupVersionKind(d.GetCompositeGroupVersionKind())
 
-	if err := r.claim.Start(claim.ControllerName(d.GetName()), o,
+	if err := r.claim.Start(claim.ControllerName(d.GetName()), ko,
 		controller.For(cm, &handler.EnqueueRequestForObject{}),
 		controller.For(cp, &EnqueueRequestForClaim{}),
 	); err != nil {
 		log.Debug(errStartController, "error", err)
-		r.record.Event(d, event.Warning(reasonOfferXRC, errors.Wrap(err, errStartController)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errStartController)
+		r.record.Event(d, event.Warning(reasonOfferXRC, err))
+		return reconcile.Result{}, err
 	}
 	r.record.Event(d, event.Normal(reasonOfferXRC, "(Re)started composite resource claim controller"))
 

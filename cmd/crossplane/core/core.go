@@ -87,7 +87,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	o := controller.Options{
 		Logger:                  log,
-		MaxConcurrentReconciles: 1,
+		MaxConcurrentReconciles: 10,
 		PollInterval:            1 * time.Minute,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
 	}

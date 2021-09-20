@@ -39,8 +39,6 @@ import (
 )
 
 const (
-	shortWait = 30 * time.Second
-
 	timeout = 2 * time.Minute
 
 	errGetNamespace = "cannot get CompositeResourceDefinition"
@@ -186,8 +184,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := &rbacv1.ClusterRoleList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListRoles, "error", err)
-		r.record.Event(ns, event.Warning(reasonApplyRoles, errors.Wrap(err, errListRoles)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListRoles)
+		r.record.Event(ns, event.Warning(reasonApplyRoles, err))
+		return reconcile.Result{}, err
 	}
 
 	for _, rl := range r.rbac.RenderRoles(ns, l.Items) {
@@ -201,8 +200,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		if err != nil {
 			log.Debug(errApplyRole, "error", err)
-			r.record.Event(ns, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errApplyRole)
+			r.record.Event(ns, event.Warning(reasonApplyRoles, err))
+			return reconcile.Result{}, err
 		}
 
 		log.Debug("Applied RBAC Role")

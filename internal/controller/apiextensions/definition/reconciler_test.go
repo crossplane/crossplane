@@ -92,7 +92,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"GetCompositeResourceDefinitionError": {
@@ -112,7 +112,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"RenderCustomResourceDefinitionError": {
-			reason: "We should requeue after a short wait if we encounter an error rendering a CRD.",
+			reason: "We should return any error we encounter rendering a CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -127,11 +127,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errRenderCRD),
 			},
 		},
 		"SetTerminatingConditionError": {
-			reason: "We should requeue after a short wait if we encounter an error while setting the terminating status condition.",
+			reason: "We should return any error we encounter while setting the terminating status condition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -151,11 +151,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errUpdateStatus),
 			},
 		},
 		"GetCustomResourceDefinitionError": {
-			reason: "We should requeue after a short wait if we encounter an error getting a CRD.",
+			reason: "We should return any error we encounter getting a CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -181,11 +181,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errGetCRD),
 			},
 		},
 		"RemoveFinalizerError": {
-			reason: "We should requeue after a short wait if we encounter an error while removing a finalizer.",
+			reason: "We should return any error we encounter while removing a finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -211,7 +211,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errRemoveFinalizer),
 			},
 		},
 		"SuccessfulDelete": {
@@ -245,7 +245,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"DeleteAllCustomResourcesError": {
-			reason: "We should requeue after a short wait if we encounter an error while deleting all defined resources.",
+			reason: "We should return any error we encounter while deleting all defined resources.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -276,11 +276,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errDeleteCRs),
 			},
 		},
 		"ListCustomResourcesError": {
-			reason: "We should requeue after a short wait if we encounter an error while listing all defined resources.",
+			reason: "We should return any error we encounter while listing all defined resources.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -312,7 +312,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errListCRs),
 			},
 		},
 		"WaitForDeleteAllOf": {
@@ -354,11 +354,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: tinyWait},
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"DeleteCustomResourceDefinitionError": {
-			reason: "We should requeue after a short wait if we encounter an error while deleting the CRD we created.",
+			reason: "We should return any error we encounter while deleting the CRD we created.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -391,11 +391,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errDeleteCRD),
 			},
 		},
 		"SuccessfulCleanup": {
-			reason: "We should requeue after a tiny wait to remove our finalizer once we've cleaned up our defined resources and CRD.",
+			reason: "We should requeue to remove our finalizer once we've cleaned up our defined resources and CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -439,11 +439,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: tinyWait},
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"AddFinalizerError": {
-			reason: "We should requeue after a short wait if we encounter an error while adding a finalizer.",
+			reason: "We should return any error we encounter while adding a finalizer.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -461,11 +461,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
 		"ApplyCustomResourceDefinitionError": {
-			reason: "We should requeue after a short wait if we encounter an error while applying our CRD.",
+			reason: "We should return any error we encounter while applying our CRD.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -486,11 +486,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errApplyCRD),
 			},
 		},
 		"CustomResourceDefinitionIsNotEstablished": {
-			reason: "We should requeue after a tiny wait if we're waiting for a newly created CRD to become established.",
+			reason: "We should requeue if we're waiting for a newly created CRD to become established.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -511,11 +511,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: tinyWait},
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"StartControllerError": {
-			reason: "We should requeue after a short wait if we encounter an error while starting our controller.",
+			reason: "We should return any error we encounter while starting our controller.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -546,11 +546,12 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				r:   reconcile.Result{},
+				err: errors.Wrap(errBoom, errStartController),
 			},
 		},
 		"SuccessfulStart": {
-			reason: "We should not requeue after a short wait if we successfully ensured our CRD exists and controller is started.",
+			reason: "We should return without requeueing if we successfully ensured our CRD exists and controller is started.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -594,7 +595,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulUpdateControllerVersion": {
-			reason: "We should not requeue after a short wait if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
+			reason: "We should return without requeueing if we successfully ensured our CRD exists, the old controller stopped, and the new one started.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{

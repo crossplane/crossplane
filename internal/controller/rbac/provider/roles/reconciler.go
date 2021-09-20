@@ -41,8 +41,6 @@ import (
 )
 
 const (
-	shortWait = 30 * time.Second
-
 	timeout = 2 * time.Minute
 
 	errGetPR               = "cannot get ProviderRevision"
@@ -239,8 +237,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := &extv1.CustomResourceDefinitionList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListCRDs, "error", err)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errListCRDs)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListCRDs)
+		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+		return reconcile.Result{}, err
 	}
 
 	// Filter down to the CRDs that are owned by this ProviderRevision - i.e.
@@ -257,8 +256,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
 	if err != nil {
 		log.Debug(errValidatePermissions, "error", err)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errValidatePermissions)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errValidatePermissions)
+		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+		return reconcile.Result{}, err
 	}
 
 	for _, rule := range rejected {
@@ -286,8 +286,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		if err != nil {
 			log.Debug(errApplyRole, "error", err)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errApplyRole)
+			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+			return reconcile.Result{}, err
 		}
 		log.Debug("Applied RBAC ClusterRole")
 	}

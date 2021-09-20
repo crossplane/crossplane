@@ -39,8 +39,6 @@ import (
 )
 
 const (
-	shortWait = 30 * time.Second
-
 	timeout = 2 * time.Minute
 
 	errGetXRD    = "cannot get CompositeResourceDefinition"
@@ -186,8 +184,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		if err != nil {
 			log.Debug(errApplyRole, "error", err)
-			r.record.Event(d, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errApplyRole)
+			r.record.Event(d, event.Warning(reasonApplyRoles, err))
+			return reconcile.Result{}, err
 		}
 		log.Debug("Applied RBAC ClusterRole")
 	}

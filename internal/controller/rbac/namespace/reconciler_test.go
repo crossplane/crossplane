@@ -108,7 +108,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ListClusterRolesError": {
-			reason: "We should requeue when an error is encountered listing ClusterRoles.",
+			reason: "We should return an error encountered listing ClusterRoles.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -121,11 +121,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errListRoles),
 			},
 		},
 		"ApplyRoleError": {
-			reason: "We should requeue when an error is encountered applying a Role.",
+			reason: "We should return an error encountered applying a Role.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -144,7 +144,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errApplyRole),
 			},
 		},
 		"SuccessfulNoOp": {

@@ -49,9 +49,6 @@ import (
 
 const (
 	reconcileTimeout = 3 * time.Minute
-
-	shortWait = 30 * time.Second
-	longWait  = 1 * time.Minute
 )
 
 const (
@@ -67,7 +64,9 @@ const (
 
 	errInitParserBackend = "cannot initialize parser backend"
 	errParsePackage      = "cannot parse package contents"
+	errLintPackage       = "linting package contents failed"
 	errNotOneMeta        = "cannot install package with multiple meta types"
+	errIncompatible      = "incompatible Crossplane version"
 
 	errPreHook  = "cannot run pre establish hook for package"
 	errPostHook = "cannot run post establish hook for package"
@@ -75,6 +74,9 @@ const (
 	errEstablishControl = "cannot establish control of object"
 
 	errUpdateAnnotations = "cannot update annotations for package revision"
+
+	errRemoveLock  = "cannot remove package revision from Lock"
+	errResolveDeps = "cannot resolve package dependencies"
 )
 
 // Event reasons.
@@ -245,6 +247,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		Watches(&source.Kind{Type: &v1alpha1.ControllerConfig{}}, &EnqueueRequestForReferencingProviderRevisions{
 			client: mgr.GetClient(),
 		}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(r)
 }
 
@@ -286,6 +289,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(r)
 }
 
@@ -322,43 +326,47 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	pr := r.newPackageRevision()
 	if err := r.client.Get(ctx, req.NamespacedName, pr); err != nil {
-		// There's no need to requeue if we no longer exist. Otherwise we'll be
-		// requeued implicitly because we return an error.
+		// There's no need to requeue if we no longer exist. Otherwise
+		// we'll be requeued implicitly because we return an error.
 		log.Debug(errGetPackageRevision, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackageRevision)
 	}
 
 	if meta.WasDeleted(pr) {
-		// NOTE(hasheddan): In the event that a pre-cached package was used for this revision,
-		// delete will not remove the pre-cached package image from the cache
-		// unless it has the same name as the provider revision. Delete will not
-		// return an error so we will remove finalizer and leave the image in
-		// the cache.
+		// NOTE(hasheddan): In the event that a pre-cached package was
+		// used for this revision, delete will not remove the pre-cached
+		// package image from the cache unless it has the same name as
+		// the provider revision. Delete will not return an error so we
+		// will remove finalizer and leave the image in the cache.
 		if err := r.cache.Delete(pr.GetName()); err != nil {
 			log.Debug(errDeleteCache, "error", err)
-			r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errDeleteCache)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errDeleteCache)
+			r.record.Event(pr, event.Warning(reasonSync, err))
+			return reconcile.Result{}, err
 		}
-		// NOTE(hasheddan): if we were previously marked as inactive, we likely
-		// already removed self. If we skipped dependency resolution, we will
-		// not be present in the lock.
+		// NOTE(hasheddan): if we were previously marked as inactive, we
+		// likely already removed self. If we skipped dependency
+		// resolution, we will not be present in the lock.
 		if err := r.lock.RemoveSelf(ctx, pr); err != nil {
-			pr.SetConditions(v1.Unhealthy())
-			r.record.Event(pr, event.Warning(reasonLint, err))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+			log.Debug(errRemoveLock, "error", err)
+			err = errors.Wrap(err, errRemoveLock)
+			r.record.Event(pr, event.Warning(reasonSync, err))
+			return reconcile.Result{}, err
 		}
 		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
-			r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errRemoveFinalizer)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errRemoveFinalizer)
+			r.record.Event(pr, event.Warning(reasonSync, err))
+			return reconcile.Result{}, err
 		}
 		return reconcile.Result{Requeue: false}, nil
 	}
 
 	if err := r.revision.AddFinalizer(ctx, pr); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
-		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errAddFinalizer)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errAddFinalizer)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		return reconcile.Result{}, err
 	}
 
 	log = log.WithValues(
@@ -367,63 +375,95 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"name", pr.GetName(),
 	)
 
+	// NOTE(negz): There are a bunch of cases below where we ignore errors
+	// returned while updating our status to reflect that our revision is
+	// unhealthy (or of unknown health). This is because:
+	//
+	// 1. We prefer to return the 'original' underlying error.
+	// 2. We'll requeue and try the status update again if needed.
+	// 3. There's little else we could do about it apart from log.
+
+	// TODO(negz): Use Unhealthy().WithMessage(...) to supply error context?
+
 	// Initialize parser backend to obtain package contents.
 	reader, err := r.backend.Init(ctx, PackageRevision(pr))
 	if err != nil {
-		log.Debug(errInitParserBackend, "error", err)
-		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errInitParserBackend)))
-		// Requeue after shortWait because we may be waiting for parent package
-		// controller to recreate Pod.
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		// Requeue because we may be waiting for parent package
+		// controller to recreate Pod.
+		log.Debug(errInitParserBackend, "error", err)
+		err = errors.Wrap(err, errInitParserBackend)
+		r.record.Event(pr, event.Warning(reasonParse, err))
+		return reconcile.Result{}, err
 	}
 
 	// Parse package contents.
 	pkg, err := r.parser.Parse(ctx, reader)
 	if err != nil {
-		log.Debug(errParsePackage, "error", err)
-		r.record.Event(pr, event.Warning(reasonParse, errors.Wrap(err, errParsePackage)))
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+		log.Debug(errParsePackage, "error", err)
+
+		err = errors.Wrap(err, errParsePackage)
+		r.record.Event(pr, event.Warning(reasonParse, err))
+		return reconcile.Result{}, err
 	}
 
 	// Lint package using package-specific linter.
 	if err := r.linter.Lint(pkg); err != nil {
-		r.record.Event(pr, event.Warning(reasonLint, err))
-		// NOTE(hasheddan): a failed lint typically will require manual
-		// intervention, but on the off chance that we read pod logs early,
-		// which caused a linting failure, we will requeue after long wait.
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		// NOTE(hasheddan): a failed lint typically will require manual
+		// intervention, but on the off chance that we read pod logs
+		// early, which caused a linting failure, we will requeue by
+		// returning an error.
+		err = errors.Wrap(err, errLintPackage)
+		log.Debug(errLintPackage, "error", err)
+		r.record.Event(pr, event.Warning(reasonLint, err))
+		return reconcile.Result{}, err
 	}
 
-	// NOTE(hasheddan): the linter should check this property already, but if a
-	// consumer forgets to pass an option to guarantee one meta object, we check
-	// here to avoid a potential panic on 0 index below.
+	// NOTE(hasheddan): the linter should check this property already, but
+	// if a consumer forgets to pass an option to guarantee one meta object,
+	// we check here to avoid a potential panic on 0 index below.
 	if len(pkg.GetMeta()) != 1 {
-		r.record.Event(pr, event.Warning(reasonLint, errors.New(errNotOneMeta)))
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		log.Debug(errNotOneMeta)
+		err = errors.New(errNotOneMeta)
+		r.record.Event(pr, event.Warning(reasonLint, err))
+		return reconcile.Result{}, err
 	}
 
 	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 
 	pr.SetAnnotations(pkgMeta.(metav1.ObjectMetaAccessor).GetObjectMeta().GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
-		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errUpdateAnnotations)))
-		log.Debug(errUpdateAnnotations, "error", err)
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrapf(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		log.Debug(errUpdateAnnotations, "error", err)
+		err = errors.Wrap(err, errUpdateAnnotations)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		return reconcile.Result{}, err
 	}
 
 	// Check Crossplane constraints if they exist.
 	if pr.GetIgnoreCrossplaneConstraints() == nil || !*pr.GetIgnoreCrossplaneConstraints() {
 		if err := xpkg.PackageCrossplaneCompatible(r.versioner)(pkgMeta); err != nil {
-			r.record.Event(pr, event.Warning(reasonLint, err))
-			// No need to requeue if outside version constraints. Package will
-			// either need to be updated or ignore crossplane constraints will
-			// need to be specified, both of which will trigger a new reconcile.
 			pr.SetConditions(v1.Unhealthy())
+
+			// No need to requeue if outside version constraints.
+			// Package will either need to be updated or ignore
+			// crossplane constraints will need to be specified,
+			// both of which will trigger a new reconcile.
+			log.Debug(errIncompatible, "error", err)
+			err = errors.Wrap(err, errIncompatible)
+			r.record.Event(pr, event.Warning(reasonLint, err))
 			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 		}
 	}
@@ -435,25 +475,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pr.SetDependencyStatus(int64(found), int64(installed), int64(invalid))
 		if err != nil {
 			pr.SetConditions(v1.UnknownHealth())
+			_ = r.client.Status().Update(ctx, pr)
+
+			log.Debug(errResolveDeps, "error", err)
+			err = errors.Wrap(err, errResolveDeps)
 			r.record.Event(pr, event.Warning(reasonDependencies, err))
-			return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+			return reconcile.Result{}, err
 		}
 	}
 
 	if err := r.hook.Pre(ctx, pkgMeta, pr); err != nil {
-		log.Debug(errPreHook, "error", err)
-		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPreHook)))
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		log.Debug(errPreHook, "error", err)
+		err = errors.Wrap(err, errPreHook)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		return reconcile.Result{}, err
 	}
 
 	// Establish control or ownership of objects.
 	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
-		log.Debug(errEstablishControl, "error", err)
-		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errEstablishControl)))
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		log.Debug(errEstablishControl, "error", err)
+		err = errors.Wrap(err, errEstablishControl)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		return reconcile.Result{}, err
 	}
 
 	// Update object list in package revision status with objects for which
@@ -461,10 +511,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetObjects(refs)
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
-		log.Debug(errPostHook, "error", err)
-		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errPostHook)))
 		pr.SetConditions(v1.Unhealthy())
-		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		_ = r.client.Status().Update(ctx, pr)
+
+		log.Debug(errPostHook, "error", err)
+		err = errors.Wrap(err, errPostHook)
+		r.record.Event(pr, event.Warning(reasonSync, err))
+		return reconcile.Result{}, err
 	}
 
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
