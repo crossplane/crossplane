@@ -25,13 +25,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
-	"github.com/crossplane/crossplane/internal/feature"
+	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -83,19 +85,38 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "Cannot create manager")
 	}
 
-	f := &feature.Flags{}
-	if c.EnableCompositionRevisions {
-		f.Enable(feature.FlagEnableAlphaCompositionRevisions)
-		log.Info("Alpha feature enabled", "flag", feature.FlagEnableAlphaCompositionRevisions.String())
+	o := controller.Options{
+		Logger:                  log,
+		MaxConcurrentReconciles: 1,
+		PollInterval:            1 * time.Minute,
+		GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
 	}
 
-	if err := apiextensions.Setup(mgr, log, f); err != nil {
+	if c.EnableCompositionRevisions {
+		o.Features.Enable(features.EnableAlphaCompositionRevisions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisions)
+	}
+
+	if err := apiextensions.Setup(mgr, o); err != nil {
 		return errors.Wrap(err, "Cannot setup API extension controllers")
 	}
 
-	pkgCache := xpkg.NewImageCache(c.CacheDir, afero.NewOsFs())
+	po := pkgcontroller.Options{
+		Options:         o,
+		Cache:           xpkg.NewImageCache(c.CacheDir, afero.NewOsFs()),
+		Namespace:       c.Namespace,
+		DefaultRegistry: c.Registry,
+	}
 
-	if err := pkg.Setup(mgr, log, pkgCache, c.Namespace, c.Registry, c.CABundlePath); err != nil {
+	if c.CABundlePath != "" {
+		rootCAs, err := xpkg.ParseCertificatesFromPath(c.CABundlePath)
+		if err != nil {
+			return errors.Wrap(err, "Cannot parse CA bundle")
+		}
+		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithCustomCA(rootCAs)}
+	}
+
+	if err := pkg.Setup(mgr, po); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 

@@ -24,17 +24,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/internal/controller/rbac"
+	rbaccontroller "github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
 // Available RBAC management policies.
 const (
-	ManagementPolicyAll   = string(rbac.ManagementPolicyAll)
-	ManagementPolicyBasic = string(rbac.ManagementPolicyBasic)
+	ManagementPolicyAll   = string(rbaccontroller.ManagementPolicyAll)
+	ManagementPolicyBasic = string(rbaccontroller.ManagementPolicyBasic)
 )
 
 // KongVars represent the kong variables associated with the CLI parser
@@ -87,7 +89,18 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "cannot create manager")
 	}
 
-	if err := rbac.Setup(mgr, log, rbac.ManagementPolicy(c.ManagementPolicy), c.ProviderClusterRole); err != nil {
+	o := rbaccontroller.Options{
+		Options: controller.Options{
+			Logger:                  log,
+			MaxConcurrentReconciles: 1,
+			PollInterval:            1 * time.Minute,
+			GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
+		},
+		AllowClusterRole: c.ProviderClusterRole,
+		ManagementPolicy: rbaccontroller.ManagementPolicy(c.ManagementPolicy),
+	}
+
+	if err := rbac.Setup(mgr, o); err != nil {
 		return errors.Wrap(err, "cannot add RBAC controllers to manager")
 	}
 

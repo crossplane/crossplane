@@ -41,6 +41,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -200,7 +201,7 @@ type Reconciler struct {
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
-func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
+func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 
@@ -217,23 +218,23 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, o.Namespace, o.FetcherOptions...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}
 
 	r := NewReconciler(mgr,
-		WithCache(cache),
+		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ProviderPackageType)),
 		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
-		}, namespace)),
+		}, o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, fetcher, WithDefaultRegistry(registry))),
+		WithParserBackend(NewImageBackend(o.Cache, fetcher, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLinter(xpkg.NewProviderLinter()),
-		WithLogger(l.WithValues("controller", name)),
+		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
 
@@ -248,11 +249,11 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
-func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
+func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
 	}
@@ -265,20 +266,20 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	f, err := xpkg.NewK8sFetcher(cs, o.Namespace, o.FetcherOptions...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}
 
 	r := NewReconciler(mgr,
-		WithCache(cache),
+		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ConfigurationPackageType)),
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, fetcher, WithDefaultRegistry(registry))),
+		WithParserBackend(NewImageBackend(o.Cache, f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLinter(xpkg.NewConfigurationLinter()),
-		WithLogger(l.WithValues("controller", name)),
+		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
 

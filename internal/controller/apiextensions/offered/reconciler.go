@@ -110,7 +110,7 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource claim and starting a controller to reconcile
 // it.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "offered/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -120,7 +120,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		WithEventFilter(resource.NewPredicates(OffersClaim())).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
+			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
 }
 

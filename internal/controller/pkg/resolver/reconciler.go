@@ -38,6 +38,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -117,22 +118,22 @@ type Reconciler struct {
 }
 
 // Setup adds a controller that reconciles the Lock.
-func Setup(mgr ctrl.Manager, l logging.Logger, namespace string, fetcherOpts ...xpkg.FetcherOpt) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1beta1.LockGroupKind)
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	f, err := xpkg.NewK8sFetcher(cs, o.Namespace, o.FetcherOptions...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
 	}
 
 	r := NewReconciler(mgr,
-		WithLogger(l.WithValues("controller", name)),
+		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithFetcher(fetcher),
+		WithFetcher(f),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).

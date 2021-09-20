@@ -19,46 +19,29 @@ package rbac
 import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-
 	"github.com/crossplane/crossplane/internal/controller/rbac/definition"
 	"github.com/crossplane/crossplane/internal/controller/rbac/namespace"
 	"github.com/crossplane/crossplane/internal/controller/rbac/provider/binding"
 	"github.com/crossplane/crossplane/internal/controller/rbac/provider/roles"
-)
 
-// The ManagementPolicy specifies which roles the RBAC manager should manage.
-type ManagementPolicy string
-
-const (
-	// ManagementPolicyAll indicates that all RBAC manager functionality should
-	// be enabled.
-	ManagementPolicyAll ManagementPolicy = "All"
-
-	// ManagementPolicyBasic indicates that basic RBAC manager functionality
-	// should be enabled. The RBAC manager will create ClusterRoles for each
-	// XRD. The ClusterRoles it creates will aggregate to the core Crossplane
-	// ClusterRoles (e.g. crossplane, crossplane-admin, etc).
-	ManagementPolicyBasic ManagementPolicy = "Basic"
+	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
 // Setup RBAC manager controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, mp ManagementPolicy, allowClusterRole string) error {
-	// Basic controllers.
-	fns := []func(ctrl.Manager, logging.Logger) error{
+func Setup(mgr ctrl.Manager, o controller.Options) error {
+	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		definition.Setup,
 		binding.Setup,
-	}
-
-	if mp == ManagementPolicyAll {
-		fns = append(fns, namespace.Setup)
-	}
-
-	for _, setup := range fns {
-		if err := setup(mgr, l); err != nil {
+		roles.Setup,
+	} {
+		if err := setup(mgr, o); err != nil {
 			return err
 		}
 	}
 
-	return roles.Setup(mgr, l, allowClusterRole)
+	if o.ManagementPolicy != controller.ManagementPolicyAll {
+		return nil
+	}
+
+	return namespace.Setup(mgr, o)
 }

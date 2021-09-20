@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -59,7 +60,7 @@ const (
 
 // Setup adds a controller that reconciles Compositions by creating new
 // CompositionRevisions for each revision of the Composition's spec.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "revisions/" + strings.ToLower(v1.CompositionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -67,7 +68,7 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		For(&v1.Composition{}).
 		Owns(&v1alpha1.CompositionRevision{}).
 		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
+			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
 }
 

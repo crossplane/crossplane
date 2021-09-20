@@ -26,7 +26,6 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -36,14 +35,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
 const (
 	shortWait = 30 * time.Second
 
-	timeout        = 2 * time.Minute
-	maxConcurrency = 5
+	timeout = 2 * time.Minute
 
 	errGetPR               = "cannot get ProviderRevision"
 	errListCRDs            = "cannot list CustomResourceDefinitions"
@@ -92,36 +92,35 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, crds [
 // Setup adds a controller that reconciles a ProviderRevision by creating a
 // series of opinionated ClusterRoles that may be bound to allow access to the
 // resources it defines.
-func Setup(mgr ctrl.Manager, log logging.Logger, allowClusterRole string) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 
-	if allowClusterRole != "" {
-
-		h := &EnqueueRequestForAllRevisionsWithRequests{
-			client:          mgr.GetClient(),
-			clusterRoleName: allowClusterRole}
-
+	if o.AllowClusterRole == "" {
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
-			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, h).
-			WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
+			WithOptions(o.ForControllerRuntime()).
 			Complete(NewReconciler(mgr,
-				WithLogger(log.WithValues("controller", name)),
+				WithLogger(o.Logger.WithValues("controller", name)),
 				WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-				WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), allowClusterRole)),
 			))
 	}
+
+	h := &EnqueueRequestForAllRevisionsWithRequests{
+		client:          mgr.GetClient(),
+		clusterRoleName: o.AllowClusterRole}
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
-		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
+		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, h).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
+			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+			WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)),
 		))
 }
 

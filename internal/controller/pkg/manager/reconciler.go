@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -140,17 +141,17 @@ type Reconciler struct {
 }
 
 // SetupProvider adds a controller that reconciles Providers.
-func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
+func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ProviderGroupKind)
 	np := func() v1.Package { return &v1.Provider{} }
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 	nrl := func() v1.PackageRevisionList { return &v1.ProviderRevisionList{} }
 
-	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return errors.Wrap(err, errCreateK8sClient)
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	f, err := xpkg.NewK8sFetcher(cs, o.Namespace, o.FetcherOptions...)
 	if err != nil {
 		return errors.Wrap(err, errBuildFetcher)
 	}
@@ -159,8 +160,8 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry strin
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(registry))),
-		WithLogger(l.WithValues("controller", name)),
+		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
 
@@ -172,7 +173,7 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry strin
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
-func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
+func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationGroupKind)
 	np := func() v1.Package { return &v1.Configuration{} }
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
@@ -182,7 +183,7 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry 
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, o.Namespace, o.FetcherOptions...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
 	}
@@ -191,8 +192,8 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry 
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
-		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(registry))),
-		WithLogger(l.WithValues("controller", name)),
+		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
 	)
 

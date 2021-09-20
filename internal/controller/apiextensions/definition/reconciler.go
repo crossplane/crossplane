@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -43,7 +44,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/internal/feature"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -107,7 +108,7 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, log logging.Logger, f *feature.Flags) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -116,9 +117,9 @@ func Setup(mgr ctrl.Manager, log logging.Logger, f *feature.Flags) error {
 		Owns(&extv1.CustomResourceDefinition{}).
 		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
 		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
+			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-			WithFeatureFlags(f)))
+			WithFeatureFlags(o.Features)))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -401,7 +402,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We only want to enable CompositionRevision support if the relevant
 	// feature flag is enabled. Otherwise we start the XR Reconciler with
 	// its default CompositionFetcher.
-	if r.flags.Enabled(feature.FlagEnableAlphaCompositionRevisions) {
+	if r.flags.Enabled(features.EnableAlphaCompositionRevisions) {
 		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
 		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
 	}

@@ -25,7 +25,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -35,13 +34,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
 const (
 	shortWait = 30 * time.Second
 
-	timeout        = 2 * time.Minute
-	maxConcurrency = 5
+	timeout = 2 * time.Minute
 
 	errGetNamespace = "cannot get CompositeResourceDefinition"
 	errApplyRole    = "cannot apply Roles"
@@ -70,7 +70,7 @@ func (fn RoleRenderFn) RenderRoles(d *corev1.Namespace, crs []rbacv1.ClusterRole
 // Setup adds a controller that reconciles a Namespace by creating a series of
 // opinionated Roles that may be bound to allow access to resources within that
 // namespace.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac/namespace"
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -78,9 +78,9 @@ func Setup(mgr ctrl.Manager, log logging.Logger) error {
 		For(&corev1.Namespace{}).
 		Owns(&rbacv1.Role{}).
 		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, &EnqueueRequestForNamespaces{client: mgr.GetClient()}).
-		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
+		WithOptions(o.ForControllerRuntime()).
 		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
+			WithLogger(o.Logger.WithValues("controller", name)),
 			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
 }
 
