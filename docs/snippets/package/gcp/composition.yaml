@@ -2,7 +2,7 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: compositepostgresqlinstances.gcp.database.example.org
+  name: xpostgresqlinstances.gcp.database.example.org
   labels:
     provider: gcp
     guide: quickstart
@@ -10,7 +10,7 @@ spec:
   writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
-    kind: CompositePostgreSQLInstance
+    kind: XPostgreSQLInstance
   resources:
     - name: cloudsqlinstance
       base:
