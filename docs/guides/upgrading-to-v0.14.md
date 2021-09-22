@@ -47,7 +47,7 @@ For example, the below XRD:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: CompositeResourceDefinition
 metadata:
-  name: compositepostgresqlinstances.database.example.org
+  name: xpostgresqlinstances.database.example.org
 spec:
   claimNames:
     kind: PostgreSQLInstance
@@ -61,8 +61,8 @@ spec:
     group: database.example.org
     version: v1alpha1
     names:
-      kind: CompositePostgreSQLInstance
-      plural: compositepostgresqlinstances
+      kind: XPostgreSQLInstance
+      plural: xpostgresqlinstances
     validation:
       openAPIV3Schema:
         type: object
@@ -87,12 +87,12 @@ Would become:
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: CompositeResourceDefinition
 metadata:
-  name: compositepostgresqlinstances.database.example.org
+  name: xpostgresqlinstances.database.example.org
 spec:
   group: database.example.org
   names:
-    kind: CompositePostgreSQLInstance
-    plural: compositepostgresqlinstances
+    kind: XPostgreSQLInstance
+    plural: xpostgresqlinstances
   claimNames:
     kind: PostgreSQLInstance
     plural: postgresqlinstances

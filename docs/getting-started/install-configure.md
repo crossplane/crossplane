@@ -212,7 +212,7 @@ installed to Crossplane by creating a declarative `Configuration` resource, or
 by using `kubectl crossplane install configuration`.
 
 In the examples below we will install a configuration that defines a new
-`CompositePostgreSQLInstance` XR and `PostgreSQLInstance` XRC that takes a
+`XPostgreSQLInstance` XR and `PostgreSQLInstance` XRC that takes a
 single `storageGB` parameter, and creates a connection `Secret` with keys for
 `username`, `password`, and `endpoint`. A `Configuration` exists for each
 provider that can satisfy a `PostgreSQLInstance`. Let's get started!
