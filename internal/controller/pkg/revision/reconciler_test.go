@@ -552,6 +552,48 @@ func TestReconcile(t *testing.T) {
 				err: errors.New(errNotOneMeta),
 			},
 		},
+		"ErrUpdateAnnotations": {
+			reason: "We should return an error if we fail to update our annotations.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(errBoom),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetAnnotations(map[string]string{"author": "crossplane"})
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(parser.New(metaScheme, objScheme)),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateAnnotations),
+			},
+		},
 		"ErrResolveDependencies": {
 			reason: "We should return an error if we fail to resolve dependencies.",
 			args: args{
