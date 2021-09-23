@@ -31,6 +31,7 @@ import (
 )
 
 func TestNewCompositionRevision(t *testing.T) {
+	sf := "f"
 	comp := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "coolcomp",
@@ -65,7 +66,7 @@ func TestNewCompositionRevision(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1.StringTransform{
-							Format: "f",
+							Format: &sf,
 						},
 						Convert: &v1.ConvertTransform{
 							ToType: "t",
@@ -105,7 +106,7 @@ func TestNewCompositionRevision(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1.StringTransform{
-							Format: "f",
+							Format: &sf,
 						},
 						Convert: &v1.ConvertTransform{
 							ToType: "t",

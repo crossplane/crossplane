@@ -28,6 +28,7 @@ import (
 )
 
 func TestAsComposition(t *testing.T) {
+	sf := "f"
 	rev := &v1alpha1.CompositionRevision{
 		Spec: v1alpha1.CompositionRevisionSpec{
 			CompositeTypeRef: v1alpha1.TypeReference{
@@ -163,7 +164,8 @@ func TestAsComposition(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1.StringTransform{
-							Format: "f",
+							Type:   v1.StringTransformFormat,
+							Format: &sf,
 						},
 						Convert: &v1.ConvertTransform{
 							ToType: "t",
@@ -203,7 +205,8 @@ func TestAsComposition(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1.StringTransform{
-							Format: "f",
+							Type:   v1.StringTransformFormat,
+							Format: &sf,
 						},
 						Convert: &v1.ConvertTransform{
 							ToType: "t",

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -37,6 +38,11 @@ const (
 	errFmtTransformTypeFailed          = "%s transform could not resolve"
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
+
+	errStringTransformTypFailed  = "type %s is not supported for string transform type"
+	errStringTransformTypFormat  = "string transform of type %s fmt is not set"
+	errStringTransformTypConvert = "string transform of type %s convert is not set"
+	errStringConvertTypFailed    = "type %s is not supported for string convert"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -167,16 +173,68 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	}
 }
 
+// StringTransformType is type of the string transform function to be executed fmt/convert.
+type StringTransformType string
+
+// Accepted StringTransformType.
+const (
+	StringTransformFormat  StringTransformType = "Format"
+	StringTransformConvert StringTransformType = "Convert"
+)
+
+// StringConversionType is the type of string conversion, ToUpper/ToLower
+type StringConversionType string
+
+// ConversionType accepted values.
+const (
+	ConversionTypeToUpper = "ToUpper"
+	ConversionTypeToLower = "ToLower"
+)
+
 // A StringTransform returns a string given the supplied input.
 type StringTransform struct {
+
+	// Type of the string transform to be run.
+	// +kubebuilder:validation:Enum=Format;Convert
+	Type StringTransformType `json:"type"`
+
 	// Format the input using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
-	Format string `json:"fmt"`
+	// +optional
+	Format *string `json:"fmt,omitempty"`
+
+	// Convert the type of conversion to Upper/Lower case.
+	// +optional
+	// +kubebuilder:validation:Enum=ToUpper;ToLower
+	Convert *StringConversionType `json:"convert,omitempty"`
 }
 
 // Resolve runs the String transform.
 func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
-	return fmt.Sprintf(s.Format, input), nil
+
+	switch s.Type {
+	case StringTransformFormat:
+		if s.Format == nil {
+			return nil, errors.Errorf(errStringTransformTypFormat, string(s.Type))
+		}
+		return fmt.Sprintf(*s.Format, input), nil
+	case StringTransformConvert:
+		if s.Convert == nil {
+			return nil, errors.Errorf(errStringTransformTypConvert, string(s.Type))
+		}
+		str := fmt.Sprintf("%v", input)
+		switch *s.Convert {
+		case ConversionTypeToUpper:
+			return strings.ToUpper(str), nil
+		case ConversionTypeToLower:
+			return strings.ToLower(str), nil
+		default:
+			return nil, errors.Errorf(errStringConvertTypFailed, *s.Convert)
+		}
+	default:
+		return nil, errors.Errorf(errStringTransformTypFailed, string(s.Type))
+	}
+
 }
 
 // The list of supported ConvertTransform input and output types.
