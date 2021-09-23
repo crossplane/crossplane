@@ -18,4 +18,3 @@ Crossplane is a [Cloud Native Compute Foundation][cncf] project.
 <!-- Named Links -->
 
 [Install Crossplane]: getting-started/install-configure.md
-[cncf]: https://www.cncf.io/
