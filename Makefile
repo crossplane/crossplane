@@ -96,7 +96,9 @@ crds.clean:
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate.run: crds.clean gen-kustomize-crds gen-install-doc
+generate.run: gen-kustomize-crds gen-install-doc
+
+generate.done: crds.clean
 
 gen-install-doc:
 	@$(INFO) Generating install documentation from Helm chart
