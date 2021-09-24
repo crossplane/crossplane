@@ -34,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -94,20 +95,26 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 
 	if o.AllowClusterRole == "" {
+		r := NewReconciler(mgr,
+			WithLogger(o.Logger.WithValues("controller", name)),
+			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
 			WithOptions(o.ForControllerRuntime()).
-			Complete(NewReconciler(mgr,
-				WithLogger(o.Logger.WithValues("controller", name)),
-				WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-			))
+			Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 	}
 
 	h := &EnqueueRequestForAllRevisionsWithRequests{
 		client:          mgr.GetClient(),
 		clusterRoleName: o.AllowClusterRole}
+
+	r := NewReconciler(mgr,
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -115,11 +122,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Owns(&rbacv1.ClusterRole{}).
 		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, h).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(NewReconciler(mgr,
-			WithLogger(o.Logger.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-			WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)),
-		))
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

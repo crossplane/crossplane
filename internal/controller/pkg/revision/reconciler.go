@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
@@ -248,7 +249,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(r)
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
@@ -290,7 +291,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(r)
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // NewReconciler creates a new package revision reconciler.

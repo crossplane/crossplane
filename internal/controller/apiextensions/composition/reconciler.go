@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
@@ -63,14 +64,16 @@ const (
 func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "revisions/" + strings.ToLower(v1.CompositionGroupKind)
 
+	r := NewReconciler(mgr,
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Composition{}).
 		Owns(&v1alpha1.CompositionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(NewReconciler(mgr,
-			WithLogger(o.Logger.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.

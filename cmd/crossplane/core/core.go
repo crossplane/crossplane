@@ -57,12 +57,15 @@ func (c *Command) Run() error {
 }
 
 type startCommand struct {
-	Namespace      string        `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
-	CacheDir       string        `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
-	LeaderElection bool          `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
-	Registry       string        `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
-	CABundlePath   string        `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
-	Sync           time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
+	Namespace      string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	CacheDir       string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
+	LeaderElection bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
+	Registry       string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
+	CABundlePath   string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
+
+	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
+	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
+	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
 	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
 }
@@ -73,13 +76,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
 	}
-	log.Debug("Starting", "sync-period", c.Sync.String())
 
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme:           s,
 		LeaderElection:   c.LeaderElection,
 		LeaderElectionID: "crossplane-leader-election-core",
-		SyncPeriod:       &c.Sync,
+		SyncPeriod:       &c.SyncInterval,
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")
@@ -87,9 +89,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	o := controller.Options{
 		Logger:                  log,
-		MaxConcurrentReconciles: 10,
-		PollInterval:            1 * time.Minute,
-		GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
+		MaxConcurrentReconciles: c.MaxReconcileRate,
+		PollInterval:            c.PollInterval,
+		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
 	}
 
 	if c.EnableCompositionRevisions {

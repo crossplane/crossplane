@@ -65,25 +65,29 @@ func (c *Command) Run() error {
 }
 
 type startCommand struct {
-	ProviderClusterRole string        `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
-	LeaderElection      bool          `name:"leader-election" short:"l" help:"Use leader election for the conroller manager." env:"LEADER_ELECTION"`
-	Sync                time.Duration `short:"s" help:"Controller manager sync period duration such as 300ms, 1.5h or 2h45m" default:"1h"`
-	ManagementPolicy    string        `name:"manage" short:"m" help:"RBAC management policy." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
+	ProviderClusterRole string `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
+	LeaderElection      bool   `name:"leader-election" short:"l" help:"Use leader election for the conroller manager." env:"LEADER_ELECTION"`
+	ManagementPolicy    string `name:"manage" short:"m" help:"RBAC management policy." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
+
+	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
+	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
+	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 }
 
 // Run the RBAC manager.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
+	log.Debug("Starting", "policy", c.ManagementPolicy)
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "cannot get config")
 	}
 
-	log.Debug("Starting", "sync-period", c.Sync.String(), "policy", c.ManagementPolicy)
-	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
+	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme:           s,
 		LeaderElection:   c.LeaderElection,
 		LeaderElectionID: "crossplane-leader-election-rbac",
-		SyncPeriod:       &c.Sync,
+		SyncPeriod:       &c.SyncInterval,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create manager")
@@ -92,9 +96,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	o := rbaccontroller.Options{
 		Options: controller.Options{
 			Logger:                  log,
-			MaxConcurrentReconciles: 1,
-			PollInterval:            1 * time.Minute,
-			GlobalRateLimiter:       ratelimiter.NewGlobal(ratelimiter.DefaultGlobalRPS),
+			MaxConcurrentReconciles: c.MaxReconcileRate,
+			PollInterval:            c.PollInterval,
+			GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
 		},
 		AllowClusterRole: c.ProviderClusterRole,
 		ManagementPolicy: rbaccontroller.ManagementPolicy(c.ManagementPolicy),
