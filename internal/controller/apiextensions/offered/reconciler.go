@@ -111,7 +111,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithOptions(o))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
