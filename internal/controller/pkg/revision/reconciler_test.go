@@ -110,6 +110,12 @@ func (m *MockLinter) Lint(*parser.Package) error {
 	return m.MockLint()
 }
 
+type MockParseFn func(context.Context, io.ReadCloser) (*parser.Package, error)
+
+func (fn MockParseFn) Parse(ctx context.Context, r io.ReadCloser) (*parser.Package, error) {
+	return fn(ctx, r)
+}
+
 type MockDependencyManager struct {
 	MockResolve    func() (int, int, int, error)
 	MockRemoveSelf func() error
@@ -409,12 +415,12 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
-					WithParser(parser.New(runtime.NewScheme(), runtime.NewScheme())),
+					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.New(`no kind "Provider" is registered for version "meta.pkg.crossplane.io/v1" in scheme "pkg/runtime/scheme.go:100"`), errParsePackage),
+				err: errors.Wrap(errBoom, errParsePackage),
 			},
 		},
 		"ErrLint": {
