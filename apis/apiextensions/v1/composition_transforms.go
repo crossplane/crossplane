@@ -178,7 +178,7 @@ type StringTransformType string
 
 // Accepted StringTransformType.
 const (
-	StringTransformFormat  StringTransformType = "Format"
+	StringTransformFormat  StringTransformType = "Format" // Defaul
 	StringTransformConvert StringTransformType = "Convert"
 )
 
@@ -195,8 +195,10 @@ const (
 type StringTransform struct {
 
 	// Type of the string transform to be run.
+	// +optional
 	// +kubebuilder:validation:Enum=Format;Convert
-	Type StringTransformType `json:"type"`
+	// +kubebuilder:default=Format
+	Type StringTransformType `json:"type,omitempty"`
 
 	// Format the input using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
