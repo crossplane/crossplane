@@ -3,12 +3,10 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:allowed-provider-permissions
+  name: {{ template "crossplane.name" . }}:allowed-provider-permissions
   labels:
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:

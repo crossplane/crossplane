@@ -2,18 +2,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ template "name" . }}-rbac-manager
+  name: {{ template "crossplane.name" . }}-rbac-manager
   labels:
-    app: {{ template "name" . }}-rbac-manager
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}-rbac-manager
+    {{- include "crossplane.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.rbacManager.replicas }}
   selector:
     matchLabels:
-      app: {{ template "name" . }}-rbac-manager
-      release: {{ .Release.Name }}
+      app: {{ template "crossplane.name" . }}-rbac-manager
+      {{- include "crossplane.selectorLabels" . | indent 6 }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
   template:
@@ -25,8 +23,8 @@ spec:
         prometheus.io/scrape: "true"
       {{- end }}
       labels:
-        app: {{ template "name" . }}-rbac-manager
-        release: {{ .Release.Name }}
+        app: {{ template "crossplane.name" . }}-rbac-manager
+        {{- include "crossplane.labels" . | indent 8 }}
     spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName | quote }}
@@ -54,7 +52,7 @@ spec:
         {{- range $arg := .Values.rbacManager.args }}
         - {{ $arg }}
         {{- end }}
-        - --provider-clusterrole={{ template "name" .}}:allowed-provider-permissions
+        - --provider-clusterrole={{ template "crossplane.name" . }}:allowed-provider-permissions
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         name: {{ .Chart.Name }}
         resources:

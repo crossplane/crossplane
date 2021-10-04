@@ -3,25 +3,26 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ template "name" . }}-admin
+  name: {{ template "crossplane.name" . }}-admin
+  labels:
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ template "name" . }}-admin
+  name: {{ template "crossplane.name" . }}-admin
 subjects:
 - apiGroup: rbac.authorization.k8s.io
   kind: Group
-  name: {{ template "name" . }}:masters
+  name: {{ template "crossplane.name" . }}:masters
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}-admin
+  name: {{ template "crossplane.name" . }}-admin
   labels:
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -30,12 +31,10 @@ aggregationRule:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}-edit
+  name: {{ template "crossplane.name" . }}-edit
   labels:
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -44,12 +43,10 @@ aggregationRule:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}-view
+  name: {{ template "crossplane.name" . }}-view
   labels:
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -58,12 +55,10 @@ aggregationRule:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}-browse
+  name: {{ template "crossplane.name" . }}-browse
   labels:
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
@@ -73,13 +68,11 @@ aggregationRule:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-admin
+  name: {{ template "crossplane.name" . }}:aggregate-to-admin
   labels:
     rbac.crossplane.io/aggregate-to-admin: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane administrators have access to view events.
 - apiGroups: [""]
@@ -118,13 +111,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-edit
+  name: {{ template "crossplane.name" . }}:aggregate-to-edit
   labels:
     rbac.crossplane.io/aggregate-to-edit: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane editors have access to view events.
 - apiGroups: [""]
@@ -152,13 +143,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-view
+  name: {{ template "crossplane.name" . }}:aggregate-to-view
   labels:
     rbac.crossplane.io/aggregate-to-view: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane viewers have access to view events.
 - apiGroups: [""]
@@ -181,13 +170,11 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-browse
+  name: {{ template "crossplane.name" . }}:aggregate-to-browse
   labels:
     rbac.crossplane.io/aggregate-to-browse: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane browsers have access to view events.
 - apiGroups: [""]
@@ -207,14 +194,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-ns-admin
+  name: {{ template "crossplane.name" . }}:aggregate-to-ns-admin
   labels:
     rbac.crossplane.io/aggregate-to-ns-admin: "true"
     rbac.crossplane.io/base-of-ns-admin: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane namespace admins have access to view events.
 - apiGroups: [""]
@@ -239,14 +224,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-ns-edit
+  name: {{ template "crossplane.name" . }}:aggregate-to-ns-edit
   labels:
     rbac.crossplane.io/aggregate-to-ns-edit: "true"
     rbac.crossplane.io/base-of-ns-edit: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane namespace editors have access to view events.
 - apiGroups: [""]
@@ -261,14 +244,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ template "name" . }}:aggregate-to-ns-view
+  name: {{ template "crossplane.name" . }}:aggregate-to-ns-view
   labels:
     rbac.crossplane.io/aggregate-to-ns-view: "true"
     rbac.crossplane.io/base-of-ns-view: "true"
-    app: {{ template "name" . }}
-    chart: {{ template "chart" . }}
-    release: {{ .Release.Name }}
-    heritage: {{ .Release.Service }}
+    app: {{ template "crossplane.name" . }}
+    {{- include "crossplane.labels" . | indent 4 }}
 rules:
 # Crossplane namespace viewers have access to view events.
 - apiGroups: [""]
