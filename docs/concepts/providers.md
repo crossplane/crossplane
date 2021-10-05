@@ -111,7 +111,7 @@ metadata:
   name: prod-sql
 spec:
   providerConfigRef:
-    name: prod-acc
+    name: aws-provider
   ...
 ```
 
