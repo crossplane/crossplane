@@ -238,6 +238,32 @@ under `spec` should look like.
   API. For example, GCP `ServiceAccount` has only a few fields while GCP
   `CloudSQLInstance` has over 100 fields that you can configure.
 
+### Status
+
+In Kubernetes, `status` top field represents the current status of the object.
+Crossplane adheres to that and adds a `status.atProvider` element representing
+status information from the external system e.g. in AWS the ARN of the resource.
+
+When inspecting Managed Resources we always start by inspecting their `READY`
+and `SYNCED` status, which are shown when a user lists a managed resource:
+
+```
+kubectl get bucket.s3.aws.crossplane.io/test-bucket-123
+NAME              READY   SYNCED   AGE
+test-bucket-123   True    True     177m
+```
+
+`SYNCED` can be True or False and describes wether the Crossplane runtime was
+able to sync with the external system. A typical failure scenario is that it
+can't connect the external system because of missing or wrong credentials.
+
+`READY` can be True or False and describes wether the resource is ready to be
+used. This depends on the external resource itself and all it's
+[dependencies][#dependencies]. E.g. a database needs to be fully initialized.
+
+For more information on the status use `kubectl describe
+<your-managed-<resource>`.
+
 ### Versioning
 
 Crossplane closely follows the [Kubernetes API versioning
