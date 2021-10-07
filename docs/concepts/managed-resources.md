@@ -26,7 +26,11 @@ _composed_ into higher level, opinionated Custom Resources that Crossplane calls
 Composite Resources or XRs - not used directly. See the
 [Composition][composition] documentation for more information.
 
-## Syntax
+This document describes the concepts for working with Managed Resources. For a
+more in-depth discussion see the Design doc 
+[Managed Resources API Patterns][mr-api-patterns].
+
+## Create, Update, Delete and List
 
 Crossplane API conventions extend the Kubernetes API conventions for the schema
 of Crossplane managed resources. Following is an example of a managed resource:
