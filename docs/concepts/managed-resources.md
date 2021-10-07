@@ -267,10 +267,13 @@ For more information on the status use `kubectl describe
 ### Versioning
 
 Crossplane closely follows the [Kubernetes API versioning
-conventions][api-versioning] for the CRDs that it deploys. In short, for
-`vXbeta` and `vX` versions, you can expect that either automatic migration or
-instructions for manual migration will be provided when a new version of that
-CRD schema is released.
+conventions][api-versioning] for the CRDs that it deploys. We usually keep a
+resource for at least 1 or 2 release in an `alpha` stage to gain some real life
+experience from the community. A `vXbeta` version will have all fields of the
+external resrouce available and have all capabilites needed to be fully XRM
+compatible. For `vXbeta` and `vX` versions, you can expect that either automatic
+migration or instructions for manual migration will be provided when a new
+version of that CRD schema is released. 
 
 ### Grouping
 
