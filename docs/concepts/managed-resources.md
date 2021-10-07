@@ -209,6 +209,7 @@ kubectl delete resourcegroup sqlserverpostgresql-rg
 </div>
 </div>
 
+### Spec
 In Kubernetes, `spec` top field represents the desired state of the user.
 Crossplane adheres to that and has its own conventions about how the fields
 under `spec` should look like.
