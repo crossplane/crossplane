@@ -479,3 +479,4 @@ including Velero.
 [provider]: providers.md
 [issue-727]: https://github.com/crossplane/crossplane/issues/727
 [issue-1143]: https://github.com/crossplane/crossplane/issues/1143
+[mr-api-patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
