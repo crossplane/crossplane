@@ -84,6 +84,13 @@ can take a look at its connection secret that is referenced under `spec.writeCon
 kubectl describe secret aws-rdspostgresql-conn -n crossplane-system
 ```
 
+You can list all `RDSInstance` or all managed resources with: 
+
+```console
+kubectl get rdsinstance
+kubectl get managed
+```
+
 You can then delete the `RDSInstance`:
 
 ```console
@@ -130,6 +137,13 @@ can take a look at its connection secret that is referenced under `spec.writeCon
 
 ```console
 kubectl describe secret cloudsqlpostgresql-conn -n crossplane-system
+```
+
+You can list all `CloudSQLInstance` or all managed resources with: 
+
+```console
+kubectl get cloudsqlinstance
+kubectl get managed
 ```
 
 You can then delete the `CloudSQLInstance`:
@@ -197,6 +211,13 @@ can take a look at its connection secret that is referenced under `spec.writeCon
 
 ```console
 kubectl describe secret sqlserverpostgresql-conn -n crossplane-system
+```
+
+You can list all `PostgreSQLServer` or all managed resources with: 
+
+```console
+kubectl get postgresqlserver
+kubectl get managed
 ```
 
 You can then delete the `PostgreSQLServer`:
