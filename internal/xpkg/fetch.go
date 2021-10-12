@@ -29,8 +29,9 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"github.com/pkg/errors"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // Fetcher fetches package images.
@@ -47,18 +48,12 @@ type K8sFetcher struct {
 	transport http.RoundTripper
 }
 
-// NewK8sFetcher creates a new K8sFetcher.
-func NewK8sFetcher(client kubernetes.Interface, namespace, caBundlePath string) (*K8sFetcher, error) {
+// FetcherOpt can be used to add optional parameters to NewK8sFetcher
+type FetcherOpt func(k *K8sFetcher) error
 
-	// return early with default transport if no additional CAs
-	if caBundlePath == "" {
-		return &K8sFetcher{
-			client:    client,
-			namespace: namespace,
-			transport: http.DefaultTransport,
-		}, nil
-	}
-
+// ParseCertificatesFromPath parses PEM file containing extra x509
+// certificates(s) and combines them with the built in root CA CertPool.
+func ParseCertificatesFromPath(path string) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	rootCAs, _ := x509.SystemCertPool()
 	if rootCAs == nil {
@@ -66,24 +61,47 @@ func NewK8sFetcher(client kubernetes.Interface, namespace, caBundlePath string) 
 	}
 
 	// Read in the cert file
-	certs, err := ioutil.ReadFile(filepath.Clean(caBundlePath))
+	certs, err := ioutil.ReadFile(filepath.Clean(path))
 	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to append %q to RootCAs", caBundlePath)
+		return nil, errors.Wrapf(err, "Failed to append %q to RootCAs", path)
 	}
 
 	// Append our cert to the system pool
 	if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
-		return nil, errors.Errorf("No certificates could be parsed from %q", caBundlePath)
+		return nil, errors.Errorf("No certificates could be parsed from %q", path)
 	}
 
-	var customCATransport http.RoundTripper = http.DefaultTransport
-	customCATransport.(*http.Transport).TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+	return rootCAs, nil
+}
 
-	return &K8sFetcher{
+// WithCustomCA is a FetcherOpt that can be used to add a custom CA bundle to a K8sFetcher
+func WithCustomCA(rootCAs *x509.CertPool) FetcherOpt {
+	return func(k *K8sFetcher) error {
+		t, ok := k.transport.(*http.Transport)
+		if !ok {
+			return errors.New("Fetcher transport is not an HTTP transport")
+		}
+
+		t.TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+		return nil
+	}
+}
+
+// NewK8sFetcher creates a new K8sFetcher.
+func NewK8sFetcher(client kubernetes.Interface, namespace string, opts ...FetcherOpt) (*K8sFetcher, error) {
+	k := &K8sFetcher{
 		client:    client,
 		namespace: namespace,
-		transport: customCATransport,
-	}, nil
+		transport: http.DefaultTransport.(*http.Transport).Clone(),
+	}
+
+	for _, o := range opts {
+		if err := o(k); err != nil {
+			return nil, err
+		}
+	}
+
+	return k, nil
 }
 
 // Fetch fetches a package image.

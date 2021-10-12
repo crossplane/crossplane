@@ -200,7 +200,7 @@ type Reconciler struct {
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
-func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry, caBundlePath string) error {
+func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 
@@ -217,7 +217,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}
@@ -248,7 +248,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
-func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry, caBundlePath string) error {
+func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
 
@@ -265,7 +265,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}

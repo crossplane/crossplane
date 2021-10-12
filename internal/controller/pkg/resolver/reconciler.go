@@ -117,14 +117,14 @@ type Reconciler struct {
 }
 
 // Setup adds a controller that reconciles the Lock.
-func Setup(mgr ctrl.Manager, l logging.Logger, namespace string) error {
+func Setup(mgr ctrl.Manager, l logging.Logger, namespace string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1beta1.LockGroupKind)
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
 	}

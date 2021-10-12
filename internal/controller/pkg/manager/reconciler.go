@@ -67,6 +67,9 @@ const (
 
 	errUnhealthyPackageRevision     = "current package revision is unhealthy"
 	errUnknownPackageRevisionHealth = "current package revision health is unknown"
+
+	errCreateK8sClient = "failed to initialize clientset"
+	errBuildFetcher    = "cannot build fetcher"
 )
 
 // Event reasons.
@@ -137,7 +140,7 @@ type Reconciler struct {
 }
 
 // SetupProvider adds a controller that reconciles Providers.
-func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry, caBundlePath string) error {
+func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1.ProviderGroupKind)
 	np := func() v1.Package { return &v1.Provider{} }
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
@@ -145,11 +148,11 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry, caBu
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize clientset")
+		return errors.Wrap(err, errCreateK8sClient)
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
 	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher")
+		return errors.Wrap(err, errBuildFetcher)
 	}
 
 	r := NewReconciler(mgr,
@@ -169,7 +172,7 @@ func SetupProvider(mgr ctrl.Manager, l logging.Logger, namespace, registry, caBu
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
-func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry, caBundlePath string) error {
+func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationGroupKind)
 	np := func() v1.Package { return &v1.Configuration{} }
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
@@ -179,7 +182,7 @@ func SetupConfiguration(mgr ctrl.Manager, l logging.Logger, namespace, registry,
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize clientset")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, caBundlePath)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher")
 	}
