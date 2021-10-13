@@ -173,7 +173,7 @@ func TestStringResolve(t *testing.T) {
 				i:     "value",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypFailed, "Something"),
+				err: errors.Errorf(errStringTransformTypeFailed, "Something"),
 			},
 		},
 		"FmtFailed": {
@@ -182,7 +182,7 @@ func TestStringResolve(t *testing.T) {
 				i:     "value",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypFormat, string(StringTransformFormat)),
+				err: errors.Errorf(errStringTransformTypeFormat, string(StringTransformFormat)),
 			},
 		},
 		"FmtString": {
@@ -211,7 +211,7 @@ func TestStringResolve(t *testing.T) {
 				i:     "crossplane",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypConvert, string(StringTransformConvert)),
+				err: errors.Errorf(errStringTransformTypeConvert, string(StringTransformConvert)),
 			},
 		},
 		"ConvertTypFailed": {
@@ -221,7 +221,7 @@ func TestStringResolve(t *testing.T) {
 				i:       "crossplane",
 			},
 			want: want{
-				err: errors.Errorf(errStringConvertTypFailed, wrongConvertType),
+				err: errors.Errorf(errStringConvertTypeFailed, wrongConvertType),
 			},
 		},
 		"ConvertToUpper": {

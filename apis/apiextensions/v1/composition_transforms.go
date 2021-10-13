@@ -39,10 +39,10 @@ const (
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
 
-	errStringTransformTypFailed  = "type %s is not supported for string transform type"
-	errStringTransformTypFormat  = "string transform of type %s fmt is not set"
-	errStringTransformTypConvert = "string transform of type %s convert is not set"
-	errStringConvertTypFailed    = "type %s is not supported for string convert"
+	errStringTransformTypeFailed  = "type %s is not supported for string transform type"
+	errStringTransformTypeFormat  = "string transform of type %s fmt is not set"
+	errStringTransformTypeConvert = "string transform of type %s convert is not set"
+	errStringConvertTypeFailed    = "type %s is not supported for string convert"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -178,7 +178,7 @@ type StringTransformType string
 
 // Accepted StringTransformType.
 const (
-	StringTransformFormat  StringTransformType = "Format" // Defaul
+	StringTransformFormat  StringTransformType = "Format" // Default
 	StringTransformConvert StringTransformType = "Convert"
 )
 
@@ -217,12 +217,12 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 	switch s.Type {
 	case StringTransformFormat:
 		if s.Format == nil {
-			return nil, errors.Errorf(errStringTransformTypFormat, string(s.Type))
+			return nil, errors.Errorf(errStringTransformTypeFormat, string(s.Type))
 		}
 		return fmt.Sprintf(*s.Format, input), nil
 	case StringTransformConvert:
 		if s.Convert == nil {
-			return nil, errors.Errorf(errStringTransformTypConvert, string(s.Type))
+			return nil, errors.Errorf(errStringTransformTypeConvert, string(s.Type))
 		}
 		str := fmt.Sprintf("%v", input)
 		switch *s.Convert {
@@ -231,10 +231,10 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 		case ConversionTypeToLower:
 			return strings.ToLower(str), nil
 		default:
-			return nil, errors.Errorf(errStringConvertTypFailed, *s.Convert)
+			return nil, errors.Errorf(errStringConvertTypeFailed, *s.Convert)
 		}
 	default:
-		return nil, errors.Errorf(errStringTransformTypFailed, string(s.Type))
+		return nil, errors.Errorf(errStringTransformTypeFailed, string(s.Type))
 	}
 
 }
