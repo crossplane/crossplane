@@ -18,8 +18,8 @@ package initializer
 
 import (
 	"context"
-	"strings"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,21 +27,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
-	errApplyPackage = "cannot apply package"
-)
-
-var replacer = strings.NewReplacer(
-	"(", "",
-	"|", "",
-	"@", "",
-	")", "",
-	"*", "",
-	":", "-",
-	".", "-",
-	"/", "-",
+	errParsePackageName = "package name is not valid"
+	errApplyPackage     = "cannot apply package"
 )
 
 // NewPackageInstaller returns a new package installer.
@@ -65,13 +56,17 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	// Providers and Configurations can be added to the same slice for applying.
 	pkgsIdx := 0
 	for _, img := range pi.Providers {
+		name, err := name.ParseReference(img, name.WithDefaultRegistry(""))
+		if err != nil {
+			return errors.Wrap(err, errParsePackageName)
+		}
 		p := &v1.Provider{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: cleanUpName(img),
+				Name: xpkg.ToDNSLabel(xpkg.ParsePackageSourceFromReference(name)),
 			},
 			Spec: v1.ProviderSpec{
 				PackageSpec: v1.PackageSpec{
-					Package: strings.TrimSpace(img),
+					Package: name.String(),
 				},
 			},
 		}
@@ -79,13 +74,17 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 		pkgsIdx++
 	}
 	for _, img := range pi.Configurations {
+		name, err := name.ParseReference(img, name.WithDefaultRegistry(""))
+		if err != nil {
+			return errors.Wrap(err, errParsePackageName)
+		}
 		c := &v1.Configuration{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: cleanUpName(img),
+				Name: xpkg.ToDNSLabel(xpkg.ParsePackageSourceFromReference(name)),
 			},
 			Spec: v1.ConfigurationSpec{
 				PackageSpec: v1.PackageSpec{
-					Package: strings.TrimSpace(img),
+					Package: name.String(),
 				},
 			},
 		}
@@ -99,8 +98,4 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 		}
 	}
 	return nil
-}
-
-func cleanUpName(s string) string {
-	return strings.TrimSpace(replacer.Replace(s))
 }

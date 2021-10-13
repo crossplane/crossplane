@@ -35,7 +35,9 @@ var errBoom = errors.New("boom")
 
 func TestInstaller(t *testing.T) {
 	p1 := "crossplane/provider-aws:v1.16.0"
+	p1Name := "crossplane-provider-aws"
 	c1 := "crossplane/getting-started-aws:v0.0.1"
+	c1Name := "crossplane-getting-started-aws"
 	type args struct {
 		p    []string
 		c    []string
@@ -56,11 +58,11 @@ func TestInstaller(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
 						case *v1.Provider:
-							if key.Name != cleanUpName(p1) {
+							if key.Name != p1Name {
 								t.Errorf("unexpected name in provider get")
 							}
 						case *v1.Configuration:
-							if key.Name != cleanUpName(c1) {
+							if key.Name != c1Name {
 								t.Errorf("unexpected name in configuration get")
 							}
 						default:
@@ -71,11 +73,11 @@ func TestInstaller(t *testing.T) {
 					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						switch obj.(type) {
 						case *v1.Provider:
-							if obj.GetName() != cleanUpName(p1) {
+							if obj.GetName() != p1Name {
 								t.Errorf("unexpected name in provider update")
 							}
 						case *v1.Configuration:
-							if obj.GetName() != cleanUpName(c1) {
+							if obj.GetName() != c1Name {
 								t.Errorf("unexpected name in configuration update")
 							}
 						default:
@@ -94,11 +96,11 @@ func TestInstaller(t *testing.T) {
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
 						case *v1.Provider:
-							if key.Name != cleanUpName(p1) {
+							if key.Name != p1Name {
 								t.Errorf("unexpected name in provider apply")
 							}
 						case *v1.Configuration:
-							if key.Name != cleanUpName(c1) {
+							if key.Name != c1Name {
 								t.Errorf("unexpected name in configuration apply")
 							}
 						default:
@@ -123,7 +125,7 @@ func TestInstaller(t *testing.T) {
 						case *v1.Provider:
 							t.Errorf("no providers specified")
 						case *v1.Configuration:
-							if key.Name != cleanUpName(c1) {
+							if key.Name != c1Name {
 								t.Errorf("unexpected name in configuration apply")
 							}
 						default:
