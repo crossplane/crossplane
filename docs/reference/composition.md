@@ -510,12 +510,11 @@ considered true, while all other values are considered false. Similarly, boolean
 true converts to integer 1 and float 1.0, while false converts to 0 and 0.0.
 
 ```yaml
-# If the value of the 'from' field is "1" (a string), the value of the 'to'
-# field will be set set to 1 (an integer).
+# If the value to be converted is "1" (a string), the value of the 'toType'
+# field will be set to 1 (an integer).
 - type: convert
   convert:
-   from: string
-   to: int
+   toType: int
 ```
 
 ### Connection Details
