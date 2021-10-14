@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -78,10 +79,21 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
-		Scheme:           s,
-		LeaderElection:   c.LeaderElection,
-		LeaderElectionID: "crossplane-leader-election-core",
-		SyncPeriod:       &c.SyncInterval,
+		Scheme:     s,
+		SyncPeriod: &c.SyncInterval,
+
+		// controller-runtime uses both ConfigMaps and Leases for leader
+		// election by default. Leases expire after 15 seconds, with a
+		// 10 second renewal deadline. We've observed leader loss due to
+		// renewal deadlines being exceeded when under high load - i.e.
+		// hundreds of reconciles per second and ~200rps to the API
+		// server. Switching to Leases only and longer leases appears to
+		// alleviate this.
+		LeaderElection:             c.LeaderElection,
+		LeaderElectionID:           "crossplane-leader-election-core",
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
+		LeaseDuration:              func() *time.Duration { d := 60 * time.Second; return &d }(),
+		RenewDeadline:              func() *time.Duration { d := 50 * time.Second; return &d }(),
 	})
 	if err != nil {
 		return errors.Wrap(err, "Cannot create manager")

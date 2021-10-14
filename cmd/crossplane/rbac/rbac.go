@@ -22,6 +22,7 @@ import (
 
 	"github.com/alecthomas/kong"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -84,10 +85,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
-		Scheme:           s,
-		LeaderElection:   c.LeaderElection,
-		LeaderElectionID: "crossplane-leader-election-rbac",
-		SyncPeriod:       &c.SyncInterval,
+		Scheme:                     s,
+		LeaderElection:             c.LeaderElection,
+		LeaderElectionID:           "crossplane-leader-election-rbac",
+		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
+		SyncPeriod:                 &c.SyncInterval,
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create manager")
