@@ -149,22 +149,47 @@ func TestMathResolve(t *testing.T) {
 func TestStringResolve(t *testing.T) {
 
 	type args struct {
-		fmts string
-		i    interface{}
+		stype   StringTransformType
+		fmts    *string
+		convert *StringConversionType
+		i       interface{}
 	}
 	type want struct {
 		o   interface{}
 		err error
 	}
+	sFmt := "verycool%s"
+	iFmt := "the largest %d"
+
+	var upper, lower, wrongConvertType StringConversionType = ConversionTypeToUpper, ConversionTypeToLower, "Something"
 
 	cases := map[string]struct {
 		args
 		want
 	}{
+		"NotSupportedType": {
+			args: args{
+				stype: "Something",
+				i:     "value",
+			},
+			want: want{
+				err: errors.Errorf(errStringTransformTypeFailed, "Something"),
+			},
+		},
+		"FmtFailed": {
+			args: args{
+				stype: StringTransformFormat,
+				i:     "value",
+			},
+			want: want{
+				err: errors.Errorf(errStringTransformTypeFormat, string(StringTransformFormat)),
+			},
+		},
 		"FmtString": {
 			args: args{
-				fmts: "verycool%s",
-				i:    "thing",
+				stype: StringTransformFormat,
+				fmts:  &sFmt,
+				i:     "thing",
 			},
 			want: want{
 				o: "verycoolthing",
@@ -172,17 +197,60 @@ func TestStringResolve(t *testing.T) {
 		},
 		"FmtInteger": {
 			args: args{
-				fmts: "the largest %d",
-				i:    8,
+				stype: StringTransformFormat,
+				fmts:  &iFmt,
+				i:     8,
 			},
 			want: want{
 				o: "the largest 8",
 			},
 		},
+		"ConvertNotSet": {
+			args: args{
+				stype: StringTransformConvert,
+				i:     "crossplane",
+			},
+			want: want{
+				err: errors.Errorf(errStringTransformTypeConvert, string(StringTransformConvert)),
+			},
+		},
+		"ConvertTypFailed": {
+			args: args{
+				stype:   StringTransformConvert,
+				convert: &wrongConvertType,
+				i:       "crossplane",
+			},
+			want: want{
+				err: errors.Errorf(errStringConvertTypeFailed, wrongConvertType),
+			},
+		},
+		"ConvertToUpper": {
+			args: args{
+				stype:   StringTransformConvert,
+				convert: &upper,
+				i:       "crossplane",
+			},
+			want: want{
+				o: "CROSSPLANE",
+			},
+		},
+		"ConvertToLower": {
+			args: args{
+				stype:   StringTransformConvert,
+				convert: &lower,
+				i:       "CrossPlane",
+			},
+			want: want{
+				o: "crossplane",
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&StringTransform{Format: tc.fmts}).Resolve(tc.i)
+			got, err := (&StringTransform{Type: tc.stype,
+				Format:  tc.fmts,
+				Convert: tc.convert,
+			}).Resolve(tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)

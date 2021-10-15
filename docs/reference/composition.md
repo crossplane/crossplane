@@ -484,15 +484,38 @@ Currently only `multiply` is supported.
     multiply: 2
 ```
 
-`string`. Transforms string values. Currently only [Go style `fmt`][pkg/fmt] is
-supported.
+`string`. Transforms string values. 
+* string transform type `Format`, Currently only Go style fmt is supported. [Go style `fmt`][pkg/fmt] is supported.
+* string transform type `Convert`, accepts either `ToUpper` or `ToLower`.
 
 ```yaml
+# If you omit the field type, by default type is set to `Format` 
 # If the value of the 'from' field is 'hello', the value of the 'to' field will
 # be set to 'hello-world'.
 - type: string
   string:
     fmt: "%s-world"
+
+# This is the same as above
+# the value of the 'to' field will be set to 'hello-world'.
+- type: string
+  string:
+    type: Format
+    fmt: "%s-world"
+
+# If the value of the 'from' field is 'hello', the value of the 'to' field will
+# be set to 'HELLO'.
+- type: string
+  string:
+    type: Convert
+    convert: ToUpper
+
+# If the value of the 'from' field is 'Hello', the value of the 'to' field will
+# be set to 'hello'.
+- type: string
+  string:
+    type: Convert
+    convert: ToLower
 ```
 
 `convert`. Transforms values of one type to another, for example from a string

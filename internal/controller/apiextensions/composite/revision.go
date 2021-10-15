@@ -143,7 +143,8 @@ func AsCompositionTransform(rt v1alpha1.Transform) v1.Transform {
 		t.Map = &v1.MapTransform{Pairs: rt.Map.Pairs}
 	}
 	if rt.String != nil {
-		t.String = &v1.StringTransform{Format: rt.String.Format}
+		t.String = &v1.StringTransform{Type: v1.StringTransformFormat,
+			Format: &rt.String.Format}
 	}
 	if rt.Convert != nil {
 		t.Convert = &v1.ConvertTransform{ToType: rt.Convert.ToType}
