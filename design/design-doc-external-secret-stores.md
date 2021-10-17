@@ -92,7 +92,7 @@ information:
 Store (a.k.a. `external-name`). This identifier could be split into two
 different parts:
   - **A name**: A unique name within logical group.
-  - **A logical group identifier**: Specific to Secret Store. For example,
+  - **A scope/group identifier**: Specific to Secret Store. For example,
   `namespace` in _Kubernetes_, a parent `path` in _Vault_ and `account`+`region`
   for _AWS Secret Manager_.
 - **Additional configuration** to reach to the Store like its endpoint and 
@@ -329,6 +329,65 @@ spec:
           arbitrary-config: true
 ```
 
+### User Experience
+
+With the API definition above, it is mostly clear how the user interaction would
+be. But one important point that worth mentioning is, both Crossplane core pod
+and provider pods would need to access to the external secret stores. The
+credentials that is made available needs to be authorized to read, write and
+delete the secrets living at the configured scope. 
+
+Here is an example flow for configuring Vault as an external secret store with
+[Kubernetes Auth]:
+
+1. [Configure] Vault for Kubernetes Auth for Crossplane and provider service
+accounts in Crossplane namespace (e.g. `crossplane-system`) with permissions
+to read, write and delete the secrets under a parent path
+(e.g. `secret/my-cloud/dev/`).
+2. Deploy [Vault sidecar injector] into the same cluster as Crossplane.
+3. Add necessary annotations to get the Vault sidecar injected to
+Crossplane/provider pods and make token available for the configured Vault role
+(e.g. `crossplane`).
+   1. Add annotations to the Crossplane core pod (needs to be exposed as a helm
+parameter).
+   2. Add annotations to the Provider pods (using `ControllerConfig`)
+4. Create a `StoreConfig` CR as follows:
+
+```
+apiVersion: secrets.crossplane.io/v1alpha1
+kind: StoreConfig
+metadata:
+  name: vault-default
+  namespace: crossplane-system
+spec:
+  type: Vault
+  vault:
+    server: "https://vault.acme.org"
+    parentPath: "secret/my-cloud/dev/"
+    version: "v2"
+    caBundle: "..."
+    auth:
+      kubernetes:
+        mountPath: "kubernetes"
+        role: "crossplane"
+```
+
+5. Use the following `publishConnectionDetailsTo` for resources: 
+
+```
+spec:
+  publishConnectionDetailsTo:
+    name: <secret-name>
+    externalStore:
+      configRef:
+        name: vault-default
+        namespace: crossplane-system
+```
+
+### Implementation
+
+
+
 ### Bonus Use Case: Publish Connection Details to Another Kubernetes Cluster
 
 By adding support for `kubernetes` as an external secret store in `StoreConfig`,
@@ -408,7 +467,7 @@ spec:
 ### Propagate from K8S secrets
 
 Crossplane enables managing external resources from Kubernetes API via custom
-resources. Considering each secret living in an external secret store is indeed
+resources. Considering each secret living in an external secret store, is indeed
 an external resource which could be managed by Crossplane just like any other
 managed resources, we could leverage Crossplane providers to create connection
 details secrets in external secret stores.
@@ -506,6 +565,8 @@ related discussion or issue._
 [secret-store-runtime-example]: images/secret-store-runtime-example.png
 [KMS plugin support in Kubernetes API server]: https://kubernetes.io/docs/tasks/administer-cluster/kms-provider/#implementing-a-kms-plugin
 [Vault sidecar injector]: https://www.vaultproject.io/docs/platform/k8s/injector
+[Kubernetes Auth]: https://www.vaultproject.io/docs/auth/kubernetes
+[Configure]: https://www.vaultproject.io/docs/auth/kubernetes#configuration
 [Vault agent inject template]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar#apply-a-template-to-the-injected-secrets
 [ArgoCD cluster]: https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters
 [AWS secret manager]: https://aws.amazon.com/secrets-manager/
