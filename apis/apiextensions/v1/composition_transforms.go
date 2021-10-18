@@ -42,6 +42,7 @@ const (
 	errStringTransformTypeFailed  = "type %s is not supported for string transform type"
 	errStringTransformTypeFormat  = "string transform of type %s fmt is not set"
 	errStringTransformTypeConvert = "string transform of type %s convert is not set"
+	errStringTransformTypeTrim    = "string transform of type %s trim is not set"
 	errStringConvertTypeFailed    = "type %s is not supported for string convert"
 )
 
@@ -178,8 +179,10 @@ type StringTransformType string
 
 // Accepted StringTransformType.
 const (
-	StringTransformFormat  StringTransformType = "Format" // Default
-	StringTransformConvert StringTransformType = "Convert"
+	StringTransformFormat     StringTransformType = "Format" // Default
+	StringTransformConvert    StringTransformType = "Convert"
+	StringTransformTrimPrefix StringTransformType = "TrimPrefix"
+	StringTransformTrimSuffix StringTransformType = "TrimSuffix"
 )
 
 // StringConversionType is the type of string conversion, ToUpper/ToLower
@@ -196,7 +199,7 @@ type StringTransform struct {
 
 	// Type of the string transform to be run.
 	// +optional
-	// +kubebuilder:validation:Enum=Format;Convert
+	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix
 	// +kubebuilder:default=Format
 	Type StringTransformType `json:"type,omitempty"`
 
@@ -209,6 +212,10 @@ type StringTransform struct {
 	// +optional
 	// +kubebuilder:validation:Enum=ToUpper;ToLower
 	Convert *StringConversionType `json:"convert,omitempty"`
+
+	// Trim the prefix or suffix from the input
+	// +optional
+	Trim *string `json:"trim,omitempty"`
 }
 
 // Resolve runs the String transform.
@@ -224,19 +231,39 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 		if s.Convert == nil {
 			return nil, errors.Errorf(errStringTransformTypeConvert, string(s.Type))
 		}
-		str := fmt.Sprintf("%v", input)
-		switch *s.Convert {
-		case ConversionTypeToUpper:
-			return strings.ToUpper(str), nil
-		case ConversionTypeToLower:
-			return strings.ToLower(str), nil
-		default:
-			return nil, errors.Errorf(errStringConvertTypeFailed, *s.Convert)
+		return stringConvertTransform(input, s.Convert)
+
+	case StringTransformTrimPrefix, StringTransformTrimSuffix:
+		if s.Trim == nil {
+			return nil, errors.Errorf(errStringTransformTypeTrim, string(s.Type))
 		}
+		return stringTrimTransform(input, s.Type, *s.Trim), nil
 	default:
 		return nil, errors.Errorf(errStringTransformTypeFailed, string(s.Type))
 	}
+}
 
+func stringConvertTransform(input interface{}, t *StringConversionType) (interface{}, error) {
+	str := fmt.Sprintf("%v", input)
+	switch *t {
+	case ConversionTypeToUpper:
+		return strings.ToUpper(str), nil
+	case ConversionTypeToLower:
+		return strings.ToLower(str), nil
+	default:
+		return nil, errors.Errorf(errStringConvertTypeFailed, *t)
+	}
+}
+
+func stringTrimTransform(input interface{}, t StringTransformType, trim string) string {
+	str := fmt.Sprintf("%v", input)
+	if t == StringTransformTrimPrefix {
+		return strings.TrimPrefix(str, trim)
+	}
+	if t == StringTransformTrimSuffix {
+		return strings.TrimSuffix(str, trim)
+	}
+	return str
 }
 
 // The list of supported ConvertTransform input and output types.

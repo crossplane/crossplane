@@ -487,6 +487,8 @@ Currently only `multiply` is supported.
 `string`. Transforms string values. 
 * string transform type `Format`, Currently only Go style fmt is supported. [Go style `fmt`][pkg/fmt] is supported.
 * string transform type `Convert`, accepts either `ToUpper` or `ToLower`.
+* string transform type `TrimPrefix`, accepts a string to be trimmed from the beginning of the input.
+* string transform type `TrimSuffix`, accepts a string to be trimmed from the end of the input.
 
 ```yaml
 # If you omit the field type, by default type is set to `Format` 
@@ -516,6 +518,20 @@ Currently only `multiply` is supported.
   string:
     type: Convert
     convert: ToLower
+
+# If the value of the 'from' field is https://crossplane.io, the value of the 'to' field will
+# be set to crossplane.io
+- type: string
+  string:
+    type: TrimPrefix
+    trim: 'https://'
+
+# If the value of the 'from' field is my-string-test, the value of the 'to' field will
+# be set to my-string
+- type: string
+  string:
+     type: TrimSuffix
+     trim: '-test'
 ```
 
 `convert`. Transforms values of one type to another, for example from a string

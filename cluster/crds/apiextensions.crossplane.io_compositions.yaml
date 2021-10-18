@@ -223,6 +223,10 @@ spec:
                                         string. See https://golang.org/pkg/fmt/ for
                                         details.
                                       type: string
+                                    trim:
+                                      description: Trim the prefix or suffix from
+                                        the input
+                                      type: string
                                     type:
                                       default: Format
                                       description: Type of the string transform to
@@ -230,6 +234,8 @@ spec:
                                       enum:
                                       - Format
                                       - Convert
+                                      - TrimPrefix
+                                      - TrimSuffix
                                       type: string
                                   type: object
                                 type:
@@ -491,6 +497,10 @@ spec:
                                         string. See https://golang.org/pkg/fmt/ for
                                         details.
                                       type: string
+                                    trim:
+                                      description: Trim the prefix or suffix from
+                                        the input
+                                      type: string
                                     type:
                                       default: Format
                                       description: Type of the string transform to
@@ -498,6 +508,8 @@ spec:
                                       enum:
                                       - Format
                                       - Convert
+                                      - TrimPrefix
+                                      - TrimSuffix
                                       type: string
                                   type: object
                                 type:
@@ -787,6 +799,10 @@ spec:
                                         string. See https://golang.org/pkg/fmt/ for
                                         details.
                                       type: string
+                                    trim:
+                                      description: Trim the prefix or suffix from
+                                        the input
+                                      type: string
                                     type:
                                       default: Format
                                       description: Type of the string transform to
@@ -794,6 +810,8 @@ spec:
                                       enum:
                                       - Format
                                       - Convert
+                                      - TrimPrefix
+                                      - TrimSuffix
                                       type: string
                                   type: object
                                 type:
@@ -1054,6 +1072,10 @@ spec:
                                         string. See https://golang.org/pkg/fmt/ for
                                         details.
                                       type: string
+                                    trim:
+                                      description: Trim the prefix or suffix from
+                                        the input
+                                      type: string
                                     type:
                                       default: Format
                                       description: Type of the string transform to
@@ -1061,6 +1083,8 @@ spec:
                                       enum:
                                       - Format
                                       - Convert
+                                      - TrimPrefix
+                                      - TrimSuffix
                                       type: string
                                   type: object
                                 type:
