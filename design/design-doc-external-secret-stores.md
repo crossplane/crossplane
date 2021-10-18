@@ -7,34 +7,39 @@
 ## Background
 
 Kubernetes suggests using `Secret` resource to store sensitive information and
-one gets a base64 encoded value of sensitive data rather than encrypted. RBAC is
-used as a security measure to access control, instead of dealing with a
-decryption process whenever this data needed to be consumed. However, in 
-practice it is not easy to ensure proper access to sensitive data with RBAC. 
-For example, when an application requires read/write access to secrets in a
-namespace, it is usually deployed with access to any secret in the namespace
-which could result in unexpected access to another secret in the same namespace.
+when requested from the API Server, one gets a base64 encoded value of sensitive
+data rather than encrypted. RBAC is used as a security measure for access
+control, instead of dealing with a decryption process whenever this data needed
+to be consumed. However, in practice it is not easy to ensure proper access to
+sensitive data with RBAC. For example, when an application requires read/write
+access to some secrets in a namespace, it is common pitfall to deploy with
+access to any secret in the namespace which could result in unintended access to
+another secret in the same namespace. Hence, Kubernetes secrets usually
+considered as **not so secure**.
 
 Kubernetes has a solution to [encrypt secrets at rest], however, this is only to
 keep secret data as encrypted in etcd which changes nothing at Kubernetes API
 level. Requests for supporting additional external secret stores at API level
-were [rejected for various reasons]. Another point is, Kubernetes clusters 
-usually considered as ephemeral resources as opposed to being a reliable data
-store not only for sensitive data but also non-sensitive data like application
-manifests which helps popularity of GitOps tools.
+were [rejected for various reasons].
 
-Hence, storing sensitive information in external secret stores is a common
-practice. Since applications running on K8S need this information as
-well, it is also quite common to sync data from external secrets store to K8S.
-There are [quite a few tools] out there that are trying to resolve this exact same
-problem. However, Crossplane, as a producer of infrastructure credentials,
-needs the opposite, which is storing sensitive information **to external secret
-stores**.
+Another point is, Kubernetes clusters usually considered as ephemeral resources
+as opposed to being a **reliable** data store not only for sensitive data but
+also non-sensitive data like application manifests and this increased popularity
+of GitOps tools.
+
+Hence, _storing sensitive information in external secret stores is a common
+practice_. Since applications running on K8S need this information as
+well, it is also quite common to sync data from external secret stores to K8S.
+There are [quite a few tools] out there that are trying to resolve this exact
+same problem. However, Crossplane, as a **producer** of infrastructure
+credentials, needs the opposite, which is storing sensitive information
+**to external secret stores**.
 
 Today, Crossplane only supports storing connection details for managed resources
-as Kubernetes secrets. This is configured via `spec.writeConnectionSecretToRef`
-field. However, there is an increasing demand to store infrastructure
-credentials on external secret stores rather than relying on Kubernetes secrets.
+as **Kubernetes secrets**. This is configured via the
+`spec.writeConnectionSecretToRef` field. However, there is an increasing demand
+to store infrastructure credentials on external secret stores rather than
+relying on Kubernetes secrets.
 
 This document aims to propose a design for supporting external secret stores in
 Crossplane. The solution should apply to both Crossplane itself (for composite
@@ -47,8 +52,8 @@ secret store today.
 We would like to come up with a design that:
 
 - Will not break the existing APIs.
-- Will support adding new Secret Stores without any API changes.
-- Will support switching to an out-of-tree plugin model without breaking the
+- Will support adding new Secret Stores without any braking API changes.
+- Will support switching to an **out-of-tree plugin model** without breaking the
   API for existing in-tree Secret Stores.
 
 We would like Crossplane to be able to store connection details to external
@@ -59,82 +64,87 @@ secret stores and still satisfy the following user stories:
 - As a platform consumer, I would like to configure how/where to store
   connection details for my composite resource claims.
 
-For dynamically provisioned resources, it should still be possible to pass
-partial inputs for connection details secret:
+To achieve this, it should still be possible to pass partial inputs for
+connection details secret for dynamically provisioned resources:
 
 - In Composition spec, configuring where/how to store connection details for
 composite resources (i.e. `writeConnectionSecretsToNamespace`)
 - Assigning a [generated name] to connection secrets of composite resources.
 
-
 ## Out of Scope
 
-This design focuses on writing/publishing connection details to external stores
-and not about reading/consuming them in the form of **provider credentials**
-or **to consume via the workloads**. There are already ways to consume secrets
-in external stores from Kubernetes and is out of the scope for this document.
-See [Vault credential injection guide] to see how one can configure Vault and
-Crossplane to consume provider credentials from Vault. To consume secrets living
-inside Vault from workloads running in Kubernetes, one can consider
-[injecting via Vault agent] or use solutions like [External Secrets].
+The following is out of scope for this design:
 
-One exception for reading secrets back is, Crossplane itself needs to read
-connection details of managed resources to build secrets for composite
-resources and this will be covered in the design.
+- Reading **provider credentials** from external secret stores.
+
+  This design focuses on writing/publishing connection details to external
+  stores and not about reading them as **provider credentials**. There are 
+  already ways to consume secrets in external stores from Kubernetes and is out
+  of the scope for this document. Check the [Vault credential injection guide] to
+  see how one can configure Vault and Crossplane to consume provider credentials
+  from Vault.
+
+- Reading managed resource **input secrets** from external secret stores.
+
+  There are some resources which requires sensitive information like initial
+  password as input. Typically, this type of input is received from a Kubernetes
+  secret. This design focuses on storing credentials produced by Crossplane
+  hence input secrets are out of scope.
 
 ## Design
 
-A secret is a resource storing a set of sensitive information typically as key
-value pairs. To access a secret instance we would need the following
-information:
+A secret is a resource keeping sensitive information typically as a set of key
+value pairs. To access a secret instance in a secret store we would need the
+following information:
 
 - An identifier which uniquely identifies the secret instance within the
-Store (a.k.a. `external-name`). This identifier could be split into two
+store (a.k.a. `external-name`). This identifier could be split into two
 different parts:
-  - **A name**: A unique name within logical group.
+  - **A name**: A unique name within a scope/group.
   - **A scope/group identifier**: Specific to Secret Store. For example,
-  `namespace` in _Kubernetes_, a parent `path` in _Vault_ and `account`+`region`
-  for _AWS Secret Manager_.
-- **Additional configuration** to reach to the Store like its endpoint and 
+  `namespace` in _Kubernetes_, a parent `path` in _Vault_ and a `region` for
+  _AWS Secret Manager_.
+- **Additional configuration** to reach to the store like its endpoint and
 credentials to authenticate/authorize. For example, a `kubeconfig` for 
 _Kubernetes_, a `server` endpoint + auth config for _Vault_ and access/secret
 keys for _AWS Secret Manager_.
 
 ### API
 
-#### PublishConnectionDetailsTo
+#### Secret Configuration: PublishConnectionDetailsTo
 
-We will deprecate existing `writeConnectionSecretToRef` field in favor of
+We will deprecate the existing `writeConnectionSecretToRef` field in favor of
 `publishConnectionDetailsTo` field which would support publishing connection
-details to the local Kubernetes cluster **and/or** to an external Secret Store.
-The API would only allow publishing to a single external store but would
-still allow publishing to an external store while still writing into a local
-Kubernetes secret. This could be helpful when the motivation behind storing in
-external store is _reliability_ rather than _security_. As an example use case,
-a platform consumer, might want to consume database creds directly in the team
-namespace but still want it to be saved in a more reliable store for disaster
-recovery or backup purposes.
+details to the local Kubernetes cluster **and/or** to an external secret store.
+The API would **only allow publishing to a single external store** but would
+**still allow publishing to an external store while still writing into a local
+Kubernetes secret**. This could be helpful when the motivation behind storing in
+external store is **reliability** rather than **security**. As an example use
+case, a platform consumer, might want to consume database creds directly in the
+team namespace but still want it to be saved in a more reliable store for
+disaster recovery or backup purposes.
 
-We will only take the **name** of secret in our secret specification API
-(i.e. `publishConnectionDetailsTo`) and the rest will go to a separate config
-(`StoreConfig`). This classification enables building a flexible API that
-satisfies the separation of concerns between platform operators and consumers
-which Crossplane already enables today for Kubernetes Secrets. We will end up
-having a unified spec for all Secret Store types which contains the name field
-(`name`) and a reference to any additional configuration (`configRef`). 
+We will only take the **name** of secret in our secret configuration API
+(i.e. `publishConnectionDetailsTo`) and the rest will go to a separate store
+specific config (`StoreConfig`). This classification enables building a flexible
+API that satisfies the separation of concerns between platform operators and
+consumers which Crossplane already enables today for Kubernetes Secrets. We will
+end up having a unified configuration spec for all external secret store types
+which contains the name field (`name`) and a reference to any additional
+store specific configuration (`configRef`).
 
 This would be enough to uniquely identify and access any secret instance,
-however there are still some additional attributes or metadata specific to
-Secret Store type that might be desired to be set per secret instance. For
-example, `labels`, `annotations` and `type` of the secret in _Kubernetes_ and;
-`Tags` and `EncryptionKey` in _AWS_. For local Kubernetes, this could be
-supported by a strong typed spec, however, for external stores, to stick with a
-unified interface, we will receive this configuration as arbitrary key value
-pairs with `attributes`.
+however there could still be some additional attributes or metadata specific to
+store type that might be desired to be set per secret instance. For example,
+`labels`, `annotations` and `type` of the secret in _Kubernetes_; `Tags` and
+`EncryptionKey` in _AWS_. For local Kubernetes, this could be supported by a
+strong typed spec, however, for external stores, to stick with a unified
+interface, we will receive this configuration as arbitrary key value pairs with
+an optional `attributes` field.
 
 **Examples:**
 
-Publish Connection details to a Kubernetes secret (already existing case):
+Publish Connection details to a _Kubernetes_ secret (already existing case):
 
 ```
 spec:
@@ -156,7 +166,7 @@ spec:
         namespace: crossplane-system
 ```
 
-Publish Connection details to a Kubernetes secret with some labels:
+Publish Connection details to a _Kubernetes_ secret with some labels:
 
 ```
 spec:
@@ -170,7 +180,7 @@ spec:
         acme.example.io/secret-type: infrastructure
 ```
 
-Publish Connection details to a AWS Secret Manager with some tags:
+Publish Connection details to an _AWS Secret Manager_ secret with some tags:
 
 ```
 spec:
@@ -185,7 +195,8 @@ spec:
           environment: production
 ```
 
-Publish Connection details to Vault but still store it as a Kubernetes secret:
+Publish Connection details to _Vault_ but **still store it as a Kubernetes
+secret**:
 
 ```
 spec:
@@ -210,8 +221,8 @@ deprecate this field in favor of `publishConnectionDetailsToStore`.
 
 **Examples:**
 
-Composition configuring the Kubernetes namespace that connection secrets
-for Composite resources will be stored.
+**Composition** configuring the Kubernetes namespace that connection secrets
+for Composite resources will be stored:
 
 ```
 spec:
@@ -220,8 +231,8 @@ spec:
       namespace: crossplane-system
 ```
 
-Composition configuring the secret store that connection secrets for
-Composite resources will be stored.
+**Composition** configuring the secret store that connection secrets for
+Composite resources will be stored:
 
 ```
 spec:
@@ -230,29 +241,18 @@ spec:
     namespace: crossplane-system
 ```
 
-Claim spec for writing connection secret in the same Kubernetes namespace:
+**Claim** spec for writing connection secret in the same Kubernetes namespace:
 
 ```
 spec:
   publishConnectionDetailsTo:
-    name: database-creds # when neither `kubernetes` nor `externalStore` configs
-                         # provided, it defaults to "kubernetes in the same
-                         # namespace", same as "kubernetes: {}"
+    name: database-creds 
+    # when neither `kubernetes` nor `externalStore` configs
+    # provided, it defaults to "kubernetes in the same
+    # namespace", same as "kubernetes: {}"
 ```
 
-Claim spec for writing connection secret to Vault:
-
-```
-spec:
-  publishConnectionDetailsTo:
-    name: database-creds
-    externalStore:
-      configRef:
-        name: vault-team-a
-```
-
-
-Claim spec for writing connection secret to both Kubernetes and Vault:
+**Claim** spec for writing connection secret to Vault:
 
 ```
 spec:
@@ -266,17 +266,35 @@ spec:
         # same namespace as Claim will be used.
 ```
 
-#### Secret StoreConfig
 
-Secret store config will contain the required information other than the name
-of secret. Thanks to [the standardization efforts] on a declarative API for
-syncing secrets from external stores into Kubernetes, there is already an
-[existing schema] that we can follow here. However, there will be slight 
-differences since we want to receive the `name` of secret as input in our API
-whereas, they expect a full identifier of the secret instance within the secret
-store (in [ExternalSecret spec] at `spec.dataFrom.key`). Another reason for
-differences is the direction of operation, Crossplane needs to store to external
-Store whereas those tools targets the opposite.
+**Claim** spec for writing connection secret to both Kubernetes and Vault:
+
+```
+spec:
+  publishConnectionDetailsTo:
+    name: database-creds
+    # this is to indicate that we want to store a kubernetes
+    # secret, but we have no config to set, will write into
+    # the same namespace.
+    kubernetes: {} 
+    externalStore:
+      configRef:
+        name: vault-team-a
+```
+
+#### External Secret Store Configuration: StoreConfig
+
+External secret store configuration will contain the required information other
+than the name (and optional attributes) of secret. Thanks to
+[the standardization efforts] on a declarative API for syncing secrets from
+external stores into Kubernetes, there is already an [existing schema] that we
+can follow here. However, there will be slight differences since we want to
+receive the `name` of secret as input in our API whereas, they expect a full
+identifier of the secret instance within the secret store
+(in [ExternalSecret spec] at `spec.dataFrom.key`). Another reason for
+differences is the direction of operation; Crossplane needs to _publish to_
+external stores whereas those tools targets the opposite, that is
+_fetching from_ external stores.
 
 **Examples:**
 
@@ -295,8 +313,6 @@ spec:
     # parentPath is the parent path that will be prepended to the secrets
     # created with this store config.
     parentPath: "secret/my-cloud/dev/"
-    # Version is the Vault KV secret engine version.
-    # This can be either "v1" or "v2", defaults to "v2"
     version: "v2"
     caBundle: "..."
     
@@ -307,7 +323,7 @@ spec:
         role: "demo"
 ```
 
-Publish with an out-of-tree Secret Plugin (for future support, if needed):
+Publish with an _out-of-tree Secret Plugin_ (for future support, if needed):
 
 ```
 apiVersion: secrets.crossplane.io/v1alpha1
@@ -386,14 +402,14 @@ spec:
 
 ### Implementation
 
-We will define a new interface `ConnectionSecretStore` as follows which
-satisfies slightly modified versions of the existing [ConnectionPublisher] and
+We will define a new interface, namely `ConnectionSecretStore`, which satisfies
+slightly modified versions of the existing [ConnectionPublisher] and
 [ConnectionDetailsFetcher] interfaces. This interface will be satisfied by any
 Secret Store including the local Kubernetes. We will need this interface to be
-defined in crossplane-runtime repository since both managed and Crossplane
+defined in [crossplane-runtime repository] since both managed and Crossplane
 composite reconcilers would use this interface. This will require some 
 refactoring since the existing interfaces defined in different
-packages/repositories.
+packages/repositories today.
 
 ```
 type ConnectionSecretStore interface {
@@ -402,25 +418,46 @@ type ConnectionSecretStore interface {
 }
 
 type ConnectionDetailsPublisher interface {
-	PublishConnection(ctx context.Context, p resource.PublishConnectionConfig, c managed.ConnectionDetails) error
-	UnpublishConnection(ctx context.Context, p resource.PublishConnectionConfig, c managed.ConnectionDetails) error
+	PublishConnection(ctx context.Context, p ConnectionSecretPublisher, c managed.ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, p ConnectionSecretPublisher, c managed.ConnectionDetails) error
 }
 
 type ConnectionDetailsFetcher interface {
-	FetchConnectionDetails(ctx context.Context, p resource.PublishConnectionConfig) (managed.ConnectionDetails, error)
+	FetchConnectionDetails(ctx context.Context, p ConnectionSecretPublisher) (managed.ConnectionDetails, error)
 }
 ```
 
 Implementations of any function in this interface will first fetch `StoreConfig`
 and configure its client before any read/write/delete. This is required to
 ensure any changes in the `StoreConfig` resources to be reflected in the next
-reconcile. Local kubernetes store is an exception here since it already uses
+reconcile. Local Kubernetes store is an exception here since it already uses
 in cluster config which does not depend on a `StoreConfig` and would use the
 same client as it is doing today.
 
+Other types to complete the picture:
+
+```
+type ConnectionSecretPublisher interface {
+	Object
+
+	ConnectionSecretPublisherTo
+}
+
+type ConnectionSecretPublisherTo interface {
+	SetPublishConnectionSecretTo(c *xpv1.ConnectionSecretConfig)
+	GetPublishConnectionSecretTo() *xpv1.ConnectionSecretConfig
+}
+
+type ConnectionSecretConfig struct {
+	Name string `json:"name"`
+	Kubernetes *KubernetesConnectionSecretConfig `json:"kubernetes"`
+	ExternalStore *ExternalConnectionSecretConfig `json:"externalStore"`
+}
+```
+
 ### Bonus Use Case: Publish Connection Details to Another Kubernetes Cluster
 
-By adding support for `kubernetes` as an external secret store in `StoreConfig`,
+By adding support for `Kubernetes` as an external secret store in `StoreConfig`,
 we could enable publishing connection secrets to another Kubernetes cluster.
 For example, platform consumers could publish database connection details they
 were provisioned on control plane cluster to their existing application clusters
@@ -458,9 +495,18 @@ spec:
 
 ## Future Considerations
 
-### Templating support for custom secret values 
+### Reading Input Secrets from External Secret Stores
 
-Not directly related to supporting external secret stores but thanks to
+There are two types of input secrets in Crossplane, provider credentials and
+sensitive fields in managed resource spec. These are provided with Kubernetes
+secrets today, and intentionally left out of scope for this design to limit
+the scope. However, the types and interfaces defined here would be leveraged
+to satisfy these two cases which will result in a unified secret management with
+external stores no matter it is input or output.
+
+### Templating Support for Custom Secret Values 
+
+Not directly related to supporting external secret stores but thanks to the
 extensible API proposed in this design, we might consider adding an interface
 that supports adding new keys to connection secret content from existing
 connection detail keys according to a given template (similar to
@@ -548,9 +594,10 @@ option:
 - Intercept secret requests with _a Mutating Admission Webhook_: This approach
 proposes deploying an admission webhook which intercepts secret requests,
 writes the data to an external secret store and removes sensitive data from the
-Kubernetes secret. Compared to proxy approach, this has the advantage of using
-Kubernetes mechanisms to intercept the request but requires some workaround and
-minor changes in Crossplane since it is not possible to intercept read requests.
+Kubernetes secret. Compared to the proxy approach below, this has the advantage
+of using native Kubernetes mechanisms to intercept the request but requires some
+workaround and minor changes in Crossplane since it is not possible to intercept
+read requests.
 - Intercept secret requests with a _Transparent Kubernetes API Server proxy_: This
 approach proposes deploying a proxy in front of Kubernetes API Server which
 would transparently proxy all incoming requests except Secrets. Similar to the
@@ -569,7 +616,7 @@ connection information actually landed._
 
 ### CSI Drivers
 
-The idea of crossplane writing secrets to the filesystem in the pod and a proper
+The idea of Crossplane writing secrets to the filesystem in the pod and a proper
 CSI driver syncs these secrets to an external secret store sounds fancy. I have
 investigated this possibility and came across
 [kubernetes-sigs/secrets-store-csi-driver] repository which already supports
@@ -579,7 +626,7 @@ filesystem of the pod and not the opposite direction that we need here. It is
 also debatable whether this would be possible at all and could not find any
 related discussion or issue._
 
-[encrypt secrets at rest]: (https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/)
+[encrypt secrets at rest]: https://kubernetes.io/docs/tasks/administer-cluster/encrypt-data/
 [rejected for various reasons]: https://github.com/kubernetes/kubernetes/issues/75899#issuecomment-484731795
 [quite a few tools]: https://github.com/external-secrets/kubernetes-external-secrets/issues/47
 [the standardization efforts]: https://github.com/external-secrets/external-secrets/blob/9e3914b944955bf07c2700a00b85091de560995e/design/design-crd-spec.md#summary
@@ -599,6 +646,7 @@ related discussion or issue._
 [Configure]: https://www.vaultproject.io/docs/auth/kubernetes#configuration
 [ConnectionPublisher]: https://github.com/crossplane/crossplane-runtime/blob/bf5d5512c2f236535c7758f3eaf59c5414c6cf78/pkg/reconciler/managed/reconciler.go#L108
 [ConnectionDetailsFetcher]: https://github.com/crossplane/crossplane/blob/ed06be3612b4993a977e3846bfeb9f1930032617/internal/controller/apiextensions/composite/reconciler.go#L162
+[crossplane-runtime repository]: https://github.com/crossplane/crossplane-runtime
 [Vault agent inject template]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar#apply-a-template-to-the-injected-secrets
 [ArgoCD cluster]: https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters
 [AWS secret manager]: https://aws.amazon.com/secrets-manager/
