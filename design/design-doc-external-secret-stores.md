@@ -386,7 +386,37 @@ spec:
 
 ### Implementation
 
+We will define a new interface `ConnectionSecretStore` as follows which
+satisfies slightly modified versions of the existing [ConnectionPublisher] and
+[ConnectionDetailsFetcher] interfaces. This interface will be satisfied by any
+Secret Store including the local Kubernetes. We will need this interface to be
+defined in crossplane-runtime repository since both managed and Crossplane
+composite reconcilers would use this interface. This will require some 
+refactoring since the existing interfaces defined in different
+packages/repositories.
 
+```
+type ConnectionSecretStore interface {
+	ConnectionDetailsPublisher
+	ConnectionDetailsFetcher
+}
+
+type ConnectionDetailsPublisher interface {
+	PublishConnection(ctx context.Context, p resource.PublishConnectionConfig, c managed.ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, p resource.PublishConnectionConfig, c managed.ConnectionDetails) error
+}
+
+type ConnectionDetailsFetcher interface {
+	FetchConnectionDetails(ctx context.Context, p resource.PublishConnectionConfig) (managed.ConnectionDetails, error)
+}
+```
+
+Implementations of any function in this interface will first fetch `StoreConfig`
+and configure its client before any read/write/delete. This is required to
+ensure any changes in the `StoreConfig` resources to be reflected in the next
+reconcile. Local kubernetes store is an exception here since it already uses
+in cluster config which does not depend on a `StoreConfig` and would use the
+same client as it is doing today.
 
 ### Bonus Use Case: Publish Connection Details to Another Kubernetes Cluster
 
@@ -567,6 +597,8 @@ related discussion or issue._
 [Vault sidecar injector]: https://www.vaultproject.io/docs/platform/k8s/injector
 [Kubernetes Auth]: https://www.vaultproject.io/docs/auth/kubernetes
 [Configure]: https://www.vaultproject.io/docs/auth/kubernetes#configuration
+[ConnectionPublisher]: https://github.com/crossplane/crossplane-runtime/blob/bf5d5512c2f236535c7758f3eaf59c5414c6cf78/pkg/reconciler/managed/reconciler.go#L108
+[ConnectionDetailsFetcher]: https://github.com/crossplane/crossplane/blob/ed06be3612b4993a977e3846bfeb9f1930032617/internal/controller/apiextensions/composite/reconciler.go#L162
 [Vault agent inject template]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar#apply-a-template-to-the-injected-secrets
 [ArgoCD cluster]: https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#clusters
 [AWS secret manager]: https://aws.amazon.com/secrets-manager/
