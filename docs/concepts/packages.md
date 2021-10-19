@@ -227,7 +227,7 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: crossplane/provider-gcp:master
+  package: crossplane/provider-gcp:v0.12.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1
@@ -239,7 +239,7 @@ kind: Configuration
 metadata:
   name: my-org-infra
 spec:
-  package: crossplane/provider-gcp:master
+  package: crossplane/my-org-infra:v0.1.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1
