@@ -112,6 +112,31 @@ func TestInstaller(t *testing.T) {
 				},
 			},
 		},
+		"SuccessJustConfiguration": {
+			// NOTE(hasheddan): test case added due to
+			// https://github.com/crossplane/crossplane/issues/2635
+			args: args{
+				c: []string{c1},
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
+						case *v1.Provider:
+							t.Errorf("no providers specified")
+						case *v1.Configuration:
+							if key.Name != cleanUpName(c1) {
+								t.Errorf("unexpected name in configuration apply")
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+					},
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						return nil
+					},
+				},
+			},
+		},
 		"FailApply": {
 			args: args{
 				p: []string{p1},
