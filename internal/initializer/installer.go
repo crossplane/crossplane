@@ -61,8 +61,10 @@ type PackageInstaller struct {
 // Run makes sure all specified packages exist.
 func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	pkgs := make([]client.Object, len(pi.Providers)+len(pi.Configurations))
-	lastIndex := 0
-	for i, img := range pi.Providers {
+	// NOTE(hasheddan): we maintain a separate index from the range so that
+	// Providers and Configurations can be added to the same slice for applying.
+	pkgsIdx := 0
+	for _, img := range pi.Providers {
 		p := &v1.Provider{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: cleanUpName(img),
@@ -73,10 +75,10 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 				},
 			},
 		}
-		pkgs[i] = p
-		lastIndex = i
+		pkgs[pkgsIdx] = p
+		pkgsIdx++
 	}
-	for i, img := range pi.Configurations {
+	for _, img := range pi.Configurations {
 		c := &v1.Configuration{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: cleanUpName(img),
@@ -87,7 +89,8 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 				},
 			},
 		}
-		pkgs[lastIndex+i+1] = c
+		pkgs[pkgsIdx] = c
+		pkgsIdx++
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, p := range pkgs {
