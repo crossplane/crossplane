@@ -61,6 +61,14 @@ spec:
                 required:
                 - name
                 type: object
+              enabledAPIs:
+                description: EnabledAPIs is a slice of regular expressions against
+                  which all available GVKs defined in the package are matched. If
+                  any of the regular expressions from this slice match a given GVK,
+                  then it's enabled, otherwise it's disabled and not processed.
+                items:
+                  type: string
+                type: array
               ignoreCrossplaneConstraints:
                 default: false
                 description: IgnoreCrossplaneConstraints indicates to the package
@@ -145,6 +153,14 @@ spec:
                   - status
                   - type
                   type: object
+                type: array
+              currentAPIs:
+                description: CurrentAPIs is the most recent enabled APIs that was
+                  used to produce a revision. The package manager uses this field
+                  to determine whether a new package revision is needed when the set
+                  of enabled APIs change for a package.
+                items:
+                  type: string
                 type: array
               currentIdentifier:
                 description: CurrentIdentifier is the most recent package source that

@@ -60,8 +60,12 @@ func truncate(str string, num int) string {
 
 // FriendlyID builds a valid DNS label string made up of the name of a package
 // and its image digest.
-func FriendlyID(name, hash string) string {
-	return ToDNSLabel(strings.Join([]string{truncate(name, 50), truncate(hash, 12)}, "-"))
+func FriendlyID(name, imageHash, gvkHash string) string {
+	arr := []string{truncate(name, 50), truncate(imageHash, 12)}
+	if gvkHash != "" {
+		arr = append(arr, truncate(gvkHash, 12))
+	}
+	return ToDNSLabel(strings.Join(arr, "-"))
 }
 
 // ToDNSLabel converts the string to a valid DNS label.

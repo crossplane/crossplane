@@ -86,7 +86,7 @@ func TestFriendlyID(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			want := FriendlyID(tc.args.pkg, tc.args.hash)
+			want := FriendlyID(tc.args.pkg, tc.args.hash, "")
 
 			if diff := cmp.Diff(tc.want, want); diff != "" {
 				t.Errorf("\n%s\nFriendlyID(...): -want, +got:\n%s", tc.reason, diff)

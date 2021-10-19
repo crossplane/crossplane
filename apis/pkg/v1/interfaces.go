@@ -28,6 +28,10 @@ const (
 	// LabelParentPackage is used as key for the owner package label we add to the
 	// revisions. Its corresponding value should be the name of the owner package.
 	LabelParentPackage = "pkg.crossplane.io/package"
+	// error messages
+	errMatchGVK = "failed to match GVK"
+
+	fmtGVK = "%s/%s.%s"
 )
 
 // RevisionActivationPolicy indicates how a package should activate its
@@ -90,6 +94,12 @@ type Package interface {
 
 	GetSkipDependencyResolution() *bool
 	SetSkipDependencyResolution(*bool)
+
+	GetEnabledAPIs() EnabledAPIs
+	SetEnabledAPIs(EnabledAPIs)
+
+	GetCurrentAPIs() EnabledAPIs
+	SetCurrentAPIs(EnabledAPIs)
 }
 
 // GetCondition of this Provider.
@@ -187,6 +197,26 @@ func (p *Provider) GetSkipDependencyResolution() *bool {
 	return p.Spec.SkipDependencyResolution
 }
 
+// GetEnabledAPIs of this Provider.
+func (p *Provider) GetEnabledAPIs() EnabledAPIs {
+	return p.Spec.EnabledAPIs
+}
+
+// SetEnabledAPIs of this Provider.
+func (p *Provider) SetEnabledAPIs(gvks EnabledAPIs) {
+	p.Spec.EnabledAPIs = gvks
+}
+
+// GetCurrentAPIs of this Provider.
+func (p *Provider) GetCurrentAPIs() EnabledAPIs {
+	return p.Status.CurrentAPIs
+}
+
+// SetCurrentAPIs of this Provider.
+func (p *Provider) SetCurrentAPIs(gvks EnabledAPIs) {
+	p.Status.CurrentAPIs = gvks
+}
+
 // SetSkipDependencyResolution of this Provider.
 func (p *Provider) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
@@ -278,7 +308,27 @@ func (p *Configuration) GetControllerConfigRef() *xpv1.Reference {
 }
 
 // SetControllerConfigRef of this Configuration.
-func (p *Configuration) SetControllerConfigRef(r *xpv1.Reference) {}
+func (p *Configuration) SetControllerConfigRef(_ *xpv1.Reference) {}
+
+// GetEnabledAPIs of this Configuration.
+func (p *Configuration) GetEnabledAPIs() EnabledAPIs {
+	return p.Spec.EnabledAPIs
+}
+
+// SetEnabledAPIs of this Configuration.
+func (p *Configuration) SetEnabledAPIs(gvks EnabledAPIs) {
+	p.Spec.EnabledAPIs = gvks
+}
+
+// GetCurrentAPIs of this Configuration.
+func (p *Configuration) GetCurrentAPIs() EnabledAPIs {
+	return p.Status.CurrentAPIs
+}
+
+// SetCurrentAPIs of this Configuration.
+func (p *Configuration) SetCurrentAPIs(gvks EnabledAPIs) {
+	p.Status.CurrentAPIs = gvks
+}
 
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
@@ -351,6 +401,9 @@ type PackageRevision interface {
 
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
+
+	GetGVKsEnabled() EnabledAPIs
+	SetGVKsEnabled(EnabledAPIs)
 }
 
 // GetCondition of this ProviderRevision.
@@ -468,6 +521,16 @@ func (p *ProviderRevision) SetControllerConfigRef(r *xpv1.Reference) {
 // GetSkipDependencyResolution of this ProviderRevision.
 func (p *ProviderRevision) GetSkipDependencyResolution() *bool {
 	return p.Spec.SkipDependencyResolution
+}
+
+// GetGVKsEnabled of this ProviderRevision.
+func (p *ProviderRevision) GetGVKsEnabled() EnabledAPIs {
+	return p.Spec.EnabledAPIs
+}
+
+// SetGVKsEnabled of this ProviderRevision.
+func (p *ProviderRevision) SetGVKsEnabled(gvks EnabledAPIs) {
+	p.Spec.EnabledAPIs = gvks
 }
 
 // SetSkipDependencyResolution of this ProviderRevision.
@@ -595,6 +658,16 @@ func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
+}
+
+// GetGVKsEnabled of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetGVKsEnabled() EnabledAPIs {
+	return p.Spec.EnabledAPIs
+}
+
+// SetGVKsEnabled of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetGVKsEnabled(gvks EnabledAPIs) {
+	p.Spec.EnabledAPIs = gvks
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}

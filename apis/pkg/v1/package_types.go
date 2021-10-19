@@ -62,6 +62,12 @@ type PackageSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
+
+	// EnabledAPIs is a slice of regular expressions against which all available
+	// GVKs defined in the package are matched. If any of the regular
+	// expressions from this slice match a given GVK, then it's enabled,
+	// otherwise it's disabled and not processed.
+	EnabledAPIs EnabledAPIs `json:"enabledAPIs,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.
@@ -78,4 +84,10 @@ type PackageStatus struct {
 	// will cause the package manager to check that the current revision is
 	// correct for the given package source.
 	CurrentIdentifier string `json:"currentIdentifier,omitempty"`
+
+	// CurrentAPIs is the most recent enabled APIs that was used
+	// to produce a revision. The package manager uses this field to determine
+	// whether a new package revision is needed when the set of enabled APIs
+	// change for a package.
+	CurrentAPIs EnabledAPIs `json:"currentAPIs,omitempty"`
 }

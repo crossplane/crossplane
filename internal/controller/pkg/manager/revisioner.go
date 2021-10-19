@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -66,11 +67,12 @@ func NewPackageRevisioner(fetcher xpkg.Fetcher, opts ...PackageRevisionerOption)
 // Revision extracts a revision name for a package source.
 func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string, error) {
 	pullPolicy := p.GetPackagePullPolicy()
+	apiHash := p.GetEnabledAPIs().Digest()
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
-		return xpkg.FriendlyID(p.GetName(), p.GetSource()), nil
+		return xpkg.FriendlyID(p.GetName(), p.GetSource(), apiHash), nil
 	}
 	if pullPolicy != nil && *pullPolicy == corev1.PullIfNotPresent {
-		if p.GetCurrentIdentifier() == p.GetSource() {
+		if p.GetCurrentIdentifier() == p.GetSource() && p.GetCurrentAPIs().Digest() == apiHash {
 			return p.GetCurrentRevision(), nil
 		}
 	}
@@ -82,7 +84,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string,
 	if err != nil || d == nil {
 		return "", errors.Wrap(err, errFetchPackage)
 	}
-	return xpkg.FriendlyID(p.GetName(), d.Digest.Hex), nil
+	return xpkg.FriendlyID(p.GetName(), d.Digest.Hex, apiHash), nil
 }
 
 // NopRevisioner returns an empty revision name.

@@ -258,6 +258,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// Set the current revision and identifier.
 	p.SetCurrentRevision(revisionName)
 	p.SetCurrentIdentifier(p.GetSource())
+	p.SetCurrentAPIs(p.GetEnabledAPIs())
 
 	pr := r.newPackageRevision()
 	maxRevision := int64(0)
@@ -340,6 +341,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
+	pr.SetGVKsEnabled(p.GetEnabledAPIs())
 
 	// If current revision is not active and we have an automatic or undefined
 	// activation policy, always activate.

@@ -90,7 +90,7 @@ func (c *buildCmd) Run(child *buildChild, logger logging.Logger) error {
 			logger.Debug(errGetNameFromMeta, "error", err)
 			return errors.Wrap(err, errGetNameFromMeta)
 		}
-		pkgName = xpkg.FriendlyID(pkgName, hash.Hex)
+		pkgName = xpkg.FriendlyID(pkgName, hash.Hex, "")
 	}
 
 	f, err := child.fs.Create(xpkg.BuildPath(root, pkgName))

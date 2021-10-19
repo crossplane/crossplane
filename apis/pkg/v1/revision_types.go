@@ -79,6 +79,12 @@ type PackageRevisionSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
+
+	// EnabledAPIs is a slice of regular expressions against which all available
+	// GVKs defined in the package are matched. If any of the regular
+	// expressions from this slice match a given GVK, then it's enabled,
+	// otherwise it's disabled and not processed.
+	EnabledAPIs EnabledAPIs `json:"enabledAPIs,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

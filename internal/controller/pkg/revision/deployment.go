@@ -22,10 +22,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
+
+const argGVKsEnabled = "--enabled-apis"
 
 var (
 	replicas                 = int32(1)
@@ -160,6 +163,15 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		if len(cc.Spec.Env) > 0 {
 			d.Spec.Template.Spec.Containers[0].Env = cc.Spec.Env
 		}
+	}
+	// specific field that controls enabled GVKs overrides
+	// the behavior specified in the generic `args` field
+	// from ControllerConfig (if `--enabled-gvks` is also specified there).
+	// If the slice is empty in package spec, then `--enabled-gvks` option
+	// does not get added to args of the provider.
+	if len(revision.GetGVKsEnabled()) > 0 {
+		d.Spec.Template.Spec.Containers[0].Args = append(d.Spec.Template.Spec.Containers[0].Args,
+			argGVKsEnabled, revision.GetGVKsEnabled().String())
 	}
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
 		templateLabels[k] = v

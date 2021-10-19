@@ -74,6 +74,8 @@ const (
 	errEstablishControl = "cannot establish control of object"
 
 	errUpdateAnnotations = "cannot update annotations for package revision"
+
+	errMatchGVKs = "cannot match GVKs defined in package revision"
 )
 
 // Event reasons.
@@ -438,8 +440,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{RequeueAfter: shortWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
 	}
 
+	// filter objects defined in this package revision according to
+	// the enabled GVKs defined in the spec.
+	enabledObjects, err := pr.GetGVKsEnabled().Filter(pkg.GetObjects())
+	if err != nil {
+		log.Debug(errMatchGVKs, "error", err)
+		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errMatchGVKs)))
+		pr.SetConditions(v1.Unhealthy())
+		// we expect manual intervention to correct this issue
+		return reconcile.Result{RequeueAfter: longWait}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+	}
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
+	refs, err := r.objects.Establish(ctx, enabledObjects, pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
 		log.Debug(errEstablishControl, "error", err)
 		r.record.Event(pr, event.Warning(reasonSync, errors.Wrap(err, errEstablishControl)))
