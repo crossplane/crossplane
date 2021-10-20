@@ -152,6 +152,7 @@ func TestStringResolve(t *testing.T) {
 		stype   StringTransformType
 		fmts    *string
 		convert *StringConversionType
+		trim    *string
 		i       interface{}
 	}
 	type want struct {
@@ -162,6 +163,9 @@ func TestStringResolve(t *testing.T) {
 	iFmt := "the largest %d"
 
 	var upper, lower, wrongConvertType StringConversionType = ConversionTypeToUpper, ConversionTypeToLower, "Something"
+
+	prefix := "https://"
+	suffix := "-test"
 
 	cases := map[string]struct {
 		args
@@ -244,12 +248,53 @@ func TestStringResolve(t *testing.T) {
 				o: "crossplane",
 			},
 		},
+		"TrimPrefix": {
+			args: args{
+				stype: StringTransformTrimPrefix,
+				trim:  &prefix,
+				i:     "https://crossplane.io",
+			},
+			want: want{
+				o: "crossplane.io",
+			},
+		},
+		"TrimSuffix": {
+			args: args{
+				stype: StringTransformTrimSuffix,
+				trim:  &suffix,
+				i:     "my-string-test",
+			},
+			want: want{
+				o: "my-string",
+			},
+		},
+		"TrimPrefixWithoutMatch": {
+			args: args{
+				stype: StringTransformTrimPrefix,
+				trim:  &prefix,
+				i:     "crossplane.io",
+			},
+			want: want{
+				o: "crossplane.io",
+			},
+		},
+		"TrimSuffixWithoutMatch": {
+			args: args{
+				stype: StringTransformTrimSuffix,
+				trim:  &suffix,
+				i:     "my-string",
+			},
+			want: want{
+				o: "my-string",
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got, err := (&StringTransform{Type: tc.stype,
 				Format:  tc.fmts,
 				Convert: tc.convert,
+				Trim:    tc.trim,
 			}).Resolve(tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
