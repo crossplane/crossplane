@@ -146,7 +146,7 @@ an optional `attributes` field.
 
 Publish Connection details to a _Kubernetes_ secret (already existing case):
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
@@ -156,7 +156,7 @@ spec:
 
 Publish Connection details to a _Vault_ secret:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
@@ -168,7 +168,7 @@ spec:
 
 Publish Connection details to a _Kubernetes_ secret with some labels:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
@@ -182,7 +182,7 @@ spec:
 
 Publish Connection details to an _AWS Secret Manager_ secret with some tags:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
@@ -198,7 +198,7 @@ spec:
 Publish Connection details to _Vault_ but **still store it as a Kubernetes
 secret**:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
@@ -224,7 +224,7 @@ deprecate this field in favor of `publishConnectionDetailsToStore`.
 **Composition** configuring the Kubernetes namespace that connection secrets
 for Composite resources will be stored:
 
-```
+```yaml
 spec:
   publishConnectionDetailsToStore:
     kubernetes:
@@ -234,7 +234,7 @@ spec:
 **Composition** configuring the secret store that connection secrets for
 Composite resources will be stored:
 
-```
+```yaml
 spec:
   publishConnectionDetailsToStoreConfigRef:
     name: vault-platform
@@ -243,7 +243,7 @@ spec:
 
 **Claim** spec for writing connection secret in the same Kubernetes namespace:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: database-creds 
@@ -254,7 +254,7 @@ spec:
 
 **Claim** spec for writing connection secret to Vault:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: database-creds
@@ -269,7 +269,7 @@ spec:
 
 **Claim** spec for writing connection secret to both Kubernetes and Vault:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: database-creds
@@ -300,7 +300,7 @@ _fetching from_ external stores.
 
 Publish to Vault under parent path `secret/my-cloud/dev/` using Kubernetes auth:
 
-```
+```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
@@ -325,7 +325,7 @@ spec:
 
 Publish with an _out-of-tree Secret Plugin_ (for future support, if needed):
 
-```
+```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
@@ -369,7 +369,7 @@ parameter).
    2. Add annotations to the Provider pods (using `ControllerConfig`)
 4. Create a `StoreConfig` CR as follows:
 
-```
+```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
@@ -390,7 +390,7 @@ spec:
 
 5. Use the following `publishConnectionDetailsTo` for resources: 
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: <secret-name>
@@ -411,7 +411,7 @@ composite reconcilers would use this interface. This will require some
 refactoring since the existing interfaces defined in different
 packages/repositories today.
 
-```
+```go
 type ConnectionSecretStore interface {
 	ConnectionDetailsPublisher
 	ConnectionDetailsFetcher
@@ -436,7 +436,7 @@ same client as it is doing today.
 
 Other types to complete the picture:
 
-```
+```go
 type ConnectionSecretPublisher interface {
 	Object
 
@@ -465,7 +465,7 @@ or even to a new Kubernetes cluster provisioned together with the database.
 
 Example claim spec:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
@@ -476,7 +476,7 @@ spec:
 
 Example StoreConfig:
 
-```
+```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
@@ -517,7 +517,7 @@ Another possible use case is, combined with support for adding annotations to
 Kubernetes secrets, creating a [ArgoCD cluster] could be enabled with a spec
 as follows:
 
-```
+```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
