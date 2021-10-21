@@ -22,7 +22,7 @@ keep secret data as encrypted in etcd which changes nothing at Kubernetes API
 level. Requests for supporting additional external secret stores at API level
 were [rejected for various reasons].
 
-Another point is, Kubernetes clusters usually considered as ephemeral resources
+Another point is, Kubernetes clusters often considered as ephemeral resources
 as opposed to being a **reliable** data store not only for sensitive data but
 also non-sensitive data like application manifests and this increased popularity
 of GitOps tools.
@@ -52,9 +52,9 @@ secret store today.
 We would like to come up with a design that:
 
 - Will not break the existing APIs.
-- Will support adding new Secret Stores without any braking API changes.
+- Will support adding new secret stores without any breaking API changes.
 - Will support switching to an **out-of-tree plugin model** without breaking the
-  API for existing in-tree Secret Stores.
+  API for existing in-tree secret stores.
 
 We would like Crossplane to be able to store connection details to external
 secret stores and still satisfy the following user stories:
@@ -101,7 +101,7 @@ following information:
 store (a.k.a. `external-name`). This identifier could be split into two
 different parts:
   - **A name**: A unique name within a scope/group.
-  - **A scope/group identifier**: Specific to Secret Store. For example,
+  - **A scope/group identifier**: Specific to secret store. For example,
   `namespace` in _Kubernetes_, a parent `path` in _Vault_ and a `region` for
   _AWS Secret Manager_.
 - **Additional configuration** to reach to the store like its endpoint and
@@ -405,7 +405,7 @@ spec:
 We will define a new interface, namely `ConnectionSecretStore`, which satisfies
 slightly modified versions of the existing [ConnectionPublisher] and
 [ConnectionDetailsFetcher] interfaces. This interface will be satisfied by any
-Secret Store including the local Kubernetes. We will need this interface to be
+secret store including the local Kubernetes. We will need this interface to be
 defined in [crossplane-runtime repository] since both managed and Crossplane
 composite reconcilers would use this interface. This will require some 
 refactoring since the existing interfaces defined in different
@@ -567,7 +567,7 @@ secret which violates one of the main motivations of this design._
 This option proposes a pluggable secret backend in upstream Crossplane which
 would allow out-of-tree secret store plugins. When configured, Crossplane and
 providers will communicate with the secret store plugin over gRPC. The plugin
-would then be responsible for communicating with the Secret Store. We will
+would then be responsible for communicating with the secret store. We will
 follow a similar approach as [KMS plugin support in Kubernetes API server].
 
 In this option, we will only implement support for a plugin API in Crossplane
@@ -576,7 +576,7 @@ properly could be build independently, i.e. as separate components.
 
 This approach has the advantage of not introducing hard dependencies to 
 Crossplane and also would be more scalable if/once we want to add support for
-more Secret Stores. _However, this option introduces an upfront complexity
+more secret stores. _However, this option introduces an upfront complexity
 especially around deployment of Crossplane and providers mostly related to
 securing the communication between plugins._
 
