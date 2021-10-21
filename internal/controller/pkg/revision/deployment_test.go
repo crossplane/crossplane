@@ -72,6 +72,12 @@ func deployment(provider *pkgmetav1.Provider, revision string, modifiers ...depl
 							Name:            provider.GetName(),
 							Image:           provider.Spec.Controller.Image,
 							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          promPortName,
+									ContainerPort: promPortNumber,
+								},
+							},
 						},
 					},
 				},
