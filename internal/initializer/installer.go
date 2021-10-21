@@ -52,8 +52,11 @@ type PackageInstaller struct {
 	providers      []string
 }
 
-// Run makes sure Lock object exists.
-func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
+// Run makes sure all specified packages exist.
+// NOTE(hasheddan): this function is over our cyclomatic complexity goal, but
+// only runs at installation time and is performing fairly straightforward
+// operations.
+func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo
 	pkgs := make([]client.Object, len(pi.providers)+len(pi.configurations))
 	// NOTE(hasheddan): we build a map of existing installed package sources to
 	// their Provider or Configuration names so that we can update the source
