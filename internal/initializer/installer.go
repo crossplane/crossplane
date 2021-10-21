@@ -18,76 +18,71 @@ package initializer
 
 import (
 	"context"
-	"strings"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/pkg/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
-	errApplyPackage = "cannot apply package"
-)
-
-var replacer = strings.NewReplacer(
-	"(", "",
-	"|", "",
-	"@", "",
-	")", "",
-	"*", "",
-	":", "-",
-	".", "-",
-	"/", "-",
+	errGetLock          = "failed getting lock object"
+	errParsePackageName = "package name is not valid"
+	errApplyPackage     = "cannot apply package"
 )
 
 // NewPackageInstaller returns a new package installer.
 func NewPackageInstaller(p []string, c []string) *PackageInstaller {
 	return &PackageInstaller{
-		Providers:      p,
-		Configurations: c,
+		providers:      p,
+		configurations: c,
 	}
 }
 
 // PackageInstaller has the initializer for installing a list of packages.
 type PackageInstaller struct {
-	Configurations []string
-	Providers      []string
+	configurations []string
+	providers      []string
 }
 
 // Run makes sure all specified packages exist.
 func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
-	pkgs := make([]client.Object, len(pi.Providers)+len(pi.Configurations))
+	pkgs := make([]client.Object, len(pi.providers)+len(pi.configurations))
+	// NOTE(hasheddan): we build a map of existing installed package sources to
+	// their Provider or Configuration names so that we can update the source
+	// without creating a new package install.
+	l := &v1alpha1.Lock{}
+	if err := kube.Get(ctx, types.NamespacedName{Name: "lock"}, l); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errGetLock)
+	}
+	pkgMap := make(map[string]string)
+	if l != nil {
+		for _, p := range l.Packages {
+			pkgMap[p.Source] = p.Name
+		}
+	}
 	// NOTE(hasheddan): we maintain a separate index from the range so that
 	// Providers and Configurations can be added to the same slice for applying.
 	pkgsIdx := 0
-	for _, img := range pi.Providers {
-		p := &v1.Provider{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: cleanUpName(img),
-			},
-			Spec: v1.ProviderSpec{
-				PackageSpec: v1.PackageSpec{
-					Package: strings.TrimSpace(img),
-				},
-			},
+	for _, img := range pi.providers {
+		p := &v1.Provider{}
+		if err := buildPack(p, img, pkgMap); err != nil {
+			return err
 		}
 		pkgs[pkgsIdx] = p
 		pkgsIdx++
 	}
-	for _, img := range pi.Configurations {
-		c := &v1.Configuration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: cleanUpName(img),
-			},
-			Spec: v1.ConfigurationSpec{
-				PackageSpec: v1.PackageSpec{
-					Package: strings.TrimSpace(img),
-				},
-			},
+	for _, img := range pi.configurations {
+		c := &v1.Configuration{}
+		if err := buildPack(c, img, pkgMap); err != nil {
+			return err
 		}
 		pkgs[pkgsIdx] = c
 		pkgsIdx++
@@ -101,6 +96,16 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	return nil
 }
 
-func cleanUpName(s string) string {
-	return strings.TrimSpace(replacer.Replace(s))
+func buildPack(pack v1.Package, img string, pkgMap map[string]string) error {
+	ref, err := name.ParseReference(img, name.WithDefaultRegistry(""))
+	if err != nil {
+		return errors.Wrap(err, errParsePackageName)
+	}
+	objName := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
+	if existing, ok := pkgMap[ref.Context().RepositoryStr()]; ok {
+		objName = existing
+	}
+	pack.SetName(objName)
+	pack.SetSource(ref.String())
+	return nil
 }
