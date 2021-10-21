@@ -29,7 +29,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
-	pkgclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -57,7 +56,6 @@ func TestInstaller(t *testing.T) {
 	c1Repo := "crossplane/getting-started-aws"
 	c1Name := "crossplane-getting-started-aws"
 	type args struct {
-		pkg  pkgclient.PkgV1beta1Interface
 		p    []string
 		c    []string
 		kube client.Client
@@ -298,8 +296,7 @@ func TestInstaller(t *testing.T) {
 				c: []string{c1},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						switch obj.(type) {
-						case *v1beta1.Lock:
+						if _, ok := obj.(*v1beta1.Lock); ok {
 							return nil
 						}
 						return errBoom
