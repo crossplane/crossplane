@@ -64,7 +64,10 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"pkg.crossplane.io/revision": revision.GetName()},
+				MatchLabels: map[string]string{
+					"pkg.crossplane.io/revision": revision.GetName(),
+					"pkg.crossplane.io/provider": provider.GetName(),
+				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
