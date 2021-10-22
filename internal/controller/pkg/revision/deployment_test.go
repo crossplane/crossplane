@@ -57,13 +57,19 @@ func deployment(provider *pkgmetav1.Provider, revision string, modifiers ...depl
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"pkg.crossplane.io/revision": revision},
+				MatchLabels: map[string]string{
+					"pkg.crossplane.io/revision": revision,
+					"pkg.crossplane.io/provider": provider.GetName(),
+				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      provider.GetName(),
 					Namespace: namespace,
-					Labels:    map[string]string{"pkg.crossplane.io/revision": revision},
+					Labels: map[string]string{
+						"pkg.crossplane.io/revision": revision,
+						"pkg.crossplane.io/provider": provider.GetName(),
+					},
 				},
 				Spec: corev1.PodSpec{
 					ServiceAccountName: revision,
@@ -72,6 +78,12 @@ func deployment(provider *pkgmetav1.Provider, revision string, modifiers ...depl
 							Name:            provider.GetName(),
 							Image:           provider.Spec.Controller.Image,
 							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          promPortName,
+									ContainerPort: promPortNumber,
+								},
+							},
 						},
 					},
 				},
@@ -159,6 +171,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			want: deployment(provider, revisionWithCC.GetName(), withPodTemplateLabels(map[string]string{
 				"pkg.crossplane.io/revision": revisionWithCC.GetName(),
+				"pkg.crossplane.io/provider": provider.GetName(),
 				"k":                          "v",
 			})),
 		},

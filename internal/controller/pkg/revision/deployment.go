@@ -36,6 +36,13 @@ var (
 	runAsNonRoot             = true
 )
 
+// Providers are expected to use port 8080 if they expose Prometheus metrics,
+// which any provider built using controller-runtime will do by default.
+const (
+	promPortName   = "metrics"
+	promPortNumber = 8080
+)
+
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
@@ -57,7 +64,10 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		Spec: appsv1.DeploymentSpec{
 			Replicas: &replicas,
 			Selector: &metav1.LabelSelector{
-				MatchLabels: map[string]string{"pkg.crossplane.io/revision": revision.GetName()},
+				MatchLabels: map[string]string{
+					"pkg.crossplane.io/revision": revision.GetName(),
+					"pkg.crossplane.io/provider": provider.GetName(),
+				},
 			},
 			Template: corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
@@ -83,6 +93,12 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
 								Privileged:               &privileged,
 								RunAsNonRoot:             &runAsNonRoot,
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          promPortName,
+									ContainerPort: promPortNumber,
+								},
 							},
 						},
 					},
