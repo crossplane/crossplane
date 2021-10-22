@@ -21,21 +21,20 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
-	errGetLock          = "failed getting lock object"
-	errParsePackageName = "package name is not valid"
-	errApplyPackage     = "cannot apply package"
+	errListProviders      = "failed getting provider list"
+	errListConfigurations = "failed getting configuration list"
+	errParsePackageName   = "package name is not valid"
+	errApplyPackage       = "cannot apply package"
 )
 
 // NewPackageInstaller returns a new package installer.
@@ -58,25 +57,44 @@ type PackageInstaller struct {
 // operations.
 func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo
 	pkgs := make([]client.Object, len(pi.providers)+len(pi.configurations))
-	// NOTE(hasheddan): we build a map of existing installed package sources to
-	// their Provider or Configuration names so that we can update the source
-	// without creating a new package install.
-	l := &v1beta1.Lock{}
-	if err := kube.Get(ctx, types.NamespacedName{Name: "lock"}, l); err != nil && !kerrors.IsNotFound(err) {
-		return errors.Wrap(err, errGetLock)
+	// NOTE(hasheddan): we build maps of existing Provider and Configuration
+	// sources to the package names such that we can update the version when a
+	// package specified for install matches the source of an existing package.
+	pl := &v1.ProviderList{}
+	if err := kube.List(ctx, pl); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errListProviders)
 	}
-	pkgMap := make(map[string]string)
-	if l != nil {
-		for _, p := range l.Packages {
-			pkgMap[p.Source] = p.Name
+	pMap := make(map[string]string, len(pl.Items))
+	for _, p := range pl.Items {
+		ref, err := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(""))
+		if err != nil {
+			// NOTE(hasheddan): we skip package sources that are not have valid
+			// references because we cannot make assumptions about their
+			// versioning. The only case in which a package source can be an
+			// invalid reference is if it was preloaded into the package cache
+			// and its packagePullPolicy is set to Never.
+			continue
 		}
+		pMap[xpkg.ParsePackageSourceFromReference(ref)] = p.GetName()
+	}
+	cl := &v1.ConfigurationList{}
+	if err := kube.List(ctx, cl); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errListConfigurations)
+	}
+	cMap := make(map[string]string, len(cl.Items))
+	for _, c := range cl.Items {
+		ref, err := name.ParseReference(c.GetSource(), name.WithDefaultRegistry(""))
+		if err != nil {
+			continue
+		}
+		cMap[xpkg.ParsePackageSourceFromReference(ref)] = c.GetName()
 	}
 	// NOTE(hasheddan): we maintain a separate index from the range so that
 	// Providers and Configurations can be added to the same slice for applying.
 	pkgsIdx := 0
 	for _, img := range pi.providers {
 		p := &v1.Provider{}
-		if err := buildPack(p, img, pkgMap); err != nil {
+		if err := buildPack(p, img, pMap); err != nil {
 			return err
 		}
 		pkgs[pkgsIdx] = p
@@ -84,7 +102,7 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	}
 	for _, img := range pi.configurations {
 		c := &v1.Configuration{}
-		if err := buildPack(c, img, pkgMap); err != nil {
+		if err := buildPack(c, img, cMap); err != nil {
 			return err
 		}
 		pkgs[pkgsIdx] = c
