@@ -18,6 +18,7 @@ package initializer
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -28,7 +29,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -47,12 +47,10 @@ var errBoom = errors.New("boom")
 func TestInstaller(t *testing.T) {
 	p1Existing := "existing-provider"
 	p1 := "crossplane/provider-aws:v1.16.0"
-	p1Version := "v1.16.0"
 	p1Repo := "crossplane/provider-aws"
 	p1Name := "crossplane-provider-aws"
 	c1Existing := "existing-configuration"
 	c1 := "crossplane/getting-started-aws:v0.0.1"
-	c1Version := "v0.0.1"
 	c1Repo := "crossplane/getting-started-aws"
 	c1Name := "crossplane-getting-started-aws"
 	type args struct {
@@ -72,28 +70,45 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						switch o := obj.(type) {
-						case *v1alpha1.Lock:
-							*o = v1alpha1.Lock{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "lock",
-								},
-								Packages: []v1alpha1.LockPackage{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch l := list.(type) {
+						case *v1.ProviderList:
+							*l = v1.ProviderList{
+								Items: []v1.Provider{
 									{
-										Name:    p1Name,
-										Type:    v1alpha1.ProviderPackageType,
-										Source:  p1Repo,
-										Version: p1Version,
-									},
-									{
-										Name:    c1Name,
-										Type:    v1alpha1.ConfigurationPackageType,
-										Source:  c1Repo,
-										Version: c1Version,
+										ObjectMeta: metav1.ObjectMeta{
+											Name: p1Name,
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: p1,
+											},
+										},
 									},
 								},
 							}
+						case *v1.ConfigurationList:
+							*l = v1.ConfigurationList{
+								Items: []v1.Configuration{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: c1Name,
+										},
+										Spec: v1.ConfigurationSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: c1,
+											},
+										},
+									},
+								},
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
 								t.Errorf(errGetProviderFmt, key.Name)
@@ -130,28 +145,45 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						switch o := obj.(type) {
-						case *v1alpha1.Lock:
-							*o = v1alpha1.Lock{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "lock",
-								},
-								Packages: []v1alpha1.LockPackage{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch l := list.(type) {
+						case *v1.ProviderList:
+							*l = v1.ProviderList{
+								Items: []v1.Provider{
 									{
-										Name:    p1Existing,
-										Type:    v1alpha1.ProviderPackageType,
-										Source:  p1Repo,
-										Version: "v0.0.0",
-									},
-									{
-										Name:    c1Existing,
-										Type:    v1alpha1.ConfigurationPackageType,
-										Source:  c1Repo,
-										Version: "v0.0.0",
+										ObjectMeta: metav1.ObjectMeta{
+											Name: p1Existing,
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: fmt.Sprintf("%s:%s", p1Repo, "v100.100.100"),
+											},
+										},
 									},
 								},
 							}
+						case *v1.ConfigurationList:
+							*l = v1.ConfigurationList{
+								Items: []v1.Configuration{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: c1Existing,
+										},
+										Spec: v1.ConfigurationSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: fmt.Sprintf("%s:%s", c1Repo, "v100.100.100"),
+											},
+										},
+									},
+								},
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Existing {
 								t.Errorf(errGetProviderFmt, key.Name)
@@ -194,10 +226,11 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
-						case *v1alpha1.Lock:
-							return nil
 						case *v1.Provider:
 							if key.Name != p1Name {
 								t.Errorf(errGetProviderFmt, key.Name)
@@ -222,28 +255,42 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						switch o := obj.(type) {
-						case *v1alpha1.Lock:
-							*o = v1alpha1.Lock{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "lock",
-								},
-								Packages: []v1alpha1.LockPackage{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch l := list.(type) {
+						case *v1.ProviderList:
+							*l = v1.ProviderList{
+								Items: []v1.Provider{
 									{
-										Name:    p1Existing,
-										Type:    v1alpha1.ProviderPackageType,
-										Source:  "some/source",
-										Version: "v0.0.0",
+										ObjectMeta: metav1.ObjectMeta{
+											Name: "other-package",
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: fmt.Sprintf("%s:%s", "other-repo", "v100.100.100"),
+											},
+										},
 									},
 									{
-										Name:    c1Existing,
-										Type:    v1alpha1.ConfigurationPackageType,
-										Source:  "some/othersource",
-										Version: "v0.0.0",
+										ObjectMeta: metav1.ObjectMeta{
+											Name: "another-package",
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: "preloaded-source",
+											},
+										},
 									},
 								},
 							}
+						case *v1.ConfigurationList:
+							return nil
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
 								t.Errorf(errGetProviderFmt, key.Name)
@@ -269,10 +316,11 @@ func TestInstaller(t *testing.T) {
 			args: args{
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
-						case *v1alpha1.Lock:
-							return nil
 						case *v1.Provider:
 							t.Errorf("no providers specified")
 						case *v1.Configuration:
@@ -295,10 +343,10 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-						if _, ok := obj.(*v1alpha1.Lock); ok {
-							return nil
-						}
 						return errBoom
 					},
 				},
