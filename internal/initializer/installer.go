@@ -18,9 +18,9 @@ package initializer
 
 import (
 	"context"
-	"strings"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
