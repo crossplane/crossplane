@@ -18,76 +18,92 @@ package initializer
 
 import (
 	"context"
-	"strings"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"github.com/google/go-containerregistry/pkg/name"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 const (
-	errApplyPackage = "cannot apply package"
-)
-
-var replacer = strings.NewReplacer(
-	"(", "",
-	"|", "",
-	"@", "",
-	")", "",
-	"*", "",
-	":", "-",
-	".", "-",
-	"/", "-",
+	errListProviders      = "failed getting provider list"
+	errListConfigurations = "failed getting configuration list"
+	errParsePackageName   = "package name is not valid"
+	errApplyPackage       = "cannot apply package"
 )
 
 // NewPackageInstaller returns a new package installer.
 func NewPackageInstaller(p []string, c []string) *PackageInstaller {
 	return &PackageInstaller{
-		Providers:      p,
-		Configurations: c,
+		providers:      p,
+		configurations: c,
 	}
 }
 
 // PackageInstaller has the initializer for installing a list of packages.
 type PackageInstaller struct {
-	Configurations []string
-	Providers      []string
+	configurations []string
+	providers      []string
 }
 
 // Run makes sure all specified packages exist.
-func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
-	pkgs := make([]client.Object, len(pi.Providers)+len(pi.Configurations))
+// NOTE(hasheddan): this function is over our cyclomatic complexity goal, but
+// only runs at installation time and is performing fairly straightforward
+// operations.
+func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo
+	pkgs := make([]client.Object, len(pi.providers)+len(pi.configurations))
+	// NOTE(hasheddan): we build maps of existing Provider and Configuration
+	// sources to the package names such that we can update the version when a
+	// package specified for install matches the source of an existing package.
+	pl := &v1.ProviderList{}
+	if err := kube.List(ctx, pl); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errListProviders)
+	}
+	pMap := make(map[string]string, len(pl.Items))
+	for _, p := range pl.Items {
+		ref, err := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(""))
+		if err != nil {
+			// NOTE(hasheddan): we skip package sources that are not have valid
+			// references because we cannot make assumptions about their
+			// versioning. The only case in which a package source can be an
+			// invalid reference is if it was preloaded into the package cache
+			// and its packagePullPolicy is set to Never.
+			continue
+		}
+		pMap[xpkg.ParsePackageSourceFromReference(ref)] = p.GetName()
+	}
+	cl := &v1.ConfigurationList{}
+	if err := kube.List(ctx, cl); err != nil && !kerrors.IsNotFound(err) {
+		return errors.Wrap(err, errListConfigurations)
+	}
+	cMap := make(map[string]string, len(cl.Items))
+	for _, c := range cl.Items {
+		ref, err := name.ParseReference(c.GetSource(), name.WithDefaultRegistry(""))
+		if err != nil {
+			continue
+		}
+		cMap[xpkg.ParsePackageSourceFromReference(ref)] = c.GetName()
+	}
 	// NOTE(hasheddan): we maintain a separate index from the range so that
 	// Providers and Configurations can be added to the same slice for applying.
 	pkgsIdx := 0
-	for _, img := range pi.Providers {
-		p := &v1.Provider{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: cleanUpName(img),
-			},
-			Spec: v1.ProviderSpec{
-				PackageSpec: v1.PackageSpec{
-					Package: strings.TrimSpace(img),
-				},
-			},
+	for _, img := range pi.providers {
+		p := &v1.Provider{}
+		if err := buildPack(p, img, pMap); err != nil {
+			return err
 		}
 		pkgs[pkgsIdx] = p
 		pkgsIdx++
 	}
-	for _, img := range pi.Configurations {
-		c := &v1.Configuration{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: cleanUpName(img),
-			},
-			Spec: v1.ConfigurationSpec{
-				PackageSpec: v1.PackageSpec{
-					Package: strings.TrimSpace(img),
-				},
-			},
+	for _, img := range pi.configurations {
+		c := &v1.Configuration{}
+		if err := buildPack(c, img, cMap); err != nil {
+			return err
 		}
 		pkgs[pkgsIdx] = c
 		pkgsIdx++
@@ -101,6 +117,16 @@ func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error {
 	return nil
 }
 
-func cleanUpName(s string) string {
-	return strings.TrimSpace(replacer.Replace(s))
+func buildPack(pack v1.Package, img string, pkgMap map[string]string) error {
+	ref, err := name.ParseReference(img, name.WithDefaultRegistry(""))
+	if err != nil {
+		return errors.Wrap(err, errParsePackageName)
+	}
+	objName := xpkg.ToDNSLabel(ref.Context().RepositoryStr())
+	if existing, ok := pkgMap[ref.Context().RepositoryStr()]; ok {
+		objName = existing
+	}
+	pack.SetName(objName)
+	pack.SetSource(ref.String())
+	return nil
 }

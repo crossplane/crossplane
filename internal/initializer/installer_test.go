@@ -18,10 +18,12 @@ package initializer
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -31,11 +33,26 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const (
+	errGetProviderFmt              = "unexpected name in provider get: %s"
+	errPatchProviderFmt            = "unexpected name in provider update: %s"
+	errPatchProviderSourceFmt      = "unexpected source in provider update: %s"
+	errGetConfigurationFmt         = "unexpected name in configuration get: %s"
+	errPatchConfigurationFmt       = "unexpected name in configuration update: %s"
+	errPatchConfigurationSourceFmt = "unexpected source in configuration update: %s"
+)
+
 var errBoom = errors.New("boom")
 
 func TestInstaller(t *testing.T) {
+	p1Existing := "existing-provider"
 	p1 := "crossplane/provider-aws:v1.16.0"
+	p1Repo := "crossplane/provider-aws"
+	p1Name := "crossplane-provider-aws"
+	c1Existing := "existing-configuration"
 	c1 := "crossplane/getting-started-aws:v0.0.1"
+	c1Repo := "crossplane/getting-started-aws"
+	c1Name := "crossplane-getting-started-aws"
 	type args struct {
 		p    []string
 		c    []string
@@ -48,20 +65,57 @@ func TestInstaller(t *testing.T) {
 		args
 		want
 	}{
-		"SuccessAlreadyExists": {
+		"SuccessAlreadyExistsSameVersion": {
 			args: args{
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch l := list.(type) {
+						case *v1.ProviderList:
+							*l = v1.ProviderList{
+								Items: []v1.Provider{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: p1Name,
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: p1,
+											},
+										},
+									},
+								},
+							}
+						case *v1.ConfigurationList:
+							*l = v1.ConfigurationList{
+								Items: []v1.Configuration{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: c1Name,
+										},
+										Spec: v1.ConfigurationSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: c1,
+											},
+										},
+									},
+								},
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
 						case *v1.Provider:
-							if key.Name != cleanUpName(p1) {
-								t.Errorf("unexpected name in provider get")
+							if key.Name != p1Name {
+								t.Errorf(errGetProviderFmt, key.Name)
 							}
 						case *v1.Configuration:
-							if key.Name != cleanUpName(c1) {
-								t.Errorf("unexpected name in configuration get")
+							if key.Name != c1Name {
+								t.Errorf(errGetConfigurationFmt, key.Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -71,12 +125,12 @@ func TestInstaller(t *testing.T) {
 					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
 						switch obj.(type) {
 						case *v1.Provider:
-							if obj.GetName() != cleanUpName(p1) {
-								t.Errorf("unexpected name in provider update")
+							if obj.GetName() != p1Name {
+								t.Errorf(errPatchProviderFmt, obj.GetName())
 							}
 						case *v1.Configuration:
-							if obj.GetName() != cleanUpName(c1) {
-								t.Errorf("unexpected name in configuration update")
+							if obj.GetName() != c1Name {
+								t.Errorf(errPatchConfigurationFmt, obj.GetName())
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -86,20 +140,104 @@ func TestInstaller(t *testing.T) {
 				},
 			},
 		},
-		"SuccessCreate": {
+		"SuccessAlreadyExistsDifferentNameDifferentVersion": {
 			args: args{
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch l := list.(type) {
+						case *v1.ProviderList:
+							*l = v1.ProviderList{
+								Items: []v1.Provider{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: p1Existing,
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: fmt.Sprintf("%s:%s", p1Repo, "v100.100.100"),
+											},
+										},
+									},
+								},
+							}
+						case *v1.ConfigurationList:
+							*l = v1.ConfigurationList{
+								Items: []v1.Configuration{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: c1Existing,
+										},
+										Spec: v1.ConfigurationSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: fmt.Sprintf("%s:%s", c1Repo, "v100.100.100"),
+											},
+										},
+									},
+								},
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
 						case *v1.Provider:
-							if key.Name != cleanUpName(p1) {
-								t.Errorf("unexpected name in provider apply")
+							if key.Name != p1Existing {
+								t.Errorf(errGetProviderFmt, key.Name)
 							}
 						case *v1.Configuration:
-							if key.Name != cleanUpName(c1) {
-								t.Errorf("unexpected name in configuration apply")
+							if key.Name != c1Existing {
+								t.Errorf(errGetConfigurationFmt, key.Name)
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
+					MockPatch: func(_ context.Context, obj client.Object, _ client.Patch, _ ...client.PatchOption) error {
+						switch o := obj.(type) {
+						case *v1.Provider:
+							if o.GetName() != p1Existing {
+								t.Errorf(errPatchProviderFmt, o.GetName())
+							}
+							if o.GetSource() != p1 {
+								t.Errorf(errPatchProviderSourceFmt, o.GetSource())
+							}
+						case *v1.Configuration:
+							if o.GetName() != c1Existing {
+								t.Errorf(errPatchConfigurationFmt, o.GetName())
+							}
+							if o.GetSource() != c1 {
+								t.Errorf(errPatchConfigurationSourceFmt, o.GetSource())
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
+				},
+			},
+		},
+		"SuccessCreateNoneExist": {
+			args: args{
+				p: []string{p1},
+				c: []string{c1},
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
+						case *v1.Provider:
+							if key.Name != p1Name {
+								t.Errorf(errGetProviderFmt, key.Name)
+							}
+						case *v1.Configuration:
+							if key.Name != c1Name {
+								t.Errorf(errGetConfigurationFmt, key.Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -112,18 +250,81 @@ func TestInstaller(t *testing.T) {
 				},
 			},
 		},
-		"SuccessJustConfiguration": {
+		"SuccessCreateSomeExist": {
+			args: args{
+				p: []string{p1},
+				c: []string{c1},
+				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						switch l := list.(type) {
+						case *v1.ProviderList:
+							*l = v1.ProviderList{
+								Items: []v1.Provider{
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: "other-package",
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: fmt.Sprintf("%s:%s", "other-repo", "v100.100.100"),
+											},
+										},
+									},
+									{
+										ObjectMeta: metav1.ObjectMeta{
+											Name: "another-package",
+										},
+										Spec: v1.ProviderSpec{
+											PackageSpec: v1.PackageSpec{
+												Package: "preloaded-source",
+											},
+										},
+									},
+								},
+							}
+						case *v1.ConfigurationList:
+							return nil
+						default:
+							t.Errorf("unexpected type")
+						}
+						return nil
+					},
+					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
+						switch obj.(type) {
+						case *v1.Provider:
+							if key.Name != p1Name {
+								t.Errorf(errGetProviderFmt, key.Name)
+							}
+						case *v1.Configuration:
+							if key.Name != c1Name {
+								t.Errorf(errGetConfigurationFmt, key.Name)
+							}
+						default:
+							t.Errorf("unexpected type")
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, key.Name)
+					},
+					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						return nil
+					},
+				},
+			},
+		},
+		"SuccessOneConfiguration": {
 			// NOTE(hasheddan): test case added due to
 			// https://github.com/crossplane/crossplane/issues/2635
 			args: args{
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						switch obj.(type) {
 						case *v1.Provider:
 							t.Errorf("no providers specified")
 						case *v1.Configuration:
-							if key.Name != cleanUpName(c1) {
+							if key.Name != c1Name {
 								t.Errorf("unexpected name in configuration apply")
 							}
 						default:
@@ -142,6 +343,9 @@ func TestInstaller(t *testing.T) {
 				p: []string{p1},
 				c: []string{c1},
 				kube: &test.MockClient{
+					MockList: func(_ context.Context, list client.ObjectList, _ ...client.ListOption) error {
+						return nil
+					},
 					MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 						return errBoom
 					},
