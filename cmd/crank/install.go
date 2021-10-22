@@ -36,6 +36,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
 	"github.com/crossplane/crossplane/internal/version"
@@ -84,6 +85,7 @@ type installConfigCmd struct {
 	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	EnableAPI            []string      `help:"Regular expression to match Kubernetes GVK in the format <API Group>/<API Version>.<Kind>"`
 }
 
 // Run runs the Configuration install cmd.
@@ -118,6 +120,7 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 				PackagePullSecrets:       packagePullSecrets,
+				EnabledAPIs:              c.EnableAPI,
 			},
 		},
 	}
@@ -177,6 +180,7 @@ type installProviderCmd struct {
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
 	Config               string        `help:"Specify a ControllerConfig for this Provider."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	EnableAPI            []string      `help:"Regular expression to match Kubernetes GVK in the format <API Group>/<API Version>.<Kind>"`
 }
 
 // Run runs the Provider install cmd.
@@ -211,6 +215,7 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 				PackagePullSecrets:       packagePullSecrets,
+				EnabledAPIs:              c.EnableAPI,
 			},
 		},
 	}
