@@ -1,7 +1,7 @@
 ---
-title: Install & Configure 
-toc: true 
-weight: 2 
+title: Install & Configure
+toc: true
+weight: 2
 indent: true
 ---
 
@@ -69,7 +69,7 @@ brew install kind
 brew install kubectl
 brew install helm
 
-kind create cluster --image kindest/node:v1.16.15 --wait 5m
+kind create cluster --image kindest/node:v1.22.1 --wait 5m
 ```
 </div>
 
