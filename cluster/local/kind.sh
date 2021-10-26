@@ -42,7 +42,6 @@ function check_context() {
 }
 
 # configure kind
-KUBE_IMAGE=${KUBE_IMAGE:-"kindest/node:v1.16.15"}
 KIND_NAME=${KIND_NAME:-"kind"}
 case "${1:-}" in
   up)
