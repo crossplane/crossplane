@@ -35,9 +35,6 @@ which makes getting started with Crossplane easy. [Create an account] to get
 started. Once logged in, create a new hosted control plane and connect to it via
 the [up] CLI. See the [Upbound documentation] for more information.
 
-Once you've completed these two steps, skip down to [Install Crossplane
-CLI](#install-crossplane-cli) for further setup instructions.
-
 <i>Want see another hosted Crossplane service listed? Please [reach out on
 Slack][Slack] and our community will highlight it here!</i>
 
