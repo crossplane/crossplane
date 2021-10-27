@@ -200,7 +200,7 @@ type Reconciler struct {
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
-func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string) error {
+func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
 
@@ -217,6 +217,10 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher for package parser")
+	}
 
 	r := NewReconciler(mgr,
 		WithCache(cache),
@@ -227,7 +231,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 		}, namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace), WithDefaultRegistry(registry))),
+		WithParserBackend(NewImageBackend(cache, fetcher, WithDefaultRegistry(registry))),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -244,7 +248,7 @@ func SetupProviderRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache,
 }
 
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
-func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string) error {
+func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.Cache, namespace, registry string, fetcherOpts ...xpkg.FetcherOpt) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationRevisionGroupKind)
 	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
 
@@ -261,6 +265,10 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, namespace, fetcherOpts...)
+	if err != nil {
+		return errors.Wrap(err, "cannot build fetcher for package parser")
+	}
 
 	r := NewReconciler(mgr,
 		WithCache(cache),
@@ -268,7 +276,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, l logging.Logger, cache xpkg.C
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(cache, xpkg.NewK8sFetcher(clientset, namespace), WithDefaultRegistry(registry))),
+		WithParserBackend(NewImageBackend(cache, fetcher, WithDefaultRegistry(registry))),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(l.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),

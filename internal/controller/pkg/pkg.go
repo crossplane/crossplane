@@ -27,23 +27,32 @@ import (
 )
 
 // Setup package controllers.
-func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace, registry string) error {
-	for _, setup := range []func(ctrl.Manager, logging.Logger, string, string) error{
+func Setup(mgr ctrl.Manager, l logging.Logger, c xpkg.Cache, namespace, registry, caBundlePath string) error {
+	fetcherOpts := []xpkg.FetcherOpt{}
+	if caBundlePath != "" {
+		rootCAs, err := xpkg.ParseCertificatesFromPath(caBundlePath)
+		if err != nil {
+			return err
+		}
+		fetcherOpts = append(fetcherOpts, xpkg.WithCustomCA(rootCAs))
+	}
+
+	for _, setup := range []func(ctrl.Manager, logging.Logger, string, string, ...xpkg.FetcherOpt) error{
 		manager.SetupConfiguration,
 		manager.SetupProvider,
 	} {
-		if err := setup(mgr, l, namespace, registry); err != nil {
+		if err := setup(mgr, l, namespace, registry, fetcherOpts...); err != nil {
 			return err
 		}
 	}
-	if err := resolver.Setup(mgr, l, namespace); err != nil {
+	if err := resolver.Setup(mgr, l, namespace, fetcherOpts...); err != nil {
 		return err
 	}
-	for _, setup := range []func(ctrl.Manager, logging.Logger, xpkg.Cache, string, string) error{
+	for _, setup := range []func(ctrl.Manager, logging.Logger, xpkg.Cache, string, string, ...xpkg.FetcherOpt) error{
 		revision.SetupConfigurationRevision,
 		revision.SetupProviderRevision,
 	} {
-		if err := setup(mgr, l, c, namespace, registry); err != nil {
+		if err := setup(mgr, l, c, namespace, registry, fetcherOpts...); err != nil {
 			return err
 		}
 	}
