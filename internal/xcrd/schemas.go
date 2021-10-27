@@ -29,6 +29,10 @@ const (
 // when translating an XRC into an XR.
 var PropagateClaimSpecProps = []string{"compositionRef", "compositionSelector", "compositionRevisionRef", "compositionUpdatePolicy"}
 
+// PropagateCompositeSpecProps is the list of XR spec properties to propagate
+// when translating an XR into an XRC.
+var PropagateCompositeSpecProps = []string{"compositionRef", "compositionSelector"}
+
 // TODO(negz): Add descriptions to schema fields.
 
 // BaseProps is a partial OpenAPIV3Schema for the spec fields that Crossplane

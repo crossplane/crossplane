@@ -200,13 +200,19 @@ func (c *APIClaimConfigurator) Configure(ctx context.Context, cm resource.Compos
 		meta.SetExternalName(cm, en)
 	}
 
-	// TODO(negz): Is the srcFilter below responsible for the XR's
-	// compositionRef not being propagated back to the claim per
-	// https://github.com/crossplane/crossplane/issues/2263 ?
-	if err := merge(ucm.Object["spec"], ucp.Object["spec"],
-		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceSpecProps())...)); err != nil {
-		return errors.Wrap(err, errMergeClaimSpec)
+	// We want to propagate the composite's spec to the claim's spec, but
+	// first we must filter out any well-known fields that are unique to
+	// composites. We do this by:
+	// 1. Grabbing a map whose keys represent all well-known composite fields.
+	// 2. Deleting any well-known fields that we want to propagate.
+	// 3. Filtering OUT the remaining map keys from the composite's spec so
+	// 	  that we end up adding only the well-known fields to the claim's spec.
+	wellKnownCompositeFields := xcrd.CompositeResourceSpecProps()
+	for _, field := range xcrd.PropagateCompositeSpecProps {
+		delete(wellKnownCompositeFields, field)
 	}
+	compositeSpecFilter := xcrd.GetPropFields(wellKnownCompositeFields)
+	ucm.Object["spec"] = filter(ucp.Object["spec"].(map[string]interface{}), compositeSpecFilter...)
 
 	return errors.Wrap(c.client.Update(ctx, cm), errUpdateClaim)
 }
