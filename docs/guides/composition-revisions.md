@@ -5,13 +5,15 @@ weight: 260
 indent: true
 ---
 
+# Composition Revisions
+
 This guide discusses the use of "Composition Revisions" to safely make and roll
 back changes to a Crossplane [`Composition`][composition-type]. It assumes
 familiarity with Crossplane, and particularly with
 [Composition][composition-term].
 
-> Composition Revisions are an __alpha feature__. They are not yet recommended
-> for production use, and are disabled by default.
+> Composition Revisions are an [__alpha feature__][compositionrevision-v1alpha1]. 
+> They are not yet recommended for production use, and are disabled by default.
 
 A `Composition` configures how Crossplane should reconcile a Composite Resource
 (XR). Put otherwise, when you create an XR the selected `Composition` determines
@@ -19,7 +21,7 @@ what managed resources Crossplane will create in response. Let's say for example
 that you define a `PlatformDB` XR, which represents your organisation's common
 database configuration of an Azure MySQL Server and a few firewall rules. The
 `Composition` contains the 'base' configuration for the MySQL server and the
-firewall rules that is extended by the configuration fo the `PlatformDB`.
+firewall rules that is extended by the configuration for the `PlatformDB`.
 
 There is a one-to-many relationship between a `Composition` and the XRs that use
 it. You might define a `Composition` named `big-platform-db` that is used by ten
@@ -153,3 +155,4 @@ spec:
 [composition-term]: ../concepts/terminology.md#composition
 [canary]: https://martinfowler.com/bliki/CanaryRelease.html
 [install-guide]: ../getting-started/install-configure.md
+[compositionrevision-v1alpha1]: https://doc.crds.dev/github.com/crossplane/crossplane/apiextensions.crossplane.io/CompositionRevision/v1alpha1@v1.5.0
