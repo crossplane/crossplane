@@ -5,6 +5,8 @@ weight: 260
 indent: true
 ---
 
+# Composition Revisions
+
 This guide discusses the use of "Composition Revisions" to safely make and roll
 back changes to a Crossplane [`Composition`][composition-type]. It assumes
 familiarity with Crossplane, and particularly with
@@ -19,7 +21,7 @@ what managed resources Crossplane will create in response. Let's say for example
 that you define a `PlatformDB` XR, which represents your organisation's common
 database configuration of an Azure MySQL Server and a few firewall rules. The
 `Composition` contains the 'base' configuration for the MySQL server and the
-firewall rules that is extended by the configuration fo the `PlatformDB`.
+firewall rules that is extended by the configuration for the `PlatformDB`.
 
 There is a one-to-many relationship between a `Composition` and the XRs that use
 it. You might define a `Composition` named `big-platform-db` that is used by ten
