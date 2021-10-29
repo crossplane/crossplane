@@ -12,8 +12,8 @@ back changes to a Crossplane [`Composition`][composition-type]. It assumes
 familiarity with Crossplane, and particularly with
 [Composition][composition-term].
 
-> Composition Revisions are an [__alpha feature__][compositionrevision-v1alpha1]. 
-> They are not yet recommended for production use, and are disabled by default.
+> Composition Revisions are an __alpha feature__. They are not yet recommended
+> for production use, and are disabled by default.
 
 A `Composition` configures how Crossplane should reconcile a Composite Resource
 (XR). Put otherwise, when you create an XR the selected `Composition` determines
@@ -155,4 +155,3 @@ spec:
 [composition-term]: ../concepts/terminology.md#composition
 [canary]: https://martinfowler.com/bliki/CanaryRelease.html
 [install-guide]: ../getting-started/install-configure.md
-[compositionrevision-v1alpha1]: https://doc.crds.dev/github.com/crossplane/crossplane/apiextensions.crossplane.io/CompositionRevision/v1alpha1@v1.5.0
