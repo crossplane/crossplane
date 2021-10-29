@@ -38,6 +38,7 @@ code freeze time, but it should not be merged until the release is complete.
 - [ ] Created and merged an empty commit to the `master` branch ([PR][empty-commit-pr]).
 - [ ] Run the [Tag workflow][rc-tag-workflow] on the `master` branch with the next release candidate tag ([Tag][rc-tag]).
 - [ ] Updated the current release version in the [Crossplane docs website repo] ([link][website-pr]).
+- [ ] Updated the release branch reaching EOL with docs removal directive ([link][eol-pr]).
 -->
 - [ ] Updated all version information in the documentation on the relevant release branch ([link][docs-update-pr]).
 - [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with the proper release version ([link][tag]).
@@ -66,12 +67,14 @@ example from the v1.3.0 release.
 [rc-tag-workflow]: https://github.com/crossplane/crossplane/runs/2880453549?check_suite_focus=true
 [rc-tag]: https://github.com/crossplane/crossplane/releases/tag/v1.4.0-rc.0
 [website-pr]: https://github.com/crossplane/crossplane.github.io/pull/112
+[eol-pr]: https://github.com/crossplane/crossplane/pull/2679
 -->
 [release-branch]: #
 [empty-commit-pr]: #
 [rc-tag-workflow]: #
 [rc-tag]: #
 [website-pr]: #
+[eol-pr]: #
 
 <!--
 Relevant for all releases. This should look something like the below example
