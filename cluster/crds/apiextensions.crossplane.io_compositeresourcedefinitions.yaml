@@ -32,7 +32,7 @@ spec:
     name: v1
     schema:
       openAPIV3Schema:
-        description: An CompositeResourceDefinition defines a new kind of composite
+        description: A CompositeResourceDefinition defines a new kind of composite
           infrastructure resource. The new resource is composed of other composite
           or managed infrastructure resources.
         properties:
@@ -379,7 +379,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: 'An CompositeResourceDefinition defines a new kind of composite
+        description: 'A CompositeResourceDefinition defines a new kind of composite
           infrastructure resource. The new resource is composed of other composite
           or managed infrastructure resources. [DEPRECATED]: Please use the identical
           v1 API instead. The v1beta1 API is scheduled to be removed in Crossplane
