@@ -72,7 +72,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"GetCompositeResourceDefinitionError": {
-			reason: "We should return any other error encountered while getting an CompositeResourceDefinition.",
+			reason: "We should return any other error encountered while getting a CompositeResourceDefinition.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
