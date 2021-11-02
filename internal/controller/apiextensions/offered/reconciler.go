@@ -91,13 +91,13 @@ type ControllerEngine interface {
 	Err(name string) error
 }
 
-// A CRDRenderer renders an CompositeResourceDefinition's corresponding
+// A CRDRenderer renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderer interface {
 	Render(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 }
 
-// A CRDRenderFn renders an CompositeResourceDefinition's corresponding
+// A CRDRenderFn renders a CompositeResourceDefinition's corresponding
 // CustomResourceDefinition.
 type CRDRenderFn func(d *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error)
 
