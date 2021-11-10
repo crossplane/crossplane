@@ -502,7 +502,7 @@ kubectl -n crossplane-system scale deploy crossplane --replicas=0
 make run
 ```
 
-[Slack]: https://crossplane.slack.com/channels/dev
+[Slack]: https://slack.crossplane.io/
 [code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 [build submodule]: https://github.com/upbound/build/
 [`kind`]: https://kind.sigs.k8s.io/
