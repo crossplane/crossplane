@@ -114,7 +114,7 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	// 2. Deleting any well-known fields that we want to propagate.
 	// 3. Using the resulting map keys to filter the claim's spec.
 	wellKnownClaimFields := xcrd.CompositeResourceClaimSpecProps()
-	for _, field := range xcrd.PropagateClaimSpecProps {
+	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownClaimFields, field)
 	}
 	claimSpecFilter := xcrd.GetPropFields(wellKnownClaimFields)
@@ -206,14 +206,16 @@ func (c *APIClaimConfigurator) Configure(ctx context.Context, cm resource.Compos
 	// 1. Grabbing a map whose keys represent all well-known composite fields.
 	// 2. Deleting any well-known fields that we want to propagate.
 	// 3. Filtering OUT the remaining map keys from the composite's spec so
-	// 	  that we end up adding only the well-known fields to the claim's spec.
+	// that we end up adding only the well-known fields to the claim's spec.
 	wellKnownCompositeFields := xcrd.CompositeResourceSpecProps()
-	for _, field := range xcrd.PropagateCompositeSpecProps {
+	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownCompositeFields, field)
 	}
 	compositeSpecFilter := xcrd.GetPropFields(wellKnownCompositeFields)
-	ucm.Object["spec"] = filter(ucp.Object["spec"].(map[string]interface{}), compositeSpecFilter...)
-
+	if err := merge(ucm.Object["spec"], ucp.Object["spec"],
+		withSrcFilter(compositeSpecFilter...)); err != nil {
+		return errors.Wrap(err, errMergeClaimSpec)
+	}
 	return errors.Wrap(c.client.Update(ctx, cm), errUpdateClaim)
 }
 

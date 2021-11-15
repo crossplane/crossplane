@@ -25,13 +25,9 @@ const (
 	LabelKeyClaimNamespace        = "crossplane.io/claim-namespace"
 )
 
-// PropagateClaimSpecProps is the list of XRC spec properties to propagate
-// when translating an XRC into an XR.
-var PropagateClaimSpecProps = []string{"compositionRef", "compositionSelector", "compositionRevisionRef", "compositionUpdatePolicy"}
-
-// PropagateCompositeSpecProps is the list of XR spec properties to propagate
-// when translating an XR into an XRC.
-var PropagateCompositeSpecProps = []string{"compositionRef", "compositionSelector"}
+// PropagateSpecProps is the list of XRC spec properties to propagate
+// when translating an XRC into an XR and vice-versa.
+var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionRevisionRef", "compositionUpdatePolicy"}
 
 // TODO(negz): Add descriptions to schema fields.
 
