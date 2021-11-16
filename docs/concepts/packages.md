@@ -36,6 +36,7 @@ The following packaging operations are covered in detail below:
   - [Configuration Packages](#configuration-packages)
 - [Pushing a Package](#pushing-a-package)
 - [Installing a Package](#installing-a-package)
+- [Upgrading a Package](#upgrading-a-package)
 - [The Package Cache](#the-package-cache)
   - [Pre-Populating the Package Cache](#pre-populating-the-package-cache)
 
@@ -409,6 +410,14 @@ spec:
 
 You can find all configurable values in the [official `ControllerConfig`
 documentation][controller-config-docs].
+
+## Upgrading a Package
+
+Upgrading a `Provider` or `Configuration` to a new version can be accomplished
+by editing the existing manifest and applying it with a new version tag in
+`spec.package`. Crossplane will observe the updated manifest and create a new
+`ProviderRevision` or `ConfigurationRevision` for the specified version. The new
+revision will be activated in accordance with `spec.revisionActivationPolicy`.
 
 ## The Package Cache
 
