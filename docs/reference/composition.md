@@ -261,7 +261,11 @@ kind: Composition
 metadata:
   name: example
   labels:
+    # An optional convention is to include a label of the XRD. This allows
+    # easy discovery of compatible Compositions.
     crossplane.io/xrd: xpostgresqlinstances.database.example.org
+    # The following label marks this Composition for GCP. This label can 
+    # be used in 'compositionSelector' in an XR or Claim.
     provider: gcp
 spec:
 
