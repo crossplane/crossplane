@@ -36,6 +36,8 @@ The following packaging operations are covered in detail below:
   - [Configuration Packages](#configuration-packages)
 - [Pushing a Package](#pushing-a-package)
 - [Installing a Package](#installing-a-package)
+- [Upgrading a Package](#upgrading-a-package)
+  - [Package Upgrade Issues](#package-upgrade-issues)
 - [The Package Cache](#the-package-cache)
   - [Pre-Populating the Package Cache](#pre-populating-the-package-cache)
 
@@ -409,6 +411,28 @@ spec:
 
 You can find all configurable values in the [official `ControllerConfig`
 documentation][controller-config-docs].
+
+## Upgrading a Package
+
+Upgrading a `Provider` or `Configuration` to a new version can be accomplished
+by editing the existing manifest and applying it with a new version tag in
+`spec.package`. Crossplane will observe the updated manifest and create a new
+`ProviderRevision` or `ConfigurationRevision` for the specified version. The new
+revision will be activated in accordance with `spec.revisionActivationPolicy`.
+
+### Package Upgrade Issues
+
+Upgrading a package can require manual intervention in the event that the
+previous version of the package supported a version of a custom resource that
+has been dropped and replaced by a new version in the new package revision.
+Kubernetes does not allow for applying a `CustomResourceDefinition` (CRD) that
+drops a version in the `spec` that is in the current `status.storedVersions`
+list, meaning that a revision cannot update and become the _controller_ of all
+of its resources.
+
+This situation can be remedied by manually deleting the offending CRD and
+letting the new revision re-create it. In the event that custom resources exist
+for the given CRD, they must be deleted before the CRD can be removed.
 
 ## The Package Cache
 
