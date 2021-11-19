@@ -109,7 +109,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ListCRDsError": {
-			reason: "We should requeue when an error is encountered listing CRDs.",
+			reason: "We should return an error encountered listing CRDs.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -122,11 +122,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errListCRDs),
 			},
 		},
 		"ValidatePermissionRequestsError": {
-			reason: "We should requeue when an error is encountered validating permission requests.",
+			reason: "We should return an error encountered validating permission requests.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -142,7 +142,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errValidatePermissions),
 			},
 		},
 		"PermissionRequestRejected": {
@@ -166,7 +166,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ApplyClusterRoleError": {
-			reason: "We should requeue when an error is encountered applying a ClusterRole.",
+			reason: "We should return an error encountered applying a ClusterRole.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -185,7 +185,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errApplyRole),
 			},
 		},
 		"SuccessfulNoOp": {

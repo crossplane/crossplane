@@ -65,7 +65,7 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrGetLock": {
@@ -77,12 +77,11 @@ func TestReconcile(t *testing.T) {
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 			},
 			want: want{
-				r:   reconcile.Result{},
 				err: errors.Wrap(errBoom, errGetLock),
 			},
 		},
 		"ErrRemoveFinalizer": {
-			reason: "We should requeue after short wait if we fail to remove finalizer.",
+			reason: "We should return an error if we fail to remove finalizer.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: test.NewMockClient(),
@@ -95,7 +94,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errRemoveFinalizer),
 			},
 		},
 		"SuccessfulEmptyList": {
@@ -108,7 +107,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrAddFinalizer": {
-			reason: "We should requeue after short wait if we fail to add finalizer.",
+			reason: "We should return an error if we fail to add finalizer.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -134,7 +133,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
 		"ErrInitDag": {
@@ -170,12 +169,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r:   reconcile.Result{Requeue: false},
 				err: errors.Wrap(errBoom, errBuildDAG),
 			},
 		},
 		"ErrSortDag": {
-			reason: "We should not requeue if we fail to sort DAG.",
+			reason: "We should return an error if we fail to sort the DAG.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -210,7 +208,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r:   reconcile.Result{Requeue: false},
 				err: errors.Wrap(errBoom, errSortDAG),
 			},
 		},
@@ -297,7 +294,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrorFetchTags": {
-			reason: "We should requeue after short wait if fail to fetch tags to account for network issues.",
+			reason: "We should return an error if fail to fetch tags to account for network issues.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -340,7 +337,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errFetchTags),
 			},
 		},
 		"ErrorNoValidVersion": {
@@ -391,7 +388,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ErrorCreateMissingDependency": {
-			reason: "We should requeue after short wait if unable to create missing dependency.",
+			reason: "We should return an error if unable to create missing dependency.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -436,7 +433,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errCreateDependency),
 			},
 		},
 		"SuccessfulCreateMissingDependency": {

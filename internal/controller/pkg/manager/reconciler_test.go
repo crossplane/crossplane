@@ -85,7 +85,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrGetPackage": {
@@ -101,12 +101,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r:   reconcile.Result{},
 				err: errors.Wrap(errBoom, errGetPackage),
 			},
 		},
 		"ErrListRevisions": {
-			reason: "We should requeue after short wait if listing revisions for a package fails.",
+			reason: "We should return an error if listing revisions for a package fails.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -123,7 +122,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errListRevisions),
 			},
 		},
 		"SuccessfulNoExistingRevisionsAutoActivate": {
@@ -170,7 +169,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"SuccessfulNoExistingRevisionsAutoActivatePullAlways": {
@@ -219,7 +218,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: pullWait},
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"SuccessfulNoExistingRevisionsManualActivate": {
@@ -266,7 +265,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"SuccessfulActiveRevisionExists": {
@@ -324,7 +323,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"SuccessfulRevisionExistsNeedsActive": {
@@ -402,11 +401,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrUpdatePackageRevision": {
-			reason: "Failing to update a package revision should cause requeue after short wait.",
+			reason: "Failing to update a package revision should cause us to return an error.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -461,7 +460,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errApplyPackageRevision),
 			},
 		},
 		"SuccessfulTransitionUnhealthy": {
@@ -521,7 +520,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"SuccessfulRevisionExistsNeedGC": {
@@ -618,11 +617,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{},
+				r: reconcile.Result{Requeue: false},
 			},
 		},
 		"ErrGC": {
-			reason: "Failure to garbage collect old package revision should cause requeue after short wait.",
+			reason: "Failure to garbage collect old package revision should cause return an error.",
 			args: args{
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
 				rec: &Reconciler{
@@ -697,7 +696,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errGCPackageRevision),
 			},
 		},
 	}

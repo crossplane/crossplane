@@ -26,7 +26,6 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -35,15 +34,15 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
 const (
-	shortWait = 30 * time.Second
-
-	timeout        = 2 * time.Minute
-	maxConcurrency = 5
+	timeout = 2 * time.Minute
 
 	errGetPR               = "cannot get ProviderRevision"
 	errListCRDs            = "cannot list CustomResourceDefinitions"
@@ -92,37 +91,38 @@ func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, crds [
 // Setup adds a controller that reconciles a ProviderRevision by creating a
 // series of opinionated ClusterRoles that may be bound to allow access to the
 // resources it defines.
-func Setup(mgr ctrl.Manager, log logging.Logger, allowClusterRole string) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
 
-	if allowClusterRole != "" {
-
-		h := &EnqueueRequestForAllRevisionsWithRequests{
-			client:          mgr.GetClient(),
-			clusterRoleName: allowClusterRole}
+	if o.AllowClusterRole == "" {
+		r := NewReconciler(mgr,
+			WithLogger(o.Logger.WithValues("controller", name)),
+			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
 		return ctrl.NewControllerManagedBy(mgr).
 			Named(name).
 			For(&v1.ProviderRevision{}).
 			Owns(&rbacv1.ClusterRole{}).
-			Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, h).
-			WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
-			Complete(NewReconciler(mgr,
-				WithLogger(log.WithValues("controller", name)),
-				WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-				WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), allowClusterRole)),
-			))
+			WithOptions(o.ForControllerRuntime()).
+			Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 	}
+
+	h := &EnqueueRequestForAllRevisionsWithRequests{
+		client:          mgr.GetClient(),
+		clusterRoleName: o.AllowClusterRole}
+
+	r := NewReconciler(mgr,
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
-		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
-		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		))
+		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, h).
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -240,8 +240,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := &extv1.CustomResourceDefinitionList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListCRDs, "error", err)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errListCRDs)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListCRDs)
+		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+		return reconcile.Result{}, err
 	}
 
 	// Filter down to the CRDs that are owned by this ProviderRevision - i.e.
@@ -258,8 +259,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	rejected, err := r.rbac.ValidatePermissionRequests(ctx, pr.Status.PermissionRequests...)
 	if err != nil {
 		log.Debug(errValidatePermissions, "error", err)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errValidatePermissions)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errValidatePermissions)
+		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+		return reconcile.Result{}, err
 	}
 
 	for _, rule := range rejected {
@@ -287,8 +289,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		if err != nil {
 			log.Debug(errApplyRole, "error", err)
-			r.record.Event(pr, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errApplyRole)
+			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
+			return reconcile.Result{}, err
 		}
 		log.Debug("Applied RBAC ClusterRole")
 	}

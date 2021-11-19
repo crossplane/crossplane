@@ -25,7 +25,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -35,16 +34,16 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 	"github.com/crossplane/crossplane/internal/controller/rbac/provider/roles"
 )
 
 const (
-	shortWait = 30 * time.Second
-
-	timeout        = 2 * time.Minute
-	maxConcurrency = 5
+	timeout = 2 * time.Minute
 
 	errGetPR        = "cannot get ProviderRevision"
 	errListSAs      = "cannot list ServiceAccounts"
@@ -61,18 +60,20 @@ const (
 // Setup adds a controller that reconciles a ProviderRevision by creating a
 // ClusterRoleBinding that binds a provider's service account to its system
 // ClusterRole.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac/" + strings.ToLower(v1.ProviderRevisionGroupKind)
+
+	r := NewReconciler(mgr,
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRoleBinding{}).
 		Watches(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{OwnerType: &v1.ProviderRevision{}}).
-		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
-		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -161,8 +162,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := &corev1.ServiceAccountList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListSAs, "error", err)
-		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errListSAs)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListSAs)
+		r.record.Event(pr, event.Warning(reasonBind, err))
+		return reconcile.Result{}, err
 	}
 
 	// Filter down to the ServiceAccounts that are owned by this
@@ -204,8 +206,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID())); err != nil {
 		log.Debug(errApplyBinding, "error", err)
-		r.record.Event(pr, event.Warning(reasonBind, errors.Wrap(err, errApplyBinding)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errApplyBinding)
+		r.record.Event(pr, event.Warning(reasonBind, err))
+		return reconcile.Result{}, err
 	}
 	log.Debug("Applied system ClusterRoleBinding")
 	r.record.Event(pr, event.Normal(reasonBind, "Bound system ClusterRole to provider ServiceAccount(s)"))

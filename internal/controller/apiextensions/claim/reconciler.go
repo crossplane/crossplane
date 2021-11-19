@@ -43,8 +43,6 @@ import (
 const (
 	finalizer        = "finalizer.apiextensions.crossplane.io"
 	reconcileTimeout = 1 * time.Minute
-
-	aShortWait = 30 * time.Second
 )
 
 // Reasons a composite resource claim is or is not ready.
@@ -54,7 +52,17 @@ const (
 
 // Error strings.
 const (
-	errGetClaim          = "cannot get composite resource claim"
+	errGetClaim           = "cannot get composite resource claim"
+	errGetComposite       = "cannot get referenced composite resource"
+	errDeleteComposite    = "cannot delete referenced composite resource"
+	errRemoveFinalizer    = "cannot remove composite resource claim finalizer"
+	errAddFinalizer       = "cannot add composite resource claim finalizer"
+	errConfigureComposite = "cannot configure composite resource"
+	errBindComposite      = "cannot bind composite resource"
+	errApplyComposite     = "cannot apply composite resource"
+	errConfigureClaim     = "cannot configure composite resource claim"
+	errPropagateCDs       = "cannot propagate connection details from composite"
+
 	errUpdateClaimStatus = "cannot update composite resource claim status"
 )
 
@@ -273,9 +281,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	cm := r.newClaim()
 	if err := r.client.Get(ctx, req.NamespacedName, cm); err != nil {
-		// There's no need to requeue if we no longer exist. Otherwise we'll be
-		// requeued implicitly because we return an error.
-		log.Debug("Cannot get composite resource claim", "error", err)
+		// There's no need to requeue if we no longer exist. Otherwise
+		// we'll be requeued implicitly because we return an error.
+		log.Debug(errGetClaim, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetClaim)
 	}
 
@@ -292,9 +300,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log = log.WithValues("composite-name", cm.GetResourceReference().Name)
 
 		if err := r.client.Get(ctx, meta.NamespacedNameOf(ref), cp); resource.IgnoreNotFound(err) != nil {
-			log.Debug("Cannot get referenced composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			log.Debug(errGetComposite, "error", err)
+			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
-			return reconcile.Result{RequeueAfter: aShortWait}, nil
+			return reconcile.Result{}, err
 		}
 	}
 
@@ -305,22 +314,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			ref := cp.GetClaimReference()
 			want := meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
 			if !cmp.Equal(want, ref, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
-				// We don't requeue in this situation because the claim will need
-				// human intervention before we can proceed (e.g. fixing the ref),
-				// and we'll be queued implicitly when the claim is edited.
-				err := errors.New("Refusing to delete composite resource that is not bound to this claim")
-				log.Debug("Cannot delete composite resource", "error", err)
+				// We don't requeue (or return an error, which
+				// would requeue) in this situation because the
+				// claim will need human intervention before we
+				// can proceed (e.g. fixing the ref), and we'll
+				// be queued implicitly when the claim is
+				// edited.
+				err := errors.New("refusing to delete composite resource that is not bound to this claim")
+				log.Debug(errDeleteComposite, "error", err)
 				record.Event(cm, event.Warning(reasonDelete, err))
 				return reconcile.Result{Requeue: false}, nil
 			}
 
 			if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
-				// If we didn't hit this error last time we'll be requeued
-				// implicitly due to the status update. Otherwise we want to retry
-				// after a brief wait, in case this was a transient error.
-				log.Debug("Cannot delete composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+				log.Debug(errDeleteComposite, "error", err)
+				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
-				return reconcile.Result{RequeueAfter: aShortWait}, nil
+				return reconcile.Result{}, err
 			}
 		}
 
@@ -328,39 +338,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		record.Event(cm, event.Normal(reasonDelete, "Successfully deleted composite resource"))
 
 		if err := r.claim.RemoveFinalizer(ctx, cm); err != nil {
-			// If we didn't hit this error last time we'll be requeued
-			// implicitly due to the status update. Otherwise we want to retry
-			// after a brief wait, in case this was a transient error.
-			log.Debug("Cannot remove finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+			log.Debug(errRemoveFinalizer, "error", err)
+			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
-			return reconcile.Result{RequeueAfter: aShortWait}, nil
+			return reconcile.Result{}, err
 		}
 
-		// We've successfully deleted our claim and removed our finalizer. If we
-		// assume we were the only controller that added a finalizer to this
-		// claim then it should no longer exist and thus there is no point
-		// trying to update its status.
 		log.Debug("Successfully deleted composite resource claim")
 		return reconcile.Result{Requeue: false}, nil
 	}
 
 	if err := r.claim.AddFinalizer(ctx, cm); err != nil {
-		// If we didn't hit this error last time we'll be requeued
-		// implicitly due to the status update. Otherwise we want to retry
-		// after a brief wait, in case this was a transient error.
-		log.Debug("Cannot add composite resource claim finalizer", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		log.Debug(errAddFinalizer, "error")
+		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
-		return reconcile.Result{RequeueAfter: aShortWait}, nil
+		return reconcile.Result{}, err
 	}
 
 	if err := r.composite.Configure(ctx, cm, cp); err != nil {
-		// If we didn't hit this error last time we'll be requeued
-		// implicitly due to the status update. Otherwise we want to retry
-		// after a brief wait, in case this was a transient error or some
-		// issue with the resource class was resolved.
-		log.Debug("Cannot configure composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		log.Debug(errConfigureComposite, "error", err)
+		err = errors.Wrap(err, errConfigureComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
-		return reconcile.Result{RequeueAfter: aShortWait}, nil
+		return reconcile.Result{}, err
 	}
 
 	// We'll know our composite resource's name at this point because it was
@@ -376,40 +375,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// error between when we created the composite resource and when we
 	// persisted its resourceRef.
 	if err := r.claim.Bind(ctx, cm, cp); err != nil {
-		// If we didn't hit this error last time we'll be requeued implicitly
-		// due to the status update. Otherwise we want to retry after a brief
-		// wait, in case this was a transient error.
-		log.Debug("Cannot bind to composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		log.Debug(errBindComposite, "error", err)
+		err = errors.Wrap(err, errBindComposite)
 		record.Event(cm, event.Warning(reasonBind, err))
-		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 
 	if err := r.client.Apply(ctx, cp); err != nil {
-		// If we didn't hit this error last time we'll be requeued
-		// implicitly due to the status update. Otherwise we want to retry
-		// after a brief wait, in case this was a transient error.
-		log.Debug("Cannot apply composite resource", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		log.Debug(errApplyComposite, "error", err)
+		err = errors.Wrap(err, errApplyComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
-		return reconcile.Result{RequeueAfter: aShortWait}, nil
+		return reconcile.Result{}, err
 	}
 
 	log.Debug("Successfully applied composite resource")
 	record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
-		log.Debug("Cannot configure composite resource claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		log.Debug(errConfigureClaim, "error", err)
+		err = errors.Wrap(err, errConfigureClaim)
 		record.Event(cm, event.Warning(reasonClaimConfigure, err))
-		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 
 	if !resource.IsConditionTrue(cp.GetCondition(xpv1.TypeReady)) {
 		log.Debug("Composite resource is not yet ready")
 		record.Event(cm, event.Normal(reasonBind, "Composite resource is not yet ready"))
 
-		// We should be watching the composite resource and will have a request
-		// queued if it changes.
+		// We should be watching the composite resource and will have a
+		// request queued if it changes, so no need to requeue.
 		cm.SetConditions(Waiting())
 		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
@@ -419,14 +413,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	propagated, err := r.composite.PropagateConnection(ctx, cm, cp)
 	if err != nil {
-		// If we didn't hit this error last time we'll be requeued implicitly
-		// due to the status update. Otherwise we want to retry after a brief
-		// wait in case this was a transient error, or the resource connection
-		// secret is created.
-		log.Debug("Cannot propagate connection details from composite resource to claim", "error", err, "requeue-after", time.Now().Add(aShortWait))
+		log.Debug(errPropagateCDs, "error", err)
+		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		cm.SetConditions(xpv1.Unavailable().WithMessage(err.Error()))
-		return reconcile.Result{RequeueAfter: aShortWait}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		return reconcile.Result{}, err
 	}
 	if propagated {
 		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})

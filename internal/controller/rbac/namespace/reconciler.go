@@ -25,7 +25,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	kcontroller "sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
@@ -34,14 +33,14 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane/internal/controller/rbac/controller"
 )
 
 const (
-	shortWait = 30 * time.Second
-
-	timeout        = 2 * time.Minute
-	maxConcurrency = 5
+	timeout = 2 * time.Minute
 
 	errGetNamespace = "cannot get CompositeResourceDefinition"
 	errApplyRole    = "cannot apply Roles"
@@ -70,18 +69,20 @@ func (fn RoleRenderFn) RenderRoles(d *corev1.Namespace, crs []rbacv1.ClusterRole
 // Setup adds a controller that reconciles a Namespace by creating a series of
 // opinionated Roles that may be bound to allow access to resources within that
 // namespace.
-func Setup(mgr ctrl.Manager, log logging.Logger) error {
+func Setup(mgr ctrl.Manager, o controller.Options) error {
 	name := "rbac/namespace"
+
+	r := NewReconciler(mgr,
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&corev1.Namespace{}).
 		Owns(&rbacv1.Role{}).
 		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, &EnqueueRequestForNamespaces{client: mgr.GetClient()}).
-		WithOptions(kcontroller.Options{MaxConcurrentReconciles: maxConcurrency}).
-		Complete(NewReconciler(mgr,
-			WithLogger(log.WithValues("controller", name)),
-			WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name)))))
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -186,8 +187,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	l := &rbacv1.ClusterRoleList{}
 	if err := r.client.List(ctx, l); err != nil {
 		log.Debug(errListRoles, "error", err)
-		r.record.Event(ns, event.Warning(reasonApplyRoles, errors.Wrap(err, errListRoles)))
-		return reconcile.Result{RequeueAfter: shortWait}, nil
+		err = errors.Wrap(err, errListRoles)
+		r.record.Event(ns, event.Warning(reasonApplyRoles, err))
+		return reconcile.Result{}, err
 	}
 
 	for _, rl := range r.rbac.RenderRoles(ns, l.Items) {
@@ -201,8 +203,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		if err != nil {
 			log.Debug(errApplyRole, "error", err)
-			r.record.Event(ns, event.Warning(reasonApplyRoles, errors.Wrap(err, errApplyRole)))
-			return reconcile.Result{RequeueAfter: shortWait}, nil
+			err = errors.Wrap(err, errApplyRole)
+			r.record.Event(ns, event.Warning(reasonApplyRoles, err))
+			return reconcile.Result{}, err
 		}
 
 		log.Debug("Applied RBAC Role")

@@ -107,7 +107,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"ListServiceAccountsError": {
-			reason: "We should requeue when an error is encountered listing ServiceAccounts.",
+			reason: "We should return an error encountered listing ServiceAccounts.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -124,11 +124,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errListSAs),
 			},
 		},
 		"ApplyClusterRoleBindingError": {
-			reason: "We should requeue when an error is encountered applying a ClusterRoleBinding.",
+			reason: "We should return an error encountered applying a ClusterRoleBinding.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -149,7 +149,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{RequeueAfter: shortWait},
+				err: errors.Wrap(errBoom, errApplyBinding),
 			},
 		},
 		"SuccessfulApply": {
