@@ -122,15 +122,15 @@ as well as our example CloudSQL instance.
   - `Service Account Name`: type "example"
   - `Service Account ID`: leave auto assigned
   - `Service Account Description`: type "Crossplane example"
-  - Click `Create` button
+  - Click `Create and Continue` button
     - This should advance to the next section `2 Grant this service account to
       project (optional)`
-  - We will assign this account 3 roles:
+  - We will assign this account 4 roles:
     - `Service Account User`
     - `Cloud SQL Admin`
     - `Kubernetes Engine Admin`
     - `Compute Network Admin`
-  - Click `Create` button
+  - Click `Continue` button
     - This should advance to the next section `3 Grant users access to this
       service account (optional)`
   - We don't need to assign any user or admin roles to this account for the
