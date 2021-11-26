@@ -50,6 +50,7 @@ type CompositeResourceDefinitionSpec struct {
 
 	// ConnectionSecretKeys is the list of keys that will be exposed to the end
 	// user of the defined kind.
+	// If the list is empty, all keys will be published.
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 

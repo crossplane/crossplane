@@ -83,12 +83,13 @@ func (a *APIFilteredSecretPublisher) PublishConnection(ctx context.Context, o re
 
 	s := resource.ConnectionSecretFor(o, o.GetObjectKind().GroupVersionKind())
 	m := map[string]bool{}
-	// TODO(muvaf): Should empty filter allow all keys?
 	for _, key := range a.filter {
 		m[key] = true
 	}
 	for key, val := range c {
-		if _, ok := m[key]; ok {
+		// If the filter does not have any keys, we allow all given keys to be
+		// published.
+		if len(m) == 0 || m[key] {
 			s.Data[key] = val
 		}
 	}
