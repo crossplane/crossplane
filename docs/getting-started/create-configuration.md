@@ -591,7 +591,7 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-aws:v1.5.0
+kubectl crossplane push configuration ${REG}/getting-started-with-aws:v1.5.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
@@ -631,7 +631,7 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:v1.5.0
+kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:v1.5.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
@@ -670,7 +670,7 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-gcp:v1.5.0
+kubectl crossplane push configuration ${REG}/getting-started-with-gcp:v1.5.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
@@ -709,7 +709,7 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-azure:v1.5.0
+kubectl crossplane push configuration ${REG}/getting-started-with-azure:v1.5.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
