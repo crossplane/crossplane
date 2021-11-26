@@ -162,7 +162,12 @@ spec:
   claimNames:
     kind: PostgreSQLInstance
     plural: postgresqlinstances
-  # Each type of XR must declare any keys they write to their connection secret.
+  # Each type of XR can declare any keys they write to their connection secret
+  # which will act as a filter during aggregation of the connection secret from
+  # composed resources. It's recommended to provide the set of keys here so that
+  # consumers of claims and XRs can see what to expect in the connection secret.
+  # If no key is given, then all keys in the aggregated connection secret will
+  # be written to the connection secret of the XR.
   connectionSecretKeys:
   - hostname
   # Each type of XR may specify a default Composition to be used when none is
@@ -558,8 +563,17 @@ true converts to integer 1 and float 1.0, while false converts to 0 and 0.0.
 
 ### Connection Details
 
+Connection details secret of XR is an aggregated sum of the connection details
+of the composed resources. It's recommended that the author of XRD specify
+exactly which keys will be allowed in the XR connection secret by listing them
+in `spec.connectionSecretKeys` so that consumers of claims and XRs can see what
+they can expect in the connection details secret.
+
+If `spec.connectionSecretKeys` is empty, then all keys of the aggregated connection
+details secret will be propagated.
+
 You can derive the following types of connection details from a composed
-resource:
+resource to be aggregated:
 
 `FromConnectionSecretKey`. Derives an XR connection detail from a connection
 secret key of a composed resource.
