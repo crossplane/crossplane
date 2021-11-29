@@ -6,7 +6,6 @@ include ../../../build/makelib/common.mk
 # ====================================================================================
 #  Options
 
-OSBASEIMAGE = gcr.io/distroless/static@sha256:d2b0ec3141031720cf5eedef3493b8e129bc91935a43b50562fbe5429878d96b
 include ../../../build/makelib/imagelight.mk
 
 # ====================================================================================
@@ -26,7 +25,6 @@ img.build.shared:
 	@cp Dockerfile $(IMAGE_TEMP_DIR) || $(FAIL)
 	@cp -r $(OUTPUT_DIR)/bin/ $(IMAGE_TEMP_DIR)/bin || $(FAIL)
 	@cp -a ../../../cluster/crds $(IMAGE_TEMP_DIR) || $(FAIL)
-	@cd $(IMAGE_TEMP_DIR) && $(SED_CMD) 's|BASEIMAGE|$(OSBASEIMAGE)|g' Dockerfile || $(FAIL)
 	@docker buildx build $(BUILD_ARGS) \
 		--platform $(IMAGE_PLATFORMS) \
 		-t $(IMAGE) \
