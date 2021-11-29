@@ -1,6 +1,9 @@
 FROM BASEIMAGE
 
-ADD crossplane /usr/local/bin/
+ARG TARGETOS
+ARG TARGETARCH
+
+ADD bin/$TARGETOS\_$TARGETARCH/crossplane /usr/local/bin/
 ADD crds /crds
 EXPOSE 8080
 USER 65532
