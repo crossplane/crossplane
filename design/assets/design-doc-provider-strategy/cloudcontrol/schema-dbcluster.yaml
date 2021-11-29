@@ -1,0 +1,152 @@
+# Produced from JSON schema published in CloudFormation Registry
+# using the following command: yq eval schema-dbcluster.json --prettyPrint
+typeName: AWS::RDS::DBCluster
+description: Resource Type definition for AWS::RDS::DBCluster
+additionalProperties: false
+properties:
+  StorageEncrypted:
+    type: boolean
+  EndpointPort:
+    type: string
+  AssociatedRoles:
+    type: array
+    uniqueItems: true
+    items:
+      $ref: '#/definitions/DBClusterRole'
+  EnableHttpEndpoint:
+    type: boolean
+  EngineMode:
+    type: string
+  SnapshotIdentifier:
+    type: string
+  Port:
+    type: integer
+  DBClusterIdentifier:
+    type: string
+  PreferredBackupWindow:
+    type: string
+  ReadEndpointAddress:
+    type: string
+  ReplicationSourceIdentifier:
+    type: string
+  VpcSecurityGroupIds:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+  CopyTagsToSnapshot:
+    type: boolean
+  GlobalClusterIdentifier:
+    type: string
+  RestoreType:
+    type: string
+  Engine:
+    type: string
+  Tags:
+    type: array
+    uniqueItems: false
+    items:
+      $ref: '#/definitions/Tag'
+  EndpointAddress:
+    type: string
+  EngineVersion:
+    type: string
+  KmsKeyId:
+    type: string
+  AvailabilityZones:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+  DatabaseName:
+    type: string
+  PreferredMaintenanceWindow:
+    type: string
+  DBSubnetGroupName:
+    type: string
+  DeletionProtection:
+    type: boolean
+  SourceRegion:
+    type: string
+  UseLatestRestorableTime:
+    type: boolean
+  MasterUserPassword:
+    type: string
+  SourceDBClusterIdentifier:
+    type: string
+  MasterUsername:
+    type: string
+  ScalingConfiguration:
+    $ref: '#/definitions/ScalingConfiguration'
+  EnableIAMDatabaseAuthentication:
+    type: boolean
+  DBClusterParameterGroupName:
+    type: string
+  BackupRetentionPeriod:
+    type: integer
+  Id:
+    type: string
+  BacktrackWindow:
+    type: integer
+  EnableCloudwatchLogsExports:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+definitions:
+  ScalingConfiguration:
+    type: object
+    additionalProperties: false
+    properties:
+      SecondsUntilAutoPause:
+        type: integer
+      AutoPause:
+        type: boolean
+      MinCapacity:
+        type: integer
+      MaxCapacity:
+        type: integer
+  DBClusterRole:
+    type: object
+    additionalProperties: false
+    properties:
+      RoleArn:
+        type: string
+      FeatureName:
+        type: string
+    required:
+      - RoleArn
+  Tag:
+    type: object
+    additionalProperties: false
+    properties:
+      Value:
+        type: string
+      Key:
+        type: string
+    required:
+      - Value
+      - Key
+required:
+  - Engine
+createOnlyProperties:
+  - /properties/KmsKeyId
+  - /properties/MasterUsername
+  - /properties/SourceDBClusterIdentifier
+  - /properties/DBClusterIdentifier
+  - /properties/DatabaseName
+  - /properties/EngineMode
+  - /properties/AvailabilityZones
+  - /properties/DBSubnetGroupName
+  - /properties/SnapshotIdentifier
+  - /properties/RestoreType
+  - /properties/UseLatestRestorableTime
+  - /properties/SourceRegion
+  - /properties/StorageEncrypted
+primaryIdentifier:
+  - /properties/Id
+readOnlyProperties:
+  - /properties/Id
+  - /properties/ReadEndpoint.Address
+  - /properties/Endpoint.Port
+  - /properties/Endpoint.Address

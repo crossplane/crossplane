@@ -1,0 +1,4 @@
+Engine: aurora-mysql
+MasterUsername: admin
+MasterUserPassword: "test123!"
+DatabaseName: auroradb

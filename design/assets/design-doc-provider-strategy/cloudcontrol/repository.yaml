@@ -1,0 +1,4 @@
+ImageScanningConfiguration:
+  ScanOnPush: true
+ImageTagMutability: IMMUTABLE
+RepositoryName: muvaf-testing

@@ -1,0 +1,107 @@
+# Native provider-aws
+apiVersion: rds.aws.crossplane.io/v1alpha1
+kind: DBInstance
+metadata:
+  name: example-dbinstance
+spec:
+  forProvider:
+    region: us-east-1
+    allocatedStorage: 20
+    autoMinorVersionUpgrade: true
+    autogeneratePassword: true
+    backupRetentionPeriod: 14
+    dbInstanceClass: db.t2.micro
+    dbName: example
+    engine: postgres
+    engineVersion: "12.4"
+    masterUsername: adminuser
+    masterUserPasswordSecretRef:
+      key: password
+      name: example-dbinstance
+      namespace: crossplane-system
+    preferredBackupWindow: "7:00-8:00"
+    preferredMaintenanceWindow: "Sat:8:00-Sat:11:00"
+    publiclyAccessible: false
+    skipFinalSnapshot: true
+    storageEncrypted: false
+    storageType: gp2
+    dbParameterGroupNameRef:
+      name: example-dbparametergroup
+
+# Terrajet provider-tf-aws
+apiVersion: rds.aws.tf.crossplane.io/v1alpha1
+kind: DBInstance
+metadata:
+  name: example-dbinstance
+spec:
+  forProvider:
+    region: us-east-1
+    allocatedStorage: 20
+    autoMinorVersionUpgrade: true
+    backupRetentionPeriod: 14
+    instanceClass: db.t2.micro
+    name: example
+    engine: postgres
+    engineVersion: "12.4"
+    username: adminuser
+    passwordSecretRef:
+      key: password
+      name: example-dbinstance
+      namespace: crossplane-system
+    backupWindow: "09:46-10:16"
+    maintenanceWindow: "Mon:00:00-Mon:03:00"
+    publiclyAccessible: false
+    skipFinalSnapshot: true
+    storageEncrypted: false
+    storageType: gp2
+    parameterGroupNameRef:
+      name: example-dbparametergroup
+
+# Cloud Control API input
+AllocatedStorage: 20
+AutoMinorVersionUpgrade: true
+BackupRetentionPeriod: 14
+DBInstanceClass: db.t2.micro
+DBName: example
+Engine: postgres
+EngineVersion: "12.4"
+MasterUsername: adminuser
+MasterUserPassword: test123!
+PreferredBackupWindow: "7:00-8:00"
+PreferredMaintenanceWindow: "Sat:8:00-Sat:11:00"
+PubliclyAccessible: false
+StorageEncrypted: false
+StorageType: gp2
+DBParameterGroupNameRef: example-dbparametergroup
+
+# Possible CloudControl Implementation using provided schema
+apiVersion: rds.aws.crossplane.io/v1alpha1
+kind: DBInstance
+metadata:
+  name: example-dbinstance
+spec:
+  forProvider:
+    region: us-east-1
+    allocatedStorage: 20
+    autoMinorVersionUpgrade: true
+    # This field is an additional feature we implemented in native provider.
+    # autogeneratePassword: true
+    backupRetentionPeriod: 14
+    dbInstanceClass: db.t2.micro
+    dbName: example
+    engine: postgres
+    engineVersion: "12.4"
+    masterUsername: adminuser
+    masterUserPasswordSecretRef:
+      key: password
+      name: example-dbinstance
+      namespace: crossplane-system
+    preferredBackupWindow: "7:00-8:00"
+    preferredMaintenanceWindow: "Sat:8:00-Sat:11:00"
+    publiclyAccessible: false
+    # This is a parameter of deletion call in native provider.
+    # skipFinalSnapshot: true
+    storageEncrypted: false
+    storageType: gp2
+    dbParameterGroupNameRef:
+      name: example-dbparametergroup

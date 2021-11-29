@@ -1,0 +1,63 @@
+# Crossplane Native Provider
+apiVersion: container.gcp.crossplane.io/v1beta2
+kind: Cluster
+metadata:
+  name: example-cluster
+spec:
+  forProvider:
+    initialClusterVersion: "1.18"
+    location: us-west2
+    masterAuth:
+      username: admin
+    networkConfig:
+      enableIntraNodeVisibility: true
+    loggingService: logging.googleapis.com/kubernetes
+    monitoringService: monitoring.googleapis.com/kubernetes
+    addonsConfig:
+      gcePersistentDiskCsiDriverConfig:
+        enabled: true
+    network: "default"
+
+# Possible provider-tf-gcp
+apiVersion: container.gcp.tf.crossplane.io/v1alpha1
+kind: Cluster
+metadata:
+  name: example-cluster
+spec:
+  forProvider:
+    minMasterVersion: "1.18" # it is initialClusterVersion in native
+    location: us-west2
+    masterAuth:
+      username: admin
+    networkConfig:
+      enableIntraNodeVisibility: true
+    loggingService: logging.googleapis.com/kubernetes
+    monitoringService: monitoring.googleapis.com/kubernetes
+    addonsConfig:
+      gcePersistentDiskCsiDriverConfig:
+        enabled: true
+    network: "default"
+    removeDefaultNodePool: true # this is TF specific, we have a similar functionality
+
+# Possible Google DCL, written by looking at the schema
+# file here: https://github.com/GoogleCloudPlatform/declarative-resource-client-library/blob/main/services/google/container/cluster.yaml
+
+# Exactly the same as native provider.
+apiVersion: database.gcp.crossplane.io/v1beta1
+kind: CloudSQLInstance
+metadata:
+  name: example-cloudsql-instance
+spec:
+  forProvider:
+    initialClusterVersion: "1.18"
+    location: us-west2
+    masterAuth:
+      username: admin
+    networkConfig:
+      enableIntraNodeVisibility: true
+    loggingService: logging.googleapis.com/kubernetes
+    monitoringService: monitoring.googleapis.com/kubernetes
+    addonsConfig:
+      gcePersistentDiskCsiDriverConfig:
+        enabled: true
+    network: "default"
