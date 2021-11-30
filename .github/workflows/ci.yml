@@ -313,9 +313,9 @@ jobs:
           username: ${{ secrets.UPBOUND_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_ROBOT_PSW }}
 
-      - name: Publish Artifacts to S3 and Docker Hub
+      - name: Publish Artifacts to S3, DockerHub, and Upbound Registry
         run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
-        if: env.AWS_USR != '' && env.DOCKER_USR != ''
+        if: env.AWS_USR != '' && env.DOCKER_USR != '' && env.UPBOUND_ROBOT_USR != ''
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
@@ -323,7 +323,7 @@ jobs:
           DOCS_GIT_USR: ${{ secrets.UPBOUND_BOT_GITHUB_USR }}
           DOCS_GIT_PSW: ${{ secrets.UPBOUND_BOT_GITHUB_PSW }}
 
-      - name: Promote Artifacts in S3 and Docker Hub
+      - name: Promote Artifacts in S3, DockerHub, and Upbound Registry
         if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != '' && env.UPBOUND_ROBOT_USR != ''
         run: make -j2 promote
         env:
