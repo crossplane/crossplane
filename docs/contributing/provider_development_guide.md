@@ -609,7 +609,7 @@ implementing support for new managed services. We would highly value any
 feedback you may have about the development process!
 
 <!-- Named Links -->
-
+[crossplane-runtime v0.9.0]: https://github.com/crossplane/crossplane-runtime/releases/tag/v0.9.0
 [TBS Episode 18]: https://www.youtube.com/watch?v=rvQ8N0u3rkE&t=7s
 [What Makes a Crossplane Infrastructure Resource]: #what-makes-a-crossplane-infrastructure-resource
 [managed resource]: ../concepts/managed-resources.md
