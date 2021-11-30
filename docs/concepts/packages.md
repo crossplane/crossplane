@@ -108,7 +108,10 @@ all types that its package installs, as well as `Secrets`, `ConfigMaps`, and
 
 > Note that the Crossplane RBAC manager can be configured to reject permissions
 > for certain API groups. If a package requests permissions that Crossplane is
-> configured to reject, the package will fail to be installed. 
+> configured to reject, the package will fail to be installed.
+> Authorized permissions should be aggregated to the rbac manager clusterrole 
+> (the cluster role defined by the provider-clusterrole flag in the rbac manager) 
+> by using the label `rbac.crossplane.io/aggregate-to-allowed-provider-permissions: "true"`
 
 The `spec.crossplane.version` field specifies the version constraints for core
 Crossplane that the `Provider` is compatible with. It is advisable to use this
