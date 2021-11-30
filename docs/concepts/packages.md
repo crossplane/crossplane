@@ -164,7 +164,7 @@ have a valid version given the constraint. If a dependency is not installed, the
 package manager will install it at the latest version that fits within the
 provided constraints.
 
-> Dependency resolution is an `alpha` feature and depends on the `v1alpha`
+> Dependency resolution is a `beta` feature and depends on the `v1beta1`
 > [`Lock` API][lock-api].
 
 For an example Configuration package, see [getting-started-with-gcp].
@@ -458,7 +458,7 @@ by [pre-pulling images] onto nodes in the cluster.
 [Providers]: providers.md
 [provider-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Provider/v1
 [configuration-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Configuration/v1
-[lock-api]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/Lock/v1alpha1
+[lock-api]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/Lock/v1beta1
 [getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/master/docs/snippets/package/gcp
 [specification]: https://github.com/Masterminds/semver#basic-comparisons
 [composition]: composition.md
