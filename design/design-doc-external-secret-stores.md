@@ -115,32 +115,33 @@ keys for _AWS Secret Manager_.
 
 We will deprecate the existing `writeConnectionSecretToRef` field in favor of
 `publishConnectionDetailsTo` field which would support publishing connection
-details to the local Kubernetes cluster **and/or** to an external secret store.
-The API would **only allow publishing to a single external store** but would
-**still allow publishing to an external store while still writing into a local
-Kubernetes secret**. This could be helpful when the motivation behind storing in
-external store is **reliability** rather than **security**. As an example use
-case, a platform consumer, might want to consume database creds directly in the
-team namespace but still want it to be saved in a more reliable store for
-disaster recovery or backup purposes.
+details to the local Kubernetes cluster **or** to an external secret store.
 
-We will only take the **name** of secret in our secret configuration API
-(i.e. `publishConnectionDetailsTo`) and the rest will go to a separate store
-specific config (`StoreConfig`). This classification enables building a flexible
-API that satisfies the separation of concerns between platform operators and
-consumers which Crossplane already enables today for Kubernetes Secrets. We will
-end up having a unified configuration spec for all external secret store types
-which contains the name field (`name`) and a reference to any additional
-store specific configuration (`configRef`).
+We will take the **name** of secret and some per secret metadata like tags in
+our secret configuration API (i.e. `publishConnectionDetailsTo`). The rest of
+the configuration will go to a separate store specific config (`StoreConfig`).
+This classification enables building a flexible API that satisfies the
+separation of concerns between platform operators and consumers which Crossplane
+already enables today for Kubernetes Secrets. 
 
-This would be enough to uniquely identify and access any secret instance,
-however there could still be some additional attributes or metadata specific to
-store type that might be desired to be set per secret instance. For example,
-`labels`, `annotations` and `type` of the secret in _Kubernetes_; `Tags` and
-`EncryptionKey` in _AWS_. For local Kubernetes, this could be supported by a
-strong typed spec, however, for external stores, to stick with a unified
-interface, we will receive this configuration as arbitrary key value pairs with
-an optional `attributes` field.
+We will end up having a unified configuration spec for all external secret store
+types which contains the name field (`name`) and a reference to any additional
+store specific configuration (`configRef`). This would be enough to uniquely
+identify and access any secret instance, however there could still be some
+additional attributes or metadata specific to store type that might be desired
+to be set per secret instance. For example, `labels`, `annotations` and `type`
+of the secret in _Kubernetes_; `Tags` and `EncryptionKey` in _AWS_.
+
+A `StoreConfig` named `default` will be created during installation which is
+configured to write secret to a Kubernetes cluster in the Crossplane
+installation namespace. 
+
+`StoreConfig.configRef` will be an optional parameters and **in its absence**:
+
+- For cluster-scoped resources (e.g. `MR` and `XR`), it will be late initialized
+as `configRef.name=default`.
+- For namespaced resources (e.g. `XRC`), secrets published to the same
+namespace as the resource.
 
 **Examples:**
 
@@ -150,8 +151,8 @@ Publish Connection details to a _Kubernetes_ secret (already existing case):
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    kubernetes:
-      namespace: crossplane-system
+    configRef:
+      name: default
 ```
 
 Publish Connection details to a _Vault_ secret:
@@ -160,24 +161,23 @@ Publish Connection details to a _Vault_ secret:
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    externalStore:
-      configRef:
-        name: vault-default
-        namespace: crossplane-system
+    configRef:
+      name: vault-dev
 ```
 
-Publish Connection details to a _Kubernetes_ secret with some labels:
+Publish Connection details to a _Kubernetes_ secret with some labels/annotations:
 
 ```yaml
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    kubernetes:
-      namespace: crossplane-system
+    attributes:
       labels:
         environment: production
       annotations:
         acme.example.io/secret-type: infrastructure
+    configRef:
+      name: default
 ```
 
 Publish Connection details to an _AWS Secret Manager_ secret with some tags:
@@ -186,100 +186,58 @@ Publish Connection details to an _AWS Secret Manager_ secret with some tags:
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    externalStore:
-      configRef:
-        name: aws-secret-manager-platform
-        namespace: crossplane-system
-      attributes:
-        tags:
-          environment: production
-```
-
-Publish Connection details to _Vault_ but **still store it as a Kubernetes
-secret**:
-
-```yaml
-spec:
-  publishConnectionDetailsTo:
-    name: my-db-connection
-    kubernetes:
-      namespace: crossplane-system
-    externalStore:
-      configRef:
-        name: vault-platform
-        namespace: crossplane-system
+    attributes:
+      tags:
+        environment: production
+    configRef:
+      name: aws-secret-manager-prod
 ```
 
 #### Separation of Concerns: Compositions, Composites and Claims
 
-`StoreConfig` resource will be a _namespaced_ resource to allow platform
-consumers to configure their own secret store of choice. This is aligned with
-the existing approach since Kubernetes secrets are namespaced resources and
-platform operators could specify where should composite resource secrets land
-using the partial input `writeConnectionSecretsToNamespace`. We will similarly
-deprecate this field in favor of `publishConnectionDetailsToStore`.
+Currently, platform operators could specify where should composite resource
+secrets land using the partial input `writeConnectionSecretsToNamespace`. We
+will similarly deprecate this field in favor of
+`publishConnectionDetailsToStore`.
 
 **Examples:**
 
-**Composition** configuring the Kubernetes namespace that connection secrets
-for Composite resources will be stored:
+**Composition** configuring to publish to default Store which is created during
+installation time, i.e. publish to a Kubernetes secret in the namespace where
+crossplane installed.
 
 ```yaml
 spec:
-  publishConnectionDetailsToStore:
-    kubernetes:
-      namespace: crossplane-system
+  publishConnectionDetailsToStore: default
 ```
 
-**Composition** configuring the secret store that connection secrets for
-Composite resources will be stored:
+**Composition** configuring to publish to another namespace, e.g. 
+`infrastructure-staging`, where a `StoreConfig` named
+`store-infrastructure-staging` created with namespace parameter as
+`infrastructure-staging`.
 
 ```yaml
 spec:
-  publishConnectionDetailsToStoreConfigRef:
-    name: vault-platform
-    namespace: crossplane-system
+  publishConnectionDetailsToStore: store-infrastructure-staging
 ```
 
-**Claim** spec for writing connection secret in the same Kubernetes namespace:
+**Composition** configuring to publish to vault.
 
 ```yaml
 spec:
-  publishConnectionDetailsTo:
-    name: database-creds 
-    # when neither `kubernetes` nor `externalStore` configs
-    # provided, it defaults to "kubernetes in the same
-    # namespace", same as "kubernetes: {}"
+  publishConnectionDetailsToStore: vault-production
 ```
 
-**Claim** spec for writing connection secret to Vault:
-
-```yaml
-spec:
-  publishConnectionDetailsTo:
-    name: database-creds
-    externalStore:
-      configRef:
-        name: vault-team-a
-        # please note, there is no namespace option here, platform consumers
-        # only have access to their team namespaces, so the StoreConfig in the
-        # same namespace as Claim will be used.
-```
-
-
-**Claim** spec for writing connection secret to both Kubernetes and Vault:
+**Claim** resources requires some additional logic since they are namespaced but
+need a Cluster scoped `StoreConfig`. They will always use the `default`
+`StoreConfig` and if it is configured for local Kubernetes, secret will be
+written into the **Claim** namespace instead of namespace configured in `default`
+`StoreConfig`.
 
 ```yaml
 spec:
   publishConnectionDetailsTo:
     name: database-creds
-    # this is to indicate that we want to store a kubernetes
-    # secret, but we have no config to set, will write into
-    # the same namespace.
-    kubernetes: {} 
-    externalStore:
-      configRef:
-        name: vault-team-a
 ```
 
 #### External Secret Store Configuration: StoreConfig
@@ -305,7 +263,6 @@ apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
   name: vault-platform
-  namespace: crossplane-system
 spec:
   type: Vault
   vault:
@@ -330,7 +287,6 @@ apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
   name: vault-platform
-  namespace: crossplane-system
 spec:
   type: Plugin
   plugin:
@@ -367,14 +323,35 @@ Crossplane/provider pods and make token available for the configured Vault role
    1. Add annotations to the Crossplane core pod (needs to be exposed as a helm
 parameter).
    2. Add annotations to the Provider pods (using `ControllerConfig`)
-4. Create a `StoreConfig` CR as follows:
+4. Create `StoreConfig` CRs as follows:
+
+For core Crossplane: 
 
 ```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
   name: vault-default
-  namespace: crossplane-system
+spec:
+  type: Vault
+  vault:
+    server: "https://vault.acme.org"
+    parentPath: "secret/my-cloud/dev/"
+    version: "v2"
+    caBundle: "..."
+    auth:
+      kubernetes:
+        mountPath: "kubernetes"
+        role: "crossplane"
+```
+
+For the provider pod:
+
+```yaml
+apiVersion: aws.secrets.crossplane.io/v1alpha1
+kind: StoreConfig
+metadata:
+  name: vault-default
 spec:
   type: Vault
   vault:
@@ -394,10 +371,8 @@ spec:
 spec:
   publishConnectionDetailsTo:
     name: <secret-name>
-    externalStore:
-      configRef:
-        name: vault-default
-        namespace: crossplane-system
+    configRef:
+      name: vault-default
 ```
 
 ### Implementation
@@ -455,6 +430,10 @@ type ConnectionSecretConfig struct {
 }
 ```
 
+External secret store support will be introduced in a phased fashion, with
+initially being off by default behind a feature flag like 
+`--enable-alpha-external-secret-stores`.
+
 ### Bonus Use Case: Publish Connection Details to Another Kubernetes Cluster
 
 By adding support for `Kubernetes` as an external secret store in `StoreConfig`,
@@ -469,9 +448,8 @@ Example claim spec:
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    externalStore:
-      configRef:
-        name: kubernetes-cluster-1
+    configRef:
+      name: kubernetes-cluster-1
 ```
 
 Example StoreConfig:
@@ -521,8 +499,7 @@ as follows:
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    kubernetes:
-      namespace: crossplane-system
+    attributes:
       annotations:
         acme.example.io/secret-type: infrastructure
     template: |
