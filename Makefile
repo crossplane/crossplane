@@ -58,10 +58,10 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 # Due to the way that the shared build logic works, images should
 # all be in folders at the same level (no additional levels of nesting).
 
-DOCKER_REGISTRY = crossplane
+REGISTRY_ORGS = docker.io/crossplane registry.upbound.io/crossplane
 IMAGES = crossplane
 OSBASEIMAGE = gcr.io/distroless/static:nonroot
--include build/makelib/image.mk
+-include build/makelib/imagelight.mk
 
 # ====================================================================================
 # Setup Docs
