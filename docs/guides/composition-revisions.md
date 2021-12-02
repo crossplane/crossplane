@@ -19,7 +19,7 @@ what managed resources Crossplane will create in response. Let's say for example
 that you define a `PlatformDB` XR, which represents your organisation's common
 database configuration of an Azure MySQL Server and a few firewall rules. The
 `Composition` contains the 'base' configuration for the MySQL server and the
-firewall rules that is extended by the configuration fo the `PlatformDB`.
+firewall rules that is extended by the configuration of the `PlatformDB`.
 
 There is a one-to-many relationship between a `Composition` and the XRs that use
 it. You might define a `Composition` named `big-platform-db` that is used by ten
