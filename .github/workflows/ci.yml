@@ -55,7 +55,7 @@ jobs:
 
       - name: Find the Go Build Cache
         id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
+        run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
         uses: actions/cache@v2
@@ -144,7 +144,7 @@ jobs:
 
       - name: Find the Go Build Cache
         id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
+        run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
         uses: actions/cache@v2
@@ -204,7 +204,7 @@ jobs:
 
       - name: Find the Go Build Cache
         id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
+        run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
         uses: actions/cache@v2
@@ -266,7 +266,7 @@ jobs:
 
       - name: Find the Go Build Cache
         id: go
-        run: echo "::set-output name=cache::$(go env GOCACHE)"
+        run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
         uses: actions/cache@v2
