@@ -134,14 +134,8 @@ of the secret in _Kubernetes_; `Tags` and `EncryptionKey` in _AWS_.
 
 A `StoreConfig` named `default` will be created during installation which is
 configured to write secret to a Kubernetes cluster in the Crossplane
-installation namespace. 
-
-`StoreConfig.configRef` will be an optional parameters and **in its absence**:
-
-- For cluster-scoped resources (e.g. `MR` and `XR`), it will be late initialized
-as `configRef.name=default`.
-- For namespaced resources (e.g. `XRC`), secrets published to the same
-namespace as the resource.
+installation namespace.`publishConnectionDetailsTo.configRef` will be optional
+and **in its absence**, it will be late initialized as `configRef.name=default`.
 
 **Examples:**
 
@@ -198,7 +192,7 @@ spec:
 Currently, platform operators could specify where should composite resource
 secrets land using the partial input `writeConnectionSecretsToNamespace`. We
 will similarly deprecate this field in favor of
-`publishConnectionDetailsToStore`.
+`publishConnectionDetailsToStoreConfigRef`.
 
 **Examples:**
 
@@ -208,31 +202,28 @@ crossplane installed.
 
 ```yaml
 spec:
-  publishConnectionDetailsToStore: default
+  publishConnectionDetailsToStoreConfigRef: default
 ```
 
 **Composition** configuring to publish to another namespace, e.g. 
 `infrastructure-staging`, where a `StoreConfig` named
-`store-infrastructure-staging` created with namespace parameter as
+`store-infrastructure-staging` created with `defaultScope` parameter as
 `infrastructure-staging`.
 
 ```yaml
 spec:
-  publishConnectionDetailsToStore: store-infrastructure-staging
+  publishConnectionDetailsToStoreConfigRef: store-infrastructure-staging
 ```
 
 **Composition** configuring to publish to vault.
 
 ```yaml
 spec:
-  publishConnectionDetailsToStore: vault-production
+  publishConnectionDetailsToStoreConfigRef: vault-production
 ```
 
-**Claim** resources requires some additional logic since they are namespaced but
-need a Cluster scoped `StoreConfig`. They will always use the `default`
-`StoreConfig` and if it is configured for local Kubernetes, secret will be
-written into the **Claim** namespace instead of namespace configured in `default`
-`StoreConfig`.
+For **Claim** resources, claim namespace will be used as a scope instead of the
+`defaultScope` in `StoreConfig`.
 
 ```yaml
 spec:
@@ -254,6 +245,14 @@ differences is the direction of operation; Crossplane needs to _publish to_
 external stores whereas those tools targets the opposite, that is
 _fetching from_ external stores.
 
+Since we are mapping namespaced secret resources to a cluster scoped
+StoreConfig, we need to handle same secret names coming from different
+namespaces with some store specific scoping. This would be `namespace` for
+Kubernetes, a parent directory for Vault or simply prefixing the name of the
+secret if the secret store does not have a concept for scoping. We will have
+a `spec.defaultScope` field in `StoreConfig` to be used for cluster scoped
+resources.
+
 **Examples:**
 
 Publish to Vault under parent path `secret/my-cloud/dev/` using Kubernetes auth:
@@ -262,9 +261,15 @@ Publish to Vault under parent path `secret/my-cloud/dev/` using Kubernetes auth:
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
-  name: vault-platform
+  name: vault-default
 spec:
   type: Vault
+  # defaultScope used for scoping secrets for cluster scoped resources. 
+  # For example, secrets for MRs will land under 
+  # "secret/my-cloud/dev/crossplane-system" path in Vault with this StoreConfig.
+  # However, secret claims in `team-a` namespace will go to 
+  # "secret/my-cloud/dev/team-a".
+  defaultScope: crossplane-system
   vault:
     server: "https://vault.acme.org"
     # parentPath is the parent path that will be prepended to the secrets
@@ -286,9 +291,10 @@ Publish with an _out-of-tree Secret Plugin_ (for future support, if needed):
 apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
-  name: vault-platform
+  name: acme-secretstore
 spec:
   type: Plugin
+  defaultScope: crossplane-system
   plugin:
     name: plugin-x
     endpoint: unix:///tmp/plugin-x.sock
@@ -334,6 +340,7 @@ metadata:
   name: vault-default
 spec:
   type: Vault
+  defaultScope: crossplane-system
   vault:
     server: "https://vault.acme.org"
     parentPath: "secret/my-cloud/dev/"
@@ -354,6 +361,7 @@ metadata:
   name: vault-default
 spec:
   type: Vault
+  defaultScope: crossplane-system
   vault:
     server: "https://vault.acme.org"
     parentPath: "secret/my-cloud/dev/"
@@ -425,8 +433,8 @@ type ConnectionSecretPublisherTo interface {
 
 type ConnectionSecretConfig struct {
 	Name string `json:"name"`
-	Kubernetes *KubernetesConnectionSecretConfig `json:"kubernetes"`
-	ExternalStore *ExternalConnectionSecretConfig `json:"externalStore"`
+	Attributes map[string]interface{} `json:"attributes"`
+	ConfigRef *SecretStoreConfig `json:"configRef"`
 }
 ```
 
@@ -459,9 +467,9 @@ apiVersion: secrets.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
   name: kubernetes-cluster-1
-  namespace: team-a
 spec:
   type: Kubernetes
+  defaultScope: crossplane-system
   kubernetes:
     namespace: backend-dev
     auth:
