@@ -28,6 +28,8 @@ documentation].
 |   v1.5  |     [v1.5.1]    | Oct 26, 2021 | April 2022    |
 |   v1.6  |     Upcoming    | Dec 21, 2021 | June 2022    |
 
+You can subscribe to [release calendar] to track all release dates.
+
 [v1.3.3]: https://github.com/crossplane/crossplane/releases/tag/v1.3.3
 [v1.4.3]: https://github.com/crossplane/crossplane/releases/tag/v1.4.3
 [v1.5.1]: https://github.com/crossplane/crossplane/releases/tag/v1.5.1
@@ -75,3 +77,4 @@ Crossplane is under the Apache 2.0 license.
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [roadmap]: https://github.com/orgs/crossplane/projects/12
 [cncf]: https://www.cncf.io/
+[release calendar]: https://calendar.google.com/calendar/u/0/embed?src=c_uttnrqr6t7r167uf57nja58mdc@group.calendar.google.com
