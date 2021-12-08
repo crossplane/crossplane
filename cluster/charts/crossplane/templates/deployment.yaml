@@ -4,13 +4,14 @@ metadata:
   name: {{ template "crossplane.name" . }}
   labels:
     app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
     {{- include "crossplane.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.replicas }}
   selector:
     matchLabels:
       app: {{ template "crossplane.name" . }}
-      {{- include "crossplane.selectorLabels" . | indent 6 }}
+      release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
   template:
@@ -23,6 +24,7 @@ spec:
       {{- end }}
       labels:
         app: {{ template "crossplane.name" . }}
+        release: {{ .Release.Name }}
         {{- include "crossplane.labels" . | indent 8 }}
     spec:
       securityContext:
