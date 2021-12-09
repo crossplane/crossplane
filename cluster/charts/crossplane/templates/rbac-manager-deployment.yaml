@@ -5,13 +5,14 @@ metadata:
   name: {{ template "crossplane.name" . }}-rbac-manager
   labels:
     app: {{ template "crossplane.name" . }}-rbac-manager
+    release: {{ .Release.Name }}
     {{- include "crossplane.labels" . | indent 4 }}
 spec:
   replicas: {{ .Values.rbacManager.replicas }}
   selector:
     matchLabels:
       app: {{ template "crossplane.name" . }}-rbac-manager
-      {{- include "crossplane.selectorLabels" . | indent 6 }}
+      release: {{ .Release.Name }}
   strategy:
     type: {{ .Values.deploymentStrategy }}
   template:
@@ -24,6 +25,7 @@ spec:
       {{- end }}
       labels:
         app: {{ template "crossplane.name" . }}-rbac-manager
+        release: {{ .Release.Name }}
         {{- include "crossplane.labels" . | indent 8 }}
     spec:
       securityContext:

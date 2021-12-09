@@ -21,19 +21,12 @@ helm.sh/chart: {{ include "crossplane.chart" . }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 app.kubernetes.io/component: cloud-infrastructure-controller
 app.kubernetes.io/part-of: {{ template "crossplane.name" . }}
-{{- include "crossplane.selectorLabels" . }}
+app.kubernetes.io/name: {{ include "crossplane.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 {{- if .Values.customLabels }}
 {{ toYaml .Values.customLabels }}
 {{- end }}
-{{- end }}
-
-{{/*
-Selector labels
-*/}}
-{{- define "crossplane.selectorLabels" }}
-app.kubernetes.io/name: {{ include "crossplane.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
