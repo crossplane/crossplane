@@ -55,6 +55,10 @@ securityContextCrossplane:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
 
+serviceAccount:
+  crossplane:
+    create: true
+
 packageCache:
   medium: ""
   sizeLimit: 5Mi

@@ -87,6 +87,7 @@ and their default values.
 | `securityContextCrossplane.runAsGroup` | Run as group for Crossplane | `65532` |
 | `securityContextCrossplane.allowPrivilegeEscalation` | Allow privilege escalation for Crossplane | `false` |
 | `securityContextCrossplane.readOnlyRootFilesystem` | ReadOnly root filesystem for Crossplane | `true` |
+| `serviceAccount.crossplane.create` | Setting to `false` means the crossplane ServiceAccount is managed outside this chart | `true` |
 | `provider.packages` | The list of Provider packages to install together with Crossplane | `[]` |
 | `configuration.packages` | The list of Configuration packages to install together with Crossplane | `[]` |
 | `packageCache.medium` | Storage medium for package cache. `Memory` means volume will be backed by tmpfs, which can be useful for development. | `""` |
