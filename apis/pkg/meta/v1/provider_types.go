@@ -33,7 +33,7 @@ type ProviderSpec struct {
 // controller.
 type ControllerSpec struct {
 	// Image is the packaged Provider controller image.
-	Image string `json:"image"`
+	Image *string `json:"image,omitempty"`
 
 	// PermissionRequests for RBAC rules required for this provider's controller
 	// to function. The RBAC manager is responsible for assessing the requested
