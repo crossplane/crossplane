@@ -44,7 +44,7 @@ const (
 	namespace = "ns"
 )
 
-func deployment(provider *pkgmetav1.Provider, revision string, modifiers ...deploymentModifier) *appsv1.Deployment {
+func deployment(provider *pkgmetav1.Provider, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
 	var (
 		replicas = int32(1)
 	)
@@ -76,7 +76,7 @@ func deployment(provider *pkgmetav1.Provider, revision string, modifiers ...depl
 					Containers: []corev1.Container{
 						{
 							Name:            provider.GetName(),
-							Image:           provider.Spec.Controller.Image,
+							Image:           img,
 							ImagePullPolicy: corev1.PullIfNotPresent,
 							Ports: []corev1.ContainerPort{
 								{
@@ -105,13 +105,26 @@ func TestBuildProviderDeployment(t *testing.T) {
 		cc       *v1alpha1.ControllerConfig
 	}
 
-	provider := &pkgmetav1.Provider{
+	img := "img:tag"
+	pkgImg := "pkg-img:tag"
+	ccImg := "cc-img:tag"
+
+	providerWithoutImage := &pkgmetav1.Provider{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pkg",
+		},
+		Spec: pkgmetav1.ProviderSpec{
+			Controller: pkgmetav1.ControllerSpec{},
+		},
+	}
+
+	providerWithImage := &pkgmetav1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pkg",
 		},
 		Spec: pkgmetav1.ProviderSpec{
 			Controller: pkgmetav1.ControllerSpec{
-				Image: "img:tag",
+				Image: &img,
 			},
 		},
 	}
@@ -122,7 +135,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 		},
 		Spec: v1.PackageRevisionSpec{
 			ControllerConfigReference: nil,
-			Package:                   "package",
+			Package:                   pkgImg,
 			Revision:                  3,
 		},
 	}
@@ -133,7 +146,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 		},
 		Spec: v1.PackageRevisionSpec{
 			ControllerConfigReference: &xpv1.Reference{Name: "cc"},
-			Package:                   "package",
+			Package:                   pkgImg,
 			Revision:                  3,
 		},
 	}
@@ -148,30 +161,43 @@ func TestBuildProviderDeployment(t *testing.T) {
 					"k": "v",
 				},
 			},
+			Image: &ccImg,
 		},
 	}
 
 	cases := map[string]struct {
+		reason string
 		fields fields
 		want   *appsv1.Deployment
 	}{
-		"MissingCC": {
+		"NoImgNoCC": {
+			reason: "If the meta provider does not specify a controller image and no ControllerConfig is referenced, the package image itself should be used.",
 			fields: fields{
-				provider: provider,
+				provider: providerWithoutImage,
 				revision: revisionWithoutCC,
 				cc:       nil,
 			},
-			want: deployment(provider, revisionWithCC.GetName()),
+			want: deployment(providerWithoutImage, revisionWithCC.GetName(), pkgImg),
 		},
-		"CC": {
+		"ImgNoCC": {
+			reason: "If the meta provider specifies a controller image and no ControllerConfig is reference, the specified image should be used.",
 			fields: fields{
-				provider: provider,
+				provider: providerWithImage,
+				revision: revisionWithoutCC,
+				cc:       nil,
+			},
+			want: deployment(providerWithoutImage, revisionWithCC.GetName(), img),
+		},
+		"ImgCC": {
+			reason: "If a ControllerConfig is referenced and it species a controller image it should always be used.",
+			fields: fields{
+				provider: providerWithImage,
 				revision: revisionWithCC,
 				cc:       cc,
 			},
-			want: deployment(provider, revisionWithCC.GetName(), withPodTemplateLabels(map[string]string{
+			want: deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
 				"pkg.crossplane.io/revision": revisionWithCC.GetName(),
-				"pkg.crossplane.io/provider": provider.GetName(),
+				"pkg.crossplane.io/provider": providerWithImage.GetName(),
 				"k":                          "v",
 			})),
 		},
