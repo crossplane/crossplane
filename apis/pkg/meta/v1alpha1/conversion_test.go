@@ -120,17 +120,13 @@ func TestConvertTo(t *testing.T) {
 			reason: "It should be possible to convert a minimal *v1alpha1.Provider to a *v1.Provider.",
 			c: &Provider{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
-				Spec: ProviderSpec{
-					Controller: ControllerSpec{Image: ctrl},
-				},
+				Spec:       ProviderSpec{},
 			},
 			hub: &v1.Provider{},
 			want: want{
 				hub: &v1.Provider{
 					ObjectMeta: metav1.ObjectMeta{Name: name},
-					Spec: v1.ProviderSpec{
-						Controller: v1.ControllerSpec{Image: ctrl},
-					},
+					Spec:       v1.ProviderSpec{},
 				},
 			},
 		},
@@ -140,7 +136,7 @@ func TestConvertTo(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec: ProviderSpec{
 					Controller: ControllerSpec{
-						Image: ctrl,
+						Image: &ctrl,
 						PermissionRequests: []rbacv1.PolicyRule{
 							{
 								NonResourceURLs: []string{url},
@@ -169,7 +165,7 @@ func TestConvertTo(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: name},
 					Spec: v1.ProviderSpec{
 						Controller: v1.ControllerSpec{
-							Image: ctrl,
+							Image: &ctrl,
 							PermissionRequests: []rbacv1.PolicyRule{
 								{
 									NonResourceURLs: []string{url},
@@ -302,14 +298,14 @@ func TestConvertFrom(t *testing.T) {
 			hub: &v1.Provider{
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec: v1.ProviderSpec{
-					Controller: v1.ControllerSpec{Image: ctrl},
+					Controller: v1.ControllerSpec{},
 				},
 			},
 			want: want{
 				c: &Provider{
 					ObjectMeta: metav1.ObjectMeta{Name: name},
 					Spec: ProviderSpec{
-						Controller: ControllerSpec{Image: ctrl},
+						Controller: ControllerSpec{},
 					},
 				},
 			},
@@ -321,7 +317,7 @@ func TestConvertFrom(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: name},
 				Spec: v1.ProviderSpec{
 					Controller: v1.ControllerSpec{
-						Image: ctrl,
+						Image: &ctrl,
 						PermissionRequests: []rbacv1.PolicyRule{
 							{
 								NonResourceURLs: []string{url},
@@ -349,7 +345,7 @@ func TestConvertFrom(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Name: name},
 					Spec: ProviderSpec{
 						Controller: ControllerSpec{
-							Image: ctrl,
+							Image: &ctrl,
 							PermissionRequests: []rbacv1.PolicyRule{
 								{
 									NonResourceURLs: []string{url},
