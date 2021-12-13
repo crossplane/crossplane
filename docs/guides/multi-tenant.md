@@ -192,7 +192,7 @@ infrastructure admins by both Kubernetes and Crossplane.
 
 Building on our simple `XMySQLInstance` / `MySQLInstance` example, a platform
 builder may choose to define permissions on `MySQLInstance` at the namespace
-scope using a `Role`. This allows for giving users the ability to create and and
+scope using a `Role`. This allows for giving users the ability to create and
 manage `MySQLInstances` in their given namespace, but not the ability to see
 those defined in other namespaces.
 
