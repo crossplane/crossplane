@@ -95,8 +95,6 @@ spec:
                       - verbs
                       type: object
                     type: array
-                required:
-                - image
                 type: object
               crossplane:
                 description: Semantic version constraints of Crossplane that package
@@ -217,8 +215,6 @@ spec:
                       - verbs
                       type: object
                     type: array
-                required:
-                - image
                 type: object
               crossplane:
                 description: Semantic version constraints of Crossplane that package
