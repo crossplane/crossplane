@@ -607,7 +607,14 @@ func TestClaimConfigure(t *testing.T) {
 								},
 							},
 							"spec": map[string]interface{}{
+								// This user-defined field should be propagated.
 								"coolness": 23,
+
+								// These machinery fields should be propagated.
+								"compositionSelector":     "sel",
+								"compositionRef":          "ref",
+								"compositionRevisionRef":  "ref",
+								"compositionUpdatePolicy": "pol",
 
 								// These should be filtered out.
 								"resourceRefs": "ref",
@@ -632,6 +639,10 @@ func TestClaimConfigure(t *testing.T) {
 							"spec": map[string]interface{}{
 								"someField":                  "someValue",
 								"coolness":                   23,
+								"compositionSelector":        "sel",
+								"compositionRef":             "ref",
+								"compositionRevisionRef":     "ref",
+								"compositionUpdatePolicy":    "pol",
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
 							},
