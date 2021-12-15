@@ -25,8 +25,8 @@ documentation].
 |:-------:|:---------------:|:------------:|:-------------:|
 |   v1.3  |     [v1.3.3]    | Jun 29, 2021 | December 2021 |
 |   v1.4  |     [v1.4.3]    | Aug 31, 2021 | February 2022 |
-|   v1.5  |     [v1.5.1]    | Oct 26, 2021 | April 2022    |
-|   v1.6  |     Upcoming    | Dec 21, 2021 | June 2022    |
+|   v1.5  |     [v1.5.1]    | Oct 26, 2021 | May 2022      |
+|   v1.6  |     Upcoming    | Jan 4, 2021  | June 2022     |
 
 You can subscribe to [release calendar] to track all release dates.
 
