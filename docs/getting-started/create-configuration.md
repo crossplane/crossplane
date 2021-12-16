@@ -571,10 +571,10 @@ metadata:
     vpc: default
 spec:
   crossplane:
-    version: ">=v1.2.0-0"
+    version: ">=v1.4.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: "v0.18.2"
+      version: ">=v0.18.2"
 ```
 
 ```console
@@ -611,10 +611,10 @@ metadata:
     vpc: new
 spec:
   crossplane:
-    version: ">=v1.2.0-0"
+    version: ">=v1.4.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: "v0.18.2"
+      version: ">=v0.18.2"
 ```
 
 ```console
@@ -650,7 +650,7 @@ metadata:
     provider: gcp
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.4.0-0"
   dependsOn:
     - provider: crossplane/provider-gcp
       version: ">=v0.13.0"
@@ -689,7 +689,7 @@ metadata:
     provider: azure
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.4.0-0"
   dependsOn:
     - provider: crossplane/provider-azure
       version: ">=v0.13.0"

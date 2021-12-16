@@ -7,7 +7,7 @@ metadata:
     provider: gcp
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.4.0-0"
   dependsOn:
     - provider: crossplane/provider-gcp
       version: ">=v0.13.0"
