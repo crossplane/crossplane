@@ -8,7 +8,7 @@ on:
   workflow_dispatch: {}
 
 env:
-  DOCKER_USR: ${{ secrets.UPBOUND_ROBOT_USR }}
+  DOCKER_USR: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
 
 jobs:
   getting-started-with-aws:
@@ -29,8 +29,8 @@ jobs:
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
-          username: ${{ secrets.UPBOUND_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+          username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
@@ -62,8 +62,8 @@ jobs:
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
-          username: ${{ secrets.UPBOUND_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+          username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
@@ -95,8 +95,8 @@ jobs:
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
-          username: ${{ secrets.UPBOUND_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+          username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
@@ -128,8 +128,8 @@ jobs:
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
-          username: ${{ secrets.UPBOUND_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_ROBOT_PSW }}
+          username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
+          password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
