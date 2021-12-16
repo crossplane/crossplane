@@ -117,7 +117,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.18.1
+  package: crossplane/provider-aws:v0.22.0
   controllerConfigRef:
     name: debug-config
 ```
@@ -163,7 +163,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.18.1
+  package: crossplane/provider-aws:v0.22.0
   controllerConfigRef:
     name: scale-config
 ```
@@ -258,7 +258,7 @@ the dependency package even it says the dependency is found. This may lead to an
 incompatible dependency error during the installation.
 
 Below is an example where a Configuration package depends on a provider pulled 
-from `crossplane/provider-aws`. It defines `">v0.16.0-0` as the version 
+from `crossplane/provider-aws`. It defines `">=v0.18.2` as the version 
 constraint which means all versions after `v0.16.0` including all prerelease 
 versions, in the form of `-xyz` after the normal version string, will be 
 considered when Crossplane tries to find the best match.
@@ -272,10 +272,10 @@ metadata:
     provider: aws
 spec:
   crossplane:
-    version: ">=v1.0.0-0"
+    version: ">=v1.4.0-0"
   dependsOn:
     - provider: crossplane/provider-aws
-      version: ">v0.16.0-0"
+      version: ">=v0.18.2"
 ```
 
 <!-- Named Links -->
