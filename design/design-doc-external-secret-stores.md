@@ -128,7 +128,7 @@ We will end up having a unified configuration spec for all external secret store
 types which contains the name field (`name`) and a reference to any additional
 store specific configuration (`configRef`). This would be enough to uniquely
 identify and access any secret instance, however there could still be some
-additional attributes or metadata specific to store type that might be desired
+additional metadata specific to store type that might be desired
 to be set per secret instance. For example, `labels`, `annotations` and `type`
 of the secret in _Kubernetes_; `Tags` and `EncryptionKey` in _AWS_.
 
@@ -165,7 +165,7 @@ Publish Connection details to a _Kubernetes_ secret with some labels/annotations
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    attributes:
+    metadata:
       labels:
         environment: production
       annotations:
@@ -180,7 +180,7 @@ Publish Connection details to an _AWS Secret Manager_ secret with some tags:
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    attributes:
+    metadata:
       tags:
         environment: production
     configRef:
@@ -234,7 +234,7 @@ spec:
 #### External Secret Store Configuration: StoreConfig
 
 External secret store configuration will contain the required information other
-than the name (and optional attributes) of secret. Thanks to
+than the name (and optional metadata) of secret. Thanks to
 [the standardization efforts] on a declarative API for syncing secrets from
 external stores into Kubernetes, there is already an [existing schema] that we
 can follow here. However, there will be slight differences since we want to
@@ -433,7 +433,7 @@ type ConnectionSecretPublisherTo interface {
 
 type ConnectionSecretConfig struct {
 	Name string `json:"name"`
-	Attributes map[string]interface{} `json:"attributes"`
+	Metadata map[string]interface{} `json:"metadata"`
 	ConfigRef *SecretStoreConfig `json:"configRef"`
 }
 ```
@@ -507,7 +507,7 @@ as follows:
 spec:
   publishConnectionDetailsTo:
     name: my-db-connection
-    attributes:
+    metadata:
       annotations:
         acme.example.io/secret-type: infrastructure
     template: |
