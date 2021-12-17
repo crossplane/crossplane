@@ -18,6 +18,16 @@ requirements detailed in [OCI image specification]. It is divided into two broad
 sections: requirements related to OCI image format and requirements related to
 Crossplane `package.yaml` contents.
 
+- [OCI Image Format](#oci-image-format)
+  - [Indexes](#indexes)
+  - [Manifests](#manifests)
+  - [Configuration](#configuration)
+  - [Layers](#layers)
+- [package.yaml Contents](#packageyaml-contents)
+  - [Configuration Package Requirements](#configuration-package-requirements)
+  - [Provider Package Requirements](#provider-package-requirements)
+  - [Object Annotations](#object-annotations)
+
 ## OCI Image Format
 
 OCI images are comprised of [manifests], [configuration], and [layers].
@@ -80,7 +90,12 @@ If no layer descriptors have an annotation in the form `io.crossplane.xpkg:
 base`, the resultant filesystem from [applying changesets] from all layers will
 be used.
 
-> Crossplane prefers the usage of layers to define additive package content as it provides a clean mechanism to build an `xpkg` through a series of stages. A valid `xpkg` can be produced and later modified while verifying that the integrity of the existing content is not violated, which ensures that Crossplane's package manager will process the resulting `xpkg` in the same manner as the it would prior to modification.
+> Crossplane prefers the usage of layers to define additive package content as
+> it provides a clean mechanism to build an `xpkg` through a series of stages. A
+> valid `xpkg` can be produced and later modified while verifying that the
+> integrity of the existing content is not violated, which ensures that
+> Crossplane's package manager will process the resulting `xpkg` in the same
+> manner as the it would prior to modification.
 
 ### Configuration
 
@@ -126,7 +141,7 @@ requirements:
   objects MAY be defined in the YAML stream.
 - Zero (0) or more `Composition.apiextensions.crossplane.io` objects MAY be
   defined in the YAML stream.
-- No other object types may be defined in the YAML stream.
+- Zero (0) other object types may be defined in the YAML stream.
 
 ### Provider Package Requirements
 
@@ -172,6 +187,7 @@ other objects in a package are propagated to their in-cluster representation
 unmodified.
 
 <!-- Named Links -->
+
 [packages]: ../concepts/packages.md
 [OCI images]: https://github.com/opencontainers/image-spec
 [OCI image specification]: https://github.com/opencontainers/image-spec/blob/main/spec.md
