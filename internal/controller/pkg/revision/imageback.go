@@ -73,6 +73,14 @@ func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher, opts ...ImageBacken
 
 // Init initializes an ImageBackend.
 func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) {
+	// NOTE(hasheddan): we use nestedBackend here because simultaneous
+	// reconciles of providers or configurations can lead to the package
+	// revision being overwritten mid-execution in the shared image backend when
+	// it is a member of the image backend struct. We could introduce a lock
+	// here, but there is no reason why a given reconcile should require
+	// exclusive access to the image backend other than its poor design. We
+	// should consider restructuring the parser backend interface to better
+	// accommodate for shared, thread-safe backends.
 	n := &nestedBackend{}
 	for _, o := range bo {
 		o(n)
@@ -121,6 +129,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 // nestedBackend is a nop parser backend that conforms to the parser backend
 // interface to allow holding intermediate data passed via parser backend
 // options.
+// NOTE(hasheddan): see usage in ImageBackend Init() for reasoning.
 type nestedBackend struct {
 	pr v1.PackageRevision
 }
