@@ -17,7 +17,7 @@ managed resource.
 
 > If there is a corresponding Terraform Provider, please consider generating
 a Crossplane Provider with [Terrajet] by following the
-[Generation a Crossplane Provider guide].
+[Generating a Crossplane Provider guide].
 
 > If you plan to implement a managed resource for AWS, please see the
 [code generation guide].
@@ -657,5 +657,5 @@ feedback you may have about the development process!
 [`angryjet` documentation]: https://github.com/crossplane/crossplane-tools/blob/master/README.md
 [code generation guide]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
 [Terrajet]: https://github.com/crossplane/terrajet
-[Generation a Crossplane Provider guide]: https://github.com/crossplane/terrajet/blob/main/docs/generating-a-provider.md
+[Generating a Crossplane Provider guide]: https://github.com/crossplane/terrajet/blob/main/docs/generating-a-provider.md
 [provider-template]: https://github.com/crossplane/provider-template
