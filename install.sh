@@ -21,8 +21,8 @@ unsupported_arch() {
 }
 
 case $OS in
-  CYGWIN* | MINGW64*)
-    if [ $ARCH = "amd64" ]
+  CYGWIN* | MINGW64* | Windows*)
+    if [ $ARCH = "x86_64" ]
     then
       OS_ARCH=windows_amd64
       BIN=crank.exe
