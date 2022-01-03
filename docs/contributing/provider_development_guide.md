@@ -15,6 +15,10 @@ kind of managed resource to a Crossplane Provider.
 > You can watch [TBS Episode 18] to follow along the live implementation of GCP PubSub
 managed resource.
 
+> If there is a corresponding Terraform Provider, please consider generating
+a Crossplane Provider with [Terrajet] by following the
+[Generating a Crossplane Provider guide].
+
 > If you plan to implement a managed resource for AWS, please see the
 [code generation guide].
 
@@ -69,6 +73,12 @@ the "[golden path]". They're well supported, broadly used, and provide a shared
 language with the Crossplane community. This guide targets [crossplane-runtime
 v0.9.0]. It assumes the reader is familiar with the Kubernetes [API Conventions]
 and the [kubebuilder book].
+
+> If you are building a new provider from scratch, instead of adding new
+resources to an already existing one, please use [provider-template] repository
+as a template by hitting the `Use this template` button in GitHub UI. It
+codifies most of the best practices used by the Crossplane community so far and
+is the easiest way to start a new provider.
 
 ## Defining Resource Kinds
 
@@ -646,3 +656,6 @@ feedback you may have about the development process!
 [Crossplane CLI]: https://github.com/crossplane/crossplane-cli#quick-start-stacks
 [`angryjet` documentation]: https://github.com/crossplane/crossplane-tools/blob/master/README.md
 [code generation guide]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
+[Terrajet]: https://github.com/crossplane/terrajet
+[Generating a Crossplane Provider guide]: https://github.com/crossplane/terrajet/blob/main/docs/generating-a-provider.md
+[provider-template]: https://github.com/crossplane/provider-template
