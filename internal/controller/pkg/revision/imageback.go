@@ -44,7 +44,6 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	pr       v1.PackageRevision
 	registry string
 	cache    xpkg.Cache
 	fetcher  xpkg.Fetcher
@@ -74,35 +73,44 @@ func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher, opts ...ImageBacken
 
 // Init initializes an ImageBackend.
 func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) {
+	// NOTE(hasheddan): we use nestedBackend here because simultaneous
+	// reconciles of providers or configurations can lead to the package
+	// revision being overwritten mid-execution in the shared image backend when
+	// it is a member of the image backend struct. We could introduce a lock
+	// here, but there is no reason why a given reconcile should require
+	// exclusive access to the image backend other than its poor design. We
+	// should consider restructuring the parser backend interface to better
+	// accommodate for shared, thread-safe backends.
+	n := &nestedBackend{}
 	for _, o := range bo {
-		o(i)
+		o(n)
 	}
 	var img regv1.Image
 	var err error
 
-	pullPolicy := i.pr.GetPackagePullPolicy()
+	pullPolicy := n.pr.GetPackagePullPolicy()
 	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
 		// If package is pre-cached we assume there are never multiple tags in
 		// the same image.
-		img, err = i.cache.Get("", i.pr.GetSource())
+		img, err = i.cache.Get("", n.pr.GetSource())
 		if err != nil {
 			return nil, errors.Wrap(err, errPullPolicyNever)
 		}
 	} else {
 		// Ensure source is a valid image reference.
-		ref, err := name.ParseReference(i.pr.GetSource(), name.WithDefaultRegistry(i.registry))
+		ref, err := name.ParseReference(n.pr.GetSource(), name.WithDefaultRegistry(i.registry))
 		if err != nil {
 			return nil, errors.Wrap(err, errBadReference)
 		}
 		// Attempt to fetch image from cache.
-		img, err = i.cache.Get(i.pr.GetSource(), i.pr.GetName())
+		img, err = i.cache.Get(n.pr.GetSource(), n.pr.GetName())
 		if err != nil {
-			img, err = i.fetcher.Fetch(ctx, ref, v1.RefNames(i.pr.GetPackagePullSecrets())...)
+			img, err = i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
 			if err != nil {
 				return nil, errors.Wrap(err, errFetchPackage)
 			}
 			// Cache image.
-			if err := i.cache.Store(i.pr.GetSource(), i.pr.GetName(), img); err != nil {
+			if err := i.cache.Store(n.pr.GetSource(), n.pr.GetName(), img); err != nil {
 				return nil, errors.Wrap(err, errCachePackage)
 			}
 		}
@@ -118,10 +126,24 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	return f, nil
 }
 
+// nestedBackend is a nop parser backend that conforms to the parser backend
+// interface to allow holding intermediate data passed via parser backend
+// options.
+// NOTE(hasheddan): see usage in ImageBackend Init() for reasoning.
+type nestedBackend struct {
+	pr v1.PackageRevision
+}
+
+// Init is a nop because nestedBackend does not actually meant to act as a
+// parser backend.
+func (n *nestedBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) {
+	return nil, nil
+}
+
 // PackageRevision sets the package revision for ImageBackend.
 func PackageRevision(pr v1.PackageRevision) parser.BackendOption {
 	return func(p parser.Backend) {
-		i, ok := p.(*ImageBackend)
+		i, ok := p.(*nestedBackend)
 		if !ok {
 			return
 		}
