@@ -18,12 +18,4 @@ limitations under the License.
 
 package v1beta1
 
-type ConfigurationExpansion interface{}
-
-type ConfigurationRevisionExpansion interface{}
-
 type LockExpansion interface{}
-
-type ProviderExpansion interface{}
-
-type ProviderRevisionExpansion interface{}
