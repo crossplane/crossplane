@@ -40,38 +40,6 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Configuation type metadata.
-var (
-	ConfigurationKind             = reflect.TypeOf(Configuration{}).Name()
-	ConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationKind}.String()
-	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
-	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
-)
-
-// ConfigurationRevision type metadata.
-var (
-	ConfigurationRevisionKind             = reflect.TypeOf(ConfigurationRevision{}).Name()
-	ConfigurationRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationRevisionKind}.String()
-	ConfigurationRevisionKindAPIVersion   = ConfigurationRevisionKind + "." + SchemeGroupVersion.String()
-	ConfigurationRevisionGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationRevisionKind)
-)
-
-// Provider type metadata.
-var (
-	ProviderKind             = reflect.TypeOf(Provider{}).Name()
-	ProviderGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderKind}.String()
-	ProviderKindAPIVersion   = ProviderKind + "." + SchemeGroupVersion.String()
-	ProviderGroupVersionKind = SchemeGroupVersion.WithKind(ProviderKind)
-)
-
-// ProviderRevision type metadata.
-var (
-	ProviderRevisionKind             = reflect.TypeOf(ProviderRevision{}).Name()
-	ProviderRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderRevisionKind}.String()
-	ProviderRevisionKindAPIVersion   = ProviderRevisionKind + "." + SchemeGroupVersion.String()
-	ProviderRevisionGroupVersionKind = SchemeGroupVersion.WithKind(ProviderRevisionKind)
-)
-
 // Lock type metadata.
 var (
 	LockKind             = reflect.TypeOf(Lock{}).Name()
@@ -81,9 +49,5 @@ var (
 )
 
 func init() {
-	SchemeBuilder.Register(&Configuration{}, &ConfigurationList{})
-	SchemeBuilder.Register(&ConfigurationRevision{}, &ConfigurationRevisionList{})
-	SchemeBuilder.Register(&Provider{}, &ProviderList{})
-	SchemeBuilder.Register(&ProviderRevision{}, &ProviderRevisionList{})
 	SchemeBuilder.Register(&Lock{}, &LockList{})
 }
