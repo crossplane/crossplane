@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -177,6 +178,52 @@ func TestPatchApply(t *testing.T) {
 					},
 				},
 				err: errNotFound("wat"),
+			},
+		},
+		"MergeOptionsKeepMapValues": {
+			reason: "Setting mergeOptions.keepMapValues = true adds new map values to existing ones",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					Policy: &PatchPolicy{
+						MergeOptions: &xpv1.MergeOptions{
+							KeepMapValues: pointer.BoolPtr(true),
+						},
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"labelone": "foo",
+							"labeltwo": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"labelthree": "baz",
+						},
+					},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"labelone":   "foo",
+							"labeltwo":   "bar",
+							"labelthree": "baz",
+						},
+					},
+				},
+				err: nil,
 			},
 		},
 		"FilterExcludeCompositeFieldPathPatch": {
