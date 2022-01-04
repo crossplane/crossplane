@@ -166,13 +166,13 @@ func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
 // patchFieldValueToObject, given a path, value and "to" object, will
 // apply the value to the "to" object at the given path, returning
 // any errors as they occur.
-func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object) error {
+func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
 	paved, err := fieldpath.PaveObject(to)
 	if err != nil {
 		return err
 	}
 
-	if err := paved.MergeValue(fieldPath, value, nil); err != nil {
+	if err := paved.MergeValue(fieldPath, value, mo); err != nil {
 		return err
 	}
 
@@ -205,13 +205,18 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 		return err
 	}
 
+	var mo *xpv1.MergeOptions
+	if c.Policy != nil {
+		mo = c.Policy.MergeOptions
+	}
+
 	// Apply transform pipeline
 	out, err := c.applyTransforms(in)
 	if err != nil {
 		return err
 	}
 
-	return patchFieldValueToObject(*c.ToFieldPath, out, to)
+	return patchFieldValueToObject(*c.ToFieldPath, out, to, mo)
 }
 
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of
@@ -276,7 +281,7 @@ func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	return patchFieldValueToObject(*c.ToFieldPath, out, to)
+	return patchFieldValueToObject(*c.ToFieldPath, out, to, nil)
 }
 
 // IsOptionalFieldPathNotFound returns true if the supplied error indicates a
