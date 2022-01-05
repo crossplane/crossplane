@@ -7,41 +7,34 @@ indent: true
 
 # Providers
 
-Providers extend Crossplane to enable infrastructure resource provisioning. In
-order to provision a resource, a Custom Resource Definition (CRD) needs to be
-registered in your Kubernetes cluster and its controller should be watching the
-Custom Resources those CRDs define. Provider packages contain many Custom
-Resource Definitions and their controllers.
+Providers are Crossplane packages that bundle a set of [Managed
+Resources][managed-resources] and their respective controllers to allow
+Crossplane to provision the respective infrastructure resource.
 
 Here is the list of prominent providers:
 
-### AWS Provider
+|   |   |   |   |
+|---|---|---|---|
+| Provider AWS  |  [GitHub Repo](https://github.com/crossplane/provider-aws) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-aws)  |  [Amazon Web Services (AWS) IAM User] |
+| Provider Jet AWS  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-jet-aws) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws) |   | 
+| Provider GCP |  [GitHub Repo](https://github.com/crossplane/provider-gcp) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-gcp) |   [Google Cloud Platform (GCP) Service Account] | 
+| Provider Jet GCP  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-jet-gcp) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-gcp)  |   | 
+| Provider Azure  | [GitHub Repo](https://github.com/crossplane/provider-azure) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-azure)  |  [Microsoft Azure Service Principal] | 
+| Provider Jet Azure  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-jet-azure) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-azure) |   | 
+| Provider Alibaba |  [GitHub Repo](https://github.com/crossplane/provider-alibaba) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-alibaba)  |   | 
+|   |   |   |   |
+| Provider Rook  |  [GitHub Repo](https://github.com/crossplane/provider-rook) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-rook)  |  |
+| Provider Helm  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-helm) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-helm)  |  |
+| Provider Terraform  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-terraform) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-terraform)  |  |
+| Provider Kubernetes  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-kubernetes) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-kubernetes)  |  |
+| Provider SQL | [GitHub Repo](https://github.com/crossplane-contrib/provider-sql) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-sql)  |  |
+| Provider Gitlab  | [GitHub Repo](https://github.com/crossplane-contrib/provider-gitlab) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-gitlab)  |  |
+| Provider Equinix Metal | [GitHub Repo](https://github.com/crossplane-contrib/provider-equinix-metal) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-equinix-metal)  |  |
+| Provider Digital Ocean | [GitHub Repo](https://github.com/crossplane-contrib/provider-digitalocean) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-digitalocean)  |  |
+| Provider Civo | [GitHub Repo](https://github.com/crossplane-contrib/provider-civo) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-civo)  |  |
+| Provider IBM Cloud | [GitHub Repo](https://github.com/crossplane-contrib/provider-ibm-cloud) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-civo)  |  |
+| Provider Argocd | [GitHub Repo](https://github.com/crossplane-contrib/provider-argocd) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-argocd)  |  |
 
-* [GitHub][provider-aws]
-* [API Reference][aws-reference]
-* [Amazon Web Services (AWS) IAM User]
-
-### GCP Provider
-
-* [GitHub][provider-gcp]
-* [API Reference][gcp-reference]
-* [Google Cloud Platform (GCP) Service Account]
-
-### Azure Provider
-
-* [GitHub][provider-azure]
-* [API Reference][azure-reference]
-* [Microsoft Azure Service Principal]
-
-### Rook Provider
-
-* [GitHub][provider-rook]
-* [API Reference][rook-reference]
-
-### Alibaba Cloud Provider
-
-* [GitHub][provider-alibaba]
-* [API Reference][alibaba-reference]
 
 ## Installing Providers
 
@@ -126,17 +119,8 @@ will attempt to use a `ProviderConfig` named `default`.
 
 <!-- Named Links -->
 
-[provider-aws]: https://github.com/crossplane/provider-aws
-[aws-reference]: https://doc.crds.dev/github.com/crossplane/provider-aws
-[provider-gcp]: https://github.com/crossplane/provider-gcp
-[gcp-reference]: https://doc.crds.dev/github.com/crossplane/provider-gcp
-[provider-azure]: https://github.com/crossplane/provider-azure
-[azure-reference]: https://doc.crds.dev/github.com/crossplane/provider-azure
-[provider-rook]: https://github.com/crossplane/provider-rook
-[rook-reference]: https://doc.crds.dev/github.com/crossplane/provider-rook
-[provider-alibaba]: https://github.com/crossplane/provider-alibaba
-[alibaba-reference]: https://doc.crds.dev/github.com/crossplane/provider-alibaba
 [getting-started]: ../getting-started/install-configure.md
 [Google Cloud Platform (GCP) Service Account]: ../cloud-providers/gcp/gcp-provider.md
 [Microsoft Azure Service Principal]: ../cloud-providers/azure/azure-provider.md
 [Amazon Web Services (AWS) IAM User]: ../cloud-providers/aws/aws-provider.md
+[managed-resources]: managed-resources.md
