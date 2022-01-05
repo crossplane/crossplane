@@ -92,7 +92,7 @@ func NewK8sFetcher(client kubernetes.Interface, namespace string, opts ...Fetche
 	k := &K8sFetcher{
 		client:    client,
 		namespace: namespace,
-		transport: http.DefaultTransport.(*http.Transport).Clone(),
+		transport: remote.DefaultTransport.Clone(),
 	}
 
 	for _, o := range opts {
