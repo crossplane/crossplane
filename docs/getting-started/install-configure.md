@@ -25,6 +25,7 @@ it easier to use in production environments.
 <div class="tab-content"> 
 <!-- Begin Upstream Tab -->
 <div class="tab-pane fade in active" id="using-upstream-crossplane" markdown="1">
+
 ## Start with Upstream Crossplane
 
 Installing Crossplane into an existing Kubernetes cluster will require a bit
