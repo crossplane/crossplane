@@ -57,7 +57,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: "crossplane/provider-aws:master"
+  package: "crossplane/provider-aws:v1.6.0"
 ```
 
 The field `spec.package` is where you refer to the container image of the
@@ -68,9 +68,9 @@ There are a few other ways to to trigger the installation of provider packages:
 
 * As part of Crossplane Helm chart by adding the following statement to your
   `helm install` command: `--set
-  provider.packages={crossplane/provider-aws:master}`.
+  provider.packages={crossplane/provider-aws:v1.6.0}`.
 * Using the Crossplane CLI: `kubectl crossplane install provider
-  crossplane/provider-aws:master`
+  crossplane/provider-aws:v1.6.0`
 
 You can uninstall a provider by deleting the `Provider` resource
 you've created.
