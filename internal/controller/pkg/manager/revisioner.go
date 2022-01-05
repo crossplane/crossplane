@@ -28,6 +28,7 @@ import (
 )
 
 const (
+	errBadReference = "package tag is not a valid reference"
 	errFetchPackage = "failed to fetch package digest from remote"
 )
 
@@ -76,7 +77,7 @@ func (r *PackageRevisioner) Revision(ctx context.Context, p v1.Package) (string,
 	}
 	ref, err := name.ParseReference(p.GetSource(), name.WithDefaultRegistry(r.registry))
 	if err != nil {
-		return "", err
+		return "", errors.Wrap(err, errBadReference)
 	}
 	d, err := r.fetcher.Head(ctx, ref, v1.RefNames(p.GetPackagePullSecrets())...)
 	if err != nil || d == nil {
