@@ -21,7 +21,7 @@ indent: true
 ## Requested Resource Not Found
 
 If you use the kubectl Crossplane plugin to install a `Provider` or `Configuration`
-(e.g. `kubectl crossplane install provider crossplane/provider-aws:master`) and
+(e.g. `kubectl crossplane install provider crossplane/provider-aws:v1.6.0`) and
 get `the server could not find the requested resource` error, more often than
 not, that is an indicator that the kubectl Crossplane you're using is outdated.
 In other words some Crossplane API has been graduated from alpha to beta or stable
