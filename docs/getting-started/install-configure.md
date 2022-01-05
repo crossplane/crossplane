@@ -8,7 +8,7 @@ indent: true
 # Choosing Your Crossplane Distribution
 
 Users looking to use Crossplane for the first time have two options available to
-them today. The first way option to use the upstream distribution of Crossplane 
+them today. The first way is to use the upstream distribution of Crossplane 
 which is maintained and released by the community. 
 
 Your second option is to use a vendor supported Crossplane distribution. These 
