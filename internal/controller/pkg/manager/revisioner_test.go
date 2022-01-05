@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-containerregistry/pkg/name"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -108,7 +107,7 @@ func TestPackageRevisioner(t *testing.T) {
 				},
 			},
 			want: want{
-				err: name.NewErrBadName("could not parse reference: " + "*THISISNOTVALID"),
+				err: errors.Wrap(errors.New("could not parse reference: *THISISNOTVALID"), errBadReference),
 			},
 		},
 		"ErrBadFetch": {
