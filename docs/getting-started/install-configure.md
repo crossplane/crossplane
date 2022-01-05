@@ -461,10 +461,14 @@ you can [provision infrastructure].
 
 ## More Info
 
-See [Install] and [Configure] docs for installing alternate versions and more
-detailed instructions.
+* See [Install] and [Configure] docs for installing alternate versions and more
+  detailed instructions.
 
-See [Uninstall] docs for cleaning up resources, packages, and Crossplane itself.
+* See [Uninstall] docs for cleaning up resources, packages, and Crossplane
+  itself.
+
+* See [Providers] for installing and using different providers beyond AWS, GCP
+  and Azure mentionded in this guide.
 
 <!-- Named Links -->
 
@@ -484,3 +488,4 @@ See [Uninstall] docs for cleaning up resources, packages, and Crossplane itself.
 [Create an account]: https://cloud.upbound.io/register
 [up]: https://github.com/upbound/up
 [Upbound documentation]: https://cloud.upbound.io/docs
+[Providers]: ../concepts/providers.md
