@@ -12,9 +12,9 @@ them today. The first way option to use the upstream distribution of Crossplane
 which is maintained and released by the community. 
 
 Your second option is to use a vendor supported Crossplane distribution. These 
-distributions are fully compatible with upstream Crossplane, but may include 
-additional features or tooling around it that makes it easier to use in 
-production environments. 
+distributions are [certified by the CNCF] to be conformant with upstream 
+Crossplane, but may include additional features or tooling around it that makes 
+it easier to use in production environments. 
 
 <ul class="nav nav-tabs"> 
 <li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Upstream Crossplane</a></li>
@@ -539,3 +539,4 @@ you can [provision infrastructure].
 [Providers]: ../concepts/providers.md
 [Universal Crossplane]: https://cloud.upbound.io/docs/uxp
 [Get started with Universal Crossplane]: https://cloud.upbound.io/docs/getting-started/
+[certified by the CNCF]: https://github.com/cncf/crossplane-conformance
