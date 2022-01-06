@@ -110,7 +110,7 @@ func (c *FakeProviderRevisions) UpdateStatus(ctx context.Context, providerRevisi
 // Delete takes name of the providerRevision and deletes it. Returns an error if one occurs.
 func (c *FakeProviderRevisions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(providerrevisionsResource, name), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootDeleteActionWithOptions(providerrevisionsResource, name, opts), &pkgv1.ProviderRevision{})
 	return err
 }
 
