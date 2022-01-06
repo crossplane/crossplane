@@ -28,6 +28,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
@@ -104,6 +105,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		MaxConcurrentReconciles: c.MaxReconcileRate,
 		PollInterval:            c.PollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
+		Features:                &feature.Flags{},
 	}
 
 	if c.EnableCompositionRevisions {
