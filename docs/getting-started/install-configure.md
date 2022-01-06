@@ -8,16 +8,16 @@ indent: true
 # Choosing Your Crossplane Distribution
 
 Users looking to use Crossplane for the first time have two options available to
-them today. The first way is to use the upstream distribution of Crossplane 
-which is maintained and released by the community. 
+them today. The first way is to use the version of Crossplane which is 
+maintained and released by the community and found on the [Crossplane GitHub].
 
-Your second option is to use a vendor supported Crossplane distribution. These 
-distributions are [certified by the CNCF] to be conformant with upstream 
-Crossplane, but may include additional features or tooling around it that makes 
-it easier to use in production environments. 
+The second option is to use a vendor supported Crossplane distribution. These 
+distributions are [certified by the CNCF] to be conformant with Crossplane, but 
+may include additional features or tooling around it that makes it easier to use 
+in production environments.
 
 <ul class="nav nav-tabs"> 
-<li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Upstream Crossplane</a></li>
+<li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Crossplane</a></li>
 <li><a href="#using-a-downstream-distro" data-toggle="tab">Downstream Distribution</a></li>
 </ul>
 <br>
@@ -541,3 +541,4 @@ you can [provision infrastructure].
 [Universal Crossplane]: https://cloud.upbound.io/docs/uxp
 [Get started with Universal Crossplane]: https://cloud.upbound.io/docs/getting-started/
 [certified by the CNCF]: https://github.com/cncf/crossplane-conformance
+[Crossplane GitHub]: https://github.com/crossplane/crossplane
