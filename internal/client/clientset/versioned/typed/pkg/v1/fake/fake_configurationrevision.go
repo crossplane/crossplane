@@ -110,7 +110,7 @@ func (c *FakeConfigurationRevisions) UpdateStatus(ctx context.Context, configura
 // Delete takes name of the configurationRevision and deletes it. Returns an error if one occurs.
 func (c *FakeConfigurationRevisions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(configurationrevisionsResource, name), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootDeleteActionWithOptions(configurationrevisionsResource, name, opts), &pkgv1.ConfigurationRevision{})
 	return err
 }
 

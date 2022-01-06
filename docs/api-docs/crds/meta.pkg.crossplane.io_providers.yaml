@@ -1,10 +1,9 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.6.2
+    controller-gen.kubebuilder.io/version: v0.8.0
   creationTimestamp: null
   name: providers.meta.pkg.crossplane.io
 spec:
@@ -80,14 +79,14 @@ spec:
                           type: array
                         resources:
                           description: Resources is a list of resources this rule
-                            applies to.  ResourceAll represents all resources.
+                            applies to. '*' represents all resources.
                           items:
                             type: string
                           type: array
                         verbs:
                           description: Verbs is a list of Verbs that apply to ALL
-                            the ResourceKinds and AttributeRestrictions contained
-                            in this rule.  VerbAll represents all kinds.
+                            the ResourceKinds contained in this rule. '*' represents
+                            all verbs.
                           items:
                             type: string
                           type: array
@@ -200,14 +199,14 @@ spec:
                           type: array
                         resources:
                           description: Resources is a list of resources this rule
-                            applies to.  ResourceAll represents all resources.
+                            applies to. '*' represents all resources.
                           items:
                             type: string
                           type: array
                         verbs:
                           description: Verbs is a list of Verbs that apply to ALL
-                            the ResourceKinds and AttributeRestrictions contained
-                            in this rule.  VerbAll represents all kinds.
+                            the ResourceKinds contained in this rule. '*' represents
+                            all verbs.
                           items:
                             type: string
                           type: array
