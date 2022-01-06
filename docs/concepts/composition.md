@@ -86,6 +86,9 @@ spec:
   names:
     kind: XPostgreSQLInstance
     plural: xpostgresqlinstances
+  claimNames:
+    kind: PostgreSQLInstance
+    plural: postgresqlinstances
   versions:
   - name: v1alpha1
     served: true
