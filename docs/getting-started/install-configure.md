@@ -17,8 +17,8 @@ may include additional features or tooling around it that makes it easier to use
 in production environments.
 
 <ul class="nav nav-tabs"> 
-<li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Crossplane</a></li>
-<li><a href="#using-a-downstream-distro" data-toggle="tab">Downstream Distribution</a></li>
+<li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Crossplane (upstream)</a></li>
+<li><a href="#using-a-downstream-distro" data-toggle="tab">Downstream Distributions</a></li>
 </ul>
 <br>
 <!-- Begin Distro Tabs -->
