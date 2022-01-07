@@ -170,12 +170,6 @@ annotations by third-party consumers of Crossplane packages:
   released.
 - `meta.crossplane.io/description`: A one sentence description of the package.
 - `meta.crossplane.io/readme`: A longer description, documentation, etc.
-- `friendly-name.meta.crossplane.io`: A 'human-friendly' name for this package.
-- `friendly-group-name.meta.crossplane.io/<group>`: A "human-friendly" name for
-  an API group defined by this package.
-- `friendly-kind-name.meta.crossplane.io/<kind>.<group>`: A "human-friendly"
-  name for a an API kind defined by this package. Note that the kind is
-  singular, not plural (i.e. instance not instances).
 
 Third party consumers may define additional arbitrary annotations with any key
 and value on any object in a package. All annotations on "meta" types (i.e.
