@@ -88,14 +88,29 @@ may be specific to a given consumer.
 
 If no layer descriptors have an annotation in the form `io.crossplane.xpkg:
 base`, the resultant filesystem from [applying changesets] from all layers will
-be used.
+be used. It is preferred to use layer descriptor annotations.
 
-> Crossplane prefers the usage of layers to define additive package content as
-> it provides a clean mechanism to build an `xpkg` through a series of stages. A
-> valid `xpkg` can be produced and later modified while verifying that the
-> integrity of the existing content is not violated, which ensures that
-> Crossplane's package manager will process the resulting `xpkg` in the same
-> manner as the it would prior to modification.
+#### Motivation
+
+Crossplane prefers the usage of annotated layer descriptors because it allows
+for fetching and processing individual layers, rather than all layers in the
+image. In the event that the image contains a single layer, this overhead is
+minimal. However, larger images with many layers, whether they contain
+third-party `xpkg` content or unrelated data, will result in multiple network
+calls and more data to process.
+
+Crossplane also prefers the usage of annotated layer descriptors to define
+additive package content (i.e. third-party `xpkg` content) as it provides a
+clean mechanism to build an `xpkg` through a series of stages. A valid `xpkg`
+can be produced and later modified while verifying that the integrity of the
+existing content is not violated, which ensures that Crossplane's package
+manager will process the resulting `xpkg` in the same manner as the it would
+prior to modification.
+
+While not explicitly forbidden, modifying content from a preceding layer with
+the `io.crossplane.xpkg` annotation in any subsequent layers is discouraged, as
+it may lead to confusion if a third-party is consuming content from the
+flattened filesystem.
 
 ### Configuration
 
