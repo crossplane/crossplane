@@ -4,6 +4,8 @@
 - Reviewers: Crossplane Maintainers
 - Status: Proposed
 
+**This one-pager has been superseded by the [`xpkg` specification].**
+
 ## Background
 
 [Packages][packages-v2] extend Crossplane with new functionality. The `Provider`
@@ -87,3 +89,4 @@ this metadata it may.
 
 [packages-v2]: design-doc-packages-v2.md
 [format-v2]: one-pager-package-format-v2.md
+[`xpkg` specification]: ../../docs/reference/xpkg.md
