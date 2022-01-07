@@ -15,25 +15,25 @@ Here is the list of prominent providers:
 
 |   |   |   |   |
 |---|---|---|---|
-| Provider AWS  |  [GitHub Repo](https://github.com/crossplane/provider-aws) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-aws)  |  [Amazon Web Services (AWS) IAM User] |
-| Provider Jet AWS  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-jet-aws) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws) |   | 
-| Provider GCP |  [GitHub Repo](https://github.com/crossplane/provider-gcp) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-gcp) |   [Google Cloud Platform (GCP) Service Account] | 
-| Provider Jet GCP  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-jet-gcp) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-gcp)  |   | 
-| Provider Azure  | [GitHub Repo](https://github.com/crossplane/provider-azure) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-azure)  |  [Microsoft Azure Service Principal] | 
-| Provider Jet Azure  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-jet-azure) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-azure) |   | 
-| Provider Alibaba |  [GitHub Repo](https://github.com/crossplane/provider-alibaba) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-alibaba)  |   | 
+| Provider AWS  |  [GitHub Repo][provider-aws] | [API Reference][provider-aws-api]  |  [Amazon Web Services (AWS) IAM User] |
+| Provider Jet AWS  |  [GitHub Repo][provider-jet-aws] | [API Reference][provider-jet-aws-api] |   | 
+| Provider GCP |  [GitHub Repo][provider-gcp] | [API Reference][provider-gcp-api] |   [Google Cloud Platform (GCP) Service Account] | 
+| Provider Jet GCP  |  [GitHub Repo][provider-jet-gcp] | [API Reference][provider-jet-gcp-api]  |   | 
+| Provider Azure  | [GitHub Repo][provider-azure] | [API Reference][provider-azure-api]  |  [Microsoft Azure Service Principal] | 
+| Provider Jet Azure  |  [GitHub Repo][provider-jet-azure] | [API Reference][provider-jet-azure-api] |   | 
+| Provider Alibaba |  [GitHub Repo][provider-alibaba] | [API Reference][provider-alibaba-api]  |   | 
 |   |   |   |   |
-| Provider Rook  |  [GitHub Repo](https://github.com/crossplane/provider-rook) | [API Reference](https://doc.crds.dev/github.com/crossplane/provider-rook)  |  |
-| Provider Helm  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-helm) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-helm)  |  |
-| Provider Terraform  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-terraform) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-terraform)  |  |
-| Provider Kubernetes  |  [GitHub Repo](https://github.com/crossplane-contrib/provider-kubernetes) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-kubernetes)  |  |
-| Provider SQL | [GitHub Repo](https://github.com/crossplane-contrib/provider-sql) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-sql)  |  |
-| Provider Gitlab  | [GitHub Repo](https://github.com/crossplane-contrib/provider-gitlab) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-gitlab)  |  |
-| Provider Equinix Metal | [GitHub Repo](https://github.com/crossplane-contrib/provider-equinix-metal) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-equinix-metal)  |  |
-| Provider Digital Ocean | [GitHub Repo](https://github.com/crossplane-contrib/provider-digitalocean) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-digitalocean)  |  |
-| Provider Civo | [GitHub Repo](https://github.com/crossplane-contrib/provider-civo) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-civo)  |  |
-| Provider IBM Cloud | [GitHub Repo](https://github.com/crossplane-contrib/provider-ibm-cloud) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-civo)  |  |
-| Provider Argocd | [GitHub Repo](https://github.com/crossplane-contrib/provider-argocd) | [API Reference](https://doc.crds.dev/github.com/crossplane-contrib/provider-argocd)  |  |
+| Provider Rook  |  [GitHub Repo][provider-rook] | [API Reference][provider-rook-api]  |  |
+| Provider Helm  |  [GitHub Repo][provider-helm] | [API Reference][provider-helm-api]  |  |
+| Provider Terraform  |  [GitHub Repo][provider-terraform] | [API Reference][provider-terraform-api]  |  |
+| Provider Kubernetes  |  [GitHub Repo][provider-kubernetes] | [API Reference][provider-kubernetes-api]  |  |
+| Provider SQL | [GitHub Repo][provider-sql] | [API Reference][provider-sql-api]  |  |
+| Provider Gitlab  | [GitHub Repo][provider-gitlab] | [API Reference][provider-gitlab-api]  |  |
+| Provider Equinix Metal | [GitHub Repo][provider-equinix-metal] | [API Reference][provider-equinix-metal-api]  |  |
+| Provider Digital Ocean | [GitHub Repo][provider-digitalocean] | [API Reference][provider-digitalocean-api]  |  |
+| Provider Civo | [GitHub Repo][provider-civo] | [API Reference][provider-civo-api]  |  |
+| Provider IBM Cloud | [GitHub Repo][provider-ibm-cloud] | [API Reference][provider-ibm-cloud-api]  |  |
+| Provider Argocd | [GitHub Repo][provider-argocd] | [API Reference][provider-argocd-api]  |  |
 
 
 ## Installing Providers
@@ -124,3 +124,39 @@ will attempt to use a `ProviderConfig` named `default`.
 [Microsoft Azure Service Principal]: ../cloud-providers/azure/azure-provider.md
 [Amazon Web Services (AWS) IAM User]: ../cloud-providers/aws/aws-provider.md
 [managed-resources]: managed-resources.md
+[provider-aws]: https://github.com/crossplane/provider-aws
+[provider-aws-api]: https://doc.crds.dev/github.com/crossplane/provider-aws
+[provider-jet-aws]: https://github.com/crossplane-contrib/provider-jet-aws
+[provider-jet-aws-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws
+[provider-gcp]: https://github.com/crossplane/provider-gcp
+[provider-gcp-api]: https://doc.crds.dev/github.com/crossplane/provider-gcp
+[provider-jet-gcp]: https://github.com/crossplane-contrib/provider-jet-gcp
+[provider-jet-gcp-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-gcp
+[provider-azure]: https://github.com/crossplane/provider-azure
+[provider-azure-api]: https://doc.crds.dev/github.com/crossplane/provider-azure
+[provider-jet-azure]: https://github.com/crossplane-contrib/provider-jet-azure
+[provider-jet-azure-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-azure
+[provider-alibaba]: https://github.com/crossplane/provider-alibaba
+[provider-alibaba-api]: https://doc.crds.dev/github.com/crossplane/provider-alibaba 
+[provider-rook]: https://github.com/crossplane/provider-rook
+[provider-rook-api]: https://doc.crds.dev/github.com/crossplane/provider-rook
+[provider-helm]: https://github.com/crossplane-contrib/provider-helm
+[provider-helm-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-helm
+[provider-terraform]: https://github.com/crossplane-contrib/provider-terraform
+[provider-terraform-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-terraform
+[provider-kubernetes]: https://github.com/crossplane-contrib/provider-kubernetes
+[provider-kubernetes-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-kubernetes
+[provider-sql]: https://github.com/crossplane-contrib/provider-sql
+[provider-sql-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-sql
+[provider-gitlab]: https://github.com/crossplane-contrib/provider-gitlab
+[provider-gitlab-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-gitlab
+[provider-equinix-metal]: https://github.com/crossplane-contrib/provider-equinix-metal
+[provider-equinix-metal-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-equinix-metal
+[provider-digitalocean]: https://github.com/crossplane-contrib/provider-digitalocean
+[provider-digitalocean-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-digitalocean
+[provider-civo]: https://github.com/crossplane-contrib/provider-civo
+[provider-civo-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-civo
+[provider-ibm-cloud]: https://github.com/crossplane-contrib/provider-ibm-cloud
+[provider-ibm-cloud-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-ibm-cloud
+[provider-argocd]: https://github.com/crossplane-contrib/provider-argocd
+[provider-argocd-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-argocd
