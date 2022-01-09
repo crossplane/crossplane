@@ -90,7 +90,7 @@ If no layer descriptors have an annotation in the form `io.crossplane.xpkg:
 base`, the resultant filesystem from [applying changesets] from all layers will
 be used. It is preferred to use layer descriptor annotations.
 
-#### Motivation
+**Motivation**
 
 Crossplane prefers the usage of annotated layer descriptors because it allows
 for fetching and processing individual layers, rather than all layers in the
