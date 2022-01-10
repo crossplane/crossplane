@@ -99,7 +99,7 @@ func (c *FakeCompositions) Update(ctx context.Context, composition *apiextension
 // Delete takes name of the composition and deletes it. Returns an error if one occurs.
 func (c *FakeCompositions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(compositionsResource, name), &apiextensionsv1.Composition{})
+		Invokes(testing.NewRootDeleteActionWithOptions(compositionsResource, name, opts), &apiextensionsv1.Composition{})
 	return err
 }
 

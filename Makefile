@@ -92,7 +92,7 @@ CRD_DIR = cluster/crds
 
 crds.clean:
 	@$(INFO) cleaning generated CRDs
-	@find $(CRD_DIR) -name '*.yaml' -exec sed -i.sed -e '1,2d' {} \; || $(FAIL)
+	@find $(CRD_DIR) -name '*.yaml' -exec sed -i.sed -e '1,1d' {} \; || $(FAIL)
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 

@@ -99,7 +99,7 @@ func (c *FakeControllerConfigs) Update(ctx context.Context, controllerConfig *v1
 // Delete takes name of the controllerConfig and deletes it. Returns an error if one occurs.
 func (c *FakeControllerConfigs) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(controllerconfigsResource, name), &v1alpha1.ControllerConfig{})
+		Invokes(testing.NewRootDeleteActionWithOptions(controllerconfigsResource, name, opts), &v1alpha1.ControllerConfig{})
 	return err
 }
 
