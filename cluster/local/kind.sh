@@ -49,7 +49,7 @@ case "${1:-}" in
     ;;
   update)
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
     ;;
   restart)
     if check_context; then
@@ -63,7 +63,7 @@ case "${1:-}" in
   helm-install)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package into \"$ns\" namespace"
@@ -73,7 +73,7 @@ case "${1:-}" in
   helm-upgrade)
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
-    copy_image_to_cluster ${BUILD_IMAGE} "${DOCKER_REGISTRY}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "upgrading helm package in \"$ns\" namespace"
