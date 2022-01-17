@@ -34,6 +34,7 @@ Here is the list of prominent providers:
 | Provider Civo | [GitHub Repo][provider-civo] | [API Reference][provider-civo-api]  |  |
 | Provider IBM Cloud | [GitHub Repo][provider-ibm-cloud] | [API Reference][provider-ibm-cloud-api]  |  |
 | Provider Argocd | [GitHub Repo][provider-argocd] | [API Reference][provider-argocd-api]  |  |
+| Provider Styra | [GitHub Repo][provider-styra] | [API Reference][provider-styra-api]  |  |
 
 
 ## Installing Providers
@@ -160,3 +161,5 @@ will attempt to use a `ProviderConfig` named `default`.
 [provider-ibm-cloud-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-ibm-cloud
 [provider-argocd]: https://github.com/crossplane-contrib/provider-argocd
 [provider-argocd-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-argocd
+[provider-styra]: https://github.com/crossplane-contrib/provider-styra
+[provider-styra-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-styra
