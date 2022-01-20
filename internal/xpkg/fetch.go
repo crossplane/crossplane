@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -29,10 +30,15 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
+
+func init() {
+	logrus.SetOutput(io.Discard)
+}
 
 // Fetcher fetches package images.
 type Fetcher interface {
