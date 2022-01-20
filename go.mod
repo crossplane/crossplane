@@ -7,6 +7,10 @@ require (
 	github.com/alecthomas/kong v0.2.17
 	github.com/crossplane/crossplane-runtime v0.15.1-0.20220106140106-428b7c390375
 	github.com/google/go-cmp v0.5.6
+	// TODO(hasheddan): we prefer to consume release versions of
+	// go-containerregistry. An incremental version is currently being used to
+	// consume the new k8schain implementation, which fixes an issue with
+	// reconcile timeouts when pulling packages in some environments.
 	github.com/google/go-containerregistry v0.8.1-0.20220120151853-ac864e57b117
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220120151853-ac864e57b117
 	github.com/imdario/mergo v0.3.12
