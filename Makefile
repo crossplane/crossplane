@@ -32,8 +32,6 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
-# uncomment to disable credential providers for pulling package images
-# GO_TAGS += disable_gcp disable_aws disable_azure
 GO111MODULE = on
 -include build/makelib/golang.mk
 
