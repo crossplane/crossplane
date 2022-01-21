@@ -110,7 +110,7 @@ func (c *FakeCompositeResourceDefinitions) UpdateStatus(ctx context.Context, com
 // Delete takes name of the compositeResourceDefinition and deletes it. Returns an error if one occurs.
 func (c *FakeCompositeResourceDefinitions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(compositeresourcedefinitionsResource, name), &apiextensionsv1.CompositeResourceDefinition{})
+		Invokes(testing.NewRootDeleteActionWithOptions(compositeresourcedefinitionsResource, name, opts), &apiextensionsv1.CompositeResourceDefinition{})
 	return err
 }
 

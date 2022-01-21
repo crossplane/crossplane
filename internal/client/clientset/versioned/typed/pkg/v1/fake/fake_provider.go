@@ -110,7 +110,7 @@ func (c *FakeProviders) UpdateStatus(ctx context.Context, provider *pkgv1.Provid
 // Delete takes name of the provider and deletes it. Returns an error if one occurs.
 func (c *FakeProviders) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteAction(providersResource, name), &pkgv1.Provider{})
+		Invokes(testing.NewRootDeleteActionWithOptions(providersResource, name, opts), &pkgv1.Provider{})
 	return err
 }
 

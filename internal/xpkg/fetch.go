@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
@@ -29,10 +30,20 @@ import (
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
+
+func init() {
+	// NOTE(hasheddan): we set the logrus package-level logger to discard output
+	// due to the fact that the AWS ECR credential helper uses it to log errors
+	// when parsing registry server URL, which happens any time a package is
+	// pulled from a non-ECR registry.
+	// https://github.com/awslabs/amazon-ecr-credential-helper/issues/308
+	logrus.SetOutput(io.Discard)
+}
 
 // Fetcher fetches package images.
 type Fetcher interface {
@@ -92,7 +103,7 @@ func NewK8sFetcher(client kubernetes.Interface, namespace string, opts ...Fetche
 	k := &K8sFetcher{
 		client:    client,
 		namespace: namespace,
-		transport: http.DefaultTransport.(*http.Transport).Clone(),
+		transport: remote.DefaultTransport.Clone(),
 	}
 
 	for _, o := range opts {

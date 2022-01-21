@@ -27,7 +27,6 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/random"
@@ -83,7 +82,7 @@ func TestImageBackend(t *testing.T) {
 					},
 				})},
 			},
-			want: errors.Wrap(name.NewErrBadName("could not parse reference: :test"), errBadReference),
+			want: errors.Wrap(errors.New("could not parse reference: :test"), errBadReference),
 		},
 		"ErrFetchedBadPackage": {
 			reason: "Should return error if image with contents does not have package.yaml.",
