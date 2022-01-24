@@ -17,11 +17,20 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"encoding/json"
+	"reflect"
+
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+)
+
+const (
+	errFmtMapNotFound         = "key %s is not found in map"
+	errFmtMapTypeNotSupported = "type %s is not supported for map transform"
 )
 
 const (
@@ -354,6 +363,37 @@ type MapTransform struct {
 	// +optional
 	// +immutable
 	Pairs map[string]string `json:",inline"`
+}
+
+// NOTE(negz): The Kubernetes JSON decoder doesn't seem to like inlining a map
+// into a struct - doing so results in a seemingly successful unmarshal of the
+// data, but an empty map. We must keep the ,inline tag nevertheless in order to
+// trick the CRD generator into thinking MapTransform is an arbitrary map (i.e.
+// generating a validation schema with string additionalProperties), but the
+// actual marshalling is handled by the marshal methods below.
+
+// UnmarshalJSON into this MapTransform.
+func (m *MapTransform) UnmarshalJSON(b []byte) error {
+	return json.Unmarshal(b, &m.Pairs)
+}
+
+// MarshalJSON from this MapTransform.
+func (m MapTransform) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.Pairs)
+}
+
+// Resolve runs the Map transform.
+func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
+	switch i := input.(type) {
+	case string:
+		val, ok := m.Pairs[i]
+		if !ok {
+			return nil, errors.Errorf(errFmtMapNotFound, i)
+		}
+		return val, nil
+	default:
+		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
+	}
 }
 
 // A StringTransform returns a string given the supplied input.
