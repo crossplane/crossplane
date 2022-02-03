@@ -480,6 +480,11 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 </div>
 <!-- End Cloud Provider Tabs -->
 
+## Next Steps
+
+Now that you have configured Crossplane with support for `PostgreSQLInstance`,
+you can [provision infrastructure].
+
 </div>
 <!-- End Upstream Tab -->
 
@@ -504,11 +509,6 @@ Slack][Slack] and our community will highlight it here!</i>
 
 </div>
 <!-- End Distro Tabs -->
-
-## Next Steps
-
-Now that you have configured Crossplane with support for `PostgreSQLInstance`,
-you can [provision infrastructure].
 
 ## More Info
 
