@@ -16,12 +16,15 @@ spec:
     type: {{ .Values.deploymentStrategy }}
   template:
     metadata:
-      {{- if .Values.metrics.enabled }}
       annotations:
+        {{- if .Values.podAnnotations }}
+        {{- toYaml .Values.podAnnotations | nindent 8 }}
+        {{- end }}
+        {{- if .Values.metrics.enabled }}
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
-      {{- end }}
+        {{- end }}
       labels:
         app: {{ template "crossplane.name" . }}
         release: {{ .Release.Name }}
