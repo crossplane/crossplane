@@ -287,7 +287,7 @@ Crossplane with the flag to automatically install a Configuration package
 alongside it.
 
 ```
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --set configuration.packages={"registry.upbound.io/xp/getting-started-with-aws:v1.4.3"}
+helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --set configuration.packages={"registry.upbound.io/xp/getting-started-with-aws:v1.4.4"}
 ```
 
 ### Control Plane of Control Planes
