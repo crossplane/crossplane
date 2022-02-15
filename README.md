@@ -21,18 +21,18 @@ Currently maintained releases, as well as the next upcoming release are listed
 below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release |  Current Patch  | Release Date |      EOL      |
-|:-------:|:---------------:|:------------:|:-------------:|
-|   v1.4  |     [v1.4.3]    | Aug 31, 2021 | March 2022    |
-|   v1.5  |     [v1.5.1]    | Oct 26, 2021 | May 2022      |
-|   v1.6  |     [v1.6.2]    | Jan 4, 2022  | July 2022     |
-|   v1.7  |     Upcoming    | Mar 22, 2022 | Sept 2022     |
+| Release | Release Date |  Current Patch  |      EOL      |
+|:-------:|:------------:|:---------------:|:-------------:|
+|   v1.4  | Aug 31, 2021 |     [v1.4.4]    |   March 2022  |
+|   v1.5  | Oct 26, 2021 |     [v1.5.2]    |    May 2022   |
+|   v1.6  | Jan 4, 2022  |     [v1.6.3]    |   July 2022   |
+|   v1.7  | Mar 22, 2022 |     Upcoming    |   Sept 2022   |
 
 You can subscribe to [release calendar] to track all release dates.
 
-[v1.4.3]: https://github.com/crossplane/crossplane/releases/tag/v1.4.3
-[v1.5.1]: https://github.com/crossplane/crossplane/releases/tag/v1.5.1
-[v1.6.2]: https://github.com/crossplane/crossplane/releases/tag/v1.6.2
+[v1.4.4]: https://github.com/crossplane/crossplane/releases/tag/v1.4.4
+[v1.5.2]: https://github.com/crossplane/crossplane/releases/tag/v1.5.3
+[v1.6.3]: https://github.com/crossplane/crossplane/releases/tag/v1.6.3
 
 ## Get Involved
 
