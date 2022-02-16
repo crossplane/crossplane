@@ -71,7 +71,8 @@ When you enable Composition Revisions three things happen:
 Each time you edit a `Composition` Crossplane will automatically create a
 `CompositionRevision` that represents that 'revision' of the `Composition` -
 that unique state. Each revision is allocated an increasing revision number.
-This `CompositionRevision` consumers an idea about which revision is 'newest'.
+This gives `CompositionRevision` consumers an idea about which revision is
+'newest'.
 
 Crossplane distinguishes between the 'newest' and the 'current' revision of a
 `Composition`. That is, if you revert a `Composition` to a previous state that
