@@ -38,7 +38,7 @@ type initCommand struct {
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 
-	WebhookServerTLSSecretName string `name:"webhookServerTLSSecretName" help:"The name of the TLS Secret that will be injected to Crossplane CRDs that require a conversion webhook."`
+	WebhookServerTLSSecretName string `help:"The name of the TLS Secret that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_SERVER_TLS_SECRET_NAME"`
 }
 
 // Run starts the initialization process.

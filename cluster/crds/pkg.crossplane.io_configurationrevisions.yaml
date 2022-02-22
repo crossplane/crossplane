@@ -115,6 +115,12 @@ spec:
                   whether to skip resolving dependencies for a package. Setting this
                   value to true may have unintended consequences. Default is false.
                 type: boolean
+              webhookTLSSecretName:
+                description: WebhookTLSSecretName is the name of the TLS Secret that
+                  will be used by the provider to serve a TLS-enabled webhook server.
+                  The certficate will be injected to webhook configurations as well
+                  as CRD conversion webhook strategy if needed.
+                type: string
             required:
             - desiredState
             - image

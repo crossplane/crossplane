@@ -81,6 +81,14 @@ const (
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
+// WithWebhookTLSSecretName configures the name of the webhook TLS Secret that
+// Reconciler will add to PackageRevisions it creates.
+func WithWebhookTLSSecretName(n string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.webhookTLSSecretName = &n
+	}
+}
+
 // WithNewPackageFn determines the type of package being reconciled.
 func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -126,10 +134,11 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // Reconciler reconciles packages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	pkg    Revisioner
-	log    logging.Logger
-	record event.Recorder
+	client               resource.ClientApplicator
+	pkg                  Revisioner
+	log                  logging.Logger
+	record               event.Recorder
+	webhookTLSSecretName *string
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -152,21 +161,23 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, errBuildFetcher)
 	}
 
-	r := NewReconciler(mgr,
+	opts := []ReconcilerOption{
 		WithNewPackageFn(np),
 		WithNewPackageRevisionFn(nr),
 		WithNewPackageRevisionListFn(nrl),
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-	)
-
+	}
+	if o.WebhookTLSSecretName != "" {
+		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
+	}
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Provider{}).
 		Owns(&v1.ProviderRevision{}).
 		WithOptions(o.ForControllerRuntime()).
-		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+		Complete(ratelimiter.NewReconciler(name, NewReconciler(mgr, opts...), o.GlobalRateLimiter))
 }
 
 // SetupConfiguration adds a controller that reconciles Configurations.
@@ -354,6 +365,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetIgnoreCrossplaneConstraints(p.GetIgnoreCrossplaneConstraints())
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
+	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
 
 	// If current revision is not active and we have an automatic or
 	// undefined activation policy, always activate.

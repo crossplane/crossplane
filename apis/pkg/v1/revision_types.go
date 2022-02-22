@@ -79,6 +79,13 @@ type PackageRevisionSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
+
+	// WebhookTLSSecretName is the name of the TLS Secret that will be used
+	// by the provider to serve a TLS-enabled webhook server. The certficate
+	// will be injected to webhook configurations as well as CRD conversion
+	// webhook strategy if needed.
+	// +optional
+	WebhookTLSSecretName *string `json:"webhookTLSSecretName,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

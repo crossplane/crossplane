@@ -351,6 +351,9 @@ type PackageRevision interface {
 
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
+
+	GetWebhookTLSSecretName() *string
+	SetWebhookTLSSecretName(n *string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -475,6 +478,16 @@ func (p *ProviderRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
 }
 
+// GetWebhookTLSSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetWebhookTLSSecretName() *string {
+	return p.Spec.WebhookTLSSecretName
+}
+
+// SetWebhookTLSSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetWebhookTLSSecretName(b *string) {
+	p.Spec.WebhookTLSSecretName = b
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -595,6 +608,16 @@ func (p *ConfigurationRevision) GetSkipDependencyResolution() *bool {
 // SetSkipDependencyResolution of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetSkipDependencyResolution(b *bool) {
 	p.Spec.SkipDependencyResolution = b
+}
+
+// GetWebhookTLSSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetWebhookTLSSecretName() *string {
+	return p.Spec.WebhookTLSSecretName
+}
+
+// SetWebhookTLSSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetWebhookTLSSecretName(b *string) {
+	p.Spec.WebhookTLSSecretName = b
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}

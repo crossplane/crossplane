@@ -95,7 +95,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	if err != nil {
 		return errors.Wrap(err, errControllerConfig)
 	}
-	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
+	s, d := buildProviderDeployment(pkgProvider, provRev, cc, h.namespace)
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
@@ -120,7 +120,11 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err != nil {
 		return errors.Wrap(err, errControllerConfig)
 	}
-	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
+	provRev, ok := pr.(*v1.ProviderRevision)
+	if !ok {
+		return errors.New(errNotProviderRevision)
+	}
+	s, d := buildProviderDeployment(pkgProvider, provRev, cc, h.namespace)
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}

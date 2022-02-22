@@ -43,7 +43,7 @@ const (
 	promPortNumber = 8080
 )
 
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.ProviderRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -123,6 +123,36 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 				},
 			},
 		},
+	}
+	if revision.Spec.WebhookTLSSecretName != nil {
+		v := corev1.Volume{
+			Name: "webhook-tls-secret",
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: *revision.Spec.WebhookTLSSecretName,
+					Items: []corev1.KeyToPath{
+						{Key: "tls.crt", Path: "tls.crt"},
+						{Key: "tls.key", Path: "tls.key"},
+					},
+				},
+			},
+		}
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+
+		vm := corev1.VolumeMount{
+			Name:      "webhook-tls-secret",
+			ReadOnly:  true,
+			MountPath: "/webhook/tls",
+		}
+		d.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+		envs := []corev1.EnvVar{
+			{Name: "WEBHOOK_TLS_CERT_PATH", Value: "/webhook/tls/tls.crt"},
+			{Name: "WEBHOOK_TLS_KEY_PATH", Value: "/webhook/tls/tls.key"},
+		}
+		d.Spec.Template.Spec.Containers[0].Env =
+			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 	}
 	templateLabels := make(map[string]string)
 	if cc != nil {
