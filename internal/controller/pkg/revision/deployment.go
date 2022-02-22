@@ -43,7 +43,7 @@ const (
 	promPortNumber = 8080
 )
 
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.ProviderRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.ProviderRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
