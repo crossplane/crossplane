@@ -18,12 +18,12 @@ package initializer
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -31,25 +31,55 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// NewCoreCRDs returns a new *CoreCRDs.
-func NewCoreCRDs(path string, s *runtime.Scheme, webhookTLSSecretName *types.NamespacedName) *CoreCRDs {
-	return &CoreCRDs{
-		Path: path,
-		Scheme: s,
-		WebhookTLSSecretName: webhookTLSSecretName,
+// Error strings.
+const (
+	errGetTLSSecretFmt = "cannot get tls secret %s/%s"
+)
+
+// WithWebhookTLSSecretName configures CoreCRDs with a TLS Secret name so that it
+// can inject CA bundle to CRDs with webhook conversion strategy.
+func WithWebhookTLSSecretName(nn types.NamespacedName) CoreCRDsOption {
+	return func(c *CoreCRDs) {
+		c.WebhookTLSSecretName = &nn
 	}
+}
+
+// WithFs is used to configure the filesystem the CRDs will be read from. Its
+// default is afero.OsFs.
+func WithFs(fs afero.Fs) CoreCRDsOption {
+	return func(c *CoreCRDs) {
+		c.fs = fs
+	}
+}
+
+// CoreCRDsOption configures CoreCRDs step.
+type CoreCRDsOption func(*CoreCRDs)
+
+// NewCoreCRDs returns a new *CoreCRDs.
+func NewCoreCRDs(path string, s *runtime.Scheme, opts ...CoreCRDsOption) *CoreCRDs {
+	c := &CoreCRDs{
+		Path:   path,
+		Scheme: s,
+		fs:     afero.NewOsFs(),
+	}
+	for _, f := range opts {
+		f(c)
+	}
+	return c
 }
 
 // CoreCRDs makes sure the CRDs are installed.
 type CoreCRDs struct {
-	Path   string
-	Scheme *runtime.Scheme
+	Path                 string
+	Scheme               *runtime.Scheme
 	WebhookTLSSecretName *types.NamespacedName
+
+	fs afero.Fs
 }
 
 // Run applies all CRDs in the given directory.
-func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
-	r, err := parser.NewFsBackend(afero.NewOsFs(),
+func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolint:gocyclo
+	r, err := parser.NewFsBackend(c.fs,
 		parser.FsDir(c.Path),
 		parser.FsFilters(
 			parser.SkipDirs(),
@@ -66,10 +96,11 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
-	var tlsSecret *v1.Secret
+	var tlsSecret *corev1.Secret
 	if c.WebhookTLSSecretName != nil {
+		tlsSecret = &corev1.Secret{}
 		if err := kube.Get(ctx, *c.WebhookTLSSecretName, tlsSecret); err != nil {
-			return errors.Wrapf(err, "cannot get tls secret %s/%s", c.WebhookTLSSecretName.Namespace, c.WebhookTLSSecretName.Name)
+			return errors.Wrapf(err, errGetTLSSecretFmt, c.WebhookTLSSecretName.Namespace, c.WebhookTLSSecretName.Name)
 		}
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
@@ -78,7 +109,13 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 		if !ok {
 			return errors.New("only crds can exist in initialization directory")
 		}
-		if tlsSecret != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
+		if tlsSecret != nil && crd.Spec.Conversion != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
+			if crd.Spec.Conversion.Webhook == nil {
+				crd.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+			}
+			if crd.Spec.Conversion.Webhook.ClientConfig == nil {
+				crd.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+			}
 			crd.Spec.Conversion.Webhook.ClientConfig.CABundle = tlsSecret.Data["tls.crt"]
 		}
 		if err := pa.Apply(ctx, crd); err != nil {

@@ -52,15 +52,16 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
-	var tlsSecretRef *types.NamespacedName
+	var crdsOpts []initializer.CoreCRDsOption
 	if c.WebhookServerTLSSecretName != "" {
-		tlsSecretRef = &types.NamespacedName{
+		nn := types.NamespacedName{
 			Name:      c.WebhookServerTLSSecretName,
 			Namespace: os.Getenv("POD_NAMESPACE"),
 		}
+		crdsOpts = append(crdsOpts, initializer.WithWebhookTLSSecretName(nn))
 	}
 	i := initializer.New(cl,
-		initializer.NewCoreCRDs("/crds", s, tlsSecretRef),
+		initializer.NewCoreCRDs("/crds", s, crdsOpts...),
 		initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
 		initializer.NewStoreConfigObject(c.Namespace),
