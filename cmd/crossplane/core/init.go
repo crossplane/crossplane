@@ -38,7 +38,7 @@ type initCommand struct {
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 
-	WebhookServerTLSSecretName string `help:"The name of the TLS Secret that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_SERVER_TLS_SECRET_NAME"`
+	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_TLS_SECRET_NAME"`
 }
 
 // Run starts the initialization process.
@@ -53,9 +53,9 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
 	var crdsOpts []initializer.CoreCRDsOption
-	if c.WebhookServerTLSSecretName != "" {
+	if c.WebhookTLSSecretName != "" {
 		nn := types.NamespacedName{
-			Name:      c.WebhookServerTLSSecretName,
+			Name:      c.WebhookTLSSecretName,
 			Namespace: os.Getenv("POD_NAMESPACE"),
 		}
 		crdsOpts = append(crdsOpts, initializer.WithWebhookTLSSecretName(nn))
