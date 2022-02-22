@@ -38,10 +38,6 @@ spec:
           args:
           - core
           - init
-          {{- if ne .Values.webhookTLSSecretName "" }}
-          - --webhookTLSSecretName
-          - {{ .Values.webhookTLSSecretName | quote }}
-          {{- end }}
           {{- range $arg := .Values.provider.packages }}
           - --provider
           - "{{ $arg }}"
@@ -66,6 +62,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          {{- if ne .Values.webhooks.tlsSecretName "" }}
+          - name: "WEBHOOK_SERVER_TLS_SECRET_NAME"
+            value: {{ .Values.webhooks.tlsSecretName | quote }}
+          {{- end }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
@@ -96,6 +96,10 @@ spec:
           - name: CA_BUNDLE_PATH
             value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
           {{- end}}
+          {{- if ne .Values.webhooks.tlsSecretName "" }}
+          - name: "WEBHOOK_SERVER_TLS_SECRET_NAME"
+            value: {{ .Values.webhooks.tlsSecretName | quote }}
+          {{- end }}
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
