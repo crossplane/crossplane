@@ -57,6 +57,11 @@ spec:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:

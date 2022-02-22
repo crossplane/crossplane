@@ -18,6 +18,8 @@ package initializer
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -30,14 +32,19 @@ import (
 )
 
 // NewCoreCRDs returns a new *CoreCRDs.
-func NewCoreCRDs(path string, s *runtime.Scheme) *CoreCRDs {
-	return &CoreCRDs{Path: path, Scheme: s}
+func NewCoreCRDs(path string, s *runtime.Scheme, webhookTLSSecretName *types.NamespacedName) *CoreCRDs {
+	return &CoreCRDs{
+		Path: path,
+		Scheme: s,
+		WebhookTLSSecretName: webhookTLSSecretName,
+	}
 }
 
 // CoreCRDs makes sure the CRDs are installed.
 type CoreCRDs struct {
 	Path   string
 	Scheme *runtime.Scheme
+	WebhookTLSSecretName *types.NamespacedName
 }
 
 // Run applies all CRDs in the given directory.
@@ -59,11 +66,20 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
+	var tlsSecret *v1.Secret
+	if c.WebhookTLSSecretName != nil {
+		if err := kube.Get(ctx, *c.WebhookTLSSecretName, tlsSecret); err != nil {
+			return errors.Wrapf(err, "cannot get tls secret %s/%s", c.WebhookTLSSecretName.Namespace, c.WebhookTLSSecretName.Name)
+		}
+	}
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, obj := range pkg.GetObjects() {
 		crd, ok := obj.(*extv1.CustomResourceDefinition)
 		if !ok {
 			return errors.New("only crds can exist in initialization directory")
+		}
+		if tlsSecret != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
+			crd.Spec.Conversion.Webhook.ClientConfig.CABundle = tlsSecret.Data["tls.crt"]
 		}
 		if err := pa.Apply(ctx, crd); err != nil {
 			return errors.Wrap(err, "cannot apply crd")

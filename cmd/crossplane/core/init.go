@@ -18,6 +18,9 @@ package core
 
 import (
 	"context"
+	"os"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -34,6 +37,8 @@ type initCommand struct {
 	Providers      []string `name:"provider" help:"Pre-install a Provider by giving its image URI. This argument can be repeated."`
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
+
+	WebhookServerTLSSecretName string `name:"webhookServerTLSSecretName" help:"The name of the TLS Secret that will be injected to Crossplane CRDs that require a conversion webhook."`
 }
 
 // Run starts the initialization process.
@@ -47,8 +52,15 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
+	var tlsSecretRef *types.NamespacedName
+	if c.WebhookServerTLSSecretName != "" {
+		tlsSecretRef = &types.NamespacedName{
+			Name:      c.WebhookServerTLSSecretName,
+			Namespace: os.Getenv("POD_NAMESPACE"),
+		}
+	}
 	i := initializer.New(cl,
-		initializer.NewCoreCRDs("/crds", s),
+		initializer.NewCoreCRDs("/crds", s, tlsSecretRef),
 		initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
 		initializer.NewStoreConfigObject(c.Namespace),
