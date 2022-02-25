@@ -11,7 +11,6 @@ Kubernetes is a complex ecosystem with many moving parts and we need a deeper un
 - Discuss and contribute to relevant upstream discussions with the broader community
 - Come up with tooling that can help reproducing the issues and assessing the effectiveness of considered solutions
 - Establish a common understanding on the Crossplane scenarios and if possible, a set of “definition of done” criterias for the CRD scaling issues, i.e., have a clear expectation on the scenarios we would like to support and on the expected performance in those scenarios.
-- …
 
  
 
@@ -19,7 +18,7 @@ Kubernetes is a complex ecosystem with many moving parts and we need a deeper un
 
 We can categorize the issues that we observe when scaling a cluster in the number of installed CRDs in two:
 - Client-side issues: Clients of the control-plane (`kubectl`, controllers, etc.) experience extended delays in the requests they make. So far, our observation is that all the issues that we categorize as client-side issues are due to “client-side throttling”, and not caused by the API server itself. These clients can throttle the requests they make to the API server solely as a function of the [rate limiter](https://pkg.go.dev/k8s.io/client-go/util/flowcontrol#RateLimiter) implementation they are using with no feedback from the server. Per our observations, the problematic client-side component that’s responsible for the high number of requests in a unit time (high request rate) is the [discovery client](https://pkg.go.dev/k8s.io/client-go/discovery#DiscoveryInterface). In the [Client-side Throttling](#client-side-throttling) section below, we will examine how `kubectl` behaves when there is a large number of CRDs installed in the cluster and how the discovery cache and the discovery client affect the perceived performance of the `kubectl` commands run. 
-- Server-side issues: ...
+- Server-side issues: We also have some observations on the control-plane components such as increased resource consumption in `kube-apiserver` proportional to the number of CRDs we install in the cluster. While we expect more resources to be allocated as we install more CRDs, some detailed analysis presented in the [API Server Resource Consumption](#api-server-resource-consumption) section reveals some possible improvement points and some other points such as OpenAPI v3 schema sizes where we should be careful.
 
 
 ### Client-side Throttling
@@ -28,7 +27,7 @@ We can categorize the issues that we observe when scaling a cluster in the numbe
 - Discovery of potential GVRs based on the [short names](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/)
 - Determining the scope of a GVR so that the associated resource path can be constructed properly
 - Listing resources by category
-- …
+
 
 The discovery client implementation is responsible for populating this cache when:
 - The cache does not yet exist on the filesystem (e.g., initial run)
@@ -73,15 +72,32 @@ Crossplane community and the broader K8s community are aware of these client-sid
 - https://github.com/kubernetes/kubernetes/pull/101634
 - https://github.com/kubernetes/kubectl/issues/1126
 - https://github.com/crossplane/terrajet/issues/47#issuecomment-916360747
-- …
 
 
-### API Server Resource (CPU/Memory) Usage Increase per CRD
 
-* Showing the increase in a graph picture.
-* Why do we care about the increase?
-* Profiling data to see what's going on when you register a CRD.
-* Incriminating the most impactful threads/routines that cause the increase.
+### API Server Resource Consumption
+Apart from the client-side throttling issues we have described above, we also observe increased resource (memory/CPU/goroutines, etc.) consumption when installing CRDs, as expected. The following plot shows the [`heap_alloc_bytes`](https://github.com/prometheus/client_golang/blob/1f81b3e9130fe21c55b7db82ecb2d61477358d61/prometheus/go_collector.go#L74), [`stack_sys_bytes`](https://github.com/prometheus/client_golang/blob/1f81b3e9130fe21c55b7db82ecb2d61477358d61/prometheus/go_collector.go#L130), [`stack_inuse_bytes`](https://github.com/prometheus/client_golang/blob/1f81b3e9130fe21c55b7db82ecb2d61477358d61/prometheus/go_collector.go#L122) and [`process_resident_memory_bytes`](https://github.com/prometheus/client_golang/blob/1f81b3e9130fe21c55b7db82ecb2d61477358d61/prometheus/process_collector.go#L95) metrics during the time `provider-jet-aws@v0.4.0-preview` is installed into the cluster:
+
+<img src="images/kube-apiserver-mem-metrics.png" alt="drawing" />
+
+And the following plot shows how CPU utilization is affected when `provider-jet-aws@v0.4.0-preview` is installed:
+
+<img src="images/kube-apiserver-cpu-usage.png" alt="drawing" />
+
+Finally, here is a plot that shows how the number of Go routines in the kube-apiserver change vs time as we install `provider-jet-aws@v0.4.0-preview` into the cluster:
+
+<img src="images/kube-apiserver-goroutines.png" alt="drawing" />
+
+As seen in the memory metrics plot, as we install `provider-jet-aws@v0.4.0-preview`, the resident set size (RSS) of kube-apiserver jumps from ~600 MB to ~3.8 GB and then settles ~3.2 GB. However, the heap space used shows the common sawtooth pattern with periodic GC activity and it looks like we have 1.4 GB of persistent heap allocation for the 780 CRDs in the cluster. Even when the allocated stack space is considered, we cannot account for the ~3.2 GB of RSS of kube-apiserver process. Further investigation reveals that starting from `v1.12`, Go runtime uses the [`MADV_FREE` advice](https://man7.org/linux/man-pages/man2/madvise.2.html) by [default](https://github.com/golang/go/blob/6a70ee2873b2367e2a0d6e7d7e167c072b99daf0/src/runtime/mem_linux.go#L37) to release the unused memory. This implies that even if the Go runtime releases memory pages, the Linux kernel may not reclaim those released pages from the `kube-apiserver` process unless there is memory pressure in the system. Thus, `MADV_FREE` provides a plausible explanation for the large difference between `process_resident_memory_bytes` and `(heap_alloc_bytes + stack_inuse_bytes)`.
+
+Heap profiling data collected from the `kube-apiserver` process also supports this hypothesis. Profiling data collected after `provider-jet-aws@v0.4.0-preview` is installed shows that ~1.16 GB of heap space is [allocated][kube-apiserver-heap-profile]. Some interesting observations from the heap allocation for 780 CRDs are as follows:
+- The largest hotspot (the code site where the largest chunk of heap space is allocated) is by far the [`zapcore.newCounters`](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/vendor/go.uber.org/zap/zapcore/sampler.go#L42) function. [`zap`](https://github.com/uber-go/zap) is a structured and leveled logging library written in Go, and [`zapcore`](https://pkg.go.dev/go.uber.org/zap/zapcore) implements its low-level interfaces. Further investigation reveals that `zapcore.newCounters` has allocated 815 objects in the process heap (where there are 780 CRDs) and [each allocation](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/vendor/go.uber.org/zap/zapcore/sampler.go#L39) is `_numLevels * _countersPerLevel * (Int64 + Uint64) = 7 * 4096 * (8+8) = 448 KB`! Thus, for 780 CRDs (plus other `zap` loggers), we are using `815 * 448 KB = ~356 MB` of heap space. `zapcore.newCounters` is responsible for the ~31% of the heap space allocated! Some deeper investigation reveals that `apiextensions-apiserver` uses [`apiserver.crdHandler`](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/staging/src/k8s.io/apiextensions-apiserver/pkg/apiserver/customresource_handler.go#L95) to serve the `/apis` endpoint, and `apiserver.crdHandler` in turns embodies a [`customresource.CustomResourceStorage`](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/staging/src/k8s.io/apiextensions-apiserver/pkg/registry/customresource/etcd.go#L39) for each served version of a CRD. `customresource.CustomResourceStorage` represents the etcd v3 storage, which in turn embodies an etcd v3 client and that client [has](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/vendor/go.etcd.io/etcd/client/v3/client.go#L359) a `zap.Logger`. These relationships reveal that we spend 448 KB of heap space for each version served of each CRD. That's currently rougly 5 times larger than the total amount of heap space needed to store the deserialized OpenAPI v3 schemas of `provider-jet-aws` CRDs.
+- We allocate persistent (during the lifetime of an installed CRD) heap space that's proportional to the size of the OpenAPI v3 schema of a CRD in the [`SharedIndexInformer`](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/staging/src/k8s.io/client-go/tools/cache/shared_informer.go#L186) caches of various CRD controllers such as the [`establish.EstablishingController`](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/staging/src/k8s.io/apiextensions-apiserver/pkg/controller/establish/establishing_controller.go#L40) or the [`finalizer.CRDFinalizer`](https://github.com/kubernetes/kubernetes/blob/86ec240af8cbd1b60bcc4c03c20da9b98005b92e/staging/src/k8s.io/apiextensions-apiserver/pkg/controller/finalizer/crd_finalizer.go#L59) controller, and for some other purposes such as CRD resource handler caches. Currently, for `provider-jet-aws@0.4.0-preview`, such caches consume less than ~80 MB of heap space.
+- However, to exacerbate the situation, we have generated ~190 CRDs each with 5000 OpenAPI v3 schema properties. Even with only 190 such CRDs, heap profiling [data][kube-apiserver-heap-profile-5000-props] reveals that ~5 GB of heap space is allocated and `zapcore.newCounters` is no longer the largest allocation site anymore, as expected. This profiling data better emphasizes allocation sites which are inflated with large (deserialized) OpenAPI v3 CRD schemas. One can generate such CRDs using the following command:
+```
+github.com/ulucinar/terrajet-scale/cmd/apigen generate -g 200 -c 200 --property-count 5000
+```
+
 
 ## Criteria Set for Ideal State
 
@@ -117,7 +133,7 @@ rm -fR  ~/.kube/cache/discovery/<host_port> && time (kubectl get pods > /dev/nul
 - Open issues regarding API service disruptions for managed control-planes (GKE regional, AKS, EKS, etc.), where we expect high-availability.
 - With some insight on server-side issues, we will also need to pursue a set of issues in kube-apiserver and possibly in other control-plane components.
 - Initiate further discussions with Kubernetes [sig-scalability](https://github.com/kubernetes/community/tree/master/sig-scalability) community regarding CRD-scalability and bring agreed-upon Crossplane scenarios into their attention.
-- ...
+
 
 ## Prior Art
 - Some early analysis that revealed OpenAPI spec aggregation as a point for potential improvement: [[1]], [[2]]
@@ -148,3 +164,9 @@ rm -fR  ~/.kube/cache/discovery/<host_port> && time (kubectl get pods > /dev/nul
 [3]: https://github.com/kubernetes/community/blob/master/sig-scalability/configs-and-limits/thresholds.md
 [4]: https://github.com/crossplane/crossplane/issues/2895
 [5]: https://github.com/kubernetes/kubernetes/pull/107131
+
+[kube-apiserver-mem-metrics]: images/kube-apiserver-mem-metrics.png
+[kube-apiserver-cpu-usage]: images/kube-apiserver-cpu-usage.png
+[kube-apiserver-goroutines]: images/kube-apiserver-goroutines.png
+[kube-apiserver-heap-profile]: images/kube-apiserver-heap-profile.pdf
+[kube-apiserver-heap-profile-5000-props]: images/kube-apiserver-heap-profile-5000-props.pdf
