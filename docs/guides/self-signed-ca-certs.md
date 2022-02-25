@@ -4,7 +4,7 @@ toc: true
 weight: 270  
 indent: true  
 ---  
-sign
+
 # Overview of Crossplane for Registry with Self-Signed CA Certificate  
 
 Crossplane uses the go-containerregistry remote pkg as the client to fetch
