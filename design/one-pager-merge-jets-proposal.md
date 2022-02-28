@@ -16,20 +16,20 @@ compliant with [Crossplane Resource Model (XRM)][xrm-doc]. You can read more
 about its internals in [the deep dive blog post series][deep-dive-blogs].
 
 Before releasing the first Terrajet-based providers, we have had a discussion
-whether we'd like to have them as separate providers or just Terrajet-generated
-CRDs to the existing classic providers in the [provider strategy
-doc][strategy-doc]. The decision for initial releases of the first three
-Jet-based providers ([AWS][jet-aws], [Azure][jet-azure] and [GCP][jet-gcp]) was
-to have them as separate providers for the reasons stated
+whether we'd like to have them as separate providers or have the
+Terrajet-generated CRDs added to the existing classic providers in the [provider
+strategy doc][strategy-doc]. The decision for initial releases of the first
+three Jet-based providers ([AWS][jet-aws], [Azure][jet-azure] and
+[GCP][jet-gcp]) was to have them as separate providers for the reasons stated
 [here](https://github.com/crossplane/crossplane/blob/master/design/design-doc-provider-strategy.md#decision-for-initial-releases).
 
 We called out that we'll revisit this decision after more usage and community
 feedback, which was lacking most probably because we were asking people (in
 Slack and in https://github.com/crossplane/crossplane/pull/2701) for their
 opinions about providers that they have not used yet. Today we have more data
-and more awareness in the community, and having more than a single
-implementation of a cloud provider has been confusing for a lot of users, so a
-revisit of the decision regarding AWS, Azure and GCP is due.
+and more awareness in the community, and having two different implementations
+has been confusing for a lot of users, so a revisit of the decision regarding
+AWS, Azure and GCP is due.
 
 ## Goals
 
@@ -41,9 +41,21 @@ We have the following goals for _the big three_ providers:
 * The providers should be mature enough for users to depend on them in
   production, i.e. maturity.
 
-Today, we have two Crossplane providers for each of the big three clouds. Both
-variants reach those goals at different levels but none of them are maintained
-by their cloud vendor.
+Today, we have two Crossplane providers for each of the big three clouds.
+* AWS
+  * Classic with [124 CRDs][provider-aws-crds] with 37 beta CRDs.
+  * Jet with [763 CRDs][jet-aws-crds], no beta CRDs.
+* Azure
+  * Classic with [21 CRDs][provider-azure-crds] with 7 beta CRDs.
+  * Jet with [647 CRDs][jet-azure-crds], no beta CRDs.
+* Google Cloud
+  * Classic with [27 CRDs][provider-gcp-crds] with 11 beta CRDs.
+  * Jet with [438 CRDs][jet-gcp-crds], no beta CRDs.
+
+Both variants of each reach those goals at different levels but none of them are
+maintained by their cloud vendor. The aim of this document is to capture a
+decision about the future of these provider implementations with the goals
+stated above in mind.
 
 ## Proposal
 
@@ -57,18 +69,21 @@ We should go with the Option C, i.e. use Terrajet in provider-aws,
 provider-azure and provider-gcp as another way of generating CRDs and
 controllers so that they can reach the goal of coverage really fast. Then the
 community can keep investing in that single provider and make each CRD mature
-enough to depend on in production. In this way, we can increase the usage to
-attract cloud vendors to come and join the maintainership of these providers.
-Once they do, they can progressively migrate resources to their choice of
-technology similar to how we plan on changing the underlying implementation with
-conversion webhook.
+enough to depend on in production. In this way, we can increase the usage by
+increasing both the coverage and the maturity of the CRDs in a consolidated way.
+This increase in usage can attract cloud vendors to come and join the
+maintainership of these providers. Once they do, they can either progressively
+convert the implementation of the controllers to their choice of technology or
+start with new providers which we can suggest people to use and we can provide
+migration tooling from the community-maintained one. In either case, the users
+would see a clear path forward and we'd not waste any efforts by the community.
 
 There are several reasons to choose this approach instead of having providers
 separated by their implementation. Let's take a look at them one by one.
 
 ### Dependence on Terraform Provider
 
-The generic Terrajet controller calls Terraform CLI which in turn calls the
+The generic Terrajet controller calls Terraform CLI which in turn calls its
 Terraform provider to operate. Each CRD has its own completely independent
 reconciler thread configured to work with the schema of that resource.
 
@@ -94,27 +109,31 @@ based on ARM and Google is using Magic Modules and DCL to generate TF provider,
 so it's likely that they will choose to do that for their Crossplane provider as
 well. [Provider Strategy doc][strategy-doc] goes into more detail about these
 tools. In summary, Terrajet will be a temporary solution that we put in place to
-get more coverage and we'll need to discuss how to change the implementation to
-those tools.
+get more coverage and at some point we'll need to discuss how to change the
+implementation to those tools.
 
 With that in mind, it's a hard choice to invest in separate Jet-based providers
 knowing that they will, even though after years, be deprecated at one point and
 users will have to migrate. At the same time, classic providers are very far
 from having the same coverage level. This creates confusion and reluctance to
-use and also contribute to one of the providers.
+use and contribute to either of the providers, which also results in decreased
+pace of contributions because of the divergence of efforts.
 
 With a single mixed provider, the story is much clearer; we fill the gaps with
 Terrajet and over time the implementation of the resources will change to be
 more _native_; be it cloud vendor generation tools or handwritten API calls. As
 long as the CRD schema and the API behavior is same, they can make the best
-choice they'd like.
+choice they'd like. In case they decide to start their own provider, then the
+story is still clear; there is a new provider maintained by its vendor and you
+should migrate to that one once you see fit as opposed to Jet vs classic choice
+where you need to think about different trade-offs with different timelines.
 
 ### Convergence of Efforts
 
 The classic providers have the years of usage experience and contributions from
 the community that makes them mature enough to be used in production. While Jet
 providers are working on top of the mature TF providers that have been
-maintained longer than Crossplane's existence, they will still need
+maintained longer than Crossplane's existence in some cases, they will still need
 contributions from the community to get to a certain level of maturity. If there
 is a single provider, then the community wouldn't have to deal with two
 implementations of the same API, trying to cover ground on both. The bugs would
@@ -124,8 +143,9 @@ Another point is that, just like users, contributors would also face a decision
 they may have a hard time to make - invest in classic one which will see
 decreased usage or Jet one which will be deprecated at one point, even if years
 away. If there is a single mixed provider, then everyone would know the path
-forward and be assured that the next step for that provider is only forward; not
-deprecation.
+forward and be assured that the next step for that provider is only additive
+towards the end goals; not deprecation or removal of their contributions in
+favor of a temporary approach.
 
 ### Cross-resource References
 
@@ -179,8 +199,8 @@ listed in its discussion.
 
 In a single provider, users would keep using Kubernetes-native style referencing
 where they are only concerned with the name and/or labels of the referenced
-object, since there is a single type and it's defined in the same provider,
-hence the controller knows these details already.
+object, since there is a single type and it's defined in the same provider, the
+controller knows these details already.
 
 ## Drawbacks
 
@@ -237,3 +257,15 @@ much change to the errors it gets from the cloud vendor API.
     https://github.com/crossplane/crossplane-runtime/blob/295de47/pkg/reconciler/managed/reconciler.go#L268
 [generic-controller]:
     https://github.com/crossplane/terrajet/blob/ca43613/pkg/controller/external.go#L108
+[provider-aws-crds]:
+    https://doc.crds.dev/github.com/crossplane/provider-aws@v0.24.1
+[jet-aws-crds]:
+    https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws@v0.4.0-preview
+[provider-azure-crds]:
+    https://doc.crds.dev/github.com/crossplane/provider-azure@v0.18.1
+[jet-azure-crds]:
+    https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-azure@v0.7.1-preview
+[provider-gcp-crds]:
+    https://doc.crds.dev/github.com/crossplane/provider-gcp@v0.20.0
+[jet-gcp-crds]:
+    https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-gcp@v0.2.0-preview
