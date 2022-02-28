@@ -275,6 +275,39 @@ the case for Jet providers, in fact, most of the errors you see still look
 similar to classic providers since Terraform, just like Crossplane, doesn't make
 much change to the errors it gets from the cloud vendor API.
 
+## What Others Did
+
+The concept of providers are common with projects like Terraform and Pulumi.
+These projects have had similar challenges as well regarding the technology
+choices that they made to build their providers.
+
+In Terraform, it seems that the maintainers (not affiliated with AWS) has
+decided to bootstrap a new provider when they decided to move to AWS Cloud
+Control whereas GCP Provider (maintained by GCP) had [decided to
+mix][gcp-tf-contributing] the manually written TF code with their Magic Modules
+and DCL. Azure seems to have a single provider that is built with ARM. The
+common theme of all these TF providers is that the users have a linear choice to
+make; it's either a single provider or they know which provider is going to be
+maintained in the foreseeable future. In our case, we have separate Jet and
+classic providers, but it's hard to convince people that Terrajet is a temporary
+solution but also Jet providers will be maintained long enough to outlive the
+project they are currently building, hence the confusion.
+
+For Pulumi, the story is a bit different. They had started with providers
+generated from TF equivalents, a similar approach to Terrajet. But then they
+[bootstrapped][pulumi-blog] new providers that use cloud vendor tooling
+directly, without Terraform. At all points, their users had a clear idea of
+what's next and the choice is usually clear enough. In our case, we started with
+cloud vendor tooling and then introduced the temporary solution and that make
+people hesitant to choose either.
+
+Even though there are similarities, our trajectory of starting with cloud vendor
+tooling and introducing a provider with more coverage using a middle-layer, i.e.
+Terrajet, is unique and makes a big difference in how people should think about
+the choice they make. So, we have one of the three in Terraform going with mixed
+approach and none in Pulumi, but the trajectories don't really map enough to
+point to either of them as similar cases.
+
 [Terrajet]: https://github.com/crossplane/terrajet
 [deep-dive-blogs]: https://blog.crossplane.io/deep-dive-terrajet-part-i/
 [xrm-doc]: one-pager-managed-resource-api-design.md
@@ -307,3 +340,4 @@ much change to the errors it gets from the cloud vendor API.
     https://doc.crds.dev/github.com/crossplane/provider-gcp@v0.20.0
 [jet-gcp-crds]:
     https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-gcp@v0.2.0-preview
+[pulumi-blog]: https://www.pulumi.com/blog/announcing-aws-native/
