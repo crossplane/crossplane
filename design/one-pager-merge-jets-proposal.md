@@ -78,8 +78,14 @@ start with new providers which we can suggest people to use and we can provide
 migration tooling from the community-maintained one. In either case, the users
 would see a clear path forward and we'd not waste any efforts by the community.
 
+Note that we are making two decisions here:
+* There will be a single provider.
+* The single provider will be the classic one and we'll add Terrajet CRDs on
+  top.
+
 There are several reasons to choose this approach instead of having providers
-separated by their implementation. Let's take a look at them one by one.
+separated by whether they call APIs directly or use Terrajet. Let's take a look
+at them one by one.
 
 ### Dependence on Terraform Provider
 
@@ -140,25 +146,46 @@ case, Crossplane is a CNCF project with an open governance model, so we can't
 really compare it with Terraform, a property of HashiCorp, in that respect but
 it still provides a data point.
 
-The strategy we choose should take both possibilities into account:
+The strategy we choose should take the following possibilities into account:
 * They may choose to bootstrap their own Crossplane provider, maybe even not
 under Crossplane organization.
 * They might decide to convert the underlying implementation to their own
 technology, similar to GCP Terraform provider that is [undergoing a
 process][gcp-tf-contributing] where they change implementation from handwritten
 API calls to Magic Modules and DCL.
+* They would provide the tools but not take part in maintenance of the codebase.
 
 In the first case, regardless of whether we go with separate or mixed providers,
 we will likely suggest users to migrate to the vendor-maintained provider so
 that they can get commercial grade support for the bugs in the provider. One
 could argue that if users are on a single provider once that happens, it's
-probably easier to handle the migration.
+probably easier to handle the migration. In addition, it's likely the main
+reason they'd step in would be community-maintained provider having a large user base,
+so it's not very likely that they will start a new provider and handle migration
+from a provider with such a large user base.
 
 In the second case, mixed provider wouldn't require any manual migration. The
 conversion webhooks that Kubernetes API provides will take care of the API
 changes as described in [provider strategy doc][strategy-doc] in detail. In the
 case of separate providers though, users of one of the provider would have to
 migrate.
+
+In the third case, if we go with single mixed provider, we can choose to use the
+cloud vendor tooling for the resources we decide to convert. If we go with
+separate providers, we could keep working with those tools, like AWS CC, in the
+existing classic provider or bootstrap a new one but either case would either be
+similar or worse than the single mixed provider in terms of choices users would
+have to consider. Overall, the decision of how to go from Terrajet to
+cloud-vendor tooling is an independent decision from how we manage Terrajet and
+classic provider mix since it's the step after we decide that, if ever, the
+provided tooling is better than we have. For example, today, calling AWS API
+directly is definitely not better than Terrajet.
+
+In all cases, our best bet on getting them to maintain their provider is to
+increase usage so that their customers demand it and the single mixed provider
+makes people more comfortable by reducing the decision overhead and providing
+confidence to users about what they can expect to happen to the tool they build
+their infrastructure on top of.
 
 ### Convergence of Efforts
 
