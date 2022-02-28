@@ -116,26 +116,58 @@ With that in mind, it's a hard choice to invest in separate Jet-based providers
 knowing that they will, even though after years, be deprecated at one point and
 users will have to migrate. At the same time, classic providers are very far
 from having the same coverage level. This creates confusion and reluctance to
-use and contribute to either of the providers, which also results in decreased
-pace of contributions because of the divergence of efforts.
+use either of the providers, which also results in decreased pace of
+contributions because of the divergence of efforts.
 
 With a single mixed provider, the story is much clearer; we fill the gaps with
 Terrajet and over time the implementation of the resources will change to be
-more _native_; be it cloud vendor generation tools or handwritten API calls. As
-long as the CRD schema and the API behavior is same, they can make the best
-choice they'd like. In case they decide to start their own provider, then the
-story is still clear; there is a new provider maintained by its vendor and you
-should migrate to that one once you see fit as opposed to Jet vs classic choice
-where you need to think about different trade-offs with different timelines.
+more _native_; be it cloud vendors using their own approaches or handwritten API
+calls community writes that may be necessary to overcome a bug in TF provider.
+As long as the CRD schema and the API behavior is same, the maintainers can make
+the best choice depending on the situation, communicate any breaking changes and
+provide a smooth experience to the users. In case cloud vendor steps in and
+decides to start its own provider, then the story is still clear; there is a new
+provider maintained by its vendor and you should migrate to that one once you
+see fit as opposed to Jet vs classic choice where you need to think about
+different trade-offs with different and uncertain timelines.
+
+### Ownership by The Cloud Vendors
+
+As stated above, we hope that cloud vendors will come in and maintain their
+Crossplane providers. It seems like Terraform has achieved this goal only for
+GCP; Azure and AWS Terraform providers are not maintained by the vendors. In our
+case, Crossplane is a CNCF project with an open governance model, so we can't
+really compare it with Terraform, a property of HashiCorp, in that respect but
+it still provides a data point.
+
+The strategy we choose should take both possibilities into account:
+* They may choose to bootstrap their own Crossplane provider, maybe even not
+under Crossplane organization.
+* They might decide to convert the underlying implementation to their own
+technology, similar to GCP Terraform provider that is [undergoing a
+process][gcp-tf-contributing] where they change implementation from handwritten
+API calls to Magic Modules and DCL.
+
+In the first case, regardless of whether we go with separate or mixed providers,
+we will likely suggest users to migrate to the vendor-maintained provider so
+that they can get commercial grade support for the bugs in the provider. One
+could argue that if users are on a single provider once that happens, it's
+probably easier to handle the migration.
+
+In the second case, mixed provider wouldn't require any manual migration. The
+conversion webhooks that Kubernetes API provides will take care of the API
+changes as described in [provider strategy doc][strategy-doc] in detail. In the
+case of separate providers though, users of one of the provider would have to
+migrate.
 
 ### Convergence of Efforts
 
 The classic providers have the years of usage experience and contributions from
 the community that makes them mature enough to be used in production. While Jet
 providers are working on top of the mature TF providers that have been
-maintained longer than Crossplane's existence in some cases, they will still need
-contributions from the community to get to a certain level of maturity. If there
-is a single provider, then the community wouldn't have to deal with two
+maintained longer than Crossplane's existence in some cases, they will still
+need contributions from the community to get to a certain level of maturity. If
+there is a single provider, then the community wouldn't have to deal with two
 implementations of the same API, trying to cover ground on both. The bugs would
 be fixed once and for everyone.
 
@@ -223,14 +255,18 @@ work. So, even though the structure is same, you'll see that [the generic
 controller][generic-controller] makes extensive use of the functions defined in
 that interface where as classic implementations work with the type directly.
 
-### Code Debugging Experience Difference
+### Maintenance Challenges
 
 This is probably the biggest difference between classic and Jet providers. If
 you run the debugger and put breakpoints in the code, you'll realize that Jet
 providers run the Terraform CLI in a temporary TF workspace folder instead of
 making HTTP calls to the cloud vendor. This makes it more challenging to debug
 Jet providers because you need to have a rough idea of how Terraform works, i.e.
-concepts like TF state and TF configuration.
+concepts like TF state and TF configuration. In either case though, if you use a
+Jet-generated CRD in Jet provider or mixed provider, you'll need to bear, this
+cost. Mixing the provider doesn't really make that harder or easier but what to
+expect when you start debugging could be different, i.e. not every CRD is
+debugged in the same way.
 
 One thing to keep in mind is that it's not really a common case for Crossplane
 users to locally debug the code to see what's happening - usually the error in
@@ -246,6 +282,8 @@ much change to the errors it gets from the cloud vendor API.
 [jet-aws]: https://github.com/crossplane-contrib/provider-jet-aws
 [jet-gcp]: https://github.com/crossplane-contrib/provider-jet-gcp/
 [jet-azure]: https://github.com/crossplane-contrib/provider-jet-azure/
+[gcp-tf-contributing]:
+    https://github.com/hashicorp/terraform-provider-google/blob/610f62b/.github/CONTRIBUTING.md#generated-resources
 [classic-setup]:
     https://github.com/crossplane/provider-aws/blob/475fd24/pkg/controller/acm/controller.go#L62
 [jet-setup]:
