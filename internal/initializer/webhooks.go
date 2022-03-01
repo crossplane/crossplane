@@ -18,6 +18,7 @@ package initializer
 
 import (
 	"context"
+	"reflect"
 
 	"github.com/spf13/afero"
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -27,6 +28,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+)
+
+// Error strings.
+const (
+	errApplyWebhookConfiguration = "cannot apply webhook configuration"
 )
 
 // WithWebhookConfigurationsFs is used to configure the filesystem the CRDs will
@@ -43,9 +49,10 @@ type WebhookConfigurationsOption func(*WebhookConfigurations)
 // NewWebhookConfigurations returns a new *WebhookConfigurations.
 func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath string, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
 	c := &WebhookConfigurations{
-		Path:   path,
-		Scheme: s,
-		fs:     afero.NewOsFs(),
+		Path:               path,
+		Scheme:             s,
+		WebhookTLSCertPath: webhookCertPath,
+		fs:                 afero.NewOsFs(),
 	}
 	for _, f := range opts {
 		f(c)
@@ -57,7 +64,7 @@ func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath st
 type WebhookConfigurations struct {
 	Path               string
 	Scheme             *runtime.Scheme
-	WebhookTLSCertPath *string
+	WebhookTLSCertPath string
 
 	fs afero.Fs
 }
@@ -81,12 +88,9 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
-	var caBundle []byte
-	if c.WebhookTLSCertPath != nil {
-		caBundle, err = afero.ReadFile(c.fs, *c.WebhookTLSCertPath)
-		if err != nil {
-			return errors.Wrapf(err, errReadTLSCertFmt, *c.WebhookTLSCertPath)
-		}
+	caBundle, err := afero.ReadFile(c.fs, c.WebhookTLSCertPath)
+	if err != nil {
+		return errors.Wrapf(err, errReadTLSCertFmt, c.WebhookTLSCertPath)
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, obj := range pkg.GetObjects() {
@@ -100,10 +104,10 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 				conf.Webhooks[i].ClientConfig.CABundle = caBundle
 			}
 		default:
-			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration manifests are accepted")
+			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %s", reflect.TypeOf(obj).String())
 		}
 		if err := pa.Apply(ctx, obj.(client.Object)); err != nil {
-			return errors.Wrap(err, "cannot apply webhook configuration")
+			return errors.Wrap(err, errApplyWebhookConfiguration)
 		}
 	}
 	return nil
