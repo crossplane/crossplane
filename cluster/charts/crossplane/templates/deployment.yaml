@@ -57,12 +57,8 @@ spec:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
           securityContext:
             {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
-          env:
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           {{- if ne .Values.webhooks.tlsSecretName "" }}
+          env:
           - name: "WEBHOOK_TLS_CERT_DIR"
             value: /webhook/tls
           - name: "WEBHOOK_SERVICE_NAME"
@@ -73,8 +69,6 @@ spec:
                 fieldPath: metadata.namespace
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
-          {{- end }}
-          {{- if ne .Values.webhooks.tlsSecretName "" }}
           volumeMounts:
           - mountPath: /webhook/tls
             name: webhook-tls-secret

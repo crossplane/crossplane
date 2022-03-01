@@ -148,8 +148,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.Provider
 			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 
 		envs := []corev1.EnvVar{
-			{Name: "WEBHOOK_TLS_CERT_PATH", Value: "/webhook/tls/tls.crt"},
-			{Name: "WEBHOOK_TLS_KEY_PATH", Value: "/webhook/tls/tls.key"},
+			{Name: "WEBHOOK_TLS_CERT_DIR", Value: "/webhook/tls"},
 		}
 		d.Spec.Template.Spec.Containers[0].Env =
 			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
