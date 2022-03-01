@@ -49,17 +49,19 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
-	var crdsOpts []initializer.CoreCRDsOption
-	if c.WebhookTLSCertPath != "" {
-		crdsOpts = append(crdsOpts, initializer.WithWebhookCertPath(c.WebhookTLSCertPath))
-	}
-	i := initializer.New(cl,
-		initializer.NewCoreCRDs("/crds", s, crdsOpts...),
+	steps := []initializer.Step{
 		initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
-		initializer.NewStoreConfigObject(c.Namespace),
-	)
-	if err := i.Init(context.TODO()); err != nil {
+	}
+	if c.WebhookTLSCertPath != "" {
+		steps = append(steps,
+			initializer.NewWebhookConfigurations("/webhooks", s, c.WebhookTLSCertPath),
+			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookCertPath(c.WebhookTLSCertPath)))
+	} else {
+		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
+	}
+	steps = append(steps, initializer.NewStoreConfigObject(c.Namespace))
+	if err := initializer.New(cl, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
 	log.Info("Initialization has been completed")
