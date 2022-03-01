@@ -55,7 +55,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 	if c.WebhookTLSCertPath != "" {
 		steps = append(steps,
-			initializer.NewWebhookConfigurations("/webhooks", s, c.WebhookTLSCertPath),
+			initializer.NewWebhookConfigurations("/webhookconfigurations", s, c.WebhookTLSCertPath),
 			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookCertPath(c.WebhookTLSCertPath)))
 	} else {
 		steps = append(steps, initializer.NewCoreCRDs("/crds", s))

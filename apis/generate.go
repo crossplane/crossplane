@@ -31,7 +31,7 @@ limitations under the License.
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/... crd:crdVersions=v1 output:artifacts:config=../docs/api-docs/crds
 
 // Generate webhook manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/... output:artifacts:config=../cluster/webhooks
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/... output:artifacts:config=../cluster/webhookconfigurations
 
 // Generate clientset for types.
 //go:generate rm -rf ../internal/client

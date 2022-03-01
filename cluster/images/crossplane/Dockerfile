@@ -5,7 +5,7 @@ ARG TARGETARCH
 
 ADD bin/$TARGETOS\_$TARGETARCH/crossplane /usr/local/bin/
 ADD crds /crds
-ADD webhooks /webhooks
+ADD webhookconfigurations /webhookconfigurations
 EXPOSE 8080
 USER 65532
 ENTRYPOINT ["crossplane"]
