@@ -20,10 +20,8 @@ import (
 	"context"
 
 	"github.com/spf13/afero"
-	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -33,14 +31,14 @@ import (
 
 // Error strings.
 const (
-	errGetTLSSecretFmt = "cannot get tls secret %s/%s"
+	errReadTLSCertFmt = "cannot read webhook tls cert in %s"
 )
 
-// WithWebhookTLSSecretName configures CoreCRDs with a TLS Secret name so that it
-// can inject CA bundle to CRDs with webhook conversion strategy.
-func WithWebhookTLSSecretName(nn types.NamespacedName) CoreCRDsOption {
+// WithWebhookCertPath configures CoreCRDs with the paths to TLS Secret so that
+// it can inject CA bundle to CRDs with webhook conversion strategy.
+func WithWebhookCertPath(path string) CoreCRDsOption {
 	return func(c *CoreCRDs) {
-		c.WebhookTLSSecretName = &nn
+		c.WebhookTLSCertPath = &path
 	}
 }
 
@@ -70,9 +68,9 @@ func NewCoreCRDs(path string, s *runtime.Scheme, opts ...CoreCRDsOption) *CoreCR
 
 // CoreCRDs makes sure the CRDs are installed.
 type CoreCRDs struct {
-	Path                 string
-	Scheme               *runtime.Scheme
-	WebhookTLSSecretName *types.NamespacedName
+	Path               string
+	Scheme             *runtime.Scheme
+	WebhookTLSCertPath *string
 
 	fs afero.Fs
 }
@@ -96,11 +94,11 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
-	var tlsSecret *corev1.Secret
-	if c.WebhookTLSSecretName != nil {
-		tlsSecret = &corev1.Secret{}
-		if err := kube.Get(ctx, *c.WebhookTLSSecretName, tlsSecret); err != nil {
-			return errors.Wrapf(err, errGetTLSSecretFmt, c.WebhookTLSSecretName.Namespace, c.WebhookTLSSecretName.Name)
+	var caBundle []byte
+	if c.WebhookTLSCertPath != nil {
+		caBundle, err = afero.ReadFile(c.fs, *c.WebhookTLSCertPath)
+		if err != nil {
+			return errors.Wrapf(err, errReadTLSCertFmt, *c.WebhookTLSCertPath)
 		}
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
@@ -109,14 +107,14 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 		if !ok {
 			return errors.New("only crds can exist in initialization directory")
 		}
-		if tlsSecret != nil && crd.Spec.Conversion != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
+		if len(caBundle) != 0 && crd.Spec.Conversion != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
 			if crd.Spec.Conversion.Webhook == nil {
 				crd.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
 			}
 			if crd.Spec.Conversion.Webhook.ClientConfig == nil {
 				crd.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
 			}
-			crd.Spec.Conversion.Webhook.ClientConfig.CABundle = tlsSecret.Data["tls.crt"]
+			crd.Spec.Conversion.Webhook.ClientConfig.CABundle = caBundle
 		}
 		if err := pa.Apply(ctx, crd); err != nil {
 			return errors.Wrap(err, "cannot apply crd")

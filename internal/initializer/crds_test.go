@@ -18,18 +18,17 @@ package initializer
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
-	v1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -48,6 +47,8 @@ func TestCoreCRDs(t *testing.T) {
 	_, _ = f.WriteString(nonWebhookCRD)
 	f, _ = fs.Create("/crds/webhookcrd.yaml")
 	_, _ = f.WriteString(webhookCRD)
+	f, _ = fs.Create("/webhook/tls/tls.crt")
+	_, _ = f.WriteString("CABUNDLE")
 	s := runtime.NewScheme()
 	_ = extv1.AddToScheme(s)
 	cases := map[string]struct {
@@ -73,19 +74,10 @@ func TestCoreCRDs(t *testing.T) {
 			args: args{
 				opts: []CoreCRDsOption{
 					WithFs(fs),
-					WithWebhookTLSSecretName(types.NamespacedName{}),
+					WithWebhookCertPath("/webhook/tls/tls.crt"),
 				},
 				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, o client.Object) error {
-						s, ok := o.(*v1.Secret)
-						if !ok {
-							return kerrors.NewNotFound(schema.GroupResource{}, "")
-						}
-						s.Data = map[string][]byte{
-							"tls.crt": []byte("CABUNDLE"),
-						}
-						return nil
-					},
+					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						crd := obj.(*extv1.CustomResourceDefinition)
 						switch crd.Name {
@@ -110,16 +102,11 @@ func TestCoreCRDs(t *testing.T) {
 			args: args{
 				opts: []CoreCRDsOption{
 					WithFs(fs),
-					WithWebhookTLSSecretName(types.NamespacedName{}),
-				},
-				kube: &test.MockClient{
-					MockGet: func(_ context.Context, _ client.ObjectKey, o client.Object) error {
-						return errBoom
-					},
+					WithWebhookCertPath("/olala"),
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errGetTLSSecretFmt, "", ""),
+				err: errors.Wrapf(&os.PathError{Op: "open", Path: "/olala", Err: errors.Errorf("file does not exist")}, errReadTLSCertFmt, "/olala"),
 			},
 		},
 	}

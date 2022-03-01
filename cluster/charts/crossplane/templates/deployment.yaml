@@ -63,8 +63,8 @@ spec:
               fieldRef:
                 fieldPath: metadata.namespace
           {{- if ne .Values.webhook.tlsSecretName "" }}
-          - name: "WEBHOOK_TLS_SECRET_NAME"
-            value: {{ .Values.webhook.tlsSecretName | quote }}
+          - name: "WEBHOOK_TLS_CERT_PATH"
+            value: /webhook/tls/tls.crt
           {{- end }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -99,6 +99,10 @@ spec:
           {{- if ne .Values.webhook.tlsSecretName "" }}
           - name: "WEBHOOK_TLS_SECRET_NAME"
             value: {{ .Values.webhook.tlsSecretName | quote }}
+          - name: "WEBHOOK_TLS_CERT_PATH"
+            value: /webhook/tls/tls.crt
+          - name: "WEBHOOK_TLS_KEY_PATH"
+            value: /webhook/tls/tls.key
           {{- end }}
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}
@@ -107,10 +111,14 @@ spec:
         volumeMounts:
           - mountPath: /cache
             name: package-cache
-            {{- if .Values.registryCaBundleConfig.name }}
+          {{- if .Values.registryCaBundleConfig.name }}
           - mountPath: /certs
             name: ca-certs
-            {{- end }}
+          {{- end }}
+          {{- if ne .Values.webhook.tlsSecretName "" }}
+          - mountPath: /webhook/tls
+            value: webhook-tls-secret
+          {{- end }}
       volumes:
       - name: package-cache
         {{- if .Values.packageCache.pvc }}
@@ -128,6 +136,16 @@ spec:
           items:
             - key: {{ .Values.registryCaBundleConfig.key }}
               path: {{ .Values.registryCaBundleConfig.key }}
+      {{- end }}
+      {{- if ne .Values.webhook.tlsSecretName "" }}
+      - name: webhook-tls-secret
+        secret:
+          secretName: {{ .Values.webhook.tlsSecretName | quote }}
+          items:
+          - key: tls.crt
+            path: tls.crt
+          - key: tls.key
+            path: tls.key
       {{- end }}
       {{- if .Values.nodeSelector }}
       nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
