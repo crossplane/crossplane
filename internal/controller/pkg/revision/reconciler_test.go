@@ -17,11 +17,13 @@ limitations under the License.
 package revision
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -152,6 +154,7 @@ spec:
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	now := metav1.Now()
+	pullPolicy := corev1.PullNever
 	trueVal := true
 
 	metaScheme, _ := xpkg.BuildMetaScheme()
@@ -346,6 +349,136 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
+		"ErrGetFromCacheSuccessfulDelete": {
+			reason: "We should return an error if package content is in cache, we cannot get it, but we remove it successfully.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithCache(&xpkgfake.MockCache{
+						MockHas:    xpkgfake.NewMockCacheHasFn(true),
+						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
+						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetCache),
+			},
+		},
+		"ErrGetFromCacheFailedDelete": {
+			reason: "We should return an error if package content is in cache, we cannot get it, and we fail to remove it.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithCache(&xpkgfake.MockCache{
+						MockHas:    xpkgfake.NewMockCacheHasFn(true),
+						MockGet:    xpkgfake.NewMockCacheGetFn(nil, errBoom),
+						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetCache),
+			},
+		},
+		"ErrNotInCachePullPolicyNever": {
+			reason: "We should return an error if package content is not in cache and pull policy is Never.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision {
+						return &v1.ConfigurationRevision{
+							Spec: v1.PackageRevisionSpec{
+								PackagePullPolicy: &pullPolicy,
+							},
+						}
+					}),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+					}),
+				},
+			},
+			want: want{
+				err: errors.New(errPullPolicyNever),
+			},
+		},
 		"ErrInitParserBackend": {
 			reason: "We should return an error if we fail to initialize parser backend.",
 			args: args{
@@ -377,6 +510,9 @@ func TestReconcile(t *testing.T) {
 					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
 						return nil
 					}}),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+					}),
 					WithParserBackend(&ErrBackend{err: errBoom}),
 				},
 			},
@@ -384,8 +520,50 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errInitParserBackend),
 			},
 		},
-		"ErrParse": {
-			reason: "We should return an error if fail to parse the package.",
+		"ErrParseFromCache": {
+			reason: "We should return an error if fail to parse the package from the cache.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(true),
+						MockGet: xpkgfake.NewMockCacheGetFn(io.NopCloser(bytes.NewBuffer(providerBytes)), nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errParsePackage),
+			},
+		},
+		"ErrParseFromImage": {
+			reason: "We should return an error if we fail to parse the package from the image.",
 			args: args{
 				mgr: &fake.Manager{},
 				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
@@ -417,6 +595,98 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas:   xpkgfake.NewMockCacheHasFn(false),
+						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errParsePackage),
+			},
+		},
+		"ErrParseFromImageFailedCache": {
+			reason: "We should return an error if we fail to parse the package from the image and fail to cache.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas:    xpkgfake.NewMockCacheHasFn(false),
+						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
+						MockDelete: xpkgfake.NewMockCacheDeleteFn(nil),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errParsePackage),
+			},
+		},
+		"ErrParseFromImageFailedCacheFailedDelete": {
+			reason: "We should return an error if we fail to parse the package from the image, fail to cache, and fail to delete from cache.",
+			args: args{
+				mgr: &fake.Manager{},
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: []ReconcilerOption{
+					WithNewPackageRevisionFn(func() v1.PackageRevision { return &v1.ConfigurationRevision{} }),
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ConfigurationRevision)
+								pr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								pr.SetDesiredState(v1.PackageRevisionActive)
+								return nil
+							}),
+							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+								want := &v1.ConfigurationRevision{}
+								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
+								want.SetDesiredState(v1.PackageRevisionActive)
+								want.SetConditions(v1.Unhealthy())
+
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithFinalizer(resource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ resource.Object) error {
+						return nil
+					}}),
+					WithParser(MockParseFn(func(_ context.Context, _ io.ReadCloser) (*parser.Package, error) { return nil, errBoom })),
+					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas:    xpkgfake.NewMockCacheHasFn(false),
+						MockStore:  xpkgfake.NewMockCacheStoreFn(errBoom),
+						MockDelete: xpkgfake.NewMockCacheDeleteFn(errBoom),
+					}),
 				},
 			},
 			want: want{
@@ -457,6 +727,13 @@ func TestReconcile(t *testing.T) {
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(errBoom)}),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 				},
 			},
 			want: want{
@@ -507,6 +784,13 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{
 						MockInConstraints:    verfake.NewMockInConstraintsFn(false, errBoom),
@@ -550,7 +834,11 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
-					WithParserBackend(parser.NewNopBackend()),
+					WithParserBackend(parser.NewEchoBackend("")),
+					WithCache(&xpkgfake.MockCache{
+						MockHas:   xpkgfake.NewMockCacheHasFn(false),
+						MockStore: xpkgfake.NewMockCacheStoreFn(nil),
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
@@ -593,6 +881,13 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 				},
 			},
@@ -650,6 +945,13 @@ func TestReconcile(t *testing.T) {
 					}}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -705,6 +1007,13 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -762,6 +1071,13 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -818,6 +1134,13 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -878,6 +1201,13 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(false, nil)}),
 				},
@@ -935,6 +1265,13 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -991,6 +1328,13 @@ func TestReconcile(t *testing.T) {
 					WithEstablisher(NewMockEstablisher()),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
@@ -1048,6 +1392,13 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithParser(parser.New(metaScheme, objScheme)),
 					WithParserBackend(parser.NewEchoBackend(string(providerBytes))),
+					WithCache(&xpkgfake.MockCache{
+						MockHas: xpkgfake.NewMockCacheHasFn(false),
+						MockStore: func(s string, rc io.ReadCloser) error {
+							_, err := io.ReadAll(rc)
+							return err
+						},
+					}),
 					WithLinter(&MockLinter{MockLint: NewMockLintFn(nil)}),
 					WithVersioner(&verfake.MockVersioner{MockInConstraints: verfake.NewMockInConstraintsFn(true, nil)}),
 				},
