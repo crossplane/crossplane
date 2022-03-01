@@ -81,9 +81,12 @@ type PackageRevisionSpec struct {
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
 
 	// WebhookTLSSecretName is the name of the TLS Secret that will be used
-	// by the provider to serve a TLS-enabled webhook server. The certficate
+	// by the provider to serve a TLS-enabled webhook server. The certificate
 	// will be injected to webhook configurations as well as CRD conversion
 	// webhook strategy if needed.
+	// If it's not given, provider will not have a certificate mounted to its
+	// filesystem, webhook configurations won't be deployed and CRDs will be
+	// applied as is regardless of their conversion strategy.
 	// +optional
 	WebhookTLSSecretName *string `json:"webhookTLSSecretName,omitempty"`
 }
