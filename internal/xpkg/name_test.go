@@ -184,6 +184,7 @@ func TestBuildPath(t *testing.T) {
 	type args struct {
 		path string
 		name string
+		ext  string
 	}
 
 	cases := map[string]struct {
@@ -196,6 +197,7 @@ func TestBuildPath(t *testing.T) {
 			args: args{
 				path: "path/to/somewhere",
 				name: "test",
+				ext:  XpkgExtension,
 			},
 			want: "path/to/somewhere/test.xpkg",
 		},
@@ -204,6 +206,7 @@ func TestBuildPath(t *testing.T) {
 			args: args{
 				path: "path/to/somewhere",
 				name: "test.tar",
+				ext:  XpkgExtension,
 			},
 			want: "path/to/somewhere/test.xpkg",
 		},
@@ -212,6 +215,7 @@ func TestBuildPath(t *testing.T) {
 			args: args{
 				path: "path/to/somewhere.tar",
 				name: "",
+				ext:  XpkgExtension,
 			},
 			want: "path/to/somewhere.xpkg",
 		},
@@ -219,7 +223,7 @@ func TestBuildPath(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			full := BuildPath(tc.args.path, tc.args.name)
+			full := BuildPath(tc.args.path, tc.args.name, tc.args.ext)
 
 			if diff := cmp.Diff(tc.want, full); diff != "" {
 				t.Errorf("\n%s\nBuildPath(...): -want, +got:\n%s", tc.reason, diff)

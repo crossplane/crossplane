@@ -82,12 +82,11 @@ func ToDNSLabel(s string) string { // nolint:gocyclo
 	return strings.Trim(cut.String(), "-")
 }
 
-// BuildPath builds a path for a compiled Crossplane package. If file name has
-// extension it will be replaced.
-func BuildPath(path, name string) string {
+// BuildPath builds a path with the provided extension.
+func BuildPath(path, name, ext string) string {
 	full := filepath.Join(path, name)
-	ext := filepath.Ext(full)
-	return full[0:len(full)-len(ext)] + XpkgExtension
+	existExt := filepath.Ext(full)
+	return full[0:len(full)-len(existExt)] + ext
 }
 
 // ParseNameFromMeta extracts the package name from its meta file.
