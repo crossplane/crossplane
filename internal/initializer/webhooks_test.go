@@ -40,6 +40,7 @@ func TestWebhookConfigurations(t *testing.T) {
 	type args struct {
 		kube client.Client
 		path string
+		svc  admv1.ServiceReference
 		opts []WebhookConfigurationsOption
 	}
 	type want struct {
@@ -52,6 +53,12 @@ func TestWebhookConfigurations(t *testing.T) {
 	_, _ = f.WriteString("CABUNDLE")
 	s := runtime.NewScheme()
 	_ = admv1.AddToScheme(s)
+	var p int32 = 1234
+	svc := admv1.ServiceReference{
+		Name:      "a",
+		Namespace: "b",
+		Port:      &p,
+	}
 	cases := map[string]struct {
 		args
 		want
@@ -62,6 +69,7 @@ func TestWebhookConfigurations(t *testing.T) {
 					WithWebhookConfigurationsFs(fs),
 				},
 				path: "/webhook/tls/tls.crt",
+				svc:  svc,
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return kerrors.NewNotFound(schema.GroupResource{}, "")
@@ -103,6 +111,7 @@ func TestWebhookConfigurations(t *testing.T) {
 						return errBoom
 					},
 				},
+				svc: svc,
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyWebhookConfiguration),
@@ -127,7 +136,7 @@ func TestWebhookConfigurations(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := NewWebhookConfigurations("/webhooks", s, tc.args.path, tc.opts...).Run(context.TODO(), tc.kube)
+			err := NewWebhookConfigurations("/webhooks", s, tc.args.path, tc.args.svc, tc.opts...).Run(context.TODO(), tc.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)
 			}

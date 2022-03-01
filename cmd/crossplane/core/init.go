@@ -19,6 +19,8 @@ package core
 import (
 	"context"
 
+	admv1 "k8s.io/api/admissionregistration/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -35,7 +37,10 @@ type initCommand struct {
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 
-	WebhookTLSCertPath string `help:"The path of the TLS Certificate that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_TLS_CERT_PATH"`
+	WebhookTLSCertPath      string `help:"The path of the TLS Certificate that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_TLS_CERT_PATH"`
+	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
+	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
+	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
 }
 
 // Run starts the initialization process.
@@ -54,8 +59,13 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
 	}
 	if c.WebhookTLSCertPath != "" {
+		svc := admv1.ServiceReference{
+			Name:      c.WebhookServiceName,
+			Namespace: c.WebhookServiceNamespace,
+			Port:      &c.WebhookServicePort,
+		}
 		steps = append(steps,
-			initializer.NewWebhookConfigurations("/webhookconfigurations", s, c.WebhookTLSCertPath),
+			initializer.NewWebhookConfigurations("/webhookconfigurations", s, c.WebhookTLSCertPath, svc),
 			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookCertPath(c.WebhookTLSCertPath)))
 	} else {
 		steps = append(steps, initializer.NewCoreCRDs("/crds", s))

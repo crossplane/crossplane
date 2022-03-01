@@ -30,7 +30,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
-// Error strings.
 const (
 	errApplyWebhookConfiguration = "cannot apply webhook configuration"
 )
@@ -47,12 +46,13 @@ func WithWebhookConfigurationsFs(fs afero.Fs) WebhookConfigurationsOption {
 type WebhookConfigurationsOption func(*WebhookConfigurations)
 
 // NewWebhookConfigurations returns a new *WebhookConfigurations.
-func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath string, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
+func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath string, svc admv1.ServiceReference, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
 	c := &WebhookConfigurations{
-		Path:               path,
-		Scheme:             s,
-		WebhookTLSCertPath: webhookCertPath,
-		fs:                 afero.NewOsFs(),
+		Path:             path,
+		Scheme:           s,
+		TLSCertPath:      webhookCertPath,
+		ServiceReference: svc,
+		fs:               afero.NewOsFs(),
 	}
 	for _, f := range opts {
 		f(c)
@@ -62,9 +62,10 @@ func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath st
 
 // WebhookConfigurations makes sure the CRDs are installed.
 type WebhookConfigurations struct {
-	Path               string
-	Scheme             *runtime.Scheme
-	WebhookTLSCertPath string
+	Path             string
+	Scheme           *runtime.Scheme
+	TLSCertPath      string
+	ServiceReference admv1.ServiceReference
 
 	fs afero.Fs
 }
@@ -88,9 +89,9 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
-	caBundle, err := afero.ReadFile(c.fs, c.WebhookTLSCertPath)
+	caBundle, err := afero.ReadFile(c.fs, c.TLSCertPath)
 	if err != nil {
-		return errors.Wrapf(err, errReadTLSCertFmt, c.WebhookTLSCertPath)
+		return errors.Wrapf(err, errReadTLSCertFmt, c.TLSCertPath)
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, obj := range pkg.GetObjects() {
@@ -98,10 +99,16 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 		case *admv1.ValidatingWebhookConfiguration:
 			for i := range conf.Webhooks {
 				conf.Webhooks[i].ClientConfig.CABundle = caBundle
+				conf.Webhooks[i].ClientConfig.Service.Name = c.ServiceReference.Name
+				conf.Webhooks[i].ClientConfig.Service.Namespace = c.ServiceReference.Namespace
+				conf.Webhooks[i].ClientConfig.Service.Port = c.ServiceReference.Port
 			}
 		case *admv1.MutatingWebhookConfiguration:
 			for i := range conf.Webhooks {
 				conf.Webhooks[i].ClientConfig.CABundle = caBundle
+				conf.Webhooks[i].ClientConfig.Service.Name = c.ServiceReference.Name
+				conf.Webhooks[i].ClientConfig.Service.Namespace = c.ServiceReference.Namespace
+				conf.Webhooks[i].ClientConfig.Service.Port = c.ServiceReference.Port
 			}
 		default:
 			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %s", reflect.TypeOf(obj).String())
