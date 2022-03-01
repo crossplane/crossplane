@@ -119,7 +119,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	po := pkgcontroller.Options{
 		Options:         o,
-		Cache:           xpkg.NewImageCache(c.CacheDir, afero.NewOsFs()),
+		Cache:           xpkg.NewPackageCache(c.CacheDir, afero.NewOsFs()),
 		Namespace:       c.Namespace,
 		DefaultRegistry: c.Registry,
 	}
