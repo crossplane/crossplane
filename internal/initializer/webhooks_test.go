@@ -68,7 +68,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
-				path: "/webhook/tls/tls.crt",
+				path: "/webhook/tls",
 				svc:  svc,
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
@@ -94,10 +94,10 @@ func TestWebhookConfigurations(t *testing.T) {
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
-				path: "/some/path.crt",
+				path: "/some",
 			},
 			want: want{
-				err: errors.Wrapf(&os.PathError{Op: "open", Path: "/some/path.crt", Err: errors.Errorf("file does not exist")}, errReadTLSCertFmt, "/some/path.crt"),
+				err: errors.Wrapf(&os.PathError{Op: "open", Path: "/some/tls.crt", Err: errors.Errorf("file does not exist")}, errReadTLSCertFmt, "/some"),
 			},
 		},
 		"ApplyFailed": {
@@ -105,7 +105,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
-				path: "/webhook/tls/tls.crt",
+				path: "/webhook/tls",
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return errBoom
@@ -122,7 +122,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				opts: []WebhookConfigurationsOption{
 					WithWebhookConfigurationsFs(fs),
 				},
-				path: "/webhook/tls/tls.crt",
+				path: "/webhook/tls",
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
 						return errBoom

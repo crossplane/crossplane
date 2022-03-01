@@ -26,8 +26,6 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// +kubebuilder:webhook:verbs=create;update;delete,path=/validate,mutating=false,failurePolicy=fail,groups=apiextensions.crossplane.io,resources=compositeresourcedefinitions,versions=v1,name=compositeresourcedefinitions,sideEffects=None,admissionReviewVersions=v1
-
 // CompositeResourceDefinitionSpec specifies the desired state of the definition.
 type CompositeResourceDefinitionSpec struct {
 	// Group specifies the API group of the defined composite resource.

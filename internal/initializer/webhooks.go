@@ -18,6 +18,7 @@ package initializer
 
 import (
 	"context"
+	"path/filepath"
 	"reflect"
 
 	"github.com/spf13/afero"
@@ -46,11 +47,11 @@ func WithWebhookConfigurationsFs(fs afero.Fs) WebhookConfigurationsOption {
 type WebhookConfigurationsOption func(*WebhookConfigurations)
 
 // NewWebhookConfigurations returns a new *WebhookConfigurations.
-func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath string, svc admv1.ServiceReference, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
+func NewWebhookConfigurations(path string, s *runtime.Scheme, tlsCertDir string, svc admv1.ServiceReference, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
 	c := &WebhookConfigurations{
 		Path:             path,
 		Scheme:           s,
-		TLSCertPath:      webhookCertPath,
+		TLSCertDir:       tlsCertDir,
 		ServiceReference: svc,
 		fs:               afero.NewOsFs(),
 	}
@@ -64,7 +65,7 @@ func NewWebhookConfigurations(path string, s *runtime.Scheme, webhookCertPath st
 type WebhookConfigurations struct {
 	Path             string
 	Scheme           *runtime.Scheme
-	TLSCertPath      string
+	TLSCertDir       string
 	ServiceReference admv1.ServiceReference
 
 	fs afero.Fs
@@ -89,9 +90,9 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
 	}
-	caBundle, err := afero.ReadFile(c.fs, c.TLSCertPath)
+	caBundle, err := afero.ReadFile(c.fs, filepath.Join(c.TLSCertDir, "tls.crt"))
 	if err != nil {
-		return errors.Wrapf(err, errReadTLSCertFmt, c.TLSCertPath)
+		return errors.Wrapf(err, errReadTLSCertFmt, c.TLSCertDir)
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, obj := range pkg.GetObjects() {

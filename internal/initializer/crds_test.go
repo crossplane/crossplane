@@ -74,7 +74,7 @@ func TestCoreCRDs(t *testing.T) {
 			args: args{
 				opts: []CoreCRDsOption{
 					WithFs(fs),
-					WithWebhookCertPath("/webhook/tls/tls.crt"),
+					WithWebhookCertDir("/webhook/tls"),
 				},
 				kube: &test.MockClient{
 					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
@@ -102,11 +102,11 @@ func TestCoreCRDs(t *testing.T) {
 			args: args{
 				opts: []CoreCRDsOption{
 					WithFs(fs),
-					WithWebhookCertPath("/olala"),
+					WithWebhookCertDir("/olala"),
 				},
 			},
 			want: want{
-				err: errors.Wrapf(&os.PathError{Op: "open", Path: "/olala", Err: errors.Errorf("file does not exist")}, errReadTLSCertFmt, "/olala"),
+				err: errors.Wrapf(&os.PathError{Op: "open", Path: "/olala/tls.crt", Err: errors.Errorf("file does not exist")}, errReadTLSCertFmt, "/olala"),
 			},
 		},
 	}

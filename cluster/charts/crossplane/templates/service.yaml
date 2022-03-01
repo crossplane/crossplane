@@ -1,4 +1,4 @@
-{{- if ne .Values.webhook.tlsSecretName "" }}
+{{- if ne .Values.webhooks.tlsSecretName "" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -13,6 +13,6 @@ spec:
     release: {{ .Release.Name }}
   ports:
   - protocol: TCP
-    port: 6443
-    targetPort: 6443
+    port: 9443
+    targetPort: 9443
 {{- end }}

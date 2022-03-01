@@ -18,6 +18,7 @@ package initializer
 
 import (
 	"context"
+	"path/filepath"
 
 	"github.com/spf13/afero"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -34,11 +35,11 @@ const (
 	errReadTLSCertFmt = "cannot read webhook tls cert in %s"
 )
 
-// WithWebhookCertPath configures CoreCRDs with the paths to TLS Secret so that
+// WithWebhookCertDir configures CoreCRDs with the paths to TLS Secret so that
 // it can inject CA bundle to CRDs with webhook conversion strategy.
-func WithWebhookCertPath(path string) CoreCRDsOption {
+func WithWebhookCertDir(path string) CoreCRDsOption {
 	return func(c *CoreCRDs) {
-		c.WebhookTLSCertPath = &path
+		c.WebhookTLSCertDir = &path
 	}
 }
 
@@ -68,9 +69,9 @@ func NewCoreCRDs(path string, s *runtime.Scheme, opts ...CoreCRDsOption) *CoreCR
 
 // CoreCRDs makes sure the CRDs are installed.
 type CoreCRDs struct {
-	Path               string
-	Scheme             *runtime.Scheme
-	WebhookTLSCertPath *string
+	Path              string
+	Scheme            *runtime.Scheme
+	WebhookTLSCertDir *string
 
 	fs afero.Fs
 }
@@ -95,10 +96,10 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 		return errors.Wrap(err, "cannot parse files")
 	}
 	var caBundle []byte
-	if c.WebhookTLSCertPath != nil {
-		caBundle, err = afero.ReadFile(c.fs, *c.WebhookTLSCertPath)
+	if c.WebhookTLSCertDir != nil {
+		caBundle, err = afero.ReadFile(c.fs, filepath.Join(*c.WebhookTLSCertDir, "tls.crt"))
 		if err != nil {
-			return errors.Wrapf(err, errReadTLSCertFmt, *c.WebhookTLSCertPath)
+			return errors.Wrapf(err, errReadTLSCertFmt, *c.WebhookTLSCertDir)
 		}
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)

@@ -37,7 +37,7 @@ type initCommand struct {
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 
-	WebhookTLSCertPath      string `help:"The path of the TLS Certificate that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_TLS_CERT_PATH"`
+	WebhookTLSCertDir       string `help:"The path of the TLS Certificate that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_TLS_CERT_DIR"`
 	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
 	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
 	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
@@ -54,23 +54,23 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
-	steps := []initializer.Step{
-		initializer.NewLockObject(),
-		initializer.NewPackageInstaller(c.Providers, c.Configurations),
-	}
-	if c.WebhookTLSCertPath != "" {
+	var steps []initializer.Step
+	if c.WebhookTLSCertDir != "" {
 		svc := admv1.ServiceReference{
 			Name:      c.WebhookServiceName,
 			Namespace: c.WebhookServiceNamespace,
 			Port:      &c.WebhookServicePort,
 		}
 		steps = append(steps,
-			initializer.NewWebhookConfigurations("/webhookconfigurations", s, c.WebhookTLSCertPath, svc),
-			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookCertPath(c.WebhookTLSCertPath)))
+			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookCertDir(c.WebhookTLSCertDir)),
+			initializer.NewWebhookConfigurations("/webhookconfigurations", s, c.WebhookTLSCertDir, svc))
 	} else {
 		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
 	}
-	steps = append(steps, initializer.NewStoreConfigObject(c.Namespace))
+
+	steps = append(steps, initializer.NewLockObject(),
+		initializer.NewPackageInstaller(c.Providers, c.Configurations),
+		initializer.NewStoreConfigObject(c.Namespace))
 	if err := initializer.New(cl, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
