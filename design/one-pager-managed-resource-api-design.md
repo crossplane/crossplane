@@ -503,7 +503,7 @@ what and we know that we'll get a full object body. However;
 * Pointer type should be used only if the corresponding field is pointer type in
   the provider's SDK type.
 
-Note that some required fields by all CRUD calls might be late-initalized. For
+Note that some required fields by all CRUD calls might be late-initialized. For
 example, a config parameter can only be fetched from the provider and CRUD
 operations except `Create` requires it. In those cases, mark the field as
 optional since at any step we may not have it.

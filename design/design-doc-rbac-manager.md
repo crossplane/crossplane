@@ -838,7 +838,7 @@ role binding. This alternative approach is appealing in that it leverages
 * Cluster roles must be manually cleaned up when a namespace is deleted.
 
 In all the difference between using namespace-aligned cluster roles and actual
-namespaced roles is neglible both in terms of functionality and complexity, so
+namespaced roles is negligible both in terms of functionality and complexity, so
 the decision comes down to which approach is more 'idiomatic'.
 
 [Aggregated ClusterRoles]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#aggregated-clusterroles
