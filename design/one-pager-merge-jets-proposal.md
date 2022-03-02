@@ -65,23 +65,54 @@ There were three options in the provider strategy doc:
 * Option C: One provider and no Jet vs classic difference. Only API version
   would be bumped if the implementation changes.
 
-We should go with the Option C, i.e. use Terrajet in provider-aws,
-provider-azure and provider-gcp as another way of generating CRDs and
-controllers so that they can reach the goal of coverage really fast. Then the
-community can keep investing in that single provider and make each CRD mature
-enough to depend on in production. In this way, we can increase the usage by
-increasing both the coverage and the maturity of the CRDs in a consolidated way.
-This increase in usage can attract cloud vendors to come and join the
-maintainership of these providers. Once they do, they can either progressively
-convert the implementation of the controllers to their choice of technology or
-start with new providers which we can suggest people to use and we can provide
-migration tooling from the community-maintained one. In either case, the users
-would see a clear path forward and we'd not waste any efforts by the community.
+We should go with the Option C, i.e. use Terrajet in
+[`provider-aws`][provider-aws], provider-azure and provider-gcp as another way
+of generating CRDs and controllers so that they can reach the goal of coverage
+really fast. Then the community can keep investing in that single provider and
+make each CRD mature enough to depend on in production. In this way, we can
+increase the usage by increasing both the coverage and the maturity of the CRDs
+in a consolidated way. This increase in usage can attract cloud vendors to come
+and join the maintainership of these providers. Once they do, they can either
+progressively convert the implementation of the controllers to their choice of
+technology or start with new providers which we can suggest people to use and we
+can provide migration tooling from the community-maintained one. In either case,
+the users would see a clear path forward and we'd not waste any efforts by the
+community.
 
 Note that we are making two decisions here:
 * There will be a single provider.
 * The single provider will be the classic one and we'll add Terrajet CRDs on
   top.
+
+The order of execution will be roughly as following, taking
+[`provider-aws`][provider-aws] as an example:
+1. Add Terrajet pipeline to the provider repository.
+1. Copy the manual resource configurations from provider-jet-aws and introduce
+  the CRDs of those configurations in their new API group, without changing
+  their version, i.e. `v1alpha2`.
+1. Generate the full set of CRDs in `release-x.x-preview` branch similar to jet
+  repository and include those non-configured ones only in `-preview` suffixed
+  version.
+1. Write up a guide or tool to help the current users of non-preview version of
+  Jet providers to migrate to [`provider-aws`][provider-aws].
+
+We will also update the guidelines about how to add a resource roughly with the
+following:
+* If you are adding a new resource, use Terrajet pipeline unless there is a
+  blocker.
+* If you encounter a bug that cannot be solved with Terrajet in a meaningful
+  timeframe, consider changing its controller to classic hand-written controller
+  and bump the API version.
+* If an existing classic CRD (hand-written or ACK-generated) has a bug that
+  cannot be fixed easily or has a blocker or we continuously get bugs which
+  makes it hard to maintain, consider replacing it with Terrajet.
+
+The main idea behind these guidelines is that we'd like to make use of the best
+tooling for a given resource in terms of its maintenance cost and stability. We
+might end up with more and more classically written resources converted to
+Terrajet because it's easier to maintain but there is no goal of converting all
+existing stable resources, like VPC for example. For all sorts of conversions,
+we will make use of conversion webhooks support of Kubernetes API.
 
 There are several reasons to choose this approach instead of having providers
 separated by whether they call APIs directly or use Terrajet. Let's take a look
@@ -160,9 +191,9 @@ we will likely suggest users to migrate to the vendor-maintained provider so
 that they can get commercial grade support for the bugs in the provider. One
 could argue that if users are on a single provider once that happens, it's
 probably easier to handle the migration. In addition, it's likely the main
-reason they'd step in would be community-maintained provider having a large user base,
-so it's not very likely that they will start a new provider and handle migration
-from a provider with such a large user base.
+reason they'd step in would be community-maintained provider having a large user
+base, so it's not very likely that they will start a new provider and handle
+migration from a provider with such a large user base.
 
 In the second case, mixed provider wouldn't require any manual migration. The
 conversion webhooks that Kubernetes API provides will take care of the API
@@ -342,6 +373,7 @@ point to either of them as similar cases.
 [jet-aws]: https://github.com/crossplane-contrib/provider-jet-aws
 [jet-gcp]: https://github.com/crossplane-contrib/provider-jet-gcp/
 [jet-azure]: https://github.com/crossplane-contrib/provider-jet-azure/
+[provider-aws]: https://github.com/crossplane/provider-aws/
 [gcp-tf-contributing]:
     https://github.com/hashicorp/terraform-provider-google/blob/610f62b/.github/CONTRIBUTING.md#generated-resources
 [classic-setup]:
