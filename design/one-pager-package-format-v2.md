@@ -121,7 +121,7 @@ spec:
   dependsOn:
     # Required. Specifies an OCI image containing a package dependency. This key
     # may be either 'provider' or 'configuration'. This is sugar; in either case
-    # the package manager determines whether the depencency is really a Provider
+    # the package manager determines whether the dependency is really a Provider
     # or a Configuration by unpacking it and inspecting its kind.
   - provider: example/provider-uncommon
     # Required. Will be extended to support version ranges in future, but
@@ -197,7 +197,7 @@ spec:
   dependsOn:
     # Required. Specifies an OCI image containing a package dependency. This key
     # may be either 'provider' or 'configuration'. This is sugar; in either case
-    # the package manager determines whether the depencency is really a Provider
+    # the package manager determines whether the dependency is really a Provider
     # or a Configuration by unpacking it and inspecting its kind.
   - provider: example/provider-example
     # Required. Will be extended to support version ranges in future, but
@@ -205,7 +205,7 @@ spec:
     version: v0.1.0
     # Required. Specifies an OCI image containing a package dependency. This key
     # may be either 'provider' or 'configuration'. This is sugar; in either case
-    # the package manager determines whether the depencency is really a Provider
+    # the package manager determines whether the dependency is really a Provider
     # or a Configuration by unpacking it and inspecting its kind.
   - configuration: example/some-dependency
     # Required. Will be extended to support version ranges in future, but

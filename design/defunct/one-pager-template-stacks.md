@@ -56,7 +56,7 @@ and some set of cluster state.
 * **Crossplane Managed Cluster**
   : A Kubernetes cluster being managed by Crossplane, which may or may not have
   Crossplane installed within that cluster
-* **SM (Stack Manager)** : The cluster priviliged deployment that manages
+* **SM (Stack Manager)** : The cluster privileged deployment that manages
   `Stack`, `ClusterStackInstall` and `StackInstall` resources. One per
   Crossplane cluster. The Stack Manager creates `Deployment` resources as
   defined by a `Stack` to handle resources of the CRD types that `Stack`
