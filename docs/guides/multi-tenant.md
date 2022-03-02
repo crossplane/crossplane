@@ -196,7 +196,7 @@ scope using a `Role`. This allows for giving users the ability to create and
 manage `MySQLInstances` in their given namespace, but not the ability to see
 those defined in other namespaces.
 
-Futhermore, because the `metadata.namespace` is a field on the XRC, patching can
+Furthermore, because the `metadata.namespace` is a field on the XRC, patching can
 be utilized to configure managed resources based on the namespace in which the
 corresponding XRC was defined. This is especially useful if a platform builder
 wants to designate specific credentials or a set of credentials that users in a
