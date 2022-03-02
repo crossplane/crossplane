@@ -27,7 +27,7 @@ Instead, it is a centralized control plane intended to manage resources external
 There is not really a need for Packages being installed into the control plane to request arbitrary permissions.
 Crossplane can be more opinionated about the types of permissions granted within its control plane and lock things down in a more secure way.
 
-Futhermore, packages are currently scoped to a single type that is used in all scenarios and by all personas.
+Furthermore, packages are currently scoped to a single type that is used in all scenarios and by all personas.
 All new types of functionality, from an end user wanting to install a simple application to an administrator wanting to install support for low level infrastructure types, are all treated the same.
 They have the same approach to security and access control and the artifacts that they install have the same scope of impact to the control plane.
 This one size fits all approach is not ideal though; the multiple scenarios and personas need finer grain control around security, access, and isolation.
