@@ -277,7 +277,7 @@ agent needs to know the namespace that it should sync to in the central cluster.
 
 The easiest configuration would be the one where we specify the `Secret` and a
 target namespace via installation commands of the agent. Both of these inputs
-will act as default and they can be overriden for each `Namespace`
+will act as default and they can be overridden for each `Namespace`
 independently. For example, multiple namespaces can have different requirements
 with the same name which could cause conficts in the central cluster because all
 namespaces are rolled up into one namespace. In order to prevent conflicts, the
