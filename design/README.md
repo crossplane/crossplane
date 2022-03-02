@@ -3,7 +3,7 @@
 This directory contains all documents informing Crossplane's design. Crossplane
 designs must transition through up to three of the following phases:
 
-1. Proposals. A proposal is simply a Github issue against this reposistory with
+1. Proposals. A proposal is simply a Github issue against this repository with
    the [`proposal` label][proposal-label]. Proposals need not be more than two
    to three paragraphs.
 2. One-pagers. A One-pager is a brief document pitching an idea for further
@@ -11,7 +11,7 @@ designs must transition through up to three of the following phases:
    page long. They provide just enough context to achieve buy-in from Crossplane
    maintainers.
 3. Design documents. A design document is a longer, more detailed design. Design
-   documents should typically be preceeded by a one-pager and/or a good amount
+   documents should typically be preceded by a one-pager and/or a good amount
    of research and experimentation.
 
 All designs must start as a proposal. In some simple cases this proposal alone
