@@ -66,7 +66,7 @@ type startCommand struct {
 	Registry             string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 	CABundlePath         string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
 	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
-	WebhookTLSCertDir    string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_CERT_DIR"`
+	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`

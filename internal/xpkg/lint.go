@@ -18,6 +18,7 @@ package xpkg
 
 import (
 	"github.com/Masterminds/semver"
+	admv1 "k8s.io/api/admissionregistration/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -44,7 +45,12 @@ const (
 // NewProviderLinter is a convenience function for creating a package linter for
 // providers.
 func NewProviderLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsProvider, PackageValidSemver), parser.ObjectLinterFns(IsCRD))
+	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsProvider, PackageValidSemver),
+		parser.ObjectLinterFns(parser.Or(
+			IsCRD,
+			IsValidatingWebhookConfiguration,
+			IsMutatingWebhookConfiguration,
+		)))
 }
 
 // NewConfigurationLinter is a convenience function for creating a package linter for
@@ -122,6 +128,26 @@ func PackageValidSemver(o runtime.Object) error {
 func IsCRD(o runtime.Object) error {
 	switch o.(type) {
 	case *extv1beta1.CustomResourceDefinition, *extv1.CustomResourceDefinition:
+		return nil
+	default:
+		return errors.New(errNotCRD)
+	}
+}
+
+// IsMutatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
+func IsMutatingWebhookConfiguration(o runtime.Object) error {
+	switch o.(type) {
+	case *admv1.MutatingWebhookConfiguration:
+		return nil
+	default:
+		return errors.New(errNotCRD)
+	}
+}
+
+// IsValidatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
+func IsValidatingWebhookConfiguration(o runtime.Object) error {
+	switch o.(type) {
+	case *admv1.ValidatingWebhookConfiguration:
 		return nil
 	default:
 		return errors.New(errNotCRD)
