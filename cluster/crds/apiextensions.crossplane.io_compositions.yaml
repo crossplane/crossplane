@@ -127,6 +127,28 @@ spec:
                               the resource whose value is to be used as input. Required
                               when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
+                          fromObjectRef:
+                            description: FromObjectRef specifies the reference to
+                              the Kubernetes object that should be used as input.
+                              Required when type is FromObjectFieldPath.
+                            properties:
+                              apiVersion:
+                                description: The API version of the referenced object.
+                                type: string
+                              kind:
+                                description: The kind of the referenced object.
+                                type: string
+                              name:
+                                description: The name of the referenced object.
+                                type: string
+                              namespace:
+                                description: The namespace of the referenced object.
+                                type: string
+                            required:
+                            - apiVersion
+                            - kind
+                            - name
+                            type: object
                           patchSetName:
                             description: PatchSetName to include patches from. Required
                               when type is PatchSet.
@@ -257,6 +279,7 @@ spec:
                               on the Patch object.
                             enum:
                             - FromCompositeFieldPath
+                            - FromObjectFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
                             - CombineFromComposite
@@ -401,6 +424,28 @@ spec:
                               the resource whose value is to be used as input. Required
                               when type is FromCompositeFieldPath or ToCompositeFieldPath.
                             type: string
+                          fromObjectRef:
+                            description: FromObjectRef specifies the reference to
+                              the Kubernetes object that should be used as input.
+                              Required when type is FromObjectFieldPath.
+                            properties:
+                              apiVersion:
+                                description: The API version of the referenced object.
+                                type: string
+                              kind:
+                                description: The kind of the referenced object.
+                                type: string
+                              name:
+                                description: The name of the referenced object.
+                                type: string
+                              namespace:
+                                description: The namespace of the referenced object.
+                                type: string
+                            required:
+                            - apiVersion
+                            - kind
+                            - name
+                            type: object
                           patchSetName:
                             description: PatchSetName to include patches from. Required
                               when type is PatchSet.
@@ -531,6 +576,7 @@ spec:
                               on the Patch object.
                             enum:
                             - FromCompositeFieldPath
+                            - FromObjectFieldPath
                             - PatchSet
                             - ToCompositeFieldPath
                             - CombineFromComposite

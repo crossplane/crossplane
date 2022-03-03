@@ -17,19 +17,28 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+type mockErrNotFound struct{}
+
+func (e *mockErrNotFound) IsNotFound() {}
+
+func (e *mockErrNotFound) Error() string { return "not-found" }
 
 func TestPatchApply(t *testing.T) {
 	now := metav1.NewTime(time.Unix(0, 0))
@@ -48,6 +57,7 @@ func TestPatchApply(t *testing.T) {
 		cp    *fake.Composite
 		cd    *fake.Composed
 		only  []PatchType
+		kube  client.Client
 	}
 	type want struct {
 		cp  *fake.Composite
@@ -699,11 +709,221 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"ValidFromObjectFieldPath": {
+			reason: "Should correctly apply a FromObjectFieldPath patch with valid settings",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						*obj.(*unstructured.Unstructured) = unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+								"data": map[string]interface{}{
+									"hello": "world",
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				patch: Patch{
+					Type: PatchTypeFromObjectFieldPath,
+					FromObjectRef: &GenericObjecReference{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+						Name:       "test-config",
+						Namespace:  pointer.StringPtr("test-namespace"),
+					},
+					FromFieldPath: pointer.StringPtr("data.hello"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "cd",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"destination": "world",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"ValidFromObjectFieldPathClusterResource": {
+			reason: "Should correctly apply a FromObjectFieldPath patch with valid settings",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						*obj.(*unstructured.Unstructured) = unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "Namespace",
+								"status": map[string]interface{}{
+									"phase": "Active",
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				patch: Patch{
+					Type: PatchTypeFromObjectFieldPath,
+					FromObjectRef: &GenericObjecReference{
+						APIVersion: "v1",
+						Kind:       "Namespace",
+						Name:       "test-ns",
+					},
+					FromFieldPath: pointer.StringPtr("status.phase"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "cd",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"destination": "Active",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"MissingFromObjectFromObjectRef": {
+			reason: "Should return an error if no reference is specified",
+			args: args{
+				kube: test.NewMockClient(),
+				patch: Patch{
+					Type: PatchTypeFromObjectFieldPath,
+				},
+				cp: &fake.Composite{},
+				cd: &fake.Composed{},
+			},
+			want: want{
+				cp:  &fake.Composite{},
+				cd:  &fake.Composed{},
+				err: errors.Errorf(errFmtRequiredField, "FromObjectRef", PatchTypeFromObjectFieldPath),
+			},
+		},
+		"MissingFromObjectFromFieldPath": {
+			reason: "Should return an error if no fromFieldPath is specified",
+			args: args{
+				kube: test.NewMockClient(),
+				patch: Patch{
+					Type: PatchTypeFromObjectFieldPath,
+					FromObjectRef: &GenericObjecReference{
+						APIVersion: "v1",
+						Kind:       "Namespace",
+						Name:       "test-ns",
+					},
+				},
+				cp: &fake.Composite{},
+				cd: &fake.Composed{},
+			},
+			want: want{
+				cp:  &fake.Composite{},
+				cd:  &fake.Composed{},
+				err: errors.Errorf(errFmtRequiredField, "FromFieldPath", PatchTypeFromObjectFieldPath),
+			},
+		},
+		"NoopOptionalFromObjectFieldPath": {
+			reason: "Should not make any changes if the path does not exist",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						*obj.(*unstructured.Unstructured) = unstructured.Unstructured{
+							Object: map[string]interface{}{
+								"apiVersion": "v1",
+								"kind":       "ConfigMap",
+							},
+						}
+						return nil
+					}),
+				},
+				patch: Patch{
+					Type: PatchTypeFromObjectFieldPath,
+					FromObjectRef: &GenericObjecReference{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+						Name:       "test-config",
+						Namespace:  pointer.StringPtr("test-namespace"),
+					},
+					FromFieldPath: pointer.StringPtr("data.hello"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "cd",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "cd",
+						Labels: map[string]string{}},
+				},
+				err: nil,
+			},
+		},
+		"NoopOptionalFromObjectFieldPathObjectNotFound": {
+			reason: "Should not make any changes if the object does not exist",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(&mockErrNotFound{}),
+				},
+				patch: Patch{
+					Type: PatchTypeFromObjectFieldPath,
+					FromObjectRef: &GenericObjecReference{
+						APIVersion: "v1",
+						Kind:       "ConfigMap",
+						Name:       "test-config",
+						Namespace:  pointer.StringPtr("test-namespace"),
+					},
+					FromFieldPath: pointer.StringPtr("data.hello"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "cd",
+						Labels: map[string]string{},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:   "cd",
+						Labels: map[string]string{}},
+				},
+				err: &mockErrNotFound{},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ncp := tc.args.cp.DeepCopyObject()
-			err := tc.args.patch.Apply(ncp, tc.args.cd, tc.args.only...)
+			err := tc.args.patch.Apply(context.Background(), tc.args.kube, ncp, tc.args.cd, tc.args.only...)
 
 			if tc.want.cp != nil {
 				if diff := cmp.Diff(tc.want.cp, ncp); diff != "" {

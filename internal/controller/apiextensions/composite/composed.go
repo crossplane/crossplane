@@ -315,7 +315,7 @@ func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
 // Render the supplied composed resource using the supplied composite resource
 // and template. The rendered resource may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error { // nolint:gocyclo
 	kind := cd.GetObjectKind().GroupVersionKind().Kind
 	name := cd.GetName()
 	namespace := cd.GetNamespace()
@@ -344,7 +344,10 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	cd.SetNamespace(namespace)
 
 	for i := range t.Patches {
-		if err := t.Patches[i].Apply(cp, cd, patchTypesFromXR()...); err != nil {
+		if err := t.Patches[i].Apply(ctx, r.client, cp, cd, patchTypesFromXR()...); err != nil {
+			return errors.Wrapf(err, errFmtPatch, i)
+		}
+		if err := t.Patches[i].Apply(ctx, r.client, cp, cd, patchTypesFromObject()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}
@@ -385,9 +388,9 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 
 // RenderComposite renders the supplied composite resource using the supplied composed
 // resource and template.
-func RenderComposite(_ context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+func RenderComposite(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 	for i, p := range t.Patches {
-		if err := p.Apply(cp, cd, patchTypesToXR()...); err != nil {
+		if err := p.Apply(ctx, nil, cp, cd, patchTypesToXR()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}

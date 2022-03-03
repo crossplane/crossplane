@@ -17,11 +17,15 @@ limitations under the License.
 package v1
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 
 	"github.com/pkg/errors"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -45,6 +49,7 @@ type PatchType string
 // Patch types.
 const (
 	PatchTypeFromCompositeFieldPath PatchType = "FromCompositeFieldPath" // Default
+	PatchTypeFromObjectFieldPath    PatchType = "FromObjectFieldPath"
 	PatchTypePatchSet               PatchType = "PatchSet"
 	PatchTypeToCompositeFieldPath   PatchType = "ToCompositeFieldPath"
 	PatchTypeCombineFromComposite   PatchType = "CombineFromComposite"
@@ -72,6 +77,22 @@ type PatchPolicy struct {
 	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
 }
 
+// A GenericObjecReference specifies a reference to a kubernetes object.
+type GenericObjecReference struct {
+	// The API version of the referenced object.
+	APIVersion string `json:"apiVersion"`
+
+	// The kind of the referenced object.
+	Kind string `json:"kind"`
+
+	// The name of the referenced object.
+	Name string `json:"name"`
+
+	// The namespace of the referenced object.
+	// +optional
+	Namespace *string `json:"namespace,omitempty"`
+}
+
 // Patch objects are applied between composite and composed resources. Their
 // behaviour depends on the Type selected. The default Type,
 // FromCompositeFieldPath, copies a value from the composite resource to
@@ -80,7 +101,7 @@ type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its' own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;PatchSet;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;FromObjectFieldPath;PatchSet;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
@@ -89,6 +110,10 @@ type Patch struct {
 	// ToCompositeFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
+
+	// FromObjectRef specifies the reference to the Kubernetes object that should be used as input.
+	// Required when type is FromObjectFieldPath.
+	FromObjectRef *GenericObjecReference `json:"fromObjectRef,omitempty"`
 
 	// Combine is the patch configuration for a CombineFromComposite or
 	// CombineToComposite patch.
@@ -117,7 +142,7 @@ type Patch struct {
 
 // Apply executes a patching operation between the from and to resources.
 // Applies all patch types unless an 'only' filter is supplied.
-func (c *Patch) Apply(cp, cd runtime.Object, only ...PatchType) error {
+func (c *Patch) Apply(ctx context.Context, kube client.Client, cp, cd runtime.Object, only ...PatchType) error {
 	if c.filterPatch(only...) {
 		return nil
 	}
@@ -125,8 +150,11 @@ func (c *Patch) Apply(cp, cd runtime.Object, only ...PatchType) error {
 	switch c.Type {
 	case PatchTypeFromCompositeFieldPath:
 		return c.applyFromFieldPathPatch(cp, cd)
+	case PatchTypeFromObjectFieldPath:
+		return c.applyFromObjectFieldPathPatch(ctx, kube, cd)
 	case PatchTypeToCompositeFieldPath:
 		return c.applyFromFieldPathPatch(cd, cp)
+
 	case PatchTypeCombineFromComposite:
 		return c.applyCombineFromVariablesPatch(cp, cd)
 	case PatchTypeCombineToComposite:
@@ -219,6 +247,39 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 	return patchFieldValueToObject(*c.ToFieldPath, out, to, mo)
 }
 
+// applyFromObjectFieldPathPatch patches the "to" resource with the referenced kubernetes object as input.
+// If the resource does not exist and the patch is configured as optional the result will be nil and the patch not applied.
+// If the resource does exist, it will call applyFromFieldPathPatch with the fetched value and "to".
+func (c *Patch) applyFromObjectFieldPathPatch(ctx context.Context, kube client.Client, to runtime.Object) error {
+	if c.FromObjectRef == nil {
+		return errors.Errorf(errFmtRequiredField, "FromObjectRef", c.Type)
+	}
+	if c.FromFieldPath == nil {
+		return errors.Errorf(errFmtRequiredField, "FromFieldPath", c.Type)
+	}
+
+	ns := types.NamespacedName{Name: c.FromObjectRef.Name}
+	if c.FromObjectRef.Namespace != nil {
+		ns.Namespace = *c.FromObjectRef.Namespace
+	}
+
+	res := &unstructured.Unstructured{}
+	res.SetAPIVersion(c.FromObjectRef.APIVersion)
+	res.SetKind(c.FromObjectRef.Kind)
+
+	if err := kube.Get(ctx, ns, res); err != nil {
+		if client.IgnoreNotFound(err) != nil {
+			return err
+		}
+		if IsOptionalPatchPolicy(c.Policy) {
+			return nil
+		}
+		return err
+	}
+
+	return c.applyFromFieldPathPatch(res, to)
+}
+
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of
 // input variables and combining them into a single output value.
 // The single output value may then be further transformed if they are defined
@@ -298,6 +359,12 @@ func IsOptionalFieldPathNotFound(err error, s *PatchPolicy) bool {
 	default:
 		return false
 	}
+}
+
+// IsOptionalPatchPolicy determines wether a PatchPolicy is optional or required.
+// Returns true if the PatchPolicy is configured optional, otherwise false.
+func IsOptionalPatchPolicy(p *PatchPolicy) bool {
+	return p == nil || p.FromFieldPath == nil || *p.FromFieldPath == FromFieldPathPolicyOptional
 }
 
 // A CombineVariable defines the source of a value that is combined with

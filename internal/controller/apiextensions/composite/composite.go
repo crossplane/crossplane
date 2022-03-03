@@ -27,3 +27,7 @@ func patchTypesToXR() []v1.PatchType {
 func patchTypesFromXR() []v1.PatchType {
 	return []v1.PatchType{v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeCombineFromComposite}
 }
+
+func patchTypesFromObject() []v1.PatchType {
+	return []v1.PatchType{v1.PatchTypeFromObjectFieldPath}
+}
