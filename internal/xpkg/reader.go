@@ -25,14 +25,14 @@ import (
 
 var _ io.ReadCloser = &gzipFileReader{}
 
-// GzipFileReader reads compressed contents from a file.
+// gzipFileReader reads compressed contents from a file.
 type gzipFileReader struct {
 	f    afero.File
 	gzip *gzip.Reader
 }
 
-// newGzipFileReader builds a gzipFileReader with the provided file.
-func newGzipFileReader(f afero.File) (*gzipFileReader, error) {
+// GzipFileReader constructs a new gzipFileReader from the passed file.
+func GzipFileReader(f afero.File) (io.ReadCloser, error) {
 	r, err := gzip.NewReader(f)
 	if err != nil {
 		return nil, err
@@ -50,35 +50,69 @@ func (g *gzipFileReader) Read(p []byte) (n int, err error) {
 
 // Close first closes the gzip reader, then closes the underlying file.
 func (g *gzipFileReader) Close() error {
+	defer g.f.Close() //nolint:errcheck
 	if err := g.gzip.Close(); err != nil {
 		return err
 	}
 	return g.f.Close()
 }
 
-// TeeReadCloser is a TeeReader that also closes the underlying writer.
-type TeeReadCloser struct {
+var _ io.ReadCloser = &teeReadCloser{}
+
+// teeReadCloser is a TeeReader that also closes the underlying writer.
+type teeReadCloser struct {
 	w io.WriteCloser
+	r io.ReadCloser
 	t io.Reader
 }
 
-var _ io.ReadCloser = &TeeReadCloser{}
-
-// NewTeeReadCloser constructs a TeeReadCloser from the passed reader and
-// writer.
-func NewTeeReadCloser(r io.ReadCloser, w io.WriteCloser) *TeeReadCloser {
-	return &TeeReadCloser{
+// TeeReadCloser constructs a teeReadCloser from the passed reader and writer.
+func TeeReadCloser(r io.ReadCloser, w io.WriteCloser) io.ReadCloser {
+	return &teeReadCloser{
 		w: w,
+		r: r,
 		t: io.TeeReader(r, w),
 	}
 }
 
 // Read calls the underlying TeeReader Read method.
-func (t *TeeReadCloser) Read(b []byte) (int, error) {
+func (t *teeReadCloser) Read(b []byte) (int, error) {
 	return t.t.Read(b)
 }
 
-// Close closes the writer for the TeeReader.
-func (t *TeeReadCloser) Close() error {
+// Close closes the underlying ReadCloser, then the Writer for the TeeReader.
+func (t *teeReadCloser) Close() error {
+	defer t.w.Close() //nolint:errcheck
+	if err := t.r.Close(); err != nil {
+		return err
+	}
 	return t.w.Close()
+}
+
+var _ io.ReadCloser = &joinedReadCloser{}
+
+// joinedReadCloster joins a reader and a closer. It is typically used in the
+// context of a ReadCloser being wrapped by a Reader.
+type joinedReadCloser struct {
+	r io.Reader
+	c io.Closer
+}
+
+// JoinedReadCloser constructs a new joinedReadCloser from the passed reader and
+// closer.
+func JoinedReadCloser(r io.Reader, c io.Closer) io.ReadCloser {
+	return &joinedReadCloser{
+		r: r,
+		c: c,
+	}
+}
+
+// Read calls the underlying reader Read method.
+func (r *joinedReadCloser) Read(b []byte) (int, error) {
+	return r.r.Read(b)
+}
+
+// Close closes the closer for the JoinedReadCloser.
+func (r *joinedReadCloser) Close() error {
+	return r.c.Close()
 }
