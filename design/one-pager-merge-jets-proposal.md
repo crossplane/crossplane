@@ -116,6 +116,13 @@ Terrajet because it's easier to maintain but there is no goal of converting all
 existing stable resources, like VPC for example. For all sorts of conversions,
 we will make use of conversion webhooks support of Kubernetes API.
 
+> Note that [the issues related to having too many CRDs][crd-issues] in a
+> cluster are being solved but the users of non-preview version are not affected
+> anyway until the CRD count reaches to over ~250 and the users of classic
+> providers will have the choice of running the preview version with full set or
+> non-preview version with the limited set of CRDs, similar to Jet providers
+> today.
+
 There are several reasons to choose this approach instead of having providers
 separated by whether they call APIs directly or use Terrajet. Let's take a look
 at them one by one.
@@ -383,6 +390,7 @@ point to either of them as similar cases.
 [provider-aws]: https://github.com/crossplane/provider-aws/
 [provider-gcp]: https://github.com/crossplane/provider-gcp/
 [provider-azure]: https://github.com/crossplane/provider-azure/
+[crd-issues]: https://github.com/crossplane/crossplane/pull/2918
 [gcp-tf-contributing]:
     https://github.com/hashicorp/terraform-provider-google/blob/610f62b/.github/CONTRIBUTING.md#generated-resources
 [classic-setup]:
