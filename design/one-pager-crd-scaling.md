@@ -58,9 +58,28 @@ Please note that 93 of the HTTP GET requests in the above example invocation are
 
 In a `provider-jet-aws@v0.4.0-preview` installation, we have a total of 192 GVs including some other external (to the Crossplane) CRDs. A measurement with the `time` command reveals that it takes ~20.4s for `kubectl get pods` to run with an empty discovery cache. In this scenario, the token bucket rate limiter (b=100, r=5.0 qps) delays one of the discovery client requests for a max amount of ~18.4s, which determines the total delay (because [`APIResource`](https://pkg.go.dev/k8s.io/apimachinery/pkg/apis/meta/v1#APIResource) discoveries for individual GVs are run in parallel). In this scenario, if we use a token bucket rate limiter with (b=100, r=50.0 qps), then the max throttling delay drops to ~1.8s. This in turn makes the total time spent for a `kubectl get pods` with an empty cache drop to ~10s. It looks like we need an extra ~8s to fully consume the response body in my setup, apart from the client-side throttling. And with the current `v1.24` tbrl(b=300, r=50.0 qps), it takes ~10s to run a `kubectl get pods`. Again, although not explicitly measured, we are waiting for the API server's response body to be fully consumed, similar to the case with tblr(b=100, r=50.0 qps). Token bucket rate limiter's throttling is no longer the bottleneck. Also we no longer observe client-side throttling warning logs in `kubectl@v1.24` output, as expected.
 
-When we have `provider-jet-aws@v0.4.0-preview`, `provider-jet-azure@v0.7.0-preview` and `provider-jet-gcp@v0.2.0-preview` installed in a cluster with some extra CRDs, we have 368 GVs. `kubectl` `v1.23.3` with discovery client tbrl(b=100, r=5.0 qps) takes ~56s to run `kubectl get pods`, where as a current master build of `kubectl` with discovery client tbrl(b=300, r=50.0 qps) takes ~18s to run the same command, a threefold improvement.
+When we have `provider-jet-aws@v0.4.0-preview`, `provider-jet-azure@v0.7.0-preview` and `provider-jet-gcp@v0.2.0-preview` installed in a `kind` cluster (using node image `v1.23.1`) with some extra CRDs, we have 368 GVs. `kubectl@v1.23.3` with discovery client tbrl(b=100, r=5.0 qps) takes ~56s to run `kubectl get pods` with a cold cache, whereas a current master build of `kubectl` with discovery client tbrl(b=300, r=50.0 qps) takes ~18s to run the same command again with a cold cache, a threefold improvement.
 
-**TODO**: Check how much we can scale with the current parameters.And what parameters are suitable for larger # of CRDs.
+With the above three providers installed on an EKS `v1.21.5-eks-bc4871b` cluster, `kubectl@v1.23.3 get pods` takes ~50s (averaged over 5 samples) on a cold cache, and a master build of `kubectl` takes ~29.8s to run the same command on a cold cache. 
+
+The following table summarizes the total execution times (averaged over 3 samples each) for running `kubectl get pods` on cold caches against:
+- EKS `v1.21.5-eks-bc4871b` cluster with `provider-jet-aws@0.4.0-preview` (and prometheus operator and Crossplane) installed. We have 192 API GroupVersions in this cluster.
+- EKS `v1.21.5-eks-bc4871b` cluster with `provider-jet-aws@0.4.0-preview`, `provider-jet-azure@v0.7.0-preview`, `provider-jet-gcp@v0.2.0-preview` (and prometheus operator and Crossplane) installed. We have 368 API GroupVersions in this cluster.
+
+A [custom build](https://github.com/ulucinar/kubernetes/tree/kubectl-tbrl) of `kubectl` that allows us to configure the discovery client's tbrl burst size and fill rate is used for these experiments. 
+
+| tbrl(burst size, fill rate) | Single provider discovery delay | 3 providers discovery delay |
+|------------------|-------|------|
+| (100, 5.0 qps)   | 20.3s |  50s |
+| (300, 50.0 qps)  | 9.6s | 29.8s |
+| (400, 50.0 qps)  | 9.7s | 17.7s |
+| (500, 100.0 qps) | 9.7s | 17.6s |
+| disabled (r=-1)  | 9.8s | 17.8s |
+
+The first two rows in the above table correspond to `kubectl@v1.23` and `kubectl@v1.24` discovery client tbrl parameters, respectively. 
+With a single provider installed (a total of 192 GVs), after bumping the burst size to 300, client-side throttling is no longer the bottleneck, as expected (i.e. `192 < 300`).
+And with three providers installed (a total of 368 GVs), after bumping the burst size to 400, client-side throttling is no longer the bottleneck, again as expected (i.e. `368 < 400`).
+
 **TODO**: Brief discussion for the K8s controllers and other clients (Crossplane `kubectl` extension, etc.) context
 
 The increased latencies as exemplified above has the following drawbacks:
