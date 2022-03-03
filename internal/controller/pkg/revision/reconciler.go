@@ -449,7 +449,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		// Package is not in cache, so we write it to the cache while parsing.
 		pipeR, pipeW := io.Pipe()
-		rc = xpkg.NewTeeReadCloser(imgrc, pipeW)
+		rc = xpkg.TeeReadCloser(imgrc, pipeW)
 		go func() {
 			defer pipeR.Close() //nolint:errcheck
 			if err := r.cache.Store(pr.GetName(), pipeR); err != nil {

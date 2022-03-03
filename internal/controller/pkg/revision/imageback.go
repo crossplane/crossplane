@@ -23,7 +23,6 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/spf13/afero/tarfs"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -110,6 +109,11 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 		if a, ok := l.Annotations[layerAnnotation]; !ok || a != baseAnnotationValue {
 			continue
 		}
+		// NOTE(hasheddan): the xpkg specification dictates that only one layer
+		// descriptor may be annotated as xpkg base. Since iterating through all
+		// descriptors is relatively inexpensive, we opt to do so in order to
+		// verify that we aren't just using the first layer annotated as xpkg
+		// base.
 		if foundAnnotated {
 			return nil, errors.New(errMultipleAnnotatedLayers)
 		}
@@ -123,14 +127,31 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 			return nil, errors.Wrap(err, errGetUncompressed)
 		}
 	}
-	// If we still don't have content then we need to flatten image and
-	// extract its package file in filesystem root.
+
+	// If we still don't have content then we need to flatten image filesystem.
 	if !foundAnnotated {
 		tarc = mutate.Extract(img)
 	}
-	fs := tarfs.New(tar.NewReader(tarc))
-	f, err := fs.Open(xpkg.StreamFile)
-	return f, errors.Wrap(err, errOpenPackageStream)
+
+	// The ReadCloser is an uncompressed tarball, either consisting of annotated
+	// layer contents or flattened filesystem content. Either way, we only want
+	// the package YAML stream.
+	t := tar.NewReader(tarc)
+	for {
+		h, err := t.Next()
+		if err != nil {
+			return nil, errors.Wrap(err, errOpenPackageStream)
+		}
+		if h.Name == xpkg.StreamFile {
+			break
+		}
+	}
+
+	// NOTE(hasheddan): we return a JoinedReadCloser such that closing will free
+	// resources allocated to the underlying ReadCloser. See
+	// https://github.com/google/go-containerregistry/blob/329563766ce8131011c25fd8758a25d94d9ad81b/pkg/v1/mutate/mutate.go#L222
+	// for more info.
+	return xpkg.JoinedReadCloser(t, tarc), nil
 }
 
 // nestedBackend is a nop parser backend that conforms to the parser backend

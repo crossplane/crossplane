@@ -21,9 +21,7 @@ import (
 	"bytes"
 	"context"
 	"io"
-	"os"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -119,7 +117,7 @@ func TestImageBackend(t *testing.T) {
 					},
 				})},
 			},
-			want: errors.Wrap(&os.PathError{Op: "open", Path: xpkg.StreamFile, Err: syscall.ENOENT}, errOpenPackageStream),
+			want: errors.Wrap(io.EOF, errOpenPackageStream),
 		},
 		"ErrEmptyImage": {
 			reason: "Should return error if image is empty.",
@@ -133,7 +131,7 @@ func TestImageBackend(t *testing.T) {
 					},
 				})},
 			},
-			want: errors.Wrap(&os.PathError{Op: "open", Path: "package.yaml", Err: syscall.ENOENT}, errOpenPackageStream),
+			want: errors.Wrap(io.EOF, errOpenPackageStream),
 		},
 		"ErrFetchPackage": {
 			reason: "Should return error if package is not in cache and we fail to fetch it.",
