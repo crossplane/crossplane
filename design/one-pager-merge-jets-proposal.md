@@ -15,10 +15,10 @@ of coverage in the matter of days. The API of the generated resources are fully
 compliant with [Crossplane Resource Model (XRM)][xrm-doc]. You can read more
 about its internals in [the deep dive blog post series][deep-dive-blogs].
 
-Before releasing the first Terrajet-based providers, we have had a discussion
+Before releasing the first Terrajet-based providers, we have had a discussion on
 whether we'd like to have them as separate providers or have the
 Terrajet-generated CRDs added to the existing classic providers in the [provider
-strategy doc][strategy-doc]. The decision for initial releases of the first
+strategy doc][strategy-doc]. The decision for the initial releases of the first
 three Jet-based providers ([AWS][jet-aws], [Azure][jet-azure] and
 [GCP][jet-gcp]) was to have them as separate providers for the reasons stated
 [here](https://github.com/crossplane/crossplane/blob/master/design/design-doc-provider-strategy.md#decision-for-initial-releases).
@@ -33,7 +33,7 @@ AWS, Azure and GCP is due.
 
 ## Goals
 
-We have the following goals for _the big three_ providers:
+We have the following goals for providers:
 
 * The cloud vendors should maintain their Crossplane provider.
 * The users should have the ability to provision all of their infrastructure
@@ -41,7 +41,7 @@ We have the following goals for _the big three_ providers:
 * The providers should be mature enough for users to depend on them in
   production, i.e. maturity.
 
-Today, we have two Crossplane providers for each of the big three clouds.
+This document aims for a decision for the following providers:
 * AWS
   * Classic with [124 CRDs][provider-aws-crds] with 37 beta CRDs.
   * Jet with [763 CRDs][jet-aws-crds], no beta CRDs.
@@ -52,32 +52,33 @@ Today, we have two Crossplane providers for each of the big three clouds.
   * Classic with [27 CRDs][provider-gcp-crds] with 11 beta CRDs.
   * Jet with [438 CRDs][jet-gcp-crds], no beta CRDs.
 
-Both variants of each reach those goals at different levels but none of them are
-maintained by their cloud vendor. The aim of this document is to capture a
-decision about the future of these provider implementations with the goals
-stated above in mind.
+Both variants of each cloud reach those goals at different levels but none of
+them are maintained by their cloud vendor. The aim of this document is to
+capture a decision about the future of these provider implementations with the
+goals stated above in mind.
 
 ## Proposal
 
-There were three options in the provider strategy doc:
+There were three options in the [provider strategy doc][strategy-doc]:
 * Option A: Completely separate providers.
+  * The initial decision.
 * Option B: One provider but Jet-based resources in their own API group.
 * Option C: One provider and no Jet vs classic difference. Only API version
   would be bumped if the implementation changes.
 
 We should go with the Option C, i.e. use Terrajet in
-[`provider-aws`][provider-aws], provider-azure and provider-gcp as another way
-of generating CRDs and controllers so that they can reach the goal of coverage
-really fast. Then the community can keep investing in that single provider and
-make each CRD mature enough to depend on in production. In this way, we can
-increase the usage by increasing both the coverage and the maturity of the CRDs
-in a consolidated way. This increase in usage can attract cloud vendors to come
-and join the maintainership of these providers. Once they do, they can either
-progressively convert the implementation of the controllers to their choice of
-technology or start with new providers which we can suggest people to use and we
-can provide migration tooling from the community-maintained one. In either case,
-the users would see a clear path forward and we'd not waste any efforts by the
-community.
+[`provider-aws`][provider-aws], [`provider-azure`][provider-azure] and
+[`provider-gcp`][provider-gcp] as another way of generating CRDs and controllers
+so that they can reach the goal of coverage really fast. Then the community can
+keep investing in that single provider and make each CRD mature enough to depend
+on in production. In this way, we can increase the usage by increasing both the
+coverage and the maturity of the CRDs in a consolidated way. This increase in
+usage can attract cloud vendors to come and join the maintainership of these
+providers. Once they do, they can either progressively convert the
+implementation of the controllers to their choice of technology or start with
+new providers which we can suggest people to use and we can provide migration
+tooling from the community-maintained one. In either case, the users would see a
+clear path forward and we'd not waste any efforts by the community.
 
 Note that we are making two decisions here:
 * There will be a single provider.
@@ -105,7 +106,8 @@ following:
   and bump the API version.
 * If an existing classic CRD (hand-written or ACK-generated) has a bug that
   cannot be fixed easily or has a blocker or we continuously get bugs which
-  makes it hard to maintain, consider replacing it with Terrajet.
+  makes it hard to maintain, consider replacing it with Terrajet and if you do
+  bump the API version.
 
 The main idea behind these guidelines is that we'd like to make use of the best
 tooling for a given resource in terms of its maintenance cost and stability. We
@@ -145,16 +147,16 @@ ARM in their TF provider and they've shown interest in generating Crossplane
 based on ARM and Google is using Magic Modules and DCL to generate TF provider,
 so it's likely that they will choose to do that for their Crossplane provider as
 well. [Provider Strategy doc][strategy-doc] goes into more detail about these
-tools. In summary, Terrajet will be a temporary solution that we put in place to
-get more coverage and at some point we'll need to discuss how to change the
-implementation to those tools.
+tools. As a summary from that document, Terrajet-generated CRDs will not change
+but the controller implementation approach may differ once the vendors step in
+and we'll provide the necessary tooling to make this as smooth as possible.
 
-With that in mind, it's a hard choice to invest in separate Jet-based providers
-knowing that they will, even though after years, be deprecated at one point and
-users will have to migrate. At the same time, classic providers are very far
-from having the same coverage level. This creates confusion and reluctance to
-use either of the providers, which also results in decreased pace of
-contributions because of the divergence of efforts.
+With that in mind, it's a hard choice to invest in standalone Jet-based
+providers knowing that they will, probably after years, be deprecated at one
+point and users will have to migrate. At the same time, classic providers are
+very far from having the same coverage level. This creates confusion and
+reluctance to use either of the providers, which also results in decreased pace
+of contributions because of the divergence of efforts.
 
 With a single mixed provider, the story is much clearer; we fill the gaps with
 Terrajet and over time the implementation of the resources will change to be
@@ -210,7 +212,12 @@ have to consider. Overall, the decision of how to go from Terrajet to
 cloud-vendor tooling is an independent decision from how we manage Terrajet and
 classic provider mix since it's the step after we decide that, if ever, the
 provided tooling is better than we have. For example, today, calling AWS API
-directly is definitely not better than Terrajet.
+directly in a controller is less resource intensive compared to Terraform CLI
+calls, however, the process of adding and maintaining those controllers simply
+does not scale to hundreds of CRDs in a meaningful timeframe so we choose
+Terrajet over that. It's the trade-offs like these that will be specific to the
+tools they will come up with that will allow the maintainers to make the best
+choice.
 
 In all cases, our best bet on getting them to maintain their provider is to
 increase usage so that their customers demand it and the single mixed provider
@@ -235,7 +242,7 @@ decreased usage or Jet one which will be deprecated at one point, even if years
 away. If there is a single mixed provider, then everyone would know the path
 forward and be assured that the next step for that provider is only additive
 towards the end goals; not deprecation or removal of their contributions in
-favor of a temporary approach.
+favor of an approach that is not the end goal.
 
 ### Cross-resource References
 
@@ -347,17 +354,17 @@ and DCL. Azure seems to have a single provider that is built with ARM. The
 common theme of all these TF providers is that the users have a linear choice to
 make; it's either a single provider or they know which provider is going to be
 maintained in the foreseeable future. In our case, we have separate Jet and
-classic providers, but it's hard to convince people that Terrajet is a temporary
-solution but also Jet providers will be maintained long enough to outlive the
-project they are currently building, hence the confusion.
+classic providers, but it's hard to convince people that standalone Jet
+providers will be maintained long enough to outlive the project they are
+currently building, hence the confusion.
 
 For Pulumi, the story is a bit different. They had started with providers
 generated from TF equivalents, a similar approach to Terrajet. But then they
 [bootstrapped][pulumi-blog] new providers that use cloud vendor tooling
 directly, without Terraform. At all points, their users had a clear idea of
 what's next and the choice is usually clear enough. In our case, we started with
-cloud vendor tooling and then introduced the temporary solution and that make
-people hesitant to choose either.
+cloud vendor tooling and then introduced the TF solution and that make people
+hesitant to choose either.
 
 Even though there are similarities, our trajectory of starting with cloud vendor
 tooling and introducing a provider with more coverage using a middle-layer, i.e.
@@ -374,6 +381,8 @@ point to either of them as similar cases.
 [jet-gcp]: https://github.com/crossplane-contrib/provider-jet-gcp/
 [jet-azure]: https://github.com/crossplane-contrib/provider-jet-azure/
 [provider-aws]: https://github.com/crossplane/provider-aws/
+[provider-gcp]: https://github.com/crossplane/provider-gcp/
+[provider-azure]: https://github.com/crossplane/provider-azure/
 [gcp-tf-contributing]:
     https://github.com/hashicorp/terraform-provider-google/blob/610f62b/.github/CONTRIBUTING.md#generated-resources
 [classic-setup]:
