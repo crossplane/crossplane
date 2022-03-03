@@ -97,6 +97,7 @@ type: Opaque
 data:
   credentials: ${BASE64ENCODED_AZURE_ACCOUNT_CREDS}
 ---
+# Change the apiVersion below to azure.jet.crossplane.io/v1alpha1 if you are using provider-jet-azure 
 apiVersion: azure.crossplane.io/v1beta1
 kind: ProviderConfig
 metadata:
