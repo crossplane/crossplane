@@ -125,6 +125,24 @@ func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to res
 	return fn(ctx, to, from)
 }
 
+// A ConnectionPropagatorChain runs multiple connection propagators.
+type ConnectionPropagatorChain []ConnectionPropagator
+
+// PropagateConnection details from one resource to the other.
+func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+	pg := false
+	for _, p := range pc {
+		pg, err = p.PropagateConnection(ctx, to, from)
+		if pg {
+			propagated = true
+		}
+		if err != nil {
+			return propagated, err
+		}
+	}
+	return propagated, nil
+}
+
 // A Reconciler reconciles composite resource claims by creating exactly one kind of
 // concrete composite resource. Each composite resource claim kind should create an instance
 // of this controller for each composite resource kind they can bind to, using
