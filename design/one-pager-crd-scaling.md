@@ -66,7 +66,7 @@ The following table summarizes the total execution times (averaged over 3 sample
 - EKS `v1.21.5-eks-bc4871b` cluster with `provider-jet-aws@0.4.0-preview` (and prometheus operator and Crossplane) installed. We have 192 API GroupVersions in this cluster.
 - EKS `v1.21.5-eks-bc4871b` cluster with `provider-jet-aws@0.4.0-preview`, `provider-jet-azure@v0.7.0-preview`, `provider-jet-gcp@v0.2.0-preview` (and prometheus operator and Crossplane) installed. We have 368 API GroupVersions in this cluster.
 
-A [custom build](https://github.com/ulucinar/kubernetes/tree/kubectl-tbrl) of `kubectl` that allows us to configure the discovery client's tbrl burst size and fill rate is used for these experiments. 
+A custom build of `kubectl` that allows us to configure the discovery client's tbrl burst size and fill rate is used for these experiments.
 
 | tbrl(burst size, fill rate) | Single provider discovery delay | 3 providers discovery delay |
 |------------------|-------|------|
@@ -79,6 +79,16 @@ A [custom build](https://github.com/ulucinar/kubernetes/tree/kubectl-tbrl) of `k
 The first two rows in the above table correspond to `kubectl@v1.23` and `kubectl@v1.24` discovery client tbrl parameters, respectively. 
 With a single provider installed (a total of 192 GVs), after bumping the burst size to 300, client-side throttling is no longer the bottleneck, as expected (i.e. `192 < 300`).
 And with three providers installed (a total of 368 GVs), after bumping the burst size to 400, client-side throttling is no longer the bottleneck, again as expected (i.e. `368 < 400`).
+
+As an example, the following command can be used to run `kubectl get nodes` by setting its discovery client's tbrl parameters to (b=400, r=50.0 qps):
+```bash
+docker run --rm -v ~/.kube/config:/.kube/config ulucinar/kubectl-tbrl:v1.24.0-alpha.3.245 --discovery-burst=400 --discovery-avg-rate=50.0 get nodes
+```
+
+To disable the discovery client's rate limiter, you can use:
+```bash
+docker run --rm -v ~/.kube/config:/.kube/config ulucinar/kubectl-tbrl:v1.24.0-alpha.3.245 --discovery-avg-rate=-1 get nodes
+```
 
 **TODO**: Brief discussion for the K8s controllers and other clients (Crossplane `kubectl` extension, etc.) context
 
@@ -121,18 +131,24 @@ github.com/ulucinar/terrajet-scale/cmd/apigen generate -g 200 -c 200 --property-
 ## Criteria Set for Ideal State
 
 In this section, we would like to discuss some Crossplane scenarios that we would like to support and that involve large numbers of CRDs:
-1. Installation of a single provider with hundreds of CRDs: As discussed above, installation of a single provider, such as `provider-jet-aws`, results in ~190 GVs being served by the API server. With the current (`v1.23`) set of client-side throttling parameters of `kubectl`, this has adverse effects on the perceived user performance. However, situation improves as the burstiness and the fill rate of the token bucket rate limiter are increased in `kubectl@v1.24`.
-2. Installation of multiple providers, such as `provider-jet-{aws,gcp,azure}`, into the same cluster results in ~370 GVs being served by the API server. Even with the updated client-side throttling parameters of `kubectl@v1.24`, client-side performance is severely affected. We also observe issues related to HA in managed control planes with such large numbers of CRDs.
+1. Installation of a single provider with hundreds of CRDs: As discussed above, installation of a single provider, such as `provider-jet-aws` preview edition, results in ~190 GVs being served by the API server. With the current (`v1.23`) set of client-side throttling parameters of `kubectl`, this has adverse effects on the perceived user performance. However, situation improves as the burstiness and the fill rate of the token bucket rate limiter are increased in `kubectl@v1.24`.
+2. Installation of multiple providers, such as `provider-jet-{aws,gcp,azure}` preview editions, into the same cluster results in ~370 GVs being served by the API server. Even with the updated client-side throttling parameters of `kubectl@v1.24`, client-side performance is severely affected. We also observe issues related to HA in managed control planes with such large numbers of CRDs.
 
 As the Crossplane community, what we would expect in these scenarios are:
 - No API service disruptions like the incidents described in [[4]] in cases where we have ~2000 CRDs installed.
-- It takes the discovery client no more than 10s to discover all available GVs. This would cover both the initial discovery needed by the controllers and periodic discoveries triggered by other clients such as `kubectl`. We propose a 10s goal because even if client-side throttling is no longer the bottleneck, it looks like that the REST client needs ~8s to fully consume responses (probably another investigation and improvement point).
+- It takes the discovery client no more than 10s to discover all available GVs if a single provider is installed, and no more than 20s if three providers are installed. 
+This would cover both the initial discovery needed by the controllers and periodic discoveries triggered by other clients such as `kubectl`. 
+We propose a 10s goal for the single provider case because even if client-side throttling is no longer the bottleneck, it looks like that the REST client needs ~8s to fully consume responses (probably another investigation and improvement point).
+Similarly, for the three provider case, even if the discovery client's rate limiter is disabled, we currently need ~18s to discover all available GVs.
+These proposals are purely technical "rate limiter centric" proposals, meaning that the proposed thresholds are the lower bounds on the end-to-end delays for running `kubectl` commands when there is no 
+client-side throttling for the discovery client (e.g. disabled rate limiter, see the tbrl parameter exploration table above). They have also been selected to satisfy common client timeout configurations. 
+Better alternatives could be derived from real-world use-cases and needs.
 
 For the 1st scenario above, we are already in a good position [except](https://github.com/crossplane/crossplane/issues/2895) for GKE zonal and regional clusters as of Kubernetes `v1.23.1`, probably due to the initial control-plane sizing chosen in their control-planes. And regarding the client-side throttling issues, as discussed in the "Cient-side Throttling" section above, with Kubernetes `v1.24` the token bucket rate limiter used by the discovery client allows request bursts upto 300, which is well above a singe provider's (`provider-jet-aws@v0.4.0-preview`) GVs (~200 GVs). So we anticipate an improved UX with the upcoming Kubernetes `v1.24`.
 
 For the 2nd scenario above, we reach ~370 GVs (including some other "external" CRDs) in the cluster, which is above the allowed burstiness of even the `v1.24` discovery client. And again client-side throttling becomes a bottleneck if the discovery client needs to discover the whole API (empty cache, cache invalidation, etc.). Also even on an AKS `v1.22.4` cluster, we were not able to install `provider-jet-{aws,gcp,azure}` `preview` editions together.
 
-When the criterias discussed above are met for the Crossplane scenarios we currently anticipate, and as long as we can satisfy these criterias with future Crossplane or upstream changes, we should be in a good position.
+When the criteria discussed above are met for the Crossplane scenarios we currently anticipate, and as long as we can satisfy these criteria with future Crossplane or upstream changes, we should be in a good position.
 
 
 ## Testing Against the Criteria Set
@@ -146,6 +162,27 @@ A more realistic example that also performs a final HTTP GET to fetch a `PodList
 ```bash
 rm -fR  ~/.kube/cache/discovery/<host_port> && time (kubectl get pods > /dev/null)
 ```
+
+## Summary
+- On AKS and EKS clusters, we can successfully install a single large provider (such as `provider-jet-aws@v0.4.0-preview`) with around 200 GVs, and we observe no service disruptions.
+On GKE regional clusters, installation of a single large provider succeeds (i.e., provider revision transitions to the `Healthy` state) **but those clusters 
+consistently cycle through 3 reconciliation phases (RUNNING -> RECONCILING -> RUNNING -> RECONCILING -> RUNNING -> RECONCILING -> RUNNING) shortly after the provider revision becomes healthy**. 
+This stabilization period for the GKE regional clusters can take ~40min and during this period we observe intermittent failures for API server requests (such as those done with `kubectl`), 
+such as TLS handshake timeouts or connection timeouts. After this stabilization period (after the managed control-plane scales up to accommodate the CRD load), things work as expected.
+- With `kubectl@v1.23.4` and older versions, we experience client-side throttling against a cluster where a single large provider is installed. But starting with the upcoming  
+`kubectl@v1.24.0` and `kubectl@v1.23.5` releases, client-side throttling is no longer the bottleneck _under normal conditions_ (for instance, no errors encountered that would cause requests to be
+repeated).
+- With three large providers (i.e, `provider-jet-aws@v0.4.0-preview`, `provider-jet-azure@v0.7.0-preview` and `provider-jet-gcp@v0.2.0-preview`), we have a worse situation:
+  - On EKS, the initial attempt of installing `provider-jet-gcp@v0.2.0-preview` as the third provider failed (the corresponding provider revision being stuck in the installed but not-healthy state
+  with some CRDs installed). Crossplane debug logs just told that the provider revision was unhealthy, and it looked like it was not taking any actions to recover (to be verified), or may be taking 
+  actions but with no sign of progress. After deleting the corresponding `provider.pkg` and reinstalling it, `provider-jet-gke` preview edition was successfully installed in ~1min. 
+  We have also observed restarts of the core Crossplane and RBAC manager pods due to timeouts and also OOM killings. Regarding the OOM killings, we may need to revisit the resource quotas put on 
+  these nodes for these scenarios.
+  - On AKS, installation of `provider-jet-gcp@v0.2.0-preview` as the third provider was not possible or was progressing very slowly due to frequent Crossplane pod restarts (again due to timeouts 
+  while communicating with the control-plane).
+- And according to our measurements on an EKS cluster with these three large providers installed, `kubectl@v1.24.0`'s discovery client tbrl parameters of `(b=300, r=50.0 qps)` still result in client-side
+  throttling with a cold cache, but using a `b=400` prevents client-side throttling, as expected (due to the total API GV count in the cluster). Also, even if we completely disable discovery client's rate limiter,
+  it takes ~18s to complete the discovery.
 
 ## Action Items
 - We can consider cherry-picking [[5]] to all active release branches `v1.23`, `v1.22`, `v1.21`, as the anticipated release date for the `v1.24` release is in April, 2022.
