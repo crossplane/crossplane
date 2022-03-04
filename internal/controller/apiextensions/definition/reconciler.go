@@ -21,6 +21,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/crossplane/crossplane-runtime/pkg/connection"
+	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
+
 	"github.com/crossplane/crossplane-runtime/pkg/features"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -420,6 +423,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableAlphaCompositionRevisions) {
 		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
 		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
+	}
+
+	// We only want to enable ExternalSecretStore support if the relevant
+	// feature flag is enabled. Otherwise, we start the XR reconcilers with
+	// its default ConnectionPublisher and ConnectionDetailsFetcher.
+	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+		pc := composite.ConnectionPublisherChain{
+			composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys()),
+			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind), []string{}),
+		}
+		o = append(o, composite.WithConnectionPublisher(pc))
+
+		fc := composite.ConnectionDetailsFetcherChain{
+			composite.NewAPIConnectionDetailsFetcher(r.client),
+			composite.NewSecretStoreConnectionDetailsFetcher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind)),
+		}
+		o = append(o, composite.WithConnectionDetailsFetcher(fc))
 	}
 
 	cr := composite.NewReconciler(r.mgr, resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)
