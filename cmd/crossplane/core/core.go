@@ -29,13 +29,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
+	"github.com/crossplane/crossplane-runtime/pkg/features"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -70,6 +70,7 @@ type startCommand struct {
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
 	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
+	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for ExternalSecretStores."`
 }
 
 // Run core Crossplane controllers.
@@ -111,6 +112,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if c.EnableCompositionRevisions {
 		o.Features.Enable(features.EnableAlphaCompositionRevisions)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisions)
+	}
+	if c.EnableExternalSecretStores {
+		o.Features.Enable(features.EnableAlphaExternalSecretStores)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 	}
 
 	if err := apiextensions.Setup(mgr, o); err != nil {
