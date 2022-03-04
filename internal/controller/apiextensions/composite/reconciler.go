@@ -82,17 +82,6 @@ type ConnectionSecretFilterer interface {
 	GetConnectionSecretKeys() []string
 }
 
-// A ConnectionPublisher publishes the supplied ConnectionDetails for the
-// supplied resource. Publishers must handle the case in which the supplied
-// ConnectionDetails are empty.
-type ConnectionPublisher interface {
-	// PublishConnection details for the supplied resource. Publishing must be
-	// additive; i.e. if details (a, b, c) are published, subsequently
-	// publishing details (b, c, d) should update (b, c) but not remove a.
-	// Returns 'published' if the publish was not a no-op.
-	PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
-}
-
 // A ConnectionPublisherFn publishes the supplied ConnectionDetails for the
 // supplied resource.
 type ConnectionPublisherFn func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
@@ -155,11 +144,6 @@ type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Com
 // and template as inputs.
 func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 	return fn(ctx, cp, cd, t)
-}
-
-// ConnectionDetailsFetcher fetches the connection details of the Composed resource.
-type ConnectionDetailsFetcher interface {
-	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
 }
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied

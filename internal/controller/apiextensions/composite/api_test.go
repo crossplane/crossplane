@@ -46,7 +46,7 @@ func TestPublishConnection(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	owner := &fake.MockConnectionSecretOwner{
-		Ref: &xpv1.SecretReference{
+		WriterTo: &xpv1.SecretReference{
 			Namespace: "coolnamespace",
 			Name:      "coolsecret",
 		},
