@@ -28,6 +28,8 @@ import (
 	fakepkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1/fake"
 	pkgv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
 	fakepkgv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1/fake"
+	secretsv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/secrets/v1alpha1"
+	fakesecretsv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/secrets/v1alpha1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -103,4 +105,9 @@ func (c *Clientset) PkgV1beta1() pkgv1beta1.PkgV1beta1Interface {
 // PkgV1 retrieves the PkgV1Client
 func (c *Clientset) PkgV1() pkgv1.PkgV1Interface {
 	return &fakepkgv1.FakePkgV1{Fake: &c.Fake}
+}
+
+// SecretsV1alpha1 retrieves the SecretsV1alpha1Client
+func (c *Clientset) SecretsV1alpha1() secretsv1alpha1.SecretsV1alpha1Interface {
+	return &fakesecretsv1alpha1.FakeSecretsV1alpha1{Fake: &c.Fake}
 }

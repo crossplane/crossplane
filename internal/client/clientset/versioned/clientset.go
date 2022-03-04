@@ -26,6 +26,7 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1beta1"
+	secretsv1alpha1 "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/secrets/v1alpha1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -37,6 +38,7 @@ type Interface interface {
 	PkgV1alpha1() pkgv1alpha1.PkgV1alpha1Interface
 	PkgV1beta1() pkgv1beta1.PkgV1beta1Interface
 	PkgV1() pkgv1.PkgV1Interface
+	SecretsV1alpha1() secretsv1alpha1.SecretsV1alpha1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
@@ -47,6 +49,7 @@ type Clientset struct {
 	pkgV1alpha1     *pkgv1alpha1.PkgV1alpha1Client
 	pkgV1beta1      *pkgv1beta1.PkgV1beta1Client
 	pkgV1           *pkgv1.PkgV1Client
+	secretsV1alpha1 *secretsv1alpha1.SecretsV1alpha1Client
 }
 
 // ApiextensionsV1 retrieves the ApiextensionsV1Client
@@ -67,6 +70,11 @@ func (c *Clientset) PkgV1beta1() pkgv1beta1.PkgV1beta1Interface {
 // PkgV1 retrieves the PkgV1Client
 func (c *Clientset) PkgV1() pkgv1.PkgV1Interface {
 	return c.pkgV1
+}
+
+// SecretsV1alpha1 retrieves the SecretsV1alpha1Client
+func (c *Clientset) SecretsV1alpha1() secretsv1alpha1.SecretsV1alpha1Interface {
+	return c.secretsV1alpha1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -125,6 +133,10 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 	if err != nil {
 		return nil, err
 	}
+	cs.secretsV1alpha1, err = secretsv1alpha1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	if err != nil {
+		return nil, err
+	}
 
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
@@ -150,6 +162,7 @@ func New(c rest.Interface) *Clientset {
 	cs.pkgV1alpha1 = pkgv1alpha1.New(c)
 	cs.pkgV1beta1 = pkgv1beta1.New(c)
 	cs.pkgV1 = pkgv1.New(c)
+	cs.secretsV1alpha1 = secretsv1alpha1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

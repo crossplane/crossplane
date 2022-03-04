@@ -23,6 +23,7 @@ import (
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,6 +39,7 @@ var localSchemeBuilder = runtime.SchemeBuilder{
 	pkgv1alpha1.AddToScheme,
 	pkgv1beta1.AddToScheme,
 	pkgv1.AddToScheme,
+	secretsv1alpha1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition
