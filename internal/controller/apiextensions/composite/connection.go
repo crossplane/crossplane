@@ -20,7 +20,9 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -151,6 +153,7 @@ func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context
 	// of the complexity coming from simpy if checks and, I wanted to keep this
 	// as identical as possible to aforementioned method. This would already be
 	// refactored with the removal of "WriteConnectionSecretRef" API.
+
 	so := cd.(resource.ConnectionSecretOwner)
 	data, err := f.fetcher.FetchConnection(ctx, so)
 	if err != nil {
@@ -190,4 +193,38 @@ func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context
 	}
 
 	return conn, nil
+}
+
+// NewConnectionDetailsConfigurator returns a Configurator that configures a
+// composite resource using its composition.
+func NewConnectionDetailsConfigurator(c client.Client) *ConnectionDetailsConfigurator {
+	return &ConnectionDetailsConfigurator{client: c}
+}
+
+// An ConnectionDetailsConfigurator configures a composite resource using its
+// composition.
+type ConnectionDetailsConfigurator struct {
+	client client.Client
+}
+
+// Configure any required fields that were omitted from the composite resource
+// by copying them from its composition.
+func (c *ConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1.Composition) error {
+	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
+	if comp.Spec.CompositeTypeRef.APIVersion != apiVersion || comp.Spec.CompositeTypeRef.Kind != kind {
+		return errors.New(errCompositionNotCompatible)
+	}
+
+	if cp.GetPublishConnectionDetailsTo() != nil || comp.Spec.PublishConnectionDetailsWithStoreConfig == nil {
+		return nil
+	}
+
+	cp.SetPublishConnectionDetailsTo(&xpv1.PublishConnectionDetailsTo{
+		Name: string(cp.GetUID()),
+		SecretStoreConfigRef: &xpv1.Reference{
+			Name: *comp.Spec.PublishConnectionDetailsWithStoreConfig,
+		},
+	})
+
+	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }

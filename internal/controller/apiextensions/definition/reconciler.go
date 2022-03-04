@@ -431,7 +431,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := composite.ConnectionPublisherChain{
 			composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys()),
-			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind), []string{}),
+			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind), d.GetConnectionSecretKeys()),
 		}
 		o = append(o, composite.WithConnectionPublisher(pc))
 
@@ -440,6 +440,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.NewSecretStoreConnectionDetailsFetcher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind)),
 		}
 		o = append(o, composite.WithConnectionDetailsFetcher(fc))
+
+		cc := composite.NewConfiguratorChain(
+			composite.NewAPINamingConfigurator(r.client),
+			composite.NewAPIConfigurator(r.client),
+			composite.NewConnectionDetailsConfigurator(r.client),
+		)
+		o = append(o, composite.WithConfigurator(cc))
 	}
 
 	cr := composite.NewReconciler(r.mgr, resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)

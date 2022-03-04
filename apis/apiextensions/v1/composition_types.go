@@ -44,6 +44,12 @@ type CompositionSpec struct {
 	// this composition will be created.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
+
+	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
+	// with which the connection secrets of composite resource dynamically
+	// provisioned using this composition will be published.
+	// +optional
+	PublishConnectionDetailsWithStoreConfig *string `json:"publishConnectionDetailsWithStoreConfig,omitempty"`
 }
 
 // A PatchSet is a set of patches that can be reused from all resources within

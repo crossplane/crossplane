@@ -174,7 +174,7 @@ go.cachedir:
 run: go.build
 	@$(INFO) Running Crossplane locally out-of-cluster . . .
 	@# To see other arguments that can be provided, run the command with --help instead
-	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug --enable-composition-revisions --enable-external-secret-stores
+	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug --enable-external-secret-stores
 
 .PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds gen-install-doc e2e-tests-compile
 
