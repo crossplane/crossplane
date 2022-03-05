@@ -117,7 +117,14 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 	}
 
 	// Build image layer from tarball.
-	layer, err := tarball.LayerFromReader(tarBuf)
+	// TODO(hasheddan): we construct a new reader each time the layer is read,
+	// once for calculating the digest, which is used in choosing package file
+	// name if not set, and once for writing the contents to disk. This can be
+	// optimized in the future, along with the fact that we are copying the full
+	// package contents into memory above.
+	layer, err := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewReader(tarBuf.Bytes())), nil
+	})
 	if err != nil {
 		return nil, errors.Wrap(err, errLayerFromTar)
 	}

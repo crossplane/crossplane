@@ -59,7 +59,11 @@ func TestImageBackend(t *testing.T) {
 	_ = tw.WriteHeader(hdr)
 	_, _ = io.Copy(tw, strings.NewReader(streamCont))
 	_ = tw.Close()
-	packLayer, _ := tarball.LayerFromReader(tarBuf)
+	packLayer, _ := tarball.LayerFromOpener(func() (io.ReadCloser, error) {
+		// NOTE(hasheddan): we must construct a new reader each time as we
+		// ingest packImg in multiple tests below.
+		return io.NopCloser(bytes.NewReader(tarBuf.Bytes())), nil
+	})
 	packImg, _ := mutate.AppendLayers(empty.Image, packLayer)
 
 	type args struct {
