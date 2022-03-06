@@ -28,7 +28,7 @@ type Options struct {
 	controller.Options
 
 	// Cache for package OCI images.
-	Cache xpkg.Cache
+	Cache xpkg.PackageCache
 
 	// Namespace used to unpack and run packages.
 	Namespace string

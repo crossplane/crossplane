@@ -33,32 +33,32 @@ const (
 
 const cacheContentExt = ".gz"
 
-// A Cache caches package content.
-type Cache interface {
+// A PackageCache caches package content.
+type PackageCache interface {
 	Has(id string) bool
 	Get(id string) (io.ReadCloser, error)
 	Store(id string, content io.ReadCloser) error
 	Delete(id string) error
 }
 
-// PackageCache stores and retrieves package content in a filesystem-backed
+// FsPackageCache stores and retrieves package content in a filesystem-backed
 // cache in a thread-safe manner.
-type PackageCache struct {
+type FsPackageCache struct {
 	dir string
 	fs  afero.Fs
 	mu  sync.RWMutex
 }
 
-// NewPackageCache creates a new PackageCache.
-func NewPackageCache(dir string, fs afero.Fs) *PackageCache {
-	return &PackageCache{
+// NewFsPackageCache creates a new FsPackageCache.
+func NewFsPackageCache(dir string, fs afero.Fs) *FsPackageCache {
+	return &FsPackageCache{
 		dir: dir,
 		fs:  fs,
 	}
 }
 
 // Has indicates whether an item with the given id is in the cache.
-func (c *PackageCache) Has(id string) bool {
+func (c *FsPackageCache) Has(id string) bool {
 	if fi, err := c.fs.Stat(BuildPath(c.dir, id, cacheContentExt)); err == nil && !fi.IsDir() {
 		return true
 	}
@@ -66,7 +66,7 @@ func (c *PackageCache) Has(id string) bool {
 }
 
 // Get retrieves package contents from the cache.
-func (c *PackageCache) Get(id string) (io.ReadCloser, error) {
+func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	f, err := c.fs.Open(BuildPath(c.dir, id, cacheContentExt))
@@ -77,7 +77,7 @@ func (c *PackageCache) Get(id string) (io.ReadCloser, error) {
 }
 
 // Store saves the package contents to the cache.
-func (c *PackageCache) Store(id string, content io.ReadCloser) error {
+func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	cf, err := c.fs.Create(BuildPath(c.dir, id, cacheContentExt))
@@ -104,7 +104,7 @@ func (c *PackageCache) Store(id string, content io.ReadCloser) error {
 }
 
 // Delete removes package contents from the cache.
-func (c *PackageCache) Delete(id string) error {
+func (c *FsPackageCache) Delete(id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	err := c.fs.Remove(BuildPath(c.dir, id, cacheContentExt))

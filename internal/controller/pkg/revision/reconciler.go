@@ -105,7 +105,7 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 }
 
 // WithCache specifies how the Reconcile should cache package contents.
-func WithCache(c xpkg.Cache) ReconcilerOption {
+func WithCache(c xpkg.PackageCache) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.cache = c
 	}
@@ -193,7 +193,7 @@ func WithVersioner(v version.Operations) ReconcilerOption {
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client    client.Client
-	cache     xpkg.Cache
+	cache     xpkg.PackageCache
 	revision  resource.Finalizer
 	lock      DependencyManager
 	hook      Hooks
@@ -401,10 +401,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	var rc io.ReadCloser
-	var err error
 	cacheWrite := make(chan error)
 
 	if r.cache.Has(id) {
+		var err error
 		rc, err = r.cache.Get(id)
 		if err != nil {
 			// If package contents are in the cache, but we cannot access them,

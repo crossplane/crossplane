@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-var _ xpkg.Cache = &MockCache{}
+var _ xpkg.PackageCache = &MockCache{}
 
 // MockCache is a mock Cache.
 type MockCache struct {

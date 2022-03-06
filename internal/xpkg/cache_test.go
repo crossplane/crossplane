@@ -30,7 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var _ Cache = &PackageCache{}
+var _ PackageCache = &FsPackageCache{}
 
 func TestHas(t *testing.T) {
 	fs := afero.NewMemMapFs()
@@ -39,7 +39,7 @@ func TestHas(t *testing.T) {
 	defer cf.Close()
 
 	type args struct {
-		cache Cache
+		cache PackageCache
 		id    string
 	}
 	cases := map[string]struct {
@@ -50,7 +50,7 @@ func TestHas(t *testing.T) {
 		"Success": {
 			reason: "Should not return an error if package exists at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "exists",
 			},
 			want: true,
@@ -58,7 +58,7 @@ func TestHas(t *testing.T) {
 		"ErrNotExist": {
 			reason: "Should return error if package does not exist at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "not-exist",
 			},
 			want: false,
@@ -66,7 +66,7 @@ func TestHas(t *testing.T) {
 		"ErrIsDir": {
 			reason: "Should return error if path is a directory.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "some-dir.gz",
 			},
 			want: false,
@@ -94,7 +94,7 @@ func TestGet(t *testing.T) {
 	defer cf.Close()
 
 	type args struct {
-		cache Cache
+		cache PackageCache
 		id    string
 	}
 	cases := map[string]struct {
@@ -105,14 +105,14 @@ func TestGet(t *testing.T) {
 		"Success": {
 			reason: "Should not return an error if package exists at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "exists",
 			},
 		},
 		"ErrNotGzip": {
 			reason: "Should return error if package does not exist at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "not-gzip",
 			},
 			want: gzip.ErrHeader,
@@ -120,7 +120,7 @@ func TestGet(t *testing.T) {
 		"ErrNotExist": {
 			reason: "Should return error if package does not exist at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "not-exist",
 			},
 			want: &os.PathError{Op: "open", Path: "/cache/not-exist.gz", Err: afero.ErrFileNotFound},
@@ -142,7 +142,7 @@ func TestStore(t *testing.T) {
 	fs := afero.NewMemMapFs()
 
 	type args struct {
-		cache Cache
+		cache PackageCache
 		id    string
 	}
 	cases := map[string]struct {
@@ -153,14 +153,14 @@ func TestStore(t *testing.T) {
 		"Success": {
 			reason: "Should not return an error if package is created at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "exists-1234567",
 			},
 		},
 		"ErrFailedCreate": {
 			reason: "Should return an error if file creation fails.",
 			args: args{
-				cache: NewPackageCache("/cache", afero.NewReadOnlyFs(fs)),
+				cache: NewFsPackageCache("/cache", afero.NewReadOnlyFs(fs)),
 				id:    "exists-1234567",
 			},
 			want: syscall.EPERM,
@@ -183,7 +183,7 @@ func TestDelete(t *testing.T) {
 	_, _ = fs.Create("/cache/exists.xpkg")
 
 	type args struct {
-		cache Cache
+		cache PackageCache
 		id    string
 	}
 	cases := map[string]struct {
@@ -194,21 +194,21 @@ func TestDelete(t *testing.T) {
 		"Success": {
 			reason: "Should not return an error if package is deleted at path.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "exists",
 			},
 		},
 		"SuccessNotExist": {
 			reason: "Should not return an error if package does not exist.",
 			args: args{
-				cache: NewPackageCache("/cache", fs),
+				cache: NewFsPackageCache("/cache", fs),
 				id:    "not-exist",
 			},
 		},
 		"ErrFailedDelete": {
 			reason: "Should return an error if file deletion fails.",
 			args: args{
-				cache: NewPackageCache("/cache", afero.NewReadOnlyFs(fs)),
+				cache: NewFsPackageCache("/cache", afero.NewReadOnlyFs(fs)),
 				id:    "exists-1234567",
 			},
 			want: syscall.EPERM,
