@@ -19,42 +19,40 @@ package xpkg
 import (
 	"compress/gzip"
 	"io"
-
-	"github.com/spf13/afero"
 )
 
-var _ io.ReadCloser = &gzipFileReader{}
+var _ io.ReadCloser = &gzipReadCloser{}
 
-// gzipFileReader reads compressed contents from a file.
-type gzipFileReader struct {
-	f    afero.File
+// gzipReadCloser reads compressed contents from a file.
+type gzipReadCloser struct {
+	rc   io.ReadCloser
 	gzip *gzip.Reader
 }
 
-// GzipFileReader constructs a new gzipFileReader from the passed file.
-func GzipFileReader(f afero.File) (io.ReadCloser, error) {
-	r, err := gzip.NewReader(f)
+// GzipReadCloser constructs a new gzipReadCloser from the passed file.
+func GzipReadCloser(rc io.ReadCloser) (io.ReadCloser, error) {
+	r, err := gzip.NewReader(rc)
 	if err != nil {
 		return nil, err
 	}
-	return &gzipFileReader{
-		f:    f,
+	return &gzipReadCloser{
+		rc:   rc,
 		gzip: r,
 	}, nil
 }
 
 // Read calls the underlying gzip reader's Read method.
-func (g *gzipFileReader) Read(p []byte) (n int, err error) {
+func (g *gzipReadCloser) Read(p []byte) (n int, err error) {
 	return g.gzip.Read(p)
 }
 
-// Close first closes the gzip reader, then closes the underlying file.
-func (g *gzipFileReader) Close() error {
-	defer g.f.Close() //nolint:errcheck
+// Close first closes the gzip reader, then closes the underlying closer.
+func (g *gzipReadCloser) Close() error {
+	defer g.rc.Close() //nolint:errcheck
 	if err := g.gzip.Close(); err != nil {
 		return err
 	}
-	return g.f.Close()
+	return g.rc.Close()
 }
 
 var _ io.ReadCloser = &teeReadCloser{}

@@ -73,7 +73,7 @@ func (c *PackageCache) Get(id string) (io.ReadCloser, error) {
 	if err != nil {
 		return nil, err
 	}
-	return GzipFileReader(f)
+	return GzipReadCloser(f)
 }
 
 // Store saves the package contents to the cache.
