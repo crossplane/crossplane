@@ -361,7 +361,7 @@ a string in a specific format that includes other information such as resource
 group name.
 
 In Crossplane, users have 3 fields to refer to another resource. Here is an
-example from Azure MySQL managed resource referring to a Azure Resource Group:
+example from Azure MySQL managed resource referring to an Azure Resource Group:
 
 ```yaml
 spec:
