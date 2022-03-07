@@ -98,6 +98,16 @@ type CompositeResourceDefinitionVersion struct {
 	// Served specifies that this version should be served via REST APIs.
 	Served bool `json:"served"`
 
+	// The deprecated field specifies that this version is deprecated and should
+	// not be used.
+	// +optional
+	Deprecated *bool `json:"deprecated,omitempty"`
+
+	// DeprecationWarning specifies the message that should be shown to the user
+	// when using this version.
+	// +optional
+	DeprecationWarning *string `json:"deprecationWarning,omitempty"`
+
 	// Schema describes the schema used for validation, pruning, and defaulting
 	// of this version of the defined composite resource. Fields required by all
 	// composite resources will be injected into this schema automatically, and
