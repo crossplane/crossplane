@@ -51,6 +51,7 @@ rules:
   - ""
   resources:
   - serviceaccounts
+  - services
   verbs:
   - "*"
 - apiGroups:

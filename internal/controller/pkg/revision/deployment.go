@@ -20,8 +20,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
@@ -43,7 +45,7 @@ const (
 	promPortNumber = 8080
 )
 
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.ProviderRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:gocyclo
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.ProviderRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) { // nolint:gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -232,5 +234,24 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.Provider
 	}
 	d.Spec.Template.Labels = templateLabels
 
-	return s, d
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            revision.GetName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+		},
+		Spec: corev1.ServiceSpec{
+			// We use whatever is on the deployment so that ControllerConfig
+			// overrides are accounted for.
+			Selector: d.Spec.Selector.MatchLabels,
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Port:       9443,
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+	return s, d, svc
 }

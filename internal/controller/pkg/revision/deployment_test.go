@@ -215,7 +215,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, deployment := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace)
+			_, deployment, _ := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace)
 
 			if diff := cmp.Diff(tc.want, deployment, cmpopts.IgnoreTypes(&corev1.SecurityContext{}, &corev1.PodSecurityContext{}, []metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
