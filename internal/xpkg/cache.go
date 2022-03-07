@@ -17,93 +17,101 @@ limitations under the License.
 package xpkg
 
 import (
+	"compress/gzip"
 	"io"
 	"os"
 	"sync"
 
-	"github.com/google/go-containerregistry/pkg/name"
-	v1 "github.com/google/go-containerregistry/pkg/v1"
-	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 const (
-	errGetNopCache = "cannot get an image from a NopCache"
+	errGetNopCache = "cannot get content from a NopCache"
 )
 
-// A Cache caches OCI images.
-type Cache interface {
-	Get(tag string, id string) (v1.Image, error)
-	Store(tag string, id string, img v1.Image) error
+const cacheContentExt = ".gz"
+
+// A PackageCache caches package content.
+type PackageCache interface {
+	Has(id string) bool
+	Get(id string) (io.ReadCloser, error)
+	Store(id string, content io.ReadCloser) error
 	Delete(id string) error
 }
 
-// ImageCache stores and retrieves OCI images in a filesystem-backed cache in a
-// thread-safe manner.
-type ImageCache struct {
+// FsPackageCache stores and retrieves package content in a filesystem-backed
+// cache in a thread-safe manner.
+type FsPackageCache struct {
 	dir string
 	fs  afero.Fs
 	mu  sync.RWMutex
 }
 
-// NewImageCache creates a new ImageCache.
-func NewImageCache(dir string, fs afero.Fs) *ImageCache {
-	return &ImageCache{
+// NewFsPackageCache creates a new FsPackageCache.
+func NewFsPackageCache(dir string, fs afero.Fs) *FsPackageCache {
+	return &FsPackageCache{
 		dir: dir,
 		fs:  fs,
 	}
 }
 
-// Get retrieves an image from the ImageCache.
-func (c *ImageCache) Get(tag, id string) (v1.Image, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	var t *name.Tag
-	if tag != "" {
-		nt, err := name.NewTag(tag)
-		if err != nil {
-			return nil, err
-		}
-		t = &nt
+// Has indicates whether an item with the given id is in the cache.
+func (c *FsPackageCache) Has(id string) bool {
+	if fi, err := c.fs.Stat(BuildPath(c.dir, id, cacheContentExt)); err == nil && !fi.IsDir() {
+		return true
 	}
-	return tarball.Image(fsOpener(BuildPath(c.dir, id), c.fs), t)
+	return false
 }
 
-// Store saves an image to the ImageCache.
-func (c *ImageCache) Store(tag, id string, img v1.Image) error {
+// Get retrieves package contents from the cache.
+func (c *FsPackageCache) Get(id string) (io.ReadCloser, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	f, err := c.fs.Open(BuildPath(c.dir, id, cacheContentExt))
+	if err != nil {
+		return nil, err
+	}
+	return GzipReadCloser(f)
+}
+
+// Store saves the package contents to the cache.
+func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	ref, err := name.ParseReference(tag)
+	cf, err := c.fs.Create(BuildPath(c.dir, id, cacheContentExt))
 	if err != nil {
 		return err
 	}
-	cf, err := c.fs.Create(BuildPath(c.dir, id))
+	// NOTE(hasheddan): we don't check error on deferred file close as Close()
+	// is explicitly called in the happy path.
+	defer cf.Close() //nolint:errcheck
+	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
 		return err
 	}
-	if err := tarball.Write(ref, img, cf); err != nil {
+	_, err = io.Copy(w, content)
+	if err != nil {
+		return err
+	}
+	// NOTE(hasheddan): gzip writer must be closed to ensure all data is flushed
+	// to file.
+	if err := w.Close(); err != nil {
 		return err
 	}
 	return cf.Close()
 }
 
-// Delete removes an image from the ImageCache.
-func (c *ImageCache) Delete(id string) error {
+// Delete removes package contents from the cache.
+func (c *FsPackageCache) Delete(id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	err := c.fs.Remove(BuildPath(c.dir, id))
+	err := c.fs.Remove(BuildPath(c.dir, id, cacheContentExt))
 	if os.IsNotExist(err) {
 		return nil
 	}
 	return err
-}
-
-func fsOpener(path string, fs afero.Fs) tarball.Opener {
-	return func() (io.ReadCloser, error) {
-		return fs.Open(path)
-	}
 }
 
 // NopCache is a cache implementation that does not store anything and always
@@ -115,17 +123,22 @@ func NewNopCache() *NopCache {
 	return &NopCache{}
 }
 
-// Get retrieves an image from the NopCache.
-func (c *NopCache) Get(tag, id string) (v1.Image, error) {
+// Has indicates whether content is in the NopCache.
+func (c *NopCache) Has(string) bool {
+	return false
+}
+
+// Get retrieves content from the NopCache.
+func (c *NopCache) Get(string) (io.ReadCloser, error) {
 	return nil, errors.New(errGetNopCache)
 }
 
-// Store saves an image to the NopCache.
-func (c *NopCache) Store(tag, id string, img v1.Image) error {
+// Store saves content to the NopCache.
+func (c *NopCache) Store(string, io.ReadCloser) error {
 	return nil
 }
 
-// Delete removes an image from the NopCache.
-func (c *NopCache) Delete(id string) error {
+// Delete removes content from the NopCache.
+func (c *NopCache) Delete(string) error {
 	return nil
 }

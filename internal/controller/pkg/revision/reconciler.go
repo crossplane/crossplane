@@ -18,10 +18,12 @@ package revision
 
 import (
 	"context"
+	"io"
 	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -58,7 +60,10 @@ const (
 	errGetPackageRevision = "cannot get package revision"
 	errUpdateStatus       = "cannot update package revision status"
 
-	errDeleteCache = "cannot remove package image from cache"
+	errDeleteCache = "cannot remove package contents from cache"
+	errGetCache    = "cannot get package contents from cache"
+
+	errPullPolicyNever = "failed to get pre-cached package with pull policy Never"
 
 	errAddFinalizer    = "cannot add package revision finalizer"
 	errRemoveFinalizer = "cannot remove package revision finalizer"
@@ -100,7 +105,7 @@ func WithClientApplicator(ca resource.ClientApplicator) ReconcilerOption {
 }
 
 // WithCache specifies how the Reconcile should cache package contents.
-func WithCache(c xpkg.Cache) ReconcilerOption {
+func WithCache(c xpkg.PackageCache) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.cache = c
 	}
@@ -188,7 +193,7 @@ func WithVersioner(v version.Operations) ReconcilerOption {
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client    client.Client
-	cache     xpkg.Cache
+	cache     xpkg.PackageCache
 	revision  resource.Finalizer
 	lock      DependencyManager
 	hook      Hooks
@@ -235,7 +240,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		}, o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(o.Cache, fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -281,7 +286,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithHooks(NewConfigurationHooks()),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(o.Cache, f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -386,22 +391,87 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// TODO(negz): Use Unhealthy().WithMessage(...) to supply error context?
 
-	// Initialize parser backend to obtain package contents.
-	reader, err := r.backend.Init(ctx, PackageRevision(pr))
-	if err != nil {
-		pr.SetConditions(v1.Unhealthy())
-		_ = r.client.Status().Update(ctx, pr)
+	pullPolicyNever := false
+	id := pr.GetName()
+	// If packagePullPolicy is Never, the identifier is the package source and
+	// contents must be in the cache.
+	if pr.GetPackagePullPolicy() != nil && *pr.GetPackagePullPolicy() == corev1.PullNever {
+		pullPolicyNever = true
+		id = pr.GetSource()
+	}
 
-		// Requeue because we may be waiting for parent package
-		// controller to recreate Pod.
-		log.Debug(errInitParserBackend, "error", err)
-		err = errors.Wrap(err, errInitParserBackend)
+	var rc io.ReadCloser
+	cacheWrite := make(chan error)
+
+	if r.cache.Has(id) {
+		var err error
+		rc, err = r.cache.Get(id)
+		if err != nil {
+			// If package contents are in the cache, but we cannot access them,
+			// we clear them and try again.
+			if err := r.cache.Delete(id); err != nil {
+				log.Debug(errDeleteCache, "error", err)
+			}
+			log.Debug(errInitParserBackend, "error", err)
+			err = errors.Wrap(err, errGetCache)
+			r.record.Event(pr, event.Warning(reasonParse, err))
+			return reconcile.Result{}, err
+		}
+		// If we got content from cache we don't need to wait for it to be
+		// written.
+		close(cacheWrite)
+	}
+
+	// packagePullPolicy is Never and contents are not in the cache so we return
+	// an error.
+	if rc == nil && pullPolicyNever {
+		log.Debug(errPullPolicyNever)
+		err := errors.New(errPullPolicyNever)
 		r.record.Event(pr, event.Warning(reasonParse, err))
 		return reconcile.Result{}, err
 	}
 
+	// If we didn't get a ReadCloser from cache, we need to get it from image.
+	if rc == nil {
+		// Initialize parser backend to obtain package contents.
+		imgrc, err := r.backend.Init(ctx, PackageRevision(pr))
+		if err != nil {
+			pr.SetConditions(v1.Unhealthy())
+			_ = r.client.Status().Update(ctx, pr)
+
+			// Requeue because we may be waiting for parent package
+			// controller to recreate Pod.
+			log.Debug(errInitParserBackend, "error", err)
+			err = errors.Wrap(err, errInitParserBackend)
+			r.record.Event(pr, event.Warning(reasonParse, err))
+			return reconcile.Result{}, err
+		}
+
+		// Package is not in cache, so we write it to the cache while parsing.
+		pipeR, pipeW := io.Pipe()
+		rc = xpkg.TeeReadCloser(imgrc, pipeW)
+		go func() {
+			defer pipeR.Close() //nolint:errcheck
+			if err := r.cache.Store(pr.GetName(), pipeR); err != nil {
+				_ = pipeR.CloseWithError(err)
+				cacheWrite <- err
+				return
+			}
+			close(cacheWrite)
+		}()
+	}
+
 	// Parse package contents.
-	pkg, err := r.parser.Parse(ctx, reader)
+	pkg, err := r.parser.Parse(ctx, rc)
+	// Wait until we finish writing to cache. Parser closes the reader.
+	if err := <-cacheWrite; err != nil {
+		// If we failed to cache we want to cleanup, but we don't abort unless
+		// parsing also failed. Subsequent reconciles will pull image again and
+		// attempt to cache.
+		if err := r.cache.Delete(id); err != nil {
+			log.Debug(errDeleteCache, "error", err)
+		}
+	}
 	if err != nil {
 		pr.SetConditions(v1.Unhealthy())
 		_ = r.client.Status().Update(ctx, pr)

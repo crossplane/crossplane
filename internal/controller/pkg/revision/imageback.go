@@ -22,10 +22,7 @@ import (
 	"io"
 
 	"github.com/google/go-containerregistry/pkg/name"
-	regv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
-	"github.com/spf13/afero/tarfs"
-	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -35,17 +32,23 @@ import (
 )
 
 const (
-	errPullPolicyNever   = "failed to get pre-cached package with pull policy Never"
-	errBadReference      = "package tag is not a valid reference"
-	errFetchPackage      = "failed to fetch package from remote"
-	errCachePackage      = "failed to store package in cache"
-	errOpenPackageStream = "failed to open package stream file"
+	errBadReference            = "package tag is not a valid reference"
+	errFetchPackage            = "failed to fetch package from remote"
+	errGetManifest             = "failed to get package image manifest from remote"
+	errFetchLayer              = "failed to fetch annotated base layer from remote"
+	errGetUncompressed         = "failed to get uncompressed contents from layer"
+	errMultipleAnnotatedLayers = "package is invalid due to multiple annotated base layers"
+	errOpenPackageStream       = "failed to open package stream file"
+)
+
+const (
+	layerAnnotation     = "io.crossplane.xpkg"
+	baseAnnotationValue = "base"
 )
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
 	registry string
-	cache    xpkg.Cache
 	fetcher  xpkg.Fetcher
 }
 
@@ -60,9 +63,8 @@ func WithDefaultRegistry(registry string) ImageBackendOption {
 }
 
 // NewImageBackend creates a new image backend.
-func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBackend {
+func NewImageBackend(fetcher xpkg.Fetcher, opts ...ImageBackendOption) *ImageBackend {
 	i := &ImageBackend{
-		cache:   cache,
 		fetcher: fetcher,
 	}
 	for _, opt := range opts {
@@ -72,7 +74,8 @@ func NewImageBackend(cache xpkg.Cache, fetcher xpkg.Fetcher, opts ...ImageBacken
 }
 
 // Init initializes an ImageBackend.
-func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) {
+// NOTE(hasheddan): this method is slightly over our cyclomatic complexity goal
+func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) { //nolint:gocyclo
 	// NOTE(hasheddan): we use nestedBackend here because simultaneous
 	// reconciles of providers or configurations can lead to the package
 	// revision being overwritten mid-execution in the shared image backend when
@@ -85,45 +88,70 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	for _, o := range bo {
 		o(n)
 	}
-	var img regv1.Image
-	var err error
-
-	pullPolicy := n.pr.GetPackagePullPolicy()
-	if pullPolicy != nil && *pullPolicy == corev1.PullNever {
-		// If package is pre-cached we assume there are never multiple tags in
-		// the same image.
-		img, err = i.cache.Get("", n.pr.GetSource())
-		if err != nil {
-			return nil, errors.Wrap(err, errPullPolicyNever)
-		}
-	} else {
-		// Ensure source is a valid image reference.
-		ref, err := name.ParseReference(n.pr.GetSource(), name.WithDefaultRegistry(i.registry))
-		if err != nil {
-			return nil, errors.Wrap(err, errBadReference)
-		}
-		// Attempt to fetch image from cache.
-		img, err = i.cache.Get(n.pr.GetSource(), n.pr.GetName())
-		if err != nil {
-			img, err = i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
-			if err != nil {
-				return nil, errors.Wrap(err, errFetchPackage)
-			}
-			// Cache image.
-			if err := i.cache.Store(n.pr.GetSource(), n.pr.GetName(), img); err != nil {
-				return nil, errors.Wrap(err, errCachePackage)
-			}
-		}
-	}
-
-	// Extract package contents from image.
-	r := mutate.Extract(img)
-	fs := tarfs.New(tar.NewReader(r))
-	f, err := fs.Open(xpkg.StreamFile)
+	ref, err := name.ParseReference(n.pr.GetSource(), name.WithDefaultRegistry(i.registry))
 	if err != nil {
-		return nil, errors.Wrap(err, errOpenPackageStream)
+		return nil, errors.Wrap(err, errBadReference)
 	}
-	return f, nil
+	// Fetch image from registry.
+	img, err := i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
+	if err != nil {
+		return nil, errors.Wrap(err, errFetchPackage)
+	}
+	// Get image manifest.
+	manifest, err := img.Manifest()
+	if err != nil {
+		return nil, errors.Wrap(err, errGetManifest)
+	}
+	// Determine if the image is using annotated layers.
+	var tarc io.ReadCloser
+	foundAnnotated := false
+	for _, l := range manifest.Layers {
+		if a, ok := l.Annotations[layerAnnotation]; !ok || a != baseAnnotationValue {
+			continue
+		}
+		// NOTE(hasheddan): the xpkg specification dictates that only one layer
+		// descriptor may be annotated as xpkg base. Since iterating through all
+		// descriptors is relatively inexpensive, we opt to do so in order to
+		// verify that we aren't just using the first layer annotated as xpkg
+		// base.
+		if foundAnnotated {
+			return nil, errors.New(errMultipleAnnotatedLayers)
+		}
+		foundAnnotated = true
+		layer, err := img.LayerByDigest(l.Digest)
+		if err != nil {
+			return nil, errors.Wrap(err, errFetchLayer)
+		}
+		tarc, err = layer.Uncompressed()
+		if err != nil {
+			return nil, errors.Wrap(err, errGetUncompressed)
+		}
+	}
+
+	// If we still don't have content then we need to flatten image filesystem.
+	if !foundAnnotated {
+		tarc = mutate.Extract(img)
+	}
+
+	// The ReadCloser is an uncompressed tarball, either consisting of annotated
+	// layer contents or flattened filesystem content. Either way, we only want
+	// the package YAML stream.
+	t := tar.NewReader(tarc)
+	for {
+		h, err := t.Next()
+		if err != nil {
+			return nil, errors.Wrap(err, errOpenPackageStream)
+		}
+		if h.Name == xpkg.StreamFile {
+			break
+		}
+	}
+
+	// NOTE(hasheddan): we return a JoinedReadCloser such that closing will free
+	// resources allocated to the underlying ReadCloser. See
+	// https://github.com/google/go-containerregistry/blob/329563766ce8131011c25fd8758a25d94d9ad81b/pkg/v1/mutate/mutate.go#L222
+	// for more info.
+	return xpkg.JoinedReadCloser(t, tarc), nil
 }
 
 // nestedBackend is a nop parser backend that conforms to the parser backend

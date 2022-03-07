@@ -18,6 +18,7 @@ package fake
 
 import (
 	"context"
+	"io"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -25,23 +26,29 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-var _ xpkg.Cache = &MockCache{}
+var _ xpkg.PackageCache = &MockCache{}
 
 // MockCache is a mock Cache.
 type MockCache struct {
-	MockGet    func() (v1.Image, error)
-	MockStore  func() error
+	MockHas    func() bool
+	MockGet    func() (io.ReadCloser, error)
+	MockStore  func(s string, rc io.ReadCloser) error
 	MockDelete func() error
 }
 
+// NewMockCacheHasFn creates a new MockGet function for MockCache.
+func NewMockCacheHasFn(has bool) func() bool {
+	return func() bool { return has }
+}
+
 // NewMockCacheGetFn creates a new MockGet function for MockCache.
-func NewMockCacheGetFn(img v1.Image, err error) func() (v1.Image, error) {
-	return func() (v1.Image, error) { return img, err }
+func NewMockCacheGetFn(rc io.ReadCloser, err error) func() (io.ReadCloser, error) {
+	return func() (io.ReadCloser, error) { return rc, err }
 }
 
 // NewMockCacheStoreFn creates a new MockStore function for MockCache.
-func NewMockCacheStoreFn(err error) func() error {
-	return func() error { return err }
+func NewMockCacheStoreFn(err error) func(s string, rc io.ReadCloser) error {
+	return func(s string, rc io.ReadCloser) error { return err }
 }
 
 // NewMockCacheDeleteFn creates a new MockDelete function for MockCache.
@@ -49,18 +56,23 @@ func NewMockCacheDeleteFn(err error) func() error {
 	return func() error { return err }
 }
 
+// Has calls the underlying MockHas.
+func (c *MockCache) Has(string) bool {
+	return c.MockHas()
+}
+
 // Get calls the underlying MockGet.
-func (c *MockCache) Get(source, id string) (v1.Image, error) {
+func (c *MockCache) Get(string) (io.ReadCloser, error) {
 	return c.MockGet()
 }
 
 // Store calls the underlying MockStore.
-func (c *MockCache) Store(source, id string, img v1.Image) error {
-	return c.MockStore()
+func (c *MockCache) Store(s string, rc io.ReadCloser) error {
+	return c.MockStore(s, rc)
 }
 
 // Delete calls the underlying MockDelete.
-func (c *MockCache) Delete(id string) error {
+func (c *MockCache) Delete(string) error {
 	return c.MockDelete()
 }
 
