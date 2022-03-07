@@ -18,7 +18,12 @@ package revision
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
+	admv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,13 +54,15 @@ type Establisher interface {
 // APIEstablisher establishes control or ownership of resources in the API
 // server for a parent.
 type APIEstablisher struct {
-	client client.Client
+	client    client.Client
+	namespace string
 }
 
 // NewAPIEstablisher creates a new APIEstablisher.
-func NewAPIEstablisher(client client.Client) *APIEstablisher {
+func NewAPIEstablisher(client client.Client, namespace string) *APIEstablisher {
 	return &APIEstablisher{
-		client: client,
+		client:    client,
+		namespace: namespace,
 	}
 }
 
@@ -73,12 +80,93 @@ type currentDesired struct {
 func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
 	allObjs := []currentDesired{}
 	resourceRefs := []xpv1.TypedReference{}
+	var rev v1.PackageRevision
+	switch r := parent.(type) {
+	case *v1.ProviderRevision:
+		rev = r
+	case *v1.ConfigurationRevision:
+		rev = r
+	default:
+		return nil, errors.New("type of parent cannot be other than providerrevision or configurationrevision")
+	}
+	var webhookTLSCert []byte
+	if rev.GetWebhookTLSSecretName() != nil {
+		s := &corev1.Secret{}
+		nn := types.NamespacedName{Name: *rev.GetWebhookTLSSecretName(), Namespace: e.namespace}
+		if err := e.client.Get(ctx, nn, s); err != nil {
+			return nil, errors.Wrap(err, "cannot get webhook tls secret")
+		}
+		if len(s.Data["tls.crt"]) == 0 {
+			return nil, errors.New("the value for the key tls.crt cannot be empty")
+		}
+		webhookTLSCert = s.Data["tls.crt"]
+	}
 	for _, res := range objs {
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.
 		d, ok := res.(resource.Object)
 		if !ok {
 			return nil, errors.New(errAssertResourceObj)
+		}
+
+		// The generated webhook configurations have a static hard-coded name
+		// that the developers of the providers can't affect. Here, we make sure
+		// to distinguish one from the other by setting the name to the parent
+		// since there is always a single ValidatingWebhookConfiguration and/or
+		// single MutatingWebhookConfiguration object in a provider package.
+		// See https://github.com/kubernetes-sigs/controller-tools/issues/658
+		switch conf := res.(type) {
+		case *admv1.ValidatingWebhookConfiguration:
+			if len(webhookTLSCert) == 0 {
+				continue
+			}
+			if pkgRef, ok := GetPackageOwnerReference(rev); ok {
+				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+			}
+			for i := range conf.Webhooks {
+				conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+				if conf.Webhooks[i].ClientConfig.Service == nil {
+					conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+				}
+				conf.Webhooks[i].ClientConfig.Service.Name = rev.GetName()
+				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(9443)
+			}
+		case *admv1.MutatingWebhookConfiguration:
+			if len(webhookTLSCert) == 0 {
+				continue
+			}
+			if pkgRef, ok := GetPackageOwnerReference(rev); ok {
+				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+			}
+			for i := range conf.Webhooks {
+				conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+				if conf.Webhooks[i].ClientConfig.Service == nil {
+					conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+				}
+				conf.Webhooks[i].ClientConfig.Service.Name = rev.GetName()
+				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(9443)
+			}
+		case *extv1.CustomResourceDefinition:
+			if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+				if len(webhookTLSCert) == 0 {
+					return nil, errors.New("cannot deploy a CRD with webhook conversion strategy without having a TLS bundle")
+				}
+				if conf.Spec.Conversion.Webhook == nil {
+					conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+				}
+				if conf.Spec.Conversion.Webhook.ClientConfig == nil {
+					conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+				}
+				if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
+					conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+				}
+				conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = rev.GetName()
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(9443)
+			}
 		}
 
 		// Make a copy of the desired object to be populated with existing
