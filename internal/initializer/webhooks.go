@@ -104,6 +104,8 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 				conf.Webhooks[i].ClientConfig.Service.Namespace = c.ServiceReference.Namespace
 				conf.Webhooks[i].ClientConfig.Service.Port = c.ServiceReference.Port
 			}
+			// See https://github.com/kubernetes-sigs/controller-tools/issues/658
+			conf.SetName("crossplane")
 		case *admv1.MutatingWebhookConfiguration:
 			for i := range conf.Webhooks {
 				conf.Webhooks[i].ClientConfig.CABundle = caBundle
@@ -111,6 +113,8 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 				conf.Webhooks[i].ClientConfig.Service.Namespace = c.ServiceReference.Namespace
 				conf.Webhooks[i].ClientConfig.Service.Port = c.ServiceReference.Port
 			}
+			// See https://github.com/kubernetes-sigs/controller-tools/issues/658
+			conf.SetName("crossplane")
 		default:
 			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %s", reflect.TypeOf(obj).String())
 		}
