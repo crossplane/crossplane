@@ -130,8 +130,8 @@ type ConnectionPropagatorChain []ConnectionPropagator
 
 // PropagateConnection details from one resource to the other.
 func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
-	pg := false
 	for _, p := range pc {
+		var pg bool
 		pg, err = p.PropagateConnection(ctx, to, from)
 		if pg {
 			propagated = true

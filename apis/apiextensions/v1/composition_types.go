@@ -20,6 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -49,7 +51,7 @@ type CompositionSpec struct {
 	// with which the connection secrets of composite resource dynamically
 	// provisioned using this composition will be published.
 	// +optional
-	PublishConnectionDetailsWithStoreConfig *string `json:"publishConnectionDetailsWithStoreConfig,omitempty"`
+	PublishConnectionDetailsWithStoreConfigRef *xpv1.Reference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 }
 
 // A PatchSet is a set of patches that can be reused from all resources within

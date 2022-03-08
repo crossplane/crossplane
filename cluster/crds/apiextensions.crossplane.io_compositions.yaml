@@ -269,12 +269,18 @@ spec:
                   - patches
                   type: object
                 type: array
-              publishConnectionDetailsWithStoreConfig:
+              publishConnectionDetailsWithStoreConfigRef:
                 description: PublishConnectionDetailsWithStoreConfig specifies the
                   secret store config with which the connection secrets of composite
                   resource dynamically provisioned using this composition will be
                   published.
-                type: string
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
               resources:
                 description: Resources is the list of resource templates that will
                   be used when a composite resource referring to this composition

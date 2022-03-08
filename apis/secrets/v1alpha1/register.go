@@ -40,7 +40,7 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Provider type metadata.
+// StoreConfig type metadata.
 var (
 	StoreConfigKind             = reflect.TypeOf(StoreConfig{}).Name()
 	StoreConfigGroupKind        = schema.GroupKind{Group: Group, Kind: StoreConfigKind}.String()

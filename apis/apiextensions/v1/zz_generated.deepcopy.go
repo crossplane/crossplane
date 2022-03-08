@@ -375,9 +375,9 @@ func (in *CompositionSpec) DeepCopyInto(out *CompositionSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.PublishConnectionDetailsWithStoreConfig != nil {
-		in, out := &in.PublishConnectionDetailsWithStoreConfig, &out.PublishConnectionDetailsWithStoreConfig
-		*out = new(string)
+	if in.PublishConnectionDetailsWithStoreConfigRef != nil {
+		in, out := &in.PublishConnectionDetailsWithStoreConfigRef, &out.PublishConnectionDetailsWithStoreConfigRef
+		*out = new(commonv1.Reference)
 		**out = **in
 	}
 }

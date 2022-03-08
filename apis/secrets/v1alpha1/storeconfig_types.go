@@ -57,8 +57,6 @@ type StoreConfigList struct {
 	Items           []StoreConfig `json:"items"`
 }
 
-// TODO(turkenh): To be generated with AngryJet
-
 // GetStoreConfig returns SecretStoreConfig
 func (in *StoreConfig) GetStoreConfig() xpv1.SecretStoreConfig {
 	return in.Spec.SecretStoreConfig

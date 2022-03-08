@@ -215,14 +215,14 @@ func (c *ConnectionDetailsConfigurator) Configure(ctx context.Context, cp resour
 		return errors.New(errCompositionNotCompatible)
 	}
 
-	if cp.GetPublishConnectionDetailsTo() != nil || comp.Spec.PublishConnectionDetailsWithStoreConfig == nil {
+	if cp.GetPublishConnectionDetailsTo() != nil || comp.Spec.PublishConnectionDetailsWithStoreConfigRef == nil {
 		return nil
 	}
 
 	cp.SetPublishConnectionDetailsTo(&xpv1.PublishConnectionDetailsTo{
 		Name: string(cp.GetUID()),
 		SecretStoreConfigRef: &xpv1.Reference{
-			Name: *comp.Spec.PublishConnectionDetailsWithStoreConfig,
+			Name: comp.Spec.PublishConnectionDetailsWithStoreConfigRef.Name,
 		},
 	})
 
