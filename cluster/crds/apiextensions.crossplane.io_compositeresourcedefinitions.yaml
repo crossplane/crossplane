@@ -241,6 +241,14 @@ spec:
                         - type
                         type: object
                       type: array
+                    deprecated:
+                      description: The deprecated field specifies that this version
+                        is deprecated and should not be used.
+                      type: boolean
+                    deprecationWarning:
+                      description: DeprecationWarning specifies the message that should
+                        be shown to the user when using this version.
+                      type: string
                     name:
                       description: Name of this version, e.g. “v1”, “v2beta1”, etc.
                         Composite resources are served under this version at `/apis/<group>/<version>/...`

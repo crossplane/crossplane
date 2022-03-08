@@ -27,6 +27,7 @@ import (
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -73,6 +74,8 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 			Name:                     vr.Name,
 			Served:                   vr.Served,
 			Storage:                  vr.Referenceable,
+			Deprecated:               pointer.BoolDeref(vr.Deprecated, false),
+			DeprecationWarning:       vr.DeprecationWarning,
 			AdditionalPrinterColumns: append(vr.AdditionalPrinterColumns, CompositeResourcePrinterColumns()...),
 			Schema: &extv1.CustomResourceValidation{
 				OpenAPIV3Schema: BaseProps(),
@@ -144,6 +147,8 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 			Name:                     vr.Name,
 			Served:                   vr.Served,
 			Storage:                  vr.Referenceable,
+			Deprecated:               pointer.BoolDeref(vr.Deprecated, false),
+			DeprecationWarning:       vr.DeprecationWarning,
 			AdditionalPrinterColumns: append(vr.AdditionalPrinterColumns, CompositeResourceClaimPrinterColumns()...),
 			Schema: &extv1.CustomResourceValidation{
 				OpenAPIV3Schema: BaseProps(),
