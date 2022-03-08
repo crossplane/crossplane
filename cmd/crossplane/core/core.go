@@ -101,21 +101,22 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "Cannot create manager")
 	}
 
+	feats := &feature.Flags{}
+	if c.EnableCompositionRevisions {
+		feats.Enable(features.EnableAlphaCompositionRevisions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisions)
+	}
+	if c.EnableExternalSecretStores {
+		feats.Enable(features.EnableAlphaExternalSecretStores)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
+	}
+
 	o := controller.Options{
 		Logger:                  log,
 		MaxConcurrentReconciles: c.MaxReconcileRate,
 		PollInterval:            c.PollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
-		Features:                &feature.Flags{},
-	}
-
-	if c.EnableCompositionRevisions {
-		o.Features.Enable(features.EnableAlphaCompositionRevisions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisions)
-	}
-	if c.EnableExternalSecretStores {
-		o.Features.Enable(features.EnableAlphaExternalSecretStores)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
+		Features:                feats,
 	}
 
 	if err := apiextensions.Setup(mgr, o); err != nil {
@@ -127,6 +128,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		Cache:           xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
 		Namespace:       c.Namespace,
 		DefaultRegistry: c.Registry,
+		Features:        feats,
 	}
 
 	if c.CABundlePath != "" {
