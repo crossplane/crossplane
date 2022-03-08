@@ -24,7 +24,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/internal/initializer"
@@ -34,6 +33,7 @@ import (
 type initCommand struct {
 	Providers      []string `name:"provider" help:"Pre-install a Provider by giving its image URI. This argument can be repeated."`
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
+	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 }
 
 // Run starts the initialization process.
@@ -51,6 +51,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		initializer.NewCoreCRDs("/crds", s),
 		initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
+		initializer.NewStoreConfigObject(c.Namespace),
 	)
 	if err := i.Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")

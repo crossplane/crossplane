@@ -46,6 +46,11 @@ spec:
           - --configuration
           - "{{ $arg }}"
           {{- end }}
+          env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}-init
           resources:
