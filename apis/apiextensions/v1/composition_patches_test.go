@@ -731,7 +731,7 @@ func TestPatchApply(t *testing.T) {
 					FromObjectRef: &GenericObjecReference{
 						APIVersion: "v1",
 						Kind:       "ConfigMap",
-						Name:       "test-config",
+						Name:       pointer.StringPtr("test-config"),
 						Namespace:  pointer.StringPtr("test-namespace"),
 					},
 					FromFieldPath: pointer.StringPtr("data.hello"),
@@ -779,7 +779,7 @@ func TestPatchApply(t *testing.T) {
 					FromObjectRef: &GenericObjecReference{
 						APIVersion: "v1",
 						Kind:       "Namespace",
-						Name:       "test-ns",
+						Name:       pointer.StringPtr("test-ns"),
 					},
 					FromFieldPath: pointer.StringPtr("status.phase"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels.destination"),
@@ -829,7 +829,7 @@ func TestPatchApply(t *testing.T) {
 					FromObjectRef: &GenericObjecReference{
 						APIVersion: "v1",
 						Kind:       "Namespace",
-						Name:       "test-ns",
+						Name:       pointer.StringPtr("test-ns"),
 					},
 				},
 				cp: &fake.Composite{},
@@ -860,7 +860,7 @@ func TestPatchApply(t *testing.T) {
 					FromObjectRef: &GenericObjecReference{
 						APIVersion: "v1",
 						Kind:       "ConfigMap",
-						Name:       "test-config",
+						Name:       pointer.StringPtr("test-config"),
 						Namespace:  pointer.StringPtr("test-namespace"),
 					},
 					FromFieldPath: pointer.StringPtr("data.hello"),
@@ -895,7 +895,7 @@ func TestPatchApply(t *testing.T) {
 					FromObjectRef: &GenericObjecReference{
 						APIVersion: "v1",
 						Kind:       "ConfigMap",
-						Name:       "test-config",
+						Name:       pointer.StringPtr("test-config"),
 						Namespace:  pointer.StringPtr("test-namespace"),
 					},
 					FromFieldPath: pointer.StringPtr("data.hello"),

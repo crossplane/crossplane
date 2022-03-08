@@ -41,6 +41,9 @@ const (
 	errFmtCombineStrategyNotSupported = "combine strategy %s is not supported"
 	errFmtCombineConfigMissing        = "given combine strategy %s requires configuration"
 	errFmtCombineStrategyFailed       = "%s strategy could not combine"
+
+	errFmtExtractField       = "cannot extract %s"
+	errFmtRequireStringField = "referenced field needs to be a string: %s"
 )
 
 // A PatchType is a type of patch.
@@ -86,11 +89,28 @@ type GenericObjecReference struct {
 	Kind string `json:"kind"`
 
 	// The name of the referenced object.
-	Name string `json:"name"`
+	// Takes priority over NameFromFieldPath.
+	// Either this field or NameFromFieldPath must be set.
+	// +optional
+	Name *string `json:"name,omitempty"`
+
+	// The path to the composite field that stores the name of the
+	// referenced object. Must be a string.
+	// Either this field or Name must be set.
+	// +optional
+	NameFromFieldPath *string `json:"nameFromFieldPath,omitempty"`
 
 	// The namespace of the referenced object.
+	// Takes priority over NamespaceFromFieldPath.
+	// Either this field or NamespaceFromFieldPath must be set.
 	// +optional
 	Namespace *string `json:"namespace,omitempty"`
+
+	// The path to the composite field that stores the namespace of the
+	// referenced object. Must be a string.
+	// Either this field or Namespace must be set.
+	// +optional
+	NamespaceFromFieldPath *string `json:"namespaceFromFieldPath,omitempty"`
 }
 
 // Patch objects are applied between composite and composed resources. Their
@@ -151,10 +171,9 @@ func (c *Patch) Apply(ctx context.Context, kube client.Client, cp, cd runtime.Ob
 	case PatchTypeFromCompositeFieldPath:
 		return c.applyFromFieldPathPatch(cp, cd)
 	case PatchTypeFromObjectFieldPath:
-		return c.applyFromObjectFieldPathPatch(ctx, kube, cd)
+		return c.applyFromObjectFieldPathPatch(ctx, kube, cp, cd)
 	case PatchTypeToCompositeFieldPath:
 		return c.applyFromFieldPathPatch(cd, cp)
-
 	case PatchTypeCombineFromComposite:
 		return c.applyCombineFromVariablesPatch(cp, cd)
 	case PatchTypeCombineToComposite:
@@ -247,10 +266,13 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 	return patchFieldValueToObject(*c.ToFieldPath, out, to, mo)
 }
 
-// applyFromObjectFieldPathPatch patches the "to" resource with the referenced kubernetes object as input.
-// If the resource does not exist and the patch is configured as optional the result will be nil and the patch not applied.
-// If the resource does exist, it will call applyFromFieldPathPatch with the fetched value and "to".
-func (c *Patch) applyFromObjectFieldPathPatch(ctx context.Context, kube client.Client, to runtime.Object) error {
+// applyFromObjectFieldPathPatch patches the "to" resource with the referenced
+// kubernetes object as input.
+// If the resource does not exist and the patch is configured as optional the
+// result will be nil and the patch not applied.
+// If the resource does exist, it will call applyFromFieldPathPatch with the
+// fetched value and "to".
+func (c *Patch) applyFromObjectFieldPathPatch(ctx context.Context, kube client.Client, from, to runtime.Object) error {
 	if c.FromObjectRef == nil {
 		return errors.Errorf(errFmtRequiredField, "FromObjectRef", c.Type)
 	}
@@ -258,9 +280,9 @@ func (c *Patch) applyFromObjectFieldPathPatch(ctx context.Context, kube client.C
 		return errors.Errorf(errFmtRequiredField, "FromFieldPath", c.Type)
 	}
 
-	ns := types.NamespacedName{Name: c.FromObjectRef.Name}
-	if c.FromObjectRef.Namespace != nil {
-		ns.Namespace = *c.FromObjectRef.Namespace
+	ns, err := c.getNamespacedNameFromObjectRef(from)
+	if err != nil {
+		return err
 	}
 
 	res := &unstructured.Unstructured{}
@@ -278,6 +300,59 @@ func (c *Patch) applyFromObjectFieldPathPatch(ctx context.Context, kube client.C
 	}
 
 	return c.applyFromFieldPathPatch(res, to)
+}
+
+// getNamespacedNameFromObjectRef builds a namespaced name using the patch's
+// FromObjectRef and given from source object.
+func (c *Patch) getNamespacedNameFromObjectRef(from runtime.Object) (types.NamespacedName, error) {
+	if c.FromObjectRef == nil {
+		return types.NamespacedName{}, errors.Errorf(errFmtRequiredField, "FromObjectRef", c.Type)
+	}
+
+	if c.FromObjectRef.Name == nil && c.FromObjectRef.NameFromFieldPath == nil {
+		return types.NamespacedName{}, errors.Errorf(errFmtRequiredField, "FromObjectRef.Name or FromObjectRef.NameFromFieldPath", c.Type)
+	}
+
+	name, err := stringOrExtractFromPath(c.FromObjectRef.Name, from, c.FromObjectRef.NameFromFieldPath)
+	if err != nil {
+		return types.NamespacedName{}, errors.Wrapf(err, errFmtExtractField, "NameFromFieldPath")
+	}
+
+	namespace, err := stringOrExtractFromPath(c.FromObjectRef.Namespace, from, c.FromObjectRef.NamespaceFromFieldPath)
+	if err != nil {
+		return types.NamespacedName{}, errors.Wrapf(err, errFmtExtractField, "NamespaceFromFieldPath")
+	}
+
+	return types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}, nil
+}
+
+// stringOrExtractFromPath returns value if not nil or tries to extract the
+// value from from using path.
+func stringOrExtractFromPath(value *string, from runtime.Object, path *string) (string, error) {
+	if value != nil {
+		return *value, nil
+	}
+	if path != nil {
+		fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
+		if err != nil {
+			return "", err
+		}
+
+		in, err := fieldpath.Pave(fromMap).GetValue(*path)
+		if err != nil {
+			return "", err
+		}
+
+		str, ok := in.(string)
+		if !ok {
+			return str, errors.Errorf(errFmtRequireStringField, *path)
+		}
+		return str, nil
+	}
+	return "", nil
 }
 
 // applyCombineFromVariablesPatch patches the "to" resource, taking a list of

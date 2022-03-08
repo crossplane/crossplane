@@ -139,15 +139,29 @@ spec:
                                 description: The kind of the referenced object.
                                 type: string
                               name:
-                                description: The name of the referenced object.
+                                description: The name of the referenced object. Takes
+                                  priority over NameFromFieldPath. Either this field
+                                  or NameFromFieldPath must be set.
+                                type: string
+                              nameFromFieldPath:
+                                description: The path to the composite field that
+                                  stores the name of the referenced object. Must be
+                                  a string. Either this field or Name must be set.
                                 type: string
                               namespace:
                                 description: The namespace of the referenced object.
+                                  Takes priority over NamespaceFromFieldPath. Either
+                                  this field or NamespaceFromFieldPath must be set.
+                                type: string
+                              namespaceFromFieldPath:
+                                description: The path to the composite field that
+                                  stores the namespace of the referenced object. Must
+                                  be a string. Either this field or Namespace must
+                                  be set.
                                 type: string
                             required:
                             - apiVersion
                             - kind
-                            - name
                             type: object
                           patchSetName:
                             description: PatchSetName to include patches from. Required
@@ -436,15 +450,29 @@ spec:
                                 description: The kind of the referenced object.
                                 type: string
                               name:
-                                description: The name of the referenced object.
+                                description: The name of the referenced object. Takes
+                                  priority over NameFromFieldPath. Either this field
+                                  or NameFromFieldPath must be set.
+                                type: string
+                              nameFromFieldPath:
+                                description: The path to the composite field that
+                                  stores the name of the referenced object. Must be
+                                  a string. Either this field or Name must be set.
                                 type: string
                               namespace:
                                 description: The namespace of the referenced object.
+                                  Takes priority over NamespaceFromFieldPath. Either
+                                  this field or NamespaceFromFieldPath must be set.
+                                type: string
+                              namespaceFromFieldPath:
+                                description: The path to the composite field that
+                                  stores the namespace of the referenced object. Must
+                                  be a string. Either this field or Namespace must
+                                  be set.
                                 type: string
                             required:
                             - apiVersion
                             - kind
-                            - name
                             type: object
                           patchSetName:
                             description: PatchSetName to include patches from. Required
