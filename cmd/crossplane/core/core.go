@@ -29,13 +29,13 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
-	"github.com/crossplane/crossplane-runtime/pkg/features"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 

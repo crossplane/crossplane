@@ -20,11 +20,11 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/features"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/definition"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/offered"
+	"github.com/crossplane/crossplane/internal/features"
 )
 
 // Setup API extensions controllers.

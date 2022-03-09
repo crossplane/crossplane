@@ -1265,8 +1265,6 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20201229170055-e5319fda7802/go.mod h1
 github.com/tomarrell/wrapcheck/v2 v2.4.0/go.mod h1:68bQ/eJg55BROaRTbMjC7vuhL2OgfoG8bLp9ZyoBfyY=
 github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce/go.mod h1:o8v6yHRoik09Xen7gje4m9ERNah1d1PPsVq1VEx9vE4=
 github.com/tommy-muehle/go-mnd/v2 v2.4.0/go.mod h1:WsUAkMJMYww6l/ufffCD3m+P7LEvr8TnZn9lwVDlgzw=
-github.com/turkenh/crossplane-runtime v0.0.0-20220307205037-1a8c6159a430 h1:CL6UemBzANbzEc9oJ67GQMXEPDeAGLc6D9wztINR5b4=
-github.com/turkenh/crossplane-runtime v0.0.0-20220307205037-1a8c6159a430/go.mod h1:IPT3HTsovwmbw3i+SdsOyaC3r3b7TW+otBMmZsHLnSU=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

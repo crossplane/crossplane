@@ -2,7 +2,7 @@ module github.com/crossplane/crossplane
 
 go 1.17
 
-replace github.com/crossplane/crossplane-runtime => github.com/turkenh/crossplane-runtime v0.0.0-20220307205037-1a8c6159a430
+replace github.com/crossplane/crossplane-runtime => ../crossplane-runtime
 
 require (
 	github.com/Masterminds/semver v1.5.0

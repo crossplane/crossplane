@@ -34,7 +34,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/features"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
@@ -47,6 +46,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
