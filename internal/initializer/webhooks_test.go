@@ -22,17 +22,15 @@ import (
 	"os"
 	"testing"
 
-	admv1 "k8s.io/api/admissionregistration/v1"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
+	admv1 "k8s.io/api/admissionregistration/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 

@@ -97,7 +97,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	if err != nil {
 		return errors.Wrap(err, errControllerConfig)
 	}
-	s, d, svc := buildProviderDeployment(pkgProvider, provRev, cc, h.namespace)
+	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
@@ -125,19 +125,17 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err != nil {
 		return errors.Wrap(err, errControllerConfig)
 	}
-	provRev, ok := pr.(*v1.ProviderRevision)
-	if !ok {
-		return errors.New(errNotProviderRevision)
-	}
-	s, d, svc := buildProviderDeployment(pkgProvider, provRev, cc, h.namespace)
+	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
 	}
-	if err := h.client.Apply(ctx, svc); err != nil {
-		return errors.Wrap(err, errApplyProviderService)
+	if pr.GetWebhookTLSSecretName() != nil {
+		if err := h.client.Apply(ctx, svc); err != nil {
+			return errors.Wrap(err, errApplyProviderService)
+		}
 	}
 	pr.SetControllerReference(xpv1.Reference{Name: d.GetName()})
 

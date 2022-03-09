@@ -31,15 +31,17 @@ import (
 )
 
 const (
-	errNotExactlyOneMeta         = "not exactly one package meta type"
-	errNotMeta                   = "meta type is not a package"
-	errNotMetaProvider           = "package meta type is not Provider"
-	errNotMetaConfiguration      = "package meta type is not Configuration"
-	errNotCRD                    = "object is not a CRD"
-	errNotXRD                    = "object is not an XRD"
-	errNotComposition            = "object is not a Composition"
-	errBadConstraints            = "package version constraints are poorly formatted"
-	errCrossplaneIncompatibleFmt = "package is not compatible with Crossplane version (%s)"
+	errNotExactlyOneMeta                 = "not exactly one package meta type"
+	errNotMeta                           = "meta type is not a package"
+	errNotMetaProvider                   = "package meta type is not Provider"
+	errNotMetaConfiguration              = "package meta type is not Configuration"
+	errNotCRD                            = "object is not a CRD"
+	errNotXRD                            = "object is not an XRD"
+	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
+	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
+	errNotComposition                    = "object is not a Composition"
+	errBadConstraints                    = "package version constraints are poorly formatted"
+	errCrossplaneIncompatibleFmt         = "package is not compatible with Crossplane version (%s)"
 )
 
 // NewProviderLinter is a convenience function for creating a package linter for
@@ -136,22 +138,18 @@ func IsCRD(o runtime.Object) error {
 
 // IsMutatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
 func IsMutatingWebhookConfiguration(o runtime.Object) error {
-	switch o.(type) {
-	case *admv1.MutatingWebhookConfiguration:
-		return nil
-	default:
-		return errors.New(errNotCRD)
+	if _, ok := o.(*admv1.MutatingWebhookConfiguration); !ok {
+		return errors.New(errNotMutatingWebhookConfiguration)
 	}
+	return nil
 }
 
 // IsValidatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
 func IsValidatingWebhookConfiguration(o runtime.Object) error {
-	switch o.(type) {
-	case *admv1.ValidatingWebhookConfiguration:
-		return nil
-	default:
-		return errors.New(errNotCRD)
+	if _, ok := o.(*admv1.ValidatingWebhookConfiguration); !ok {
+		return errors.New(errNotValidatingWebhookConfiguration)
 	}
+	return nil
 }
 
 // IsXRD checks that an object is a CompositeResourceDefinition.

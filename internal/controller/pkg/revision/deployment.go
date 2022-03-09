@@ -45,7 +45,7 @@ const (
 	promPortNumber = 8080
 )
 
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.ProviderRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) { // nolint:gocyclo
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) { // nolint:gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -126,12 +126,12 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision *v1.Provider
 			},
 		},
 	}
-	if revision.Spec.WebhookTLSSecretName != nil {
+	if revision.GetWebhookTLSSecretName() != nil {
 		v := corev1.Volume{
 			Name: "webhook-tls-secret",
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: *revision.Spec.WebhookTLSSecretName,
+					SecretName: *revision.GetWebhookTLSSecretName(),
 					Items: []corev1.KeyToPath{
 						{Key: "tls.crt", Path: "tls.crt"},
 						{Key: "tls.key", Path: "tls.key"},
