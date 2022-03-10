@@ -82,13 +82,21 @@ type ConnectionSecretFilterer interface {
 	GetConnectionSecretKeys() []string
 }
 
-// A ConnectionPublisherFn publishes the supplied ConnectionDetails for the
+// A ConnectionPublisherFns publishes the supplied ConnectionDetails for the
 // supplied resource.
-type ConnectionPublisherFn func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
+type ConnectionPublisherFns struct {
+	PublishConnectionFn   func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
+	UnpublishConnectionFn func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error
+}
 
 // PublishConnection details for the supplied resource.
-func (fn ConnectionPublisherFn) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-	return fn(ctx, o, c)
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+	return fn.PublishConnectionFn(ctx, o, c)
+}
+
+// UnpublishConnection details for the supplied resource.
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+	return fn.UnpublishConnectionFn(ctx, o, c)
 }
 
 // A CompositionSelector selects a composition reference.
@@ -267,11 +275,11 @@ func WithConfigurator(c Configurator) ReconcilerOption {
 	}
 }
 
-// WithConnectionPublisher specifies how the Reconciler should publish
+// WithConnectionPublishers specifies how the Reconciler should publish
 // connection secrets.
-func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
+func WithConnectionPublishers(p ...managed.ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.ConnectionPublisher = p
+		r.composite.ConnectionPublisher = managed.PublisherChain(p)
 	}
 }
 
@@ -291,8 +299,8 @@ type composition struct {
 type compositeResource struct {
 	CompositionSelector
 	Configurator
-	ConnectionPublisher
 	Renderer
+	managed.ConnectionPublisher
 }
 
 type composedResource struct {

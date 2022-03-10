@@ -22,6 +22,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -185,6 +186,11 @@ func (in *CompositionRevisionSpec) DeepCopyInto(out *CompositionRevisionSpec) {
 	if in.WriteConnectionSecretsToNamespace != nil {
 		in, out := &in.WriteConnectionSecretsToNamespace, &out.WriteConnectionSecretsToNamespace
 		*out = new(string)
+		**out = **in
+	}
+	if in.PublishConnectionDetailsWithStoreConfigRef != nil {
+		in, out := &in.PublishConnectionDetailsWithStoreConfigRef, &out.PublishConnectionDetailsWithStoreConfigRef
+		*out = new(v1.Reference)
 		**out = **in
 	}
 }

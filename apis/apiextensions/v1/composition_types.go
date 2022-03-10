@@ -51,6 +51,7 @@ type CompositionSpec struct {
 	// with which the connection secrets of composite resource dynamically
 	// provisioned using this composition will be published.
 	// +optional
+	// +kubebuilder:default={"name": "default"}
 	PublishConnectionDetailsWithStoreConfigRef *xpv1.Reference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 }
 

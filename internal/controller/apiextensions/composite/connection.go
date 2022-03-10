@@ -28,39 +28,9 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
-// A ConnectionPublisher publishes the supplied ConnectionDetails for the
-// supplied resource. Publishers must handle the case in which the supplied
-// ConnectionDetails are empty.
-type ConnectionPublisher interface {
-	// PublishConnection details for the supplied resource. Publishing must be
-	// additive; i.e. if details (a, b, c) are published, subsequently
-	// publishing details (b, c, d) should update (b, c) but not remove a.
-	// Returns 'published' if the publish was not a no-op.
-	PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
-}
-
 // ConnectionDetailsFetcher fetches the connection details of the Composed resource.
 type ConnectionDetailsFetcher interface {
 	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
-}
-
-// A ConnectionPublisherChain chains multiple ConnectionPublishers.
-type ConnectionPublisherChain []ConnectionPublisher
-
-// PublishConnection publishes the supplied ConnectionDetails to the Secret
-// referenced in the resource.
-func (pc ConnectionPublisherChain) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-	pb := false
-	for _, p := range pc {
-		pb, err = p.PublishConnection(ctx, o, c)
-		if pb {
-			published = true
-		}
-		if err != nil {
-			return published, err
-		}
-	}
-	return published, nil
 }
 
 // A ConnectionDetailsFetcherChain chains multiple ConnectionDetailsFetchers.
@@ -119,17 +89,12 @@ func (p *SecretStoreConnectionPublisher) PublishConnection(ctx context.Context, 
 		}
 	}
 
-	// TODO(turkenh): Implement an equivalent functionality to
-	//  "resource.ConnectionSecretMustBeControllableBy"
+	return p.publisher.PublishConnection(ctx, o, data)
+}
 
-	if err = p.publisher.PublishConnection(ctx, o, data); err != nil {
-		return false, errors.Wrap(err, errPublish)
-	}
-
-	// TODO(turkenh): Figure out how can we set published to false
-	//  (and why do we need to?) in case of no-op.
-
-	return true, nil
+// UnpublishConnection details for the supplied resource.
+func (p *SecretStoreConnectionPublisher) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+	return p.publisher.UnpublishConnection(ctx, o, c)
 }
 
 // SecretStoreConnectionDetailsFetcher is a ConnectionDetailsFetcher that

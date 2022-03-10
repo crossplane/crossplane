@@ -590,9 +590,11 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
 						return nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-						return false, errBoom
-					})),
+					WithConnectionPublishers(ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, errBoom
+						},
+					}),
 				},
 			},
 			want: want{
@@ -638,9 +640,11 @@ func TestReconcile(t *testing.T) {
 						// Our one resource is not ready.
 						return false, nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-						return false, nil
-					})),
+					WithConnectionPublishers(ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, nil
+						},
+					}),
 				},
 			},
 			want: want{
@@ -686,13 +690,15 @@ func TestReconcile(t *testing.T) {
 						// Our one resource is ready.
 						return true, nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
-						want := cd
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
-						}
-						return true, nil
-					})),
+					WithConnectionPublishers(ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+							want := cd
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
+							}
+							return true, nil
+						},
+					}),
 				},
 			},
 			want: want{

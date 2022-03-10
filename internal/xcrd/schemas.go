@@ -133,12 +133,11 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
 				"configRef": {
-					Type:     "object",
-					Required: []string{"name"},
+					Type:    "object",
+					Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
 					Properties: map[string]extv1.JSONSchemaProps{
 						"name": {
-							Type:    "string",
-							Default: &extv1.JSON{Raw: []byte(`"default"`)},
+							Type: "string",
 						},
 					},
 				},
@@ -232,12 +231,11 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
 				"configRef": {
-					Type:     "object",
-					Required: []string{"name"},
+					Type:    "object",
+					Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
 					Properties: map[string]extv1.JSONSchemaProps{
 						"name": {
-							Type:    "string",
-							Default: &extv1.JSON{Raw: []byte(`"default"`)},
+							Type: "string",
 						},
 					},
 				},

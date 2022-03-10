@@ -68,6 +68,13 @@ type CompositionRevisionSpec struct {
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
 
+	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
+	// with which the connection secrets of composite resource dynamically
+	// provisioned using this composition will be published.
+	// +optional
+	// +kubebuilder:default={"name": "default"}
+	PublishConnectionDetailsWithStoreConfigRef *xpv1.Reference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
+
 	// Revision number. Newer revisions have larger numbers.
 	// +immutable
 	Revision int64 `json:"revision"`

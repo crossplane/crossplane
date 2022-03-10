@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
+
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
@@ -405,7 +407,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
 
 	o := []composite.ReconcilerOption{
-		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
+		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, recorder),
 			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), recorder),
@@ -427,11 +429,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// feature flag is enabled. Otherwise, we start the XR reconcilers with
 	// its default ConnectionPublisher and ConnectionDetailsFetcher.
 	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		pc := composite.ConnectionPublisherChain{
+		pc := []managed.ConnectionPublisher{
 			composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys()),
 			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind), d.GetConnectionSecretKeys()),
 		}
-		o = append(o, composite.WithConnectionPublisher(pc))
+		o = append(o, composite.WithConnectionPublishers(pc...))
 
 		fc := composite.ConnectionDetailsFetcherChain{
 			composite.NewAPIConnectionDetailsFetcher(r.client),
