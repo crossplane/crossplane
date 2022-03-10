@@ -102,19 +102,24 @@ following:
 * If you are adding a new resource, use Terrajet pipeline unless there is a
   blocker.
 * If you encounter a bug that cannot be solved with Terrajet in a meaningful
-  timeframe, consider changing its controller to classic hand-written controller
-  and bump the API version.
-* If an existing classic CRD (hand-written or ACK-generated) has a bug that
-  cannot be fixed easily or has a blocker or we continuously get bugs which
-  makes it hard to maintain, consider replacing it with Terrajet and if you do
-  bump the API version.
+  timeframe, consider converting its controller to classic hand-written
+  controller and bump the API version.
+* If an existing classic CRD (hand-written or ACK-generated) has a bug, consider
+  converting its controller to Terrajet first.
 
-The main idea behind these guidelines is that we'd like to make use of the best
-tooling for a given resource in terms of its maintenance cost and stability. We
-might end up with more and more classically written resources converted to
-Terrajet because it's easier to maintain but there is no goal of converting all
-existing stable resources, like VPC for example. For all sorts of conversions,
-we will make use of conversion webhooks support of Kubernetes API.
+The end goal for the conversions is to have more homogeneity in the codebase.
+Today, Terrajet is the technology that these three providers decide as the best
+available for most cases, hence we'll converge on it. Tomorrow, it might be AWS
+Cloud Control API for provider-aws, ARM for provider-azure etc. so we'll have a
+goal of converging to those technologies. But we won't have a big push to
+convert everything to Terrajet immediately because depending on the complexity
+of the resource, the conversions require extensive testing to make sure the
+behavior matches and it carries risk for existing users.
+
+The conversion webhook support of Kubernetes API will greatly help with the API
+schema changes. More details about the expected differences between the
+candidate tools and Terrajet schemas are [here][strategy-doc] in the original
+provider strategy doc.
 
 > Note that [the issues related to having too many CRDs][crd-issues] in a
 > cluster are being solved but the users of non-preview version are not affected
