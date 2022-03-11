@@ -43,6 +43,12 @@ var (
 const (
 	promPortName   = "metrics"
 	promPortNumber = 8080
+
+	webhookVolumeName       = "webhook-tls-secret"
+	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
+	webhookTLSCertDir       = "/webhook/tls"
+	webhookPortName         = "webhook"
+	webhookPort             = 9443
 )
 
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) { // nolint:gocyclo
@@ -128,11 +134,12 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	}
 	if revision.GetWebhookTLSSecretName() != nil {
 		v := corev1.Volume{
-			Name: "webhook-tls-secret",
+			Name: webhookVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
 					SecretName: *revision.GetWebhookTLSSecretName(),
 					Items: []corev1.KeyToPath{
+						// These are known and validated keys in TLS secrets.
 						{Key: "tls.crt", Path: "tls.crt"},
 						{Key: "tls.key", Path: "tls.key"},
 					},
@@ -142,18 +149,25 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
 
 		vm := corev1.VolumeMount{
-			Name:      "webhook-tls-secret",
+			Name:      webhookVolumeName,
 			ReadOnly:  true,
-			MountPath: "/webhook/tls",
+			MountPath: webhookTLSCertDir,
 		}
 		d.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
 
 		envs := []corev1.EnvVar{
-			{Name: "WEBHOOK_TLS_CERT_DIR", Value: "/webhook/tls"},
+			{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir},
 		}
 		d.Spec.Template.Spec.Containers[0].Env =
 			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+
+		port := corev1.ContainerPort{
+			Name:          webhookPortName,
+			ContainerPort: webhookPort,
+		}
+		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports,
+			port)
 	}
 	templateLabels := make(map[string]string)
 	if cc != nil {

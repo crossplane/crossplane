@@ -140,7 +140,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 				}
 				conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
 				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(9443)
+				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
 			}
 		case *extv1.CustomResourceDefinition:
 			if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
@@ -159,7 +159,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 				conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
 				conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetName()
 				conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
-				conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(9443)
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(webhookPort)
 			}
 		}
 

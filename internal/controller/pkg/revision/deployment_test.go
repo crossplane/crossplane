@@ -60,6 +60,12 @@ func withAdditionalEnvVar(env corev1.EnvVar) deploymentModifier {
 	}
 }
 
+func withAdditionalPort(port corev1.ContainerPort) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports, port)
+	}
+}
+
 const (
 	namespace = "ns"
 )
@@ -275,7 +281,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 				sa: serviceaccount(revisionWithoutCCWithWebhook),
 				d: deployment(providerWithImage, revisionWithoutCCWithWebhook.GetName(), img,
 					withAdditionalVolume(corev1.Volume{
-						Name: "webhook-tls-secret",
+						Name: webhookVolumeName,
 						VolumeSource: corev1.VolumeSource{
 							Secret: &corev1.SecretVolumeSource{
 								SecretName: webhookTLSSecretName,
@@ -287,11 +293,12 @@ func TestBuildProviderDeployment(t *testing.T) {
 						},
 					}),
 					withAdditionalVolumeMount(corev1.VolumeMount{
-						Name:      "webhook-tls-secret",
+						Name:      webhookVolumeName,
 						ReadOnly:  true,
-						MountPath: "/webhook/tls",
+						MountPath: webhookTLSCertDir,
 					}),
-					withAdditionalEnvVar(corev1.EnvVar{Name: "WEBHOOK_TLS_CERT_DIR", Value: "/webhook/tls"}),
+					withAdditionalEnvVar(corev1.EnvVar{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir}),
+					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: webhookPort}),
 				),
 				svc: service(providerWithImage, revisionWithoutCCWithWebhook),
 			},
