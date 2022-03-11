@@ -405,7 +405,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind),
 		}
 
-		o = append(o, claim.WithConnectionPropagator(pc))
+		o = append(o, claim.WithConnectionPropagator(pc), claim.WithConnectionUnpublisher(claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind))))
 	}
 
 	cr := claim.NewReconciler(r.mgr,
