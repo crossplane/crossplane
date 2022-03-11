@@ -2,12 +2,10 @@ module github.com/crossplane/crossplane
 
 go 1.17
 
-replace github.com/crossplane/crossplane-runtime => ../crossplane-runtime
-
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.2.17
-	github.com/crossplane/crossplane-runtime v0.15.1-0.20220106140106-428b7c390375
+	github.com/crossplane/crossplane-runtime v0.15.1-0.20220311124323-6966b5a68a7c
 	github.com/google/go-cmp v0.5.7
 	// TODO(hasheddan): we prefer to consume release versions of
 	// go-containerregistry. An incremental version is currently being used to
