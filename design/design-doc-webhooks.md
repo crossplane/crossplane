@@ -2,7 +2,7 @@
 
 * Owner: Muvaffak Onuş (@muvaf)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
