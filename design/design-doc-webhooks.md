@@ -31,7 +31,8 @@ that you want to do before persisting it and making it available for controllers
 to reconcile.
 
 In Crossplane, we frequently need webhooks for various use cases at different
-levels.
+levels. However, there needs to be additional mechanisms to enable providers and
+Crossplane to register webhooks.
 
 ## Use Cases
 
@@ -89,7 +90,7 @@ guess how complex the conversion process will be. That's why we want to give
 code-level flexibility to owners of the CRDs while keeping the webhook mechanics
 that are generic be handled automatically by our abstraction layer.
 
-## Upstream Tools
+## Upstream Tooling
 
 There are two main mechanisms that upstream provides:
 * Kubebuilder automatically generates webhook registration YAMLs for the marked
@@ -102,144 +103,31 @@ There are two main mechanisms that upstream provides:
     * `Validate{Create,Update,Delete}() error` for admission.
     * `Convert{To,From}(obj)` for conversion.
 
-Kubebuilder generating YAMLs would work for us; it's designed similar to CRD
+Kubebuilder generated YAMLs would work for us; it's designed similar to CRD
 generation and fairly simple. No additional YAML is needed for conversion but
 CRD needs to point to the `Service` of webhook, though it's no-op if the CRD has
 only one version.
-
-For abstractions, we need to look at a little deeper.
-
-[Mutation](https://github.com/kubernetes-sigs/controller-runtime/blob/0208f43/pkg/webhook/admission/defaulter.go#L28)
-webhook:
-```golang
-// Defaulter defines functions for setting defaults on resources
-type Defaulter interface {
-  runtime.Object
-  Default()
-}
-```
-
-[Validation](https://github.com/kubernetes-sigs/controller-runtime/blob/8161d1c/pkg/webhook/admission/validator.go#L30)
-webhook:
-```golang
-// Validator defines functions for validating an operation
-type Validator interface {
-  runtime.Object
-  ValidateCreate() error
-  ValidateUpdate(old runtime.Object) error
-  ValidateDelete() error
-}
-```
-
-[Conversion](https://github.com/kubernetes-sigs/controller-runtime/blob/836b363d731dbbea5591db3c7ca2a36c2dd6c151/pkg/conversion/conversion.go#L22)
-webhook:
-```golang
-// Convertible defines capability of a type to convertible i.e. it can be converted to/from a hub type.
-type Convertible interface {
-  runtime.Object
-  ConvertTo(dst Hub) error
-  ConvertFrom(src Hub) error
-}
-
-// Hub marks that a given type is the hub type for conversion. This means that
-// all conversions will first convert to the hub type, then convert from the hub
-// type to the destination type. All types besides the hub type should implement
-// Convertible.
-type Hub interface {
-  runtime.Object
-  Hub()
-}
-```
-
-We see that the interfaces include `runtime.Object`, which means the functions
-need to be members of the kinds, i.e. `RDSInstance` struct needs to implements
-these functions. The abstraction layer that accepts `Defaulter` and `Validator`
-look pretty similar so I'll copy only the [mutation
-one](https://github.com/kubernetes-sigs/controller-runtime/blob/0208f43/pkg/webhook/admission/defaulter.go#L54):
-
-```golang
-// Handle handles admission requests.
-func (h *mutatingHandler) Handle(ctx context.Context, req Request) Response {
-  if h.defaulter == nil {
-    panic("defaulter should never be nil")
-  }
-
-  // Get the object in the request
-  obj := h.defaulter.DeepCopyObject().(Defaulter)
-  err := h.decoder.Decode(req, obj)
-  if err != nil {
-    return Errored(http.StatusBadRequest, err)
-  }
-
-  // Default the object
-  obj.Default()
-  marshalled, err := json.Marshal(obj)
-  if err != nil {
-    return Errored(http.StatusInternalServerError, err)
-  }
-
-  // Create the patch
-  return PatchResponseFromRaw(req.Object.Raw, marshalled)
-}
-```
-
-The conversion webhook implementation is a bit [more
-complex](https://github.com/kubernetes-sigs/controller-runtime/blob/master/pkg/webhook/conversion/conversion.go#L22)
-due to the marshalling and version checks that need to happen. However, it seems
-that some of the cases it needs to handle [are not
-necessary](https://github.com/kubernetes-sigs/controller-runtime/issues/1388) in
-v1 CRD mechanics.
-
-These high level abstractions are fairly simple but they have a few drawbacks:
-* They require implementation in API type packages and we want to keep API type
-  packages as lean as possible so that external users of those Go packages do
-  not have to depend on things that are irrelevant to them. However, there are
-  some cases that might require including cloud provider SDK and/or `client`
-  package from controller-runtime:
-  * Let's say GCP decides to add a new field in the new version of SDK and we
-    want to include it in the new `apiVersion`. However, in order to make
-    queries the value of that field needs to be known, hence we need to make a
-    `GET` call to the provider API, which means we'd have to import GCP Go SDK.
-    We update SDKs very infrequently so we have not encountered this but it's
-    possible.
-  * If we decide to expand abilities of webhooks, we might need other libraries.
-    For example, if admission webhook has a functionality checking the
-    `ServiceAccount` of the action taker, then we probably need to call
-    api-server to get its RBAC details, which would require importing `client`
-    package and some cumbersome logic to make it available in the CRD struct.
-* `Default` is not a well-suited name for our mutation operations we expect to
-  do since we'll use the kubebuilder [`default`
-  marker](https://book.kubebuilder.io/reference/markers/crd-validation.html) for
-  this functionality.
-
-On the other hand, while we could work with the low level one, we never really
-need to customize encoder/decoders and deal with `http.Handler` interface. We'd
-need to build a layer similar to the one we described here as high level
-abstraction but in `crossplane-runtime`.
 
 ## Proposal
 
 There are four main pieces of a webhook:
 * Actual Go implementation of the logic.
-* Exposing an HTTP server accepting requests from Kubernetes API Server and
-  responding properly.
-* Handing off certificates to both API Server and the webhook server since TLS
-  is required.
-* Making sure the server is registered to Kubernetes API Server.
+  * What will go into webhook functions, like `ValidateCreate(o runtime.Object) error`
+* Having a `Service` object to be used by the webhook configurations.
+* Mounting TLS key and certificate to Crossplane and provider `Deployment`s.
+* Injecting TLS certificates to webhook configs and CRDs.
+* Making sure the webhook configurations are registered on the Kubernetes API
+  Server.
 
-Because of the limitations of the `controller-runtime` high-level abstraction,
-we will go with the low level abstraction and build the necessary structs in
-`crossplane-runtime` that will be used in providers.
+Let's look at each of these pieces in detail.
 
-### The Abstraction Layer
+### Webhook Logic
 
 In `crossplane-runtime`, we will accept a list of functions for each type of
 the webhook and make sure they are called in given order whenever a request
-hits. The main difference between `controller-runtime` is that these functions
-do not have to be members of API structs; they can belong to any object or just
-be anonymous functions. Though the recommendation would be to have a struct
-similar to implementations of `ExternalClient` where all functions are provided
-by a single struct.
+hits. We will build this on top of the high level abstraction of
+`controller-runtime` so that it's possible to append logic in different contexts
+such as generated code and manually written code.
 
 ### Exposing Webhook Server
 
@@ -346,7 +234,7 @@ added to the existing `package` folder which will look like the following:
 ```
 .
 ├── crds
-├── webhooks
+├── webhookconfigurations
 └── crossplane.yaml
 ```
 
@@ -374,10 +262,13 @@ manages the lifecycle of its own CRDs using the init container, this should be
 fine for both installation and upgrade scenarios because init container will be
 done before the controller comes up and asks for the new version.
 
+
+## Out of Scope
+
 ### Immutable Field Webhook
 
 Currently, we mark the fields of CRDs as `// +immutable` but it doesn't have any
-implication in practice. We will implement a code generator in
+implication in practice. We can implement a code generator in
 `crossplane-tools` that will generate functions for each of the marked fields
-and the provider will call those functions, very similar to reference resolving
-where the `ResolveReferences` is called automatically without any registration.
+and register them with the list of validating webhooks. But this is left to
+after webhook support is in place. For now, the implementations will be manual.
