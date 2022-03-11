@@ -19,6 +19,8 @@ package revision
 import (
 	"testing"
 
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	appsv1 "k8s.io/api/apps/v1"
@@ -40,9 +42,60 @@ func withPodTemplateLabels(labels map[string]string) deploymentModifier {
 	}
 }
 
+func withAdditionalVolume(v corev1.Volume) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+	}
+}
+
+func withAdditionalVolumeMount(vm corev1.VolumeMount) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Template.Spec.Containers[0].VolumeMounts = append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+	}
+}
+
+func withAdditionalEnvVar(env corev1.EnvVar) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, env)
+	}
+}
+
 const (
 	namespace = "ns"
 )
+
+func serviceaccount(rev v1.PackageRevision) *corev1.ServiceAccount {
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rev.GetName(),
+			Namespace: namespace,
+		},
+	}
+}
+
+func service(provider *pkgmetav1.Provider, rev v1.PackageRevision) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      rev.GetName(),
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			// We use whatever is on the deployment so that ControllerConfig
+			// overrides are accounted for.
+			Selector: map[string]string{
+				"pkg.crossplane.io/revision": rev.GetName(),
+				"pkg.crossplane.io/provider": provider.GetName(),
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Port:       9443,
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+}
 
 func deployment(provider *pkgmetav1.Provider, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
 	var (
@@ -109,15 +162,21 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 }
 
 func TestBuildProviderDeployment(t *testing.T) {
-	type fields struct {
+	type args struct {
 		provider *pkgmetav1.Provider
 		revision *v1.ProviderRevision
 		cc       *v1alpha1.ControllerConfig
+	}
+	type want struct {
+		sa  *corev1.ServiceAccount
+		d   *appsv1.Deployment
+		svc *corev1.Service
 	}
 
 	img := "img:tag"
 	pkgImg := "pkg-img:tag"
 	ccImg := "cc-img:tag"
+	webhookTLSSecretName := "secret-name"
 
 	providerWithoutImage := &pkgmetav1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
@@ -150,6 +209,18 @@ func TestBuildProviderDeployment(t *testing.T) {
 		},
 	}
 
+	revisionWithoutCCWithWebhook := &v1.ProviderRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rev-123",
+		},
+		Spec: v1.PackageRevisionSpec{
+			ControllerConfigReference: nil,
+			Package:                   pkgImg,
+			Revision:                  3,
+			WebhookTLSSecretName:      &webhookTLSSecretName,
+		},
+	}
+
 	revisionWithCC := &v1.ProviderRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
@@ -177,47 +248,97 @@ func TestBuildProviderDeployment(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
-		fields fields
-		want   *appsv1.Deployment
+		fields args
+		want   want
 	}{
 		"NoImgNoCC": {
 			reason: "If the meta provider does not specify a controller image and no ControllerConfig is referenced, the package image itself should be used.",
-			fields: fields{
+			fields: args{
 				provider: providerWithoutImage,
 				revision: revisionWithoutCC,
 				cc:       nil,
 			},
-			want: deployment(providerWithoutImage, revisionWithCC.GetName(), pkgImg),
+			want: want{
+				sa:  serviceaccount(revisionWithoutCC),
+				d:   deployment(providerWithoutImage, revisionWithCC.GetName(), pkgImg),
+				svc: service(providerWithoutImage, revisionWithoutCC),
+			},
+		},
+		"ImgNoCCWithWebhookTLS": {
+			reason: "If the webhook tls secret name is given, then the deployment should be configured to serve behind the given service.",
+			fields: args{
+				provider: providerWithImage,
+				revision: revisionWithoutCCWithWebhook,
+				cc:       nil,
+			},
+			want: want{
+				sa: serviceaccount(revisionWithoutCCWithWebhook),
+				d: deployment(providerWithImage, revisionWithoutCCWithWebhook.GetName(), img,
+					withAdditionalVolume(corev1.Volume{
+						Name: "webhook-tls-secret",
+						VolumeSource: corev1.VolumeSource{
+							Secret: &corev1.SecretVolumeSource{
+								SecretName: webhookTLSSecretName,
+								Items: []corev1.KeyToPath{
+									{Key: "tls.crt", Path: "tls.crt"},
+									{Key: "tls.key", Path: "tls.key"},
+								},
+							},
+						},
+					}),
+					withAdditionalVolumeMount(corev1.VolumeMount{
+						Name:      "webhook-tls-secret",
+						ReadOnly:  true,
+						MountPath: "/webhook/tls",
+					}),
+					withAdditionalEnvVar(corev1.EnvVar{Name: "WEBHOOK_TLS_CERT_DIR", Value: "/webhook/tls"}),
+				),
+				svc: service(providerWithImage, revisionWithoutCCWithWebhook),
+			},
 		},
 		"ImgNoCC": {
 			reason: "If the meta provider specifies a controller image and no ControllerConfig is reference, the specified image should be used.",
-			fields: fields{
+			fields: args{
 				provider: providerWithImage,
 				revision: revisionWithoutCC,
 				cc:       nil,
 			},
-			want: deployment(providerWithoutImage, revisionWithCC.GetName(), img),
+			want: want{
+				sa:  serviceaccount(revisionWithoutCC),
+				d:   deployment(providerWithoutImage, revisionWithoutCC.GetName(), img),
+				svc: service(providerWithoutImage, revisionWithoutCC),
+			},
 		},
 		"ImgCC": {
 			reason: "If a ControllerConfig is referenced and it species a controller image it should always be used.",
-			fields: fields{
+			fields: args{
 				provider: providerWithImage,
 				revision: revisionWithCC,
 				cc:       cc,
 			},
-			want: deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
-				"pkg.crossplane.io/revision": revisionWithCC.GetName(),
-				"pkg.crossplane.io/provider": providerWithImage.GetName(),
-				"k":                          "v",
-			})),
+			want: want{
+				sa: serviceaccount(revisionWithCC),
+				d: deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
+					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
+					"pkg.crossplane.io/provider": providerWithImage.GetName(),
+					"k":                          "v",
+				})),
+				svc: service(providerWithImage, revisionWithCC),
+			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, deployment, _ := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace)
+			sa, d, svc := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace)
 
-			if diff := cmp.Diff(tc.want, deployment, cmpopts.IgnoreTypes(&corev1.SecurityContext{}, &corev1.PodSecurityContext{}, []metav1.OwnerReference{})); diff != "" {
+			if diff := cmp.Diff(tc.want.sa, sa, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.d, d, cmpopts.IgnoreTypes(&corev1.SecurityContext{}, &corev1.PodSecurityContext{}, []metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.svc, svc, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
 		})
