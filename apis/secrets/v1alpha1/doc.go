@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains the Secret Store Config resources.
+// Package v1alpha1 contains the Secret StoreConfig resources.
 // +kubebuilder:object:generate=true
 // +groupName=secrets.crossplane.io
 // +versionName=v1alpha1

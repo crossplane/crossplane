@@ -73,14 +73,12 @@ func (p *SecretStoreConnectionPublisher) PublishConnection(ctx context.Context, 
 		return false, nil
 	}
 
-	// TODO(turkenh): Removed owner reference here, need to implement
-	//  Unpublish connection.
-
 	data := map[string][]byte{}
 	m := map[string]bool{}
 	for _, key := range p.filter {
 		m[key] = true
 	}
+
 	for key, val := range c {
 		// If the filter does not have any keys, we allow all given keys to be
 		// published.
@@ -115,9 +113,9 @@ func NewSecretStoreConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) 
 func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
 	// NOTE(turkenh): Added linter exception for gocyclo similar to existing
 	// APIConnectionDetailsFetcher.FetchConnectionDetails method given most
-	// of the complexity coming from simpy if checks and, I wanted to keep this
-	// as identical as possible to aforementioned method. This would already be
-	// refactored with the removal of "WriteConnectionSecretRef" API.
+	// of the complexity coming from simply if checks and, I wanted to keep this
+	// as identical as possible to aforementioned method. This can be refactored
+	// with the removal of "WriteConnectionSecretRef" API.
 
 	so := cd.(resource.ConnectionSecretOwner)
 	data, err := f.fetcher.FetchConnection(ctx, so)
@@ -145,11 +143,11 @@ func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context
 				conn[key] = data[*d.FromConnectionSecretKey]
 			}
 		case v1.ConnectionDetailTypeFromFieldPath, v1.ConnectionDetailTypeFromValue, v1.ConnectionDetailTypeUnknown:
-			// We do nothing here with these cases either:
+			// We do nothing here with these cases, either:
 			// - ConnectionDetailTypeFromFieldPath,ConnectionDetailTypeFromValue
 			//   => Already covered by APIConnectionDetailsFetcher.FetchConnectionDetails
-			// - ConnectionDetailTypeUnknown=> We weren't able to determine
-			//   the type of this connection detail.
+			// - ConnectionDetailTypeUnknown
+			//   => We weren't able to determine the type of this connection detail.
 		}
 	}
 
@@ -160,21 +158,21 @@ func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context
 	return conn, nil
 }
 
-// NewConnectionDetailsConfigurator returns a Configurator that configures a
-// composite resource using its composition.
-func NewConnectionDetailsConfigurator(c client.Client) *ConnectionDetailsConfigurator {
-	return &ConnectionDetailsConfigurator{client: c}
+// NewSecretStoreConnectionDetailsConfigurator returns a Configurator that
+// configures a composite resource using its composition.
+func NewSecretStoreConnectionDetailsConfigurator(c client.Client) *SecretStoreConnectionDetailsConfigurator {
+	return &SecretStoreConnectionDetailsConfigurator{client: c}
 }
 
-// An ConnectionDetailsConfigurator configures a composite resource using its
-// composition.
-type ConnectionDetailsConfigurator struct {
+// A SecretStoreConnectionDetailsConfigurator configures a composite resource
+// using its composition.
+type SecretStoreConnectionDetailsConfigurator struct {
 	client client.Client
 }
 
 // Configure any required fields that were omitted from the composite resource
 // by copying them from its composition.
-func (c *ConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1.Composition) error {
+func (c *SecretStoreConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1.Composition) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
 	if comp.Spec.CompositeTypeRef.APIVersion != apiVersion || comp.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)

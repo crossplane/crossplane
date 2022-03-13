@@ -427,7 +427,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// We only want to enable ExternalSecretStore support if the relevant
 	// feature flag is enabled. Otherwise, we start the XR reconcilers with
-	// its default ConnectionPublisher and ConnectionDetailsFetcher.
+	// their default ConnectionPublisher and ConnectionDetailsFetcher.
+	// We also add a new Configurator for ExternalSecretStore which basically
+	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
+	// the composite resource.
 	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := []managed.ConnectionPublisher{
 			composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys()),
@@ -444,7 +447,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		cc := composite.NewConfiguratorChain(
 			composite.NewAPINamingConfigurator(r.client),
 			composite.NewAPIConfigurator(r.client),
-			composite.NewConnectionDetailsConfigurator(r.client),
+			composite.NewSecretStoreConnectionDetailsConfigurator(r.client),
 		)
 		o = append(o, composite.WithConfigurator(cc))
 	}
