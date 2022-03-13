@@ -39,7 +39,7 @@
 * _Status_ The sub-resource of Kubernetes resources that represents the most
   up-to-date information about the resource.
 
-For other terms, see [glossary].
+For other terms, see [terminology].
 
 ## Background
 Crossplane extends Kubernetes heavily and the maintainers always try to adopt
@@ -684,7 +684,7 @@ Generic managed reconciler's `ExternalObservation` struct could be extended by
 adding a field about that sync status and reconciler can mark the sync status in
 one of the `Condition`s we already have or add a new one.
 
-[package]: https://docs.aws.amazon.com/sdk-for-go/v2/api/service/eks/
-[glossary]: https://github.com/crossplane/crossplane/blob/master/docs/concepts.md#glossary
+[package]: https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/eks
+[terminology]: https://github.com/crossplane/crossplane/blob/master/docs/concepts/terminology.md
 [from crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
 [Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
