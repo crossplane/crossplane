@@ -170,6 +170,11 @@ func TestForCompositeResource(t *testing.T) {
 				},
 				AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
 					{
+						Name:     "SYNCED",
+						Type:     "string",
+						JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+					},
+					{
 						Name:     "READY",
 						Type:     "string",
 						JSONPath: ".status.conditions[?(@.type=='Ready')].status",
@@ -582,6 +587,11 @@ func TestForCompositeResourceClaim(t *testing.T) {
 						Status: &extv1.CustomResourceSubresourceStatus{},
 					},
 					AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
+						{
+							Name:     "SYNCED",
+							Type:     "string",
+							JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+						},
 						{
 							Name:     "READY",
 							Type:     "string",
