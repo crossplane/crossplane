@@ -104,6 +104,16 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 									ContainerPort: promPortNumber,
 								},
 							},
+							Env: []corev1.EnvVar{
+								{
+									Name: "POD_NAMESPACE",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
+								},
+							},
 						},
 					},
 				},
@@ -178,7 +188,10 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
 		}
 		if len(cc.Spec.Env) > 0 {
-			d.Spec.Template.Spec.Containers[0].Env = cc.Spec.Env
+			// We already have some environment variables that we will always
+			// want to set (e.g. POD_NAMESPACE), so we just append the new ones
+			// that user provided if there are any.
+			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
 		}
 	}
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector

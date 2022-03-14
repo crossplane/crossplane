@@ -41,6 +41,7 @@ func AsCompositionSpec(crs v1alpha1.CompositionRevisionSpec) v1.CompositionSpec 
 		PatchSets:                         make([]v1.PatchSet, len(crs.PatchSets)),
 		Resources:                         make([]v1.ComposedTemplate, len(crs.Resources)),
 		WriteConnectionSecretsToNamespace: crs.WriteConnectionSecretsToNamespace,
+		PublishConnectionDetailsWithStoreConfigRef: crs.PublishConnectionDetailsWithStoreConfigRef,
 	}
 
 	for i := range crs.PatchSets {

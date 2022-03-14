@@ -237,10 +237,6 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		hookOpts = []ProviderHookOption{
 			WithControllerEnvironments([]corev1.EnvVar{
 				{
-					Name:  "POD_NAMESPACE",
-					Value: o.Namespace,
-				},
-				{
 					Name:  "ENABLE_EXTERNAL_SECRET_STORES",
 					Value: "true",
 				},
