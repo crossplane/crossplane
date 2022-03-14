@@ -62,6 +62,16 @@ number of installed CRDs in two:
 
 
 ### Client-side Throttling
+**NOTE**: With the following versions of `kubectl`, discovery client's rate
+limiter parameters are correctly set to `(b=300, r=50.0 qps)` as detailed below
+and thus, they provide a better experience especially with single provider
+installations. We recommend using these or later versions of `kubectl`:
+
+| Version   | Release Date    |
+|-----------|-----------------|
+| `v1.23.5` | 16th March 2022 |
+| `v1.24.0` | 19th April 2022 |
+
 `kubectl` maintains a discovery cache for the discovered server-side resources
 under the (default) filesystem path of
 `$HOME/.kube/cache/discovery/<host_port>/`. Here, `<host_port>` is a string
@@ -228,6 +238,20 @@ Some examples are:
 
 
 ### API Server Resource Consumption
+**NOTE:** The initial high [CPU][6] (and high [memory][7]) consumption issues
+observed in kube-apiserver during OpenAPI v2 spec marshaling have been [addressed][8]
+by doing the marshaling lazily, i.e., the spec is not computed until the first
+request arrives. This behavior is available in the following Kubernetes branches
+and patch releases (and thereafter):
+
+| Release Branch | Patch Version |
+|----------------|---------------|
+| release-1.20   | v1.20.13      |
+| release-1.21   | v1.21.7       |
+| release-1.22   | v1.22.4       |
+| release-1.23   | v1.23.0       |
+
+
 Apart from the client-side throttling issues we have described above, we also
 observe increased resource (memory/CPU/goroutines, etc.) consumption when
 installing CRDs, as expected. The following plot shows the [`heap_alloc_bytes`],
@@ -445,13 +469,13 @@ encountered that would cause requests to be repeated).
   https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/95-custom-resource-definitions#scale-targets-for-ga 
 - Analysis of high CPU utilization in kube-apiserver after >700 CRDs are
   installed: https://github.com/crossplane/terrajet/issues/47
-- Associated upstream issue:
-  https://github.com/kubernetes/kubernetes/issues/105932 
+- Associated upstream issue: [[6]]
 - Related upstream issue with similar observations but concentrating on high
   memory consumption during OpenAPI spec aggregation:
   https://github.com/kubernetes/kubernetes/issues/101755 
-- Kermit’s upstream OpenAPI spec lazy-marshalling fix:
-  https://github.com/kubernetes/kube-openapi/pull/251 
+- Kermit Alexander II’s upstream OpenAPI spec lazy-marshalling fix: [[8]]
+- Proposed PR to trigger OpenAPI spec marshaling after a cooldown period:
+  https://github.com/kubernetes/kube-openapi/pull/278
 - Core crossplane issue where we also considered two workarounds:
   https://github.com/crossplane/crossplane/issues/2649 
     - A packaging workaround for granularly packaging CRDs instead of putting
@@ -488,6 +512,9 @@ encountered that would cause requests to be repeated).
     https://github.com/kubernetes/community/blob/master/sig-scalability/configs-and-limits/thresholds.md
 [4]: https://github.com/crossplane/crossplane/issues/2895
 [5]: https://github.com/kubernetes/kubernetes/pull/107131
+[6]: https://github.com/kubernetes/kubernetes/issues/105932
+[7]: https://github.com/kubernetes/kubernetes/issues/101755
+[8]: https://github.com/kubernetes/kube-openapi/pull/251
 
 [Terrajet]: https://github.com/crossplane/terrajet
 [aso]: https://github.com/Azure/azure-service-operator
