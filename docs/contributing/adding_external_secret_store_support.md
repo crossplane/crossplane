@@ -7,21 +7,27 @@ indent: true
 
 # Adding External Secret Store Support to an Existing Provider
 
-To add support for [External Secret Stores](https://github.com/crossplane/crossplane/blob/master/design/design-doc-external-secret-stores.md) in a provider, we need the following changes at a high level:
+To add support for [External Secret Stores] in a provider, we need the following
+changes at a high level:
 
-1. Bump Crossplane Runtime and Crossplane Tools to latest and generate existing resources to include `PublishConnectionDetails` API.
+1. Bump Crossplane Runtime and Crossplane Tools to latest and generate existing
+resources to include `PublishConnectionDetails` API.
 2. Add a new Type and CRD for Secret StoreConfig.
 3. Add feature flag for enabling External Secret Store support.
-4. Add Secret Store Connection Details Manager as as a `ConnectionPublisher` if feature enabled.
+4. Add Secret Store Connection Details Manager as a `ConnectionPublisher` if
+feature enabled.
 
 In this document, we will go through each step in details. You can check 
-[this PR as a complete example](https://github.com/crossplane/provider-gcp/pull/421).
+[this PR as a complete example].
 
 ## Steps
 
-**1. Bump Crossplane Runtime and Crossplane Tools to latest and generate existing resources to include `PublishConnectionDetails` API.**
+**1. Bump Crossplane Runtime and Crossplane Tools to latest and generate
+existing resources to include `PublishConnectionDetails` API.**
 
-We need a workaround for code generation since latest runtime both adds new API but also adds a new interface to managed.resourceSpec. Without this workaround, expect errors similar to below:
+We need a workaround for code generation since latest runtime both adds new API
+but also adds a new interface to managed.resourceSpec. Without this workaround,
+expect errors similar to below:
 
   ```shell
   16:40:56 [ .. ] go generate darwin_amd64
@@ -33,7 +39,8 @@ We need a workaround for code generation since latest runtime both adds new API 
   make: *** [generate] Error 2
   ```
 
-First we need to consume a temporary runtime version together with latest tools:
+First we need to consume a temporary runtime version together with the latest
+Crossplane Tools:
 
   ```shell
   go mod edit -replace=github.com/crossplane/crossplane-runtime=github.com/turkenh/crossplane-runtime@v0.0.0-20220314141040-6f74175d3c1f
@@ -55,7 +62,8 @@ Now, we can generate CRDs with `PublishConnectionDetailsTo` API:
   make generate
   ```
 
-Finally, we can revert our workaround by consuming the latest Crossplane runtime:
+Finally, we can revert our workaround by consuming the latest Crossplane
+Runtime:
 
   ```shell
   go mod edit -dropreplace=github.com/crossplane/crossplane-runtime
@@ -66,7 +74,9 @@ Finally, we can revert our workaround by consuming the latest Crossplane runtime
 
 **2. Add a new Type and CRD for Secret StoreConfig.**
 
-See [this commit](https://github.com/crossplane/provider-gcp/pull/421/commits/33538b6aeedd95a154153a2c46e46dde8bcd42ab) as an example on how to add the type. It is expected to be almost same for all providers except groupName which includes the name short name of the provider (e.g. `gcp.secrets.crossplane.io`)
+See [this commit as an example on how to add the type]. It is expected to be
+almost same for all providers except groupName which includes the name short
+name of the provider (e.g. `gcp.secrets.crossplane.io`)
 
 Generate CRD with:
 
@@ -76,13 +86,18 @@ Generate CRD with:
 
 **3. Add feature flag for enabling External Secret Store support.**
 
-We will add a feature flag to enable the feature which would be off by default. As part of this step, we will also create a `default` `StoreConfig` during provider start up, which stores connection secrets into the the same Kubernetes cluster.
+We will add a feature flag to enable the feature which would be off by default.
+As part of this step, we will also create a `default` `StoreConfig` during
+provider start up, which stores connection secrets into the same Kubernetes
+cluster.
 
-See [this commit](https://github.com/crossplane/provider-gcp/pull/421/commits/6e91749ed6aeb266b8c6b50d234f02de1034c83f) as an example.
+See [this commit as an example for adding the feature flag].
 
-**4. Add Secret Store Connection Details Manager as as a `ConnectionPublisher` if feature enabled.**
+**4. Add Secret Store Connection Details Manager as a `ConnectionPublisher` if
+feature enabled.**
 
-Add the following to the Setup function controller. Unfortunately this step requires some dirty work as we need to this for all types:
+Add the following to the Setup function controller. Unfortunately this step
+requires some dirty work as we need to this for all types:
 
   ```diff
    func SetupServiceAccountKey(mgr ctrl.Manager, o controller.Options) error {
@@ -107,4 +122,11 @@ Add the following to the Setup function controller. Unfortunately this step requ
                 Named(name).
   ```
 
-You can check [this commit](https://github.com/crossplane/provider-gcp/pull/421/commits/5923cca2f51252d80f312bfedef320905672d6bf) as an example.
+You can check [this commit as an example for changes in Setup functions] as an
+example.
+
+[External Secret Stores]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-external-secret-stores.md
+[this PR as a complete example]: https://github.com/crossplane/provider-gcp/pull/421
+[this commit as an example on how to add the type]: https://github.com/crossplane/provider-gcp/pull/421/commits/65c630b008e174336ac6b9dfbb319f0909514039
+[this commit as an example for adding the feature flag]: https://github.com/crossplane/provider-gcp/pull/421/commits/b5898c62dc6668d9918496de8aa9bc365c371f82
+[this commit as an example for changes in Setup functions]: https://github.com/crossplane/provider-gcp/pull/421/commits/9700d0c4fdb7e1fba8805afa309c1b1c7aa167a6
