@@ -131,6 +131,10 @@ func (fn ConnectionPropagatorFn) PropagateConnection(ctx context.Context, to res
 type ConnectionPropagatorChain []ConnectionPropagator
 
 // PropagateConnection details from one resource to the other.
+// This method calls PropagateConnection for all ConnectionPropagator's in the
+// chain and returns propagated if at least one ConnectionPropagator propagates
+// the connection details but exits with an error if any of them fails without
+// calling the remaining ones.
 func (pc ConnectionPropagatorChain) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 	for _, p := range pc {
 		var pg bool
@@ -204,7 +208,7 @@ func defaultCRClaim(c client.Client) crClaim {
 		Finalizer:             resource.NewAPIFinalizer(c, finalizer),
 		Binder:                NewAPIBinder(c),
 		Configurator:          NewAPIClaimConfigurator(c),
-		ConnectionUnpublisher: NewNOPConnectionUnpublisher(),
+		ConnectionUnpublisher: NewNopConnectionUnpublisher(),
 	}
 }
 
@@ -379,6 +383,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		}
 
+		// Claims do not publish connection details but may propagate XR
+		// secrets. Hence, we need to clean up propagated secrets when the
+		// claim is deleted.
 		if err := r.claim.UnpublishConnection(ctx, cm, nil); err != nil {
 			log.Debug(errDeleteCDs, "error", err)
 			err = errors.Wrap(err, errDeleteCDs)

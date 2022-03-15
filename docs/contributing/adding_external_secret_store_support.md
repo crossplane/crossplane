@@ -91,6 +91,9 @@ As part of this step, we will also create a `default` `StoreConfig` during
 provider start up, which stores connection secrets into the same Kubernetes
 cluster.
 
+To be consistent across all providers, please define
+`--enable-external-secret-stores` as a boolean which is false by default.
+
 See [this commit as an example for adding the feature flag].
 
 **4. Add Secret Store Connection Details Manager as a `ConnectionPublisher` if

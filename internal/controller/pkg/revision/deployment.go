@@ -106,6 +106,10 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 							},
 							Env: []corev1.EnvVar{
 								{
+									// NOTE(turkenh): POD_NAMESPACE is needed to
+									// set a default scope/namespace of the
+									// default StoreConfig, similar to init
+									// container of Core Crossplane.
 									Name: "POD_NAMESPACE",
 									ValueFrom: &corev1.EnvVarSource{
 										FieldRef: &corev1.ObjectFieldSelector{

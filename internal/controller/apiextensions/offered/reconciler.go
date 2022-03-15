@@ -43,7 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
+	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -402,10 +402,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := claim.ConnectionPropagatorChain{
 			claim.NewAPIConnectionPropagator(r.client),
-			connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind),
+			connection.NewDetailsManager(r.client, secretsv1alpha1.StoreConfigGroupVersionKind),
 		}
 
-		o = append(o, claim.WithConnectionPropagator(pc), claim.WithConnectionUnpublisher(claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind))))
+		o = append(o, claim.WithConnectionPropagator(pc), claim.WithConnectionUnpublisher(claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.client, secretsv1alpha1.StoreConfigGroupVersionKind))))
 	}
 
 	cr := claim.NewReconciler(r.mgr,

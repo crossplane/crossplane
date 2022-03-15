@@ -131,7 +131,7 @@ func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context
 				return nil, errors.Errorf(errFmtConnDetailKey, tp)
 			}
 			if data == nil || data[*d.FromConnectionSecretKey] == nil {
-				// We don't consider this an error because it'f possible the
+				// We don't consider this an error because it's possible the
 				// key will still be written at some point in the future.
 				continue
 			}

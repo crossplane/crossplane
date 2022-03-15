@@ -65,6 +65,11 @@ type CompositionRevisionSpec struct {
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
 	// this composition will be created.
+	// This field is planned to be removed in a future release in favor of
+	// PublishConnectionDetailsWithStoreConfigRef. Currently, both could be
+	// set independently and connection details would be published to both
+	// without affecting each other as long as related fields at MR level
+	// specified.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
 

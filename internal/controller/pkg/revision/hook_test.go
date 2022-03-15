@@ -33,7 +33,7 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
 var (
@@ -551,8 +551,8 @@ func TestHookPost(t *testing.T) {
 						}),
 						Client: &test.MockClient{
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								*obj.(*v1alpha1.ControllerConfig) = v1alpha1.ControllerConfig{
-									Spec: v1alpha1.ControllerConfigSpec{
+								*obj.(*pkgv1alpha1.ControllerConfig) = pkgv1alpha1.ControllerConfig{
+									Spec: pkgv1alpha1.ControllerConfigSpec{
 										Env: []corev1.EnvVar{
 											{
 												Name:  "CUSTOM_ENV",
