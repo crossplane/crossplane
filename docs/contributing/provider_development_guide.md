@@ -319,7 +319,7 @@ Crossplane controllers, like those scaffolded by kubebuilder, are built around
 the [controller-runtime] library. controller-runtime flavoured controllers
 encapsulate most of their domain-specific logic in a [`reconcile.Reconciler`]
 implementation. Most Crossplane controllers are one of the three kinds mentioned
-under [What Makes a Crossplane Managed Service]. Each of these controller kinds
+under [What Makes a Crossplane Infrastructure Resource]. Each of these controller kinds
 are similar enough across implementations that [crossplane-runtime] provides
 'default' reconcilers. These reconcilers encode what the Crossplane community
 has learned about managing external systems and narrow the problem space from
