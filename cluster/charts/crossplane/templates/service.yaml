@@ -1,4 +1,4 @@
-{{- if ne .Values.webhooks.tlsSecretName "" }}
+{{- if .Values.webhooks.enabled }}
 apiVersion: v1
 kind: Service
 metadata:

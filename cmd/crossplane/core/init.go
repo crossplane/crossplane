@@ -19,6 +19,8 @@ package core
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/types"
+
 	admv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -36,7 +38,8 @@ type initCommand struct {
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 
-	WebhookTLSCertDir       string `help:"The path of the TLS Certificate that will be injected to Crossplane CRDs that require a conversion webhook." env:"WEBHOOK_TLS_CERT_DIR"`
+	InstallationNamespace   string `help:"The namespace that Crossplane is installed." env:"POD_NAMESPACE"`
+	WebhookTLSSecretName    string `help:"The name of the Secret that the initializer will fill with webhook TLS certificate bundle." env:"WEBHOOK_TLS_SECRET_NAME"`
 	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
 	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
 	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
@@ -54,15 +57,20 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
 	var steps []initializer.Step
-	if c.WebhookTLSCertDir != "" {
+	if c.WebhookTLSSecretName != "" {
+		nn := types.NamespacedName{
+			Name:      c.WebhookTLSSecretName,
+			Namespace: c.InstallationNamespace,
+		}
 		svc := admv1.ServiceReference{
 			Name:      c.WebhookServiceName,
 			Namespace: c.WebhookServiceNamespace,
 			Port:      &c.WebhookServicePort,
 		}
 		steps = append(steps,
-			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookCertDir(c.WebhookTLSCertDir)),
-			initializer.NewWebhookConfigurations("/webhookconfigurations", s, c.WebhookTLSCertDir, svc))
+			initializer.NewTLSCertificateGenerator(nn, log),
+			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
+			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {
 		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
 	}

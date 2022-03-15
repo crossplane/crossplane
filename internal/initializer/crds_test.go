@@ -18,8 +18,9 @@ package initializer
 
 import (
 	"context"
-	"os"
 	"testing"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
@@ -29,6 +30,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -42,23 +44,35 @@ func TestCoreCRDs(t *testing.T) {
 	type want struct {
 		err error
 	}
-	fs := afero.NewMemMapFs()
-	f, _ := fs.Create("/crds/nonwebhookcrd.yaml")
+	fsWithoutConversionCRD := afero.NewMemMapFs()
+	f, _ := fsWithoutConversionCRD.Create("/crds/nonwebhookcrd.yaml")
 	_, _ = f.WriteString(nonWebhookCRD)
-	f, _ = fs.Create("/crds/webhookcrd.yaml")
+
+	fsWithConversionCRD := afero.NewMemMapFs()
+	f, _ = fsWithConversionCRD.Create("/crds/webhookcrd.yaml")
 	_, _ = f.WriteString(webhookCRD)
-	f, _ = fs.Create("/webhook/tls/tls.crt")
-	_, _ = f.WriteString("CABUNDLE")
+
+	fsMixedCRDs := afero.NewMemMapFs()
+	f, _ = fsMixedCRDs.Create("/crds/webhookcrd.yaml")
+	_, _ = f.WriteString(webhookCRD)
+	f, _ = fsMixedCRDs.Create("/crds/nonwebhookcrd.yaml")
+	_, _ = f.WriteString(nonWebhookCRD)
+
+	secret := &corev1.Secret{
+		Data: map[string][]byte{"tls.crt": []byte("CABUNDLE")},
+	}
 	s := runtime.NewScheme()
 	_ = extv1.AddToScheme(s)
 	cases := map[string]struct {
+		reason string
 		args
 		want
 	}{
 		"SuccessWithoutTLSSecret": {
+			reason: "If no webhook TLS secret is given, then all operations should succeed if CRDs do not have webhook strategy",
 			args: args{
 				opts: []CoreCRDsOption{
-					WithFs(fs),
+					WithFs(fsWithoutConversionCRD),
 				},
 				kube: &test.MockClient{
 					MockGet: func(_ context.Context, _ client.ObjectKey, _ client.Object) error {
@@ -70,14 +84,32 @@ func TestCoreCRDs(t *testing.T) {
 				},
 			},
 		},
-		"SuccessWithTLSSecret": {
+		"CRDWithConversionWithoutTLSSecret": {
+			reason: "CRDs with webhook conversion requires enabling webhooks, otherwise all apiserver requests will fail.",
 			args: args{
 				opts: []CoreCRDsOption{
-					WithFs(fs),
-					WithWebhookCertDir("/webhook/tls"),
+					WithFs(fsWithConversionCRD),
+				},
+			},
+			want: want{
+				err: errors.Errorf(errCRDWithConversionWithoutTLSFmt, "crontabsconverts.stable.example.com"),
+			},
+		},
+		"SuccessWithTLSSecret": {
+			reason: "If TLS Secret is given and populated correctly, then CA bundle should be injected and apply operations should succeed",
+			args: args{
+				opts: []CoreCRDsOption{
+					WithFs(fsMixedCRDs),
+					WithWebhookTLSSecretRef(types.NamespacedName{}),
 				},
 				kube: &test.MockClient{
-					MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							secret.DeepCopyInto(s)
+							return nil
+						}
+						return kerrors.NewNotFound(schema.GroupResource{}, "")
+					},
 					MockCreate: func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						crd := obj.(*extv1.CustomResourceDefinition)
 						switch crd.Name {
@@ -99,14 +131,17 @@ func TestCoreCRDs(t *testing.T) {
 			},
 		},
 		"TLSSecretGivenButNotFound": {
+			reason: "If TLS secret name is given, then it has to be found",
 			args: args{
 				opts: []CoreCRDsOption{
-					WithFs(fs),
-					WithWebhookCertDir("/olala"),
+					WithWebhookTLSSecretRef(types.NamespacedName{}),
+				},
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
 				},
 			},
 			want: want{
-				err: errors.Wrapf(&os.PathError{Op: "open", Path: "/olala/tls.crt", Err: errors.Errorf("file does not exist")}, errReadTLSCertFmt, "/olala"),
+				err: errors.Wrap(errBoom, errGetWebhookSecret),
 			},
 		},
 	}
@@ -114,7 +149,7 @@ func TestCoreCRDs(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			err := NewCoreCRDs("/crds", s, tc.opts...).Run(context.TODO(), tc.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", name, diff)
+				t.Errorf("\n%s\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -18,8 +18,11 @@ package initializer
 
 import (
 	"context"
-	"path/filepath"
 	"reflect"
+
+	corev1 "k8s.io/api/core/v1"
+
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/spf13/afero"
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -47,11 +50,11 @@ func WithWebhookConfigurationsFs(fs afero.Fs) WebhookConfigurationsOption {
 type WebhookConfigurationsOption func(*WebhookConfigurations)
 
 // NewWebhookConfigurations returns a new *WebhookConfigurations.
-func NewWebhookConfigurations(path string, s *runtime.Scheme, tlsCertDir string, svc admv1.ServiceReference, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
+func NewWebhookConfigurations(path string, s *runtime.Scheme, tlsSecretRef types.NamespacedName, svc admv1.ServiceReference, opts ...WebhookConfigurationsOption) *WebhookConfigurations {
 	c := &WebhookConfigurations{
 		Path:             path,
 		Scheme:           s,
-		TLSCertDir:       tlsCertDir,
+		TLSSecretRef:     tlsSecretRef,
 		ServiceReference: svc,
 		fs:               afero.NewOsFs(),
 	}
@@ -65,7 +68,7 @@ func NewWebhookConfigurations(path string, s *runtime.Scheme, tlsCertDir string,
 type WebhookConfigurations struct {
 	Path             string
 	Scheme           *runtime.Scheme
-	TLSCertDir       string
+	TLSSecretRef     types.NamespacedName
 	ServiceReference admv1.ServiceReference
 
 	fs afero.Fs
@@ -73,6 +76,15 @@ type WebhookConfigurations struct {
 
 // Run applies all CRDs in the given directory.
 func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) error { // nolint:gocyclo
+	s := &corev1.Secret{}
+	if err := kube.Get(ctx, c.TLSSecretRef, s); err != nil {
+		return errors.Wrap(err, errGetWebhookSecret)
+	}
+	if len(s.Data["tls.crt"]) == 0 {
+		return errors.Errorf(errNoTLSCrtInSecretFmt, c.TLSSecretRef.String())
+	}
+	caBundle := s.Data["tls.crt"]
+
 	r, err := parser.NewFsBackend(c.fs,
 		parser.FsDir(c.Path),
 		parser.FsFilters(
@@ -89,10 +101,6 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 	pkg, err := p.Parse(ctx, r)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse files")
-	}
-	caBundle, err := afero.ReadFile(c.fs, filepath.Join(c.TLSCertDir, "tls.crt"))
-	if err != nil {
-		return errors.Wrapf(err, errReadTLSCertFmt, c.TLSCertDir)
 	}
 	pa := resource.NewAPIPatchingApplicator(kube)
 	for _, obj := range pkg.GetObjects() {
