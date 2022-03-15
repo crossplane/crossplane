@@ -37,7 +37,6 @@ type initCommand struct {
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
 
-	InstallationNamespace   string `help:"The namespace that Crossplane is installed." env:"POD_NAMESPACE"`
 	WebhookTLSSecretName    string `help:"The name of the Secret that the initializer will fill with webhook TLS certificate bundle." env:"WEBHOOK_TLS_SECRET_NAME"`
 	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
 	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
@@ -59,7 +58,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	if c.WebhookTLSSecretName != "" {
 		nn := types.NamespacedName{
 			Name:      c.WebhookTLSSecretName,
-			Namespace: c.InstallationNamespace,
+			Namespace: c.Namespace,
 		}
 		svc := admv1.ServiceReference{
 			Name:      c.WebhookServiceName,
@@ -67,7 +66,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			Port:      &c.WebhookServicePort,
 		}
 		steps = append(steps,
-			initializer.NewWebhookCertificateGenerator(nn, c.InstallationNamespace, log),
+			initializer.NewWebhookCertificateGenerator(nn, c.Namespace, log),
 			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
 			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {

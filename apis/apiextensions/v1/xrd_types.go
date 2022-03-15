@@ -36,6 +36,7 @@ type CompositeResourceDefinitionSpec struct {
 
 	// Names specifies the resource and kind names of the defined composite
 	// resource.
+	// +immutable
 	Names extv1.CustomResourceDefinitionNames `json:"names"`
 
 	// ClaimNames specifies the names of an optional composite resource claim.
@@ -46,6 +47,7 @@ type CompositeResourceDefinitionSpec struct {
 	// create, update, or delete a corresponding composite resource. You may add
 	// claim names to an existing CompositeResourceDefinition, but they cannot
 	// be changed or removed once they have been set.
+	// +immutable
 	// +optional
 	ClaimNames *extv1.CustomResourceDefinitionNames `json:"claimNames,omitempty"`
 
