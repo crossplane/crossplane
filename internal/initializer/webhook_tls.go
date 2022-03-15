@@ -40,44 +40,69 @@ import (
 const (
 	errGetWebhookSecret    = "cannot get webhook tls secret"
 	errUpdateWebhookSecret = "cannot update webhook tls secret"
+	errGenerateCertificate = "cannot generate tls certificate"
 )
 
-// NewTLSCertificateGenerator returns a new TLSCertificateGenerator.
-func NewTLSCertificateGenerator(nn types.NamespacedName, log logging.Logger) *TLSCertificateGenerator {
-	return &TLSCertificateGenerator{
-		SecretRef: nn,
-		log:       log,
+// CertificateGenerator can return you TLS certificate valid for given domains.
+type CertificateGenerator interface {
+	Generate(domain ...string) (key []byte, crt []byte, err error)
+}
+
+// WebhookCertificateGeneratorOption is used to configure WebhookCertificateGenerator behavior.
+type WebhookCertificateGeneratorOption func(*WebhookCertificateGenerator)
+
+// WithCertificateGenerator sets the CertificateGenerator that
+// WebhookCertificateGenerator uses.
+func WithCertificateGenerator(cg CertificateGenerator) WebhookCertificateGeneratorOption {
+	return func(w *WebhookCertificateGenerator) {
+		w.certificate = cg
 	}
 }
 
-// TLSCertificateGenerator is an initializer step that will find the given secret
+// NewWebhookCertificateGenerator returns a new WebhookCertificateGenerator.
+func NewWebhookCertificateGenerator(nn types.NamespacedName, svcNamespace string, log logging.Logger, opts ...WebhookCertificateGeneratorOption) *WebhookCertificateGenerator {
+	w := &WebhookCertificateGenerator{
+		SecretRef:        nn,
+		ServiceNamespace: svcNamespace,
+		certificate:      NewRootCAGenerator(),
+		log:              log,
+	}
+	for _, f := range opts {
+		f(w)
+	}
+	return w
+}
+
+// WebhookCertificateGenerator is an initializer step that will find the given secret
 // and fill its tls.crt and tls.key fields with a TLS certificate that is signed
 // for *.<namespace>.svc domains so that all webhooks in that namespace can use
 // it.
-type TLSCertificateGenerator struct {
-	SecretRef types.NamespacedName
+type WebhookCertificateGenerator struct {
+	SecretRef        types.NamespacedName
+	ServiceNamespace string
 
-	log logging.Logger
+	certificate CertificateGenerator
+	log         logging.Logger
 }
 
 // Run generates the TLS certificate valid for *.<namespace>.svc domain and
 // updates the given secret.
-func (wt *TLSCertificateGenerator) Run(ctx context.Context, kube client.Client) error {
+func (wt *WebhookCertificateGenerator) Run(ctx context.Context, kube client.Client) error {
 	s := &corev1.Secret{}
 	if err := kube.Get(ctx, wt.SecretRef, s); err != nil {
 		return errors.Wrap(err, errGetWebhookSecret)
 	}
-	// NOTE(muvaf): After 10 years, user would have to delete either of these
+	// NOTE(muvaf): After 10 years, user will have to delete either of these
 	// keys and re-create the pod to have the initializer re-generate the
 	// certificate. No expiration check is put here.
 	if len(s.Data["tls.key"]) != 0 && len(s.Data["tls.crt"]) != 0 {
-		wt.log.Info("given tls secret is already filled, skipping tls certificate generation")
+		wt.log.Info("Given tls secret is already filled, skipping tls certificate generation")
 		return nil
 	}
-	wt.log.Info("given tls secret is empty, generating a new tls certificate")
-	key, crt, err := generateRootCA(fmt.Sprintf("*.%s.svc", wt.SecretRef.Namespace))
+	wt.log.Info("Given tls secret is empty, generating a new tls certificate")
+	key, crt, err := wt.certificate.Generate(fmt.Sprintf("*.%s.svc", wt.ServiceNamespace))
 	if err != nil {
-		return errors.Wrap(err, "cannot generate root ca")
+		return errors.Wrap(err, errGenerateCertificate)
 	}
 	if s.Data == nil {
 		s.Data = make(map[string][]byte, 2)
@@ -88,11 +113,20 @@ func (wt *TLSCertificateGenerator) Run(ctx context.Context, kube client.Client) 
 	return errors.Wrap(kube.Update(ctx, s), errUpdateWebhookSecret)
 }
 
-// generateRootCA creates TLS Secret with 10 years expiration date that is valid
-// for the given domain.
-func generateRootCA(domain string) (key []byte, crt []byte, err error) {
+// NewRootCAGenerator returns a new RootCAGenerator.
+func NewRootCAGenerator() *RootCAGenerator {
+	return &RootCAGenerator{}
+}
+
+// RootCAGenerator generates a root CA and key that can be used by client and
+// servers.
+type RootCAGenerator struct{}
+
+// Generate creates TLS Secret with 10 years expiration date that is valid
+// for the given domains.
+func (*RootCAGenerator) Generate(domains ...string) (key []byte, crt []byte, err error) {
 	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(2020),
+		SerialNumber: big.NewInt(2022),
 		Subject: pkix.Name{
 			CommonName:   "Crossplane",
 			Organization: []string{"Crossplane"},
@@ -107,14 +141,16 @@ func generateRootCA(domain string) (key []byte, crt []byte, err error) {
 			Province:     []string{"Earth"},
 			Locality:     []string{"Earth"},
 		},
-		DNSNames:              []string{domain},
+		DNSNames:              domains,
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  true,
 		KeyUsage:              x509.KeyUsageCRLSign | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
 	}
-	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	// NOTE(muvaf): Why 2048 and not 4096? Mainly performance.
+	// See https://www.fastly.com/blog/key-size-for-tls
+	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "cannot generate private key")
 	}

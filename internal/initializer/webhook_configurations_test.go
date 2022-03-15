@@ -90,13 +90,13 @@ func TestWebhookConfigurations(t *testing.T) {
 						case *admv1.ValidatingWebhookConfiguration:
 							for _, w := range c.Webhooks {
 								if !bytes.Equal(w.ClientConfig.CABundle, []byte("CABUNDLE")) {
-									t.Errorf("unexpected ca bundle content: %sch", string(w.ClientConfig.CABundle))
+									t.Errorf("unexpected certificate bundle content: %sch", string(w.ClientConfig.CABundle))
 								}
 							}
 						case *admv1.MutatingWebhookConfiguration:
 							for _, w := range c.Webhooks {
 								if !bytes.Equal(w.ClientConfig.CABundle, []byte("CABUNDLE")) {
-									t.Errorf("unexpected ca bundle content: %sch", string(w.ClientConfig.CABundle))
+									t.Errorf("unexpected certificate bundle content: %sch", string(w.ClientConfig.CABundle))
 								}
 							}
 						default:

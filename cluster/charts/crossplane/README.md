@@ -113,7 +113,7 @@ and their default values.
 | `metrics.enabled` | Expose Crossplane and RBAC Manager metrics endpoint | `false` |
 | `extraEnvVarsCrossplane` | List of extra environment variables to set in the crossplane deployment. Any `.` in variable names will be replaced with `_` (example: `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`). | `{}` |
 | `extraEnvVarsRBACManager` | List of extra environment variables to set in the crossplane rbac manager deployment. Any `.` in variable names will be replaced with `_` (example: `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`). | `{}` |
-| `webhooks.tlsSecretName` | Enable webhooks by providing a TLS certificate bundle that is signed for "*.<installation namespace>.svc" domain. | `` |
+| `webhooks.enabled` | Enable webhook functionality for Crossplane as well as packages installed by Crossplane. | `false` |
 
 ### Command Line
 

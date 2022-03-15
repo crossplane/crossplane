@@ -49,7 +49,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
 	// NOTE(muvaf): The plural form of the kind name is not available in Go code.
-	i := initializer.New(cl,
+	i := initializer.New(cl, log,
 		initializer.NewCRDWaiter([]string{
 			fmt.Sprintf("%s.%s", "compositeresourcedefinitions", v1.Group),
 			fmt.Sprintf("%s.%s", "providerrevisions", pkgv1.Group),

@@ -18,17 +18,17 @@ package initializer
 
 import (
 	"context"
+	"reflect"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // New returns a new *Initializer.
-func New(kube client.Client, steps ...Step) *Initializer {
-	return &Initializer{kube: kube, steps: steps}
+func New(kube client.Client, log logging.Logger, steps ...Step) *Initializer {
+	return &Initializer{kube: kube, log: log, steps: steps}
 }
-
-// TODO(muvaf): We will have some options to inject CA Bundles to those CRDs
-// before applying them.
 
 // Step is a blocking step of the initialization process.
 type Step interface {
@@ -40,6 +40,7 @@ type Step interface {
 type Initializer struct {
 	steps []Step
 	kube  client.Client
+	log   logging.Logger
 }
 
 // Init does all operations necessary for controllers and webhooks to work.
@@ -48,6 +49,7 @@ func (c *Initializer) Init(ctx context.Context) error {
 		if err := s.Run(ctx, c.kube); err != nil {
 			return err
 		}
+		c.log.Info("Step has been completed", "Name", reflect.TypeOf(s).Elem().Name())
 	}
 	return nil
 }

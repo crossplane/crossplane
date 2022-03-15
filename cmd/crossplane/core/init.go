@@ -19,10 +19,9 @@ package core
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/types"
-
 	admv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -49,7 +48,7 @@ type initCommand struct {
 func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
-		return errors.Wrap(err, "Cannot get config")
+		return errors.Wrap(err, "cannot get config")
 	}
 
 	cl, err := client.New(cfg, client.Options{Scheme: s})
@@ -68,7 +67,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			Port:      &c.WebhookServicePort,
 		}
 		steps = append(steps,
-			initializer.NewTLSCertificateGenerator(nn, log),
+			initializer.NewWebhookCertificateGenerator(nn, c.InstallationNamespace, log),
 			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
 			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {
@@ -78,7 +77,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
 		initializer.NewStoreConfigObject(c.Namespace))
-	if err := initializer.New(cl, steps...).Init(context.TODO()); err != nil {
+	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
 	log.Info("Initialization has been completed")
