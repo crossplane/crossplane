@@ -33,16 +33,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -403,7 +406,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
 
 	o := []composite.ReconcilerOption{
-		composite.WithConnectionPublisher(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
+		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, recorder),
 			composite.NewAPIDefaultCompositionSelector(r.client, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), recorder),
@@ -419,6 +422,33 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableAlphaCompositionRevisions) {
 		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
 		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
+	}
+
+	// We only want to enable ExternalSecretStore support if the relevant
+	// feature flag is enabled. Otherwise, we start the XR reconcilers with
+	// their default ConnectionPublisher and ConnectionDetailsFetcher.
+	// We also add a new Configurator for ExternalSecretStore which basically
+	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
+	// the composite resource.
+	if r.options.Features.Enabled(features.EnableAlphaExternalSecretStores) {
+		pc := []managed.ConnectionPublisher{
+			composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys()),
+			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind), d.GetConnectionSecretKeys()),
+		}
+		o = append(o, composite.WithConnectionPublishers(pc...))
+
+		fc := composite.ConnectionDetailsFetcherChain{
+			composite.NewAPIConnectionDetailsFetcher(r.client),
+			composite.NewSecretStoreConnectionDetailsFetcher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind)),
+		}
+		o = append(o, composite.WithConnectionDetailsFetcher(fc))
+
+		cc := composite.NewConfiguratorChain(
+			composite.NewAPINamingConfigurator(r.client),
+			composite.NewAPIConfigurator(r.client),
+			composite.NewSecretStoreConnectionDetailsConfigurator(r.client),
+		)
+		o = append(o, composite.WithConfigurator(cc))
 	}
 
 	cr := composite.NewReconciler(r.mgr, resource.CompositeKind(d.GetCompositeGroupVersionKind()), o...)

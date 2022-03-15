@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -89,6 +91,119 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errGet),
 			},
 		},
+		"UnpublishConnectionError": {
+			reason: "We should return any error encountered while unpublishing connection details.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									now := metav1.Now()
+									o.SetDeletionTimestamp(&now)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+							return errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUnpublish),
+			},
+		},
+		"RemoveFinalizerError": {
+			reason: "We should return any error encountered while removing finalizer.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									now := metav1.Now()
+									o.SetDeletionTimestamp(&now)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithCompositeFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error {
+							return errBoom
+						},
+					}),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+							return nil
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errRemoveFinalizer),
+			},
+		},
+		"SuccessfulDelete": {
+			reason: "We should return no error when deleted successfully.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									now := metav1.Now()
+									o.SetDeletionTimestamp(&now)
+								}
+								return nil
+							}),
+						},
+					}),
+					WithCompositeFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error {
+							return nil
+						},
+					}),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+							return nil
+						},
+					}),
+				},
+			},
+			want: want{
+				err: nil,
+			},
+		},
+		"AddFinalizerError": {
+			reason: "We should return any error encountered while adding finalizer.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil),
+						},
+					}),
+					WithCompositeFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error {
+							return errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errAddFinalizer),
+			},
+		},
 		"SelectCompositionError": {
 			reason: "We should return any error encountered while selecting a composition.",
 			args: args{
@@ -99,6 +214,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, _ resource.Composite) error {
 						return errBoom
 					})),
@@ -118,6 +234,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -141,6 +258,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -165,6 +283,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil),
 						},
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -195,6 +314,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -233,6 +353,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -264,6 +385,7 @@ func TestReconcile(t *testing.T) {
 							MockUpdate: test.NewMockUpdateFn(errBoom),
 						},
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -301,6 +423,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -338,6 +461,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -379,6 +503,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -423,6 +548,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -474,6 +600,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -529,6 +656,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -579,6 +707,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -590,9 +719,11 @@ func TestReconcile(t *testing.T) {
 					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
 						return nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-						return false, errBoom
-					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, errBoom
+						},
+					}),
 				},
 			},
 			want: want{
@@ -614,6 +745,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -638,9 +770,11 @@ func TestReconcile(t *testing.T) {
 						// Our one resource is not ready.
 						return false, nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-						return false, nil
-					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, nil
+						},
+					}),
 				},
 			},
 			want: want{
@@ -662,6 +796,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						cr.SetCompositionReference(&corev1.ObjectReference{})
 						return nil
@@ -686,13 +821,15 @@ func TestReconcile(t *testing.T) {
 						// Our one resource is ready.
 						return true, nil
 					})),
-					WithConnectionPublisher(ConnectionPublisherFn(func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
-						want := cd
-						if diff := cmp.Diff(want, got); diff != "" {
-							t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
-						}
-						return true, nil
-					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+							want := cd
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
+							}
+							return true, nil
+						},
+					}),
 				},
 			},
 			want: want{

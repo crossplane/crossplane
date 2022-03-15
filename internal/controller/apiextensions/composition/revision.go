@@ -58,6 +58,7 @@ func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1alpha1.
 		PatchSets:                         make([]v1alpha1.PatchSet, len(cs.PatchSets)),
 		Resources:                         make([]v1alpha1.ComposedTemplate, len(cs.Resources)),
 		WriteConnectionSecretsToNamespace: cs.WriteConnectionSecretsToNamespace,
+		PublishConnectionDetailsWithStoreConfigRef: cs.PublishConnectionDetailsWithStoreConfigRef,
 	}
 
 	for i := range cs.PatchSets {

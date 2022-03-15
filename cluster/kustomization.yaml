@@ -10,3 +10,4 @@ resources:
 - crds/pkg.crossplane.io_locks.yaml
 - crds/pkg.crossplane.io_providerrevisions.yaml
 - crds/pkg.crossplane.io_providers.yaml
+- crds/secrets.crossplane.io_storeconfigs.yaml

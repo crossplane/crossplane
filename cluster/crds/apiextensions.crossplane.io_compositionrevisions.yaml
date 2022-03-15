@@ -245,6 +245,20 @@ spec:
                   - patches
                   type: object
                 type: array
+              publishConnectionDetailsWithStoreConfigRef:
+                default:
+                  name: default
+                description: PublishConnectionDetailsWithStoreConfig specifies the
+                  secret store config with which the connection secrets of composite
+                  resource dynamically provisioned using this composition will be
+                  published.
+                properties:
+                  name:
+                    description: Name of the referenced object.
+                    type: string
+                required:
+                - name
+                type: object
               resources:
                 description: Resources is the list of resource templates that will
                   be used when a composite resource referring to this composition
@@ -528,7 +542,11 @@ spec:
               writeConnectionSecretsToNamespace:
                 description: WriteConnectionSecretsToNamespace specifies the namespace
                   in which the connection secrets of composite resource dynamically
-                  provisioned using this composition will be created.
+                  provisioned using this composition will be created. This field is
+                  planned to be removed in a future release in favor of PublishConnectionDetailsWithStoreConfigRef.
+                  Currently, both could be set independently and connection details
+                  would be published to both without affecting each other as long
+                  as related fields at MR level specified.
                 type: string
             required:
             - compositeTypeRef

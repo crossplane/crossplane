@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Crossplane Authors.
+Copyright 2022 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,23 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package apis contains Kubernetes API groups
-package apis
+// Package secrets contains Kubernetes API groups for secret store types of Crossplane.
+package secrets
 
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/crossplane/crossplane/apis/apiextensions"
-	"github.com/crossplane/crossplane/apis/pkg"
-	"github.com/crossplane/crossplane/apis/secrets"
+	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 )
 
 func init() {
 	// Register the types with the Scheme so the components can map objects to GroupVersionKinds and back
 	AddToSchemes = append(AddToSchemes,
-		apiextensions.AddToScheme,
-		pkg.AddToScheme,
-		secrets.AddToScheme,
+		v1alpha1.AddToScheme,
 	)
 }
 

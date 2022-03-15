@@ -21,6 +21,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/pkg/feature"
 )
 
 // Options specific to pkg controllers.
@@ -39,4 +40,7 @@ type Options struct {
 	// FetcherOptions can be used to add optional parameters to
 	// NewK8sFetcher.
 	FetcherOptions []xpkg.FetcherOpt
+
+	// Features that should be enabled.
+	Features *feature.Flags
 }

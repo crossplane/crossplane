@@ -127,6 +127,44 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 				},
 			},
 		},
+		"publishConnectionDetailsTo": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name": {Type: "string"},
+				"configRef": {
+					Type:    "object",
+					Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
+					Properties: map[string]extv1.JSONSchemaProps{
+						"name": {
+							Type: "string",
+						},
+					},
+				},
+				"metadata": {
+					Type: "object",
+					Properties: map[string]extv1.JSONSchemaProps{
+						"labels": {
+							Type: "object",
+							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+								Allows: true,
+								Schema: &extv1.JSONSchemaProps{Type: "string"},
+							},
+						},
+						"annotations": {
+							Type: "object",
+							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+								Allows: true,
+								Schema: &extv1.JSONSchemaProps{Type: "string"},
+							},
+						},
+						"type": {
+							Type: "string",
+						},
+					},
+				},
+			},
+		},
 		"writeConnectionSecretToRef": {
 			Type:     "object",
 			Required: []string{"name", "namespace"},
@@ -185,6 +223,44 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 				"apiVersion": {Type: "string"},
 				"kind":       {Type: "string"},
 				"name":       {Type: "string"},
+			},
+		},
+		"publishConnectionDetailsTo": {
+			Type:     "object",
+			Required: []string{"name"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"name": {Type: "string"},
+				"configRef": {
+					Type:    "object",
+					Default: &extv1.JSON{Raw: []byte(`{"name": "default"}`)},
+					Properties: map[string]extv1.JSONSchemaProps{
+						"name": {
+							Type: "string",
+						},
+					},
+				},
+				"metadata": {
+					Type: "object",
+					Properties: map[string]extv1.JSONSchemaProps{
+						"labels": {
+							Type: "object",
+							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+								Allows: true,
+								Schema: &extv1.JSONSchemaProps{Type: "string"},
+							},
+						},
+						"annotations": {
+							Type: "object",
+							AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+								Allows: true,
+								Schema: &extv1.JSONSchemaProps{Type: "string"},
+							},
+						},
+						"type": {
+							Type: "string",
+						},
+					},
+				},
 			},
 		},
 		"writeConnectionSecretToRef": {

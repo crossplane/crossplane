@@ -20,6 +20,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -42,8 +44,20 @@ type CompositionSpec struct {
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
 	// this composition will be created.
+	// This field is planned to be replaced in a future release in favor of
+	// PublishConnectionDetailsWithStoreConfigRef. Currently, both could be
+	// set independently and connection details would be published to both
+	// without affecting each other as long as related fields at MR level
+	// specified.
 	// +optional
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
+
+	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
+	// with which the connection secrets of composite resource dynamically
+	// provisioned using this composition will be published.
+	// +optional
+	// +kubebuilder:default={"name": "default"}
+	PublishConnectionDetailsWithStoreConfigRef *xpv1.Reference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 }
 
 // A PatchSet is a set of patches that can be reused from all resources within

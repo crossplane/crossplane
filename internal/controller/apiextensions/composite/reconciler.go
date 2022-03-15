@@ -44,22 +44,26 @@ import (
 const (
 	timeout             = 2 * time.Minute
 	defaultPollInterval = 1 * time.Minute
+	finalizer           = "composite.apiextensions.crossplane.io"
 )
 
 // Error strings
 const (
-	errGet          = "cannot get composite resource"
-	errUpdate       = "cannot update composite resource"
-	errUpdateStatus = "cannot update composite resource status"
-	errSelectComp   = "cannot select Composition"
-	errFetchComp    = "cannot fetch Composition"
-	errConfigure    = "cannot configure composite resource"
-	errPublish      = "cannot publish connection details"
-	errRenderCD     = "cannot render composed resource"
-	errRenderCR     = "cannot render composite resource"
-	errValidate     = "refusing to use invalid Composition"
-	errInline       = "cannot inline Composition patch sets"
-	errAssociate    = "cannot associate composed resources with Composition resource templates"
+	errGet             = "cannot get composite resource"
+	errUpdate          = "cannot update composite resource"
+	errUpdateStatus    = "cannot update composite resource status"
+	errAddFinalizer    = "cannot add composite resource finalizer"
+	errRemoveFinalizer = "cannot remove composite resource finalizer"
+	errSelectComp      = "cannot select Composition"
+	errFetchComp       = "cannot fetch Composition"
+	errConfigure       = "cannot configure composite resource"
+	errPublish         = "cannot publish connection details"
+	errUnpublish       = "cannot unpublish connection details"
+	errRenderCD        = "cannot render composed resource"
+	errRenderCR        = "cannot render composite resource"
+	errValidate        = "refusing to use invalid Composition"
+	errInline          = "cannot inline Composition patch sets"
+	errAssociate       = "cannot associate composed resources with Composition resource templates"
 
 	errFmtRender = "cannot render composed resource from resource template at index %d"
 )
@@ -69,6 +73,8 @@ const (
 	reasonResolve event.Reason = "SelectComposition"
 	reasonCompose event.Reason = "ComposeResources"
 	reasonPublish event.Reason = "PublishConnectionSecret"
+	reasonInit    event.Reason = "InitializeCompositeResource"
+	reasonDelete  event.Reason = "DeleteCompositeResource"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -80,26 +86,6 @@ func ControllerName(name string) string {
 // ConnectionSecretFilterer returns a set of allowed keys.
 type ConnectionSecretFilterer interface {
 	GetConnectionSecretKeys() []string
-}
-
-// A ConnectionPublisher publishes the supplied ConnectionDetails for the
-// supplied resource. Publishers must handle the case in which the supplied
-// ConnectionDetails are empty.
-type ConnectionPublisher interface {
-	// PublishConnection details for the supplied resource. Publishing must be
-	// additive; i.e. if details (a, b, c) are published, subsequently
-	// publishing details (b, c, d) should update (b, c) but not remove a.
-	// Returns 'published' if the publish was not a no-op.
-	PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
-}
-
-// A ConnectionPublisherFn publishes the supplied ConnectionDetails for the
-// supplied resource.
-type ConnectionPublisherFn func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error)
-
-// PublishConnection details for the supplied resource.
-func (fn ConnectionPublisherFn) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-	return fn(ctx, o, c)
 }
 
 // A CompositionSelector selects a composition reference.
@@ -155,11 +141,6 @@ type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Com
 // and template as inputs.
 func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
 	return fn(ctx, cp, cd, t)
-}
-
-// ConnectionDetailsFetcher fetches the connection details of the Composed resource.
-type ConnectionDetailsFetcher interface {
-	FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
 }
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
@@ -267,6 +248,16 @@ func WithReadinessChecker(c ReadinessChecker) ReconcilerOption {
 	}
 }
 
+// WithCompositeFinalizer specifies how the composition to be used should be
+// selected.
+// WithCompositeFinalizer specifies which Finalizer should be used to finalize
+// composites when they are deleted.
+func WithCompositeFinalizer(f resource.Finalizer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.Finalizer = f
+	}
+}
+
 // WithCompositionSelector specifies how the composition to be used should be
 // selected.
 func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
@@ -283,11 +274,11 @@ func WithConfigurator(c Configurator) ReconcilerOption {
 	}
 }
 
-// WithConnectionPublisher specifies how the Reconciler should publish
+// WithConnectionPublishers specifies how the Reconciler should publish
 // connection secrets.
-func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
+func WithConnectionPublishers(p ...managed.ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composite.ConnectionPublisher = p
+		r.composite.ConnectionPublisher = managed.PublisherChain(p)
 	}
 }
 
@@ -305,10 +296,11 @@ type composition struct {
 }
 
 type compositeResource struct {
+	resource.Finalizer
 	CompositionSelector
 	Configurator
-	ConnectionPublisher
 	Renderer
+	managed.ConnectionPublisher
 }
 
 type composedResource struct {
@@ -338,6 +330,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		},
 
 		composite: compositeResource{
+			Finalizer:           resource.NewAPIFinalizer(kube, finalizer),
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
@@ -409,6 +402,34 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", cr.GetResourceVersion(),
 		"name", cr.GetName(),
 	)
+
+	if meta.WasDeleted(cr) {
+		log = log.WithValues("deletion-timestamp", cr.GetDeletionTimestamp())
+
+		if err := r.composite.UnpublishConnection(ctx, cr, nil); err != nil {
+			log.Debug(errUnpublish, "error", err)
+			err = errors.Wrap(err, errUnpublish)
+			r.record.Event(cr, event.Warning(reasonDelete, err))
+			return reconcile.Result{}, err
+		}
+
+		if err := r.composite.RemoveFinalizer(ctx, cr); err != nil {
+			log.Debug(errRemoveFinalizer, "error")
+			err = errors.Wrap(err, errRemoveFinalizer)
+			r.record.Event(cr, event.Warning(reasonDelete, err))
+			return reconcile.Result{}, err
+		}
+
+		log.Debug("Successfully deleted composite resource")
+		return reconcile.Result{Requeue: false}, nil
+	}
+
+	if err := r.composite.AddFinalizer(ctx, cr); err != nil {
+		log.Debug(errAddFinalizer, "error")
+		err = errors.Wrap(err, errAddFinalizer)
+		r.record.Event(cr, event.Warning(reasonInit, err))
+		return reconcile.Result{}, err
+	}
 
 	if err := r.composite.SelectComposition(ctx, cr); err != nil {
 		log.Debug(errSelectComp, "error", err)

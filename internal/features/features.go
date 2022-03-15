@@ -24,4 +24,8 @@ const (
 	// CompositionRevisions. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/ecd9d5/design/one-pager-composition-revisions.md
 	EnableAlphaCompositionRevisions feature.Flag = "EnableAlphaCompositionRevisions"
+	// EnableAlphaExternalSecretStores enables alpha support for
+	// External Secret Stores. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
+	EnableAlphaExternalSecretStores feature.Flag = "EnableAlphaExternalSecretStores"
 )

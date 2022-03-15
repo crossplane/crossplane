@@ -84,6 +84,16 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 									ContainerPort: promPortNumber,
 								},
 							},
+							Env: []corev1.EnvVar{
+								{
+									Name: "POD_NAMESPACE",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "metadata.namespace",
+										},
+									},
+								},
+							},
 						},
 					},
 				},

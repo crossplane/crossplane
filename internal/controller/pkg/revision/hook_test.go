@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -364,6 +365,41 @@ func TestHookPost(t *testing.T) {
 					},
 				},
 				err: errors.Wrap(errBoom, errApplyProviderSA),
+			},
+		},
+		"ErrProviderGetControllerConfigDeployment": {
+			reason: "Should return error if we fail to get controller config for active provider revision.",
+			args: args{
+				hook: &ProviderHooks{
+					client: resource.ClientApplicator{
+						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(errBoom),
+						},
+					},
+				},
+				pkg: &pkgmetav1.Provider{},
+				rev: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
+						ControllerConfigReference: &xpv1.Reference{
+							Name: "custom-config",
+						},
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				rev: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
+						DesiredState: v1.PackageRevisionActive,
+						ControllerConfigReference: &xpv1.Reference{
+							Name: "custom-config",
+						},
+					},
+				},
+				err: errors.Wrap(errors.Wrap(errBoom, errControllerConfig), errControllerConfig),
 			},
 		},
 		"ErrProviderApplyDeployment": {
