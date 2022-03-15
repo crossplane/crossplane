@@ -54,38 +54,19 @@ type Hooks interface {
 	Post(context.Context, runtime.Object, v1.PackageRevision) error
 }
 
-// A ProviderHookOption configures ProviderHooks
-type ProviderHookOption func(*ProviderHooks)
-
-// WithControllerEnvironments returns a ProviderHookOption that configures
-// controllerEnvironments.
-func WithControllerEnvironments(envs []corev1.EnvVar) ProviderHookOption {
-	return func(hooks *ProviderHooks) {
-		hooks.controllerEnvironments = envs
-	}
-}
-
 // ProviderHooks performs operations for a provider package that requires a
 // controller before and after the revision establishes objects.
 type ProviderHooks struct {
 	client    resource.ClientApplicator
 	namespace string
-
-	controllerEnvironments []corev1.EnvVar
 }
 
 // NewProviderHooks creates a new ProviderHooks.
-func NewProviderHooks(client resource.ClientApplicator, namespace string, opts ...ProviderHookOption) *ProviderHooks {
-	ph := &ProviderHooks{
+func NewProviderHooks(client resource.ClientApplicator, namespace string) *ProviderHooks {
+	return &ProviderHooks{
 		client:    client,
 		namespace: namespace,
 	}
-
-	for _, o := range opts {
-		o(ph)
-	}
-
-	return ph
 }
 
 // Pre cleans up a packaged controller and service account if the revision is
@@ -166,15 +147,6 @@ func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1.PackageRe
 		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
 			return nil, errors.Wrap(err, errControllerConfig)
 		}
-	}
-	if len(h.controllerEnvironments) > 0 {
-		if cc == nil {
-			cc = &v1alpha1.ControllerConfig{}
-		}
-		if cc.Spec.Env == nil {
-			cc.Spec.Env = make([]corev1.EnvVar, 0, len(h.controllerEnvironments))
-		}
-		cc.Spec.Env = append(h.controllerEnvironments, cc.Spec.Env...)
 	}
 	return cc, nil
 }

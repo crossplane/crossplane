@@ -46,7 +46,6 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
-	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -232,25 +231,13 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}
 
-	var hookOpts []ProviderHookOption
-	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
-		hookOpts = []ProviderHookOption{
-			WithControllerEnvironments([]corev1.EnvVar{
-				{
-					Name:  "ENABLE_EXTERNAL_SECRET_STORES",
-					Value: "true",
-				},
-			}),
-		}
-	}
-
 	r := NewReconciler(mgr,
 		WithCache(o.Cache),
 		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.ProviderPackageType)),
 		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
-		}, o.Namespace, hookOpts...)),
+		}, o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
 		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),

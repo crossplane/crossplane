@@ -33,7 +33,6 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
 var (
@@ -468,129 +467,6 @@ func TestHookPost(t *testing.T) {
 					},
 				},
 				err: errors.Errorf("%s: %s", errUnavailableProviderDeployment, errBoom.Error()),
-			},
-		},
-		"SuccessfulProviderApplyWithControllerEnvironments": {
-			reason: "Should not return error if successfully applied service account and deployment for active provider revision with controller environments.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
-							if d, ok := o.(*appsv1.Deployment); ok {
-								if diff := cmp.Diff(d.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{
-									{
-										Name: "POD_NAMESPACE",
-										ValueFrom: &corev1.EnvVarSource{
-											FieldRef: &corev1.ObjectFieldSelector{
-												FieldPath: "metadata.namespace",
-											},
-										},
-									},
-									{
-										Name:  "TEST_ENV",
-										Value: "TEST_VAL",
-									},
-								}); diff != "" {
-									t.Errorf("r: -want, +got:\n%s", diff)
-								}
-							}
-							return nil
-						}),
-					},
-					controllerEnvironments: []corev1.EnvVar{
-						{
-							Name:  "TEST_ENV",
-							Value: "TEST_VAL",
-						},
-					},
-				},
-				pkg: &pkgmetav1.Provider{},
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-			want: want{
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-		},
-		"SuccessfulProviderApplyWithAppendedControllerEnvironments": {
-			reason: "Should not return error if successfully applied service account and deployment for active provider revision with controller environments appended to the ones coming with ControllerConfig.",
-			args: args{
-				hook: &ProviderHooks{
-					client: resource.ClientApplicator{
-						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
-							if d, ok := o.(*appsv1.Deployment); ok {
-								if diff := cmp.Diff(d.Spec.Template.Spec.Containers[0].Env, []corev1.EnvVar{
-									{
-										Name: "POD_NAMESPACE",
-										ValueFrom: &corev1.EnvVarSource{
-											FieldRef: &corev1.ObjectFieldSelector{
-												FieldPath: "metadata.namespace",
-											},
-										},
-									},
-									{
-										Name:  "TEST_ENV",
-										Value: "TEST_VAL",
-									},
-									{
-										Name:  "CUSTOM_ENV",
-										Value: "CUSTOM_VAL",
-									},
-								}); diff != "" {
-									t.Errorf("r: -want, +got:\n%s", diff)
-								}
-							}
-							return nil
-						}),
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								*obj.(*pkgv1alpha1.ControllerConfig) = pkgv1alpha1.ControllerConfig{
-									Spec: pkgv1alpha1.ControllerConfigSpec{
-										Env: []corev1.EnvVar{
-											{
-												Name:  "CUSTOM_ENV",
-												Value: "CUSTOM_VAL",
-											},
-										},
-									},
-								}
-								return nil
-							}),
-						},
-					},
-					controllerEnvironments: []corev1.EnvVar{
-						{
-							Name:  "TEST_ENV",
-							Value: "TEST_VAL",
-						},
-					},
-				},
-				pkg: &pkgmetav1.Provider{},
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-						ControllerConfigReference: &xpv1.Reference{
-							Name: "custom-config",
-						},
-					},
-				},
-			},
-			want: want{
-				rev: &v1.ProviderRevision{
-					Spec: v1.PackageRevisionSpec{
-						ControllerConfigReference: &xpv1.Reference{
-							Name: "custom-config",
-						},
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
 			},
 		},
 		"SuccessfulProviderApply": {
