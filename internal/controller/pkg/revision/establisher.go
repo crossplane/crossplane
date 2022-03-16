@@ -19,6 +19,7 @@ package revision
 import (
 	"context"
 
+	admv1 "k8s.io/api/admissionregistration/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -74,6 +75,15 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	allObjs := []currentDesired{}
 	resourceRefs := []xpv1.TypedReference{}
 	for _, res := range objs {
+		// NOTE(muvaf): These types can be included in providers that can work
+		// with future releases of Crossplane, however, support for them is not
+		// implemented in this version of Crossplane. So, we will just skip
+		// installing them.
+		switch res.(type) {
+		case *admv1.MutatingWebhookConfiguration, *admv1.ValidatingWebhookConfiguration:
+			continue
+		}
+
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.
 		d, ok := res.(resource.Object)
