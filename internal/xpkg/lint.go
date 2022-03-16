@@ -18,6 +18,7 @@ package xpkg
 
 import (
 	"github.com/Masterminds/semver"
+	admv1 "k8s.io/api/admissionregistration/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	extv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -30,21 +31,32 @@ import (
 )
 
 const (
-	errNotExactlyOneMeta         = "not exactly one package meta type"
-	errNotMeta                   = "meta type is not a package"
-	errNotMetaProvider           = "package meta type is not Provider"
-	errNotMetaConfiguration      = "package meta type is not Configuration"
-	errNotCRD                    = "object is not a CRD"
-	errNotXRD                    = "object is not an XRD"
-	errNotComposition            = "object is not a Composition"
-	errBadConstraints            = "package version constraints are poorly formatted"
-	errCrossplaneIncompatibleFmt = "package is not compatible with Crossplane version (%s)"
+	errNotExactlyOneMeta                 = "not exactly one package meta type"
+	errNotMeta                           = "meta type is not a package"
+	errNotMetaProvider                   = "package meta type is not Provider"
+	errNotMetaConfiguration              = "package meta type is not Configuration"
+	errNotCRD                            = "object is not a CRD"
+	errNotXRD                            = "object is not an XRD"
+	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
+	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
+	errNotComposition                    = "object is not a Composition"
+	errBadConstraints                    = "package version constraints are poorly formatted"
+	errCrossplaneIncompatibleFmt         = "package is not compatible with Crossplane version (%s)"
 )
 
 // NewProviderLinter is a convenience function for creating a package linter for
 // providers.
 func NewProviderLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsProvider, PackageValidSemver), parser.ObjectLinterFns(IsCRD))
+	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsProvider, PackageValidSemver),
+		parser.ObjectLinterFns(
+			parser.Or(
+				parser.Or(
+					IsCRD,
+					IsMutatingWebhookConfiguration,
+				),
+				IsValidatingWebhookConfiguration,
+			),
+		))
 }
 
 // NewConfigurationLinter is a convenience function for creating a package linter for
@@ -126,6 +138,22 @@ func IsCRD(o runtime.Object) error {
 	default:
 		return errors.New(errNotCRD)
 	}
+}
+
+// IsMutatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
+func IsMutatingWebhookConfiguration(o runtime.Object) error {
+	if _, ok := o.(*admv1.MutatingWebhookConfiguration); !ok {
+		return errors.New(errNotMutatingWebhookConfiguration)
+	}
+	return nil
+}
+
+// IsValidatingWebhookConfiguration checks that an object is a ValidatingWebhookConfiguration.
+func IsValidatingWebhookConfiguration(o runtime.Object) error {
+	if _, ok := o.(*admv1.ValidatingWebhookConfiguration); !ok {
+		return errors.New(errNotValidatingWebhookConfiguration)
+	}
+	return nil
 }
 
 // IsXRD checks that an object is a CompositeResourceDefinition.
