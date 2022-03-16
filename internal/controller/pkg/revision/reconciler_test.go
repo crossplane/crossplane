@@ -71,7 +71,7 @@ func NewMockEstablishFn(refs []xpv1.TypedReference, err error) func() ([]xpv1.Ty
 	return func() ([]xpv1.TypedReference, error) { return refs, err }
 }
 
-func (e *MockEstablisher) Establish(context.Context, []runtime.Object, resource.Object, bool) ([]xpv1.TypedReference, error) {
+func (e *MockEstablisher) Establish(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error) {
 	return e.MockEstablish()
 }
 

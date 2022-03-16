@@ -1,0 +1,18 @@
+{{- if .Values.webhooks.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "crossplane.name" . }}-webhooks
+  labels:
+    app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
+    {{- include "crossplane.labels" . | indent 4 }}
+spec:
+  selector:
+    app: {{ template "crossplane.name" . }}
+    release: {{ .Release.Name }}
+  ports:
+  - protocol: TCP
+    port: 9443
+    targetPort: 9443
+{{- end }}

@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
@@ -59,11 +60,13 @@ func (c *Command) Run() error {
 }
 
 type startCommand struct {
-	Namespace      string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
-	CacheDir       string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
-	LeaderElection bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
-	Registry       string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
-	CABundlePath   string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
+	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
+	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
+	Registry             string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
+	CABundlePath         string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
+	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
+	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
@@ -74,7 +77,7 @@ type startCommand struct {
 }
 
 // Run core Crossplane controllers.
-func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
@@ -124,11 +127,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	}
 
 	po := pkgcontroller.Options{
-		Options:         o,
-		Cache:           xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
-		Namespace:       c.Namespace,
-		DefaultRegistry: c.Registry,
-		Features:        feats,
+		Options:              o,
+		Cache:                xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
+		Namespace:            c.Namespace,
+		DefaultRegistry:      c.Registry,
+		Features:             feats,
+		WebhookTLSSecretName: c.WebhookTLSSecretName,
 	}
 
 	if c.CABundlePath != "" {
@@ -141,6 +145,19 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	if err := pkg.Setup(mgr, po); err != nil {
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
+	}
+
+	if c.WebhookTLSCertDir != "" {
+		ws := mgr.GetWebhookServer()
+		ws.Port = 9443
+		ws.CertDir = c.WebhookTLSCertDir
+		ws.TLSMinVersion = "1.3"
+		// TODO(muvaf): Once the implementation of other webhook handlers are
+		// fleshed out, implement a registration pattern similar to scheme
+		// registrations.
+		if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
+			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+		}
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")

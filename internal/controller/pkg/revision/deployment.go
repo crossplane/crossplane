@@ -20,8 +20,10 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
@@ -41,9 +43,15 @@ var (
 const (
 	promPortName   = "metrics"
 	promPortNumber = 8080
+
+	webhookVolumeName       = "webhook-tls-secret"
+	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
+	webhookTLSCertDir       = "/webhook/tls"
+	webhookPortName         = "webhook"
+	webhookPort             = 9443
 )
 
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment) { // nolint:interfacer,gocyclo
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) { // nolint:gocyclo
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -124,6 +132,43 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			},
 		},
 	}
+	if revision.GetWebhookTLSSecretName() != nil {
+		v := corev1.Volume{
+			Name: webhookVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: *revision.GetWebhookTLSSecretName(),
+					Items: []corev1.KeyToPath{
+						// These are known and validated keys in TLS secrets.
+						{Key: "tls.crt", Path: "tls.crt"},
+						{Key: "tls.key", Path: "tls.key"},
+					},
+				},
+			},
+		}
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+
+		vm := corev1.VolumeMount{
+			Name:      webhookVolumeName,
+			ReadOnly:  true,
+			MountPath: webhookTLSCertDir,
+		}
+		d.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+		envs := []corev1.EnvVar{
+			{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir},
+		}
+		d.Spec.Template.Spec.Containers[0].Env =
+			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+
+		port := corev1.ContainerPort{
+			Name:          webhookPortName,
+			ContainerPort: webhookPort,
+		}
+		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports,
+			port)
+	}
 	templateLabels := make(map[string]string)
 	if cc != nil {
 		s.Labels = cc.Labels
@@ -203,5 +248,24 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	}
 	d.Spec.Template.Labels = templateLabels
 
-	return s, d
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            revision.GetName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+		},
+		Spec: corev1.ServiceSpec{
+			// We use whatever is on the deployment so that ControllerConfig
+			// overrides are accounted for.
+			Selector: d.Spec.Selector.MatchLabels,
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Port:       9443,
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+	return s, d, svc
 }

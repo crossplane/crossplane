@@ -51,6 +51,7 @@ rules:
   - ""
   resources:
   - serviceaccounts
+  - services
   verbs:
   - "*"
 - apiGroups:
@@ -80,6 +81,19 @@ rules:
   resources:
   - configmaps
   - leases
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - patch
+  - watch
+  - delete
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - validatingwebhookconfigurations
+  - mutatingwebhookconfigurations
   verbs:
   - get
   - list

@@ -19,7 +19,9 @@ package core
 import (
 	"context"
 
+	admv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -34,26 +36,48 @@ type initCommand struct {
 	Providers      []string `name:"provider" help:"Pre-install a Provider by giving its image URI. This argument can be repeated."`
 	Configurations []string `name:"configuration" help:"Pre-install a Configuration by giving its image URI. This argument can be repeated."`
 	Namespace      string   `short:"n" help:"Namespace used to set as default scope in default secret store config." default:"crossplane-system" env:"POD_NAMESPACE"`
+
+	WebhookTLSSecretName    string `help:"The name of the Secret that the initializer will fill with webhook TLS certificate bundle." env:"WEBHOOK_TLS_SECRET_NAME"`
+	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
+	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
+	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
 }
 
 // Run starts the initialization process.
 func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
-		return errors.Wrap(err, "Cannot get config")
+		return errors.Wrap(err, "cannot get config")
 	}
 
 	cl, err := client.New(cfg, client.Options{Scheme: s})
 	if err != nil {
 		return errors.Wrap(err, "cannot create new kubernetes client")
 	}
-	i := initializer.New(cl,
-		initializer.NewCoreCRDs("/crds", s),
-		initializer.NewLockObject(),
+	var steps []initializer.Step
+	if c.WebhookTLSSecretName != "" {
+		nn := types.NamespacedName{
+			Name:      c.WebhookTLSSecretName,
+			Namespace: c.Namespace,
+		}
+		svc := admv1.ServiceReference{
+			Name:      c.WebhookServiceName,
+			Namespace: c.WebhookServiceNamespace,
+			Port:      &c.WebhookServicePort,
+		}
+		steps = append(steps,
+			initializer.NewWebhookCertificateGenerator(nn, c.Namespace,
+				log.WithValues("Step", "WebhookCertificateGenerator")),
+			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
+			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
+	} else {
+		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
+	}
+
+	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
-		initializer.NewStoreConfigObject(c.Namespace),
-	)
-	if err := i.Init(context.TODO()); err != nil {
+		initializer.NewStoreConfigObject(c.Namespace))
+	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}
 	log.Info("Initialization has been completed")

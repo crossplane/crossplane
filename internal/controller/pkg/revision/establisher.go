@@ -18,7 +18,12 @@ package revision
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
+	admv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,27 +40,45 @@ import (
 )
 
 const (
-	errAssertResourceObj = "cannot assert object to resource.Object"
-	errAssertClientObj   = "cannot assert object to client.Object"
+	errAssertResourceObj            = "cannot assert object to resource.Object"
+	errAssertClientObj              = "cannot assert object to client.Object"
+	errConversionWithNoWebhookCA    = "cannot deploy a CRD with webhook conversion strategy without having a TLS bundle"
+	errGetWebhookTLSSecret          = "cannot get webhook tls secret"
+	errWebhookSecretWithoutCABundle = "the value for the key tls.crt cannot be empty"
 )
 
 // An Establisher establishes control or ownership of a set of resources in the
 // API server by checking that control or ownership can be established for all
 // resources and then establishing it.
 type Establisher interface {
-	Establish(ctx context.Context, objects []runtime.Object, parent resource.Object, control bool) ([]xpv1.TypedReference, error)
+	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+}
+
+// NewNopEstablisher returns a new NopEstablisher.
+func NewNopEstablisher() *NopEstablisher {
+	return &NopEstablisher{}
+}
+
+// NopEstablisher does nothing.
+type NopEstablisher struct{}
+
+// Establish does nothing.
+func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+	return nil, nil
 }
 
 // APIEstablisher establishes control or ownership of resources in the API
 // server for a parent.
 type APIEstablisher struct {
-	client client.Client
+	client    client.Client
+	namespace string
 }
 
 // NewAPIEstablisher creates a new APIEstablisher.
-func NewAPIEstablisher(client client.Client) *APIEstablisher {
+func NewAPIEstablisher(client client.Client, namespace string) *APIEstablisher {
 	return &APIEstablisher{
-		client: client,
+		client:    client,
+		namespace: namespace,
 	}
 }
 
@@ -70,15 +93,87 @@ type currentDesired struct {
 
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent resource.Object, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
 	allObjs := []currentDesired{}
 	resourceRefs := []xpv1.TypedReference{}
+	var webhookTLSCert []byte
+	if parent.GetWebhookTLSSecretName() != nil {
+		s := &corev1.Secret{}
+		nn := types.NamespacedName{Name: *parent.GetWebhookTLSSecretName(), Namespace: e.namespace}
+		if err := e.client.Get(ctx, nn, s); err != nil {
+			return nil, errors.Wrap(err, errGetWebhookTLSSecret)
+		}
+		if len(s.Data["tls.crt"]) == 0 {
+			return nil, errors.New(errWebhookSecretWithoutCABundle)
+		}
+		webhookTLSCert = s.Data["tls.crt"]
+	}
 	for _, res := range objs {
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.
 		d, ok := res.(resource.Object)
 		if !ok {
 			return nil, errors.New(errAssertResourceObj)
+		}
+
+		// The generated webhook configurations have a static hard-coded name
+		// that the developers of the providers can't affect. Here, we make sure
+		// to distinguish one from the other by setting the name to the parent
+		// since there is always a single ValidatingWebhookConfiguration and/or
+		// single MutatingWebhookConfiguration object in a provider package.
+		// See https://github.com/kubernetes-sigs/controller-tools/issues/658
+		switch conf := res.(type) {
+		case *admv1.ValidatingWebhookConfiguration:
+			if len(webhookTLSCert) == 0 {
+				continue
+			}
+			if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+			}
+			for i := range conf.Webhooks {
+				conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+				if conf.Webhooks[i].ClientConfig.Service == nil {
+					conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+				}
+				conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
+				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
+			}
+		case *admv1.MutatingWebhookConfiguration:
+			if len(webhookTLSCert) == 0 {
+				continue
+			}
+			if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+			}
+			for i := range conf.Webhooks {
+				conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+				if conf.Webhooks[i].ClientConfig.Service == nil {
+					conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+				}
+				conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
+				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
+			}
+		case *extv1.CustomResourceDefinition:
+			if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+				if len(webhookTLSCert) == 0 {
+					return nil, errors.New(errConversionWithNoWebhookCA)
+				}
+				if conf.Spec.Conversion.Webhook == nil {
+					conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+				}
+				if conf.Spec.Conversion.Webhook.ClientConfig == nil {
+					conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+				}
+				if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
+					conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+				}
+				conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetName()
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
+				conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(webhookPort)
+			}
 		}
 
 		// Make a copy of the desired object to be populated with existing

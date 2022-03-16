@@ -21,12 +21,15 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	admv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -39,11 +42,13 @@ var _ Establisher = &APIEstablisher{}
 
 func TestAPIEstablisherEstablish(t *testing.T) {
 	errBoom := errors.New("boom")
+	webhookTLSSecretName := "webhook-tls"
+	caBundle := []byte("CABUNDLE")
 
 	type args struct {
 		est     *APIEstablisher
 		objs    []runtime.Object
-		parent  resource.Object
+		parent  v1.PackageRevision
 		control bool
 	}
 
@@ -67,7 +72,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				objs: []runtime.Object{
-					&apiextensions.CustomResourceDefinition{
+					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "ref-me",
 						},
@@ -102,7 +107,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				objs: []runtime.Object{
-					&apiextensions.CustomResourceDefinition{
+					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "ref-me",
 						},
@@ -127,6 +132,87 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
+		"SuccessfulNotExistsEstablishControlWebhookEnabled": {
+			reason: "Establishment should be successful if we can establish control for a parent of new objects in case webhooks are enabled.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							if s, ok := obj.(*corev1.Secret); ok {
+								(&corev1.Secret{
+									Data: map[string][]byte{
+										"tls.crt": caBundle,
+									},
+								}).DeepCopyInto(s)
+								return nil
+							}
+							return kerrors.NewNotFound(schema.GroupResource{}, "")
+						},
+						MockCreate: test.NewMockCreateFn(nil),
+					},
+				},
+				objs: []runtime.Object{
+					&extv1.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Conversion: &extv1.CustomResourceConversion{
+								Strategy: extv1.WebhookConverter,
+							},
+						},
+					},
+					&admv1.MutatingWebhookConfiguration{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "crossplane-providerrevision-provider-name",
+						},
+						Webhooks: []admv1.MutatingWebhook{
+							{
+								Name: "some-webhook",
+							},
+						},
+					},
+					&admv1.ValidatingWebhookConfiguration{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "crossplane-providerrevision-provider-name",
+						},
+						Webhooks: []admv1.ValidatingWebhook{
+							{
+								Name: "some-webhook",
+							},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					TypeMeta: metav1.TypeMeta{
+						Kind: "ProviderRevision",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Kind: "Provider",
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+					Spec: v1.PackageRevisionSpec{
+						WebhookTLSSecretName: &webhookTLSSecretName,
+					},
+				},
+				control: true,
+			},
+			want: want{
+				refs: []xpv1.TypedReference{
+					{Name: "ref-me"},
+					{Name: "crossplane-provider-provider-name"},
+					{Name: "crossplane-provider-provider-name"},
+				},
+			},
+		},
 		"SuccessfulExistsEstablishOwnership": {
 			reason: "Establishment should be successful if we can establish ownership for a parent of existing objects.",
 			args: args{
@@ -137,7 +223,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				objs: []runtime.Object{
-					&apiextensions.CustomResourceDefinition{
+					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "ref-me",
 						},
@@ -160,7 +246,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				objs: []runtime.Object{
-					&apiextensions.CustomResourceDefinition{
+					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "ref-me",
 						},
@@ -173,6 +259,86 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 				refs: []xpv1.TypedReference{{Name: "ref-me"}},
 			},
 		},
+		"FailedCreationWebhookDisabledConversionRequested": {
+			reason: "Establishment should fail if the CRD requires conversion webhook and Crossplane does not have the webhooks enabled.",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+						MockCreate: test.NewMockCreateFn(nil),
+					},
+				},
+				objs: []runtime.Object{
+					&extv1.CustomResourceDefinition{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "ref-me",
+						},
+						Spec: extv1.CustomResourceDefinitionSpec{
+							Conversion: &extv1.CustomResourceConversion{
+								Strategy: extv1.WebhookConverter,
+							},
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name: "provider-name",
+								UID:  "some-unique-uid-2312",
+							},
+						},
+						Labels: map[string]string{
+							v1.LabelParentPackage: "provider-name",
+						},
+					},
+				},
+				control: true,
+			},
+			want: want{
+				err: errors.New(errConversionWithNoWebhookCA),
+			},
+		},
+		"FailedGettingWebhookTLSSecret": {
+			reason: "Establishment should fail if a webhook TLS secret is given but cannot be fetched",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(errBoom),
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
+						WebhookTLSSecretName: &webhookTLSSecretName,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetWebhookTLSSecret),
+			},
+		},
+		"FailedEmptyWebhookTLSSecret": {
+			reason: "Establishment should fail if a webhook TLS secret is given but empty",
+			args: args{
+				est: &APIEstablisher{
+					client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							s := &corev1.Secret{}
+							s.DeepCopyInto(obj.(*corev1.Secret))
+							return nil
+						},
+					},
+				},
+				parent: &v1.ProviderRevision{
+					Spec: v1.PackageRevisionSpec{
+						WebhookTLSSecretName: &webhookTLSSecretName,
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errWebhookSecretWithoutCABundle),
+			},
+		},
 		"FailedCreate": {
 			reason: "Cannot establish control of object if we cannot create it.",
 			args: args{
@@ -183,7 +349,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				objs: []runtime.Object{
-					&apiextensions.CustomResourceDefinition{
+					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "ref-me",
 						},
@@ -210,7 +376,7 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 					},
 				},
 				objs: []runtime.Object{
-					&apiextensions.CustomResourceDefinition{
+					&extv1.CustomResourceDefinition{
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "ref-me",
 						},

@@ -40,8 +40,10 @@ const (
 	errControllerConfig              = "cannot get referenced controller config"
 	errDeleteProviderDeployment      = "cannot delete provider package deployment"
 	errDeleteProviderSA              = "cannot delete provider package service account"
+	errDeleteProviderService         = "cannot delete provider package service"
 	errApplyProviderDeployment       = "cannot apply provider package deployment"
 	errApplyProviderSA               = "cannot apply provider package service account"
+	errApplyProviderService          = "cannot apply provider package service"
 	errUnavailableProviderDeployment = "provider package deployment is unavailable"
 )
 
@@ -95,19 +97,22 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	if err != nil {
 		return errors.Wrap(err, errControllerConfig)
 	}
-	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
+	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
 	if err := h.client.Delete(ctx, s); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderSA)
 	}
+	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderService)
+	}
 	return nil
 }
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { // nolint:gocyclo
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -120,12 +125,17 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err != nil {
 		return errors.Wrap(err, errControllerConfig)
 	}
-	s, d := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
+	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
+	}
+	if pr.GetWebhookTLSSecretName() != nil {
+		if err := h.client.Apply(ctx, svc); err != nil {
+			return errors.Wrap(err, errApplyProviderService)
+		}
 	}
 	pr.SetControllerReference(xpv1.Reference{Name: d.GetName()})
 

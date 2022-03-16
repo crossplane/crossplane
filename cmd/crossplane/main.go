@@ -18,6 +18,7 @@ package main
 
 import (
 	"github.com/alecthomas/kong"
+	admv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -85,6 +86,7 @@ func main() {
 	ctx.FatalIfErrorf(coordinationv1.AddToScheme(s), "cannot add coordination v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(extv1.AddToScheme(s), "cannot add apiextensions v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(extv1beta1.AddToScheme(s), "cannot add apiextensions v1beta1 Kubernetes API types to scheme")
+	ctx.FatalIfErrorf(admv1.AddToScheme(s), "cannot add admissionregistration v1 Kubernetes API types to scheme")
 	ctx.FatalIfErrorf(apis.AddToScheme(s), "cannot add Crossplane API types to scheme")
 	ctx.FatalIfErrorf(ctx.Run(s))
 }
