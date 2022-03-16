@@ -132,7 +132,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errNoTLSCrtInSecretFmt, "/"),
+				err: errors.Errorf(errFmtNoTLSCrtInSecret, "/"),
 			},
 		},
 		"ApplyFailed": {

@@ -54,6 +54,19 @@ type Establisher interface {
 	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
 }
 
+// NewNopEstablisher returns a new NopEstablisher.
+func NewNopEstablisher() *NopEstablisher {
+	return &NopEstablisher{}
+}
+
+// NopEstablisher does nothing.
+type NopEstablisher struct{}
+
+// Establish does nothing.
+func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+	return nil, nil
+}
+
 // APIEstablisher establishes control or ownership of resources in the API
 // server for a parent.
 type APIEstablisher struct {
@@ -124,7 +137,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 				}
 				conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
 				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(9443)
+				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
 			}
 		case *admv1.MutatingWebhookConfiguration:
 			if len(webhookTLSCert) == 0 {

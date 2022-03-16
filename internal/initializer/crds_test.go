@@ -20,12 +20,9 @@ import (
 	"context"
 	"testing"
 
-	corev1 "k8s.io/api/core/v1"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,6 +30,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
@@ -92,7 +90,7 @@ func TestCoreCRDs(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errCRDWithConversionWithoutTLSFmt, "crontabsconverts.stable.example.com"),
+				err: errors.Errorf(errFmtCRDWithConversionWithoutTLS, "crontabsconverts.stable.example.com"),
 			},
 		},
 		"SuccessWithTLSSecret": {

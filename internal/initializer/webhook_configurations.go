@@ -20,13 +20,11 @@ import (
 	"context"
 	"reflect"
 
-	corev1 "k8s.io/api/core/v1"
-
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/spf13/afero"
 	admv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -64,7 +62,8 @@ func NewWebhookConfigurations(path string, s *runtime.Scheme, tlsSecretRef types
 	return c
 }
 
-// WebhookConfigurations makes sure the CRDs are installed.
+// WebhookConfigurations makes sure the ValidatingWebhookConfigurations and
+// MutatingWebhookConfiguration are installed.
 type WebhookConfigurations struct {
 	Path             string
 	Scheme           *runtime.Scheme
@@ -74,14 +73,15 @@ type WebhookConfigurations struct {
 	fs afero.Fs
 }
 
-// Run applies all CRDs in the given directory.
+// Run applies all webhook ValidatingWebhookConfigurations and
+// MutatingWebhookConfiguration in the given directory.
 func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) error { // nolint:gocyclo
 	s := &corev1.Secret{}
 	if err := kube.Get(ctx, c.TLSSecretRef, s); err != nil {
 		return errors.Wrap(err, errGetWebhookSecret)
 	}
 	if len(s.Data["tls.crt"]) == 0 {
-		return errors.Errorf(errNoTLSCrtInSecretFmt, c.TLSSecretRef.String())
+		return errors.Errorf(errFmtNoTLSCrtInSecret, c.TLSSecretRef.String())
 	}
 	caBundle := s.Data["tls.crt"]
 

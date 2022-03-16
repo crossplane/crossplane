@@ -144,7 +144,7 @@ func IsMutatingWebhookConfiguration(o runtime.Object) error {
 	return nil
 }
 
-// IsValidatingWebhookConfiguration checks that an object is a MutatingWebhookConfiguration.
+// IsValidatingWebhookConfiguration checks that an object is a ValidatingWebhookConfiguration.
 func IsValidatingWebhookConfiguration(o runtime.Object) error {
 	if _, ok := o.(*admv1.ValidatingWebhookConfiguration); !ok {
 		return errors.New(errNotValidatingWebhookConfiguration)

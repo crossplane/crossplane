@@ -19,12 +19,11 @@ package initializer
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
-
 	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -34,8 +33,8 @@ import (
 
 // Error strings.
 const (
-	errCRDWithConversionWithoutTLSFmt = "crds with webhook conversion strategy cannot be deployed without webhook tls secret: %s"
-	errNoTLSCrtInSecretFmt            = "cannot find tls.crt key in webhook tls secret %s"
+	errFmtCRDWithConversionWithoutTLS = "crds with webhook conversion strategy cannot be deployed without webhook tls secret: %s"
+	errFmtNoTLSCrtInSecret            = "cannot find tls.crt key in webhook tls secret %s"
 )
 
 // WithWebhookTLSSecretRef configures CoreCRDs with the TLS Secret name so that
@@ -89,7 +88,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 			return errors.Wrap(err, errGetWebhookSecret)
 		}
 		if len(s.Data["tls.crt"]) == 0 {
-			return errors.Errorf(errNoTLSCrtInSecretFmt, c.WebhookTLSSecretRef.String())
+			return errors.Errorf(errFmtNoTLSCrtInSecret, c.WebhookTLSSecretRef.String())
 		}
 		caBundle = s.Data["tls.crt"]
 	}
@@ -119,7 +118,7 @@ func (c *CoreCRDs) Run(ctx context.Context, kube client.Client) error { // nolin
 		}
 		if crd.Spec.Conversion != nil && crd.Spec.Conversion.Strategy == extv1.WebhookConverter {
 			if len(caBundle) == 0 {
-				return errors.Errorf(errCRDWithConversionWithoutTLSFmt, crd.Name)
+				return errors.Errorf(errFmtCRDWithConversionWithoutTLS, crd.Name)
 			}
 			if crd.Spec.Conversion.Webhook == nil {
 				crd.Spec.Conversion.Webhook = &extv1.WebhookConversion{}

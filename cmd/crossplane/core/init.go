@@ -66,7 +66,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 			Port:      &c.WebhookServicePort,
 		}
 		steps = append(steps,
-			initializer.NewWebhookCertificateGenerator(nn, c.Namespace, log),
+			initializer.NewWebhookCertificateGenerator(nn, c.Namespace, log.WithValues("Step", "WebhookCertificateGenerator")),
 			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
 			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {

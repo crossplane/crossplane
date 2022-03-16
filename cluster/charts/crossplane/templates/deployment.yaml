@@ -46,11 +46,6 @@ spec:
           - --configuration
           - "{{ $arg }}"
           {{- end }}
-          env:
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           name: {{ .Chart.Name }}-init
           resources:
@@ -104,6 +99,8 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          - name: olala
+            value: olala
           - name: LEADER_ELECTION
             value: "{{ .Values.leaderElection }}"
           {{- if .Values.registryCaBundleConfig.key }}
@@ -152,12 +149,14 @@ spec:
       {{- if .Values.webhooks.enabled }}
       - name: webhook-tls-secret
         secret:
+          # NOTE(muvaf): The tls.crt is used both by the server (requires it to
+          # be a single cert) and the caBundle fields of webhook configs and CRDs
+          # which can accept a whole bundle of certificates. In order to meet
+          # the requirements of both, we require a single certificate instead of
+          # a bundle.
+          # It's assumed that initializer generates this anyway, so it should be
+          # fine.
           secretName: webhook-tls-secret
-          items:
-          - key: tls.crt
-            path: tls.crt
-          - key: tls.key
-            path: tls.key
       {{- end }}
       {{- if .Values.nodeSelector }}
       nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}

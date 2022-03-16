@@ -309,7 +309,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		cache:     xpkg.NewNopCache(),
 		revision:  resource.NewAPIFinalizer(mgr.GetClient(), finalizer),
 		hook:      NewNopHooks(),
-		objects:   NewAPIEstablisher(mgr.GetClient(), ""),
+		objects:   NewNopEstablisher(),
 		parser:    parser.New(nil, nil),
 		linter:    parser.NewPackageLinter(nil, nil, nil),
 		versioner: version.New(),
