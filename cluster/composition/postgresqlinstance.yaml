@@ -33,9 +33,9 @@ spec:
             properties:
               engineVersion:
                 description: 'EngineVersion specifies the desired PostgreSQL engine
-                              version. Allowed Versions: 9.6 and 11.'
+                              version. Allowed Versions: 10 and 11.'
                 enum:
-                  - "9.6"
+                  - "10"
                   - "11"
                 type: string
               storageGB:
