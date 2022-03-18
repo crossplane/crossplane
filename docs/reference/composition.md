@@ -308,7 +308,7 @@ spec:
       kind: CloudSQLInstance
       spec:
         forProvider:
-          databaseVersion: POSTGRES_9_6
+          databaseVersion: POSTGRES_12
           region: us-central1
           settings:
             dataDiskType: PD_SSD
