@@ -102,7 +102,7 @@ spec:
         kind: CloudSQLInstance
         spec:
           forProvider:
-            databaseVersion: POSTGRES_9_6
+            databaseVersion: POSTGRES_12
             region: us-central1
             settings:
               tier: db-custom-1-3840
@@ -147,7 +147,7 @@ spec:
         kind: CloudSQLInstance
         spec:
           forProvider:
-            databaseVersion: POSTGRES_9_6
+            databaseVersion: POSTGRES_12
             region: us-central1
             settings:
               tier: db-custom-1-3840

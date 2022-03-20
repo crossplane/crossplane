@@ -29,7 +29,7 @@ spec:
               matchControllerRef: true
             location: West US 2
             sslEnforcement: Disabled
-            version: "9.6"
+            version: "11"
             sku:
               tier: GeneralPurpose
               capacity: 2
