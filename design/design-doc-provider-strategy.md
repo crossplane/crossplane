@@ -343,7 +343,7 @@ spec:
     location: West US 2
     minimalTlsVersion: TLS12
     sslEnforcement: Disabled
-    version: "9.6"
+    version: "11"
     sku:
       tier: GeneralPurpose
       capacity: 2
@@ -363,7 +363,7 @@ spec:
     location: "East US"
     administratorLogin: "psqladminun"
     skuName: "GP_Gen5_4" # different than native where 3 fields are used.
-    version: "9.6"
+    version: "11"
     storageMb: 640000 # different than native where this is given under storageProfile
     publicNetworkAccessEnabled: true # schema same, but not supported in our native provider yet.
     sslEnforcementEnabled: true # in native, enum Disabled/Enabled instead of boolean
@@ -383,7 +383,7 @@ spec:
     location: West US 2
     minimalTlsVersion: TLS12
     sslEnforcement: Disabled
-    version: "9.6"
+    version: "11"
     sku:
       tier: GeneralPurpose
       capacity: 2
