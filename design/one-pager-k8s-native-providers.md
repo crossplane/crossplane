@@ -335,7 +335,7 @@ spec:
     name: postgresql-standard
   writeConnectionSecretToRef:
     name: postgresqlconn
-  engineVersion: "9.6"
+  engineVersion: "12"
 ```
 
 On creation of the `PostgreSQLInstance` claim, the claim controller would
