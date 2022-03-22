@@ -27,6 +27,7 @@ steering committee and maintainers.
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
 * Daniel Mangum <dan@upbound.io> ([hasheddan](https://github.com/hasheddan))
 * Muvaffak Onus <monus@upbound.io> ([muvaf](https://github.com/muvaf))
+* Hasan Turken <hasan@upbound.io> ([turkenh](https://github.com/turkenh))
 
 ## Emeritus maintainers
 
