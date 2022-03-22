@@ -167,6 +167,10 @@ requirements:
   in the YAML stream.
 - Zero (0) or more `CustomResourceDefinition.apiextensions.k8s.io` objects MAY
   be defined in the YAML stream.
+- Zero (0) or more `AdmissionWebhookConfiguration.admissionregistration.k8s.io`
+  objects MAY be defined in the YAML stream.
+- Zero (0) or more `MutatingWebhookConfiguration.admissionregistration.k8s.io`
+  objects MAY be defined in the YAML stream.
 - Zero (0) other object types may be defined in the YAML stream.
 
 ### Object Annotations
