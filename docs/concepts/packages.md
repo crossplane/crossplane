@@ -486,7 +486,7 @@ by [pre-pulling images] onto nodes in the cluster.
 [provider-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Provider/v1
 [configuration-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Configuration/v1
 [lock-api]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/Lock/v1beta1
-[getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/master/docs/snippets/package/gcp
+[getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/release-1.7/docs/snippets/package/gcp
 [specification]: https://github.com/Masterminds/semver#basic-comparisons
 [composition]: composition.md
 [IAM Roles for Service Accounts]: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
