@@ -84,13 +84,20 @@ token, API server address, and certificate. Because we are running Vault in
 Kubernetes, these values are already available via the container filesystem and
 environment variables.
 
+Get Vault Root Token:
+
 ```shell
-cat cluster-keys.json | jq -r ".root_token" # get root token
+cat cluster-keys.json | jq -r ".root_token"
+```
 
+Login as root and enable/configure Kubernetes Auth:
+
+```shell
 kubectl -n vault-system exec -it vault-0 -- /bin/sh
-vault login # use root token from above
-vault auth enable kubernetes
 
+vault login # use root token from above
+
+vault auth enable kubernetes
 vault write auth/kubernetes/config \
         token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)" \
         kubernetes_host="https://$KUBERNETES_PORT_443_TCP_ADDR:443" \
@@ -141,7 +148,7 @@ kubectl create ns crossplane-system
 
 helm repo add crossplane-stable https://charts.crossplane.io/stable --force-update
 
-helm --namespace crossplane-system upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system \
+helm upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system \
   --set 'args={--enable-external-secret-stores}' \
   --set-string customAnnotations."vault\.hashicorp\.com/agent-inject"=true \
   --set-string customAnnotations."vault\.hashicorp\.com/agent-inject-token"=true \
@@ -199,7 +206,7 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: turkenh/provider-gcp:v0.21.0-rc.13.g273ebf2
+  package: crossplane/provider-gcp:v0.21.0
   controllerConfigRef:
     name: vault-config" | kubectl apply -f -
 ```
@@ -228,6 +235,9 @@ spec:
 ```
 
 ### Deploy and Test
+
+> Prerequisite: You should have a working **default** `ProviderConfig` for
+> GCP available.
 
 1. Create a `Composition` and a `CompositeResourceDefinition`:
 
@@ -341,10 +351,22 @@ spec:
 
 ```shell
 kubectl get managed
+# Example output:
+# NAME                                                      READY   SYNCED   DISPLAYNAME                     EMAIL                                                            DISABLED
+# serviceaccount.iam.gcp.crossplane.io/my-ess-zvmkz-vhklg   True    True     a service account to test ess   my-ess-zvmkz-vhklg@testingforbugbounty.iam.gserviceaccount.com
+
+# NAME                                                         READY   SYNCED   KEY_ID                                     CREATED_AT             EXPIRES_AT
+# serviceaccountkey.iam.gcp.crossplane.io/my-ess-zvmkz-bq8pz   True    True     5cda49b7c32393254b5abb121b4adc07e140502c   2022-03-23T10:54:50Z
 
 kubectl -n default get claim
+# Example output:
+# NAME     READY   CONNECTION-SECRET   AGE
+# my-ess   True                        19s
 
 kubectl get composite
+# Example output:
+# NAME           READY   COMPOSITION                    AGE
+# my-ess-zvmkz   True    essinstances.ess.example.org   32s
 ```
 
 ### Verify the Connection Secrets landed to Vault
@@ -436,8 +458,16 @@ Vault UI and check secrets there.
 
 ```shell
 kubectl -n vault-system port-forward vault-0 8200:8200
+```
 
-# Open http://127.0.0.1:8200/ui in browser and login with the root token.
+Now, you can open http://127.0.0.1:8200/ui in browser and login with the root token.
+
+### Cleanup
+
+Delete the claim which should clean up all the resources created.
+
+```
+kubectl -n default delete claim my-ess
 ```
 
 <!-- named links -->
