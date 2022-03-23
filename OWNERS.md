@@ -22,12 +22,13 @@ steering committee and maintainers.
 
 ## Maintainers
 
-* Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
 * Nic Cope <negz@upbound.io> ([negz](https://github.com/negz))
-* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
 * Daniel Mangum <dan@upbound.io> ([hasheddan](https://github.com/hasheddan))
 * Muvaffak Onus <monus@upbound.io> ([muvaf](https://github.com/muvaf))
+* Hasan Turken <hasan@upbound.io> ([turkenh](https://github.com/turkenh))
 
 ## Emeritus maintainers
 
+* Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
+* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
 * Illya Chekrygin <illya.chekrygin@gmail.com> ([ichekrygin](https://github.com/ichekrygin))
