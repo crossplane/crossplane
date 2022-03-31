@@ -104,14 +104,17 @@ following:
 * If you encounter a bug that cannot be solved with Terrajet in a meaningful
   timeframe, consider converting its controller to classic hand-written
   controller and bump the API version.
-* If an existing classic CRD (hand-written or ACK-generated) has a bug, consider
-  converting its controller to Terrajet first.
+* If an existing classic CRD (hand-written or ACK-generated) has a bug, you
+  should consider converting its controller to Terrajet first.
+* Existing classic CRDs that are on alpha version will be converted to Terrajet
+  before bumping to beta unless there is a blocker.
 
-The end goal for the conversions is to have more homogeneity in the codebase.
-Today, Terrajet is the technology that these three providers decide as the best
-available for most cases, hence we'll converge on it. Tomorrow, it might be AWS
-Cloud Control API for provider-aws, ARM for provider-azure etc. so we'll have a
-goal of converging to those technologies. But we won't have a big push to
+The end goal for the conversions is to have more homogeneity in the codebase so
+we should convert as many managed resources as possible to Terrajet. Today,
+Terrajet is the technology that these three Crossplane providers decide as the
+best available for most cases, hence we'll converge on it. Tomorrow, it might be
+AWS Cloud Control API for provider-aws, ARM for provider-azure etc. so we'll
+have a goal of converging to those technologies. But we won't have a big push to
 convert everything to Terrajet immediately because depending on the complexity
 of the resource, the conversions require extensive testing to make sure the
 behavior matches and it carries risk for existing users.
@@ -202,12 +205,13 @@ API calls to Magic Modules and DCL.
 
 In the first case, regardless of whether we go with separate or mixed providers,
 we will likely suggest users to migrate to the vendor-maintained provider so
-that they can get commercial grade support for the bugs in the provider. One
-could argue that if users are on a single provider once that happens, it's
-probably easier to handle the migration. In addition, it's likely the main
-reason they'd step in would be community-maintained provider having a large user
-base, so it's not very likely that they will start a new provider and handle
-migration from a provider with such a large user base.
+that they can contact the cloud provider directly for the bugs and potentially
+make use of their support contracts. One could argue that if users are on a
+single provider once that happens, it's probably easier to handle the migration.
+In addition, it's likely the main reason they'd step in would be
+community-maintained provider having a large user base, so it's not very likely
+that they will start a new provider and handle migration from a provider with
+such a large user base.
 
 In the second case, mixed provider wouldn't require any manual migration. The
 conversion webhooks that Kubernetes API provides will take care of the API
