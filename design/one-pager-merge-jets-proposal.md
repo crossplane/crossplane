@@ -1,8 +1,8 @@
 # Merging AWS, Azure and GCP Providers
 
 * Owner: Muvaffak Onus (@muvaf)
-* Reviewers: Crossplane Maintainers
-* Status: Draft
+* Reviewers: Crossplane Maintainers and The Steering Committee
+* Status: Accepted
 
 ## Background
 
@@ -141,49 +141,53 @@ The generic Terrajet controller calls Terraform CLI which in turn calls its
 Terraform provider to operate. Each CRD has its own completely independent
 reconciler thread configured to work with the schema of that resource.
 
-This dependence causes the Crossplane provider to be exposed to the bugs of the
-underlying Terraform provider. While we strive to fix the bug there first, it's
-not always feasible for us to land that change in a timely manner. In addition,
-there are cases where we are locked to a version with a bug where downgrading or
-upgrading is not an option because of another bug or behavior change.
+This dependence allows us to leverage the years' of work in these mature
+Terraform providers but also causes the Crossplane provider to be exposed to
+their bugs. While we strive to fix the bug there first, it's not always feasible
+for us to land that change in a timely manner. In addition, there are cases
+where we are locked to a version with a bug where downgrading or upgrading is
+not an option because of another bug or behavior change.
 
-With the mixed provider, we can change the underlying implementation to a
-hand-written controller whenever we face such a bug. With the Kubernetes API
-conversion tooling, we can manage the possible API changes as well. This would
-also mean that over time, we'd have less and less Terraform dependence in our
-ecosystem.
+With the mixed provider approach, we can change the underlying implementation to
+a hand-written controller whenever we face such a bug. With the Kubernetes API
+conversion tooling, we can manage the possible API changes as well.
 
 ### Confusion for Users and Maintainers
 
 Terraform is a great tool but in an ideal state, we'd like the cloud vendors to
 step in and maintain those providers. They may choose to keep using their TF
-provider but it's unlikely; AWS does not maintain their TF provider, Azure uses
-ARM in their TF provider and they've shown interest in generating Crossplane
-based on ARM and Google is using Magic Modules and DCL to generate TF provider,
-so it's likely that they will choose to do that for their Crossplane provider as
-well. [Provider Strategy doc][strategy-doc] goes into more detail about these
-tools. As a summary from that document, Terrajet-generated CRDs will not change
-but the controller implementation approach may differ once the vendors step in
-and we'll provide the necessary tooling to make this as smooth as possible.
+provider but it's unlikely;
+* AWS and Azure do not maintain their TF provider.
+* Azure uses ARM in their TF provider and they've shown interest in generating
+Crossplane based on ARM.
+* Google is using Magic Modules and DCL to generate TF provider. It's likely
+  that they will choose to do that for their Crossplane provider as well.
+
+[Provider Strategy doc][strategy-doc] goes into more detail about these tools.
+As a summary from that document, Terrajet-generated CRDs will not change but the
+controller implementation approach may differ once the vendors step in and we'll
+provide the necessary tooling to make this as smooth as possible.
 
 With that in mind, it's a hard choice to invest in standalone Jet-based
-providers knowing that they will, probably after years, be deprecated at one
-point and users will have to migrate. At the same time, classic providers are
-very far from having the same coverage level. This creates confusion and
+providers knowing that they will, even if it might take years, be deprecated at
+one point and users will have to migrate. At the same time, classic providers
+are very far from having the same coverage level. This creates confusion and
 reluctance to use either of the providers, which also results in decreased pace
 of contributions because of the divergence of efforts.
 
 With a single mixed provider, the story is much clearer; we fill the gaps with
-Terrajet and over time the implementation of the resources will change to be
-more _native_; be it cloud vendors using their own approaches or handwritten API
-calls community writes that may be necessary to overcome a bug in TF provider.
-As long as the CRD schema and the API behavior is same, the maintainers can make
-the best choice depending on the situation, communicate any breaking changes and
-provide a smooth experience to the users. In case cloud vendor steps in and
-decides to start its own provider, then the story is still clear; there is a new
-provider maintained by its vendor and you should migrate to that one once you
-see fit as opposed to Jet vs classic choice where you need to think about
-different trade-offs with different and uncertain timelines.
+Terrajet and over time the implementation of all of the resources will change to
+Terrajet. Once vendors come in, they can start using their own tooling. There
+are two possibilities:
+
+* Being maintainers in these providers.
+  * As long as the CRD schema and the API behavior is same, the maintainers can
+    make the best choice of tooling, communicate any breaking changes and
+    provide a smooth experience to the users.
+* Bootstrapping new providers.
+  * Users should migrate to that one once you see fit as opposed to Jet vs
+    classic choice where you need to think about different trade-offs with
+    different and uncertain timelines.
 
 ### Ownership by The Cloud Vendors
 
