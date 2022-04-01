@@ -215,7 +215,7 @@ spec:
 Resources:
 
 ```shell
-echo "apiVersion: gcp.secrets.crossplane.io/v1alpha1
+echo "apiVersion: gcp.crossplane.io/v1alpha1
 kind: StoreConfig
 metadata:
   name: vault
