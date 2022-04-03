@@ -248,7 +248,7 @@ spec:
       routingMode: REGIONAL
 
 # Possible provider-jet-gcp, written by looking at TF schema
-apiVersion: compute.gcp.crossplane.io/v1beta1
+apiVersion: compute.gcp.jet.crossplane.io/v1beta1
 kind: Network
 metadata:
   name: example
