@@ -2,7 +2,7 @@
 
 * Owner: Hasan Türken (@turkenh)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
