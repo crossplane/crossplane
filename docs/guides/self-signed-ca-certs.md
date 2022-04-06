@@ -1,5 +1,5 @@
 ---  
-title: Fetch Packages from Registry with Self-Signed CA Certificate  
+title: Self-Signed CA Certs 
 toc: true  
 weight: 270  
 indent: true  
