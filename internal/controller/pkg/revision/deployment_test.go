@@ -41,6 +41,12 @@ func withPodTemplateLabels(labels map[string]string) deploymentModifier {
 	}
 }
 
+func withDeploymentAnnotations(annotations map[string]string) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Annotations = annotations
+	}
+}
+
 func withAdditionalVolume(v corev1.Volume) deploymentModifier {
 	return func(d *appsv1.Deployment) {
 		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
@@ -69,13 +75,27 @@ const (
 	namespace = "ns"
 )
 
-func serviceaccount(rev v1.PackageRevision) *corev1.ServiceAccount {
-	return &corev1.ServiceAccount{
+type serviceAccountModifier func(*corev1.ServiceAccount)
+
+func withServiceAccountAnnotations(annotations map[string]string) serviceAccountModifier {
+	return func(s *corev1.ServiceAccount) {
+		s.Annotations = annotations
+	}
+}
+
+func serviceaccount(rev v1.PackageRevision, modifiers ...serviceAccountModifier) *corev1.ServiceAccount {
+	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rev.GetName(),
 			Namespace: namespace,
 		},
 	}
+
+	for _, modifier := range modifiers {
+		modifier(s)
+	}
+
+	return s
 }
 
 func service(provider *pkgmetav1.Provider, rev v1.PackageRevision) *corev1.Service {
@@ -240,6 +260,10 @@ func TestBuildProviderDeployment(t *testing.T) {
 	cc := &v1alpha1.ControllerConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: revisionWithCC.Name,
+			Annotations: map[string]string{
+				"eks.amazonaws.com/role-arn":           "arn:aws:iam::123456789012:role/foo",
+				"kustomize.toolkit.fluxcd.io/checksum": "3583e44b78adb421bd53fcb43edfcd5d39b287b8",
+			},
 		},
 		Spec: v1alpha1.ControllerConfigSpec{
 			Metadata: &v1alpha1.PodObjectMeta{
@@ -249,6 +273,10 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			Image: &ccImg,
 		},
+	}
+
+	safeAnnotations := map[string]string{
+		"eks.amazonaws.com/role-arn": "arn:aws:iam::123456789012:role/foo",
 	}
 
 	cases := map[string]struct {
@@ -323,12 +351,12 @@ func TestBuildProviderDeployment(t *testing.T) {
 				cc:       cc,
 			},
 			want: want{
-				sa: serviceaccount(revisionWithCC),
+				sa: serviceaccount(revisionWithCC, withServiceAccountAnnotations(safeAnnotations)),
 				d: deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
 					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
 					"pkg.crossplane.io/provider": providerWithImage.GetName(),
 					"k":                          "v",
-				})),
+				}), withDeploymentAnnotations(safeAnnotations)),
 				svc: service(providerWithImage, revisionWithCC),
 			},
 		},

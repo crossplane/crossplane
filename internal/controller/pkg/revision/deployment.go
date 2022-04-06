@@ -17,6 +17,8 @@ limitations under the License.
 package revision
 
 import (
+	"strings"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -169,12 +171,14 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports,
 			port)
 	}
+
 	templateLabels := make(map[string]string)
 	if cc != nil {
+		filteredAnnotations := filterAnnotations(cc.Annotations)
 		s.Labels = cc.Labels
-		s.Annotations = cc.Annotations
+		s.Annotations = filteredAnnotations
 		d.Labels = cc.Labels
-		d.Annotations = cc.Annotations
+		d.Annotations = filteredAnnotations
 		if cc.Spec.Metadata != nil {
 			d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
 		}
@@ -268,4 +272,16 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		},
 	}
 	return s, d, svc
+}
+
+// filterAnnotations excludes annotations that are meaningless or unsafe to copy
+func filterAnnotations(in map[string]string) map[string]string {
+	ret := make(map[string]string)
+	for label, value := range in {
+		if strings.HasPrefix(label, "kustomize.toolkit.fluxcd.io/") || strings.HasPrefix(label, "kubectl.kubernetes.io/") {
+			continue
+		}
+		ret[label] = value
+	}
+	return ret
 }
