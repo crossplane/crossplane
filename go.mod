@@ -2,6 +2,8 @@ module github.com/crossplane/crossplane
 
 go 1.17
 
+replace github.com/crossplane/crossplane-runtime => github.com/turkenh/crossplane-runtime v0.0.0-20220407212907-50565fbf7dc0
+
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.2.17
@@ -103,8 +105,8 @@ require (
 	github.com/hashicorp/go-version v1.2.1 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
-	github.com/hashicorp/vault/api v1.3.1 // indirect
-	github.com/hashicorp/vault/sdk v0.3.0 // indirect
+	github.com/hashicorp/vault/api v1.5.0 // indirect
+	github.com/hashicorp/vault/sdk v0.4.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
