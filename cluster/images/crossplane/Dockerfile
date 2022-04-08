@@ -1,5 +1,5 @@
 # TODO(negz): Fetch this outside of Docker? That way we can cache it somewhere
-# (_output?) and not pull it on every build.
+# (the _output dir?) and not pull it on every build.
 FROM curlimages/curl@sha256:c1c1cda72ab8c306390fc05518bf4d42148564978326d078f65d546858d139cb as curl
 
 ARG TARGETOS
@@ -10,13 +10,20 @@ WORKDIR /curl
 RUN curl -fsSL https://github.com/containers/crun/releases/download/${CRUN_VERSION}/crun-${CRUN_VERSION}-${TARGETOS}-${TARGETARCH} -o crun
 RUN chmod +x crun
 
-FROM gcr.io/distroless/base@sha256:ce8bc342dd7eeb0baccbef2ce00afc0c72af1ea166794f55ef8f434fd7c8b515
+# TODO(negz): This block is just for debugging ignition - we want to run the
+# distroless/base image in practice.
+# FROM gcr.io/distroless/base@sha256:ce8bc342dd7eeb0baccbef2ce00afc0c72af1ea166794f55ef8f434fd7c8b515
+FROM debian:unstable-slim
+RUN useradd -u 65532 nonroot -m
+RUN apt-get update
+RUN apt-get install -y ca-certificates skopeo umoci neovim
 
 ARG TARGETOS
 ARG TARGETARCH
 
 COPY --from=curl /curl/crun /usr/local/bin/
 ADD bin/${TARGETOS}\_${TARGETARCH}/crossplane /usr/local/bin/
+ADD bin/${TARGETOS}\_${TARGETARCH}/ignition /usr/local/bin/
 ADD crds /crds
 ADD webhookconfigurations /webhookconfigurations
 EXPOSE 8080

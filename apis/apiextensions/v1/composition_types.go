@@ -37,9 +37,21 @@ type CompositionSpec struct {
 	// +optional
 	PatchSets []PatchSet `json:"patchSets,omitempty"`
 
-	// Resources is the list of resource templates that will be used when a
-	// composite resource referring to this composition is created.
-	Resources []ComposedTemplate `json:"resources"`
+	// Resources is a list of resource templates that will be used when a
+	// composite resource referring to this composition is created. At least one
+	// of resources and functions must be specififed. If both are specified the
+	// resources will be rendered first, then passed to the functions for
+	// further processing.
+	// +optional
+	Resources []ComposedTemplate `json:"resources,omitempty"`
+
+	// Functions is list of XRM functions that will be used when a composite
+	// resource referring to this composition is created. At least one of
+	// resources and functions must be specififed. If both are specified the
+	// resources will be rendered first, then passed to the functions for
+	// further processing.
+	// +optional
+	Functions []Function `json:"functions,omitempty"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
@@ -196,6 +208,48 @@ type ConnectionDetail struct {
 	// FromConnectionSecretKey when set.
 	// +optional
 	Value *string `json:"value,omitempty"`
+}
+
+// A Function represents an XRM function.
+// TODO(negz): Formalize the XRM function spec, which will be a superset of the
+// KRM function spec (mostly due to Crossplane specific annotations) per
+// https://github.com/crossplane/crossplane/pull/2886
+type Function struct {
+	// Name of this function. Must be unique within its Composition.
+	Name string `json:"name"`
+
+	// Type of this function.
+	// +kubebuilder:validation:Enum=Container
+	Type FunctionType `json:"type"`
+
+	// Container configuration of this function.
+	// +optional
+	Container *ContainerFunction `json:"container,omitempty"`
+}
+
+// A FunctionType is a type of XRM function.
+type FunctionType string
+
+// FunctionType types.
+const (
+	// TODO(negz): Does 'Container' make sense here given that we may not
+	// actually run the function in its _own_ container? Perhaps 'Image' would
+	// be more accurate, to indicate that it's packaged as an OCI image?
+
+	// FunctionTypeContainer represents an XRM function that is packaged as an
+	// OCI image and run in a container.
+	FunctionTypeContainer FunctionType = "Container"
+)
+
+// A ContainerFunction represents an XRM function that is packaged as an OCI
+// image and run in a container.
+type ContainerFunction struct {
+	// Image specifies the OCI image in which the XRM function is packaged.
+	// The image should include an entrypoint that reads a ResourceList from
+	// stdin and emits a potentially mutated ResourceList to stdout.
+	Image string `json:"image"`
+
+	// TODO(negz): Policy and timeout fields, if we can actually enforce them.
 }
 
 // +kubebuilder:object:root=true

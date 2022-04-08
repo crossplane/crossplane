@@ -25,14 +25,18 @@ limitations under the License.
 //go:generate rm -rf ../cluster/webhookconfigurations
 
 // Generate deepcopy methodsets and CRD manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/...;./secrets/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/v1alpha1...;./apiextensions/v1;./secrets/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds
 
-// NOTE(hasheddan): we generate the meta.pkg.crossplane.io types separately as
-// the generated CRDs are never installed, only used for API documentation.
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/... crd:crdVersions=v1 output:artifacts:config=../docs/api-docs/crds
+// TODO(negz): fn.apiextensions.crossplane.io CRD generation doesn't appear to
+// work. Possibly because they wouldn't be valid - they lack object metadata.
+
+// Generate the meta.pkg.crossplane.io and fn.apiextensions.crossplane.io types
+// We do this separately as the generated CRDs are never installed, only used
+// for API documentation.
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/meta/...;./apiextensions/fn/... crd:crdVersions=v1 output:artifacts:config=../docs/api-docs/crds
 
 // Generate webhook manifests
-//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/... output:artifacts:config=../cluster/webhookconfigurations
+//go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen webhook paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/v1alpha1...;./apiextensions/v1 output:artifacts:config=../cluster/webhookconfigurations
 
 // Generate clientset for types.
 //go:generate rm -rf ../internal/client

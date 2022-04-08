@@ -54,6 +54,44 @@ spec:
                 - apiVersion
                 - kind
                 type: object
+              functions:
+                description: Functions is list of XRM functions that will be used
+                  when a composite resource referring to this composition is created.
+                  At least one of resources and functions must be specififed. If both
+                  are specified the resources will be rendered first, then passed
+                  to the functions for further processing.
+                items:
+                  description: 'A Function represents an XRM function. TODO(negz):
+                    Formalize the XRM function spec, which will be a superset of the
+                    KRM function spec (mostly due to Crossplane specific annotations)
+                    per https://github.com/crossplane/crossplane/pull/2886'
+                  properties:
+                    container:
+                      description: Container configuration of this function.
+                      properties:
+                        image:
+                          description: Image specifies the OCI image in which the
+                            XRM function is packaged. The image should include an
+                            entrypoint that reads a ResourceList from stdin and emits
+                            a potentially mutated ResourceList to stdout.
+                          type: string
+                      required:
+                      - image
+                      type: object
+                    name:
+                      description: Name of this function. Must be unique within its
+                        Composition.
+                      type: string
+                    type:
+                      description: Type of this function.
+                      enum:
+                      - Container
+                      type: string
+                  required:
+                  - name
+                  - type
+                  type: object
+                type: array
               patchSets:
                 description: PatchSets define a named set of patches that may be included
                   by any resource in this Composition. PatchSets cannot themselves
@@ -286,9 +324,11 @@ spec:
                 - name
                 type: object
               resources:
-                description: Resources is the list of resource templates that will
-                  be used when a composite resource referring to this composition
-                  is created.
+                description: Resources is a list of resource templates that will be
+                  used when a composite resource referring to this composition is
+                  created. At least one of resources and functions must be specififed.
+                  If both are specified the resources will be rendered first, then
+                  passed to the functions for further processing.
                 items:
                   description: ComposedTemplate is used to provide information about
                     how the composed resource should be processed.
@@ -606,7 +646,6 @@ spec:
                 type: string
             required:
             - compositeTypeRef
-            - resources
             type: object
         type: object
     served: true
