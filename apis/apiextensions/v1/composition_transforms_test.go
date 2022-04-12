@@ -162,7 +162,7 @@ func TestStringResolve(t *testing.T) {
 	sFmt := "verycool%s"
 	iFmt := "the largest %d"
 
-	var upper, lower, wrongConvertType StringConversionType = ConversionTypeToUpper, ConversionTypeToLower, "Something"
+	var upper, lower, tobase64, frombase64, wrongConvertType StringConversionType = ConversionTypeToUpper, ConversionTypeToLower, ConversionTypeToBase64, ConversionTypeFromBase64, "Something"
 
 	prefix := "https://"
 	suffix := "-test"
@@ -246,6 +246,26 @@ func TestStringResolve(t *testing.T) {
 			},
 			want: want{
 				o: "crossplane",
+			},
+		},
+		"ConvertToBase64": {
+			args: args{
+				stype:   StringTransformConvert,
+				convert: &tobase64,
+				i:       "CrossPlane",
+			},
+			want: want{
+				o: "Q3Jvc3NQbGFuZQ==",
+			},
+		},
+		"ConvertFromBase64": {
+			args: args{
+				stype:   StringTransformConvert,
+				convert: &frombase64,
+				i:       "Q3Jvc3NQbGFuZQ==",
+			},
+			want: want{
+				o: "CrossPlane",
 			},
 		},
 		"TrimPrefix": {
