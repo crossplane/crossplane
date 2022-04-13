@@ -268,6 +268,17 @@ func TestStringResolve(t *testing.T) {
 				o: "CrossPlane",
 			},
 		},
+		"ConvertFromBase64Error": {
+			args: args{
+				stype:   StringTransformConvert,
+				convert: &frombase64,
+				i:       "ThisStringIsNotBase64",
+			},
+			want: want{
+				o:   "N\x18\xacJ\xda\xe2\x9e\x02,6\x8bAjǺ",
+				err: errors.WithStack(errors.New(errDecodeString + ": illegal base64 data at input byte 20")),
+			},
+		},
 		"TrimPrefix": {
 			args: args{
 				stype: StringTransformTrimPrefix,

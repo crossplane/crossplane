@@ -45,6 +45,7 @@ const (
 	errStringTransformTypeConvert = "string transform of type %s convert is not set"
 	errStringTransformTypeTrim    = "string transform of type %s trim is not set"
 	errStringConvertTypeFailed    = "type %s is not supported for string convert"
+	errDecodeString               = "string is not valid base64"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -257,7 +258,7 @@ func stringConvertTransform(input interface{}, t *StringConversionType) (interfa
 		return base64.StdEncoding.EncodeToString([]byte(str)), nil
 	case ConversionTypeFromBase64:
 		s, err := base64.StdEncoding.DecodeString(str)
-		return string(s), err
+		return string(s), errors.Wrap(err, errDecodeString)
 	default:
 		return nil, errors.Errorf(errStringConvertTypeFailed, *t)
 	}
