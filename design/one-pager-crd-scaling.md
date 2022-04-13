@@ -449,16 +449,20 @@ encountered that would cause requests to be repeated).
   discovery client's rate limiter, it takes ~18s to complete the discovery.
 
 ## Action Items
-- We can consider cherry-picking [[5]] to all active release branches `v1.23`,
-  `v1.22`, `v1.21`, as the anticipated release date for the `v1.24` release is
-  in April, 2022.
+- We can consider [cherry-picking][cp-burst-fix] [[5]] to the release branch
+  `v1.23`, as the anticipated release date for the `v1.24` release is in April,
+  2022. We cannot cherry-pick it to the older release branches such as `v1.22`
+  and `v1.21` because of the missing discovery burst and discovery QPS
+  configuration options. Tracking Crossplane issue: [[9]]
 - Open issues regarding API service disruptions for managed control-planes (GKE
-  regional, AKS, EKS, etc.), where we expect high-availability.
+  regional, AKS, EKS, etc.), where we expect high-availability. Tracking
+  Crossplane issue: [[10]]
 - With some insight on server-side issues, we will also need to pursue a set of
   issues in kube-apiserver and possibly in other control-plane components.
+  Tracking Crossplane issue: [[11]]
 - Initiate further discussions with Kubernetes [sig-scalability] community
   regarding CRD-scalability and bring agreed-upon Crossplane scenarios into
-  their attention.
+  their attention. Tracking Crossplane issue: [[12]]
 
 
 ## Prior Art
@@ -515,7 +519,12 @@ encountered that would cause requests to be repeated).
 [6]: https://github.com/kubernetes/kubernetes/issues/105932
 [7]: https://github.com/kubernetes/kubernetes/issues/101755
 [8]: https://github.com/kubernetes/kube-openapi/pull/251
+[9]: https://github.com/crossplane/crossplane/issues/2963
+[10]: https://github.com/crossplane/crossplane/issues/2964
+[11]: https://github.com/crossplane/crossplane/issues/3042
+[12]: https://github.com/crossplane/crossplane/issues/3043
 
+[cp-burst-fix]: https://github.com/kubernetes/kubernetes/pull/108401
 [Terrajet]: https://github.com/crossplane/terrajet
 [aso]: https://github.com/Azure/azure-service-operator
 [config-connector]: https://github.com/GoogleCloudPlatform/k8s-config-connector
