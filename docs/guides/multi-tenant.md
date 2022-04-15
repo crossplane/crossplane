@@ -223,7 +223,7 @@ spec:
       key: key
 ```
 
-2. Define a `Composition` that patches the name of the Claim reference in the XR
+2. Define a `Composition` that patches the namespace of the Claim reference in the XR
    to the `providerConfigRef` of the `RDSInstance`.
 
 ```yaml
