@@ -411,7 +411,7 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 // StringTransformType is type of the string transform function to be executed fmt/convert.
 type StringTransformType string
 
-// StringConversionType is the type of string conversion, ToUpper/ToLower
+// StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
 type StringConversionType string
 
 // A StringTransform returns a string given the supplied input.
@@ -430,7 +430,7 @@ type StringTransform struct {
 
 	// Convert the type of conversion to Upper/Lower case.
 	// +optional
-	// +kubebuilder:validation:Enum=ToUpper;ToLower
+	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64
 	Convert *StringConversionType `json:"convert,omitempty"`
 
 	// Trim the prefix or suffix from the input
