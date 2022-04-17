@@ -51,9 +51,9 @@ to control anything - not just containers. The Crossplane project consists of:
 * The Crossplane Resource Model (XRM). An API model for Crossplane extensions.
 * The ability to compose bespoke control plane APIs for any compute plane.
 * A package format and manager to extend your control plane with:
-* The ability to orchestrate any kind of compute plane provider.
-* New ways to compose control plane APIs.
-* New integration with supporting services such as secret stores.
+  * The ability to orchestrate any kind of compute plane provider.
+  * New ways to compose control plane APIs.
+  * New integration with supporting services such as secret stores.
 * Tooling to create and test new Crossplane extensions.
 * A conformance program for Crossplane extensions.
 
