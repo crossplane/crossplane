@@ -662,14 +662,14 @@ the composed resource. The name of this check can be a little confusing in that
 a field that exists with a zero value (e.g. an empty string or zero integer) is
 not considered to be 'empty', and thus will pass the readiness check.
 
-`None`. Considers the composed resource to be ready as soon as it exists.
-
 ```yaml
 # The composed resource will be considered ready if and when 'online' status
 # field  exists.
 - type: NonEmpty
   fieldPath: status.atProvider.online
 ```
+
+`None`. Considers the composed resource to be ready as soon as it exists.
 
 ### Missing Functionality
 
