@@ -474,6 +474,12 @@ encountered that would cause requests to be repeated).
 - Initiate further discussions with Kubernetes [sig-scalability] community
   regarding CRD-scalability and bring agreed-upon Crossplane scenarios into
   their attention. Tracking Crossplane issue: [[12]]
+- We can propose, in upstream Kubernetes community, bumping the client-go
+  discovery client's burst to 300. `kubectl`'s discovery burst has already been
+  bumped to 300 but the burstiness of the default discovery client is still 100.
+  Clients of the API server other than `kubectl` (such as Helm) are still
+  limited to make a burst of 100 discovery requests at most. A PR for bumping
+  the default has been opened: [13]
 
 
 ## Prior Art
@@ -534,6 +540,7 @@ encountered that would cause requests to be repeated).
 [10]: https://github.com/crossplane/crossplane/issues/2964
 [11]: https://github.com/crossplane/crossplane/issues/3042
 [12]: https://github.com/crossplane/crossplane/issues/3043
+[13]: https://github.com/kubernetes/kubernetes/pull/109141
 
 [cp-burst-fix]: https://github.com/kubernetes/kubernetes/pull/108401
 [Terrajet]: https://github.com/crossplane/terrajet
