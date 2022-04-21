@@ -337,6 +337,14 @@ github.com/ulucinar/terrajet-scale/cmd/apigen generate -g 200 -c 200 --property-
 
 In this section, we would like to discuss some Crossplane scenarios that we
 would like to support and that involve large numbers of CRDs:
+
+| Scenario Definition                             | Target Discovery Time on Cold-cache |
+|-------------------------------------------------|:-----------------------------------:|
+| Single provider (~200 GVs registered)           | ~10s                                |
+| Three providers (~400 GVs registered)           | ~20s                                |
+
+
+As indicated in this table, we consider two main benchmark scenarios:
 1. Installation of a single provider with hundreds of CRDs: As discussed above,
    installation of a single provider, such as `provider-jet-aws` preview
    edition, results in ~190 GVs being served by the API server. With the current
