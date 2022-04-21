@@ -239,10 +239,13 @@ Some examples are:
 
 ### API Server Resource Consumption
 **NOTE:** The initial high [CPU][6] (and high [memory][7]) consumption issues
-observed in kube-apiserver during OpenAPI v2 spec marshaling have been [addressed][8]
-by doing the marshaling lazily, i.e., the spec is not computed until the first
-request arrives. This behavior is available in the following Kubernetes branches
-and patch releases (and thereafter):
+observed in kube-apiserver during OpenAPI v2 spec marshaling have been
+[addressed][8] by doing the marshaling lazily, i.e., the OpenAPI v2 spec is not
+marshaled until the first request arrives. Prior to this fix, when Crossplane
+package manager is installing CRDs from a provider package, the API server has
+to constantly marshal the updated OpenAPI v2 spec for each CRD registered. This
+updated behavior is available in the following Kubernetes branches and patch
+releases (and thereafter):
 
 | Release Branch | Patch Version |
 |----------------|---------------|
