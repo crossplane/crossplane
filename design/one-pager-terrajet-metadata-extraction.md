@@ -122,7 +122,107 @@ maintenance tasks on the scraped metadata, we can consider correcting typos in
 the scraped documentation and improving example configurations, and the similar.
 A concrete example of a scraped registry metadata document for a resource named
 `azurerm_analysis_services_server` of the native Terraform provider
-[terraform-provider-azurerm] could be as follows:
+[terraform-provider-azurerm] could be as follows. Please note that this
+represents a full instantiation of the proposed format with detailed comments
+explaining the keys and with example use cases for the extracted metadata.
+
+```yaml
+# a Terraform native resource name defined in the (native) Terraform provider
+name: azurerm_analysis_services_server
+# sub-category metadata for the resource extracted from Terraform registry, if available. 
+# Candidate to be used as API group names in the generated Terrajet provider, if desired.
+subCategory: Analysis Services
+# description for the resource extracted from Terraform registry, if available. 
+# Candidate to be used as the CRD type documentation
+description: Manages an Analysis Services Server.
+# title for the resource as it appears in the registry.
+titleName: azurerm_analysis_services_server
+# Array of example HCL configurations available for the Terraform resource. 
+# Terraform registry contains examples but there can be other sources as well.
+examples:
+    # example configuration in HCL syntax
+    - manifest: |-
+        {
+          "admin_users": [
+            "myuser@domain.tld"
+          ],
+          "enable_power_bi_service": true,
+          "ipv4_firewall_rule": [
+            {
+              "name": "myRule1",
+              "range_end": "210.117.252.255",
+              "range_start": "210.117.252.0"
+            }
+          ],
+          "location": "northeurope",
+          "name": "analysisservicesserver",
+          "resource_group_name": "${azurerm_resource_group.rg.name}",
+          "sku": "S0",
+          "tags": {
+            "abc": 123
+          }
+        }
+      # reference parameters extracted from Terraform registry examples
+      # map from referer parameter names to referee <target resource type>.<target field>
+      references:
+        # for example, "azurerm_analysis_services_server" has a parameter 
+        # named "resource_group_name" that refers to a "azurerm_resource_group"'s 
+        # "name" parameter
+        # Candidate for auto-generating cross-resource references
+        resource_group_name: azurerm_resource_group.name
+# scraped Terraform registry docs for the parameters and attributes of the resource
+argumentDocs:
+    # parameters with non-block values map directly to doc strings
+    admin_users: '- (Optional) List of email addresses of admin users.'
+    backup_blob_container_uri: '- (Optional) URI and SAS token for a blob container to store backups.'
+    enable_power_bi_service: '- (Optional) Indicates if the Power BI service is allowed to access or not.'
+    # exported attributes appear under the "exportedAttributes" map (as a block)
+    exportedAttributes:
+        id: '- The ID of the Analysis Services Server.'
+        server_full_name: '- The full name of the Analysis Services Server.'            
+    # parameters with block values are maps
+    ipv4_firewall_rule:
+        name: '- (Required) Specifies the name of the firewall rule.'
+        # if the block-valued parameter has itself a description, it appears under "nodeText"
+        # We assume "nodeText" is not a valid parameter/attribute name
+        nodeText: '- (Optional) One or more ipv4_firewall_rule block(s) as defined below.'
+        range_end: '- (Required) End of the firewall rule range as IPv4 address.'
+        range_start: '- (Required) Start of the firewall rule range as IPv4 address.'
+    location: '- (Required) The Azure location where the Analysis Services Server exists. Changing this forces a new resource to be created.'
+    name: '- (Required) The name of the Analysis Services Server. Changing this forces a new resource to be created.'
+    querypool_connection_mode: '- (Optional) Controls how the read-write server is used in the query pool. If this value is set to All then read-write servers are also used for queries. Otherwise with ReadOnly these servers do not participate in query operations.'
+    resource_group_name: '- (Required) The name of the Resource Group in which the Analysis Services Server should be exist. Changing this forces a new resource to be created.'
+    sku: '- (Required) SKU for the Analysis Services Server. Possible values are: D1, B1, B2, S0, S1, S2, S4, S8, S9, S8v2 and S9v2.'
+    timeouts:
+        create: '- (Defaults to 30 minutes) Used when creating the Analysis Services Server.'
+        delete: '- (Defaults to 30 minutes) Used when deleting the Analysis Services Server.'
+        read: '- (Defaults to 5 minutes) Used when retrieving the Analysis Services Server.'
+        update: '- (Defaults to 30 minutes) Used when updating the Analysis Services Server.'
+# import statement scraped from the Terraform registry, if available
+# Can be used for advanced purposes, such as constructing resource config "ExternalName.GetIDFn" functions, etc.
+importStatements:
+    - terraform import azurerm_analysis_services_server.server /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourcegroup1/providers/Microsoft.AnalysisServices/servers/server1
+```
+
+Each Terraform resource's scraped metadata is stored in its own YAML-formatted
+file. These resource specific files could each be named as `<Terraform resource
+type>.yaml`, e.g., `azurerm_analysis_services_server.yaml`.
+
+
+Another alternative for storing scraped documentation could be to have qualified
+names under the `argumentDocs` with a flat hierarchy, e.g., instead of a nested
+`ipv4_firewall_rule` block represented as a map, we could have its block
+parameters qualified with the configuration block name
+(`ipv4_firewall_rule.range_start`, `ipv4_firewall_rule.range_end`, etc.) Then
+`argumentDocs` would become a simple `map[string]string`. The structure proposed
+above results in shorter key names and is an object-like representation
+capturing the hierarchy between nested document elements.
+
+This proposal opts to have per-resource YAML metadata files.
+Instead of a `resources` map in a single YAML file under which all provider
+resources' metadata are stored under their own keys, we have each resource's metadata
+stored in their own resource specific YAML-formatted files. The alternative
+would look like something similar to:
 
 ```yaml
 # Terraform native provider name
@@ -131,93 +231,27 @@ name: hashicorp/terraform-provider-azurerm
 resources:
     # a Terraform native resource name defined in the provider
     azurerm_analysis_services_server:
-        # sub-category metadata for the resource extracted from Terraform registry, if available. 
-        # Candidate to be used as API group names in the generated Terrajet provider, if desired.
-        subCategory: Analysis Services
-        # description for the resource extracted from Terraform registry, if available. 
-        # Candidate to be used as the CRD type documentation
-        description: Manages an Analysis Services Server.
-        # title for the resource as it appears in the registry.
-        titleName: azurerm_analysis_services_server
-        # Array of example HCL configurations available for the Terraform resource. 
-        # Terraform registry contains examples but there can be other sources as well.
-        examples:
-            # example configuration in HCL syntax
-            - manifest: |-
-                {
-                  "admin_users": [
-                    "myuser@domain.tld"
-                  ],
-                  "enable_power_bi_service": true,
-                  "ipv4_firewall_rule": [
-                    {
-                      "name": "myRule1",
-                      "range_end": "210.117.252.255",
-                      "range_start": "210.117.252.0"
-                    }
-                  ],
-                  "location": "northeurope",
-                  "name": "analysisservicesserver",
-                  "resource_group_name": "${azurerm_resource_group.rg.name}",
-                  "sku": "S0",
-                  "tags": {
-                    "abc": 123
-                  }
-                }
-              # reference parameters extracted from Terraform registry examples
-              # map from referer parameter names to referee <target resource type>.<target field>
-              references:
-                # for example, "azurerm_analysis_services_server" has a parameter 
-                # named "resource_group_name" that refers to a "azurerm_resource_group"'s 
-                # "name" parameter
-                # Candidate for auto-generating cross-resource references
-                resource_group_name: azurerm_resource_group.name
-        # scraped Terraform registry docs for the parameters and attributes of the resource
-        argumentDocs:
-            # parameters with non-block values map directly to doc strings
-            admin_users: '- (Optional) List of email addresses of admin users.'
-            backup_blob_container_uri: '- (Optional) URI and SAS token for a blob container to store backups.'
-            enable_power_bi_service: '- (Optional) Indicates if the Power BI service is allowed to access or not.'
-            # exported attributes appear under the "exportedAttributes" map (as a block)
-            exportedAttributes:
-                id: '- The ID of the Analysis Services Server.'
-                server_full_name: '- The full name of the Analysis Services Server.'            
-            # parameters with block values are maps
-            ipv4_firewall_rule:
-                name: '- (Required) Specifies the name of the firewall rule.'
-                # if the block-valued parameter has itself a description, it appears under "nodeText"
-                # We assume "nodeText" is not a valid parameter/attribute name
-                nodeText: '- (Optional) One or more ipv4_firewall_rule block(s) as defined below.'
-                range_end: '- (Required) End of the firewall rule range as IPv4 address.'
-                range_start: '- (Required) Start of the firewall rule range as IPv4 address.'
-            location: '- (Required) The Azure location where the Analysis Services Server exists. Changing this forces a new resource to be created.'
-            name: '- (Required) The name of the Analysis Services Server. Changing this forces a new resource to be created.'
-            querypool_connection_mode: '- (Optional) Controls how the read-write server is used in the query pool. If this value is set to All then read-write servers are also used for queries. Otherwise with ReadOnly these servers do not participate in query operations.'
-            resource_group_name: '- (Required) The name of the Resource Group in which the Analysis Services Server should be exist. Changing this forces a new resource to be created.'
-            sku: '- (Required) SKU for the Analysis Services Server. Possible values are: D1, B1, B2, S0, S1, S2, S4, S8, S9, S8v2 and S9v2.'
-            timeouts:
-                create: '- (Defaults to 30 minutes) Used when creating the Analysis Services Server.'
-                delete: '- (Defaults to 30 minutes) Used when deleting the Analysis Services Server.'
-                read: '- (Defaults to 5 minutes) Used when retrieving the Analysis Services Server.'
-                update: '- (Defaults to 30 minutes) Used when updating the Analysis Services Server.'
-        # import statement scraped from the Terraform registry, if available
-        # Can be used for advanced purposes, such as constructing resource config "ExternalName.GetIDFn" functions, etc.
-        importStatements:
-            - terraform import azurerm_analysis_services_server.server /subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/resourcegroup1/providers/Microsoft.AnalysisServices/servers/server1
+      # Rest is the same as the above document but azurerm_analysis_services_server's scraped metadata residing under its key
+      # sub-category metadata for the resource extracted from Terraform registry, if available. 
+      # Candidate to be used as API group names in the generated Terrajet provider, if desired.
+      subCategory: Analysis Services
+      ...
+    # another Terraform native resource defined in the provider. Its metadata is stored under its own key.
+    azurerm_resourcegroup:
+      ...
 ```
 
-Another alternative could be to have qualified names under the `argumentDocs`
-with a flat hierarchy, e.g., instead of a nested `ipv4_firewall_rule` block
-represented as a map, we could have its block parameters qualified with the
-configuration block name (`ipv4_firewall_rule.range_start`,
-`ipv4_firewall_rule.range_end`, etc.) Then `argumentDocs` would become a simple
-`map[string]string`.
+We opt for a per-resource metadata file approach because:
+- For large providers, such as `provider-jet-aws`, a monolithic metadata file
+  would quickly become large, and it would be more difficult to manually edit it
+  (please refer to [Proposed Metadata Format] section for some prospective
+  maintenance tasks). 
+- As we will discuss in the [Future Considerations] section, we can consider
+  maintaining the manual modifications to the scraped metadata not in the
+  metadata file itself but as separate patch documents (in tandem with a tool
+  like [Kustomize]). Preparing patches for more modular units will be easier if
+  we want to do something similar to this.
 
-Another alternative could be to have per-resource YAML metadata files, i.e.,
-instead of the `resources` map in a single file, we could have each of its keys
-(and associated metadata) stored in a resource specific YAML-formatted file.
-These resource specific files could each be named as `<Terraform resource
-type>.yaml`, e.g., `azurerm_analysis_services_server.yaml`. 
 
 ### Metadata scrapers
 Although not validated on all of available Terraform providers, at least, the
@@ -327,3 +361,4 @@ consistent, repo-wide defaulting for the API group names of the generated resour
 [resource configuration API]:
     https://github.com/crossplane/terrajet/blob/main/pkg/config/resource.go
 [HCL]: https://github.com/hashicorp/hcl
+[Kustomize]: https://kustomize.io/
