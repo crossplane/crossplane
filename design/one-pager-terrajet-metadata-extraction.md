@@ -3,7 +3,7 @@
 * Reviewers: Crossplane Maintainers
 * Status: Draft
 
-### Background
+## Background
 For providers generated using [Terrajet], the number of managed resources can
 exceed [several hundreds](provider-jet-aws-preview), and especially for the big
 three Terrajet-based providers ([provider-jet-aws], [provider-jet-gcp] and
@@ -40,7 +40,7 @@ accepting the scraped metadata from the Terraform registry.
 - Extension of existing Terrajet codegen pipelines to also generate
   documentation on `struct`s and fields.
 
-### Goals
+## Goals
 We would like to achieve the following goals with this proposal:
 - Terrajet [resource configuration][resource configuration API] framework allows
   us to customize/adjust the code generation pipeline invoked for generating the
@@ -78,6 +78,41 @@ We would like to achieve the following goals with this proposal:
   Terrajet pipelines will always be working on a well defined format regardless
   of how those metadata are scraped.
 
+
+## Proposal
+We propose to scrape metadata about the Terraform providers and their resources
+from the [Terraform registry] and to define an easily consumable format for
+storing the scraped metadata. We can use the extracted metadata later in the
+various automated pipelines (in the existing Terrajet code-generation pipeline, and
+further in the newly added pipelines, such as an example-manifest generation
+pipeline). We can scrape the example Terraform configurations represented in
+[HCL], store them in the common metadata format, and then with a new
+example-manifest generation pipeline run right after the existing Terrajet
+code-generation pipeline, we can generate the YAML example manifests for the
+generated managed resources. Or, we can incorporate Terraform resource
+documentation, which is extracted with these scrapers from the Terraform registry and
+stored in the common metadata format, in the existing Terrajet code-generation
+pipeline to generate the CRD documentation (embedded as Go comments in the CRD
+`struct` types and their corresponding fields). There are also other use cases
+that we can enable using this extracted registry metadata, such as standardizing
+API groups of the generated managed resources.
+
+There is a plethora of metadata that we can extract from the Terraform registry.
+HCL-formatted example resource configurations in the registry can be used for
+generating YAML-formatted managed resource example manifests (this has already
+been accomplished in [[1]]). Documentation of the Terraform resources can be
+incorporated as the CRD documentation for the generated Crossplane managed
+resources. Subcategory information or path components extracted from Terraform
+import statements are candidates to be used as the API group names of the
+generated managed resources. 
+
+In the following sections, we describe the proposed [common metadata
+format][Proposed Metadata Format] for storing the extracted registry metadata.
+Then we discuss how we can [scrape metadata][Metadata scrapers] from the
+registry and how we can incorporate this metadata in new and existing
+[code-generation pipelines][Terrajet Codegen Pipelines Consuming Metadata]. We
+conclude with a discussion on some [alternatives considered][Alternatives
+Considered] and [future considerations][Future Considerations]. 
 
 ### Proposed Metadata Format
 The proposed syntax for scraped metadata documents is YAML as we would also like
@@ -258,6 +293,12 @@ Because these ID strings appear in the import statements of most
 `terraform-provider-azurerm` resources, using such metadata enables us to have a
 consistent, repo-wide defaulting for the API group names of the generated resources. 
 
+
+### Alternatives Considered
+
+### Future Considerations
+
+[1]: https://github.com/crossplane/terrajet/issues/48
 [Terrajet]: https://github.com/crossplane/terrajet
 [provider-jet-aws-preview]:
     https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws@v0.4.0-preview
@@ -282,3 +323,4 @@ consistent, repo-wide defaulting for the API group names of the generated resour
     https://github.com/crossplane-contrib/provider-jet-azure/blob/main/config/apigroup_config.go
 [resource configuration API]:
     https://github.com/crossplane/terrajet/blob/main/pkg/config/resource.go
+[HCL]: https://github.com/hashicorp/hcl
