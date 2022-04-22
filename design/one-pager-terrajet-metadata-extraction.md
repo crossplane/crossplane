@@ -308,7 +308,17 @@ For most Terraform native providers, we anticipate that Terraform registry
 scrapers will **not** run on HTTP, as the resource markdown files are part of
 their corresponding provider repositories. They can just read those markdowns
 from a pointed directory in the local filesystem, which is specified as a
-command-line argument, for instance. 
+command-line argument, for instance. The new `Makefile` target added to run
+these scrapers can first fetch the relevant paths containing the markdown files
+with `git` and run the scrapers on them. This will be easier and more efficient
+than requesting each markdown file via `HTTP` because:
+- We will not need to parse a separate index file to learn which documents to
+  fetch.
+- We will not make separate requests for each markdown document, the `git`
+  tooling should be capable of bundling/compressing these sets of files (under a
+  common repository path) itself.
+
+However, the scraper is independent of the transport being employed.
 
 As already indicated, if it turns out that a common registry scraper
 implementation is not suitable for a specific Terraform native provider, then a
