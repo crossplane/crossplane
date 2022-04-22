@@ -116,8 +116,11 @@ Considered] and [future considerations][Future Considerations].
 
 ### Proposed Metadata Format
 The proposed syntax for scraped metadata documents is YAML as we would also like
-the metadata to be human readable, searchable and maintainable, if needed. A
-concrete example of a scraped registry metadata document for a resource named
+the metadata to be human readable, searchable and maintainable if needed, as
+well as it will be input to a number of code-generation pipelines. As
+maintenance tasks on the scraped metadata, we can consider correcting typos in
+the scraped documentation and improving example configurations, and the similar.
+A concrete example of a scraped registry metadata document for a resource named
 `azurerm_analysis_services_server` of the native Terraform provider
 [terraform-provider-azurerm] could be as follows:
 
