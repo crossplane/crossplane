@@ -364,8 +364,48 @@ consistent, repo-wide defaulting for the API group names of the generated resour
 
 
 ### Alternatives Considered
+#### Manually adding example manifests and CRD documentation:
+We have already been manually maintaining the example manifests and we could
+introduce improved support for adding CRD documentation in the [resource
+configuration framework][resource configuration API]. But especially for large
+providers (in terms of number of supported managed resources), manually
+preparing example manifests and documentation is time consuming. 
+
+#### Generating just Kubernetes Object Metadata and GVK as example manifest:
+During our discussions, one of the alternatives we considered was to generate
+just the object `metadata` and GroupVersionKind (GVK) as the example manifest and have the `spec` later
+populated manually. An example would be:
+```yaml
+apiVersion: iothub.azure.jet.crossplane.io/v1alpha1
+kind: IOTHub
+metadata:
+  name: example
+```
+This is a viable approach as we generally require an example manifest with which
+the Cloud resource was provisioned, in PRs introducing support for new managed
+resources (or for Terrajet-based providers, PRs that configure new resources).
+However, having example manifests [already available][provider-jet-azure-examples] in the Crossplane provider
+repo [greatly simplifies][azurerm-iothub] authoring the `spec` of the example resource manifest.
 
 ### Future Considerations
+#### Maintenance of metadata:
+As we start maintaining scraped metadata in the terrajet-based provider
+repositories, we may occasionally need to override certain aspects of it for
+various reasons like fixing upstream typos, rebranding, or improving example
+manifests and the like. Although we will need to run the scrapers after a
+version bump in the native Terraform provider consumed, we may want to easily
+apply the metadata overrides to the metadata scraped for the newer version of
+the native provider. In order to support such cases, we can consider maintaining
+the overrides themselves as separate patch files to the actual per-resource
+scraped metadata. Then we can leverage a tool like [Kustomize] to apply these
+patches to the relevant resource metadata. Due to upstream changes in the
+Terraform registry, this approach may not always be easily applicable (what
+happens, for instance, if there is a change in the argument names for
+a resource in the newer version of the native provider?). But in such
+situations, most probably the patch itself will not be relevant any more. So, we
+can have mechanisms in place to apply the manual overrides to the new
+versions of resource metadata.
+
 
 [1]: https://github.com/crossplane/terrajet/issues/48
 [Terrajet]: https://github.com/crossplane/terrajet
@@ -375,6 +415,10 @@ consistent, repo-wide defaulting for the API group names of the generated resour
 [provider-jet-aws]: https://github.com/crossplane-contrib/provider-jet-aws
 [provider-jet-gcp]: https://github.com/crossplane-contrib/provider-jet-gcp
 [provider-jet-azure]: https://github.com/crossplane-contrib/provider-jet-azure
+[provider-jet-azure-examples]:
+    https://github.com/crossplane-contrib/provider-jet-azure/tree/45e9f598d288b6ebd5eaf1ee62830482eec70b71/examples-generated
+[azurerm-iothub]:
+    https://github.com/crossplane-contrib/provider-jet-azure/blob/45e9f598d288b6ebd5eaf1ee62830482eec70b71/examples-generated/devices/iothub.yaml
 [Terrajet issue #48]: https://github.com/crossplane/terrajet/issues/48
 [aws-example-configurations]:
     https://github.com/hashicorp/terraform-provider-aws/tree/main/examples
