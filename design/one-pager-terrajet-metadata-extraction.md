@@ -273,14 +273,36 @@ potentially be corrected manually in the scraped YAML metadata document.
 Scrapers can optionally be chained: If desired, another scraper can append
 example HCL configurations read from a different source (such as the `examples`
 folder found in some of the Terraform native provider repositories as discussed
-above).
+above). 
 
-We would like to have these scrapers run as needed, produce their output in the
-proposed common metadata format, and to have the metadata documents added to
-their respective repositories. However, we can then have the corresponding
-pipelines run each time with a `make generate`, just like the existing codegen
-pipelines we have. This would allow us to separate the lifecycles of
-metadata-scraping and code generation.
+For a specific version of the native Terraform provider consumed. i.e., against
+which the terrajet-based Crossplane provider's managed resources are generated,
+we can have the scrapers run once, via a new `Makefile` target. The result is a
+snapshot of the Terraform registry metadata for a specific version of the native
+provider. And as long as we do not bump the native provider version consumed, we
+do *not* need to run the scrapers again, e.g. as part of the `make generate`
+target. However, when the native provider version is bumped, it makes sense to
+rerun the scrapers to capture new metadata, for instance, for the newly added
+Terraform resources in the newer version of the native provider. The resulting
+artifacts (a set of per-resource metadata files) would then be committed to the
+Crossplane provider repository to be used in the code generation pipelines that
+we will discuss in the following sections. 
+
+If there are any manual modifications made in the scraped metadata files,
+rerunning the scrapers would get them lost. As discussed above, rerunning the
+scrapers without a native provider version bump is not expected to be common.
+However, we may also want to carry certain metadata modifications (overrides) to
+the new versions of these files after an actual version bump. In order to make
+this process automatic and easier to maintain, as discussed in the [Future
+Considerations] section, we can consider maintaining such modifications as
+separate patch files.
+
+As discussed above, we would like to have these scrapers run as needed, produce
+their output in the proposed common metadata format, and to have the metadata
+documents added to their respective repositories. However, we can then have the
+corresponding pipelines run each time with a `make generate`, just like the
+existing codegen pipelines we have. This would allow us to separate the
+lifecycles of metadata-scraping and code generation.
 
 For most Terraform native providers, we anticipate that Terraform registry
 scrapers will **not** run on HTTP, as the resource markdown files are part of
