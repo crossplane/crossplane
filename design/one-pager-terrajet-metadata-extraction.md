@@ -18,27 +18,12 @@ users of those APIs to the [Terraform registry], it's desirable to have the
 documentation generated together with the API (as comments on the associated
 `struct`s and fields), and have them published on `doc.crds.dev`.
 
-There is also a wealth of metadata that we can use to enrich the Terrajet-based
-providers and the generated resources such as category names for the Terraform
-resources. For example, a provider implementation may opt to use the category
-names to group respective APIs. Or the examples provided in the Terraform
-registry hint at reference fields that can help us in auto-generating
-cross-resource references (that appear in those HCL configurations).
+It's cumbersome, error-prone and time consuming to prepare example manifests or
+CRD documentation for large number of managed resources. Also, these are
+important aspects for bringing Terrajet-based providers into production use. In
+this document, we would like to discuss some approaches for making example
+manifests or CRD documentation easily available.
 
-While working on generating example manifests for the big three Terrajet-based
-providers `provider-jet-aws`, `provider-jet-gcp` and `provider-jet-azure` in the
-context of the corresponding [Terrajet issue #48], we have seen utility in
-extracting such metadata from the Terraform registry and use it to generate
-example manifests and documentation. In this document, we would like to propose:
-- A metadata format that we can optionally use in the Terrajet-based provider
-repositories to generate example manifests, documentation, etc., 
-- A concept of metadata extractors from Terraform registry and potentially from
-  other sources for Terrajet-based providers, 
-- A new Terrajet codegen pipeline to generate example manifests, which can
-optionally be invoked in Terrajet-based providers during code generation,
-accepting the scraped metadata from the Terraform registry. 
-- Extension of existing Terrajet codegen pipelines to also generate
-  documentation on `struct`s and fields.
 
 ## Goals
 We would like to achieve the following goals with this proposal:
@@ -80,6 +65,28 @@ We would like to achieve the following goals with this proposal:
 
 
 ## Proposal
+There is a wealth of metadata available in the [Terraform registry] that we can
+use to enrich the generated resources such as category names for the Terraform
+resources. For example, a provider implementation may opt to use the category
+names to group respective APIs. Or the examples provided in the Terraform
+registry hint at reference fields that can help us in auto-generating
+cross-resource references (that appear in those HCL configurations).
+
+While working on generating example manifests for the big three Terrajet-based
+providers `provider-jet-aws`, `provider-jet-gcp` and `provider-jet-azure` in the
+context of the corresponding [Terrajet issue #48], we have seen utility in
+extracting such metadata from the Terraform registry and use it to generate
+example manifests and documentation. In this document, we would like to propose:
+- A metadata format that we can optionally use in the Terrajet-based provider
+repositories to generate example manifests, documentation, etc., 
+- A concept of metadata extractors from Terraform registry and potentially from
+  other sources for Terrajet-based providers, 
+- A new Terrajet codegen pipeline to generate example manifests, which can
+optionally be invoked in Terrajet-based providers during code generation,
+accepting the scraped metadata from the Terraform registry. 
+- Extension of existing Terrajet codegen pipelines to also generate
+  documentation on `struct`s and fields.
+
 We propose to scrape metadata about the Terraform providers and their resources
 from the [Terraform registry] and to define an easily consumable format for
 storing the scraped metadata. We can use the extracted metadata later in the
