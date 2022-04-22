@@ -42,6 +42,16 @@ accepting the scraped metadata from the Terraform registry.
 
 ### Goals
 We would like to achieve the following goals with this proposal:
+- Terrajet [resource configuration][resource configuration API] framework allows
+  us to customize/adjust the code generation pipeline invoked for generating the
+  Custom Resource Definitions (CRDs) generated for the terrajet-based provider's
+  managed resources. And as these configuration overrides evolve, we would like
+  to have the artifacts produced be always consistent with the most recent
+  configuration. For instance, when a managed resource's kind or API group
+  change, or when its version is bumped, such changes should appropriately be
+  reflected in any artifacts (such as the provided example manifests)
+  automatically. Also we should be generating any relevant artifacts for a newly
+  added managed resource (example manifests, documentation, etc.) automatically. 
 - The proposed new pipeline(s) or extensions of the existing code generation
   pipelines must be optional. If, for example, an example generation pipeline is
   not configured in a Terrajet-based provider repo, or if the already existing
@@ -67,14 +77,9 @@ We would like to achieve the following goals with this proposal:
   implementations to be able to fetch metadata from different sources but the
   Terrajet pipelines will always be working on a well defined format regardless
   of how those metadata are scraped.
-- We would like to have the scrapers run as needed, produce their output in the
-  common metadata format, and to have the metadata documents added to their
-  respective repositories. However, we can then have the corresponding pipelines
-  run each time with a `make generate`, just like the existing codegen pipelines
-  we have. This would allow us to separate the lifecycles of metadata-scraping
-  and code generation.
 
-### Metadata Format
+
+### Proposed Metadata Format
 The proposed syntax for scraped metadata documents is YAML as we would also like
 the metadata to be human readable, searchable and maintainable, if needed. A
 concrete example of a scraped registry metadata document for a resource named
@@ -197,6 +202,13 @@ Scrapers can optionally be chained: If desired, another scraper can append
 example HCL configurations read from a different source (such as the `examples`
 folder found in some of the Terraform native provider repositories as discussed
 above).
+
+We would like to have these scrapers run as needed, produce their output in the
+proposed common metadata format, and to have the metadata documents added to
+their respective repositories. However, we can then have the corresponding
+pipelines run each time with a `make generate`, just like the existing codegen
+pipelines we have. This would allow us to separate the lifecycles of
+metadata-scraping and code generation.
 
 For most Terraform native providers, we anticipate that Terraform registry
 scrapers will **not** run on HTTP, as the resource markdown files are part of
