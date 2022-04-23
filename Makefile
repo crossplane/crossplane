@@ -61,7 +61,6 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 
 REGISTRY_ORGS = docker.io/crossplane xpkg.upbound.io/crossplane
 IMAGES = crossplane
-OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
