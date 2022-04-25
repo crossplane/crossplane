@@ -1,8 +1,16 @@
 # Crossplane Governance
 
-This document defines governance policies for the entire Crossplane project
-hosted and managed by the [Crossplane
-organization](https://github.com/crossplane/).
+This document defines governance policies for the Crossplane project, which is
+developed across two GitHub organizations:
+
+* https://github.com/crossplane
+* https://github.com/crossplane-contrib
+
+Both GitHub organizations fall under Crossplane's governance policies, but only
+the crossplane organization is constrained by its [charter](CHARTER.md). The
+crossplane-contrib organization exists to provide a neutral home for Crossplane
+extensions. Such extensions fall outside of the project's charter and are not
+required to fall under the project's governance, but may optionally do so.
 
 ## Steering Committee
 
