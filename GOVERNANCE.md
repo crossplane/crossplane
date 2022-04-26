@@ -31,14 +31,14 @@ Responsibilities include:
 * Participate in the conflict resolution and voting process at the organization
   scope when necessary
 * Approving new repositories, or archiving repositories in the Crossplane
-  organization
-* Add and remove members in the Crossplane organization
+  organizations
+* Add and remove members in the Crossplane organizations
 * Actively participate in the regularly scheduled steering committee meetings
 * Regularly attend the recurring community meetings
 
 The current list of steering committee members is published and updated in
 [OWNERS.md](OWNERS.md). All steering committee members will be made owners of
-the Crossplane organization in GitHub.
+the Crossplane organizations in GitHub.
 
 ### Bootstrapping the steering committee
 
@@ -172,17 +172,18 @@ regardless of the length of that remainder.
 ## Repository Governance
 
 The Crossplane project consists of multiple repositories that are published and
-maintained as part of the [Crossplane
-organization](https://github.com/crossplane) on Github. Each repository will be
-subject to the same overall governance model, but will be allowed to have
-different teams of people (“maintainers”) with permissions and access to the
-repository.  This increases diversity of maintainership in the Crossplane
-organization, and also increases the velocity of code changes.
+maintained as part of the [crossplane](https://github.com/crossplane) and
+[crossplane-contrib][https://github.com/crossplane-contrib] organizations on
+GitGub. Each repository will be subject to the same overall governance model,
+but will be allowed to have different teams of people (“maintainers”) with
+permissions and access to the repository.  This increases diversity of
+maintainership in the Crossplane organization, and also increases the velocity
+of code changes.
 
 ### Maintainers
 
-Each repository in the Crossplane organization is allowed its own unique set of
-maintainers. Maintainers have the most experience with the given repo and are
+Each repository in the Crossplane organizations are allowed their own unique set
+of maintainers. Maintainers have the most experience with the given repo and are
 expected to have the knowledge and insight to lead its growth and improvement.
 
 In general, adding and removing maintainers for a given repo is the
@@ -275,7 +276,7 @@ protected branches.
 #### Maintainers for New Repositories
 
 The guidelines of collaborating for 2-3 months may not be feasible for when a
-new repository is being created in the Crossplane organization.  For new
+new repository is being created in the Crossplane organizations.  For new
 repositories, the steering committee can choose to “bootstrap” the maintainer
 team as they see fit.
 
@@ -349,7 +350,7 @@ Issues can be resolved or voted on at different scopes:
     the issue.  This includes technical decisions as well as maintainer team
     membership.
 * **Organization**: If an issue or conflict affects multiple repositories or the
-    Crossplane organization and community at large, the **steering committee**
+    Crossplane organizations and community at large, the **steering committee**
     should resolve or vote on the issue.
 
 ### Issue Voting Process
