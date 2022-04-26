@@ -10,7 +10,8 @@ Both GitHub organizations fall under Crossplane's governance policies, but only
 the crossplane organization is constrained by its [charter](CHARTER.md). The
 crossplane-contrib organization exists to provide a neutral home for Crossplane
 extensions. Such extensions fall outside of the project's charter and are not
-required to fall under the project's governance, but may optionally do so.
+required to fall under the project's governance, but may do so by choosing to be
+hosted in the crossplane-contrib organization.
 
 ## Steering Committee
 
