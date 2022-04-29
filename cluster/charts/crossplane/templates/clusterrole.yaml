@@ -9,7 +9,6 @@ aggregationRule:
   clusterRoleSelectors:
   - matchLabels:
       rbac.crossplane.io/aggregate-to-crossplane: "true"
-rules: []
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

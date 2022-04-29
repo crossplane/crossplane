@@ -46,6 +46,9 @@ spec:
           args:
           - core
           - init
+          {{- if .Values.maxReconcileRate }}
+          - --max-reconcile-rate={{ .Values.maxReconcileRate }}
+          {{- end }}
           {{- range $arg := .Values.provider.packages }}
           - --provider
           - "{{ $arg }}"

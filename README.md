@@ -2,16 +2,12 @@
 
 ![Crossplane](docs/media/banner.png)
 
-Crossplane is an open source Kubernetes add-on that transforms your cluster into
-a **universal control plane**. Crossplane enables platform teams to assemble
-infrastructure from multiple vendors, and expose higher level self-service APIs
-for application teams to consume, without having to write any code.
 
-Crossplane extends your Kubernetes cluster to support orchestrating any
-infrastructure or managed service. Compose Crossplane's granular resources into
-higher level abstractions that can be versioned, managed, deployed and consumed
-using your favorite tools and existing processes. [Install Crossplane][install]
-into any Kubernetes cluster to get started.
+Crossplane is a framework for building cloud native control planes without
+needing to write code. It has a highly extensible backend that enables you to
+build a control plane that can orchestrate applications and infrastructure no
+matter where they run, and a highly configurable frontend that puts you in
+control of the schema of the declarative API it offers.
 
 Crossplane is a [Cloud Native Compute Foundation][cncf] project.
 
@@ -23,16 +19,16 @@ documentation].
 
 | Release | Release Date |  Current Patch  |      EOL      |
 |:-------:|:------------:|:---------------:|:-------------:|
-|   v1.4  | Aug 31, 2021 |     [v1.4.4]    |   March 2022  |
-|   v1.5  | Oct 26, 2021 |     [v1.5.2]    |    May 2022   |
-|   v1.6  | Jan 4, 2022  |     [v1.6.4]    |   July 2022   |
-|   v1.7  | Mar 22, 2022 |     Upcoming    |   Sept 2022   |
+|   v1.5  | Oct 26, 2021 |     [v1.5.3]    |    May 2022   |
+|   v1.6  | Jan 4, 2022  |     [v1.6.5]    |   July 2022   |
+|   v1.7  | Mar 22, 2022 |     [v1.7.0]    |   Sept 2022   |
+|   v1.8  | May 17, 2022 |     Upcoming    |    Dec 2022   |
 
-You can subscribe to [release calendar] to track all release dates.
+You can subscribe to the [community calendar] to track all release dates.
 
-[v1.4.4]: https://github.com/crossplane/crossplane/releases/tag/v1.4.4
-[v1.5.2]: https://github.com/crossplane/crossplane/releases/tag/v1.5.3
-[v1.6.4]: https://github.com/crossplane/crossplane/releases/tag/v1.6.4
+[v1.5.3]: https://github.com/crossplane/crossplane/releases/tag/v1.5.3
+[v1.6.5]: https://github.com/crossplane/crossplane/releases/tag/v1.6.5
+[v1.7.0]: https://github.com/crossplane/crossplane/releases/tag/v1.7.0
 
 ## Get Involved
 
@@ -54,6 +50,7 @@ with the broader community is encouraged to join.
 * Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
 * [Current agenda and past meeting notes]
 * [Past meeting recordings]
+* [Community Calendar][community calendar]
 
 ## License
 
@@ -77,4 +74,4 @@ Crossplane is under the Apache 2.0 license.
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [roadmap]: https://github.com/orgs/crossplane/projects/12
 [cncf]: https://www.cncf.io/
-[release calendar]: https://calendar.google.com/calendar/u/0/embed?src=c_uttnrqr6t7r167uf57nja58mdc@group.calendar.google.com
+[community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com

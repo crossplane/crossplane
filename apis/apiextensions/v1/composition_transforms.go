@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -44,6 +45,7 @@ const (
 	errStringTransformTypeConvert = "string transform of type %s convert is not set"
 	errStringTransformTypeTrim    = "string transform of type %s trim is not set"
 	errStringConvertTypeFailed    = "type %s is not supported for string convert"
+	errDecodeString               = "string is not valid base64"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -185,13 +187,15 @@ const (
 	StringTransformTrimSuffix StringTransformType = "TrimSuffix"
 )
 
-// StringConversionType is the type of string conversion, ToUpper/ToLower
+// StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
 type StringConversionType string
 
 // ConversionType accepted values.
 const (
-	ConversionTypeToUpper = "ToUpper"
-	ConversionTypeToLower = "ToLower"
+	ConversionTypeToUpper    = "ToUpper"
+	ConversionTypeToLower    = "ToLower"
+	ConversionTypeToBase64   = "ToBase64"
+	ConversionTypeFromBase64 = "FromBase64"
 )
 
 // A StringTransform returns a string given the supplied input.
@@ -210,7 +214,7 @@ type StringTransform struct {
 
 	// Convert the type of conversion to Upper/Lower case.
 	// +optional
-	// +kubebuilder:validation:Enum=ToUpper;ToLower
+	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64
 	Convert *StringConversionType `json:"convert,omitempty"`
 
 	// Trim the prefix or suffix from the input
@@ -250,6 +254,11 @@ func stringConvertTransform(input interface{}, t *StringConversionType) (interfa
 		return strings.ToUpper(str), nil
 	case ConversionTypeToLower:
 		return strings.ToLower(str), nil
+	case ConversionTypeToBase64:
+		return base64.StdEncoding.EncodeToString([]byte(str)), nil
+	case ConversionTypeFromBase64:
+		s, err := base64.StdEncoding.DecodeString(str)
+		return string(s), errors.Wrap(err, errDecodeString)
 	default:
 		return nil, errors.Errorf(errStringConvertTypeFailed, *t)
 	}
