@@ -35,7 +35,7 @@ import (
 )
 
 // This program's name!
-const programName = "ignition"
+const programName = "spark"
 
 // Error strings.
 const (
@@ -64,9 +64,9 @@ const (
 type cli struct {
 	Config  string `help:"OCI config file, relative to root of the bundle." default:"config.json"`
 	Runtime string `help:"OCI runtime binary to invoke." default:"/usr/bin/crun"`
-	State   string `help:"OCI runtime state (i.e. --root) directory." default:"/tmp/ignition"`
+	State   string `help:"OCI runtime state (i.e. --root) directory." default:"/tmp/spark"`
 
-	Source string `arg:"" help:"Source of the bundle's rootfs. Will either be copied or used as a lower overlayfs filesystem." type:"existingdir"`
+	Source string `arg:"" help:"Source of the bundle's rootfs. Will either be overlaid or copied." type:"existingdir"`
 	Bundle string `arg:"" help:"Root of the bundle." type:"existingdir"`
 }
 
@@ -108,8 +108,6 @@ func (c *cli) Run() error {
 
 	//nolint:gosec // Executing with user-supplied input is intentional.
 	cmd := exec.Command(c.Runtime, "--root", c.State, "run", "--bundle", c.Bundle, uuid.NewString())
-
-	// TODO(negz): Is this sufficient to plumb/forward these?
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout

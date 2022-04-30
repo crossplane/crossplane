@@ -5,7 +5,7 @@ ARG TARGETARCH
 
 RUN apk add --no-cache ca-certificates crun
 ADD bin/${TARGETOS}\_${TARGETARCH}/crossplane /usr/local/bin/
-ADD bin/${TARGETOS}\_${TARGETARCH}/ignition /usr/local/bin/
+ADD bin/${TARGETOS}\_${TARGETARCH}/spark /usr/local/bin/
 ADD crds /crds
 ADD webhookconfigurations /webhookconfigurations
 EXPOSE 8080
