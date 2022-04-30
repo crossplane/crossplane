@@ -151,7 +151,7 @@ func copy(bundle, rootfs, src string) error { //nolint:gocyclo // This is at 11 
 		}
 
 		//nolint:gosec // Opening with user-supplied input is intentional
-		dst, err := os.OpenFile(dstPath, os.O_CREATE, info.Mode())
+		dst, err := os.OpenFile(dstPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, info.Mode())
 		if err != nil {
 			return errors.Wrap(err, errOpenDst)
 		}
