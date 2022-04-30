@@ -44,8 +44,7 @@ func overlay(bundle, rootfs, source string) error {
 		return errors.Wrap(err, errMkdir)
 	}
 
-	// Share all mounts with peer group members - i.e. child mount namespaces.
-	var flags uintptr = unix.MS_SHARED | unix.MS_REC
+	var flags uintptr
 	if err := unix.Mount("tmpfs", filepath.Join(bundle, tmpfs), "tmpfs", flags, ""); err != nil {
 		return errors.Wrap(err, errMountTmpfs)
 	}
