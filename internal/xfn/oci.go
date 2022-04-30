@@ -73,6 +73,7 @@ const (
 	errFmtSize            = "wrote %d bytes to %q; expected %d"
 	errFmtInvalidPath     = "tarball contains invalid file path %q"
 	errFmtUnsupportedMode = "tarball contained file %q with unknown file type: %q"
+	errChown              = "cannot chown path"
 	errFmtRenameTmpDir    = "cannot move temporary directory %q to %q"
 )
 
@@ -392,11 +393,13 @@ func untar(ctx context.Context, tb io.Reader, fs afero.Fs, dir string) error { /
 
 		switch {
 		case mode.IsDir():
-			if err := fs.MkdirAll(path, 0755); err != nil {
+			// TODO(negz): Will this potentially create parent directories with
+			// the child's permissions if we encounter a parent before a child?
+			if err := fs.MkdirAll(path, mode.Perm()); err != nil {
 				return errors.Wrap(err, errMkdir)
 			}
 		case mode.IsRegular():
-			if err := fs.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			if err := fs.MkdirAll(filepath.Dir(path), mode.Perm()); err != nil {
 				return errors.Wrap(err, errMkdir)
 			}
 
@@ -418,6 +421,11 @@ func untar(ctx context.Context, tb io.Reader, fs afero.Fs, dir string) error { /
 		default:
 			return errors.Errorf(errFmtUnsupportedMode, hdr.Name, mode)
 		}
+
+		if err := fs.Chown(path, hdr.Uid, hdr.Gid); err != nil {
+			return errors.Wrap(err, errChown)
+		}
+
 	}
 }
 
