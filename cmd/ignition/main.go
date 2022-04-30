@@ -115,7 +115,7 @@ func (c *cli) Run() error {
 	cmd.Stdout = os.Stdout
 
 	err = cmd.Run()
-	var rerr exec.ExitError
+	rerr := &exec.ExitError{}
 	if errors.As(err, &rerr) {
 		_ = f.Close()
 		os.Exit(rerr.ExitCode())
