@@ -25,11 +25,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/alecthomas/kong"
 	"github.com/google/uuid"
 	runtime "github.com/opencontainers/runtime-spec/specs-go"
+	"golang.org/x/sys/unix"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
@@ -45,6 +45,7 @@ const (
 	errRootMissing      = "OCI config file is missing root.path"
 	errRootAbsolute     = "OCI config file root.path must be relative to the root of the bundle"
 	errMkdir            = "cannot make directory"
+	errReadlink         = "cannot read symlink"
 	errRuntime          = "cannot invoke OCI runtime"
 	errCopySource       = "cannot copy source rootfs"
 	errOpenDst          = "cannot open destination file"
@@ -123,7 +124,7 @@ func (c *cli) Run() error {
 	return errors.Wrap(err, errRuntime)
 }
 
-func copy(bundle, rootfs, src string) error {
+func copy(bundle, rootfs, src string) error { //nolint:gocyclo // This is at 11 - only a little over our threshold of 10.
 	err := filepath.Walk(src, func(srcPath string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -133,6 +134,14 @@ func copy(bundle, rootfs, src string) error {
 
 		if info.IsDir() {
 			return errors.Wrap(os.MkdirAll(dstPath, info.Mode()), errMkdir)
+		}
+
+		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
+			linkDst, err := os.Readlink(srcPath)
+			if err != nil {
+				return errors.Wrap(err, errReadlink)
+			}
+			return os.Symlink(linkDst, dstPath)
 		}
 
 		//nolint:gosec // Opening with user-supplied input is intentional.
@@ -161,13 +170,12 @@ func copy(bundle, rootfs, src string) error {
 			return errors.Wrap(err, errCloseDst)
 		}
 
-		if s, ok := info.Sys().(*syscall.Stat_t); ok {
-			if err := os.Chown(dstPath, int(s.Uid), int(s.Gid)); err != nil {
-				return errors.Wrap(err, errChownDst)
-			}
+		s, ok := info.Sys().(*unix.Stat_t)
+		if !ok {
+			return nil
 		}
 
-		return nil
+		return errors.Wrap(os.Chown(dstPath, int(s.Uid), int(s.Gid)), errChownDst)
 	})
 	return err
 }
