@@ -40,7 +40,7 @@ const (
 )
 
 func overlay(bundle, rootfs, source string) error {
-	if err := os.Mkdir(filepath.Join(bundle, tmpfs), 0755); err != nil {
+	if err := os.Mkdir(filepath.Join(bundle, tmpfs), 0750); err != nil {
 		return errors.Wrap(err, errMkdir)
 	}
 
@@ -54,7 +54,7 @@ func overlay(bundle, rootfs, source string) error {
 		filepath.Join(bundle, tmpfs, upper),
 		filepath.Join(bundle, tmpfs, work),
 	} {
-		if err := os.Mkdir(dir, 0755); err != nil {
+		if err := os.Mkdir(dir, 0750); err != nil {
 			return errors.Wrap(err, errMkdir)
 		}
 	}
