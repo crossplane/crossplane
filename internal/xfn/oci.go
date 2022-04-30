@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	ociv1 "github.com/google/go-containerregistry/pkg/v1"
@@ -58,17 +59,13 @@ const (
 	errCreateFile       = "cannot create file"
 	errWriteFile        = "cannot write file"
 	errMakeTmpDir       = "cannot make temporary directory"
-
 	errParseImageConfig = "cannot parse OCI image config"
 	errNewRuntimeConfig = "cannot create new OCI runtime config"
-
-	errRemoveBundle = "cannot remove OCI bundle from store"
-	errCloseBundle  = "cannot close OCI bundle"
-
-	// TODO(negz): Make these errFmt, with the image string.
-	errFetchFn  = "cannot fetch function from registry"
-	errLookupFn = "cannot lookup function in store"
-	errWriteFn  = "cannot write function to store"
+	errRemoveBundle     = "cannot remove OCI bundle from store"
+	errCloseBundle      = "cannot close OCI bundle"
+	errFetchFn          = "cannot fetch function from registry"
+	errLookupFn         = "cannot lookup function in store"
+	errWriteFn          = "cannot write function to store"
 
 	errFmtSize            = "wrote %d bytes to %q; expected %d"
 	errFmtInvalidPath     = "tarball contains invalid file path %q"
@@ -84,6 +81,8 @@ const (
 	config = "config.json"
 	rootfs = "rootfs"
 )
+
+const spark = "/usr/local/bin/spark"
 
 // An OCIRunner runs an XRM function packaged as an OCI image by extracting it
 // and running it in a chroot.
@@ -113,12 +112,9 @@ func NewOCIRunner(image string, o ...OCIRunnerOption) *OCIRunner {
 	return r
 }
 
-// Run a function packaged as an OCI image. Functions are not run as containers,
-// but rather by unarchiving them and executing their entrypoint and/or cmd in a
-// chroot with their supplied environment variables set. This allows them to be
-// run from inside an existing, unprivileged container. Functions that write to
-// stderr, return non-zero, or that cannot be executed in the first place (e.g.
-// because they cannot be fetched from the registry) will return an error.
+// Run a function packaged as an OCI container. Functions that return non-zero,
+// or that cannot be executed in the first place (e.g. because they cannot be
+// fetched from the registry) will return an error.
 func (r *OCIRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) (*fnv1alpha1.ResourceList, error) {
 	// Parse the input early, before we potentially pull and write the image.
 	y, err := yaml.Marshal(in)
@@ -140,9 +136,6 @@ func (r *OCIRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) (*fnv1
 	imgID := d.Digest.Hex
 	runID := uuid.NewString()
 
-	// TODO(negz): Wrap store in a variant that automatically fetches and writes
-	// missing refs. Presumably we'd need to take the ref name (not hex digest)
-	// as an ID.
 	b, err := r.store.Bundle(ctx, imgID, runID)
 	if IsNotFound(err) {
 		// If the function isn't found in the store we fetch it, write it, and
@@ -163,9 +156,30 @@ func (r *OCIRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) (*fnv1
 		return nil, errors.Wrap(err, errLookupFn)
 	}
 
-	// TODO(negz): Invoke ignition
-	cmd := exec.CommandContext(ctx, "")
+	/*
+		We want to create an overlayfs with the cached rootfs as the lower layer
+		and the bundle's rootfs as the upper layer, if possible. Kernel 5.11 and
+		later supports using overlayfs inside a user (and mount) namespace. The
+		best (only?) way to reliably run code in a user namespace in Go is to
+		execute a separate binary; the unix.Unshare syscall affects only one OS
+		thread, and the Go scheduler might move the goroutine to another.
+
+		Therefore we execute a small shim - spark - in a new user and mount
+		namespace. spark sets up the overlayfs if the Kernel supports it.
+		Otherwise it falls back to making a copy of the cached rootfs. spark
+		then executes an OCI runtime which creates another layer of namespaces
+		in order to actually execute the function.
+
+		We don't need to cleanup the mounts spark creates. They will be removed
+		automatically along with their mount namespace when spark exits.
+	*/
+	cmd := exec.CommandContext(ctx, spark, b.CachedRootFS, b.Path) //nolint:gosec // We're intentionally executing with variable input.
 	cmd.Stdin = stdin
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		// TODO(negz): Set Cloneflags, which is specific to Linux. We may want
+		// to make the entire OCI function build only on Linux.
+		// https://github.com/u-root/u-root/blob/b56464/cmds/core/unshare/unshare_linux.go#L62
+	}
 
 	stdout, err := cmd.Output()
 	if err != nil {
