@@ -63,7 +63,7 @@ const (
 
 type cli struct {
 	Config  string `help:"OCI config file, relative to root of the bundle." default:"config.json"`
-	Runtime string `help:"OCI runtime binary to invoke." default:"/usr/local/bin/crun"`
+	Runtime string `help:"OCI runtime binary to invoke." default:"/usr/bin/crun"`
 	State   string `help:"OCI runtime state (i.e. --root) directory." default:"/tmp/ignition"`
 
 	Source string `arg:"" help:"Source of the bundle's rootfs. Will either be copied or used as a lower overlayfs filesystem." type:"existingdir"`

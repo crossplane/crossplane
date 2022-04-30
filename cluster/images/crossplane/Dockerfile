@@ -1,31 +1,17 @@
-# TODO(negz): Fetch this outside of Docker? That way we can cache it somewhere
-# (the _output dir?) and not pull it on every build.
-FROM curlimages/curl@sha256:c1c1cda72ab8c306390fc05518bf4d42148564978326d078f65d546858d139cb as curl
-
-ARG TARGETOS
-ARG TARGETARCH
-ARG CRUN_VERSION=1.4.4  # TODO(negz): Plumb this up to the Makefile
-
-WORKDIR /curl
-RUN curl -fsSL https://github.com/containers/crun/releases/download/${CRUN_VERSION}/crun-${CRUN_VERSION}-${TARGETOS}-${TARGETARCH} -o crun
-RUN chmod +x crun
-
-# TODO(negz): This block is just for debugging ignition - we want to run the
-# distroless/base image in practice.
-# FROM gcr.io/distroless/base@sha256:ce8bc342dd7eeb0baccbef2ce00afc0c72af1ea166794f55ef8f434fd7c8b515
-FROM debian:unstable-slim
-RUN useradd -u 65532 nonroot -m
-RUN apt-get update
-RUN apt-get install -y ca-certificates skopeo umoci neovim
+FROM alpine@sha256:4edbd2beb5f78b1014028f4fbb99f3237d9561100b6881aabbf5acce2c4f9454
 
 ARG TARGETOS
 ARG TARGETARCH
 
-COPY --from=curl /curl/crun /usr/local/bin/
+# TODO(negz): For debugging - remove me.
+RUN apk add --no-cache skopeo umoci neovim bash
+
+RUN apk add --no-cache ca-certificates crun
 ADD bin/${TARGETOS}\_${TARGETARCH}/crossplane /usr/local/bin/
 ADD bin/${TARGETOS}\_${TARGETARCH}/ignition /usr/local/bin/
 ADD crds /crds
 ADD webhookconfigurations /webhookconfigurations
 EXPOSE 8080
+RUN adduser -u 65532 nonroot -D
 USER 65532
 ENTRYPOINT ["crossplane"]
