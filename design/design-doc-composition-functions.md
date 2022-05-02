@@ -163,6 +163,22 @@ spec:
     container:
       # The OCI image to pull and run.
       image: xkpg.io/my-cool-function:0.1.0
+      # Whether to pull the function Never, Always, or IfNotPresent.
+      imagePullPolicy: IfNotPresent
+      # Secrets used to pull from a private registry.
+      imagePullSecrets:
+      - namespace: crossplane-system
+        name: my-xpkg-io-creds
+      # Note that only resource limits are supported - not requests.
+      # The function will be run with the specified resource limits.
+      resources:
+        limits:
+          memory: 64Mi
+          cpu: 250m
+      # Defaults to 'Isolated' - i.e an isolated network namespace.
+      network: Accessible
+      # How long the function may run before it's killed. Defaults to 10s.
+      timeout: 30s
     # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied)
     # Kubernetes resource. Passed to the function as the functionConfig block of
     # its ResourceList.
