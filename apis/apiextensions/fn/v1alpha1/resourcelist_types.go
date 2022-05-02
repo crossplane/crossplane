@@ -33,12 +33,16 @@ type ResourceList struct {
 	// FunctionConfig is an optional Kubernetes object for passing arguments to
 	// a function invocation.
 	// +optional
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	FunctionConfig *runtime.RawExtension `json:"functionConfig,omitempty"`
 
 	// Items is a list of Crossplane resources - either XRs or MRs.
 	//
 	// A function will read this field in the input ResourceList and populate
 	// this field in the output ResourceList.
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Items []runtime.RawExtension `json:"items"`
 
 	// Results is an optional list that can be used by function to emit results
