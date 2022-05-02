@@ -145,6 +145,36 @@ rendering composed resources, for example validating the results of the
 function could also be used to implement 'side effects' such as triggering a
 replication or backup.
 
+Below is a more detailed example of an entry in the `functions` array.
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v2alpha1
+kind: Composition
+metadata:
+  name: example
+spec:
+  compositeTypeRef:
+    apiVersion: database.example.org/v1alpha1
+    kind: XPostgreSQLInstance
+  functions:
+  - name: my-cool-function
+    type: Container
+    # Configuration specific to `type: Container` functions.
+    container:
+      # The OCI image to pull and run.
+      image: xkpg.io/my-cool-function:0.1.0
+    # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied)
+    # Kubernetes resource. Passed to the function as the functionConfig block of
+    # its ResourceList.
+    config:
+      apiVersion: database.example.org/v1alpha1
+      kind: Config
+      metadata:
+        name: cloudsql
+      spec:
+        version: POSTGRES_9_6
+```
+
 ### Function API
 
 This document proposes that each function uses a `ResourceList` type derived
@@ -153,6 +183,13 @@ from the [KRM function specification][krm-fn-spec] as its input and output.
 ```yaml
 apiVersion: fn.apiextensions.crossplane.io/v1
 kind: ResourceList
+functionConfig:
+  apiVersion: database.example.org/v1alpha1
+  kind: Config
+  metadata:
+    name: cloudsql
+  spec:
+    version: POSTGRES_9_6
 items:
 - apiVersion: database.example.org/v1alpha1
   kind: XPostgreSQLInstance
@@ -169,6 +206,18 @@ items:
     writeConnectionSecretToRef:
       name: db-conn
 ```
+
+Like a KRM function, a Composition function uses a `ResourceList` that consists
+of the following top-level fields:
+
+* The `apiVersion` and `kind` (required).
+* A `functionConfig` (optional). This is a [Kubernetes resource][rawextension]
+  with an arbitrary schema that may be used to provide additional configuration
+  to a function. For example a `render-helm-chart` function might use its
+  `functionConfig` to specify which Helm chart to render.
+* An `items` array (required). The XR and zero or more composed resources.
+* A `results` object (optional). Used to communicate information about the
+  result of a function, including warnings and errors.
 
 Each function in the array would be executed as a pipeline, with each function:
 
@@ -201,6 +250,13 @@ An example function that responded by asking Crossplane to create (compose) a
 ```yaml
 apiVersion: fn.apiextensions.crossplane.io/v1alpha1
 kind: ResourceList
+functionConfig:
+  apiVersion: database.example.org/v1alpha1
+  kind: Config
+  metadata:
+    name: cloudsql
+  spec:
+    version: POSTGRES_9_6
 items:
 - apiVersion: database.example.org/v1alpha1
   kind: XPostgreSQLInstance
@@ -238,6 +294,13 @@ results:
 - severity: Error
   message: "Could not render Database.postgresql.crossplane.io/v1alpha1`
 ```
+
+Note the Crossplane specific `fn.apiextensions.crossplane.io/` annotations:
+
+1. `type` distinguishes an XR from a composed resource. XRs are the first
+   element in the `items` array by convention.
+1. `name` associates a composed resource entry in the `items` array with its
+   corresponding entry in the `resources` array (if any).
 
 While KRM-function-like this API is not KRM function compatible. See the
 [Alternatives Considered](#alternatives-considered) section for details on why.
@@ -499,6 +562,7 @@ than x86 architectures is experimental.
 [pitfalls-dsl]: https://github.com/kubernetes/community/blob/8956bcd54dc6f99bcb681c79a7e5399289e15630/contributors/design-proposals/architecture/declarative-application-management.md#pitfalls-of-configuration-domain-specific-languages-dsls
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [krm-fn-spec]: https://github.com/kubernetes-sigs/kustomize/blob/9d5491/cmd/config/docs/api-conventions/functions-spec.md
+[rawextension]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#rawextension
 [argo-execs]: https://argoproj.github.io/argo-workflows/workflow-executors/
 [rootless]: https://rootlesscontaine.rs/how-it-works/userns/
 [cgroups-v2-distros]: https://rootlesscontaine.rs/getting-started/common/cgroup2/#checking-whether-cgroup-v2-is-already-enabled
