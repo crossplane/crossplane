@@ -1,4 +1,3 @@
-
 # Composition Functions
 
 * Owners: Nic Cope (@negz), Sergen Yalçın (@sergenyalcin)
@@ -132,11 +131,12 @@ spec:
 
 Under this proposal each function is the entrypoint of an OCI image, though the
 API is designed to support different function implementations (such as webhooks)
-in future. The updated API would affect only the `Composition` type - no changes
-would be required to the schema of `CompositeResourceDefinitions`, XRs, etc.
+in th future. The updated API would affect only the `Composition` type - no
+changes would be required to the schema of `CompositeResourceDefinitions`, XRs,
+etc.
 
 Notably the functions would not be responsible for interacting with the API
-server to created, update, or delete composed resources. Instead they instruct
+server to create, update, or delete composed resources. Instead they instruct
 Crossplane which resources should be created, updated, or deleted.
 
 Under the proposed design functions could also be used for purposes besides
@@ -182,10 +182,11 @@ function in the pipeline would be supplied with either:
 1. Only the XR. This would be the case for newly created XRs whose Composition
    did not include a `resources` array.
 1. The XR and one or more resources. This would be the case if either:
-   1. The XR included both a `resources` array and a `functions` array. In this
-      case the `resources` array is computed first then passed to `functions`.
-   1. This was not a newly created XR, but instead an XR that already had
-      already created its composed resources and was now being updated.
+   1. The Composition included both a `resources` array and a `functions` array.
+      In this case the `resources` array is computed first then passed to
+      `functions`.
+   1. This was not a newly created XR, but instead an XR that had already
+      created its composed resources and was now being updated.
 
 In the case of `Container` functions this input and output would correspond to
 stdin and stdout. This may differ for future function implementations; for
