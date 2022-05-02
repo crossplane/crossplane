@@ -379,6 +379,38 @@ containerd seccomp profile that allows a few extra syscalls (i.e. at least
 `unshare` and `mount`). This can be done by setting a Pod's
 `spec.securityContext.seccompProfile.type` field to `Unconstrained`.
 
+### Packaging Containerized Functions
+
+This document proposes that containerized functions support Crossplane [package
+metadata][package-meta] in the form of a `package.yaml` file at the root of the
+flattened filesystem and/or the OCI layer annotated as `io.crossplane.xpkg:
+base` per the [xpkg spec][xpkg-spec]. This `package.yaml` file would contain a
+custom-resource-like YAML document of type `Function.meta.pkg.crossplane.io`.
+
+Unlike `Configuration` and `Provider` packages, `Function` packages would not
+actually be processed by the Crossplane package manager but rather by the
+Composition (`apiextensions`) machinery. In practice Crossplane would be
+ignorant of the `package.yaml` file; it would exist purely as a way to attach
+"package-like" metadata to containerized Crossplane functions. Therefore unlike
+the existing package types the `package.yaml` would contain no `spec` section.
+
+An example `package.yaml` might look like:
+
+```yaml
+# Required. Must be as below.
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+# Required. Must be as below.
+kind: Function
+# Required.
+metadata:
+  # Required. Must comply with Kubernetes API conventions.
+  name: function-example
+  # Optional. Must comply with Kubernetes API conventions.
+  annotations:
+    meta.crossplane.io/source: https://github.com/negz/example-fn
+    meta.crossplane.io/description: An example function
+```
+
 ## Alternatives Considered
 
 Most of the alternatives considered in this design could also be thought of as
@@ -476,6 +508,8 @@ than x86 architectures is experimental.
 [oci-img-cfg]: https://github.com/opencontainers/image-spec/blob/v1.0.2/config.md
 [gvisor-mountns]: https://github.com/google/gvisor/issues/221
 [kep-seccomp]: https://github.com/kubernetes/enhancements/issues/2413
+[package-meta]: https://github.com/crossplane/crossplane/blob/035e77b/design/one-pager-package-format-v2.md
+[xpkg-spec]: https://github.com/crossplane/crossplane/blob/035e77b/docs/reference/xpkg.md
 [attach]: https://github.com/kubernetes/kubectl/blob/18a531/pkg/cmd/attach/attach.go
 [emissary]: https://github.com/argoproj/argo-workflows/blob/702b293/workflow/executor/emissary/emissary.go#L25
 [krm-fn-spec]: https://github.com/kubernetes-sigs/kustomize/blob/9d5491/cmd/config/docs/api-conventions/functions-spec.md
