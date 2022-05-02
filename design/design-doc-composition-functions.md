@@ -339,15 +339,45 @@ COMMANDS:
 ```
 
 Executing `crun` directly as opposed to using a higher level tool like `docker`
-or `podman` allows Crossplane to continue using the [Distroless][distroless]
-base image without any new dependencies apart from a single static binary (i.e.
-`crun`). It keeps most functionality (pulling images etc) inside Crossplane's
-codebase, delegating only container creation to an external tool. Crossplane
-functions are always short-lived and should always have their stdin and stdout
-attached to Crossplane, so wrappers like `containerd-shim` or `conmon` should
-not be required. The short-lived, "one shot" nature of Crossplane functions
-means it should also be acceptable to `crun run` the container rather than using
-`crun create`, `crun start`, etc.
+or `podman` allows Crossplane to avoid new dependencies apart from a single
+static binary (i.e. `crun`). It keeps most functionality (pulling images etc)
+inside Crossplane's codebase, delegating only container creation to an external
+tool. Crossplane functions are always short-lived and should always have their
+stdin and stdout attached to Crossplane, so wrappers like `containerd-shim` or
+`conmon` should not be required. The short-lived, "one shot" nature of
+Crossplane functions means it should also be acceptable to `crun run` the
+container rather than using `crun create`, `crun start`, etc.
+
+At the time of writing rootless containers appear to be supported by Kubernetes,
+including Amazon's Elastic Kubernetes Service (EKS) and Google Kubernetes Engine
+(GKE).
+
+Testing using GKE 1.21.10-gke.2000 with Container Optimized OS (with containerd)
+cos-89-16108-604-19 nodes (Kernel COS-5.4.170) found that it was possible to run
+`unshare -rUm` (i.e. to create a new user and mount namespace) inside an Alpine
+Linux container as long as AppArmor was disabled by applying the annotation
+`container.apparmor.security.beta.kubernetes.io/${CONTAINER_NAME}=unconfined`.
+It's possible to create user namespaces with AppArmor enabled, but not to create
+mount namespaces with different mount propagation from their parent.
+
+It is not possible to use rootless containers with gVisor enabled, as gVisor
+does not yet [support mount namespaces][gvisor-mountns]. This means that it is
+not possible to use rootless containers with GKE Autopilot, which requires that
+gVisor be used.
+
+Testing using EKS v1.21.5-eks-9017834 with Amazon Linux 2 nodes (Kernel
+5.4.188-104.359.amzn2.x86_64) found that it was possible to run `unshare -rUm`
+inside an Alpine Linux container 'out of the box'.
+
+The `unshare` syscall used to create containers is rejected by the default
+Docker and containerd seccomp profiles. seccomp is disabled ("Unconstrained") by
+default in Kubernetes, but that will soon change per [this KEP][kep-seccomp]
+which proposes that Kubernetes use the seccomp profiles of its container engine
+(i.e. containerd) by default. Once this happens Crossplane will either need to
+run with the "Unconstrained" seccomp profile, or a variant of the default
+containerd seccomp profile that allows a few extra syscalls (i.e. at least
+`unshare` and `mount`). This can be done by setting a Pod's
+`spec.securityContext.seccompProfile.type` field to `Unconstrained`.
 
 ## Alternatives Considered
 
@@ -369,6 +399,20 @@ communication between Crossplane and the webhook endpoint.
 
 Support for `type: Webhook` functions will likely be added shortly after initial
 support for `type: Container` functions is released.
+
+### Using chroots to Run Functions
+
+Crossplane could invoke functions packaged as OCI images by unarchiving them and
+then running them inside a simple `chroot`. This offers more compatibility than
+rootless containers at the expense of isolation - it's not possible to constrain
+a chrooted function's compute resources, network access, etc. `type: Chroot`
+functions would use the same artifacts as `type: Container` functions but invoke
+them differently.
+
+Support for `type: Chroot` functions could be added shortly after initial
+support for `type: Container` functions are released if `type: Container` proves
+to be insufficiently compatible (e.g. for clusters running gVisor, or that
+require seccomp be enabled).
 
 ### Using the Kubelet to Run Containzerized Functions
 
@@ -430,7 +474,8 @@ than x86 architectures is experimental.
 [go-containerregistry]: https://github.com/google/go-containerregistry
 [oci-rt-cfg]: https://github.com/opencontainers/runtime-spec/blob/v1.0.2/config.md
 [oci-img-cfg]: https://github.com/opencontainers/image-spec/blob/v1.0.2/config.md
-[distroless]: https://github.com/GoogleContainerTools/distroless
+[gvisor-mountns]: https://github.com/google/gvisor/issues/221
+[kep-seccomp]: https://github.com/kubernetes/enhancements/issues/2413
 [attach]: https://github.com/kubernetes/kubectl/blob/18a531/pkg/cmd/attach/attach.go
 [emissary]: https://github.com/argoproj/argo-workflows/blob/702b293/workflow/executor/emissary/emissary.go#L25
 [krm-fn-spec]: https://github.com/kubernetes-sigs/kustomize/blob/9d5491/cmd/config/docs/api-conventions/functions-spec.md
