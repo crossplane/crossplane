@@ -58,11 +58,25 @@ type ContainerRunner struct {
 	// TODO(negz): Break fetch-ey bits out of xpkg.
 	defaultRegistry string
 	registry        xpkg.Fetcher
-	store           *FilesystemStore
+	store           OCIStore
 }
 
 // A ContainerRunnerOption configures a new ContainerRunner.
 type ContainerRunnerOption func(*ContainerRunner)
+
+// WithOCIStore configures the OCI fetcher a container runner should use.
+func WithOCIFetcher(f xpkg.Fetcher) ContainerRunnerOption {
+	return func(r *ContainerRunner) {
+		r.registry = f
+	}
+}
+
+// WithOCIStore configures the OCI store a container runner should use.
+func WithOCIStore(s OCIStore) ContainerRunnerOption {
+	return func(r *ContainerRunner) {
+		r.store = s
+	}
+}
 
 // NewContainerRunner returns a new Runner that runs functions as rootless
 // containers.
@@ -71,7 +85,7 @@ func NewContainerRunner(image string, o ...ContainerRunnerOption) *ContainerRunn
 		image:           image,
 		defaultRegistry: name.DefaultRegistry,
 		registry:        xpkg.NewNopFetcher(),
-		store:           NewFilesystemStore("/xfn/store"),
+		store:           &ForgetfulStore{},
 	}
 	for _, fn := range o {
 		fn(r)
@@ -143,11 +157,7 @@ func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) 
 	*/
 	cmd := exec.CommandContext(ctx, spark, b.CachedRootFS, b.Path) //nolint:gosec // We're intentionally executing with variable input.
 	cmd.Stdin = stdin
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		// TODO(negz): Set Cloneflags, which is specific to Linux. We may want
-		// to make the entire OCI function build only on Linux.
-		// https://github.com/u-root/u-root/blob/b56464/cmds/core/unshare/unshare_linux.go#L62
-	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags = syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS}
 
 	stdout, err := cmd.Output()
 	if err != nil {
