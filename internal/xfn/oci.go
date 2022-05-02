@@ -48,9 +48,9 @@ const (
 
 const spark = "/usr/local/bin/spark"
 
-// An OCIRunner runs an XRM function packaged as an OCI image by extracting it
-// and running it in a chroot.
-type OCIRunner struct {
+// An ContainerRunner runs an XRM function packaged as an OCI image by
+// extracting it and running it as a 'rootless' container.
+type ContainerRunner struct {
 	image string
 
 	// TODO(negz): Break fetch-ey bits out of xpkg.
@@ -59,12 +59,13 @@ type OCIRunner struct {
 	store           *FilesystemStore
 }
 
-// A OCIRunnerOption configures a new OCIRunner.
-type OCIRunnerOption func(*OCIRunner)
+// A ContainerRunnerOption configures a new ContainerRunner.
+type ContainerRunnerOption func(*ContainerRunner)
 
-// NewOCIRunner returns a new Runner that runs functions packaged as OCI images.
-func NewOCIRunner(image string, o ...OCIRunnerOption) *OCIRunner {
-	r := &OCIRunner{
+// NewContainerRunner returns a new Runner that runs functions as rootless
+// containers.
+func NewContainerRunner(image string, o ...ContainerRunnerOption) *ContainerRunner {
+	r := &ContainerRunner{
 		image:           image,
 		defaultRegistry: name.DefaultRegistry,
 		registry:        xpkg.NewNopFetcher(),
@@ -76,10 +77,10 @@ func NewOCIRunner(image string, o ...OCIRunnerOption) *OCIRunner {
 	return r
 }
 
-// Run a function packaged as an OCI container. Functions that return non-zero,
+// Run a function as a rootless OCI container. Functions that return non-zero,
 // or that cannot be executed in the first place (e.g. because they cannot be
 // fetched from the registry) will return an error.
-func (r *OCIRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) (*fnv1alpha1.ResourceList, error) {
+func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) (*fnv1alpha1.ResourceList, error) {
 	// Parse the input early, before we potentially pull and write the image.
 	y, err := yaml.Marshal(in)
 	if err != nil {
