@@ -107,7 +107,7 @@ func (c *cli) Run() error {
 	}
 
 	//nolint:gosec // Executing with user-supplied input is intentional.
-	cmd := exec.Command(c.Runtime, "--root", c.State, "run", "--bundle", c.Bundle, uuid.NewString())
+	cmd := exec.Command(c.Runtime, "--root", c.State, "run", "--rootless", "--bundle", c.Bundle, uuid.NewString())
 	cmd.Stdin = os.Stdin
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
