@@ -46,51 +46,9 @@ If 'auto pruning' is enabled, Argo CD will delete the XR. Crossplane will see
 that the XR is missing and recreate it. This will continue in a loop until
 manual intervention is taken.
  
-A final issue (This is not unique to Crossplane) can come into play when we
-manage the Crossplane service itself from Argo CD. When there are late
-initialized resources or fields as a result of an Argo CD sync, it can become
-confused and report these as out of sync. Crossplane will create some late
-initialized RBAC resources and fields that can cause this issue to arise.
- 
- 
 ### Configuring Argo CD with Crossplane
  
-#### 1. When using Argo CD to deploy and manage the Crossplane instance:
- 
-This is a basic Argo CD Application config that will avoid issues with late
-initialized fields:
- 
-```yaml
-project: default
-source:
- repoURL: 'https://charts.upbound.io/stable'
- targetRevision: 1.6.3-up.1
- chart: universal-crossplane
-destination:
- server: 'https://kubernetes.default.svc'
- namespace: upbound-system
-syncPolicy:
- automated: {}
- syncOptions:
-   - CreateNamespace=true
-   - ApplyOutOfSyncOnly=true
-   - Validate=false
-   - RespectIgnoreDifferences=true
- retry:
-   limit: 2
-   backoff:
-     duration: 2m
-     factor: 2
-     maxDuration: 5m0s
-ignoreDifferences:
- - group: rbac.authorization.k8s.io
-   kind: ClusterRole
-   name: crossplane
-   jsonPointers:
-     - /rules
-```
- 
-#### 2. When using Argo CD to deploy XRC:
+####  When using Argo CD to deploy XRC:
  
 To avoid having Argo CD see the XR with the  propagated tracking label, we
 must currently employ a workaround. Define a `Deny` rule within the Argo CD
