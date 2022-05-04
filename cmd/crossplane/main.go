@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
+	"github.com/crossplane/crossplane/cmd/crossplane/fn"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
 )
 
@@ -42,6 +43,7 @@ var cli struct {
 
 	Core core.Command `cmd:"" help:"Start core Crossplane controllers." default:"1"`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
+	Fn   fn.Command   `cmd:"" help:"Run a Composition function."`
 }
 
 // BeforeApply binds the dev mode logger to the kong context

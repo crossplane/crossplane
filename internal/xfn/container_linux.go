@@ -157,7 +157,7 @@ func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.ResourceList) 
 	*/
 	cmd := exec.CommandContext(ctx, spark, b.CachedRootFS, b.Path) //nolint:gosec // We're intentionally executing with variable input.
 	cmd.Stdin = stdin
-	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags = syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS}
+	cmd.SysProcAttr = &syscall.SysProcAttr{Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS}
 
 	stdout, err := cmd.Output()
 	if err != nil {
