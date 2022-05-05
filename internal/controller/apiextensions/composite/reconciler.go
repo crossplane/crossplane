@@ -414,7 +414,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		if err := r.composite.RemoveFinalizer(ctx, cr); err != nil {
-			log.Debug(errRemoveFinalizer, "error")
+			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(cr, event.Warning(reasonDelete, err))
 			return reconcile.Result{}, err
@@ -425,7 +425,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.composite.AddFinalizer(ctx, cr); err != nil {
-		log.Debug(errAddFinalizer, "error")
+		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(cr, event.Warning(reasonInit, err))
 		return reconcile.Result{}, err
