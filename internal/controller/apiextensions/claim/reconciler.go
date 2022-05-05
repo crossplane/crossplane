@@ -349,7 +349,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if err := r.claim.AddFinalizer(ctx, cm); err != nil {
-		log.Debug(errAddFinalizer, "error")
+		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
 		return reconcile.Result{}, err
