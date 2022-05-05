@@ -41,10 +41,6 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
-      - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.2.0
-        with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws
   
   getting-started-with-aws-with-vpc:
     runs-on: ubuntu-18.04
@@ -74,10 +70,6 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
-      - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.2.0
-        with:
-          command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc
   
   getting-started-with-gcp:
     runs-on: ubuntu-18.04
@@ -107,10 +99,6 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
-      - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.2.0
-        with:
-          command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp
   
   getting-started-with-azure:
     runs-on: ubuntu-18.04
@@ -140,7 +128,3 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
-      - name: Push Latest
-        uses: crossplane-contrib/xpkg-action@v0.2.0
-        with:
-          command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure
