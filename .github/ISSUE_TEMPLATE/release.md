@@ -21,22 +21,12 @@ Please ensure all artifacts (PRs, workflow runs, Tweets, etc) are linked from
 this issue for posterity. Refer to this [prior release issue][release-1.7] for
 examples of each step.
 
+<!-- Uncomment the following block only if cutting a minor release. -->
 <!--
-Please uncomment the following block only if cutting a minor release. Most of
-these should be completed at the beginning of Code Freeze:
-https://crossplane.io/docs/v1.7/reference/release-cycle.html#code-freeze
-
-The exception is the Crossplane docs website repo update. You can open a PR at
-code freeze time, but it should not be merged until the release is complete.
--->
-
-<!--
-- [ ] Created the release branch.
-- [ ] Created and merged an empty commit to the `master` branch.
-- [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the next release candidate tag.
-- [ ] Updated the current release version in the [Crossplane docs website repo].
-- [ ] Updated the release branch reaching EOL with [docs removal directive].
-- [ ] Request @jbw976 to remove the EOL docs version from Google Search
+- [ ] Prepare the release branch at the beginning of [Code Freeze]:
+  - [ ] Created the release branch.
+  - [ ] Created and merged an empty commit to the `master` branch.
+  - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the next release candidate tag.
 -->
 - [ ] Updated all version information in the documentation on the relevant release branch.
 - [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with the proper release version.
@@ -48,10 +38,16 @@ code freeze time, but it should not be merged until the release is complete.
   - [ ] `xp/getting-started-with-gcp`
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel.
 - [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes.
-- [ ] Updated the [releases table] in the `README.md` on `master`.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack
   - [ ] Twitter
+<!-- Uncomment the following block only if cutting a minor release. -->
+<!--
+- [ ] Updated the [releases table] in the `README.md` on `master`.
+- [ ] Updated the current release version in the [Crossplane docs website repo].
+- [ ] Updated the release branch reaching EOL with [docs removal directive].
+- [ ] Request @jbw976 to remove the EOL docs version from Google Search
+-->
 
 <!-- Named Links -->
 [releases.crossplane.io]: https://releases.crossplane.io
@@ -65,3 +61,4 @@ code freeze time, but it should not be merged until the release is complete.
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
 [promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
 [release-1.7]: https://github.com/crossplane/crossplane/issues/2977
+[Code Freeze]: https://crossplane.io/docs/master/reference/release-cycle.html#code-freeze
