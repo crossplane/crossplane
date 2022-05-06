@@ -27,8 +27,8 @@ documentation].
 You can subscribe to the [community calendar] to track all release dates.
 
 [v1.5.3]: https://github.com/crossplane/crossplane/releases/tag/v1.5.3
-[v1.6.5]: https://github.com/crossplane/crossplane/releases/tag/v1.6.5
-[v1.7.0]: https://github.com/crossplane/crossplane/releases/tag/v1.7.0
+[v1.6.6]: https://github.com/crossplane/crossplane/releases/tag/v1.6.6
+[v1.7.1]: https://github.com/crossplane/crossplane/releases/tag/v1.7.1
 
 ## Get Involved
 
