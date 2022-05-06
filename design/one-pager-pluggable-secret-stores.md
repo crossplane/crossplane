@@ -158,6 +158,20 @@ A _Secret Store Plugin_:
 - Should deploy CRD(s) for supported store configurations at startup.
 - Will run as a sidecar next to Crossplane and Provider containers.
 
+#### Plugin Binary vs Secret Store Implementation
+
+All `rpc` methods have `ConfigReference` as their first parameter. So,
+one Secret Store Plugin may support more than one Secret Store implementation,
+e.g. Vault, AWS, GCP, Azure ... all in a single Plugin binary, and related
+implementation could be called depending on a given config similar to how it is
+being done in [RuntimeStoreBuilder] today. Implementation of individual Secret
+Stores still need to satisfy the same [Store] interface today and could live in
+separate repositories. However, they would need to be packaged and served by a
+Secret Store Plugin binary to be used with Crossplane.
+
+This approach allows us to support more than one Secret Store implementation
+with a single plugin sidecar simplifying the deployment model.
+
 ### Deployment
 
 Crossplane helm chart will accept an optional container image for a secret
@@ -167,6 +181,21 @@ manager will inject the same sidecar to provider controller pods with proper
 configuration. 
 - The plugin process will create/apply CRDs during startup for the Secret Stores
 it supports.
+
+#### Communication over Unix Domain Sockets
+
+In Unix based systems, two local process can communicate with each other
+over a [Unix Domain Socket] which typically appears as a file on filesystem,
+e.g. `/var/run/docker.sock`. Two containers in the same pod can communicate with
+each other using Unix Domain sockets with a shared volume. However, in some
+sandboxed environments like [gVisor], this [may not work] depending on the
+isolation level.
+
+[Abstract Unix Domain Sockets] on the other hand does not require sharing a path
+on the filesystem and isolated at [network namespace] level. Given that
+containers in the same Pod uses a shared [network namespace], we don't need
+any specific setup and simply be able to communicate with a plugin sidecar over
+a socket like `@essplugin.sock`.
 
 ### Runtime
 
@@ -228,6 +257,13 @@ is not much need for this approach.
 [out of scope]: design-doc-external-secret-stores.md#out-of-tree-support-with-a-plugin-api
 [KMS plugins]: https://kubernetes.io/docs/tasks/administer-cluster/kms-provider/#implementing-a-kms-plugin
 [Secret Store]: https://github.com/crossplane/crossplane-runtime/blob/988c9ba9c255d7cade32e2c0135ce47b083eaf95/pkg/connection/interfaces.go#L35
+[RuntimeStoreBuilder]: https://github.com/crossplane/crossplane-runtime/blob/0e8935d6d9a942825a29ab3ab34f057cfb1dc050/pkg/connection/stores.go#L38
+[Store]: https://github.com/crossplane/crossplane-runtime/blob/0e8935d6d9a942825a29ab3ab34f057cfb1dc050/pkg/connection/interfaces.go#L35
+[Unix Domain Socket]: https://man7.org/linux/man-pages/man7/unix.7.html
+[gVisor]: https://github.com/google/gvisor
+[may not work]: https://gitter.im/gvisor/community?at=5ff62cb3cd31da3d9a97372d
+[Abstract Unix Domain Sockets]: https://utcc.utoronto.ca/~cks/space/blog/linux/SocketAbstractNamespace?showcomments
+[network namespace]: https://man7.org/linux/man-pages/man7/network_namespaces.7.html
 [PublishConnection]: https://github.com/crossplane/crossplane-runtime/blob/988c9ba9c255d7cade32e2c0135ce47b083eaf95/pkg/connection/manager.go#L94
 [connectStore]: https://github.com/crossplane/crossplane-runtime/blob/988c9ba9c255d7cade32e2c0135ce47b083eaf95/pkg/connection/manager.go#L101
 [Vault agent injector]: https://www.vaultproject.io/docs/platform/k8s/injector
