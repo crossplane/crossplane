@@ -131,6 +131,9 @@ type ControllerConfigSpec struct {
 	// List of container ports to expose on the container
 	// +optional
 	Ports []corev1.ContainerPort `json:"ports,omitempty"`
+	// Lifecycle definitions
+	// +optional
+	Lifecycle *corev1.Lifecycle `json:"lifecycle,omitempty"`
 }
 
 // PodObjectMeta is metadata that is added to the Pods in a provider's

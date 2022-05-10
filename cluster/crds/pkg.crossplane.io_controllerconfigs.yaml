@@ -1051,6 +1051,194 @@ spec:
                       type: string
                   type: object
                 type: array
+              lifecycle:
+                description: Lifecycle definitions
+                properties:
+                  postStart:
+                    description: 'PostStart is called immediately after a container
+                      is created. If the handler fails, the container is terminated
+                      and restarted according to its restart policy. Other management
+                      of the container blocks until the hook completes. More info:
+                      https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks'
+                    properties:
+                      exec:
+                        description: Exec specifies the action to take.
+                        properties:
+                          command:
+                            description: Command is the command line to execute inside
+                              the container, the working directory for the command  is
+                              root ('/') in the container's filesystem. The command
+                              is simply exec'd, it is not run inside a shell, so traditional
+                              shell instructions ('|', etc) won't work. To use a shell,
+                              you need to explicitly call out to that shell. Exit
+                              status of 0 is treated as live/healthy and non-zero
+                              is unhealthy.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      httpGet:
+                        description: HTTPGet specifies the http request to perform.
+                        properties:
+                          host:
+                            description: Host name to connect to, defaults to the
+                              pod IP. You probably want to set "Host" in httpHeaders
+                              instead.
+                            type: string
+                          httpHeaders:
+                            description: Custom headers to set in the request. HTTP
+                              allows repeated headers.
+                            items:
+                              description: HTTPHeader describes a custom header to
+                                be used in HTTP probes
+                              properties:
+                                name:
+                                  description: The header field name
+                                  type: string
+                                value:
+                                  description: The header field value
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
+                          path:
+                            description: Path to access on the HTTP server.
+                            type: string
+                          port:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Name or number of the port to access on the
+                              container. Number must be in the range 1 to 65535. Name
+                              must be an IANA_SVC_NAME.
+                            x-kubernetes-int-or-string: true
+                          scheme:
+                            description: Scheme to use for connecting to the host.
+                              Defaults to HTTP.
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      tcpSocket:
+                        description: Deprecated. TCPSocket is NOT supported as a LifecycleHandler
+                          and kept for the backward compatibility. There are no validation
+                          of this field and lifecycle hooks will fail in runtime when
+                          tcp handler is specified.
+                        properties:
+                          host:
+                            description: 'Optional: Host name to connect to, defaults
+                              to the pod IP.'
+                            type: string
+                          port:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Number or name of the port to access on the
+                              container. Number must be in the range 1 to 65535. Name
+                              must be an IANA_SVC_NAME.
+                            x-kubernetes-int-or-string: true
+                        required:
+                        - port
+                        type: object
+                    type: object
+                  preStop:
+                    description: 'PreStop is called immediately before a container
+                      is terminated due to an API request or management event such
+                      as liveness/startup probe failure, preemption, resource contention,
+                      etc. The handler is not called if the container crashes or exits.
+                      The Pod''s termination grace period countdown begins before
+                      the PreStop hook is executed. Regardless of the outcome of the
+                      handler, the container will eventually terminate within the
+                      Pod''s termination grace period (unless delayed by finalizers).
+                      Other management of the container blocks until the hook completes
+                      or until the termination grace period is reached. More info:
+                      https://kubernetes.io/docs/concepts/containers/container-lifecycle-hooks/#container-hooks'
+                    properties:
+                      exec:
+                        description: Exec specifies the action to take.
+                        properties:
+                          command:
+                            description: Command is the command line to execute inside
+                              the container, the working directory for the command  is
+                              root ('/') in the container's filesystem. The command
+                              is simply exec'd, it is not run inside a shell, so traditional
+                              shell instructions ('|', etc) won't work. To use a shell,
+                              you need to explicitly call out to that shell. Exit
+                              status of 0 is treated as live/healthy and non-zero
+                              is unhealthy.
+                            items:
+                              type: string
+                            type: array
+                        type: object
+                      httpGet:
+                        description: HTTPGet specifies the http request to perform.
+                        properties:
+                          host:
+                            description: Host name to connect to, defaults to the
+                              pod IP. You probably want to set "Host" in httpHeaders
+                              instead.
+                            type: string
+                          httpHeaders:
+                            description: Custom headers to set in the request. HTTP
+                              allows repeated headers.
+                            items:
+                              description: HTTPHeader describes a custom header to
+                                be used in HTTP probes
+                              properties:
+                                name:
+                                  description: The header field name
+                                  type: string
+                                value:
+                                  description: The header field value
+                                  type: string
+                              required:
+                              - name
+                              - value
+                              type: object
+                            type: array
+                          path:
+                            description: Path to access on the HTTP server.
+                            type: string
+                          port:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Name or number of the port to access on the
+                              container. Number must be in the range 1 to 65535. Name
+                              must be an IANA_SVC_NAME.
+                            x-kubernetes-int-or-string: true
+                          scheme:
+                            description: Scheme to use for connecting to the host.
+                              Defaults to HTTP.
+                            type: string
+                        required:
+                        - port
+                        type: object
+                      tcpSocket:
+                        description: Deprecated. TCPSocket is NOT supported as a LifecycleHandler
+                          and kept for the backward compatibility. There are no validation
+                          of this field and lifecycle hooks will fail in runtime when
+                          tcp handler is specified.
+                        properties:
+                          host:
+                            description: 'Optional: Host name to connect to, defaults
+                              to the pod IP.'
+                            type: string
+                          port:
+                            anyOf:
+                            - type: integer
+                            - type: string
+                            description: Number or name of the port to access on the
+                              container. Number must be in the range 1 to 65535. Name
+                              must be an IANA_SVC_NAME.
+                            x-kubernetes-int-or-string: true
+                        required:
+                        - port
+                        type: object
+                    type: object
+                type: object
               metadata:
                 description: Metadata that will be added to the provider Pod.
                 properties:

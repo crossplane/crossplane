@@ -242,6 +242,9 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			// that user provided if there are any.
 			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
 		}
+		if cc.Spec.Lifecycle != nil {
+			d.Spec.Template.Spec.Containers[0].Lifecycle = cc.Spec.Lifecycle
+		}
 	}
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
 		templateLabels[k] = v

@@ -65,6 +65,12 @@ func withAdditionalPort(port corev1.ContainerPort) deploymentModifier {
 	}
 }
 
+func withLifecycle(lifecycle *corev1.Lifecycle) deploymentModifier {
+	return func(d *appsv1.Deployment) {
+		d.Spec.Template.Spec.Containers[0].Lifecycle = lifecycle
+	}
+}
+
 const (
 	namespace = "ns"
 )
@@ -250,6 +256,23 @@ func TestBuildProviderDeployment(t *testing.T) {
 			Image: &ccImg,
 		},
 	}
+	lifecycle := corev1.Lifecycle{
+		PostStart: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"/bin/sh", "-c", "echo postStart"}}},
+		PreStop: &corev1.LifecycleHandler{
+			Exec: &corev1.ExecAction{
+				Command: []string{"/bin/sh", "-c", "echo preStop"}}},
+	}
+	ccl := &v1alpha1.ControllerConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: revisionWithCC.Name,
+		},
+		Spec: v1alpha1.ControllerConfigSpec{
+			Image:     &ccImg,
+			Lifecycle: &lifecycle,
+		},
+	}
 
 	cases := map[string]struct {
 		reason string
@@ -329,6 +352,19 @@ func TestBuildProviderDeployment(t *testing.T) {
 					"pkg.crossplane.io/provider": providerWithImage.GetName(),
 					"k":                          "v",
 				})),
+				svc: service(providerWithImage, revisionWithCC),
+			},
+		},
+		"LifecycleCC": {
+			reason: "If a ControllerConfig is referenced and it species lifecycle hooks then they should always be used.",
+			fields: args{
+				provider: providerWithImage,
+				revision: revisionWithCC,
+				cc:       ccl,
+			},
+			want: want{
+				sa:  serviceaccount(revisionWithCC),
+				d:   deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withLifecycle(&lifecycle)),
 				svc: service(providerWithImage, revisionWithCC),
 			},
 		},
