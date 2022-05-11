@@ -17,18 +17,14 @@ Currently maintained releases, as well as the next upcoming release are listed
 below. For more information take a look at the Crossplane [release cycle
 documentation].
 
-| Release | Release Date |  Current Patch  |      EOL      |
-|:-------:|:------------:|:---------------:|:-------------:|
-|   v1.5  | Oct 26, 2021 |     [v1.5.3]    |    May 2022   |
-|   v1.6  | Jan 4, 2022  |     [v1.6.5]    |   July 2022   |
-|   v1.7  | Mar 22, 2022 |     [v1.7.0]    |   Sept 2022   |
-|   v1.8  | May 17, 2022 |     Upcoming    |    Dec 2022   |
+| Release | Release Date |      EOL      |
+|:-------:|:------------:|:-------------:|
+|   v1.6  | Jan 4, 2022  |   July 2022   |
+|   v1.7  | Mar 22, 2022 |   Sept 2022   |
+|   v1.8  | May 17, 2022 |    Dec 2022   |
 
-You can subscribe to the [community calendar] to track all release dates.
-
-[v1.5.3]: https://github.com/crossplane/crossplane/releases/tag/v1.5.3
-[v1.6.5]: https://github.com/crossplane/crossplane/releases/tag/v1.6.5
-[v1.7.0]: https://github.com/crossplane/crossplane/releases/tag/v1.7.0
+You can subscribe to the [community calendar] to track all release dates, and
+find the most recent releases on the [releases] page.
 
 ## Get Involved
 
@@ -75,3 +71,4 @@ Crossplane is under the Apache 2.0 license.
 [roadmap]: https://github.com/orgs/crossplane/projects/12
 [cncf]: https://www.cncf.io/
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
+[releases]: https://github.com/crossplane/crossplane/releases
