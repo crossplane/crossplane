@@ -248,7 +248,7 @@ kubectl crossplane install configuration registry.upbound.io/xp/getting-started-
 
 Wait until all packages become healthy:
 ```
-watch kubectl get pkg
+kubectl get pkg --watch
 ```
 
 ### Get AWS Account Keyfile
