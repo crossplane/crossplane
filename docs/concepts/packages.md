@@ -109,8 +109,8 @@ all types that its package installs, as well as `Secrets`, `ConfigMaps`, and
 > Note that the Crossplane RBAC manager can be configured to reject permissions
 > for certain API groups. If a package requests permissions that Crossplane is
 > configured to reject, the package will fail to be installed.
-> Authorized permissions should be aggregated to the rbac manager clusterrole 
-> (the cluster role defined by the provider-clusterrole flag in the rbac manager) 
+> Authorized permissions should be aggregated to the rbac manager clusterrole
+> (the cluster role defined by the provider-clusterrole flag in the rbac manager)
 > by using the label `rbac.crossplane.io/aggregate-to-allowed-provider-permissions: "true"`
 
 The `spec.crossplane.version` field specifies the version constraints for core
@@ -478,7 +478,6 @@ ensure that the controller image that it references is able to be pulled by the
 cluster nodes. This can be accomplished either by pushing it to a registry, or
 by [pre-pulling images] onto nodes in the cluster.
 
-
 <!-- Named Links -->
 
 [OCI images]: https://github.com/opencontainers/image-spec
@@ -486,7 +485,7 @@ by [pre-pulling images] onto nodes in the cluster.
 [provider-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Provider/v1
 [configuration-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Configuration/v1
 [lock-api]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/Lock/v1beta1
-[getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/master/docs/snippets/package/gcp
+[getting-started-with-gcp]: https://github.com/crossplane/crossplane/tree/release-1.8/docs/snippets/package/gcp
 [specification]: https://github.com/Masterminds/semver#basic-comparisons
 [composition]: composition.md
 [IAM Roles for Service Accounts]: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
