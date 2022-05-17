@@ -131,6 +131,8 @@ func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 		return *m.Multiply * i, nil
 	case int:
 		return *m.Multiply * int64(i), nil
+	case float64:
+		return *m.Multiply * float64(i), nil
 	default:
 		return nil, errors.New(errMathInputNonNumber)
 	}
