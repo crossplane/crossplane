@@ -453,6 +453,11 @@ type StringTransform struct {
 	// Trim the prefix or suffix from the input
 	// +optional
 	Trim *string `json:"trim,omitempty"`
+
+	// Extract first match from the input using a Go regex string. See
+	// https://pkg.go.dev/regexp/ for details.
+	// +optional
+	Regexp *string `json:"regexp,omitempty"`
 }
 
 // The list of supported ConvertTransform input and output types.

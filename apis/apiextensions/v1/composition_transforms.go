@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -40,12 +41,15 @@ const (
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
 
-	errStringTransformTypeFailed  = "type %s is not supported for string transform type"
-	errStringTransformTypeFormat  = "string transform of type %s fmt is not set"
-	errStringTransformTypeConvert = "string transform of type %s convert is not set"
-	errStringTransformTypeTrim    = "string transform of type %s trim is not set"
-	errStringConvertTypeFailed    = "type %s is not supported for string convert"
-	errDecodeString               = "string is not valid base64"
+	errStringTransformTypeFailed      = "type %s is not supported for string transform type"
+	errStringTransformTypeFormat      = "string transform of type %s fmt is not set"
+	errStringTransformTypeConvert     = "string transform of type %s convert is not set"
+	errStringTransformTypeTrim        = "string transform of type %s trim is not set"
+	errStringTransformTypeRegexFailed = "could not compile %s"
+	errStringTransformTypeEmptyRegexp = "empty regexp is not allowed"
+	errStringConvertTypeFailed        = "type %s is not supported for string convert"
+
+	errDecodeString = "string is not valid base64"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -185,6 +189,7 @@ const (
 	StringTransformTypeConvert    StringTransformType = "Convert"
 	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
 	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
+	StringTransformTypeRegexp     StringTransformType = "Regexp"
 )
 
 // StringConversionType converts a string.
@@ -220,6 +225,11 @@ type StringTransform struct {
 	// Trim the prefix or suffix from the input
 	// +optional
 	Trim *string `json:"trim,omitempty"`
+
+	// Extract first match from the input using a Go regex string. See
+	// https://pkg.go.dev/regexp/ for details.
+	// +optional
+	Regexp *string `json:"regexp,omitempty"`
 }
 
 // Resolve runs the String transform.
@@ -242,6 +252,8 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 			return nil, errors.Errorf(errStringTransformTypeTrim, string(s.Type))
 		}
 		return stringTrimTransform(input, s.Type, *s.Trim), nil
+	case StringTransformTypeRegexp:
+		return stringRegexpTransform(input, *s.Regexp)
 	default:
 		return nil, errors.Errorf(errStringTransformTypeFailed, string(s.Type))
 	}
@@ -273,6 +285,23 @@ func stringTrimTransform(input interface{}, t StringTransformType, trim string) 
 		return strings.TrimSuffix(str, trim)
 	}
 	return str
+}
+
+func stringRegexpTransform(input interface{}, r string) (interface{}, error) {
+	if r == "" {
+		return nil, errors.New(errStringTransformTypeEmptyRegexp)
+	}
+
+	re, err := regexp.Compile(r)
+
+	if err != nil {
+		return nil, errors.Errorf(errStringTransformTypeRegexFailed, err.Error())
+	}
+
+	str := fmt.Sprintf("%v", input)
+	result := re.Find([]byte(str))
+
+	return result, nil
 }
 
 // The list of supported ConvertTransform input and output types.
