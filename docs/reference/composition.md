@@ -498,6 +498,7 @@ Currently only `multiply` is supported.
 * string transform type `Convert`, accepts one of `ToUpper`, `ToLower`, `ToBase64`, `FromBase64`.
 * string transform type `TrimPrefix`, accepts a string to be trimmed from the beginning of the input.
 * string transform type `TrimSuffix`, accepts a string to be trimmed from the end of the input.
+* string transform type `Regexp`, accepts a string for regexp to be applied to.
 
 ```yaml
 # If you omit the field type, by default type is set to `Format` 
@@ -555,6 +556,13 @@ Currently only `multiply` is supported.
   string:
      type: TrimSuffix
      trim: '-test'
+
+# If the value of the 'from' field is my-string-1-test, 
+# the value of the 'to' field will be set to 1
+- type: string
+  string:
+     type: Regexp
+     regexp: '[0-9]'
 ```
 
 `convert`. Transforms values of one type to another, for example from a string

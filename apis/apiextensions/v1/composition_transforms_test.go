@@ -153,6 +153,7 @@ func TestStringResolve(t *testing.T) {
 		fmts    *string
 		convert *StringConversionType
 		trim    *string
+		regexp  *string
 		i       interface{}
 	}
 	type want struct {
@@ -166,6 +167,9 @@ func TestStringResolve(t *testing.T) {
 
 	prefix := "https://"
 	suffix := "-test"
+
+	regexpNotCompiling := "[a-z"
+	regexpGood := "[0-9]"
 
 	cases := map[string]struct {
 		args
@@ -319,6 +323,26 @@ func TestStringResolve(t *testing.T) {
 				o: "my-string",
 			},
 		},
+		"RegexpNotCompiling": {
+			args: args{
+				stype:  StringTransformRegexp,
+				regexp: &regexpNotCompiling,
+				i:      "my-string",
+			},
+			want: want{
+				err: errors.Errorf(errStringTransformTypeRegexFailed, "error parsing regexp: missing closing ]: `[a-z`"),
+			},
+		},
+		"CorrectRegexp": {
+			args: args{
+				stype:  StringTransformRegexp,
+				regexp: &regexpGood,
+				i:      "my-1-string",
+			},
+			want: want{
+				o: []uint8("1"),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -326,6 +350,7 @@ func TestStringResolve(t *testing.T) {
 				Format:  tc.fmts,
 				Convert: tc.convert,
 				Trim:    tc.trim,
+				Regexp:  tc.regexp,
 			}).Resolve(tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {

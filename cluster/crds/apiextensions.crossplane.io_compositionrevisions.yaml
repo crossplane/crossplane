@@ -220,6 +220,11 @@ spec:
                                         string. See https://golang.org/pkg/fmt/ for
                                         details.
                                       type: string
+                                    regexp:
+                                      description: Extract first match from the input
+                                        using a Go regex string. See https://pkg.go.dev/regexp/
+                                        for details.
+                                      type: string
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
@@ -496,6 +501,11 @@ spec:
                                       description: Format the input using a Go format
                                         string. See https://golang.org/pkg/fmt/ for
                                         details.
+                                      type: string
+                                    regexp:
+                                      description: Extract first match from the input
+                                        using a Go regex string. See https://pkg.go.dev/regexp/
+                                        for details.
                                       type: string
                                     trim:
                                       description: Trim the prefix or suffix from
