@@ -18,6 +18,7 @@ package manager
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -27,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -54,6 +56,7 @@ func (m *MockRevisioner) Revision(context.Context, v1.Package) (string, error) {
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
+	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	pullAlways := corev1.PullAlways
 	trueVal := true
 	revHistory := int64(1)
@@ -81,7 +84,7 @@ func TestReconcile(t *testing.T) {
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
 					},
-					log: logging.NewNopLogger(),
+					log: testLog,
 				},
 			},
 			want: want{
@@ -97,7 +100,7 @@ func TestReconcile(t *testing.T) {
 					client: resource.ClientApplicator{
 						Client: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
 					},
-					log: logging.NewNopLogger(),
+					log: testLog,
 				},
 			},
 			want: want{
@@ -117,7 +120,7 @@ func TestReconcile(t *testing.T) {
 							MockList: test.NewMockListFn(errBoom),
 						},
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -164,7 +167,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -213,7 +216,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -260,7 +263,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -318,7 +321,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -396,7 +399,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -455,7 +458,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -515,7 +518,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -612,7 +615,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
@@ -691,7 +694,7 @@ func TestReconcile(t *testing.T) {
 					pkg: &MockRevisioner{
 						MockRevision: NewMockRevisionFn("test-1234567", nil),
 					},
-					log:    logging.NewNopLogger(),
+					log:    testLog,
 					record: event.NewNopRecorder(),
 				},
 			},
