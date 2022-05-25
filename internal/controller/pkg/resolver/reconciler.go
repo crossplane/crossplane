@@ -259,7 +259,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// NOTE(hasheddan): consider creating event on package revision
 	// dictating constraints.
 	if addVer == "" {
-		log.Debug(errNoValidVersion, errors.Errorf(errNoValidVersionFmt, dep.Identifier(), dep.Constraints))
+		log.Debug(errNoValidVersion, "error", errors.Errorf(errNoValidVersionFmt, dep.Identifier(), dep.Constraints))
 		return reconcile.Result{Requeue: false}, nil
 	}
 
