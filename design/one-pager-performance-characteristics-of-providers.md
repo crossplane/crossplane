@@ -93,12 +93,15 @@ The developed tool can manipulate the metadata.name for each applying operation.
 
 - User can specify some basic configurations via yaml file.
 ```yaml
-experimentName: test-experiment
-imageOfProvider: crossplane/provider-jet-azure:v0.8.0
-ignoredMetrics:
+name: test-experiment
+provider:
+  image: crossplane/provider-jet-azure:v0.8.0
+metrics:
+  ignore:
   - cpu_utilization
-numberOfRepetations: 1
-cleanCluster: false
+# What is repetition in this context exactly?
+count: 1
+cluster: Kind | Minikube | Existing
 ```
 - These options can also be provided via command-line options.
 
