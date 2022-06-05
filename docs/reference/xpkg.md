@@ -14,9 +14,9 @@ installing objects that configure new resource types, and starting controllers
 to reconcile them. An OCI image that contains valid Crossplane package content
 is commonly referred to as an `xpkg` ("ex-package"). This document provides the
 specification for a valid `xpkg`, which can be considered a superset of the
-requirements detailed in [OCI image specification]. It is divided into two broad
-sections: requirements related to OCI image format and requirements related to
-Crossplane `package.yaml` contents.
+requirements detailed in the [OCI image specification]. It is divided into two
+broad sections: requirements related to OCI image format and requirements
+related to Crossplane `package.yaml` contents.
 
 - [OCI Image Format](#oci-image-format)
   - [Indexes](#indexes)
