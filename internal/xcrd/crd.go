@@ -62,7 +62,6 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 
 	crd.SetName(xrd.GetName())
 	crd.SetLabels(xrd.GetLabels())
-	crd.SetAnnotations(xrd.GetAnnotations())
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 		meta.TypedReferenceTo(xrd, v1.CompositeResourceDefinitionGroupVersionKind),
 	)})
@@ -135,7 +134,6 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 
 	crd.SetName(xrd.Spec.ClaimNames.Plural + "." + xrd.Spec.Group)
 	crd.SetLabels(xrd.GetLabels())
-	crd.SetAnnotations(xrd.GetAnnotations())
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 		meta.TypedReferenceTo(xrd, v1.CompositeResourceDefinitionGroupVersionKind),
 	)})
