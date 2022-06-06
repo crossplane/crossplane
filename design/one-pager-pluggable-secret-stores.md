@@ -69,6 +69,7 @@ spec:
   type: External
   defaultScope: crossplane-system
   external:
+    endpoint: unix:///@crossplane/secret/default.sock  # The default, can be changed.
     configRef:
       apiVersion: secrets.crossplane.io/v1alpha1
       kind: VaultConfig
@@ -169,9 +170,6 @@ Stores still need to satisfy the same [Store] interface today and could live in
 separate repositories. However, they would need to be packaged and served by a
 Secret Store Plugin binary to be used with Crossplane.
 
-This approach allows us to support more than one Secret Store implementation
-with a single plugin sidecar simplifying the deployment model.
-
 ### Deployment
 
 Crossplane helm chart will accept an optional container image for a secret
@@ -195,7 +193,7 @@ isolation level.
 on the filesystem and isolated at [network namespace] level. Given that
 containers in the same Pod uses a shared [network namespace], we don't need
 any specific setup and simply be able to communicate with a plugin sidecar over
-a socket like `@essplugin.sock`.
+a socket like `@crossplane/secret/default.sock`.
 
 ### Runtime
 
