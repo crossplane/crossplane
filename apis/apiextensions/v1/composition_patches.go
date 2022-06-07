@@ -38,7 +38,7 @@ const (
 	errFmtCombineStrategyNotSupported = "combine strategy %s is not supported"
 	errFmtCombineConfigMissing        = "given combine strategy %s requires configuration"
 	errFmtCombineStrategyFailed       = "%s strategy could not combine"
-	errExpandingArrayFieldPaths       = "Cannot expand ToFieldPath %s"
+	errFmtExpandingArrayFieldPaths    = "cannot expand ToFieldPath %s"
 )
 
 // A PatchType is a type of patch.
@@ -180,7 +180,7 @@ func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.O
 	}
 
 	if len(arrayFieldPaths) == 0 {
-		return errors.Errorf(errExpandingArrayFieldPaths, fieldPath)
+		return errors.Errorf(errFmtExpandingArrayFieldPaths, fieldPath)
 	}
 
 	for _, field := range arrayFieldPaths {

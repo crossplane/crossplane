@@ -195,7 +195,7 @@ func TestPatchApply(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Errorf(errExpandingArrayFieldPaths, "objectMeta.ownerReferences[*].badField"),
+				err: errors.Errorf(errFmtExpandingArrayFieldPaths, "objectMeta.ownerReferences[*].badField"),
 			},
 		},
 		"MissingOptionalFieldPath": {
