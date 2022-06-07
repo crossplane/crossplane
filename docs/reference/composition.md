@@ -405,9 +405,9 @@ field.
   toFieldPath: status.zone
 ```
 
-Both `FromCompositeFieldPath` and `ToCompositeFieldPath` can take a wildcarded
-field path containing arrays and patch each array element on a specified
-field.
+`FromCompositeFieldPath` and `ToCompositeFieldPath` patches can also take a wildcarded
+field path in the `toFieldPath` parameter and patch each array element in the `toFieldPath`
+with the singular value provided in the `fromFieldPath`.
 
 ```yaml
 # Patch from the XR's spec.parameters.allowedIPs to the CIDRBlock elements
