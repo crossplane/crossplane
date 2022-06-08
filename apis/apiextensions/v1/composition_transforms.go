@@ -44,7 +44,9 @@ const (
 	errStringTransformTypeFormat  = "string transform of type %s fmt is not set"
 	errStringTransformTypeConvert = "string transform of type %s convert is not set"
 	errStringTransformTypeTrim    = "string transform of type %s trim is not set"
+	errStringTransformTypeEncode  = "string transform of type %s encode is not set"
 	errStringConvertTypeFailed    = "type %s is not supported for string convert"
+	errStringEncodeFailed         = "failed to encode string. Error: %s"
 	errDecodeString               = "string is not valid base64"
 )
 
@@ -185,6 +187,7 @@ const (
 	StringTransformConvert    StringTransformType = "Convert"
 	StringTransformTrimPrefix StringTransformType = "TrimPrefix"
 	StringTransformTrimSuffix StringTransformType = "TrimSuffix"
+	StringTransformEncode     StringTransformType = "Encode"
 )
 
 // StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
@@ -197,6 +200,12 @@ const (
 	ConversionTypeToBase64   = "ToBase64"
 	ConversionTypeFromBase64 = "FromBase64"
 )
+
+// StringEncodeType is the type of string encoding, JSON
+type StringEncodeType string
+
+// EncodeTypeToJSON accepts JSON values
+const EncodeTypeToJSON = "JSON"
 
 // A StringTransform returns a string given the supplied input.
 type StringTransform struct {
@@ -220,6 +229,10 @@ type StringTransform struct {
 	// Trim the prefix or suffix from the input
 	// +optional
 	Trim *string `json:"trim,omitempty"`
+
+	// Encode the input and return a valid string from encoding
+	// +optional
+	Encode *StringEncodeType `json:"encode,omitempty"`
 }
 
 // Resolve runs the String transform.
@@ -242,6 +255,12 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 			return nil, errors.Errorf(errStringTransformTypeTrim, string(s.Type))
 		}
 		return stringTrimTransform(input, s.Type, *s.Trim), nil
+
+	case StringTransformEncode:
+		if s.Encode == nil {
+			return nil, errors.Errorf(errStringTransformTypeEncode, string(s.Type))
+		}
+		return stringEncodeTransform(input, s.Encode)
 	default:
 		return nil, errors.Errorf(errStringTransformTypeFailed, string(s.Type))
 	}
@@ -273,6 +292,25 @@ func stringTrimTransform(input interface{}, t StringTransformType, trim string) 
 		return strings.TrimSuffix(str, trim)
 	}
 	return str
+}
+
+func stringEncodeTransform(input interface{}, t *StringEncodeType) (interface{}, error) {
+	str := fmt.Sprintf("%v", input)
+	switch *t {
+	case EncodeTypeToJSON:
+		var inJSON json.RawMessage
+		err := json.Unmarshal([]byte(str), &inJSON)
+		if err != nil {
+			return nil, errors.Errorf(errStringEncodeFailed, err.Error())
+		}
+		outJSON, err := json.Marshal(&inJSON)
+		if err != nil {
+			return nil, errors.Errorf(errStringEncodeFailed, err.Error())
+		}
+		return string(outJSON), nil
+	default:
+		return nil, errors.Errorf(errStringConvertTypeFailed, *t)
+	}
 }
 
 // The list of supported ConvertTransform input and output types.

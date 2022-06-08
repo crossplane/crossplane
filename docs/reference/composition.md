@@ -498,6 +498,7 @@ Currently only `multiply` is supported.
 * string transform type `Convert`, accepts one of `ToUpper`, `ToLower`, `ToBase64`, `FromBase64`.
 * string transform type `TrimPrefix`, accepts a string to be trimmed from the beginning of the input.
 * string transform type `TrimSuffix`, accepts a string to be trimmed from the end of the input.
+* string transform type `Encode`, accepts a string to be validaed and normalized given the specified encoding.
 
 ```yaml
 # If you omit the field type, by default type is set to `Format` 
@@ -555,6 +556,13 @@ Currently only `multiply` is supported.
   string:
      type: TrimSuffix
      trim: '-test'
+
+# Validating and normalizing JSON is supported for Encode
+# This will take the input JSON, ensure it is valid JSON, and return a normalized JSON string
+- type: string
+  string:
+     type: Encode
+     encode: JSON
 ```
 
 `convert`. Transforms values of one type to another, for example from a string

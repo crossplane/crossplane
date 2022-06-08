@@ -153,6 +153,7 @@ func TestStringResolve(t *testing.T) {
 		fmts    *string
 		convert *StringConversionType
 		trim    *string
+		encode  *StringEncodeType
 		i       interface{}
 	}
 	type want struct {
@@ -166,6 +167,8 @@ func TestStringResolve(t *testing.T) {
 
 	prefix := "https://"
 	suffix := "-test"
+
+	var json StringEncodeType = EncodeTypeToJSON
 
 	cases := map[string]struct {
 		args
@@ -319,6 +322,28 @@ func TestStringResolve(t *testing.T) {
 				o: "my-string",
 			},
 		},
+		"EncodeJSON": {
+			args: args{
+				stype:  StringTransformEncode,
+				encode: &json,
+				i: `{
+					"clusterCA":"abc123"
+				}`,
+			},
+			want: want{
+				o: `{"clusterCA":"abc123"}`,
+			},
+		},
+		"EncodeBadJSONFailed": {
+			args: args{
+				stype:  StringTransformEncode,
+				encode: &json,
+				i:      `{clusterCA":"abc123"`,
+			},
+			want: want{
+				err: errors.Errorf(errStringEncodeFailed, "invalid character 'c' looking for beginning of object key string"),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -326,6 +351,7 @@ func TestStringResolve(t *testing.T) {
 				Format:  tc.fmts,
 				Convert: tc.convert,
 				Trim:    tc.trim,
+				Encode:  tc.encode,
 			}).Resolve(tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {

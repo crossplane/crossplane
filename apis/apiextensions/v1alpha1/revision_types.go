@@ -414,6 +414,9 @@ type StringTransformType string
 // StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
 type StringConversionType string
 
+// StringEncodeType is the type of encoding, JSON
+type StringEncodeType string
+
 // A StringTransform returns a string given the supplied input.
 type StringTransform struct {
 
@@ -436,6 +439,10 @@ type StringTransform struct {
 	// Trim the prefix or suffix from the input
 	// +optional
 	Trim *string `json:"trim,omitempty"`
+
+	// Encode the input and return a valid string from encoding
+	// +optional
+	Encode *StringEncodeType `json:"encode,omitempty"`
 }
 
 // A ConvertTransform converts the input into a new object whose type is supplied.

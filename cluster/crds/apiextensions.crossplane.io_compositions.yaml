@@ -220,6 +220,10 @@ spec:
                                       - ToBase64
                                       - FromBase64
                                       type: string
+                                    encode:
+                                      description: Encode the input and return a valid
+                                        string from encoding
+                                      type: string
                                     fmt:
                                       description: Format the input using a Go format
                                         string. See https://golang.org/pkg/fmt/ for
@@ -509,6 +513,10 @@ spec:
                                       - ToLower
                                       - ToBase64
                                       - FromBase64
+                                      type: string
+                                    encode:
+                                      description: Encode the input and return a valid
+                                        string from encoding
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
