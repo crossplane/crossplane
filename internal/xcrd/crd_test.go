@@ -145,9 +145,8 @@ func TestForCompositeResource(t *testing.T) {
 
 	want := &extv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Labels:      labels,
-			Annotations: annotations,
+			Name:   name,
+			Labels: labels,
 			OwnerReferences: []metav1.OwnerReference{
 				meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
 			},
@@ -558,9 +557,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 
 	want := &extv1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        claimPlural + "." + group,
-			Labels:      labels,
-			Annotations: annotations,
+			Name:   claimPlural + "." + group,
+			Labels: labels,
 			OwnerReferences: []metav1.OwnerReference{
 				meta.AsController(meta.TypedReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind)),
 			},
