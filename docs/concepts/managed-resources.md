@@ -459,12 +459,10 @@ including Velero.
 
 [term-xrm]: terminology.md#crossplane-resource-model
 [composition]: composition.md
-[api-versioning]:
-    https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
+[api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
 [velero]: https://velero.io/
 [api-reference]: ../api-docs/overview.md
 [provider]: providers.md
 [issue-727]: https://github.com/crossplane/crossplane/issues/727
 [issue-1143]: https://github.com/crossplane/crossplane/issues/1143
-[managed-api-patterns]:
-    https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
+[managed-api-patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
