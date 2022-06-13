@@ -438,6 +438,7 @@ using needs to store `annotations` and `spec` fields, which most tools do
 including Velero.
 
 [term-xrm]: terminology.md#crossplane-resource-model
+[RDS]: https://aws.amazon.com/rds/
 [composition]: composition.md
 [api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
 [velero]: https://velero.io/
