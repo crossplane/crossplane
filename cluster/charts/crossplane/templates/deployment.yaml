@@ -110,8 +110,6 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: olala
-            value: olala
           - name: LEADER_ELECTION
             value: "{{ .Values.leaderElection }}"
           {{- if .Values.registryCaBundleConfig.key }}
