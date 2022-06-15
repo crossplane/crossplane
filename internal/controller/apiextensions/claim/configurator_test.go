@@ -375,7 +375,8 @@ func TestCompositeConfigure(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPIDryRunCompositeConfigurator(tc.c)
+			gen := NewKubeAPINameGenerator(tc.c)
+			c := NewAPIDryRunCompositeConfigurator(gen)
 			got := c.Configure(tc.args.ctx, tc.args.cm, tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, got, test.EquateErrors()); diff != "" {
 				t.Errorf("Configure(...): %s\n-want error, +got error:\n%s\n", tc.reason, diff)

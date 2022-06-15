@@ -67,6 +67,7 @@ const (
 	errDeleteCRD       = "cannot delete composite resource claim CustomResourceDefinition"
 	errListCRs         = "cannot list defined composite resource claims"
 	errDeleteCR        = "cannot delete defined composite resource claim"
+	errParseTemplate   = "cannot parse composite name template"
 )
 
 // Wait strings.
@@ -406,6 +407,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		o = append(o, claim.WithConnectionPropagator(pc), claim.WithConnectionUnpublisher(claim.NewSecretStoreConnectionUnpublisher(connection.NewDetailsManager(r.client, secretsv1alpha1.StoreConfigGroupVersionKind))))
+	}
+
+	if d.Spec.Composite != nil && d.Spec.Composite.Name != nil && d.Spec.Composite.Name.Template != nil {
+		nameGen, err := claim.NewTemplateNameGenerator(*d.Spec.Composite.Name.Template)
+		if err != nil {
+			log.Debug(errParseTemplate, "error", err)
+			err = errors.Wrap(err, errParseTemplate)
+			r.record.Event(d, event.Warning(reasonOfferXRC, err))
+			return reconcile.Result{}, err
+		}
+		o = append(o, claim.WithCompositeNameGenerator(nameGen))
 	}
 
 	cr := claim.NewReconciler(r.mgr,

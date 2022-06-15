@@ -18,7 +18,6 @@ package claim
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -51,14 +50,16 @@ const (
 // perform a dry-run create against an API server in order to name and validate
 // the configured resource.
 type APIDryRunCompositeConfigurator struct {
-	client client.Client
+	nameGenerator CompositeNameGenerator
 }
 
 // NewAPIDryRunCompositeConfigurator returns a Configurator of composite
 // resources that may perform a dry-run create against an API server in order to
 // name and validate the configured resource.
-func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfigurator {
-	return &APIDryRunCompositeConfigurator{client: c}
+func NewAPIDryRunCompositeConfigurator(nameGenerator CompositeNameGenerator) *APIDryRunCompositeConfigurator {
+	return &APIDryRunCompositeConfigurator{
+		nameGenerator: nameGenerator,
+	}
 }
 
 // Configure the supplied composite resource by propagating configuration from
@@ -126,15 +127,8 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	ucp.SetClaimReference(proposed)
 
 	if !meta.WasCreated(cp) {
-		// The API server returns an available name derived from
-		// generateName when we perform a dry-run create. This name is
-		// likely (but not guaranteed) to be available when we create
-		// the composite resource. If the API server generates a name
-		// that is unavailable it will return a 500 ServerTimeout error.
-		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-		return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+		return errors.Wrap(c.nameGenerator.Generate(ctx, cm, cp), errName)
 	}
-
 	return nil
 }
 

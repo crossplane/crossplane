@@ -189,9 +189,12 @@ type crComposite struct {
 	ConnectionPropagator
 }
 
-func defaultCRComposite(c client.Client) crComposite {
+func defaultCRComposite(c client.Client, gen CompositeNameGenerator) crComposite {
+	if gen == nil {
+		gen = NewKubeAPINameGenerator(c)
+	}
 	return crComposite{
-		Configurator:         NewAPIDryRunCompositeConfigurator(c),
+		Configurator:         NewAPIDryRunCompositeConfigurator(gen),
 		ConnectionPropagator: NewAPIConnectionPropagator(c),
 	}
 }
@@ -285,6 +288,14 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithCompositeNameGenerator specifies how the Reconciler should
+// generate composite names.
+func WithCompositeNameGenerator(gen CompositeNameGenerator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite = defaultCRComposite(r.client.Client, gen)
+	}
+}
+
 // NewReconciler returns a Reconciler that reconciles composite resource claims of
 // the supplied CompositeClaimKind with resources of the supplied CompositeKind.
 // The returned Reconciler will apply only the ObjectMetaConfigurator by
@@ -303,7 +314,7 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 		newComposite: func() resource.Composite {
 			return composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind(with)))
 		},
-		composite: defaultCRComposite(c),
+		composite: defaultCRComposite(c, nil),
 		claim:     defaultCRClaim(c),
 		log:       logging.NewNopLogger(),
 		record:    event.NewNopRecorder(),
