@@ -47,9 +47,10 @@ be over Unix domain sockets.
 ### API
 
 In addition to the existing Secret Store types, `Kubernetes` and `Vault`, we
-will define a new type named as `External`. We may consider deprecating type
-`Vault` in favor of a plugin supporting Vault to remove the dependencies already
-introduced.
+will define a new type named as `External`. We will deprecate the existing type
+`Vault` in favor of a plugin supporting **Vault** to remove the dependencies
+already introduced. With this, `Kubernetes` and `External` will be the only two
+built-in types going forward.
 
 > This new type could be named as `Plugin` as well. However, after deprecating
 > in tree `Vault` type in favor of a Vault plugin, all **External** Secret
