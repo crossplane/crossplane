@@ -442,7 +442,9 @@ watch kubectl get pkg
 
 ```console
 # create service principal with Owner role
-az ad sp create-for-rbac --sdk-auth --role Owner > "creds.json"
+az ad sp create-for-rbac --name [servicePrincipalName] \
+                         --role Owner \
+                         --scopes /subscriptions/[subcriptionId]/resourceGroups/[resourceGroupName] > "creds.json"
 ```
 
 ### Create a Provider Secret
