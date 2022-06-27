@@ -84,7 +84,6 @@ and their default values.
 | `deploymentStrategy` | The deployment strategy for the Crossplane and RBAC Manager (if enabled) pods | `RollingUpdate` |
 | `leaderElection` | Enable leader election for Crossplane Managers pod | `true` |
 | `nodeSelector` | Enable nodeSelector for Crossplane pod | `{}` |
-| `maxReconcileRate` | How frequently Crossplane may reconcile its resources (seconds) | `""` |
 | `customLabels` | Custom labels to add into metadata | `{}` |
 | `customAnnotations` | Custom annotations to add to the Crossplane deployment and pod | `{}` |
 | `serviceAccount.customAnnotations` | Custom annotations to add to the serviceaccount of Crossplane | `{}` |
