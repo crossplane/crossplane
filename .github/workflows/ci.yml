@@ -319,6 +319,7 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+          AWS_DEFAULT_REGION: us-east-1
           GIT_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCS_GIT_USR: ${{ secrets.UPBOUND_BOT_GITHUB_USR }}
           DOCS_GIT_PSW: ${{ secrets.UPBOUND_BOT_GITHUB_PSW }}
@@ -331,3 +332,4 @@ jobs:
           CHANNEL: master
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+          AWS_DEFAULT_REGION: us-east-1
