@@ -55,3 +55,4 @@ jobs:
           CHANNEL: ${{ github.event.inputs.channel }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
+          AWS_DEFAULT_REGION: us-east-1
