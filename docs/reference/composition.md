@@ -405,6 +405,34 @@ field.
   toFieldPath: status.zone
 ```
 
+`FromCompositeFieldPath` and `ToCompositeFieldPath` patches can also take a wildcarded
+field path in the `toFieldPath` parameter and patch each array element in the `toFieldPath`
+with the singular value provided in the `fromFieldPath`.
+
+```yaml
+# Patch from the XR's spec.parameters.allowedIPs to the CIDRBlock elements
+# inside the array spec.forProvider.firewallRules on the composed resource.
+resources:
+- name: exampleFirewall
+  base:
+    apiVersion: firewall.example.crossplane.io/v1beta1
+    kind: Firewall
+    spec:
+      forProvider:
+        firewallRules:
+        - Action: "Allow"
+          Destination: "example1"
+          CIDRBlock: ""
+        - Action: "Allow"
+          Destination: "example2"
+          CIDRBlock: ""
+- type: FromCompositeFieldPath
+  fromFieldPath: spec.parameters.allowedIP
+  toFieldPath: spec.forProvider.firewallRules[*].CIDRBlock
+```
+
+Note that the field to be patched requires some initial value to be set.
+
 `CombineFromComposite`. Combines multiple fields from the XR to produce one
 composed resource field.
 

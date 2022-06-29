@@ -123,6 +123,81 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"ValidCompositeFieldPathPatchWithWildcards": {
+			reason: "When passed a wildcarded path, adds a field to each element of an array",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.name"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.ownerReferences[*].name"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name:       "",
+								APIVersion: "v1",
+							},
+							{
+								Name:       "",
+								APIVersion: "v1alpha1",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name:       "test",
+								APIVersion: "v1",
+							},
+							{
+								Name:       "test",
+								APIVersion: "v1alpha1",
+							},
+						},
+					},
+				},
+			},
+		},
+		"InvalidCompositeFieldPathPatchWithWildcards": {
+			reason: "When passed a wildcarded path, throws an error if ToFieldPath cannot be expanded",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.name"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.ownerReferences[*].badField"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name:       "test",
+								APIVersion: "v1",
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Errorf(errFmtExpandingArrayFieldPaths, "objectMeta.ownerReferences[*].badField"),
+			},
+		},
 		"MissingOptionalFieldPath": {
 			reason: "A FromFieldPath patch should be a no-op when an optional fromFieldPath doesn't exist",
 			args: args{
@@ -373,6 +448,53 @@ func TestPatchApply(t *testing.T) {
 						}},
 				},
 				err: nil,
+			},
+		},
+		"ValidToCompositeFieldPathPatchWithWildcards": {
+			reason: "When passed a wildcarded path, adds a field to each element of an array",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeToCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.name"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.ownerReferences[*].name"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name:       "",
+								APIVersion: "v1",
+							},
+							{
+								Name:       "",
+								APIVersion: "v1alpha1",
+							},
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						OwnerReferences: []metav1.OwnerReference{
+							{
+								Name:       "test",
+								APIVersion: "v1",
+							},
+							{
+								Name:       "test",
+								APIVersion: "v1alpha1",
+							},
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
 			},
 		},
 		"MissingCombineFromCompositeConfig": {

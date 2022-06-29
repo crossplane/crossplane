@@ -19,6 +19,7 @@ package v1
 import (
 	"fmt"
 	"reflect"
+	"strings"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -37,6 +38,7 @@ const (
 	errFmtCombineStrategyNotSupported = "combine strategy %s is not supported"
 	errFmtCombineConfigMissing        = "given combine strategy %s requires configuration"
 	errFmtCombineStrategyFailed       = "%s strategy could not combine"
+	errFmtExpandingArrayFieldPaths    = "cannot expand ToFieldPath %s"
 )
 
 // A PatchType is a type of patch.
@@ -163,6 +165,33 @@ func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
 	return input, nil
 }
 
+// patchFieldValueToMultiple, given a path with wildcards in an array index,
+// expands the arrays paths in the "to" object and patches the value into each
+// of the resulting fields, returning any errors as they occur.
+func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+	paved, err := fieldpath.PaveObject(to)
+	if err != nil {
+		return err
+	}
+
+	arrayFieldPaths, err := paved.ExpandWildcards(fieldPath)
+	if err != nil {
+		return err
+	}
+
+	if len(arrayFieldPaths) == 0 {
+		return errors.Errorf(errFmtExpandingArrayFieldPaths, fieldPath)
+	}
+
+	for _, field := range arrayFieldPaths {
+		if err := paved.MergeValue(field, value, mo); err != nil {
+			return err
+		}
+	}
+
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(paved.UnstructuredContent(), to)
+}
+
 // patchFieldValueToObject, given a path, value and "to" object, will
 // apply the value to the "to" object at the given path, returning
 // any errors as they occur.
@@ -214,6 +243,11 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 	out, err := c.applyTransforms(in)
 	if err != nil {
 		return err
+	}
+
+	// Patch all expanded fields if the ToFieldPath contains wildcards
+	if strings.Contains(*c.ToFieldPath, "[*]") {
+		return patchFieldValueToMultiple(*c.ToFieldPath, out, to, mo)
 	}
 
 	return patchFieldValueToObject(*c.ToFieldPath, out, to, mo)
