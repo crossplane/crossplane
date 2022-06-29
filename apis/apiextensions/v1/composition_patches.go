@@ -168,7 +168,7 @@ func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
 // patchFieldValueToMultiple, given a path with wildcards in an array index,
 // expands the arrays paths in the "to" object and patches the value into each
 // of the resulting fields, returning any errors as they occur.
-func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.Object) error {
+func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
 	paved, err := fieldpath.PaveObject(to)
 	if err != nil {
 		return err
@@ -184,7 +184,7 @@ func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.O
 	}
 
 	for _, field := range arrayFieldPaths {
-		if err := paved.MergeValue(field, value, nil); err != nil {
+		if err := paved.MergeValue(field, value, mo); err != nil {
 			return err
 		}
 	}
@@ -247,7 +247,7 @@ func (c *Patch) applyFromFieldPathPatch(from, to runtime.Object) error {
 
 	// Patch all expanded fields if the ToFieldPath contains wildcards
 	if strings.Contains(*c.ToFieldPath, "[*]") {
-		return patchFieldValueToMultiple(*c.ToFieldPath, out, to)
+		return patchFieldValueToMultiple(*c.ToFieldPath, out, to, mo)
 	}
 
 	return patchFieldValueToObject(*c.ToFieldPath, out, to, mo)
