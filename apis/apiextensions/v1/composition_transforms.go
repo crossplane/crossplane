@@ -176,26 +176,26 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	}
 }
 
-// StringTransformType is type of the string transform function to be executed fmt/convert.
+// StringTransformType transforms a string.
 type StringTransformType string
 
-// Accepted StringTransformType.
+// Accepted StringTransformTypes.
 const (
-	StringTransformFormat     StringTransformType = "Format" // Default
-	StringTransformConvert    StringTransformType = "Convert"
-	StringTransformTrimPrefix StringTransformType = "TrimPrefix"
-	StringTransformTrimSuffix StringTransformType = "TrimSuffix"
+	StringTransformTypeFormat     StringTransformType = "Format" // Default
+	StringTransformTypeConvert    StringTransformType = "Convert"
+	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
+	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
 )
 
-// StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
+// StringConversionType converts a string.
 type StringConversionType string
 
-// ConversionType accepted values.
+// Accepted StringConversionTypes.
 const (
-	ConversionTypeToUpper    = "ToUpper"
-	ConversionTypeToLower    = "ToLower"
-	ConversionTypeToBase64   = "ToBase64"
-	ConversionTypeFromBase64 = "FromBase64"
+	StringConversionTypeToUpper    StringConversionType = "ToUpper"
+	StringConversionTypeToLower    StringConversionType = "ToLower"
+	StringConversionTypeToBase64   StringConversionType = "ToBase64"
+	StringConversionTypeFromBase64 StringConversionType = "FromBase64"
 )
 
 // A StringTransform returns a string given the supplied input.
@@ -226,18 +226,18 @@ type StringTransform struct {
 func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 
 	switch s.Type {
-	case StringTransformFormat:
+	case StringTransformTypeFormat:
 		if s.Format == nil {
 			return nil, errors.Errorf(errStringTransformTypeFormat, string(s.Type))
 		}
 		return fmt.Sprintf(*s.Format, input), nil
-	case StringTransformConvert:
+	case StringTransformTypeConvert:
 		if s.Convert == nil {
 			return nil, errors.Errorf(errStringTransformTypeConvert, string(s.Type))
 		}
 		return stringConvertTransform(input, s.Convert)
 
-	case StringTransformTrimPrefix, StringTransformTrimSuffix:
+	case StringTransformTypeTrimPrefix, StringTransformTypeTrimSuffix:
 		if s.Trim == nil {
 			return nil, errors.Errorf(errStringTransformTypeTrim, string(s.Type))
 		}
@@ -250,13 +250,13 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 func stringConvertTransform(input interface{}, t *StringConversionType) (interface{}, error) {
 	str := fmt.Sprintf("%v", input)
 	switch *t {
-	case ConversionTypeToUpper:
+	case StringConversionTypeToUpper:
 		return strings.ToUpper(str), nil
-	case ConversionTypeToLower:
+	case StringConversionTypeToLower:
 		return strings.ToLower(str), nil
-	case ConversionTypeToBase64:
+	case StringConversionTypeToBase64:
 		return base64.StdEncoding.EncodeToString([]byte(str)), nil
-	case ConversionTypeFromBase64:
+	case StringConversionTypeFromBase64:
 		s, err := base64.StdEncoding.DecodeString(str)
 		return string(s), errors.Wrap(err, errDecodeString)
 	default:
@@ -266,10 +266,10 @@ func stringConvertTransform(input interface{}, t *StringConversionType) (interfa
 
 func stringTrimTransform(input interface{}, t StringTransformType, trim string) string {
 	str := fmt.Sprintf("%v", input)
-	if t == StringTransformTrimPrefix {
+	if t == StringTransformTypeTrimPrefix {
 		return strings.TrimPrefix(str, trim)
 	}
-	if t == StringTransformTrimSuffix {
+	if t == StringTransformTypeTrimSuffix {
 		return strings.TrimSuffix(str, trim)
 	}
 	return str

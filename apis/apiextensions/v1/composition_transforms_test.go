@@ -162,7 +162,7 @@ func TestStringResolve(t *testing.T) {
 	sFmt := "verycool%s"
 	iFmt := "the largest %d"
 
-	var upper, lower, tobase64, frombase64, wrongConvertType StringConversionType = ConversionTypeToUpper, ConversionTypeToLower, ConversionTypeToBase64, ConversionTypeFromBase64, "Something"
+	var upper, lower, tobase64, frombase64, wrongConvertType StringConversionType = StringConversionTypeToUpper, StringConversionTypeToLower, StringConversionTypeToBase64, StringConversionTypeFromBase64, "Something"
 
 	prefix := "https://"
 	suffix := "-test"
@@ -182,16 +182,16 @@ func TestStringResolve(t *testing.T) {
 		},
 		"FmtFailed": {
 			args: args{
-				stype: StringTransformFormat,
+				stype: StringTransformTypeFormat,
 				i:     "value",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypeFormat, string(StringTransformFormat)),
+				err: errors.Errorf(errStringTransformTypeFormat, string(StringTransformTypeFormat)),
 			},
 		},
 		"FmtString": {
 			args: args{
-				stype: StringTransformFormat,
+				stype: StringTransformTypeFormat,
 				fmts:  &sFmt,
 				i:     "thing",
 			},
@@ -201,7 +201,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"FmtInteger": {
 			args: args{
-				stype: StringTransformFormat,
+				stype: StringTransformTypeFormat,
 				fmts:  &iFmt,
 				i:     8,
 			},
@@ -211,16 +211,16 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertNotSet": {
 			args: args{
-				stype: StringTransformConvert,
+				stype: StringTransformTypeConvert,
 				i:     "crossplane",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypeConvert, string(StringTransformConvert)),
+				err: errors.Errorf(errStringTransformTypeConvert, string(StringTransformTypeConvert)),
 			},
 		},
 		"ConvertTypFailed": {
 			args: args{
-				stype:   StringTransformConvert,
+				stype:   StringTransformTypeConvert,
 				convert: &wrongConvertType,
 				i:       "crossplane",
 			},
@@ -230,7 +230,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertToUpper": {
 			args: args{
-				stype:   StringTransformConvert,
+				stype:   StringTransformTypeConvert,
 				convert: &upper,
 				i:       "crossplane",
 			},
@@ -240,7 +240,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertToLower": {
 			args: args{
-				stype:   StringTransformConvert,
+				stype:   StringTransformTypeConvert,
 				convert: &lower,
 				i:       "CrossPlane",
 			},
@@ -250,7 +250,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertToBase64": {
 			args: args{
-				stype:   StringTransformConvert,
+				stype:   StringTransformTypeConvert,
 				convert: &tobase64,
 				i:       "CrossPlane",
 			},
@@ -260,7 +260,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertFromBase64": {
 			args: args{
-				stype:   StringTransformConvert,
+				stype:   StringTransformTypeConvert,
 				convert: &frombase64,
 				i:       "Q3Jvc3NQbGFuZQ==",
 			},
@@ -270,7 +270,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertFromBase64Error": {
 			args: args{
-				stype:   StringTransformConvert,
+				stype:   StringTransformTypeConvert,
 				convert: &frombase64,
 				i:       "ThisStringIsNotBase64",
 			},
@@ -281,7 +281,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimPrefix": {
 			args: args{
-				stype: StringTransformTrimPrefix,
+				stype: StringTransformTypeTrimPrefix,
 				trim:  &prefix,
 				i:     "https://crossplane.io",
 			},
@@ -291,7 +291,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimSuffix": {
 			args: args{
-				stype: StringTransformTrimSuffix,
+				stype: StringTransformTypeTrimSuffix,
 				trim:  &suffix,
 				i:     "my-string-test",
 			},
@@ -301,7 +301,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimPrefixWithoutMatch": {
 			args: args{
-				stype: StringTransformTrimPrefix,
+				stype: StringTransformTypeTrimPrefix,
 				trim:  &prefix,
 				i:     "crossplane.io",
 			},
@@ -311,7 +311,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimSuffixWithoutMatch": {
 			args: args{
-				stype: StringTransformTrimSuffix,
+				stype: StringTransformTypeTrimSuffix,
 				trim:  &suffix,
 				i:     "my-string",
 			},

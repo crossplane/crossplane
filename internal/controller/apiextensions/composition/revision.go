@@ -161,7 +161,19 @@ func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform {
 		rt.Map = &v1alpha1.MapTransform{Pairs: t.Map.Pairs}
 	}
 	if t.String != nil {
-		rt.String = &v1alpha1.StringTransform{Format: *t.String.Format}
+		rt.String = &v1alpha1.StringTransform{Type: v1alpha1.StringTransformType(t.String.Type)}
+		if t.String.Format != nil {
+			rt.String.Format = t.String.Format
+		}
+		if t.String.Convert != nil {
+			rt.String.Convert = func() *v1alpha1.StringConversionType {
+				t := v1alpha1.StringConversionType(*t.String.Convert)
+				return &t
+			}()
+		}
+		if t.String.Trim != nil {
+			rt.String.Trim = t.String.Trim
+		}
 	}
 	if t.Convert != nil {
 		rt.Convert = &v1alpha1.ConvertTransform{ToType: t.Convert.ToType}
