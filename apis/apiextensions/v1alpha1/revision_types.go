@@ -411,8 +411,24 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 // StringTransformType is type of the string transform function to be executed fmt/convert.
 type StringTransformType string
 
+// Accepted StringTransformTypes.
+const (
+	StringTransformTypeFormat     StringTransformType = "Format" // Default
+	StringTransformTypeConvert    StringTransformType = "Convert"
+	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
+	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
+)
+
 // StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
 type StringConversionType string
+
+// Accepted StringConversionTypes.
+const (
+	StringConversionTypeToUpper    StringConversionType = "ToUpper"
+	StringConversionTypeToLower    StringConversionType = "ToLower"
+	StringConversionTypeToBase64   StringConversionType = "ToBase64"
+	StringConversionTypeFromBase64 StringConversionType = "FromBase64"
+)
 
 // A StringTransform returns a string given the supplied input.
 type StringTransform struct {
@@ -425,8 +441,9 @@ type StringTransform struct {
 
 	// Format the input using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
+	// +optional
 	// +immutable
-	Format string `json:"fmt,omitempty"`
+	Format *string `json:"fmt,omitempty"`
 
 	// Convert the type of conversion to Upper/Lower case.
 	// +optional
@@ -437,6 +454,15 @@ type StringTransform struct {
 	// +optional
 	Trim *string `json:"trim,omitempty"`
 }
+
+// The list of supported ConvertTransform input and output types.
+const (
+	ConvertTransformTypeString  = "string"
+	ConvertTransformTypeBool    = "bool"
+	ConvertTransformTypeInt     = "int"
+	ConvertTransformTypeInt64   = "int64"
+	ConvertTransformTypeFloat64 = "float64"
+)
 
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
