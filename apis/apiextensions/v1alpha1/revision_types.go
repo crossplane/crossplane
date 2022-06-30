@@ -408,7 +408,7 @@ func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
 	}
 }
 
-// StringTransformType is type of the string transform function to be executed fmt/convert.
+// A StringTransformType transforms a string.
 type StringTransformType string
 
 // Accepted StringTransformTypes.
@@ -419,7 +419,7 @@ const (
 	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
 )
 
-// StringConversionType is the type of string conversion, ToUpper/ToLower/ToBase64/FromBase64
+// A StringConversionType converts a string.
 type StringConversionType string
 
 // Accepted StringConversionTypes.

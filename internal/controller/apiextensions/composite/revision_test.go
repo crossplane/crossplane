@@ -194,7 +194,7 @@ func TestAsComposition(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1.StringTransform{
-							Type:   v1.StringTransformFormat,
+							Type:   v1.StringTransformTypeFormat,
 							Format: &sf,
 						},
 						Convert: &v1.ConvertTransform{
@@ -242,16 +242,16 @@ func TestAsComposition(t *testing.T) {
 						{
 							Type: v1.TransformTypeString,
 							String: &v1.StringTransform{
-								Type:   v1.StringTransformFormat,
+								Type:   v1.StringTransformTypeFormat,
 								Format: pointer.String("fmt"),
 							},
 						},
 						{
 							Type: v1.TransformTypeString,
 							String: &v1.StringTransform{
-								Type: v1.StringTransformConvert,
+								Type: v1.StringTransformTypeConvert,
 								Convert: func() *v1.StringConversionType {
-									t := v1.StringConversionType(v1.ConversionTypeToUpper)
+									t := v1.StringConversionTypeToUpper
 									return &t
 								}(),
 							},
@@ -259,7 +259,7 @@ func TestAsComposition(t *testing.T) {
 						{
 							Type: v1.TransformTypeString,
 							String: &v1.StringTransform{
-								Type: v1.StringTransformTrimSuffix,
+								Type: v1.StringTransformTypeTrimSuffix,
 								Trim: pointer.String("trim"),
 							},
 						},
