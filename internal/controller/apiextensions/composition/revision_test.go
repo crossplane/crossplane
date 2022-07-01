@@ -31,7 +31,6 @@ import (
 )
 
 func TestNewCompositionRevision(t *testing.T) {
-	sf := "f"
 	comp := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "coolcomp",
@@ -66,7 +65,7 @@ func TestNewCompositionRevision(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1.StringTransform{
-							Format: &sf,
+							Format: pointer.String("fmt"),
 						},
 						Convert: &v1.ConvertTransform{
 							ToType: "t",
@@ -97,21 +96,50 @@ func TestNewCompositionRevision(t *testing.T) {
 					},
 					ToFieldPath:  pointer.String("to"),
 					PatchSetName: pointer.String("n"),
-					Transforms: []v1.Transform{{
-						Type: v1.TransformType("t"),
-						Math: &v1.MathTransform{
-							Multiply: pointer.Int64(42),
+					Transforms: []v1.Transform{
+						{
+							Type: v1.TransformTypeMath,
+							Math: &v1.MathTransform{
+								Multiply: pointer.Int64(42),
+							},
 						},
-						Map: &v1.MapTransform{
-							Pairs: map[string]string{"k": "v"},
+						{
+							Type: v1.TransformTypeMap,
+							Map: &v1.MapTransform{
+								Pairs: map[string]string{"k": "v"},
+							},
 						},
-						String: &v1.StringTransform{
-							Format: &sf,
+						{
+							Type: v1.TransformTypeString,
+							String: &v1.StringTransform{
+								Type:   v1.StringTransformFormat,
+								Format: pointer.String("fmt"),
+							},
 						},
-						Convert: &v1.ConvertTransform{
-							ToType: "t",
+						{
+							Type: v1.TransformTypeString,
+							String: &v1.StringTransform{
+								Type: v1.StringTransformConvert,
+								Convert: func() *v1.StringConversionType {
+									t := v1.StringConversionType(v1.ConversionTypeToUpper)
+									return &t
+								}(),
+							},
 						},
-					}},
+						{
+							Type: v1.TransformTypeString,
+							String: &v1.StringTransform{
+								Type: v1.StringTransformTrimSuffix,
+								Trim: pointer.String("trim"),
+							},
+						},
+						{
+							Type: v1.TransformTypeConvert,
+							Convert: &v1.ConvertTransform{
+								ToType: v1.ConvertTransformTypeBool,
+							},
+						},
+					},
 					Policy: &v1.PatchPolicy{
 						FromFieldPath: func() *v1.FromFieldPathPolicy {
 							p := v1.FromFieldPathPolicy("p")
@@ -190,7 +218,7 @@ func TestNewCompositionRevision(t *testing.T) {
 							Pairs: map[string]string{"k": "v"},
 						},
 						String: &v1alpha1.StringTransform{
-							Format: "f",
+							Format: pointer.String("fmt"),
 						},
 						Convert: &v1alpha1.ConvertTransform{
 							ToType: "t",
@@ -221,21 +249,50 @@ func TestNewCompositionRevision(t *testing.T) {
 					},
 					ToFieldPath:  pointer.String("to"),
 					PatchSetName: pointer.String("n"),
-					Transforms: []v1alpha1.Transform{{
-						Type: v1alpha1.TransformType("t"),
-						Math: &v1alpha1.MathTransform{
-							Multiply: pointer.Int64(42),
+					Transforms: []v1alpha1.Transform{
+						{
+							Type: v1alpha1.TransformTypeMath,
+							Math: &v1alpha1.MathTransform{
+								Multiply: pointer.Int64(42),
+							},
 						},
-						Map: &v1alpha1.MapTransform{
-							Pairs: map[string]string{"k": "v"},
+						{
+							Type: v1alpha1.TransformTypeMap,
+							Map: &v1alpha1.MapTransform{
+								Pairs: map[string]string{"k": "v"},
+							},
 						},
-						String: &v1alpha1.StringTransform{
-							Format: "f",
+						{
+							Type: v1alpha1.TransformTypeString,
+							String: &v1alpha1.StringTransform{
+								Type:   v1alpha1.StringTransformTypeFormat,
+								Format: pointer.String("fmt"),
+							},
 						},
-						Convert: &v1alpha1.ConvertTransform{
-							ToType: "t",
+						{
+							Type: v1alpha1.TransformTypeString,
+							String: &v1alpha1.StringTransform{
+								Type: v1alpha1.StringTransformTypeConvert,
+								Convert: func() *v1alpha1.StringConversionType {
+									t := v1alpha1.StringConversionTypeToUpper
+									return &t
+								}(),
+							},
 						},
-					}},
+						{
+							Type: v1alpha1.TransformTypeString,
+							String: &v1alpha1.StringTransform{
+								Type: v1alpha1.StringTransformTypeTrimSuffix,
+								Trim: pointer.String("trim"),
+							},
+						},
+						{
+							Type: v1alpha1.TransformTypeConvert,
+							Convert: &v1alpha1.ConvertTransform{
+								ToType: v1alpha1.ConvertTransformTypeBool,
+							},
+						},
+					},
 					Policy: &v1alpha1.PatchPolicy{
 						FromFieldPath: func() *v1alpha1.FromFieldPathPolicy {
 							p := v1alpha1.FromFieldPathPolicy("p")
