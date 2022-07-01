@@ -238,6 +238,7 @@ spec:
                                       - Convert
                                       - TrimPrefix
                                       - TrimSuffix
+                                      - Regexp
                                       type: string
                                   type: object
                                 type:
@@ -520,6 +521,7 @@ spec:
                                       - Convert
                                       - TrimPrefix
                                       - TrimSuffix
+                                      - Regexp
                                       type: string
                                   type: object
                                 type:

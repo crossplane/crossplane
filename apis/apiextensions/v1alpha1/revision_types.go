@@ -417,6 +417,7 @@ const (
 	StringTransformTypeConvert    StringTransformType = "Convert"
 	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
 	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
+	StringTransformTypeRegexp     StringTransformType = "Regexp"
 )
 
 // A StringConversionType converts a string.
@@ -435,7 +436,7 @@ type StringTransform struct {
 
 	// Type of the string transform to be run.
 	// +optional
-	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix
+	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix;Regexp
 	// +kubebuilder:default=Format
 	Type StringTransformType `json:"type,omitempty"`
 
