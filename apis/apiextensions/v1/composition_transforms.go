@@ -41,13 +41,14 @@ const (
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
 
-	errStringTransformTypeFailed      = "type %s is not supported for string transform type"
-	errStringTransformTypeFormat      = "string transform of type %s fmt is not set"
-	errStringTransformTypeConvert     = "string transform of type %s convert is not set"
-	errStringTransformTypeTrim        = "string transform of type %s trim is not set"
-	errStringTransformTypeRegexFailed = "could not compile %s"
-	errStringTransformTypeEmptyRegexp = "empty regexp is not allowed"
-	errStringConvertTypeFailed        = "type %s is not supported for string convert"
+	errStringTransformTypeFailed        = "type %s is not supported for string transform type"
+	errStringTransformTypeFormat        = "string transform of type %s fmt is not set"
+	errStringTransformTypeConvert       = "string transform of type %s convert is not set"
+	errStringTransformTypeTrim          = "string transform of type %s trim is not set"
+	errStringTransformTypeRegexpFailed  = "could not compile regexp"
+	errStringTransformTypeRegexpEmpty   = "empty regexp is not allowed"
+	errStringTransformTypeRegexpNoMatch = "regexp %q had no matches"
+	errStringConvertTypeFailed          = "type %s is not supported for string convert"
 
 	errDecodeString = "string is not valid base64"
 )
@@ -289,19 +290,21 @@ func stringTrimTransform(input interface{}, t StringTransformType, trim string) 
 
 func stringRegexpTransform(input interface{}, r string) (interface{}, error) {
 	if r == "" {
-		return nil, errors.New(errStringTransformTypeEmptyRegexp)
+		return nil, errors.New(errStringTransformTypeRegexpEmpty)
 	}
 
 	re, err := regexp.Compile(r)
-
 	if err != nil {
-		return nil, errors.Errorf(errStringTransformTypeRegexFailed, err.Error())
+		return nil, errors.Wrap(err, errStringTransformTypeRegexpFailed)
 	}
 
 	str := fmt.Sprintf("%v", input)
 	result := re.Find([]byte(str))
+	if result == nil {
+		return nil, errors.Wrapf(err, errStringTransformTypeRegexpNoMatch, r)
+	}
 
-	return result, nil
+	return string(result), nil
 }
 
 // The list of supported ConvertTransform input and output types.

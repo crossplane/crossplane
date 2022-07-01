@@ -330,7 +330,7 @@ func TestStringResolve(t *testing.T) {
 				i:      "my-string",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypeRegexFailed, "error parsing regexp: missing closing ]: `[a-z`"),
+				err: errors.Wrap(errors.New("error parsing regexp: missing closing ]: `[a-z`"), errStringTransformTypeRegexpFailed),
 			},
 		},
 		"CorrectRegexp": {
@@ -340,7 +340,7 @@ func TestStringResolve(t *testing.T) {
 				i:      "my-1-string",
 			},
 			want: want{
-				o: []uint8("1"),
+				o: "1",
 			},
 		},
 	}
