@@ -17,9 +17,11 @@ limitations under the License.
 package composition
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
@@ -31,6 +33,18 @@ import (
 )
 
 func TestNewCompositionRevision(t *testing.T) {
+	asJSON := func(val interface{}) extv1.JSON {
+		raw, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res := extv1.JSON{}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
 	comp := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "coolcomp",
@@ -62,7 +76,7 @@ func TestNewCompositionRevision(t *testing.T) {
 							Multiply: pointer.Int64(42),
 						},
 						Map: &v1.MapTransform{
-							Pairs: map[string]string{"k": "v"},
+							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
 						String: &v1.StringTransform{
 							Format: pointer.String("fmt"),
@@ -106,7 +120,7 @@ func TestNewCompositionRevision(t *testing.T) {
 						{
 							Type: v1.TransformTypeMap,
 							Map: &v1.MapTransform{
-								Pairs: map[string]string{"k": "v"},
+								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 							},
 						},
 						{
@@ -225,7 +239,7 @@ func TestNewCompositionRevision(t *testing.T) {
 							Multiply: pointer.Int64(42),
 						},
 						Map: &v1alpha1.MapTransform{
-							Pairs: map[string]string{"k": "v"},
+							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
 						String: &v1alpha1.StringTransform{
 							Format: pointer.String("fmt"),
@@ -269,7 +283,7 @@ func TestNewCompositionRevision(t *testing.T) {
 						{
 							Type: v1alpha1.TransformTypeMap,
 							Map: &v1alpha1.MapTransform{
-								Pairs: map[string]string{"k": "v"},
+								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 							},
 						},
 						{

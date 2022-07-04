@@ -17,9 +17,11 @@ limitations under the License.
 package composite
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
@@ -28,6 +30,18 @@ import (
 )
 
 func TestAsComposition(t *testing.T) {
+	asJSON := func(val interface{}) extv1.JSON {
+		raw, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res := extv1.JSON{}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
 	sf := "f"
 	rev := &v1alpha1.CompositionRevision{
 		Spec: v1alpha1.CompositionRevisionSpec{
@@ -57,7 +71,7 @@ func TestAsComposition(t *testing.T) {
 							Multiply: pointer.Int64(42),
 						},
 						Map: &v1alpha1.MapTransform{
-							Pairs: map[string]string{"k": "v"},
+							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
 						String: &v1alpha1.StringTransform{
 							Type:   v1alpha1.StringTransformTypeFormat,
@@ -102,7 +116,7 @@ func TestAsComposition(t *testing.T) {
 						{
 							Type: v1alpha1.TransformTypeMap,
 							Map: &v1alpha1.MapTransform{
-								Pairs: map[string]string{"k": "v"},
+								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 							},
 						},
 						{
@@ -201,7 +215,7 @@ func TestAsComposition(t *testing.T) {
 							Multiply: pointer.Int64(42),
 						},
 						Map: &v1.MapTransform{
-							Pairs: map[string]string{"k": "v"},
+							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
 						String: &v1.StringTransform{
 							Type:   v1.StringTransformTypeFormat,
@@ -246,7 +260,7 @@ func TestAsComposition(t *testing.T) {
 						{
 							Type: v1.TransformTypeMap,
 							Map: &v1.MapTransform{
-								Pairs: map[string]string{"k": "v"},
+								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 							},
 						},
 						{

@@ -17,19 +17,33 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
 func TestMapResolve(t *testing.T) {
+	asJSON := func(val interface{}) extv1.JSON {
+		raw, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res := extv1.JSON{}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
 	type args struct {
-		m map[string]string
+		m map[string]extv1.JSON
 		i any
 	}
 	type want struct {
@@ -57,13 +71,53 @@ func TestMapResolve(t *testing.T) {
 				err: errors.Errorf(errFmtMapNotFound, "ola"),
 			},
 		},
-		"Success": {
+		"SuccessString": {
 			args: args{
-				m: map[string]string{"ola": "voila"},
+				m: map[string]extv1.JSON{"ola": asJSON("voila")},
 				i: "ola",
 			},
 			want: want{
 				o: "voila",
+			},
+		},
+		"SuccessNumber": {
+			args: args{
+				m: map[string]extv1.JSON{"ola": asJSON(1.0)},
+				i: "ola",
+			},
+			want: want{
+				o: 1.0,
+			},
+		},
+		"SuccessBoolean": {
+			args: args{
+				m: map[string]extv1.JSON{"ola": asJSON(true)},
+				i: "ola",
+			},
+			want: want{
+				o: true,
+			},
+		},
+		"SuccessObject": {
+			args: args{
+				m: map[string]extv1.JSON{
+					"ola": asJSON(map[string]interface{}{"foo": "bar"}),
+				},
+				i: "ola",
+			},
+			want: want{
+				o: map[string]interface{}{"foo": "bar"},
+			},
+		},
+		"SuccessSlice": {
+			args: args{
+				m: map[string]extv1.JSON{
+					"ola": asJSON([]string{"foo", "bar"}),
+				},
+				i: "ola",
+			},
+			want: want{
+				o: []interface{}{"foo", "bar"},
 			},
 		},
 	}

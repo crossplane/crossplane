@@ -22,6 +22,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -280,9 +281,9 @@ func (in *MapTransform) DeepCopyInto(out *MapTransform) {
 	*out = *in
 	if in.Pairs != nil {
 		in, out := &in.Pairs, &out.Pairs
-		*out = make(map[string]string, len(*in))
+		*out = make(map[string]v1.JSON, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val
+			(*out)[key] = *val.DeepCopy()
 		}
 	}
 }
