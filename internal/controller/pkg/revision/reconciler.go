@@ -51,10 +51,6 @@ import (
 )
 
 const (
-	reconcileTimeout = 3 * time.Minute
-)
-
-const (
 	finalizer = "revision.pkg.crossplane.io"
 
 	errGetPackageRevision = "cannot get package revision"
@@ -190,6 +186,14 @@ func WithVersioner(v version.Operations) ReconcilerOption {
 	}
 }
 
+// WithTimeout specifies how long the Reconciler should wait while reconciling
+// a package.
+func WithTimeout(t time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.timeout = t
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client    client.Client
@@ -204,6 +208,7 @@ type Reconciler struct {
 	backend   parser.Backend
 	log       logging.Logger
 	record    event.Recorder
+	timeout   time.Duration
 
 	newPackageRevision func() v1.PackageRevision
 }
@@ -245,6 +250,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithTimeout(o.ReconcileTimeout),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -292,6 +298,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithTimeout(o.ReconcileTimeout),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -315,6 +322,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		versioner: version.New(),
 		log:       logging.NewNopLogger(),
 		record:    event.NewNopRecorder(),
+		timeout:   3 * time.Minute,
 	}
 
 	for _, f := range opts {
@@ -329,7 +337,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
 	pr := r.newPackageRevision()

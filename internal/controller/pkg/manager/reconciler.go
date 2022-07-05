@@ -41,10 +41,6 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
-const (
-	reconcileTimeout = 1 * time.Minute
-)
-
 func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 	if p != nil && *p == corev1.PullAlways {
 		return reconcile.Result{Requeue: true}
@@ -132,6 +128,14 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithTimeout specifies how long the Reconciler should wait while reconciling
+// a package.
+func WithTimeout(t time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.timeout = t
+	}
+}
+
 // Reconciler reconciles packages.
 type Reconciler struct {
 	client               resource.ClientApplicator
@@ -143,6 +147,7 @@ type Reconciler struct {
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
 	newPackageRevisionList func() v1.PackageRevisionList
+	timeout                time.Duration
 }
 
 // SetupProvider adds a controller that reconciles Providers.
@@ -168,6 +173,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(f, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithTimeout(o.ReconcileTimeout),
 	}
 	if o.WebhookTLSSecretName != "" {
 		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
@@ -203,6 +209,7 @@ func SetupConfiguration(mgr ctrl.Manager, o controller.Options) error {
 		WithRevisioner(NewPackageRevisioner(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithTimeout(o.ReconcileTimeout),
 	)
 
 	return ctrl.NewControllerManagedBy(mgr).
@@ -220,9 +227,10 @@ func NewReconciler(mgr ctrl.Manager, opts ...ReconcilerOption) *Reconciler {
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
-		pkg:    NewNopRevisioner(),
-		log:    logging.NewNopLogger(),
-		record: event.NewNopRecorder(),
+		pkg:     NewNopRevisioner(),
+		log:     logging.NewNopLogger(),
+		record:  event.NewNopRecorder(),
+		timeout: 1 * time.Minute,
 	}
 
 	for _, f := range opts {
@@ -237,7 +245,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
-	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
 	p := r.newPackage()

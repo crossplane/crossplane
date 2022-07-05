@@ -71,6 +71,7 @@ type startCommand struct {
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
+	ReconcileTimeout time.Duration `help:"The maximum amount of time to wait for reconciling packages." default:"3m"`
 
 	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
 	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for ExternalSecretStores."`
@@ -133,6 +134,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		DefaultRegistry:      c.Registry,
 		Features:             feats,
 		WebhookTLSSecretName: c.WebhookTLSSecretName,
+		ReconcileTimeout:     c.ReconcileTimeout,
 	}
 
 	if c.CABundlePath != "" {

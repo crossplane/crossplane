@@ -18,6 +18,8 @@ limitations under the License.
 package controller
 
 import (
+	"time"
+
 	"github.com/crossplane/crossplane/internal/xpkg"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -48,4 +50,7 @@ type Options struct {
 
 	// Features that should be enabled.
 	Features *feature.Flags
+
+	// ReconcileTimeout is the max interval to wait for package reconcile.
+	ReconcileTimeout time.Duration
 }
