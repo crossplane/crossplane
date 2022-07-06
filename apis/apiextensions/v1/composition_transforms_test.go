@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -153,7 +154,7 @@ func TestStringResolve(t *testing.T) {
 		fmts    *string
 		convert *StringConversionType
 		trim    *string
-		regexp  *string
+		regexp  *StringTransformRegexp
 		i       interface{}
 	}
 	type want struct {
@@ -167,9 +168,6 @@ func TestStringResolve(t *testing.T) {
 
 	prefix := "https://"
 	suffix := "-test"
-
-	regexpNotCompiling := "[a-z"
-	regexpGood := "[0-9]"
 
 	cases := map[string]struct {
 		args
@@ -325,22 +323,52 @@ func TestStringResolve(t *testing.T) {
 		},
 		"RegexpNotCompiling": {
 			args: args{
-				stype:  StringTransformTypeRegexp,
-				regexp: &regexpNotCompiling,
-				i:      "my-string",
+				stype: StringTransformTypeRegexp,
+				regexp: &StringTransformRegexp{
+					Match: "[a-z",
+				},
+				i: "my-string",
 			},
 			want: want{
 				err: errors.Wrap(errors.New("error parsing regexp: missing closing ]: `[a-z`"), errStringTransformTypeRegexpFailed),
 			},
 		},
-		"CorrectRegexp": {
+		"RegexpSimpleMatch": {
 			args: args{
-				stype:  StringTransformTypeRegexp,
-				regexp: &regexpGood,
-				i:      "my-1-string",
+				stype: StringTransformTypeRegexp,
+				regexp: &StringTransformRegexp{
+					Match: "[0-9]",
+				},
+				i: "my-1-string",
 			},
 			want: want{
 				o: "1",
+			},
+		},
+		"RegexpCaptureGroup": {
+			args: args{
+				stype: StringTransformTypeRegexp,
+				regexp: &StringTransformRegexp{
+					Match: "my-([0-9]+)-string",
+					Group: pointer.Int(1),
+				},
+				i: "my-1-string",
+			},
+			want: want{
+				o: "1",
+			},
+		},
+		"RegexpNoSuchCaptureGroup": {
+			args: args{
+				stype: StringTransformTypeRegexp,
+				regexp: &StringTransformRegexp{
+					Match: "my-([0-9]+)-string",
+					Group: pointer.Int(2),
+				},
+				i: "my-1-string",
+			},
+			want: want{
+				err: errors.Errorf(errStringTransformTypeRegexpNoMatch, "my-([0-9]+)-string", 2),
 			},
 		},
 	}

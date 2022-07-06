@@ -136,8 +136,11 @@ func TestNewCompositionRevision(t *testing.T) {
 						{
 							Type: v1.TransformTypeString,
 							String: &v1.StringTransform{
-								Type:   v1.StringTransformTypeRegexp,
-								Regexp: pointer.String("https://twitter.com/junyer/status/699892454749700096"),
+								Type: v1.StringTransformTypeRegexp,
+								Regexp: &v1.StringTransformRegexp{
+									Match: "https://twitter.com/junyer/status/699892454749700096",
+									Group: pointer.Int(0),
+								},
 							},
 						},
 						{
@@ -296,8 +299,11 @@ func TestNewCompositionRevision(t *testing.T) {
 						{
 							Type: v1alpha1.TransformTypeString,
 							String: &v1alpha1.StringTransform{
-								Type:   v1alpha1.StringTransformTypeRegexp,
-								Regexp: pointer.String("https://twitter.com/junyer/status/699892454749700096"),
+								Type: v1alpha1.StringTransformTypeRegexp,
+								Regexp: &v1alpha1.StringTransformRegexp{
+									Match: "https://twitter.com/junyer/status/699892454749700096",
+									Group: pointer.Int(0),
+								},
 							},
 						},
 						{

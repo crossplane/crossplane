@@ -455,10 +455,21 @@ type StringTransform struct {
 	// +optional
 	Trim *string `json:"trim,omitempty"`
 
-	// Extract first match from the input using a Go regex string. See
-	// https://pkg.go.dev/regexp/ for details.
+	// Extract a match from the input using a regular expression.
 	// +optional
-	Regexp *string `json:"regexp,omitempty"`
+	Regexp *StringTransformRegexp `json:"regexp,omitempty"`
+}
+
+// A StringTransformRegexp extracts a match from the input using a regular
+// expression.
+type StringTransformRegexp struct {
+	// Match string. May optionally include submatches, aka capture groups.
+	// See https://pkg.go.dev/regexp/ for details.
+	Match string `json:"match"`
+
+	// Group number to match. 0 (the default) matches the entire expression.
+	// +optional
+	Group *int `json:"group,omitempty"`
 }
 
 // The list of supported ConvertTransform input and output types.

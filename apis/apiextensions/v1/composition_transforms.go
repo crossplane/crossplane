@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -45,9 +46,9 @@ const (
 	errStringTransformTypeFormat        = "string transform of type %s fmt is not set"
 	errStringTransformTypeConvert       = "string transform of type %s convert is not set"
 	errStringTransformTypeTrim          = "string transform of type %s trim is not set"
+	errStringTransformTypeRegexp        = "string transform of type %s regexp is not set"
 	errStringTransformTypeRegexpFailed  = "could not compile regexp"
-	errStringTransformTypeRegexpEmpty   = "empty regexp is not allowed"
-	errStringTransformTypeRegexpNoMatch = "regexp %q had no matches"
+	errStringTransformTypeRegexpNoMatch = "regexp %q had no matches for group %d"
 	errStringConvertTypeFailed          = "type %s is not supported for string convert"
 
 	errDecodeString = "string is not valid base64"
@@ -227,10 +228,21 @@ type StringTransform struct {
 	// +optional
 	Trim *string `json:"trim,omitempty"`
 
-	// Extract first match from the input using a Go regex string. See
-	// https://pkg.go.dev/regexp/ for details.
+	// Extract a match from the input using a regular expression.
 	// +optional
-	Regexp *string `json:"regexp,omitempty"`
+	Regexp *StringTransformRegexp `json:"regexp,omitempty"`
+}
+
+// A StringTransformRegexp extracts a match from the input using a regular
+// expression.
+type StringTransformRegexp struct {
+	// Match string. May optionally include submatches, aka capture groups.
+	// See https://pkg.go.dev/regexp/ for details.
+	Match string `json:"match"`
+
+	// Group number to match. 0 (the default) matches the entire expression.
+	// +optional
+	Group *int `json:"group,omitempty"`
 }
 
 // Resolve runs the String transform.
@@ -254,6 +266,9 @@ func (s *StringTransform) Resolve(input interface{}) (interface{}, error) {
 		}
 		return stringTrimTransform(input, s.Type, *s.Trim), nil
 	case StringTransformTypeRegexp:
+		if s.Regexp == nil {
+			return nil, errors.Errorf(errStringTransformTypeRegexp, string(s.Type))
+		}
 		return stringRegexpTransform(input, *s.Regexp)
 	default:
 		return nil, errors.Errorf(errStringTransformTypeFailed, string(s.Type))
@@ -288,23 +303,21 @@ func stringTrimTransform(input interface{}, t StringTransformType, trim string) 
 	return str
 }
 
-func stringRegexpTransform(input interface{}, r string) (interface{}, error) {
-	if r == "" {
-		return nil, errors.New(errStringTransformTypeRegexpEmpty)
-	}
-
-	re, err := regexp.Compile(r)
+func stringRegexpTransform(input interface{}, r StringTransformRegexp) (interface{}, error) {
+	re, err := regexp.Compile(r.Match)
 	if err != nil {
 		return nil, errors.Wrap(err, errStringTransformTypeRegexpFailed)
 	}
 
-	str := fmt.Sprintf("%v", input)
-	result := re.Find([]byte(str))
-	if result == nil {
-		return nil, errors.Wrapf(err, errStringTransformTypeRegexpNoMatch, r)
+	groups := re.FindStringSubmatch(fmt.Sprintf("%v", input))
+
+	// Return the entire match (group zero) by default.
+	g := pointer.IntDeref(r.Group, 0)
+	if len(groups) == 0 || g >= len(groups) {
+		return nil, errors.Errorf(errStringTransformTypeRegexpNoMatch, r.Match, g)
 	}
 
-	return string(result), nil
+	return groups[g], nil
 }
 
 // The list of supported ConvertTransform input and output types.

@@ -221,10 +221,21 @@ spec:
                                         details.
                                       type: string
                                     regexp:
-                                      description: Extract first match from the input
-                                        using a Go regex string. See https://pkg.go.dev/regexp/
-                                        for details.
-                                      type: string
+                                      description: Extract a match from the input
+                                        using a regular expression.
+                                      properties:
+                                        group:
+                                          description: Group number to match. 0 (the
+                                            default) matches the entire expression.
+                                          type: integer
+                                        match:
+                                          description: Match string. May optionally
+                                            include submatches, aka capture groups.
+                                            See https://pkg.go.dev/regexp/ for details.
+                                          type: string
+                                      required:
+                                      - match
+                                      type: object
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
@@ -504,10 +515,21 @@ spec:
                                         details.
                                       type: string
                                     regexp:
-                                      description: Extract first match from the input
-                                        using a Go regex string. See https://pkg.go.dev/regexp/
-                                        for details.
-                                      type: string
+                                      description: Extract a match from the input
+                                        using a regular expression.
+                                      properties:
+                                        group:
+                                          description: Group number to match. 0 (the
+                                            default) matches the entire expression.
+                                          type: integer
+                                        match:
+                                          description: Match string. May optionally
+                                            include submatches, aka capture groups.
+                                            See https://pkg.go.dev/regexp/ for details.
+                                          type: string
+                                      required:
+                                      - match
+                                      type: object
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
