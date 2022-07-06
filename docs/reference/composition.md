@@ -585,12 +585,14 @@ Currently only `multiply` is supported.
      type: TrimSuffix
      trim: '-test'
 
-# If the value of the 'from' field is my-string-1-test, 
-# the value of the 'to' field will be set to 1
+# If the value of the 'from' field is 'arn:aws:iam::42:example, the value of the
+# 'to' field will be set to "42". Note that the 'to' field is always a string. 
 - type: string
   string:
      type: Regexp
-     regexp: '[0-9]'
+     regexp:
+      match: 'arn:aws:iam::(\d+):.*'
+      group: 1  # Optional capture group. Omit to match the entire regexp.
 ```
 
 `convert`. Transforms values of one type to another, for example from a string

@@ -158,7 +158,10 @@ func AsCompositionTransform(rt v1alpha1.Transform) v1.Transform {
 			t.String.Trim = rt.String.Trim
 		}
 		if rt.String.Regexp != nil {
-			t.String.Regexp = rt.String.Regexp
+			t.String.Regexp = &v1.StringTransformRegexp{
+				Match: rt.String.Regexp.Match,
+				Group: rt.String.Regexp.Group,
+			}
 		}
 	}
 	if rt.Convert != nil {
