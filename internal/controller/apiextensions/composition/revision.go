@@ -174,6 +174,12 @@ func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform {
 		if t.String.Trim != nil {
 			rt.String.Trim = t.String.Trim
 		}
+		if t.String.Regexp != nil {
+			rt.String.Regexp = &v1alpha1.StringTransformRegexp{
+				Match: t.String.Regexp.Match,
+				Group: t.String.Regexp.Group,
+			}
+		}
 	}
 	if t.Convert != nil {
 		rt.Convert = &v1alpha1.ConvertTransform{ToType: t.Convert.ToType}

@@ -417,6 +417,7 @@ const (
 	StringTransformTypeConvert    StringTransformType = "Convert"
 	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
 	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
+	StringTransformTypeRegexp     StringTransformType = "Regexp"
 )
 
 // A StringConversionType converts a string.
@@ -435,7 +436,7 @@ type StringTransform struct {
 
 	// Type of the string transform to be run.
 	// +optional
-	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix
+	// +kubebuilder:validation:Enum=Format;Convert;TrimPrefix;TrimSuffix;Regexp
 	// +kubebuilder:default=Format
 	Type StringTransformType `json:"type,omitempty"`
 
@@ -453,6 +454,22 @@ type StringTransform struct {
 	// Trim the prefix or suffix from the input
 	// +optional
 	Trim *string `json:"trim,omitempty"`
+
+	// Extract a match from the input using a regular expression.
+	// +optional
+	Regexp *StringTransformRegexp `json:"regexp,omitempty"`
+}
+
+// A StringTransformRegexp extracts a match from the input using a regular
+// expression.
+type StringTransformRegexp struct {
+	// Match string. May optionally include submatches, aka capture groups.
+	// See https://pkg.go.dev/regexp/ for details.
+	Match string `json:"match"`
+
+	// Group number to match. 0 (the default) matches the entire expression.
+	// +optional
+	Group *int `json:"group,omitempty"`
 }
 
 // The list of supported ConvertTransform input and output types.

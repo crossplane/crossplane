@@ -134,6 +134,16 @@ func TestNewCompositionRevision(t *testing.T) {
 							},
 						},
 						{
+							Type: v1.TransformTypeString,
+							String: &v1.StringTransform{
+								Type: v1.StringTransformTypeRegexp,
+								Regexp: &v1.StringTransformRegexp{
+									Match: "https://twitter.com/junyer/status/699892454749700096",
+									Group: pointer.Int(0),
+								},
+							},
+						},
+						{
 							Type: v1.TransformTypeConvert,
 							Convert: &v1.ConvertTransform{
 								ToType: v1.ConvertTransformTypeBool,
@@ -284,6 +294,16 @@ func TestNewCompositionRevision(t *testing.T) {
 							String: &v1alpha1.StringTransform{
 								Type: v1alpha1.StringTransformTypeTrimSuffix,
 								Trim: pointer.String("trim"),
+							},
+						},
+						{
+							Type: v1alpha1.TransformTypeString,
+							String: &v1alpha1.StringTransform{
+								Type: v1alpha1.StringTransformTypeRegexp,
+								Regexp: &v1alpha1.StringTransformRegexp{
+									Match: "https://twitter.com/junyer/status/699892454749700096",
+									Group: pointer.Int(0),
+								},
 							},
 						},
 						{
