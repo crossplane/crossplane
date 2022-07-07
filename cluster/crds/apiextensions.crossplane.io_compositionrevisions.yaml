@@ -284,8 +284,6 @@ spec:
                   type: object
                 type: array
               publishConnectionDetailsWithStoreConfigRef:
-                default:
-                  name: default
                 description: PublishConnectionDetailsWithStoreConfig specifies the
                   secret store config with which the connection secrets of composite
                   resource dynamically provisioned using this composition will be
