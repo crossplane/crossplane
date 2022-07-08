@@ -19,7 +19,9 @@ package revision
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
+	"sync"
 
 	admv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +41,11 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
+const (
+	// maxConcurrentUpdates specifies the maximum number of goroutines to use
+	// for updating resources.
+	maxConcurrentUpdates = 100
+)
 const (
 	errAssertResourceObj            = "cannot assert object to resource.Object"
 	errAssertClientObj              = "cannot assert object to client.Object"
@@ -91,6 +98,42 @@ type currentDesired struct {
 	Exists  bool
 }
 
+// Result of the execution of the executeEach function.
+type executionResult int
+
+const (
+	// stopExecution stop processing the batch
+	stopExecution executionResult = iota
+	// continueExecution process the next element in the batch
+	continueExecution
+)
+
+// A function to execute for each element in a slice.
+type executeEach func(index int) executionResult
+
+// run executeEach function for each element in the slice concurrently, waits for processing to finish.
+func (callable executeEach) concurrently(maxParallelism, numElements int) {
+	// calculate the number of items in each batch
+	perBatch := int(math.Ceil(float64(numElements) / float64(maxParallelism)))
+	wg := &sync.WaitGroup{}
+	for start := 0; start < numElements; start += perBatch {
+		end := start + perBatch
+		if end > numElements {
+			end = numElements
+		}
+		wg.Add(1)
+		go func(start, end int) {
+			defer wg.Done()
+			for index := start; index < end; index++ {
+				if callable(index) == stopExecution {
+					return
+				}
+			}
+		}(start, end)
+	}
+	wg.Wait()
+}
+
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
 func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
@@ -108,12 +151,25 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		}
 		webhookTLSCert = s.Data["tls.crt"]
 	}
-	for _, res := range objs {
+	var errEx error
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	executionError := func(err error) executionResult {
+		errEx = err
+		cancel()
+		return stopExecution
+	}
+	objectStatusCh := make(chan currentDesired, len(objs))
+	executeEach(func(i int) executionResult {
+		if ctx.Err() != nil {
+			return stopExecution
+		}
+		res := objs[i]
 		// Assert desired object to resource.Object so that we can access its
 		// metadata.
 		d, ok := res.(resource.Object)
 		if !ok {
-			return nil, errors.New(errAssertResourceObj)
+			return executionError(errors.New(errAssertResourceObj))
 		}
 
 		// The generated webhook configurations have a static hard-coded name
@@ -125,7 +181,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		switch conf := res.(type) {
 		case *admv1.ValidatingWebhookConfiguration:
 			if len(webhookTLSCert) == 0 {
-				continue
+				return continueExecution
 			}
 			if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
@@ -141,7 +197,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 			}
 		case *admv1.MutatingWebhookConfiguration:
 			if len(webhookTLSCert) == 0 {
-				continue
+				return continueExecution
 			}
 			if pkgRef, ok := GetPackageOwnerReference(parent); ok {
 				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
@@ -158,7 +214,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		case *extv1.CustomResourceDefinition:
 			if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
 				if len(webhookTLSCert) == 0 {
-					return nil, errors.New(errConversionWithNoWebhookCA)
+					return executionError(errors.New(errConversionWithNoWebhookCA))
 				}
 				if conf.Spec.Conversion.Webhook == nil {
 					conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
@@ -181,63 +237,85 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		copy := res.DeepCopyObject()
 		current, ok := copy.(client.Object)
 		if !ok {
-			return nil, errors.New(errAssertClientObj)
+			return executionError(errors.New(errAssertClientObj))
 		}
 		err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
 		if resource.IgnoreNotFound(err) != nil {
-			return nil, err
+			return executionError(err)
 		}
 
 		// If resource does not already exist, we must attempt to dry run create
 		// it.
 		if kerrors.IsNotFound(err) {
 			// Add to objects as not existing.
-			allObjs = append(allObjs, currentDesired{
+			objectStatusCh <- currentDesired{
 				Desired: d,
 				Current: nil,
 				Exists:  false,
-			})
+			}
 			// We will not create a resource if we are not going to control it,
 			// so we don't need to check with dry run.
 			if control {
 				if err := e.create(ctx, d, parent, client.DryRunAll); err != nil {
-					return nil, err
+					return executionError(err)
 				}
 			}
-			continue
+			return continueExecution
 		}
 
 		c := current.(resource.Object)
 		// Add to objects as existing.
-		allObjs = append(allObjs, currentDesired{
+		objectStatusCh <- currentDesired{
 			Desired: d,
 			Current: c,
 			Exists:  true,
-		})
+		}
 
 		if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
-			return nil, err
+			return executionError(err)
 		}
+		return continueExecution
+	}).concurrently(maxConcurrentUpdates, len(objs))
+	close(objectStatusCh)
+	if errEx != nil {
+		return nil, errEx
 	}
 
-	for _, cd := range allObjs {
+	for obj := range objectStatusCh {
+		allObjs = append(allObjs, obj)
+	}
+	resourceRefsCh := make(chan xpv1.TypedReference, len(allObjs))
+	executeEach(func(i int) executionResult {
+		cd := allObjs[i]
+		if ctx.Err() != nil {
+			return stopExecution
+		}
 		if !cd.Exists {
 			// Only create a missing resource if we are going to control it.
 			// This prevents an inactive revision from racing to create a
 			// resource before an active revision of the same parent.
 			if control {
 				if err := e.create(ctx, cd.Desired, parent); err != nil {
-					return nil, err
+					return executionError(err)
 				}
 			}
-			resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
-			continue
+			resourceRefsCh <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind())
+			return continueExecution
 		}
 
 		if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
-			return nil, err
+			return executionError(err)
 		}
-		resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
+		resourceRefsCh <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind())
+		return continueExecution
+	}).concurrently(maxConcurrentUpdates, len(allObjs))
+	close(resourceRefsCh)
+	if errEx != nil {
+		return nil, errEx
+	}
+
+	for resourceRef := range resourceRefsCh {
+		resourceRefs = append(resourceRefs, resourceRef)
 	}
 
 	return resourceRefs, nil

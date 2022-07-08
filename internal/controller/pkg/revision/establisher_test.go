@@ -18,6 +18,7 @@ package revision
 
 import (
 	"context"
+	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -402,7 +403,12 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors()); diff != "" {
+			trans := cmp.Transformer("Sort", func(refs []xpv1.TypedReference) []xpv1.TypedReference {
+				out := append([]xpv1.TypedReference(nil), refs...) // Copy input to avoid mutating it
+				sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+				return out
+			})
+			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), trans); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
