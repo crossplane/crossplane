@@ -192,6 +192,13 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 
 </div>
 <!-- End CLI tabs -->
+ 
+ Next, run the following commands as instructed in the console output of the above commands.
+ 
+ ```console
+sudo mv kubectl-crossplane /usr/local/bin
+kubectl crossplane --help
+ ```
 
 ## Select a Getting Started Configuration
 
