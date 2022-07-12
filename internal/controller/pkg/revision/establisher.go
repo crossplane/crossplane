@@ -98,11 +98,7 @@ type currentDesired struct {
 	Exists  bool
 }
 
-// Establish checks that control or ownership of resources can be established by
-// parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
-	allObjs := make(chan currentDesired, len(objs))
-	resourceRefs := []xpv1.TypedReference{}
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) {
 	var webhookTLSCert []byte
 	if parent.GetWebhookTLSSecretName() != nil {
 		s := &corev1.Secret{}
@@ -115,9 +111,10 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		}
 		webhookTLSCert = s.Data["tls.crt"]
 	}
-	{
-		g, ctx := errgroup.WithContext(ctx)
-		g.SetLimit(maxConcurrentEstablishers)
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentEstablishers)
+	out := make(chan currentDesired, maxConcurrentEstablishers)
+	go func() {
 		for _, res := range objs {
 			res := res // Pin the range variable before using it in a Goroutine.
 			g.Go(func() error {
@@ -203,12 +200,6 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 				// If resource does not already exist, we must attempt to dry run create
 				// it.
 				if kerrors.IsNotFound(err) {
-					// Add to objects as not existing.
-					allObjs <- currentDesired{
-						Desired: d,
-						Current: nil,
-						Exists:  false,
-					}
 					// We will not create a resource if we are not going to control it,
 					// so we don't need to check with dry run.
 					if control {
@@ -216,36 +207,48 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 							return err
 						}
 					}
-					return nil
+					// Add to objects as not existing.
+					select {
+					case out <- currentDesired{Desired: d, Current: nil, Exists: false}:
+						return nil
+					case <-ctx.Done():
+						return ctx.Err()
+					}
 				}
 
 				c := current.(resource.Object)
-				// Add to objects as existing.
-				allObjs <- currentDesired{
-					Desired: d,
-					Current: c,
-					Exists:  true,
-				}
-
 				if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
 					return err
 				}
-				return nil
+				// Add to objects as existing.
+				select {
+				case out <- currentDesired{Desired: d, Current: c, Exists: true}:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
 			})
 		}
-		if err := g.Wait(); err != nil {
-			return nil, err
-		}
+		g.Wait()
+		close(out)
+	}()
+	allObjs := []currentDesired{}
+	for obj := range out {
+		allObjs = append(allObjs, obj)
 	}
-	close(allObjs)
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return allObjs, nil
+}
 
-	refsCh := make(chan xpv1.TypedReference, len(allObjs))
-	{
-		g, ctx := errgroup.WithContext(ctx)
-		g.SetLimit(maxConcurrentEstablishers)
-
-		for cd := range allObjs {
-			cd := cd
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) {
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentEstablishers)
+	out := make(chan xpv1.TypedReference, maxConcurrentEstablishers)
+	go func() {
+		for _, cd := range allObjs {
+			cd := cd // Pin the loop variable.
 			g.Go(func() error {
 				if !cd.Exists {
 					// Only create a missing resource if we are going to control it.
@@ -256,26 +259,50 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 							return err
 						}
 					}
-					resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
-					return nil
+					select {
+					case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
+						return nil
+					case <-ctx.Done():
+						return ctx.Err()
+					}
 				}
 
 				if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
 					return err
 				}
-				resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
-				return nil
+				select {
+				case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
 			})
 		}
-		if err := g.Wait(); err != nil {
-			return nil, err
-		}
-	}
-	close(refsCh)
-	for ref := range refsCh {
+		g.Wait()
+		close(out)
+	}()
+	resourceRefs := []xpv1.TypedReference{}
+	for ref := range out {
 		resourceRefs = append(resourceRefs, ref)
 	}
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return resourceRefs, nil
+}
 
+// Establish checks that control or ownership of resources can be established by
+// parent, then establishes it.
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
+	allObjs, err := e.validate(ctx, objs, parent, control)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceRefs, err := e.establish(ctx, allObjs, parent, control)
+	if err != nil {
+		return nil, err
+	}
 	return resourceRefs, nil
 }
 
