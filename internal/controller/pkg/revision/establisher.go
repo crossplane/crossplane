@@ -98,7 +98,22 @@ type currentDesired struct {
 	Exists  bool
 }
 
-func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) {
+// Establish checks that control or ownership of resources can be established by
+// parent, then establishes it.
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+	allObjs, err := e.validate(ctx, objs, parent, control)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceRefs, err := e.establish(ctx, allObjs, parent, control)
+	if err != nil {
+		return nil, err
+	}
+	return resourceRefs, nil
+}
+
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { // nolint:gocyclo
 	var webhookTLSCert []byte
 	if parent.GetWebhookTLSSecretName() != nil {
 		s := &corev1.Secret{}
@@ -229,7 +244,8 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 				}
 			})
 		}
-		g.Wait()
+		// g.Wait() returns the same error and is checked below
+		_ = g.Wait()
 		close(out)
 	}()
 	allObjs := []currentDesired{}
@@ -242,7 +258,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	return allObjs, nil
 }
 
-func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) {
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(maxConcurrentEstablishers)
 	out := make(chan xpv1.TypedReference, maxConcurrentEstablishers)
@@ -278,7 +294,8 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 				}
 			})
 		}
-		g.Wait()
+		// g.Wait() returns the same error and is checked below
+		_ = g.Wait()
 		close(out)
 	}()
 	resourceRefs := []xpv1.TypedReference{}
@@ -286,21 +303,6 @@ func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired
 		resourceRefs = append(resourceRefs, ref)
 	}
 	if err := g.Wait(); err != nil {
-		return nil, err
-	}
-	return resourceRefs, nil
-}
-
-// Establish checks that control or ownership of resources can be established by
-// parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
-	allObjs, err := e.validate(ctx, objs, parent, control)
-	if err != nil {
-		return nil, err
-	}
-
-	resourceRefs, err := e.establish(ctx, allObjs, parent, control)
-	if err != nil {
 		return nil, err
 	}
 	return resourceRefs, nil
