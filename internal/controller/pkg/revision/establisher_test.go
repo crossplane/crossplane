@@ -18,10 +18,10 @@ package revision
 
 import (
 	"context"
-	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -403,12 +403,10 @@ func TestAPIEstablisherEstablish(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			trans := cmp.Transformer("Sort", func(refs []xpv1.TypedReference) []xpv1.TypedReference {
-				out := append([]xpv1.TypedReference(nil), refs...) // Copy input to avoid mutating it
-				sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-				return out
+			sort := cmpopts.SortSlices(func(x, y xpv1.TypedReference) bool {
+				return x.Name < y.Name
 			})
-			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), trans); diff != "" {
+			if diff := cmp.Diff(tc.want.refs, refs, test.EquateErrors(), sort); diff != "" {
 				t.Errorf("\n%s\ne.Check(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
