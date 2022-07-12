@@ -41,9 +41,9 @@ import (
 )
 
 const (
-	// maxConcurrentReconciles specifies the maximum number of goroutines to use
+	// maxConcurrentEstablishers specifies the maximum number of goroutines to use
 	// for updating resources.
-	maxConcurrentReconciles = 10
+	maxConcurrentEstablishers = 10
 )
 
 const (
@@ -117,7 +117,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	}
 	{
 		g, ctx := errgroup.WithContext(ctx)
-		g.SetLimit(maxConcurrentReconciles)
+		g.SetLimit(maxConcurrentEstablishers)
 		for _, res := range objs {
 			res := res // Pin the range variable before using it in a Goroutine.
 			g.Go(func() error {
@@ -242,7 +242,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	refsCh := make(chan xpv1.TypedReference, len(allObjs))
 	{
 		g, ctx := errgroup.WithContext(ctx)
-		g.SetLimit(maxConcurrentReconciles)
+		g.SetLimit(maxConcurrentEstablishers)
 
 		for cd := range allObjs {
 			cd := cd
