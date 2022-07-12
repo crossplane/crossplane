@@ -119,7 +119,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		g, ctx := errgroup.WithContext(ctx)
 		g.SetLimit(maxConcurrentReconciles)
 		for _, res := range objs {
-			res := res
+			res := res // Pin the range variable before using it in a Goroutine.
 			g.Go(func() error {
 				// Assert desired object to resource.Object so that we can access its
 				// metadata.
