@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strings"
 
+	"golang.org/x/sync/errgroup"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -37,6 +38,12 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+)
+
+const (
+	// maxConcurrentEstablishers specifies the maximum number of goroutines to use
+	// for establishing resources.
+	maxConcurrentEstablishers = 10
 )
 
 const (
@@ -93,9 +100,20 @@ type currentDesired struct {
 
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
-	allObjs := []currentDesired{}
-	resourceRefs := []xpv1.TypedReference{}
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+	allObjs, err := e.validate(ctx, objs, parent, control)
+	if err != nil {
+		return nil, err
+	}
+
+	resourceRefs, err := e.establish(ctx, allObjs, parent, control)
+	if err != nil {
+		return nil, err
+	}
+	return resourceRefs, nil
+}
+
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { // nolint:gocyclo
 	var webhookTLSCert []byte
 	if parent.GetWebhookTLSSecretName() != nil {
 		s := &corev1.Secret{}
@@ -108,138 +126,178 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		}
 		webhookTLSCert = s.Data["tls.crt"]
 	}
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentEstablishers)
+	out := make(chan currentDesired, len(objs))
 	for _, res := range objs {
-		// Assert desired object to resource.Object so that we can access its
-		// metadata.
-		d, ok := res.(resource.Object)
-		if !ok {
-			return nil, errors.New(errAssertResourceObj)
-		}
+		res := res // Pin the range variable before using it in a Goroutine.
+		g.Go(func() error {
+			// Assert desired object to resource.Object so that we can access its
+			// metadata.
+			d, ok := res.(resource.Object)
+			if !ok {
+				return errors.New(errAssertResourceObj)
+			}
 
-		// The generated webhook configurations have a static hard-coded name
-		// that the developers of the providers can't affect. Here, we make sure
-		// to distinguish one from the other by setting the name to the parent
-		// since there is always a single ValidatingWebhookConfiguration and/or
-		// single MutatingWebhookConfiguration object in a provider package.
-		// See https://github.com/kubernetes-sigs/controller-tools/issues/658
-		switch conf := res.(type) {
-		case *admv1.ValidatingWebhookConfiguration:
-			if len(webhookTLSCert) == 0 {
-				continue
-			}
-			if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
-			}
-			for i := range conf.Webhooks {
-				conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
-				if conf.Webhooks[i].ClientConfig.Service == nil {
-					conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
-				}
-				conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
-				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
-			}
-		case *admv1.MutatingWebhookConfiguration:
-			if len(webhookTLSCert) == 0 {
-				continue
-			}
-			if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-				conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
-			}
-			for i := range conf.Webhooks {
-				conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
-				if conf.Webhooks[i].ClientConfig.Service == nil {
-					conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
-				}
-				conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
-				conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-				conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
-			}
-		case *extv1.CustomResourceDefinition:
-			if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+			// The generated webhook configurations have a static hard-coded name
+			// that the developers of the providers can't affect. Here, we make sure
+			// to distinguish one from the other by setting the name to the parent
+			// since there is always a single ValidatingWebhookConfiguration and/or
+			// single MutatingWebhookConfiguration object in a provider package.
+			// See https://github.com/kubernetes-sigs/controller-tools/issues/658
+			switch conf := res.(type) {
+			case *admv1.ValidatingWebhookConfiguration:
 				if len(webhookTLSCert) == 0 {
-					return nil, errors.New(errConversionWithNoWebhookCA)
+					return nil
 				}
-				if conf.Spec.Conversion.Webhook == nil {
-					conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+				if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+					conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
 				}
-				if conf.Spec.Conversion.Webhook.ClientConfig == nil {
-					conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+				for i := range conf.Webhooks {
+					conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+					if conf.Webhooks[i].ClientConfig.Service == nil {
+						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+					}
+					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
+					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
 				}
-				if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
-					conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+			case *admv1.MutatingWebhookConfiguration:
+				if len(webhookTLSCert) == 0 {
+					return nil
 				}
-				conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
-				conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetName()
-				conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
-				conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(webhookPort)
+				if pkgRef, ok := GetPackageOwnerReference(parent); ok {
+					conf.SetName(fmt.Sprintf("crossplane-%s-%s", strings.ToLower(pkgRef.Kind), pkgRef.Name))
+				}
+				for i := range conf.Webhooks {
+					conf.Webhooks[i].ClientConfig.CABundle = webhookTLSCert
+					if conf.Webhooks[i].ClientConfig.Service == nil {
+						conf.Webhooks[i].ClientConfig.Service = &admv1.ServiceReference{}
+					}
+					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
+					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
+					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
+				}
+			case *extv1.CustomResourceDefinition:
+				if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
+					if len(webhookTLSCert) == 0 {
+						return errors.New(errConversionWithNoWebhookCA)
+					}
+					if conf.Spec.Conversion.Webhook == nil {
+						conf.Spec.Conversion.Webhook = &extv1.WebhookConversion{}
+					}
+					if conf.Spec.Conversion.Webhook.ClientConfig == nil {
+						conf.Spec.Conversion.Webhook.ClientConfig = &extv1.WebhookClientConfig{}
+					}
+					if conf.Spec.Conversion.Webhook.ClientConfig.Service == nil {
+						conf.Spec.Conversion.Webhook.ClientConfig.Service = &extv1.ServiceReference{}
+					}
+					conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
+					conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetName()
+					conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
+					conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(webhookPort)
+				}
 			}
-		}
 
-		// Make a copy of the desired object to be populated with existing
-		// object, if it exists.
-		copy := res.DeepCopyObject()
-		current, ok := copy.(client.Object)
-		if !ok {
-			return nil, errors.New(errAssertClientObj)
-		}
-		err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
-		if resource.IgnoreNotFound(err) != nil {
-			return nil, err
-		}
+			// Make a copy of the desired object to be populated with existing
+			// object, if it exists.
+			copy := res.DeepCopyObject()
+			current, ok := copy.(client.Object)
+			if !ok {
+				return errors.New(errAssertClientObj)
+			}
+			err := e.client.Get(ctx, types.NamespacedName{Name: d.GetName(), Namespace: d.GetNamespace()}, current)
+			if resource.IgnoreNotFound(err) != nil {
+				return err
+			}
 
-		// If resource does not already exist, we must attempt to dry run create
-		// it.
-		if kerrors.IsNotFound(err) {
-			// Add to objects as not existing.
-			allObjs = append(allObjs, currentDesired{
-				Desired: d,
-				Current: nil,
-				Exists:  false,
-			})
-			// We will not create a resource if we are not going to control it,
-			// so we don't need to check with dry run.
-			if control {
-				if err := e.create(ctx, d, parent, client.DryRunAll); err != nil {
-					return nil, err
+			// If resource does not already exist, we must attempt to dry run create
+			// it.
+			if kerrors.IsNotFound(err) {
+				// We will not create a resource if we are not going to control it,
+				// so we don't need to check with dry run.
+				if control {
+					if err := e.create(ctx, d, parent, client.DryRunAll); err != nil {
+						return err
+					}
+				}
+				// Add to objects as not existing.
+				select {
+				case out <- currentDesired{Desired: d, Current: nil, Exists: false}:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
 				}
 			}
-			continue
-		}
 
-		c := current.(resource.Object)
-		// Add to objects as existing.
-		allObjs = append(allObjs, currentDesired{
-			Desired: d,
-			Current: c,
-			Exists:  true,
+			c := current.(resource.Object)
+			if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
+				return err
+			}
+			// Add to objects as existing.
+			select {
+			case out <- currentDesired{Desired: d, Current: c, Exists: true}:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
 		})
-
-		if err := e.update(ctx, c, d, parent, control, client.DryRunAll); err != nil {
-			return nil, err
-		}
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
+	close(out)
+	allObjs := []currentDesired{}
+	for obj := range out {
+		allObjs = append(allObjs, obj)
+	}
+	return allObjs, nil
+}
+
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(maxConcurrentEstablishers)
+	out := make(chan xpv1.TypedReference, len(allObjs))
 	for _, cd := range allObjs {
-		if !cd.Exists {
-			// Only create a missing resource if we are going to control it.
-			// This prevents an inactive revision from racing to create a
-			// resource before an active revision of the same parent.
-			if control {
-				if err := e.create(ctx, cd.Desired, parent); err != nil {
-					return nil, err
+		cd := cd // Pin the loop variable.
+		g.Go(func() error {
+			if !cd.Exists {
+				// Only create a missing resource if we are going to control it.
+				// This prevents an inactive revision from racing to create a
+				// resource before an active revision of the same parent.
+				if control {
+					if err := e.create(ctx, cd.Desired, parent); err != nil {
+						return err
+					}
+				}
+				select {
+				case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
 				}
 			}
-			resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
-			continue
-		}
 
-		if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
-			return nil, err
-		}
-		resourceRefs = append(resourceRefs, *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()))
+			if err := e.update(ctx, cd.Current, cd.Desired, parent, control); err != nil {
+				return err
+			}
+			select {
+			case out <- *meta.TypedReferenceTo(cd.Desired, cd.Desired.GetObjectKind().GroupVersionKind()):
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
 	}
-
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	close(out)
+	resourceRefs := []xpv1.TypedReference{}
+	for ref := range out {
+		resourceRefs = append(resourceRefs, ref)
+	}
 	return resourceRefs, nil
 }
 
