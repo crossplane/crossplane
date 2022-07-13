@@ -42,7 +42,7 @@ import (
 
 const (
 	// maxConcurrentEstablishers specifies the maximum number of goroutines to use
-	// for updating resources.
+	// for establishing resources.
 	maxConcurrentEstablishers = 10
 )
 
