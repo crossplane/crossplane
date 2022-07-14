@@ -405,7 +405,7 @@ by any number of `Provider` objects that wish to use its configuration. In the
 example below, the `Pod` annotations indicate to the Vault mutating webhook that
 we want for the secret stored at `secret/provider-creds/aws-default` to be
 injected into the container filesystem by assuming role `crossplane-providers`.
-There is also so template formatting added to make sure the secret data is
+There is also some template formatting added to make sure the secret data is
 presented in a form that `provider-aws` is expecting.
 
 {% raw  %}
@@ -442,7 +442,7 @@ spec:
 
 ## Configure provider-aws
 
-One `provider-aws` is installed and running, you will want to create a
+Once `provider-aws` is installed and running, you will want to create a
 `ProviderConfig` that specifies the credentials in the filesystem that should be
 used to provision managed resources that reference this `ProviderConfig`.
 Because the name of this `ProviderConfig` is `default` it will be used by any
