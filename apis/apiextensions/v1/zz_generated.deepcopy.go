@@ -200,12 +200,12 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	if in.DefaultCompositionRef != nil {
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
 		*out = new(commonv1.Reference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 	if in.EnforcedCompositionRef != nil {
 		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
 		*out = new(commonv1.Reference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 	if in.Versions != nil {
 		in, out := &in.Versions, &out.Versions
@@ -378,7 +378,7 @@ func (in *CompositionSpec) DeepCopyInto(out *CompositionSpec) {
 	if in.PublishConnectionDetailsWithStoreConfigRef != nil {
 		in, out := &in.PublishConnectionDetailsWithStoreConfigRef, &out.PublishConnectionDetailsWithStoreConfigRef
 		*out = new(commonv1.Reference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 }
 

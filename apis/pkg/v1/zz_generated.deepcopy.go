@@ -185,7 +185,7 @@ func (in *PackageRevisionSpec) DeepCopyInto(out *PackageRevisionSpec) {
 	if in.ControllerConfigReference != nil {
 		in, out := &in.ControllerConfigReference, &out.ControllerConfigReference
 		*out = new(commonv1.Reference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 	if in.PackagePullSecrets != nil {
 		in, out := &in.PackagePullSecrets, &out.PackagePullSecrets
@@ -228,7 +228,7 @@ func (in *PackageRevisionSpec) DeepCopy() *PackageRevisionSpec {
 func (in *PackageRevisionStatus) DeepCopyInto(out *PackageRevisionStatus) {
 	*out = *in
 	in.ConditionedStatus.DeepCopyInto(&out.ConditionedStatus)
-	out.ControllerRef = in.ControllerRef
+	in.ControllerRef.DeepCopyInto(&out.ControllerRef)
 	if in.ObjectRefs != nil {
 		in, out := &in.ObjectRefs, &out.ObjectRefs
 		*out = make([]commonv1.TypedReference, len(*in))
@@ -438,7 +438,7 @@ func (in *ProviderSpec) DeepCopyInto(out *ProviderSpec) {
 	if in.ControllerConfigReference != nil {
 		in, out := &in.ControllerConfigReference, &out.ControllerConfigReference
 		*out = new(commonv1.Reference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 }
 

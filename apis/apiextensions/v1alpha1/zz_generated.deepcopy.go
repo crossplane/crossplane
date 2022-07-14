@@ -191,7 +191,7 @@ func (in *CompositionRevisionSpec) DeepCopyInto(out *CompositionRevisionSpec) {
 	if in.PublishConnectionDetailsWithStoreConfigRef != nil {
 		in, out := &in.PublishConnectionDetailsWithStoreConfigRef, &out.PublishConnectionDetailsWithStoreConfigRef
 		*out = new(v1.Reference)
-		**out = **in
+		(*in).DeepCopyInto(*out)
 	}
 }
 
