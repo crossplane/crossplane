@@ -74,15 +74,22 @@ type CompositionRevisionSpec struct {
 	WriteConnectionSecretsToNamespace *string `json:"writeConnectionSecretsToNamespace,omitempty"`
 
 	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
-	// with which the connection secrets of composite resource dynamically
+	// with which the connection details of composite resources dynamically
 	// provisioned using this composition will be published.
 	// +optional
 	// +kubebuilder:default={"name": "default"}
-	PublishConnectionDetailsWithStoreConfigRef *xpv1.Reference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
+	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
 
 	// Revision number. Newer revisions have larger numbers.
 	// +immutable
 	Revision int64 `json:"revision"`
+}
+
+// A StoreConfigReference references a secret store config that may be used to
+// write connection details.
+type StoreConfigReference struct {
+	// Name of the referenced StoreConfig.
+	Name string `json:"name"`
 }
 
 // A PatchSet is a set of patches that can be reused from all resources within

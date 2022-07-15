@@ -50,7 +50,14 @@ type ProviderSpec struct {
 	// ControllerConfigRef references a ControllerConfig resource that will be
 	// used to configure the packaged controller Deployment.
 	// +optional
-	ControllerConfigReference *xpv1.Reference `json:"controllerConfigRef,omitempty"`
+	ControllerConfigReference *ControllerConfigReference `json:"controllerConfigRef,omitempty"`
+}
+
+// A ControllerConfigReference to a ControllerConfig resource that will be used
+// to configure the packaged controller Deployment.
+type ControllerConfigReference struct {
+	// Name of the ControllerConfig.
+	Name string `json:"name"`
 }
 
 // ProviderStatus represents the observed state of a Provider.

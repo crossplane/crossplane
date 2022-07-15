@@ -79,8 +79,8 @@ type Package interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *xpv1.Reference
-	SetControllerConfigRef(r *xpv1.Reference)
+	GetControllerConfigRef() *ControllerConfigReference
+	SetControllerConfigRef(r *ControllerConfigReference)
 
 	GetCurrentRevision() string
 	SetCurrentRevision(r string)
@@ -163,12 +163,12 @@ func (p *Provider) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this Provider.
-func (p *Provider) GetControllerConfigRef() *xpv1.Reference {
+func (p *Provider) GetControllerConfigRef() *ControllerConfigReference {
 	return p.Spec.ControllerConfigReference
 }
 
 // SetControllerConfigRef of this Provider.
-func (p *Provider) SetControllerConfigRef(r *xpv1.Reference) {
+func (p *Provider) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
 }
 
@@ -273,12 +273,12 @@ func (p *Configuration) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this Configuration.
-func (p *Configuration) GetControllerConfigRef() *xpv1.Reference {
+func (p *Configuration) GetControllerConfigRef() *ControllerConfigReference {
 	return nil
 }
 
 // SetControllerConfigRef of this Configuration.
-func (p *Configuration) SetControllerConfigRef(r *xpv1.Reference) {}
+func (p *Configuration) SetControllerConfigRef(r *ControllerConfigReference) {}
 
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {
@@ -322,8 +322,8 @@ type PackageRevision interface {
 	GetObjects() []xpv1.TypedReference
 	SetObjects(c []xpv1.TypedReference)
 
-	GetControllerReference() xpv1.Reference
-	SetControllerReference(c xpv1.Reference)
+	GetControllerReference() ControllerReference
+	SetControllerReference(c ControllerReference)
 
 	GetSource() string
 	SetSource(s string)
@@ -340,8 +340,8 @@ type PackageRevision interface {
 	GetIgnoreCrossplaneConstraints() *bool
 	SetIgnoreCrossplaneConstraints(b *bool)
 
-	GetControllerConfigRef() *xpv1.Reference
-	SetControllerConfigRef(r *xpv1.Reference)
+	GetControllerConfigRef() *ControllerConfigReference
+	SetControllerConfigRef(r *ControllerConfigReference)
 
 	GetRevision() int64
 	SetRevision(r int64)
@@ -377,12 +377,12 @@ func (p *ProviderRevision) SetObjects(c []xpv1.TypedReference) {
 }
 
 // GetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) GetControllerReference() xpv1.Reference {
+func (p *ProviderRevision) GetControllerReference() ControllerReference {
 	return p.Status.ControllerRef
 }
 
 // SetControllerReference of this ProviderRevision.
-func (p *ProviderRevision) SetControllerReference(c xpv1.Reference) {
+func (p *ProviderRevision) SetControllerReference(c ControllerReference) {
 	p.Status.ControllerRef = c
 }
 
@@ -459,12 +459,12 @@ func (p *ProviderRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this ProviderRevision.
-func (p *ProviderRevision) GetControllerConfigRef() *xpv1.Reference {
+func (p *ProviderRevision) GetControllerConfigRef() *ControllerConfigReference {
 	return p.Spec.ControllerConfigReference
 }
 
 // SetControllerConfigRef of this ProviderREvsion.
-func (p *ProviderRevision) SetControllerConfigRef(r *xpv1.Reference) {
+func (p *ProviderRevision) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
 }
 
@@ -509,12 +509,12 @@ func (p *ConfigurationRevision) SetObjects(c []xpv1.TypedReference) {
 }
 
 // GetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerReference() xpv1.Reference {
+func (p *ConfigurationRevision) GetControllerReference() ControllerReference {
 	return p.Status.ControllerRef
 }
 
 // SetControllerReference of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerReference(c xpv1.Reference) {
+func (p *ConfigurationRevision) SetControllerReference(c ControllerReference) {
 	p.Status.ControllerRef = c
 }
 
@@ -591,12 +591,12 @@ func (p *ConfigurationRevision) SetIgnoreCrossplaneConstraints(b *bool) {
 }
 
 // GetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) GetControllerConfigRef() *xpv1.Reference {
+func (p *ConfigurationRevision) GetControllerConfigRef() *ControllerConfigReference {
 	return p.Spec.ControllerConfigReference
 }
 
 // SetControllerConfigRef of this ConfigurationRevision.
-func (p *ConfigurationRevision) SetControllerConfigRef(r *xpv1.Reference) {
+func (p *ConfigurationRevision) SetControllerConfigRef(r *ControllerConfigReference) {
 	p.Spec.ControllerConfigReference = r
 }
 
