@@ -292,12 +292,12 @@ spec:
                 default:
                   name: default
                 description: PublishConnectionDetailsWithStoreConfig specifies the
-                  secret store config with which the connection secrets of composite
-                  resource dynamically provisioned using this composition will be
+                  secret store config with which the connection details of composite
+                  resources dynamically provisioned using this composition will be
                   published.
                 properties:
                   name:
-                    description: Name of the referenced object.
+                    description: Name of the referenced StoreConfig.
                     type: string
                 required:
                 - name

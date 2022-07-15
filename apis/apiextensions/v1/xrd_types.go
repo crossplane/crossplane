@@ -60,13 +60,13 @@ type CompositeResourceDefinitionSpec struct {
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
 	// +optional
-	DefaultCompositionRef *xpv1.Reference `json:"defaultCompositionRef,omitempty"`
+	DefaultCompositionRef *CompositionReference `json:"defaultCompositionRef,omitempty"`
 
 	// EnforcedCompositionRef refers to the Composition resource that will be used
 	// by all composite instances whose schema is defined by this definition.
 	// +optional
 	// +immutable
-	EnforcedCompositionRef *xpv1.Reference `json:"enforcedCompositionRef,omitempty"`
+	EnforcedCompositionRef *CompositionReference `json:"enforcedCompositionRef,omitempty"`
 
 	// Versions is the list of all API versions of the defined composite
 	// resource. Version names are used to compute the order in which served
@@ -82,6 +82,12 @@ type CompositeResourceDefinitionSpec struct {
 	// versions must have identical schemas; Crossplane does not currently
 	// support conversion between different version schemas.
 	Versions []CompositeResourceDefinitionVersion `json:"versions"`
+}
+
+// A CompositionReference references a Composition.
+type CompositionReference struct {
+	// Name of the Composition.
+	Name string `json:"name"`
 }
 
 // CompositeResourceDefinitionVersion describes a version of an XR.

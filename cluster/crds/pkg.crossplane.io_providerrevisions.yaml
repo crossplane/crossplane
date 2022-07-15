@@ -64,7 +64,7 @@ spec:
                   that will be used to configure the packaged controller Deployment.
                 properties:
                   name:
-                    description: Name of the referenced object.
+                    description: Name of the ControllerConfig.
                     type: string
                 required:
                 - name
@@ -167,10 +167,12 @@ spec:
                   type: object
                 type: array
               controllerRef:
-                description: A Reference to a named object.
+                description: ControllerRef references the controller (e.g. Deployment),
+                  if any, that is responsible for reconciling the objects this package
+                  revision installed.
                 properties:
                   name:
-                    description: Name of the referenced object.
+                    description: Name of the controller.
                     type: string
                 required:
                 - name

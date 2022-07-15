@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -383,7 +382,7 @@ func TestHookPost(t *testing.T) {
 				pkg: &pkgmetav1.Provider{},
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
-						ControllerConfigReference: &xpv1.Reference{
+						ControllerConfigReference: &v1.ControllerConfigReference{
 							Name: "custom-config",
 						},
 						DesiredState: v1.PackageRevisionActive,
@@ -394,7 +393,7 @@ func TestHookPost(t *testing.T) {
 				rev: &v1.ProviderRevision{
 					Spec: v1.PackageRevisionSpec{
 						DesiredState: v1.PackageRevisionActive,
-						ControllerConfigReference: &xpv1.Reference{
+						ControllerConfigReference: &v1.ControllerConfigReference{
 							Name: "custom-config",
 						},
 					},

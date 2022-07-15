@@ -28,7 +28,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
@@ -77,7 +76,7 @@ func TestAdd(t *testing.T) {
 						{
 							ObjectMeta: metav1.ObjectMeta{Name: prName},
 							Spec: v1.PackageRevisionSpec{
-								ControllerConfigReference: &xpv1.Reference{},
+								ControllerConfigReference: &v1.ControllerConfigReference{},
 							},
 						},
 						{

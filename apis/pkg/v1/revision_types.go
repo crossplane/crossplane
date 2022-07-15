@@ -39,7 +39,7 @@ type PackageRevisionSpec struct {
 	// ControllerConfigRef references a ControllerConfig resource that will be
 	// used to configure the packaged controller Deployment.
 	// +optional
-	ControllerConfigReference *xpv1.Reference `json:"controllerConfigRef,omitempty"`
+	ControllerConfigReference *ControllerConfigReference `json:"controllerConfigRef,omitempty"`
 
 	// DesiredState of the PackageRevision. Can be either Active or Inactive.
 	DesiredState PackageRevisionDesiredState `json:"desiredState"`
@@ -94,7 +94,11 @@ type PackageRevisionSpec struct {
 // PackageRevisionStatus represents the observed state of a PackageRevision.
 type PackageRevisionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
-	ControllerRef          xpv1.Reference `json:"controllerRef,omitempty"`
+
+	// ControllerRef references the controller (e.g. Deployment), if any, that
+	// is responsible for reconciling the objects this package revision
+	// installed.
+	ControllerRef ControllerReference `json:"controllerRef,omitempty"`
 
 	// References to objects owned by PackageRevision.
 	ObjectRefs []xpv1.TypedReference `json:"objectRefs,omitempty"`
@@ -108,4 +112,11 @@ type PackageRevisionStatus struct {
 	// controller needs these permissions to run. The RBAC manager is
 	// responsible for granting them.
 	PermissionRequests []rbacv1.PolicyRule `json:"permissionRequests,omitempty"`
+}
+
+// A ControllerReference references the controller (e.g. Deployment), if any,
+// that is responsible for reconciling the types a package revision installs.
+type ControllerReference struct {
+	// Name of the controller.
+	Name string `json:"name"`
 }

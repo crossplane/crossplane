@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
@@ -137,7 +136,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 			return errors.Wrap(err, errApplyProviderService)
 		}
 	}
-	pr.SetControllerReference(xpv1.Reference{Name: d.GetName()})
+	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
 
 	for _, c := range d.Status.Conditions {
 		if c.Type == appsv1.DeploymentAvailable {

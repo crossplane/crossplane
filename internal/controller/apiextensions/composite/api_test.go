@@ -876,7 +876,7 @@ func TestAPIDefaultCompositionSelector(t *testing.T) {
 					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 						switch cr := obj.(type) {
 						case *v1.CompositeResourceDefinition:
-							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRef: &xpv1.Reference{Name: comp.Name}}}
+							withRef := &v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositionRef: &v1.CompositionReference{Name: comp.Name}}}
 							withRef.DeepCopyInto(cr)
 							return nil
 						case *v1.Composition:
@@ -948,7 +948,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Should be no-op if enforced composition reference is already set",
 			args: args{
 				def: v1.CompositeResourceDefinition{
-					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
+					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
@@ -964,7 +964,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Successfully set the default composition reference",
 			args: args{
 				def: v1.CompositeResourceDefinition{
-					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
+					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{},
 			},
@@ -978,7 +978,7 @@ func TestAPIEnforcedCompositionSelector(t *testing.T) {
 			reason: "Successfully set the default composition reference even if another one was set",
 			args: args{
 				def: v1.CompositeResourceDefinition{
-					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &xpv1.Reference{Name: comp.Name}},
+					Spec: v1.CompositeResourceDefinitionSpec{EnforcedCompositionRef: &v1.CompositionReference{Name: comp.Name}},
 				},
 				cp: &fake.Composite{
 					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: "ola"}},

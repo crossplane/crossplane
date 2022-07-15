@@ -34,7 +34,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
@@ -215,7 +214,7 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 		},
 	}
 	if c.Config != "" {
-		cr.Spec.ControllerConfigReference = &xpv1.Reference{
+		cr.Spec.ControllerConfigReference = &v1.ControllerConfigReference{
 			Name: c.Config,
 		}
 	}

@@ -26,8 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
@@ -231,7 +229,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			Name: "rev-123",
 		},
 		Spec: v1.PackageRevisionSpec{
-			ControllerConfigReference: &xpv1.Reference{Name: "cc"},
+			ControllerConfigReference: &v1.ControllerConfigReference{Name: "cc"},
 			Package:                   pkgImg,
 			Revision:                  3,
 		},

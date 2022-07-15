@@ -112,7 +112,7 @@ spec:
                   that will be used in case no composition selector is given.
                 properties:
                   name:
-                    description: Name of the referenced object.
+                    description: Name of the Composition.
                     type: string
                 required:
                 - name
@@ -123,7 +123,7 @@ spec:
                   by this definition.
                 properties:
                   name:
-                    description: Name of the referenced object.
+                    description: Name of the Composition.
                     type: string
                 required:
                 - name
