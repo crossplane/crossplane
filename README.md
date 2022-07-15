@@ -20,7 +20,7 @@ documentation].
 | Release | Release Date |      EOL      |
 |:-------:|:------------:|:-------------:|
 |   v1.7  | Mar 22, 2022 |   Sept 2022   |
-|   v1.8  | May 17, 2022 |    Dec 2022   |
+|   v1.8  | May 17, 2022 |    Nov 2022   |
 |   v1.9  | Jul 19, 2022 |    Jan 2023   |
 
 You can subscribe to the [community calendar] to track all release dates, and
