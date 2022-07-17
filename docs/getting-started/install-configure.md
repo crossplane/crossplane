@@ -539,6 +539,6 @@ Slack][Slack] and our community will highlight it here!</i>
 [Upbound documentation]: https://cloud.upbound.io/docs
 [Providers]: ../concepts/providers.md
 [Universal Crossplane]: https://cloud.upbound.io/docs/uxp
-[Get started with Universal Crossplane]: https://cloud.upbound.io/docs/getting-started/install-and-setup
+[Get started with Universal Crossplane]: https://cloud.upbound.io/docs/uxp/install
 [certified by the CNCF]: https://github.com/cncf/crossplane-conformance
 [Crossplane GitHub]: https://github.com/crossplane/crossplane
