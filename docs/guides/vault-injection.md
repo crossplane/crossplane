@@ -20,12 +20,13 @@ A provider may optionally support additional credentials sources, but the common
 sources cover a wide variety of use cases. One specific use case that is popular
 among organizations that use [Vault] for secrets management is using a sidecar
 to inject credentials into the filesystem. This guide will demonstrate how to
-use the [Vault Kubernetes Sidecar] to provide credentials for [provider-gcp].
+use the [Vault Kubernetes Sidecar] to provide credentials for [provider-gcp] 
+and [provider-aws].
 
-> Note: in this guide we will copy GCP credentials into Vault's KV secrets
-> engine. This is a simple generic approach to managing secrets with Vault, but
-> is not as robust as using Vault's dedicated cloud provider secrets engines for
-> [AWS], [Azure], and [GCP]. 
+> Note: in this guide we will copy GCP credentials and AWS access keys 
+> into Vault's KV secrets engine. This is a simple generic approach to 
+> managing secrets with Vault, but is not as robust as using Vault's 
+> dedicated cloud provider secrets engines for [AWS], [Azure], and [GCP]. 
 
 ## Setup
 
@@ -95,6 +96,14 @@ The next steps will be executed in your local environment.
 exit
 ```
 
+<ul class="nav nav-tabs">
+<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
+<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
+</ul>
+<br>
+<div class="tab-content">
+<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+
 ## Create GCP Service Account
 
 In order to provision infrastructure on GCP, you will need to create a service
@@ -150,7 +159,7 @@ kubectl cp creds.json vault-0:/tmp/creds.json
 2. Enable KV Secrets Engine
 
 Secrets engines must be enabled before they can be used. Enable the `kv-v2`
-secrets engine a the `secret` path.
+secrets engine at the `secret` path.
 
 ```console
 kubectl exec -it vault-0 -- /bin/sh
@@ -175,6 +184,64 @@ ahead and clean it up.
 ```console
 rm tmp/creds.json
 ```
+
+</div>
+<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+
+## Create AWS IAM User
+
+In order to provision infrastructure on AWS, you will need to use an existing or create a new IAM
+user with appropriate permissions. The following steps will create an AWS IAM user and give it the necessary
+permissions.
+
+> Note: if you have an existing IAM user with appropriate permissions, you can skip this step but you will 
+> still need to provide the values for the `ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` environment variables.
+
+```console
+# create a new IAM user
+IAM_USER=test-user
+aws iam create-user --user-name $IAM_USER
+
+# grant the IAM user the necessary permissions
+aws iam attach-user-policy --user-name $IAM_USER --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+# create a new IAM access key for the user
+aws iam create-access-key --user-name $IAM_USER > creds.json
+# assign the access key values to environment variables
+ACCESS_KEY_ID=$(jq -r .AccessKey.AccessKeyId creds.json)
+AWS_SECRET_ACCESS_KEY=$(jq -r .AccessKey.SecretAccessKey creds.json)
+```
+
+## Store Credentials in Vault
+
+After setting up Vault, you will need to store your credentials in the [kv
+secrets engine].
+
+1. Enable KV Secrets Engine
+
+Secrets engines must be enabled before they can be used. Enable the `kv-v2`
+secrets engine at the `secret` path.
+
+```console
+kubectl exec -it vault-0 -- env \
+  ACCESS_KEY_ID=${ACCESS_KEY_ID} \
+  AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY} \
+  /bin/sh
+
+vault secrets enable -path=secret kv-v2
+```
+
+2. Store AWS Credentials in KV Engine
+
+The path of your AWS credentials is how the secret will be referenced when
+injecting it into the `provider-aws` controller `Pod`.
+
+```
+vault kv put secret/provider-creds/aws-default access_key="$ACCESS_KEY_ID" secret_key="$AWS_SECRET_ACCESS_KEY"
+```
+
+</div>
+</div>
 
 ## Create a Vault Policy for Reading Provider Credentials
 
@@ -214,6 +281,14 @@ The next steps will be executed in your local environment.
 ```console
 exit
 ```
+
+<ul class="nav nav-tabs">
+<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS</a></li>
+<li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
+</ul>
+<br>
+<div class="tab-content">
+<div class="tab-pane fade" id="gcp-tab-2" markdown="1">
 
 ## Install provider-gcp
 
@@ -279,6 +354,14 @@ spec:
       path: /vault/secrets/creds.txt" | kubectl apply -f -
 ```
 
+To verify that the GCP credentials are being injected into the container run the 
+following command:
+
+```console
+PROVIDER_CONTROLLER_POD=$(kubectl -n crossplane-system get pod -l pkg.crossplane.io/provider=provider-gcp -o name --no-headers=true)
+kubectl -n crossplane-system exec -it $PROVIDER_CONTROLLER_POD -c provider-gcp -- cat /vault/secrets/creds.txt
+```
+
 ## Provision Infrastructure
 
 The final step is to actually provision a `CloudSQLInstance`. Creating the
@@ -310,13 +393,123 @@ command:
 kubectl get cloudsqlinstance -w
 ```
 
+</div>
+<div class="tab-pane fade in active" id="aws-tab-2" markdown="1">
+
+## Install provider-aws
+
+You are now ready to install `provider-aws`. Crossplane provides a
+`ControllerConfig` type that allows you to customize the deployment of a
+provider's controller `Pod`. A `ControllerConfig` can be created and referenced
+by any number of `Provider` objects that wish to use its configuration. In the
+example below, the `Pod` annotations indicate to the Vault mutating webhook that
+we want for the secret stored at `secret/provider-creds/aws-default` to be
+injected into the container filesystem by assuming role `crossplane-providers`.
+There is also some template formatting added to make sure the secret data is
+presented in a form that `provider-aws` is expecting.
+
+{% raw  %}
+```console
+echo "apiVersion: pkg.crossplane.io/v1alpha1
+kind: ControllerConfig
+metadata:
+  name: aws-vault-config
+spec:
+  args:
+    - --debug
+  metadata:
+    annotations:
+      vault.hashicorp.com/agent-inject: \"true\"
+      vault.hashicorp.com/role: \"crossplane-providers\"
+      vault.hashicorp.com/agent-inject-secret-creds.txt: \"secret/provider-creds/aws-default\"
+      vault.hashicorp.com/agent-inject-template-creds.txt: |
+        {{- with secret \"secret/provider-creds/aws-default\" -}}
+          [default]
+          aws_access_key_id="{{ .Data.data.access_key }}"
+          aws_secret_access_key="{{ .Data.data.secret_key }}"
+        {{- end -}}
+---
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws
+spec:
+  package: crossplane/provider-aws:v0.29.0
+  controllerConfigRef:
+    name: aws-vault-config" | kubectl apply -f -
+```
+{% endraw %}
+
+## Configure provider-aws
+
+Once `provider-aws` is installed and running, you will want to create a
+`ProviderConfig` that specifies the credentials in the filesystem that should be
+used to provision managed resources that reference this `ProviderConfig`.
+Because the name of this `ProviderConfig` is `default` it will be used by any
+managed resources that do not explicitly reference a `ProviderConfig`.
+
+```console
+echo "apiVersion: aws.crossplane.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+spec:
+  credentials:
+    source: Filesystem
+    fs:
+      path: /vault/secrets/creds.txt" | kubectl apply -f -
+```
+
+To verify that the AWS credentials are being injected into the container run the 
+following command:
+
+```console
+PROVIDER_CONTROLLER_POD=$(kubectl -n crossplane-system get pod -l pkg.crossplane.io/provider=provider-aws -o name --no-headers=true)
+kubectl -n crossplane-system exec -it $PROVIDER_CONTROLLER_POD -c provider-aws -- cat /vault/secrets/creds.txt
+```
+
+## Provision Infrastructure
+
+The final step is to actually provision a `Bucket`. Creating the
+object below will result in the creation of a S3 bucket on AWS.
+
+```console
+echo "apiVersion: s3.aws.crossplane.io/v1beta1
+kind: Bucket
+metadata:
+  name: s3-vault-demo
+spec:
+  forProvider:
+    acl: private
+    locationConstraint: us-east-1
+    publicAccessBlockConfiguration:
+      blockPublicPolicy: true
+    tagging:
+      tagSet:
+        - key: Name
+          value: s3-vault-demo
+  providerConfigRef:
+    name: default" | kubectl apply -f -
+```
+
+You can monitor the progress of the bucket provisioning with the following
+command:
+
+```console
+kubectl get bucket -w
+```
+
+</div>
+</div>
+
 <!-- named links -->
 
 [Vault on Minikube]: https://learn.hashicorp.com/tutorials/vault/kubernetes-minikube
 [Vault Kubernetes Sidecar]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar
 [Vault]: https://www.vaultproject.io/
 [Vault Kubernetes Sidecar]: https://www.vaultproject.io/docs/platform/k8s/injector
-[provider-gcp]: https://github.com/crossplane/provider-gcp
+[provider-gcp]: https://github.com/crossplane-contrib/provider-gcp
+[provider-aws]: https://github.com/crossplane-contrib/provider-aws
 [AWS]: https://www.vaultproject.io/docs/secrets/aws
 [Azure]: https://www.vaultproject.io/docs/secrets/azure
 [GCP]: https://www.vaultproject.io/docs/secrets/gcp 
