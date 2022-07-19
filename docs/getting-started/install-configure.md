@@ -168,6 +168,9 @@ install [Crossplane packages]:
 ```console
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 ```
+ ```console
+sudo mv kubectl-crossplane /usr/local/bin
+```
 
 </div>
 <!-- End CLI Stable Tab -->
