@@ -12,22 +12,22 @@ func main() {
 	cl := compute.NewClient(dcl.NewConfig(
 		dcl.WithCredentialsFile("/Users/monus/go/src/github.com/crossplane/crossplane/crossplane-gcp-provider-key.json"),
 		dcl.WithLogger(dcl.DefaultLogger(dcl.Error)),
-		))
+	))
 	ctx := context.TODO()
 
 	// See the API schema of Network here:
 	// https://github.com/GoogleCloudPlatform/declarative-resource-client-library/blob/main/services/google/compute/network.yaml
 
 	in := &compute.Network{
-		Project: dcl.String("crossplane-playground"),
-		Name: dcl.String("muvaf-testing-dcl"),
+		Project:               dcl.String("crossplane-playground"),
+		Name:                  dcl.String("muvaf-testing-dcl"),
 		AutoCreateSubnetworks: dcl.Bool(false),
 	}
 	start := time.Now()
 	fmt.Println("Started apply to create...")
 	out, err := cl.ApplyNetwork(ctx, in,
 		dcl.WithLifecycleParam(dcl.BlockDestruction),
-		)
+	)
 	if err != nil {
 		panic(err)
 	}
