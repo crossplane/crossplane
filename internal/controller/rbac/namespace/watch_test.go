@@ -37,9 +37,9 @@ var (
 	_ handler.EventHandler = &EnqueueRequestForNamespaces{}
 )
 
-type addFn func(item interface{})
+type addFn func(item any)
 
-func (fn addFn) Add(item interface{}) {
+func (fn addFn) Add(item any) {
 	fn(item)
 }
 
@@ -52,18 +52,18 @@ func TestAdd(t *testing.T) {
 		queue  adder
 	}{
 		"ObjectIsNotAClusterRole": {
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ClusterRoleIsNotAggregated": {
 			obj:   &rbacv1.ClusterRole{},
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ListNamespacesError": {
 			client: &test.MockClient{
 				MockList: test.NewMockListFn(errors.New("boom")),
 			},
 			obj:   &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{keyAggToAdmin: valTrue}}},
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"SuccessfulEnqueue": {
 			client: &test.MockClient{
@@ -74,7 +74,7 @@ func TestAdd(t *testing.T) {
 				}),
 			},
 			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{keyAggToAdmin: valTrue}}},
-			queue: addFn(func(got interface{}) {
+			queue: addFn(func(got any) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: name}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s\n", diff)

@@ -87,7 +87,7 @@ func mergeOptions(pas []v1.Patch) []resource.ApplyOption {
 // path with the given merge options, returning any errors as they occur.
 // If no merge options is supplied, then destination field is replaced
 // with the given value.
-func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+func patchFieldValueToObject(fieldPath string, value any, to runtime.Object, mo *xpv1.MergeOptions) error {
 	paved, err := fieldpath.PaveObject(to)
 	if err != nil {
 		return err

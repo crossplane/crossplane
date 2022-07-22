@@ -155,7 +155,7 @@ func (c *Patch) filterPatch(only ...PatchType) bool {
 }
 
 // applyTransforms applies a list of transforms to a patch value.
-func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
+func (c *Patch) applyTransforms(input any) (any, error) {
 	var err error
 	for i, t := range c.Transforms {
 		if input, err = t.Transform(input); err != nil {
@@ -168,7 +168,7 @@ func (c *Patch) applyTransforms(input interface{}) (interface{}, error) {
 // patchFieldValueToMultiple, given a path with wildcards in an array index,
 // expands the arrays paths in the "to" object and patches the value into each
 // of the resulting fields, returning any errors as they occur.
-func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+func patchFieldValueToMultiple(fieldPath string, value any, to runtime.Object, mo *xpv1.MergeOptions) error {
 	paved, err := fieldpath.PaveObject(to)
 	if err != nil {
 		return err
@@ -195,7 +195,7 @@ func patchFieldValueToMultiple(fieldPath string, value interface{}, to runtime.O
 // patchFieldValueToObject, given a path, value and "to" object, will
 // apply the value to the "to" object at the given path, returning
 // any errors as they occur.
-func patchFieldValueToObject(fieldPath string, value interface{}, to runtime.Object, mo *xpv1.MergeOptions) error {
+func patchFieldValueToObject(fieldPath string, value any, to runtime.Object, mo *xpv1.MergeOptions) error {
 	paved, err := fieldpath.PaveObject(to)
 	if err != nil {
 		return err
@@ -279,7 +279,7 @@ func (c *Patch) applyCombineFromVariablesPatch(from, to runtime.Object) error {
 		return err
 	}
 
-	in := make([]interface{}, vl)
+	in := make([]any, vl)
 
 	// Get value of each variable
 	// NOTE: This currently assumes all variables define a 'fromFieldPath'
@@ -380,14 +380,14 @@ type StringCombine struct {
 
 // Combine returns a single output by running a string format
 // with all of its' input variables.
-func (s *StringCombine) Combine(vars []interface{}) (interface{}, error) {
+func (s *StringCombine) Combine(vars []any) (any, error) {
 	return fmt.Sprintf(s.Format, vars...), nil
 }
 
 // Combine calls the appropriate combiner.
-func (c *Combine) Combine(vars []interface{}) (interface{}, error) {
+func (c *Combine) Combine(vars []any) (any, error) {
 	var combiner interface {
-		Combine(vars []interface{}) (interface{}, error)
+		Combine(vars []any) (any, error)
 	}
 
 	switch c.Strategy {

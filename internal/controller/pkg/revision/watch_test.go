@@ -39,9 +39,9 @@ var (
 	_ handler.EventHandler = &EnqueueRequestForReferencingProviderRevisions{}
 )
 
-type addFn func(item interface{})
+type addFn func(item any)
 
-func (fn addFn) Add(item interface{}) {
+func (fn addFn) Add(item any) {
 	fn(item)
 }
 
@@ -57,7 +57,7 @@ func TestAdd(t *testing.T) {
 		queue            adder
 	}{
 		"ObjectIsNotAControllConfig": {
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ListError": {
 			obj: &v1alpha1.ControllerConfig{ObjectMeta: metav1.ObjectMeta{Name: name}},
@@ -65,7 +65,7 @@ func TestAdd(t *testing.T) {
 				MockList: test.NewMockListFn(errBoom),
 			},
 			controllerConfig: &v1alpha1.ControllerConfig{},
-			queue:            addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue:            addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"SuccessfulEnqueue": {
 			obj: &v1alpha1.ControllerConfig{ObjectMeta: metav1.ObjectMeta{Name: name}},
@@ -86,7 +86,7 @@ func TestAdd(t *testing.T) {
 					return nil
 				}),
 			},
-			queue: addFn(func(got interface{}) {
+			queue: addFn(func(got any) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: prName}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s\n", diff)

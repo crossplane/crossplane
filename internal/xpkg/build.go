@@ -70,7 +70,7 @@ func (t *teeReader) Close() error {
 	return nil
 }
 
-func (t *teeReader) Annotate() interface{} {
+func (t *teeReader) Annotate() any {
 	anno, ok := t.r.(parser.AnnotatedReadCloser)
 	if !ok {
 		return nil

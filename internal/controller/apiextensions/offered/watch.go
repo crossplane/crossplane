@@ -42,7 +42,7 @@ func OffersClaim() resource.PredicateFn {
 }
 
 type adder interface {
-	Add(item interface{})
+	Add(item any)
 }
 
 // EnqueueRequestForClaim enqueues a reconcile.Request for the

@@ -1008,8 +1008,8 @@ func TestIsReady(t *testing.T) {
 			reason: "If the value of the field does not match, it should return false",
 			args: args{
 				cd: composed.New(func(r *composed.Unstructured) {
-					r.Object = map[string]interface{}{
-						"spec": map[string]interface{}{
+					r.Object = map[string]any{
+						"spec": map[string]any{
 							"someNum": int64(6),
 						},
 					}
@@ -1024,8 +1024,8 @@ func TestIsReady(t *testing.T) {
 			reason: "If the value of the field does match, it should return true",
 			args: args{
 				cd: composed.New(func(r *composed.Unstructured) {
-					r.Object = map[string]interface{}{
-						"spec": map[string]interface{}{
+					r.Object = map[string]any{
+						"spec": map[string]any{
 							"someNum": int64(5),
 						},
 					}

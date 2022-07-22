@@ -31,7 +31,7 @@ import (
 )
 
 type adder interface {
-	Add(item interface{})
+	Add(item any)
 }
 
 // EnqueueRequestForReferencingProviderRevisions enqueues a request for all
