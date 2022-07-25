@@ -39,7 +39,7 @@ provider and the ability to define, compose, and publish your own
 infrastructure resources in a no-code way. Crossplane supports a team-centric
 approach with a strong separation of concerns, that enables applications to
 easily and safely consume the infrastructure they need, using any tool that
-works with the Kubernetes API. GCP Config Connector is closed-source.
+works with the Kubernetes API.
 
 ## AWS Controllers for Kubernetes
 
