@@ -59,7 +59,7 @@ We would like to come up with a design that:
 We would like Crossplane to be able to store connection details to external
 secret stores and still satisfy the following user stories:
 
-- As a platform operator, I would like to configure how/where to store 
+- As a platform operator, I would like to configure how/where to store
   connection details for managed and composite resources.
 - As a platform consumer, I would like to configure how/where to store
   connection details for my composite resource claims.
@@ -78,7 +78,7 @@ The following is out of scope for this design:
 - Reading **provider credentials** from external secret stores.
 
   This design focuses on writing/publishing connection details to external
-  stores and not about reading them as **provider credentials**. There are 
+  stores and not about reading them as **provider credentials**. There are
   already ways to consume secrets in external stores from Kubernetes and is out
   of the scope for this document. Check the [Vault credential injection guide] to
   see how one can configure Vault and Crossplane to consume provider credentials
@@ -105,7 +105,7 @@ different parts:
   `namespace` in _Kubernetes_, a parent `path` in _Vault_ and a `region` for
   _AWS Secret Manager_.
 - **Additional configuration** to reach to the store like its endpoint and
-credentials to authenticate/authorize. For example, a `kubeconfig` for 
+credentials to authenticate/authorize. For example, a `kubeconfig` for
 _Kubernetes_, a `server` endpoint + auth config for _Vault_ and access/secret
 keys for _AWS Secret Manager_.
 
@@ -122,7 +122,7 @@ our secret configuration API (i.e. `publishConnectionDetailsTo`). The rest of
 the configuration will go to a separate store specific config (`StoreConfig`).
 This classification enables building a flexible API that satisfies the
 separation of concerns between platform operators and consumers which Crossplane
-already enables today for Kubernetes Secrets. 
+already enables today for Kubernetes Secrets.
 
 We will end up having a unified configuration spec for all external secret store
 types which contains the name field (`name`) and a reference to any additional
@@ -205,7 +205,7 @@ spec:
   publishConnectionDetailsToStoreConfigRef: default
 ```
 
-**Composition** configuring to publish to another namespace, e.g. 
+**Composition** configuring to publish to another namespace, e.g.
 `infrastructure-staging`, where a `StoreConfig` named
 `store-infrastructure-staging` created with `defaultScope` parameter as
 `infrastructure-staging`.
@@ -264,10 +264,10 @@ metadata:
   name: vault-default
 spec:
   type: Vault
-  # defaultScope used for scoping secrets for cluster scoped resources. 
-  # For example, secrets for MRs will land under 
+  # defaultScope used for scoping secrets for cluster scoped resources.
+  # For example, secrets for MRs will land under
   # "secret/my-cloud/dev/crossplane-system" path in Vault with this StoreConfig.
-  # However, secret claims in `team-a` namespace will go to 
+  # However, secret claims in `team-a` namespace will go to
   # "secret/my-cloud/dev/team-a".
   defaultScope: crossplane-system
   vault:
@@ -277,7 +277,7 @@ spec:
     parentPath: "secret/my-cloud/dev/"
     version: "v2"
     caBundle: "..."
-    
+
     auth:
       # Kubernetes auth: https://www.vaultproject.io/docs/auth/kubernetes
       kubernetes:
@@ -302,7 +302,7 @@ spec:
       host: secretstore.acme.org
       port: 9999
       caBundle: "..."
-      some: 
+      some:
         other:
           arbitrary-config: true
 ```
@@ -313,7 +313,7 @@ With the API definition above, it is mostly clear how the user interaction would
 be. But one important point that worth mentioning is, both Crossplane core pod
 and provider pods would need to access to the external secret stores. The
 credentials that is made available needs to be authorized to read, write and
-delete the secrets living at the configured scope. 
+delete the secrets living at the configured scope.
 
 Here is an example flow for configuring Vault as an external secret store with
 [Kubernetes Auth]:
@@ -331,7 +331,7 @@ parameter).
    2. Add annotations to the Provider pods (using `ControllerConfig`)
 4. Create `StoreConfig` CRs as follows:
 
-For core Crossplane: 
+For core Crossplane:
 
 ```yaml
 apiVersion: secrets.crossplane.io/v1alpha1
@@ -373,7 +373,7 @@ spec:
         role: "crossplane"
 ```
 
-5. Use the following `publishConnectionDetailsTo` for resources: 
+5. Use the following `publishConnectionDetailsTo` for resources:
 
 ```yaml
 spec:
@@ -390,7 +390,7 @@ slightly modified versions of the existing [ConnectionPublisher] and
 [ConnectionDetailsFetcher] interfaces. This interface will be satisfied by any
 secret store including the local Kubernetes. We will need this interface to be
 defined in [crossplane-runtime repository] since both managed and Crossplane
-composite reconcilers would use this interface. This will require some 
+composite reconcilers would use this interface. This will require some
 refactoring since the existing interfaces defined in different
 packages/repositories today.
 
@@ -433,13 +433,13 @@ type ConnectionSecretPublisherTo interface {
 
 type ConnectionSecretConfig struct {
 	Name string `json:"name"`
-	Metadata map[string]interface{} `json:"metadata"`
+	Metadata map[string]any `json:"metadata"`
 	ConfigRef *SecretStoreConfig `json:"configRef"`
 }
 ```
 
 External secret store support will be introduced in a phased fashion, with
-initially being off by default behind a feature flag like 
+initially being off by default behind a feature flag like
 `--enable-alpha-external-secret-stores`.
 
 ### Bonus Use Case: Publish Connection Details to Another Kubernetes Cluster
@@ -490,14 +490,14 @@ the scope. However, the types and interfaces defined here would be leveraged
 to satisfy these two cases which will result in a unified secret management with
 external stores no matter it is input or output.
 
-### Templating Support for Custom Secret Values 
+### Templating Support for Custom Secret Values
 
 Not directly related to supporting external secret stores but thanks to the
 extensible API proposed in this design, we might consider adding an interface
 that supports adding new keys to connection secret content from existing
 connection detail keys according to a given template (similar to
 [Vault agent inject template]). This would be helpful to prepare a secret
-content in an expected format like SQL connection strings. 
+content in an expected format like SQL connection strings.
 
 Another possible use case is, combined with support for adding annotations to
 Kubernetes secrets, creating a [ArgoCD cluster] could be enabled with a spec
@@ -559,7 +559,7 @@ In this option, we will only implement support for a plugin API in Crossplane
 Core. Actual plugins and utilities to deploy and configure the environment
 properly could be build independently, i.e. as separate components.
 
-This approach has the advantage of not introducing hard dependencies to 
+This approach has the advantage of not introducing hard dependencies to
 Crossplane and also would be more scalable if/once we want to add support for
 more secret stores. _However, this option introduces an upfront complexity
 especially around deployment of Crossplane and providers mostly related to
@@ -590,14 +590,14 @@ webhook approach, Secret requests would be processed by storing sensitive
 information in an external secret store and removing sensitive data from the
 Kubernetes Secret. Compared to the webhook approach, this has the advantage of
 intercepting all secret requests including reads that would require less changes
-in Crossplane codebase, however, intercepting all requests, even proxies 
+in Crossplane codebase, however, intercepting all requests, even proxies
 transparently, has the caveat of causing performance bottlenecks or connectivity
 problems (especially considering long-running watch requests).
 
 _While this option would require minimal changes in Crossplane and sounds
 more attractive technically, in addition to performance concerns, we prefer to
 be clear at Crossplane API level instead of hiding the information of where the
-connection information actually landed._ 
+connection information actually landed._
 
 ### CSI Drivers
 

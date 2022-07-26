@@ -81,8 +81,8 @@ func TestCompositeConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
@@ -100,8 +100,8 @@ func TestCompositeConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
@@ -121,20 +121,20 @@ func TestCompositeConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
-							"spec": map[string]interface{}{},
+							"spec": map[string]any{},
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec": map[string]interface{}{
-								"claimRef": map[string]interface{}{
+						Object: map[string]any{
+							"spec": map[string]any{
+								"claimRef": map[string]any{
 									"apiVersion": apiVersion,
 									"kind":       kind,
 									"namespace":  ns,
@@ -148,9 +148,9 @@ func TestCompositeConfigure(t *testing.T) {
 			want: want{
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec": map[string]interface{}{
-								"claimRef": map[string]interface{}{
+						Object: map[string]any{
+							"spec": map[string]any{
+								"claimRef": map[string]any{
 									"apiVersion": apiVersion,
 									"kind":       kind,
 									"namespace":  ns,
@@ -171,14 +171,14 @@ func TestCompositeConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": apiVersion,
 							"kind":       kind,
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"coolness": 23,
 
 								// These should be preserved.
@@ -197,19 +197,19 @@ func TestCompositeConfigure(t *testing.T) {
 			want: want{
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"generateName": name + "-",
-								"labels": map[string]interface{}{
+								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"coolness":            23,
 								"compositionRef":      "ref",
 								"compositionSelector": "ref",
-								"claimRef": map[string]interface{}{
+								"claimRef": map[string]any{
 									"apiVersion": apiVersion,
 									"kind":       kind,
 									"namespace":  ns,
@@ -230,14 +230,14 @@ func TestCompositeConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": apiVersion,
 							"kind":       kind,
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"coolness": 23,
 
 								// These should be preserved.
@@ -256,19 +256,19 @@ func TestCompositeConfigure(t *testing.T) {
 			want: want{
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"generateName": name + "-",
-								"labels": map[string]interface{}{
+								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"coolness":            23,
 								"compositionRef":      "ref",
 								"compositionSelector": "ref",
-								"claimRef": map[string]interface{}{
+								"claimRef": map[string]any{
 									"apiVersion": apiVersion,
 									"kind":       kind,
 									"namespace":  ns,
@@ -285,13 +285,13 @@ func TestCompositeConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"apiVersion": apiVersion,
 							"kind":       kind,
-							"metadata": map[string]interface{}{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
-								"annotations": map[string]interface{}{
+								"annotations": map[string]any{
 									// This should be reset to the equivalent
 									// composite resource value, since it has
 									// most likely already taken effect and
@@ -300,7 +300,7 @@ func TestCompositeConfigure(t *testing.T) {
 									"xrc":                          "annotation",
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"coolness": 23,
 
 								// These should be filtered out.
@@ -312,23 +312,23 @@ func TestCompositeConfigure(t *testing.T) {
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"name": name,
 								"creationTimestamp": func() string {
 									b, _ := now.MarshalJSON()
 									return strings.Trim(string(b), "\"")
 								}(),
-								"labels": map[string]interface{}{
+								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
 								},
-								"annotations": map[string]interface{}{
+								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
 									"xr":                           "annotation",
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								// This should be overridden with the value of
 								// the equivalent claim field.
 								"coolness": 42,
@@ -340,26 +340,26 @@ func TestCompositeConfigure(t *testing.T) {
 			want: want{
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"name": name,
 								"creationTimestamp": func() string {
 									b, _ := now.MarshalJSON()
 									return strings.Trim(string(b), "\"")
 								}(),
-								"labels": map[string]interface{}{
+								"labels": map[string]any{
 									xcrd.LabelKeyClaimNamespace: ns,
 									xcrd.LabelKeyClaimName:      name,
 								},
-								"annotations": map[string]interface{}{
+								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
 									"xr":                           "annotation",
 									"xrc":                          "annotation",
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"coolness": 23,
-								"claimRef": map[string]interface{}{
+								"claimRef": map[string]any{
 									"apiVersion": apiVersion,
 									"kind":       kind,
 									"namespace":  ns,
@@ -414,14 +414,14 @@ func TestClaimConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"status": "notStatus",
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"status": "notStatus",
 						},
 					},
@@ -430,7 +430,7 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"status": "notStatus",
 						},
 					},
@@ -443,14 +443,14 @@ func TestClaimConfigure(t *testing.T) {
 			args: args{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"status": map[string]any{},
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"status": "notStatus",
 						},
 					},
@@ -459,8 +459,8 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -475,17 +475,17 @@ func TestClaimConfigure(t *testing.T) {
 				},
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec":   map[string]interface{}{},
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"spec":   map[string]any{},
+							"status": map[string]any{},
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec":   map[string]interface{}{},
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"spec":   map[string]any{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -493,9 +493,9 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec":   map[string]interface{}{},
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"spec":   map[string]any{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -510,17 +510,17 @@ func TestClaimConfigure(t *testing.T) {
 				},
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"spec":   "notSpec",
-							"status": map[string]interface{}{},
+							"status": map[string]any{},
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"spec":   "notSpec",
-							"status": map[string]interface{}{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -528,9 +528,9 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
+						Object: map[string]any{
 							"spec":   "notSpec",
-							"status": map[string]interface{}{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -546,17 +546,17 @@ func TestClaimConfigure(t *testing.T) {
 				},
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec":   map[string]interface{}{},
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"spec":   map[string]any{},
+							"status": map[string]any{},
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec":   map[string]interface{}{},
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"spec":   map[string]any{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -564,9 +564,9 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"spec":   map[string]interface{}{},
-							"status": map[string]interface{}{},
+						Object: map[string]any{
+							"spec":   map[string]any{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -579,34 +579,34 @@ func TestClaimConfigure(t *testing.T) {
 				client: test.NewMockClient(),
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
-								"annotations": map[string]interface{}{
+								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: "nope",
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"someField":                  "someValue",
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
 							},
-							"status": map[string]interface{}{},
+							"status": map[string]any{},
 						},
 					},
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name + "-12345",
-								"annotations": map[string]interface{}{
+								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								// This user-defined field should be propagated.
 								"coolness": 23,
 
@@ -620,7 +620,7 @@ func TestClaimConfigure(t *testing.T) {
 								"resourceRefs": "ref",
 								"claimRef":     "ref",
 							},
-							"status": map[string]interface{}{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -628,15 +628,15 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
-								"annotations": map[string]interface{}{
+								"annotations": map[string]any{
 									meta.AnnotationKeyExternalName: name,
 								},
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"someField":                  "someValue",
 								"coolness":                   23,
 								"compositionSelector":        "sel",
@@ -646,7 +646,7 @@ func TestClaimConfigure(t *testing.T) {
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
 							},
-							"status": map[string]interface{}{},
+							"status": map[string]any{},
 						},
 					},
 				},
@@ -658,18 +658,18 @@ func TestClaimConfigure(t *testing.T) {
 				client: test.NewMockClient(),
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
 							},
-							"status": map[string]interface{}{
+							"status": map[string]any{
 								"previousCoolness": 23,
-								"conditions": []map[string]interface{}{
+								"conditions": []map[string]any{
 									{
 										"type": "someCondition",
 									},
@@ -680,18 +680,18 @@ func TestClaimConfigure(t *testing.T) {
 				},
 				cp: &composite.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name + "-12345",
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"resourceRefs": "ref",
 								"claimRef":     "ref",
 							},
-							"status": map[string]interface{}{
+							"status": map[string]any{
 								"previousCoolness": 28,
-								"conditions": []map[string]interface{}{
+								"conditions": []map[string]any{
 									{
 										"type": "otherCondition",
 									},
@@ -704,18 +704,18 @@ func TestClaimConfigure(t *testing.T) {
 			want: want{
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
-						Object: map[string]interface{}{
-							"metadata": map[string]interface{}{
+						Object: map[string]any{
+							"metadata": map[string]any{
 								"namespace": ns,
 								"name":      name,
 							},
-							"spec": map[string]interface{}{
+							"spec": map[string]any{
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
 							},
-							"status": map[string]interface{}{
+							"status": map[string]any{
 								"previousCoolness": 28,
-								"conditions": []map[string]interface{}{
+								"conditions": []map[string]any{
 									{
 										"type": "someCondition",
 									},

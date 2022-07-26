@@ -32,7 +32,7 @@ import (
 )
 
 type adder interface {
-	Add(item interface{})
+	Add(item any)
 }
 
 // EnqueueRequestForNamespaces enqueues a reconcile for all namespaces whenever

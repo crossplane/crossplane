@@ -68,9 +68,9 @@ func TestOffersClaim(t *testing.T) {
 	}
 }
 
-type addFn func(item interface{})
+type addFn func(item any)
 
-func (fn addFn) Add(item interface{}) {
+func (fn addFn) Add(item any) {
 	fn(item)
 }
 
@@ -83,11 +83,11 @@ func TestAddClaim(t *testing.T) {
 		queue adder
 	}{
 		"ObjectIsNotAComposite": {
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasNilClaimReference": {
 			obj:   composite.New(),
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ObjectHasClaimReference": {
 			obj: func() runtime.Object {
@@ -95,7 +95,7 @@ func TestAddClaim(t *testing.T) {
 				cp.SetClaimReference(&corev1.ObjectReference{Namespace: ns, Name: name})
 				return &cp.Unstructured
 			}(),
-			queue: addFn(func(got interface{}) {
+			queue: addFn(func(got any) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: ns, Name: name}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s", diff)

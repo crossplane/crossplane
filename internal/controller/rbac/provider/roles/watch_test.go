@@ -38,9 +38,9 @@ var (
 	_ handler.EventHandler = &EnqueueRequestForAllRevisionsWithRequests{}
 )
 
-type addFn func(item interface{})
+type addFn func(item any)
 
-func (fn addFn) Add(item interface{}) {
+func (fn addFn) Add(item any) {
 	fn(item)
 }
 
@@ -56,12 +56,12 @@ func TestAdd(t *testing.T) {
 		queue           adder
 	}{
 		"ObjectIsNotAClusterRole": {
-			queue: addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue: addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"WrongName": {
 			obj:             &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: "wat"}},
 			clusterRoleName: name,
-			queue:           addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue:           addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"ListError": {
 			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
@@ -69,7 +69,7 @@ func TestAdd(t *testing.T) {
 				MockList: test.NewMockListFn(errBoom),
 			},
 			clusterRoleName: name,
-			queue:           addFn(func(_ interface{}) { t.Errorf("queue.Add() called unexpectedly") }),
+			queue:           addFn(func(_ any) { t.Errorf("queue.Add() called unexpectedly") }),
 		},
 		"SuccessfulEnqueue": {
 			obj: &rbacv1.ClusterRole{ObjectMeta: metav1.ObjectMeta{Name: name}},
@@ -89,7 +89,7 @@ func TestAdd(t *testing.T) {
 				}),
 			},
 			clusterRoleName: name,
-			queue: addFn(func(got interface{}) {
+			queue: addFn(func(got any) {
 				want := reconcile.Request{NamespacedName: types.NamespacedName{Name: prName}}
 				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("-want, +got:\n%s\n", diff)

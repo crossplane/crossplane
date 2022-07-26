@@ -4,7 +4,7 @@ on: issue_comment
 
 jobs:
   points:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: startsWith(github.event.comment.body, '/points')
 
     steps:
@@ -65,7 +65,7 @@ jobs:
   # NOTE(negz): See also backport.yml, which is the variant that triggers on PR
   # merge rather than on comment.
   backport:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/backport')
     steps:
     - name: Extract Command
