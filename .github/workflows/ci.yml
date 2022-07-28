@@ -67,7 +67,7 @@ jobs:
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
-          path: .work/pkg
+          path: ~/go/pkg/mod
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
@@ -113,7 +113,7 @@ jobs:
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
-          path: .work/pkg
+          path: ~/go/pkg/mod
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
@@ -156,7 +156,7 @@ jobs:
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
-          path: .work/pkg
+          path: ~/go/pkg/mod
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
@@ -216,7 +216,7 @@ jobs:
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
-          path: .work/pkg
+          path: ~/go/pkg/mod
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-pkg-
@@ -278,7 +278,7 @@ jobs:
       - name: Cache Go Dependencies
         uses: actions/cache@v2
         with:
-          path: .work/pkg
+          path: ~/go/pkg/mod
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-pkg-
 
