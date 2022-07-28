@@ -787,7 +787,10 @@ so:
 
 1. Use a `ToCompositeFieldPath` patch to patch from your source composed
    resource to the XR. Typically you'll want to patch to a status field or an
-   annotation.
+   annotation. Note: If you are using a field other than a label or annotation 
+   then the field you are patching to needs to be defined in the XR definition. 
+   For instance, if you are patching to `.status.foo` then the definition for 
+   the XR must define `.status.foo`.
 1. Use a `FromCompositeFieldPath` patch to patch from the 'intermediary' field
    you patched to in step 1 to a field on the destination composed resource.
 
