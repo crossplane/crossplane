@@ -1,3 +1,4 @@
+//go:build e2e
 // +build e2e
 
 /*
@@ -298,13 +299,13 @@ func TestCompositeResourceGetsReady(t *testing.T) {
 				nopRes := schema.GroupVersionResource{Group: "nop.example.org", Version: "v1alpha1", Resource: "nopresources"}
 
 				nopresource := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "nop.example.org/v1alpha1",
 						"kind":       "NopResource",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "nop-example",
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"coolField": "example",
 						},
 					},
@@ -616,13 +617,13 @@ func TestNopResourcesGetReady(t *testing.T) {
 				nopRes := schema.GroupVersionResource{Group: "nop.example.org", Version: "v1alpha1", Resource: "nopresources"}
 
 				nopresource := &unstructured.Unstructured{
-					Object: map[string]interface{}{
+					Object: map[string]any{
 						"apiVersion": "nop.example.org/v1alpha1",
 						"kind":       "NopResource",
-						"metadata": map[string]interface{}{
+						"metadata": map[string]any{
 							"name": "nop-example",
 						},
-						"spec": map[string]interface{}{
+						"spec": map[string]any{
 							"coolField": "example",
 						},
 					},

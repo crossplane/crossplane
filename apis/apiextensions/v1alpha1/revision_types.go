@@ -402,7 +402,7 @@ func (m MapTransform) MarshalJSON() ([]byte, error) {
 }
 
 // Resolve runs the Map transform.
-func (m *MapTransform) Resolve(input interface{}) (interface{}, error) {
+func (m *MapTransform) Resolve(input any) (any, error) {
 	switch i := input.(type) {
 	case string:
 		val, ok := m.Pairs[i]

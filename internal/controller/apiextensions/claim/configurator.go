@@ -77,7 +77,7 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 
 	icmSpec := ucm.Object["spec"]
-	spec, ok := icmSpec.(map[string]interface{})
+	spec, ok := icmSpec.(map[string]any)
 	if !ok {
 		return errors.New(errUnsupportedClaimSpec)
 	}
@@ -138,13 +138,13 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	return nil
 }
 
-func filter(in map[string]interface{}, keys ...string) map[string]interface{} {
+func filter(in map[string]any, keys ...string) map[string]any {
 	filter := map[string]bool{}
 	for _, k := range keys {
 		filter[k] = true
 	}
 
-	out := map[string]interface{}{}
+	out := map[string]any{}
 	for k, v := range in {
 		if filter[k] {
 			continue
@@ -239,7 +239,7 @@ func withSrcFilter(keys ...string) func(*mergeConfig) {
 }
 
 // merge a src map into dst map
-func merge(dst, src interface{}, opts ...func(*mergeConfig)) error {
+func merge(dst, src any, opts ...func(*mergeConfig)) error {
 	if dst == nil || src == nil {
 		// Nothing available to merge if dst or src are nil.
 		// This can occur early on in reconciliation when the
@@ -253,12 +253,12 @@ func merge(dst, src interface{}, opts ...func(*mergeConfig)) error {
 		opt(config)
 	}
 
-	dstMap, ok := dst.(map[string]interface{})
+	dstMap, ok := dst.(map[string]any)
 	if !ok {
 		return errors.New(errUnsupportedDstObject)
 	}
 
-	srcMap, ok := src.(map[string]interface{})
+	srcMap, ok := src.(map[string]any)
 	if !ok {
 		return errors.New(errUnsupportedSrcObject)
 	}

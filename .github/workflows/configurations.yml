@@ -12,7 +12,7 @@ env:
 
 jobs:
   getting-started-with-aws:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -41,9 +41,9 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
-  
+
   getting-started-with-aws-with-vpc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -70,9 +70,9 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
-  
+
   getting-started-with-gcp:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -99,9 +99,9 @@ jobs:
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
           command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
-  
+
   getting-started-with-azure:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2

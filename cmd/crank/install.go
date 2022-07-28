@@ -265,7 +265,7 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 }
 
 func warnIfNotFound(err error) error {
-	serr, ok := err.(*apierrors.StatusError)
+	serr, ok := err.(*apierrors.StatusError) //nolint:errorlint // we need to be able to extract the underlying typed error
 	if !ok {
 		return err
 	}

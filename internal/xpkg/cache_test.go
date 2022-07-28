@@ -90,7 +90,7 @@ func TestGet(t *testing.T) {
 	// NOTE(hasheddan): valid gzip header.
 	cf.Write([]byte{31, 139, 8, 0, 0, 0, 0, 0, 0, 0})
 	cf, _ = fs.Create("/cache/not-gzip.gz")
-	cf.Write([]byte("some content"))
+	cf.WriteString("some content")
 	defer cf.Close()
 
 	type args struct {

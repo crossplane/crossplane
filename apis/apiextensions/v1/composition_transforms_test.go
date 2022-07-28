@@ -30,10 +30,10 @@ import (
 func TestMapResolve(t *testing.T) {
 	type args struct {
 		m map[string]string
-		i interface{}
+		i any
 	}
 	type want struct {
-		o   interface{}
+		o   any
 		err error
 	}
 
@@ -86,10 +86,10 @@ func TestMathResolve(t *testing.T) {
 
 	type args struct {
 		multiplier *int64
-		i          interface{}
+		i          any
 	}
 	type want struct {
-		o   interface{}
+		o   any
 		err error
 	}
 
@@ -155,10 +155,10 @@ func TestStringResolve(t *testing.T) {
 		convert *StringConversionType
 		trim    *string
 		regexp  *StringTransformRegexp
-		i       interface{}
+		i       any
 	}
 	type want struct {
-		o   interface{}
+		o   any
 		err error
 	}
 	sFmt := "verycool%s"
@@ -394,10 +394,10 @@ func TestStringResolve(t *testing.T) {
 func TestConvertResolve(t *testing.T) {
 	type args struct {
 		ot string
-		i  interface{}
+		i  any
 	}
 	type want struct {
-		o   interface{}
+		o   any
 		err error
 	}
 

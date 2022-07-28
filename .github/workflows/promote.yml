@@ -21,7 +21,7 @@ env:
 
 jobs:
   promote-artifacts:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
 
     steps:
       - name: Checkout
@@ -38,7 +38,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
-        
+
       - name: Login to Upbound Registry
         uses: docker/login-action@v1
         if: env.UPBOUND_CROSSPLANE_ROBOT_USR != ''

@@ -140,7 +140,7 @@ Crossplane will model the template using the
 [`*unstructured.Unstructured`][3] type internally. Unstructured types must
 include Kubernetes type and object metadata but are otherwise opaque. Status
 will be completely opaque - i.e. a [`json.RawMessage`][4] - to the controller
-code. The controller will copy the remote resource's `.status` field into the 
+code. The controller will copy the remote resource's `.status` field into the
 `KubernetesApplicationResource`'s `.status`.remote field. `.status.remote`
 will be absent from `KubernetesApplicationResources` that template resource
 kinds that do not expose a `.status` field.
@@ -310,7 +310,7 @@ namespaced resources but ignore the `.metadata.namespace` field.
 
 The contemporary `Workload` templates two namespaced resources (a `Deployment`
 and `Service`) and one cluster scoped resource (a `Namespace`). This document
-proposes that application resource templates avoid special handling of 
+proposes that application resource templates avoid special handling of
 namespaces; an application could consist of three resource templates -
 templating a `Namespace` named `coolns`, a `Deployment` in namespace `coolns`,
 and a `Deployment` without a namespace. Templated resources of a namespaced kind
@@ -326,7 +326,7 @@ both complicate Crossplane's controller logic and result in surprising
 behaviours for users. Recall that a `KubernetesApplicationResource` may
 template any valid Kubernetes resource kind, _including those unknown to the
 Crossplane API server_. This means a `KubernetesApplication` specifying an
-explicit target namespace for its resource templates could consist of 
+explicit target namespace for its resource templates could consist of
 `KubernetesApplicationResources` that template cluster scoped resources,
 including other namespaces, that cannot be created in said target namespace.
 
@@ -337,7 +337,7 @@ require templated resources be namespaced is mutually exclusive with the ability
 to template resource kinds unknown to the Crossplane API server. Namespaced and
 cluster scoped resources are indistinguishable. Both use standard Kubernetes
 object metadata, but cluster scoped resources ignore `.metadata.namespace`. It
-is possible to determine whether a resource is namespaced by inspecting its 
+is possible to determine whether a resource is namespaced by inspecting its
 kind's API resource definition, but this would require resource definitions be
 applied to the Crossplane API server before Crossplane was able to template
 their resources.
@@ -504,7 +504,7 @@ one-to-many application-to-resource relationship both controllers would assume
 they owned the `KubernetesApplicationResources`, resulting in a potential
 many-to-many relationship and undefined, racy behaviour. The application
 controller must use controller references to claim its templated
-`KubernetesApplicationResources`. 
+`KubernetesApplicationResources`.
 
 The relationship between an application and its resource templates is as
 follows:
@@ -525,7 +525,7 @@ follows:
    [garbage collected][8] (i.e. deleted) upon deletion of the application.
 
 A `KubernetesApplication` can *only* ever be associated with the
-`KubernetesApplicationResources` that it templates; a `KubernetesApplication` 
+`KubernetesApplicationResources` that it templates; a `KubernetesApplication`
 will never orphan or adopt orphaned `KubernetesApplicationResources`. This is
 in line with the [controller reference design][7], which states:
 
@@ -555,7 +555,7 @@ and obeying the three laws of controllers. All remote resources owned by a
 the `KubernetesApplicationResource` that created the remote resource.
 
 ### Validation Webhooks
-All Crossplane resources, including `KubernetesApplication` and 
+All Crossplane resources, including `KubernetesApplication` and
 `KubernetesApplicationResource`, are [CRDs][12]. CRDs are validated against an
 OpenAPI v3 schema, but some kinds of validation [require][13] the use of a
 [`ValidatingAdmissionWebhook`][14]. In particular a webhook is required to
@@ -569,7 +569,7 @@ resources be removed from the old cluster and recreated on the new cluster. This
 is more cleanly handled by deleting and recreating the application. The cluster
 selector should be immutable.
 
-A `KubernetesApplicationResource`'s `.spec.template.kind`, 
+A `KubernetesApplicationResource`'s `.spec.template.kind`,
 `.spec.template.apiVersion`, `.spec.template.name`, and
 `.spec.template.namespace` fields must also be immutable. Changing any of these
 fields after creation time would cause the templated resource to be orphaned and
@@ -803,7 +803,7 @@ Unfortunately this approach has several detractors:
   need to be associated to strongly typed envelope kinds via either an array of
   `corev1.ObjectReferences`, or a label selector and an array of kinds.
 
-A Federated resource status is still a `map[string]interface{}` in the
+A Federated resource status is still a `map[string]any` in the
 controller code:
 ```go
 type FederatedResource struct {
@@ -815,7 +815,7 @@ type FederatedResource struct {
 
 type ResourceClusterStatus struct {
 	ClusterName string
-	Status      map[string]interface{}
+	Status      map[string]any
 }
 ```
 
