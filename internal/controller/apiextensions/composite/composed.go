@@ -59,6 +59,7 @@ const (
 	errFmtConnDetailKey  = "connection detail of type %q key is not set"
 	errFmtConnDetailVal  = "connection detail of type %q value is not set"
 	errFmtConnDetailPath = "connection detail of type %q fromFieldPath is not set"
+	errSetControllerRef  = "cannot set controller reference"
 )
 
 // Annotation keys.
@@ -315,7 +316,7 @@ func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
 // Render the supplied composed resource using the supplied composite resource
 // and template. The rendered resource may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
+func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error { // nolint:gocyclo
 	kind := cd.GetObjectKind().GroupVersionKind().Kind
 	name := cd.GetName()
 	namespace := cd.GetNamespace()
@@ -360,10 +361,11 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		SetCompositionResourceName(cd, *t.Name)
 	}
 
-	// We do this last to ensure that a Composition cannot influence owner (and
-	// especially controller) references.
+	// We do this last to ensure that a Composition cannot influence controller references.
 	or := meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind()))
-	cd.SetOwnerReferences([]metav1.OwnerReference{or})
+	if err := meta.AddControllerReference(cd, or); err != nil {
+		return errors.Wrap(err, errSetControllerRef)
+	}
 
 	// We don't want to dry-run create a resource that can't be named by the API
 	// server due to a missing generate name. We also don't want to create one

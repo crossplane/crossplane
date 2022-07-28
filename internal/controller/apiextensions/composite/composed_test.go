@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -232,6 +233,35 @@ func TestRender(t *testing.T) {
 					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
 				}},
 				err: errors.Wrap(errBoom, errName),
+			},
+		},
+		"ControllerError": {
+			reason: "External controller owner references should cause an exception",
+			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
+			args: args{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					xcrd.LabelKeyNamePrefixForComposed: "ola",
+					xcrd.LabelKeyClaimName:             "rola",
+					xcrd.LabelKeyClaimNamespace:        "rolans",
+				}}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd",
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl,
+						UID: "random_uid"}}}},
+				t: v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					Name:         "cd",
+					GenerateName: "ola-",
+					Labels: map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "ola",
+						xcrd.LabelKeyClaimName:             "rola",
+						xcrd.LabelKeyClaimNamespace:        "rolans",
+					},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl,
+						UID: "random_uid"}},
+				}},
+				err: errors.Wrap(errors.Errorf("cd is already controlled by   (UID random_uid)"), errSetControllerRef),
 			},
 		},
 		"Success": {
