@@ -18,7 +18,6 @@ env:
   # a step 'if env.AWS_USR' != ""', so we copy these to succinctly test whether
   # credentials have been provided before trying to run steps that need them.
   DOCKER_USR: ${{ secrets.DOCKER_USR }}
-  UPBOUND_CROSSPLANE_ROBOT_USR: ${{ secrets.UPBOUND_CROSSPLANE_ROBOT_USR }}
   AWS_USR: ${{ secrets.AWS_USR }}
 
 jobs:
@@ -304,18 +303,10 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
-      
-      - name: Login to Upbound Registry
-        uses: docker/login-action@v1
-        if: env.UPBOUND_CROSSPLANE_ROBOT_USR != ''
-        with:
-          registry: registry.upbound.io
-          username: ${{ secrets.UPBOUND_CROSSPLANE_ROBOT_USR }}
-          password: ${{ secrets.UPBOUND_CROSSPLANE_ROBOT_PSW }}
 
-      - name: Publish Artifacts to S3, DockerHub, and Upbound Registry
+      - name: Publish Artifacts to S3, DockerHub
         run: make -j2 publish BRANCH_NAME=${GITHUB_REF##*/}
-        if: env.AWS_USR != '' && env.DOCKER_USR != '' && env.UPBOUND_CROSSPLANE_ROBOT_USR != ''
+        if: env.AWS_USR != '' && env.DOCKER_USR != ''
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
@@ -324,8 +315,8 @@ jobs:
           DOCS_GIT_USR: ${{ secrets.UPBOUND_BOT_GITHUB_USR }}
           DOCS_GIT_PSW: ${{ secrets.UPBOUND_BOT_GITHUB_PSW }}
 
-      - name: Promote Artifacts in S3, DockerHub, and Upbound Registry
-        if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != '' && env.UPBOUND_CROSSPLANE_ROBOT_USR != ''
+      - name: Promote Artifacts in S3, DockerHub
+        if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != ''
         run: make -j2 promote
         env:
           BRANCH_NAME: master
