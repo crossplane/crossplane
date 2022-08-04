@@ -136,7 +136,15 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	return remote.Head(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+	d, err := remote.Head(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+	if err != nil || d == nil {
+		rd, gErr := remote.Get(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+		if gErr != nil {
+			return nil, errors.Wrapf(gErr, "failed to fetch package descriptor with a GET request after a previous HEAD request failure: %v", err)
+		}
+		return &rd.Descriptor, nil
+	}
+	return d, nil
 }
 
 // Tags fetches a package's tags.
