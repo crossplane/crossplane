@@ -173,7 +173,7 @@ regardless of the length of that remainder.
 
 The Crossplane project consists of multiple repositories that are published and
 maintained as part of the [crossplane](https://github.com/crossplane) and
-[crossplane-contrib][https://github.com/crossplane-contrib] organizations on
+[crossplane-contrib](https://github.com/crossplane-contrib) organizations on
 GitGub. Each repository will be subject to the same overall governance model,
 but will be allowed to have different teams of people (“maintainers”) with
 permissions and access to the repository.  This increases diversity of
