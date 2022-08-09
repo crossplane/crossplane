@@ -132,6 +132,15 @@ func TestMathResolve(t *testing.T) {
 				o: 3 * m,
 			},
 		},
+		"SuccessFloat64": {
+			args: args{
+				multiplier: &m,
+				i:          3.3,
+			},
+			want: want{
+				o: 3.3 * float64(m),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
