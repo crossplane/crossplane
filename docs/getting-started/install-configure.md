@@ -8,21 +8,21 @@ indent: true
 # Choosing Your Crossplane Distribution
 
 Users looking to use Crossplane for the first time have two options available to
-them today. The first way is to use the version of Crossplane which is 
+them today. The first way is to use the version of Crossplane which is
 maintained and released by the community and found on the [Crossplane GitHub].
 
-The second option is to use a vendor supported Crossplane distribution. These 
-distributions are [certified by the CNCF] to be conformant with Crossplane, but 
-may include additional features or tooling around it that makes it easier to use 
+The second option is to use a vendor supported Crossplane distribution. These
+distributions are [certified by the CNCF] to be conformant with Crossplane, but
+may include additional features or tooling around it that makes it easier to use
 in production environments.
 
-<ul class="nav nav-tabs"> 
+<ul class="nav nav-tabs">
 <li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Crossplane (upstream)</a></li>
 <li><a href="#using-a-downstream-distro" data-toggle="tab">Downstream Distributions</a></li>
 </ul>
 <br>
 <!-- Begin Distro Tabs -->
-<div class="tab-content"> 
+<div class="tab-content">
 <!-- Begin Upstream Tab -->
 <div class="tab-pane fade in active" id="using-upstream-crossplane" markdown="1">
 
@@ -442,7 +442,7 @@ watch kubectl get pkg
 
 ```console
 # create service principal with Owner role
-az ad sp create-for-rbac --sdk-auth --role Owner > "creds.json"
+az ad sp create-for-rbac --role Contributor --scopes /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx > "creds.json"
 ```
 
 ### Create a Provider Secret
@@ -494,8 +494,8 @@ you can [provision infrastructure].
 ## Start with a Downstream Distribution
 
 Upbound, the founders of Crossplane, maintains a free and open source downstream
-distribution of Crossplane which makes getting started with Crossplane easy. 
-Universal Crossplane, or UXP for short, connects to Upbound's hosted management 
+distribution of Crossplane which makes getting started with Crossplane easy.
+Universal Crossplane, or UXP for short, connects to Upbound's hosted management
 console and Registry to make it easier to develop, debug, and manage Provider
 and Configuration packages.
 
