@@ -1,37 +1,57 @@
-# See OWNERS.md for governance details
+# This file controls automatic PR reviewer assignment. See the following docs:
+#
+# * https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# * https://docs.github.com/en/organizations/organizing-members-into-teams/managing-code-review-settings-for-your-team
+#
+# The goal of this file is for most PRs to automatically and fairly have one
+# maintainer and two reviewers set as PR reviewers. All maintainers have
+# permission to approve and merge PRs, but reviewers do not. Most PRs should by
+# members of the reviewers group before being passed to a maintainer for final
+# review.
+#
+# This in part depends on how the groups in this file are configured.
+#
+# @crossplane/steering-committee - Assigns 3 members. Admin perms to this repo.
+# @crossplane/crossplane-maintainers - Assigns 1 member. Maintain perms to this repo.
+# @crossplane-crossplane-reviewers - Assigns 2 members. Triage perms to this repo.
+#
+# Where possible, prefer explicitly specifying a maintainer who is a subject
+# matter expert for a particular part of the codebase rather than using the
+# @crossplane/crossplane-maintainers group.
+#
+# See also OWNERS.md for governance details
 
 # Fallback owners
-*                                   @muvaf @hasheddan @turkenh @negz
+*                                   @crossplane/crossplane-maintainers @crossplane/crossplane-reviewers
 
 # Governance owners - steering committee
-OWNERS.md                           @bassam @jbw976 @negz
-CHARTER.md                          @bassam @jbw976 @negz
-CODE_OF_CONDUCT.md                  @bassam @jbw976 @negz
-GOVERNANCE.md                       @bassam @jbw976 @negz
-ROADMAP.md                          @bassam @jbw976 @negz
-LICENSE                             @bassam @jbw976 @negz
+OWNERS.md                           @crossplane/steering-committee
+CHARTER.md                          @crossplane/steering-committee
+CODE_OF_CONDUCT.md                  @crossplane/steering-committee
+GOVERNANCE.md                       @crossplane/steering-committee
+ROADMAP.md                          @crossplane/steering-committee
+LICENSE                             @crossplane/steering-committee
 
 # Design documents
-design/                             @negz
+design/                             @crossplane/crossplane-maintainers @negz
 
 # Package manager
-apis/pkg/                           @hasheddan
-internal/xpkg/                      @hasheddan
-internal/dag/                       @hasheddan
-internal/controller/pkg/            @hasheddan
+apis/pkg/                           @crossplane/crossplane-reviewers @hasheddan
+internal/xpkg/                      @crossplane/crossplane-reviewers @hasheddan
+internal/dag/                       @crossplane/crossplane-reviewers @hasheddan
+internal/controller/pkg/            @crossplane/crossplane-reviewers @hasheddan
 
 # Composition
-apis/apiextensions/                 @muvaf
-internal/xcrd/                      @muvaf
-internal/controller/apiextensions/  @muvaf
+apis/apiextensions/                 @crossplane/crossplane-reviewers @muvaf
+internal/xcrd/                      @crossplane/crossplane-reviewers @muvaf
+internal/controller/apiextensions/  @crossplane/crossplane-reviewers @muvaf
 
 # RBAC
-cmd/crossplane/rbac/                @negz
-internal/controller/rbac/           @negz
+cmd/crossplane/rbac/                @crossplane/crossplane-reviewers @negz
+internal/controller/rbac/           @crossplane/crossplane-reviewers @negz
 
 # Misc
-apis/secrets/                       @turkenh
-cmd/crank/                          @hasheddan
-internal/initializer/               @muvaf
-internal/features/                  @negz
-test/                               @hasheddan
+apis/secrets/                       @crossplane/crossplane-reviewers @turkenh
+cmd/crank/                          @crossplane/crossplane-reviewers @hasheddan
+internal/initializer/               @crossplane/crossplane-reviewers @muvaf
+internal/features/                  @crossplane/crossplane-reviewers @negz
