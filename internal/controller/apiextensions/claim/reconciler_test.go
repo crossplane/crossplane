@@ -203,6 +203,8 @@ func TestReconcile(t *testing.T) {
 					o.SetName(name)
 					o.SetDeletionTimestamp(&now)
 					o.SetResourceReference(&corev1.ObjectReference{})
+					bg := xpv1.CompositeDeleteBackground
+					o.SetCompositeDeletePolicy(&bg)
 				}),
 			},
 			want: want{
@@ -212,6 +214,8 @@ func TestReconcile(t *testing.T) {
 					o.SetDeletionTimestamp(&now)
 					o.SetResourceReference(&corev1.ObjectReference{})
 					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errDeleteComposite)))
+					bg := xpv1.CompositeDeleteBackground
+					o.SetCompositeDeletePolicy(&bg)
 				}),
 				r: reconcile.Result{Requeue: true},
 			},
@@ -252,6 +256,13 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockDelete: test.NewMockDeleteFn(nil),
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									o.SetCreationTimestamp(metav1.Now())
+									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+								}
+								return nil
+							}),
 						},
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
@@ -259,17 +270,104 @@ func TestReconcile(t *testing.T) {
 					}),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName(name)
 					o.SetDeletionTimestamp(&now)
+					bg := xpv1.CompositeDeleteBackground
+					o.SetCompositeDeletePolicy(&bg)
 					o.SetResourceReference(&corev1.ObjectReference{})
 				}),
 			},
 			want: want{
 				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName(name)
 					o.SetDeletionTimestamp(&now)
 					o.SetResourceReference(&corev1.ObjectReference{})
+					bg := xpv1.CompositeDeleteBackground
+					o.SetCompositeDeletePolicy(&bg)
 					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
 				}),
 				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulForegroundDelete": {
+			reason: "We should requeue if we successfully delete the bound composite resource using Foreground deletion",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil),
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									o.SetCreationTimestamp(metav1.Now())
+									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+								}
+								return nil
+							}),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+				},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName(name)
+					o.SetDeletionTimestamp(&now)
+					fg := xpv1.CompositeDeleteForeground
+					o.SetCompositeDeletePolicy(&fg)
+					o.SetResourceReference(&corev1.ObjectReference{})
+				}),
+			},
+			want: want{
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName(name)
+					o.SetDeletionTimestamp(&now)
+					o.SetResourceReference(&corev1.ObjectReference{})
+					fg := xpv1.CompositeDeleteForeground
+					o.SetCompositeDeletePolicy(&fg)
+				}),
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"ForegroundDeleteWaitForCompositeDeletion": {
+			reason: "We should requeue if we successfully deleted the bound composite resource using Foreground deletion and it has not yet been deleted",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil),
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									o.SetCreationTimestamp(now)
+									o.SetDeletionTimestamp(&now)
+									o.SetClaimReference(&corev1.ObjectReference{Name: name})
+								}
+								return nil
+							}),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+				},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName(name)
+					o.SetDeletionTimestamp(&now)
+					fg := xpv1.CompositeDeleteForeground
+					o.SetCompositeDeletePolicy(&fg)
+					o.SetResourceReference(&corev1.ObjectReference{})
+				}),
+			},
+			want: want{
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName(name)
+					o.SetDeletionTimestamp(&now)
+					o.SetResourceReference(&corev1.ObjectReference{})
+					fg := xpv1.CompositeDeleteForeground
+					o.SetCompositeDeletePolicy(&fg)
+				}),
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"AddFinalizerError": {

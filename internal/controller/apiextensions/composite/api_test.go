@@ -242,8 +242,9 @@ func TestFetchRevision(t *testing.T) {
 				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
 			},
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
@@ -257,8 +258,9 @@ func TestFetchRevision(t *testing.T) {
 				v1alpha1.LabelCompositionSpecHash: "I'm different!",
 			},
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 1},
