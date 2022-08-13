@@ -9,16 +9,10 @@ daysUntilClose: 7
 
 # Issues or Pull Requests with these labels will never be considered stale. Set to `[]` to disable
 exemptLabels:
-  - security
-
-# Set to true to ignore issues in a project (defaults to false)
-exemptProjects: false
-
-# Set to true to ignore issues in a milestone (defaults to false)
-exemptMilestones: false
+  - exempt-from-stale
 
 # Label to use when marking as stale
-staleLabel: wontfix
+staleLabel: stale
 
 # Comment to post when marking as stale. Set to `false` to disable
 markComment: >
@@ -30,9 +24,3 @@ markComment: >
 closeComment: >
   This issue has been automatically closed due to inactivity. Please re-open
   if this still requires investigation.
-
-# Limit the number of actions per hour, from 1-30. Default is 30
-limitPerRun: 30
-
-# Limit to only `issues` or `pulls`
-only: issues
