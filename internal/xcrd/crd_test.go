@@ -637,7 +637,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												{Raw: []byte(`"5.7"`)},
 											},
 										},
-
+										"compositeDeletePolicy": {
+											Type:    "string",
+											Default: &extv1.JSON{Raw: []byte(`"Background"`)},
+											Enum: []extv1.JSON{{Raw: []byte(`"Background"`)},
+												{Raw: []byte(`"Foreground"`)}},
+										},
 										// From CompositeResourceClaimSpecProps()
 										"compositionRef": {
 											Type:     "object",

@@ -230,7 +230,7 @@ func TestRender(t *testing.T) {
 						xcrd.LabelKeyClaimName:             "rola",
 						xcrd.LabelKeyClaimNamespace:        "rolans",
 					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl}},
 				}},
 				err: errors.Wrap(errBoom, errName),
 			},
@@ -245,7 +245,7 @@ func TestRender(t *testing.T) {
 					xcrd.LabelKeyClaimNamespace:        "rolans",
 				}}},
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd",
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl,
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl,
 						UID: "random_uid"}}}},
 				t: v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
 			},
@@ -258,7 +258,7 @@ func TestRender(t *testing.T) {
 						xcrd.LabelKeyClaimName:             "rola",
 						xcrd.LabelKeyClaimNamespace:        "rolans",
 					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl,
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl,
 						UID: "random_uid"}},
 				}},
 				err: errors.Wrap(errors.Errorf("cd is already controlled by   (UID random_uid)"), errSetControllerRef),
@@ -285,7 +285,7 @@ func TestRender(t *testing.T) {
 						xcrd.LabelKeyClaimName:             "rola",
 						xcrd.LabelKeyClaimNamespace:        "rolans",
 					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl}},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl}},
 				}},
 			},
 		},
@@ -468,8 +468,9 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 					// This resource is not controlled by us.
 					ctrl := true
 					obj.SetOwnerReferences([]metav1.OwnerReference{{
-						Controller: &ctrl,
-						UID:        types.UID("who-dat"),
+						Controller:         &ctrl,
+						BlockOwnerDeletion: &ctrl,
+						UID:                types.UID("who-dat"),
 					}})
 					return nil
 				}),

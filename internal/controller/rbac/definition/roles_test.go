@@ -37,11 +37,12 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	ctrl := true
 	owner := metav1.OwnerReference{
-		APIVersion: v1.CompositeResourceDefinitionGroupVersionKind.GroupVersion().String(),
-		Kind:       v1.CompositeResourceDefinitionKind,
-		Name:       name,
-		UID:        uid,
-		Controller: &ctrl,
+		APIVersion:         v1.CompositeResourceDefinitionGroupVersionKind.GroupVersion().String(),
+		Kind:               v1.CompositeResourceDefinitionKind,
+		Name:               name,
+		UID:                uid,
+		Controller:         &ctrl,
+		BlockOwnerDeletion: &ctrl,
 	}
 
 	cases := map[string]struct {
