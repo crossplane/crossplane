@@ -1,0 +1,37 @@
+# See OWNERS.md for governance details
+
+# Fallback owners
+*                                   @muvaf @hasheddan @turkenh @negz
+
+# Governance owners - steering committee
+OWNERS.md                           @bassam @jbw976 @negz
+CHARTER.md                          @bassam @jbw976 @negz
+CODE_OF_CONDUCT.md                  @bassam @jbw976 @negz
+GOVERNANCE.md                       @bassam @jbw976 @negz
+ROADMAP.md                          @bassam @jbw976 @negz
+LICENSE                             @bassam @jbw976 @negz
+
+# Design documents
+design/                             @negz
+
+# Package manager
+apis/pkg/                           @hasheddan
+internal/xpkg/                      @hasheddan
+internal/dag/                       @hasheddan
+internal/controller/pkg/            @hasheddan
+
+# Composition
+apis/apiextensions/                 @muvaf
+internal/xcrd/                      @muvaf
+internal/controller/apiextensions/  @muvaf
+
+# RBAC
+cmd/crossplane/rbac/                @negz
+internal/controller/rbac/           @negz
+
+# Misc
+apis/secrets/                       @turkenh
+cmd/crank/                          @hasheddan
+internal/initializer/               @muvaf
+internal/features/                  @negz
+test/                               @hasheddan
