@@ -28,7 +28,9 @@ Crossplane can create a configuration from any directory with a valid
 `crossplane.yaml` metadata file at its root, and one or more XRDs or
 Compositions. The directory structure does not matter, as long as the
 `crossplane.yaml` file is at the root. 
-Note: a configuration is not necessarily composed by just one XRD and just one composition - it could include only an XRD, only a composition, several compositions, or any combination thereof.
+Note: a configuration is not necessarily composed by just one XRD and
+just one composition - it could include only an XRD, only a 
+composition, several compositions, or any combination thereof.
 
 Before we go any further, we must create a directory in which to build our
 configuration:
