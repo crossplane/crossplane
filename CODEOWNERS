@@ -13,7 +13,7 @@
 #
 # @crossplane/steering-committee - Assigns 3 members. Admin perms to this repo.
 # @crossplane/crossplane-maintainers - Assigns 1 member. Maintain perms to this repo.
-# @crossplane-crossplane-reviewers - Assigns 2 members. Triage perms to this repo.
+# @crossplane-crossplane-reviewers - Assigns 2 members. Write perms to this repo.
 #
 # Where possible, prefer explicitly specifying a maintainer who is a subject
 # matter expert for a particular part of the codebase rather than using the
