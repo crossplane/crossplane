@@ -7,6 +7,8 @@ list their repository maintainers in their own `OWNERS.md` file.
 Please see [GOVERNANCE.md](GOVERNANCE.md) for governance guidelines and responsibilities for the
 steering committee and maintainers.
 
+See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
+
 ## Steering Committee
 
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
