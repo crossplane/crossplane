@@ -24,8 +24,7 @@ guardrails, with a team-centric approach and a strong separation of concerns,
 so applications can easily and safely consume the infrastructure they need,
 using any tool that works with the Kubernetes API. Solutions like the [GCP
 implementation of Open Service Broker][GCP OSB] have been deprecated in favor
-of a more Kubernetes-native solution, but one that is Google-specific and
-closed source.
+of a more Kubernetes-native solution, but one that is Google-specific.
 
 ## GCP Config Connector
 
@@ -39,7 +38,8 @@ provider and the ability to define, compose, and publish your own
 infrastructure resources in a no-code way. Crossplane supports a team-centric
 approach with a strong separation of concerns, that enables applications to
 easily and safely consume the infrastructure they need, using any tool that
-works with the Kubernetes API. GCP Config Connector is closed-source.
+works with the Kubernetes API. GCP Config Connector is open source as of May 
+12, 2022.
 
 ## AWS Controllers for Kubernetes
 
@@ -81,7 +81,7 @@ plane.
 [Open Service Broker]: https://www.openservicebrokerapi.org/
 [Kubernetes Service Catalog]: https://kubernetes.io/docs/concepts/extend-kubernetes/service-catalog/
 [GCP OSB]: https://cloud.google.com/kubernetes-engine/docs/concepts/google-cloud-platform-service-broker
-[GCP Config Connector]: https://cloud.google.com/config-connector/docs/overview
+[GCP Config Connector]: https://github.com/GoogleCloudPlatform/k8s-config-connector
 [AWS Controllers for Kubernetes]: https://github.com/aws-controllers-k8s/community
 [Terraform]: https://www.terraform.io/
 [Pulumi]: https://www.pulumi.com/
