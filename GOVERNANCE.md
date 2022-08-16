@@ -190,7 +190,7 @@ In general, adding and removing maintainers for a given repo is the
 responsibility of the existing maintainer team for that repo and therefore does
 not require approval from the steering committee. However, in rare cases, the
 steering committee can veto the addition of a new maintainer by following the
-conflict resolution process below.
+[conflict resolution process](#conflict-resolution-and-voting).
 
 Responsibilities include:
 
@@ -300,7 +300,7 @@ In general, adding and removing reviewers for a given repo is the
 responsibility of the existing maintainer team for that repo and therefore does
 not require approval from the steering committee. However, in rare cases, the
 steering committee can veto the addition of a new reviewer by following the
-conflict resolution process below.
+[conflict resolution process](#conflict-resolution-and-voting).
 
 Responsibilities include:
 
@@ -348,8 +348,8 @@ team as they see fit.
 
 If a reviewer is no longer interested or cannot perform the reviewer duties
 listed above, they should volunteer to be moved to emeritus status. In extreme
-cases this can also occur by a vote of the maintainers per the voting process
-below.
+cases this can also occur by a vote of the maintainers per
+[the voting process](#conflict-resolution-and-voting).
 
 ## Organization Members
 
