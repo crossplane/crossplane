@@ -190,7 +190,7 @@ In general, adding and removing maintainers for a given repo is the
 responsibility of the existing maintainer team for that repo and therefore does
 not require approval from the steering committee. However, in rare cases, the
 steering committee can veto the addition of a new maintainer by following the
-conflict resolution process below.
+[conflict resolution process](#conflict-resolution-and-voting).
 
 Responsibilities include:
 
@@ -253,7 +253,8 @@ Beyond your contributions to the project, consider:
     substantial time (>25%) on Crossplane for the foreseeable future.
 
 If you are meeting these requirements, express interest to the repository’s
-existing maintainers directly.
+existing maintainers directly. Becoming a [reviewer](#reviewers) is a great way
+to work up to becoming a maintainer.
 
 * We may ask you to do some PRs from our backlog.
 * As you gain experience with the code base and our standards, we will ask you
@@ -287,12 +288,75 @@ listed above, they should volunteer to be moved to emeritus status. In extreme
 cases this can also occur by a vote of the maintainers per the voting process
 below.
 
+## Reviewers
+
+Each repository in the Crossplane organizations may also have their own unique
+set of reviewers. Reviewers help maintainers review new contributions. They're
+typically newer to the project and interested in working toward becoming a
+maintainer. Reviewers may approve but not merge PRs - all PRs must be approved
+by a maintainer.
+
+In general, adding and removing reviewers for a given repo is the
+responsibility of the existing maintainer team for that repo and therefore does
+not require approval from the steering committee. However, in rare cases, the
+steering committee can veto the addition of a new reviewer by following the
+[conflict resolution process](#conflict-resolution-and-voting).
+
+Responsibilities include:
+
+* Strong commitment to the project.
+* Participate in design and technical discussions.
+* Perform 2-3 code reviews per week on other's pull requests.
+* Ensure that proposed changes to your repository adhere to the established
+  standards, best practices, and guidelines, and that the overall quality and
+  integrity of the code base is upheld.
+* Ensure maintainers have the context they need to merge pull requests.
+* Make sure that ongoing PRs are moving forward at the right pace or closing
+  them.
+* Monitor Crossplane Slack (delayed response is perfectly acceptable),
+  particularly for the area of your repository
+* Regularly attend the recurring community meetings.
+
+The current list of reviewers for each repository (if any) is published and
+updated in each repo’s [OWNERS.md](OWNERS.md) file.
+
+### Becoming a Reviewer
+
+To become a maintainer for a given repository, you need to demonstrate the
+following:
+
+* Be familiar with the languages, tools, and frameworks used in the repository.
+* Be deeply familiar and aligned with the project's
+  [CONTRIBUTING.md](CONTRIBUTING.md) guide.
+* Consistently demonstrate:
+  * Ability to collaborate with the team
+  * Understanding of how the team works (policies, processes for testing and
+    code review, etc.)
+  * Understanding of the project's code base and coding style
+
+If you are meeting these requirements, express interest to the repository’s
+maintainers directly. The maintainer team will then add the new reviewer to the
+repo’s [OWNERS.md](OWNERS.md) file, as well as the appropriate GitHub team that
+allows write permissions to the repo, including approving pull requests.
+
+#### Reviewers for New Repositories
+
+For new repositories, the maintainers can choose to “bootstrap” the reviewer
+team as they see fit.
+
+### Removing a Reviewer
+
+If a reviewer is no longer interested or cannot perform the reviewer duties
+listed above, they should volunteer to be moved to emeritus status. In extreme
+cases this can also occur by a vote of the maintainers per
+[the voting process](#conflict-resolution-and-voting).
+
 ## Organization Members
 
-Beyond the roles of the steering committee and repository maintainers outlined
+Beyond the roles of the steering committee, maintainers, and reviewers outlined
 above, contributors from the community can also be added to the Crossplane
 organization as a “member”.  This affiliation only comes with the base
-permissions (read-only) for the organization, so the requirements are fairly
+permissions (triage-only) for the organization, so the requirements are fairly
 low.  Adding new members has the following benefits:
 
 * Encourages a sense of belonging to the community and encourages collaboration
