@@ -18,8 +18,7 @@ jobs:
         days-before-stale: 90
         days-before-close: 7
         stale-issue-label: stale
-        exempt-issue-labels:
-        - exempt-from-stale
+        exempt-issue-labels: exempt-from-stale
         stale-issue-message: >
           Crossplane does not currently have enough maintainers to address every
           issue and pull request. This issue has been automatically marked as
@@ -28,8 +27,7 @@ jobs:
           remove the `stale` label and prevent the issue from being closed. Note
           that it may take this bot several hours to react to comments.
         stale-pr-label: stale
-        exempt-pr-labels:
-        - exempt-from-stale
+        exempt-pr-labels: exempt-from-stale
         stale-pr-message:
           Crossplane does not currently have enough maintainers to address every
           issue and pull request. This pull request has been automatically
