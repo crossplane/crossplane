@@ -1,8 +1,8 @@
 name: Stale Issues and PRs
 on:
   schedule:
-  # Run once an hour.
-  - cron: '0 */1 * * *'
+  # Run once every other hour.
+  - cron: '0 */2 * * *'
   workflow_dispatch: {}
 
 permissions:
@@ -15,6 +15,18 @@ jobs:
     steps:
     - uses: actions/stale@v5
       with:
+        # TODO(negz): Lower this once we have fewer stale issues.
+        #
+        # This will use half of our hourly rate-limit budget per
+        # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#requests-from-github-actions.
+        #
+        # We currently have ~150 stale issues because we just enabled the action
+        # and many old issues were marked stale at once. The action uses ~2
+        # operations per stale issue per run to determine whether it's still
+        # stale. It also uses 2-3 operations to mark an issue stale or not.
+        # Once we've burned through our initial backlog of stale issues it will
+        # most likely be safe to lower this to ~100 or even fewer operations.
+        operations-per-run: 500
         days-before-stale: 90
         days-before-close: 7
         stale-issue-label: stale
