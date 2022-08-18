@@ -38,6 +38,7 @@ examples of each step.
   - [ ] `xp/getting-started-with-gcp`
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel.
 - [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes.
+- [ ] Update the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack
   - [ ] Twitter
@@ -60,5 +61,6 @@ examples of each step.
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
 [promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
+[crossplane-test-workflows]: https://github.com/crossplane/test/tree/master/.github/workflows
 [release-1.7]: https://github.com/crossplane/crossplane/issues/2977
 [Code Freeze]: https://crossplane.io/docs/master/reference/release-cycle.html#code-freeze
