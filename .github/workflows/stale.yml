@@ -3,6 +3,7 @@ on:
   schedule:
   # Run once an hour.
   - cron: '0 */1 * * *'
+  workflow_dispatch: {}
 
 permissions:
   issues: write
