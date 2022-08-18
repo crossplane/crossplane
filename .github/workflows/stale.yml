@@ -1,8 +1,8 @@
 name: Stale Issues and PRs
 on:
   schedule:
-  # Run once every hour.
-  - cron: '0 */1 * * *'
+  # Run once every other hour.
+  - cron: '0 */2 * * *'
   workflow_dispatch: {}
 
 permissions:
