@@ -5,9 +5,9 @@
 #
 # The goal of this file is for most PRs to automatically and fairly have one
 # maintainer and two reviewers set as PR reviewers. All maintainers have
-# permission to approve and merge PRs, but reviewers do not. Most PRs should by
-# members of the reviewers group before being passed to a maintainer for final
-# review.
+# permission to approve and merge PRs, but reviewers do not. Most PRs should be
+# reviewed by members of the reviewers group before being passed to a maintainer
+# for final review.
 #
 # This in part depends on how the groups in this file are configured.
 #
