@@ -33,25 +33,25 @@ ROADMAP.md                          @crossplane/steering-committee
 LICENSE                             @crossplane/steering-committee
 
 # Design documents
-design/                             @crossplane/crossplane-maintainers @negz
+/design/                             @crossplane/crossplane-maintainers @negz
 
 # Package manager
-apis/pkg/                           @crossplane/crossplane-reviewers @hasheddan
-internal/xpkg/                      @crossplane/crossplane-reviewers @hasheddan
-internal/dag/                       @crossplane/crossplane-reviewers @hasheddan
-internal/controller/pkg/            @crossplane/crossplane-reviewers @hasheddan
+/apis/pkg/                           @crossplane/crossplane-reviewers @hasheddan
+/internal/xpkg/                      @crossplane/crossplane-reviewers @hasheddan
+/internal/dag/                       @crossplane/crossplane-reviewers @hasheddan
+/internal/controller/pkg/            @crossplane/crossplane-reviewers @hasheddan
 
 # Composition
-apis/apiextensions/                 @crossplane/crossplane-reviewers @muvaf
-internal/xcrd/                      @crossplane/crossplane-reviewers @muvaf
-internal/controller/apiextensions/  @crossplane/crossplane-reviewers @muvaf
+/apis/apiextensions/                 @crossplane/crossplane-reviewers @muvaf
+/internal/xcrd/                      @crossplane/crossplane-reviewers @muvaf
+/internal/controller/apiextensions/  @crossplane/crossplane-reviewers @muvaf
 
 # RBAC
-cmd/crossplane/rbac/                @crossplane/crossplane-reviewers @negz
-internal/controller/rbac/           @crossplane/crossplane-reviewers @negz
+/cmd/crossplane/rbac/                @crossplane/crossplane-reviewers @negz
+/internal/controller/rbac/           @crossplane/crossplane-reviewers @negz
 
 # Misc
-apis/secrets/                       @crossplane/crossplane-reviewers @turkenh
-cmd/crank/                          @crossplane/crossplane-reviewers @hasheddan
-internal/initializer/               @crossplane/crossplane-reviewers @muvaf
-internal/features/                  @crossplane/crossplane-reviewers @negz
+/apis/secrets/                       @crossplane/crossplane-reviewers @turkenh
+/cmd/crank/                          @crossplane/crossplane-reviewers @hasheddan
+/internal/initializer/               @crossplane/crossplane-reviewers @muvaf
+/internal/features/                  @crossplane/crossplane-reviewers @negz
