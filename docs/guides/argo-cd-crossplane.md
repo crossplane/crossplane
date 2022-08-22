@@ -13,50 +13,26 @@ indent: true
 are a great combination. Argo CD provides GitOps while Crossplane turns any Kubernetes
 cluster into a Universal Control Plane for all of your resources. There are
 configuration details required in order for the two to work together properly.
-This doc will help you understand these requirements.
+This doc will help you understand these requirements. It is recommended to us
+Argo CD version 2.4.8 or later with Crossplane.
  
 Argo CD synchronizes Kubernetes resource manifests stored in a Git repository
-with those running in a Kubernetes cluster (GitOps). It places a label on
-the running resources to know that it should be tracking them. When it sees
-that label on a running resource, it expects it to match the manifest in the
-repo. Additionally, Argo CD makes use of the Kubernetes Owner Ref field to
-correlate additional resources created by operators as a result of the top-level
-synced resources. Owner Ref enforces a rule that a namespace scoped resource
-cannot be the owner of a cluster scoped resource or a resource in another
-namespace. Because of this, Argo CD cannot correlate relationships that are
-structured in either of those two manners.
- 
-When Crossplane creates namespace scoped Composite Resource Claims (XRCs), they
-result in cluster scoped Composite Resources (XRs) being created. This is a
-relationship structure that Argo CD cannot correlate. One of the nice features
-in Argo CD is its UI where we can visualize those owner ref relationships and
-gleen information on their state. Because of the inability for a owner ref to be
-defined between XRC and XR, we will not see this visualization for Crossplane
-in the Argo CD UI. If we do not use XRC, and start with XR, we will see the
-visualization. This is a tradeoff that needs to be considered when using the
-two together.
- 
-Another issue when starting from XRC is introduced because Crossplane
-propagates labels from XRC to XR. In this case, Argo CD synchronizes the XRC
-resource manifest from the repo to the cluster. In doing so, it places its
-tracking label on it. Crossplane then propagates that label to the XR. At this
-point, Argo CD sees the XR with its tracking label, does not see a match in the
-repo, and considers the XR to be an out of sync resource that should be removed.
-If 'auto pruning' is enabled, Argo CD will delete the XR. Crossplane will see
-that the XR is missing and recreate it. This will continue in a loop until
-manual intervention is taken.
+with those running in a Kubernetes cluster (GitOps). There are different ways to cofigure 
+how Argo CD tracks resources. With Crossplane, you need to configure Argo CD 
+to use Annotation based resource tracking. See the [Argo CD docs](https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/) for additional detail.
  
 ### Configuring Argo CD with Crossplane
  
-####  When using Argo CD to deploy XRC:
- 
-To avoid having Argo CD see the XR with the  propagated tracking label, we
-must currently employ a workaround. Define a `Deny` rule within the Argo CD
-project config. This is required for any XRC that is synced from the repo.
- 
-Within the project config, you will find the `CLUSTER RESOURCE DENY LIST`
-input. It takes a `Kind` and `Group` pair input. Add an entry for each XR
-Kind that will be created as a result of a synced XRC.
- 
-This issue is being tracked and is expected to be addressed in the near
-future.
+To configure Argo CD for Annotation resource tracking, edit the argocd-cm
+ConfigMap in the argocd Namespace. Add `application.resourceTrackingMethod: annotation`
+to the data section as below:
+
+```yanl
+apiVersion: v1
+data:
+  application.resourceTrackingMethod: annotation
+kind: ConfigMap
+```
+
+On the next Argo CD sync, Both Crossplane Claims and Composite Resources will
+be considered synchronized and will not trigger auto-pruning.
