@@ -95,7 +95,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws-new.yaml
 ```
 
 </div>
