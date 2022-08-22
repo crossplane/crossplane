@@ -17,7 +17,7 @@ Crossplane needs to be installed via the Helm chart with the
 `registryCaBundleConfig.name` and `registryCaBundleConfig.key` parameters 
 defined. See [Install Crossplane].
 
-## Conifgure
+## Configure
 
 1. Create a CA Bundle (A file containing your Root and Intermediate 
 certificates in a specific order). This can be done with any text editor or 
