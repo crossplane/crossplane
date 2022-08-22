@@ -90,3 +90,37 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_workspace: ${{ github.workspace }}
         version: v0.0.4
+
+  fresh:
+    runs-on: ubuntu-20.04
+    if: startsWith(github.event.comment.body, '/fresh')
+
+    steps:
+    - name: Extract Command
+      id: command
+      uses: xt0rted/slash-command-action@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        command: fresh
+        reaction: "true"
+        reaction-type: "eyes"
+        allow-edits: "false"
+        permission-level: write
+    - name: Handle Command
+      uses: actions/github-script@v4
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          // Delete the stale label.
+          try {
+            await github.issues.deleteLabel({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: ['stale']
+            })
+            console.log("Deleted 'stale' label.")
+          }
+          catch(e) {
+            console.log("Failed to delete label 'stale' - does it exist?")
+          }
