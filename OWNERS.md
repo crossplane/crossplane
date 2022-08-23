@@ -33,6 +33,9 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 ## Reviewers
 
 * Bob Haddleton <bob.haddleton@nokia.com> ([bobh66](https://github.com/bobh66))
+* Yury Tsarev <yury@upbound.io> ([ytsarev](https://github.com/ytsarev))
+* Daren Iott <daren@upbound.io> ([nullable-eth](https://github.com/nullable-eth))
+* Nathan Lin <nathan@upbound.io> ([nlinx](https://github.com/nlinx))
 
 ## Emeritus maintainers
 
