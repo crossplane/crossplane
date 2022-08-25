@@ -39,5 +39,6 @@ data:
 kind: ConfigMap
 ```
 
-On the next Argo CD sync, Crossplane Claims and Composite Resources will
+On the next Argo CD sync, Crossplane `Claims` and `Composite Resources` will
+
 be considered synchronized and will not trigger auto-pruning.
