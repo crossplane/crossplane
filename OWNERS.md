@@ -36,6 +36,7 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 * Yury Tsarev <yury@upbound.io> ([ytsarev](https://github.com/ytsarev))
 * Daren Iott <daren@upbound.io> ([nullable-eth](https://github.com/nullable-eth))
 * Nathan Lin <nathan@upbound.io> ([nlinx](https://github.com/nlinx))
+* Max Blatt ([MisterMX](https://github.com/MisterMX))
 
 ## Emeritus maintainers
 
