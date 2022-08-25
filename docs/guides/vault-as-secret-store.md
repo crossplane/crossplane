@@ -158,7 +158,7 @@ customAnnotations:
   EOF
 
 
-helm upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system -f uxp-values.yaml
+helm upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system -f values.yaml
 ```
 
 2. Create a Secret `StoreConfig` for Crossplane to be used by
