@@ -13,7 +13,8 @@ indent: true
 are a great combination. Argo CD provides GitOps while Crossplane turns any Kubernetes
 cluster into a Universal Control Plane for all of your resources. There are
 configuration details required in order for the two to work together properly.
-This doc will help you understand these requirements. It is recommended to us
+This doc will help you understand these requirements. It is recommended to use
+
 Argo CD version 2.4.8 or later with Crossplane.
  
 Argo CD synchronizes Kubernetes resource manifests stored in a Git repository
