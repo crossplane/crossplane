@@ -31,7 +31,8 @@ To configure Argo CD for Annotation resource tracking, edit the `argocd-cm`
 
 to the data section as below:
 
-```yanl
+```yaml
+
 apiVersion: v1
 data:
   application.resourceTrackingMethod: annotation
