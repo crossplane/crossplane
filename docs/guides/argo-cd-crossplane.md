@@ -17,7 +17,8 @@ This doc will help you understand these requirements. It is recommended to us
 Argo CD version 2.4.8 or later with Crossplane.
  
 Argo CD synchronizes Kubernetes resource manifests stored in a Git repository
-with those running in a Kubernetes cluster (GitOps). There are different ways to cofigure 
+with those running in a Kubernetes cluster (GitOps). There are different ways to configure 
+
 how Argo CD tracks resources. With Crossplane, you need to configure Argo CD 
 to use Annotation based resource tracking. See the [Argo CD docs](https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/) for additional detail.
  
