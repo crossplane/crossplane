@@ -149,7 +149,7 @@ kubectl create ns crossplane-system
 helm repo add crossplane-stable https://charts.crossplane.io/stable --force-update
 
 
-cat << EOF > uxp-values.yaml
+cat << EOF > values.yaml
 enable-external-secret-stores: true
 customAnnotations:
   vault.hashicorp.com/agent-inject-token: "true"
