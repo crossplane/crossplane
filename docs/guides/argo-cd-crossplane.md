@@ -25,7 +25,8 @@ to use Annotation based resource tracking. See the [Argo CD docs](https://argo-c
  
 ### Configuring Argo CD with Crossplane
  
-To configure Argo CD for Annotation resource tracking, edit the argocd-cm
+To configure Argo CD for Annotation resource tracking, edit the `argocd-cm`
+
 `ConfigMap` in the `argocd` `Namespace`. Add `application.resourceTrackingMethod: annotation`
 
 to the data section as below:
