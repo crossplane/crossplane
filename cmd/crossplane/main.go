@@ -39,11 +39,12 @@ import (
 )
 
 type debugFlag bool
-type versionFlag string
+type versionFlag bool
 
 var cli struct {
-	Debug   debugFlag   `short:"d" help:"Print verbose logging statements."`
-	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
+	Debug debugFlag `short:"d" help:"Print verbose logging statements."`
+
+	Version versionFlag `name:"version" help:"Print version and quit." short:"v"`
 
 	Core core.Command `cmd:"" help:"Start core Crossplane controllers." default:"1"`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
