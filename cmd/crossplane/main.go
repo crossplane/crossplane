@@ -44,7 +44,7 @@ type versionFlag bool
 var cli struct {
 	Debug debugFlag `short:"d" help:"Print verbose logging statements."`
 
-	Version versionFlag `name:"version" help:"Print version and quit." short:"v"`
+	Version versionFlag `short:"v" help:"Print version and quit."`
 
 	Core core.Command `cmd:"" help:"Start core Crossplane controllers." default:"1"`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
