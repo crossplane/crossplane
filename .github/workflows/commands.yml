@@ -48,20 +48,7 @@ jobs:
         allow-edits: "false"
         permission-level: read
     - name: Handle Command
-      uses: actions/github-script@v4
+      uses: actions-ecosystem/action-remove-labels@v1
       with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          // Delete the stale label.
-          try {
-            await github.issues.deleteLabel({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: ['stale']
-            })
-            console.log("Deleted 'stale' label.")
-          }
-          catch(e) {
-            console.log("Failed to delete label 'stale' - does it exist?")
-          }
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        labels: stale
