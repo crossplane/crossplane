@@ -45,7 +45,7 @@ fi
 
 echo "apiVersion: v1
 data:
-  key: $AWS_CREDS_BASE64
+  creds: $AWS_CREDS_BASE64
 kind: Secret
 metadata:
   name: aws-creds
