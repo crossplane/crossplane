@@ -90,7 +90,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: aws-creds
-      key: key
+      key: creds
 ```
 
 You can see that there is a reference to a key in a specific `Secret`. The value
