@@ -67,7 +67,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: aws-creds
-      key: key
+      key: creds
 ```
 
 If a user desired for these credentials to be used to provision an
@@ -220,7 +220,7 @@ spec:
     secretRef:
       namespace: crossplane-system
       name: team-1-creds
-      key: key
+      key: creds
 ```
 
 2. Define a `Composition` that patches the namespace of the Claim reference in the XR
