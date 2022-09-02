@@ -66,7 +66,7 @@ func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfi
 // composite may or may not have been created in the API server when passed to
 // this method. The configured composite may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -126,13 +126,19 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	ucp.SetClaimReference(proposed)
 
 	if !meta.WasCreated(cp) {
-		// The API server returns an available name derived from
-		// generateName when we perform a dry-run create. This name is
-		// likely (but not guaranteed) to be available when we create
-		// the composite resource. If the API server generates a name
-		// that is unavailable it will return a 500 ServerTimeout error.
-		cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
-		return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+		// If the claim already specifies a resource ref, use the existing name.
+		// Otherwise let the API server generate a new one.
+		if ref := cm.GetResourceReference(); ref != nil && ref.Name != "" {
+			cp.SetName(ref.Name)
+		} else {
+			// The API server returns an available name derived from
+			// generateName when we perform a dry-run create. This name is
+			// likely (but not guaranteed) to be available when we create
+			// the composite resource. If the API server generates a name
+			// that is unavailable it will return a 500 ServerTimeout error.
+			cp.SetGenerateName(fmt.Sprintf("%s-", cm.GetName()))
+			return errors.Wrap(c.client.Create(ctx, cp, client.DryRunAll), errName)
+		}
 	}
 
 	return nil

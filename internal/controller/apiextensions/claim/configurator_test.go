@@ -280,6 +280,65 @@ func TestCompositeConfigure(t *testing.T) {
 				},
 			},
 		},
+		"ConfiguredNewXRWithExistingName": {
+			reason: "A dynamically provisioned composite resource should be configured according to the claim and reuse an already specified composite name",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+
+								// These should be preserved.
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+								"resourceRef": map[string]any{
+									"name": "my-composite",
+								},
+								// These should be filtered out.
+								"writeConnectionSecretToRef": "ref",
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"name": "my-composite",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"coolness":            23,
+								"compositionRef":      "ref",
+								"compositionSelector": "ref",
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		"ConfiguredExistingXR": {
 			reason: "A statically provisioned composite resource should be configured according to the claim",
 			args: args{
