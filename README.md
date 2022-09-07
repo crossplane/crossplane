@@ -19,9 +19,10 @@ documentation].
 
 | Release | Release Date |      EOL      |
 |:-------:|:------------:|:-------------:|
-|   v1.7  | Mar 22, 2022 |   Sept 2022   |
-|   v1.8  | May 17, 2022 |    Nov 2022   |
-|   v1.9  | Jul 14, 2022 |    Jan 2023   |
+|   v1.7  | Mar 22, 2022 |    Oct 2022   |
+|   v1.8  | May 17, 2022 |    Jan 2023   |
+|   v1.9  | Jul 14, 2022 |    Apr 2023   |
+|   v1.10 | Oct 18, 2022 |    Jul 2023   |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
@@ -36,7 +37,7 @@ for more information on how you can help.
 * Discuss Crossplane on [Slack] or our [developer mailing list].
 * Follow us on [Twitter], or contact us via [Email].
 * Join our regular community meetings.
-* Provide feedback on our [roadmap].
+* Provide feedback on our [roadmap and releases board].
 
 The Crossplane community meeting takes place every other [Thursday at 10:00am
 Pacific Time][community meeting time]. Anyone who wants to discuss the direction
@@ -68,7 +69,7 @@ Crossplane is under the Apache 2.0 license.
 [community meeting time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
-[roadmap]: https://github.com/orgs/crossplane/projects/12
+[roadmap and releases board]: https://github.com/orgs/crossplane/projects/20
 [cncf]: https://www.cncf.io/
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
