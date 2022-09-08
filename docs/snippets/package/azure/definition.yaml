@@ -26,12 +26,14 @@ spec:
         properties:
           spec:
             type: object
+            description: "The OpenAPIV3Schema of this Composite Resource Definition."
             properties:
               parameters:
                 type: object
                 properties:
                   storageGB:
                     type: integer
+                    description: "The desired storage capacity of the database, in GB."
                 required:
                   - storageGB
             required:
