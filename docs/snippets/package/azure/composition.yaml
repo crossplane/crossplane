@@ -30,6 +30,8 @@ spec:
             location: West US 2
             sslEnforcement: Disabled
             version: "11"
+            storageProfile:
+              storageMB: 5120
             sku:
               tier: GeneralPurpose
               capacity: 2

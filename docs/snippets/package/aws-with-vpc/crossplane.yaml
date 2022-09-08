@@ -3,6 +3,21 @@ kind: Configuration
 metadata:
   name: getting-started-with-aws-with-vpc
   annotations:
+    meta.crossplane.io/maintainer: Crossplane Maintainers <info@crossplane.io>
+    meta.crossplane.io/source: github.com/crossplane/crossplane
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      An introductory example to Crossplane and Composition for AWS.
+    meta.crossplane.io/readme: |
+      An introductory example to Crossplane and Composition for AWS.
+      This will enable provisioning of an RDS database instance.
+      The example also illustrates how to specify a non-default VPC.
+
+      [Install & 
+      Configure](https://crossplane.io/docs/master/getting-started/install-configure.html)
+
+      [Provision a PostgreSQL RDS 
+      Database](https://crossplane.io/docs/master/getting-started/provision-infrastructure.html)
     guide: quickstart
     provider: aws
     vpc: new
