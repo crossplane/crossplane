@@ -131,7 +131,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node, _ ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, errBoom
 							},
 						}
@@ -158,7 +158,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node, _ ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 						}
@@ -194,12 +194,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 						}
@@ -235,12 +230,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 						}
@@ -275,12 +265,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
@@ -327,7 +312,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockAddNode: func(_ dag.Node) error {
@@ -403,12 +388,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package: "not-here-2",
@@ -492,12 +472,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
@@ -592,12 +567,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
