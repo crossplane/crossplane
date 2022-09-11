@@ -24,7 +24,7 @@ var _ dag.DAG = &MockDag{}
 
 // MockDag is a mock DAG.
 type MockDag struct {
-	MockInit             func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error)
+	MockInit             func(nodes []dag.Node) ([]dag.Node, error)
 	MockAddNode          func(dag.Node) error
 	MockAddNodes         func(...dag.Node) error
 	MockAddOrUpdateNodes func(...dag.Node)
@@ -38,8 +38,8 @@ type MockDag struct {
 }
 
 // Init calls the underlying MockInit.
-func (d *MockDag) Init(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-	return d.MockInit(nodes, fns...)
+func (d *MockDag) Init(nodes []dag.Node) ([]dag.Node, error) {
+	return d.MockInit(nodes)
 }
 
 // AddNode calls the underlying MockAddNode.

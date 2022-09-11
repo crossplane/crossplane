@@ -165,7 +165,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, errBoom
 							},
 						}
@@ -201,7 +201,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockSort: func() ([]string, error) {
@@ -240,7 +240,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockSort: func() ([]string, error) {
@@ -279,7 +279,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package: "not.a.valid.package",
@@ -322,7 +322,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-b",
@@ -369,7 +369,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-b",
@@ -417,7 +417,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-c",
@@ -466,7 +466,7 @@ func TestReconcile(t *testing.T) {
 				rec: []ReconcilerOption{
 					WithNewDagFn(func() dag.DAG {
 						return &fakedag.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package:     "hasheddan/config-nop-c",
