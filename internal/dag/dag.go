@@ -33,7 +33,7 @@ type Node interface {
 
 // DAG is a Directed Acyclic Graph.
 type DAG interface {
-	Init(nodes []Node, fns ...NodeFn) ([]Node, error)
+	Init(nodes []Node) ([]Node, error)
 	AddNode(Node) error
 	AddNodes(...Node) error
 	AddOrUpdateNodes(...Node)
@@ -52,20 +52,6 @@ type MapDag struct {
 	nodes map[string]Node
 }
 
-// NodeFn performs executes a function on each node.
-type NodeFn func(int, Node)
-
-// FindIndex searches for the index of a specific node. The passed index
-// parameter will be updated to the index of the node if found, or left
-// unchanged if not.
-func FindIndex(identifier string, index *int) NodeFn {
-	return func(i int, n Node) {
-		if n.Identifier() == identifier {
-			*index = i
-		}
-	}
-}
-
 // NewDAGFn is a function that returns a DAG.
 type NewDAGFn func() DAG
 
@@ -76,15 +62,12 @@ func NewMapDag() DAG {
 
 // Init initializes a MapDag and implies missing destination nodes. Any implied
 // nodes are returned. Any existing nodes are cleared.
-func (d *MapDag) Init(nodes []Node, fns ...NodeFn) ([]Node, error) {
+func (d *MapDag) Init(nodes []Node) ([]Node, error) {
 	d.nodes = map[string]Node{}
 	// Add all nodes before adding edges so we know what nodes were implied.
-	for i, node := range nodes {
+	for _, node := range nodes {
 		if err := d.AddNode(node); err != nil {
 			return nil, err
-		}
-		for _, f := range fns {
-			f(i, node)
 		}
 	}
 	var implied []Node // nolint:prealloc
