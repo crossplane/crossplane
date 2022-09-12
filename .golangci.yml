@@ -108,7 +108,6 @@ linters:
     - govet
     - gocyclo
     - gocritic
-    - interfacer
     - goconst
     - goimports
     - gofmt  # We enable this as well as goimports for its simplify mode.
@@ -117,6 +116,15 @@ linters:
     - unconvert
     - misspell
     - nakedret
+  
+  disable:
+    # These linters are all deprecated as of golangci-lint v1.49.0. We disable
+    # them explicitly to avoid the linter logging deprecation warnings.
+    - deadcode
+    - varcheck
+    - scopelint
+    - structcheck
+    - interfacer
 
   presets:
     - bugs
