@@ -21,8 +21,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
@@ -72,7 +72,7 @@ func ParseCertificatesFromPath(path string) (*x509.CertPool, error) {
 	}
 
 	// Read in the cert file
-	certs, err := ioutil.ReadFile(filepath.Clean(path))
+	certs, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to append %q to RootCAs", path)
 	}
