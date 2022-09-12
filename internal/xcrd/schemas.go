@@ -309,6 +309,11 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 	return []extv1.CustomResourceColumnDefinition{
 		{
+			Name:     "SYNCED",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+		},
+		{
 			Name:     "READY",
 			Type:     "string",
 			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
@@ -330,6 +335,11 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 // columns that should exist in all generated composite resource claim CRDs.
 func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefinition {
 	return []extv1.CustomResourceColumnDefinition{
+		{
+			Name:     "SYNCED",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+		},
 		{
 			Name:     "READY",
 			Type:     "string",
