@@ -38,6 +38,11 @@ var (
 	allowPrivilegeEscalation = false
 	privileged               = false
 	runAsNonRoot             = true
+	doNotPropagate           = []string{
+		// Prevent flux from accidentally garbage collecting generated objects
+		"kustomize.toolkit.fluxcd.io/",
+		"kubectl.kubernetes.io/",
+	}
 )
 
 // Providers are expected to use port 8080 if they expose Prometheus metrics,
@@ -277,9 +282,13 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 // filterAnnotations excludes annotations that are meaningless or unsafe to copy
 func filterAnnotations(in map[string]string) map[string]string {
 	ret := make(map[string]string)
+
+nextLabel:
 	for label, value := range in {
-		if strings.HasPrefix(label, "kustomize.toolkit.fluxcd.io/") || strings.HasPrefix(label, "kubectl.kubernetes.io/") {
-			continue
+		for _, labelPrefix := range doNotPropagate {
+			if strings.HasPrefix(label, labelPrefix) {
+				continue nextLabel
+			}
 		}
 		ret[label] = value
 	}
