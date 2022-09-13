@@ -135,6 +135,277 @@ func TestMapResolve(t *testing.T) {
 	}
 }
 
+func TestMatchResolve(t *testing.T) {
+	asJSON := func(val interface{}) extv1.JSON {
+		raw, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res := extv1.JSON{}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
+	type args struct {
+		m MatchTransform
+		i any
+	}
+	type want struct {
+		o   any
+		err error
+	}
+
+	cases := map[string]struct {
+		args
+		want
+	}{
+		"ErrNonStringInput": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("5"),
+						},
+					},
+				},
+				i: 5,
+			},
+			want: want{
+				err: errors.Wrapf(errors.Errorf(errFmtMatchInputTypeInvalid, "int"), errFmtMatchPattern, 0),
+			},
+		},
+		"NoPatternsFallback": {
+			args: args{
+				m: MatchTransform{
+					Patterns:      []MatchTransformPattern{},
+					FallbackValue: asJSON("bar"),
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "bar",
+			},
+		},
+		"NoPatternsFallbackNil": {
+			args: args{
+				m: MatchTransform{
+					Patterns:      []MatchTransformPattern{},
+					FallbackValue: asJSON(nil),
+				},
+				i: "foo",
+			},
+			want: want{},
+		},
+		"MatchLiteral": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result:  asJSON("bar"),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "bar",
+			},
+		},
+		"MatchLiteralFirst": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result:  asJSON("bar"),
+						},
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result:  asJSON("not this"),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "bar",
+			},
+		},
+		"MatchLiteralWithResultStruct": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result: asJSON(map[string]interface{}{
+								"Hello": "World",
+							}),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{
+				o: map[string]interface{}{
+					"Hello": "World",
+				},
+			},
+		},
+		"MatchLiteralWithResultSlice": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result: asJSON([]string{
+								"Hello", "World",
+							}),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{
+				o: []any{
+					"Hello", "World",
+				},
+			},
+		},
+		"MatchLiteralWithResultNumber": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result:  asJSON(5),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{
+				o: 5.0,
+			},
+		},
+		"MatchLiteralWithResultBool": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result:  asJSON(true),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{
+				o: true,
+			},
+		},
+		"MatchLiteralWithResultNil": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:    MatchTransformPatternTypeLiteral,
+							Literal: pointer.String("foo"),
+							Result:  asJSON(nil),
+						},
+					},
+				},
+				i: "foo",
+			},
+			want: want{},
+		},
+		"MatchRegexp": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:   MatchTransformPatternTypeRegexp,
+							Regexp: pointer.String("^foo.*$"),
+							Result: asJSON("Hello World"),
+						},
+					},
+				},
+				i: "foobar",
+			},
+			want: want{
+				o: "Hello World",
+			},
+		},
+		"ErrMissingRegexp": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type: MatchTransformPatternTypeRegexp,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "regexp", string(MatchTransformPatternTypeRegexp)), errFmtMatchPattern, 0),
+			},
+		},
+		"ErrInvalidRegexp": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type:   MatchTransformPatternTypeRegexp,
+							Regexp: pointer.String("?="),
+						},
+					},
+				},
+			},
+			want: want{
+				// This might break if Go's regexp changes its internal error
+				// messages:
+				err: errors.Wrapf(errors.Wrapf(errors.Wrap(errors.Wrap(errors.New("`?`"), "missing argument to repetition operator"), "error parsing regexp"), errMatchRegexpCompile), errFmtMatchPattern, 0),
+			},
+		},
+		"ErrMissingLiteral": {
+			args: args{
+				m: MatchTransform{
+					Patterns: []MatchTransformPattern{
+						{
+							Type: MatchTransformPatternTypeLiteral,
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "literal", string(MatchTransformPatternTypeLiteral)), errFmtMatchPattern, 0),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.args.m.Resolve(tc.i)
+
+			if diff := cmp.Diff(tc.want.o, got); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestMathResolve(t *testing.T) {
 	m := int64(2)
 

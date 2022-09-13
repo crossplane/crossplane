@@ -44,6 +44,13 @@ const (
 	errFmtMapNotFound                  = "key %s is not found in map"
 	errFmtMapInvalidJSON               = "value for key %s is not valid JSON"
 
+	errFmtMatchPattern            = "cannot match pattern at index %d"
+	errFmtMatchParseResult        = "cannot parse result of pattern at index %d"
+	errMatchParseFallbackValue    = "cannot parse fallback value"
+	errFmtMatchPatternTypeInvalid = "unsupported pattern type '%s'"
+	errFmtMatchInputTypeInvalid   = "unsupported input type '%s'"
+	errMatchRegexpCompile         = "cannot compile regexp"
+
 	errStringTransformTypeFailed        = "type %s is not supported for string transform type"
 	errStringTransformTypeFormat        = "string transform of type %s fmt is not set"
 	errStringTransformTypeConvert       = "string transform of type %s convert is not set"
@@ -62,6 +69,7 @@ type TransformType string
 // Accepted TransformTypes.
 const (
 	TransformTypeMap     TransformType = "map"
+	TransformTypeMatch   TransformType = "match"
 	TransformTypeMath    TransformType = "math"
 	TransformTypeString  TransformType = "string"
 	TransformTypeConvert TransformType = "convert"
@@ -84,6 +92,10 @@ type Transform struct {
 	// +optional
 	Map *MapTransform `json:"map,omitempty"`
 
+	// Match is a more complex version of Map that matches a list of patterns.
+	// +optional
+	Match *MatchTransform `json:"match,omitempty"`
+
 	// String is used to transform the input into a string or a different kind
 	// of string. Note that the input does not necessarily need to be a string.
 	// +optional
@@ -104,6 +116,8 @@ func (t *Transform) Transform(input any) (any, error) {
 		transformer = t.Math
 	case TransformTypeMap:
 		transformer = t.Map
+	case TransformTypeMatch:
+		transformer = t.Match
 	case TransformTypeString:
 		transformer = t.String
 	case TransformTypeConvert:
@@ -186,6 +200,127 @@ func (m *MapTransform) Resolve(input any) (any, error) {
 	default:
 		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
 	}
+}
+
+// MatchTransform is a more complex version of a map transform that matches a
+// list of patterns.
+type MatchTransform struct {
+	// The patterns that should be tested against the input string.
+	// Patterns are tested in order. The value of the first match is used as
+	// result of this transform.
+	Patterns []MatchTransformPattern `json:"patterns,omitempty"`
+
+	// The fallback value that should be returned by the transform if now pattern
+	// matches.
+	FallbackValue extv1.JSON `json:"fallbackValue,omitempty"`
+}
+
+// Resolve runs the Match transform.
+func (m *MatchTransform) Resolve(input any) (any, error) {
+	var output any
+	for i, p := range m.Patterns {
+		matches, err := p.Matches(input)
+		if err != nil {
+			return nil, errors.Wrapf(err, errFmtMatchPattern, i)
+		}
+		if matches {
+			if err := unmarshalJSON(p.Result, &output); err != nil {
+				return nil, errors.Wrapf(err, errFmtMatchParseResult, i)
+			}
+			return output, nil
+		}
+	}
+	// Use fallback value if no pattern matches (or if there are no patterns)
+	if err := unmarshalJSON(m.FallbackValue, &output); err != nil {
+		return nil, errors.Wrap(err, errMatchParseFallbackValue)
+	}
+	return output, nil
+}
+
+// MatchTransformPatternType defines the type of a MatchTransformPattern.
+type MatchTransformPatternType string
+
+// Valid MatchTransformPatternTypes.
+const (
+	MatchTransformPatternTypeLiteral MatchTransformPatternType = "literal"
+	MatchTransformPatternTypeRegexp  MatchTransformPatternType = "regexp"
+)
+
+// MatchTransformPattern is a transform that returns the value that matches a
+// pattern.
+type MatchTransformPattern struct {
+	// Type specifies how the pattern matches the input.
+	//
+	// * `literal` - the pattern value has to exactly match (case sensitive) the
+	// input string. This is the default.
+	//
+	// * `regexp` - the pattern treated as a regular expression against
+	// which the input string is tested. Crossplane will throw an error if the
+	// key is not a valid regexp.
+	//
+	// +kubebuilder:validation:Enum=literal;regexp
+	// +kubebuilder:default=literal
+	Type MatchTransformPatternType `json:"type"`
+
+	// Literal exactly matches the input string (case sensitive).
+	// Is required if `type` is `literal`.
+	Literal *string `json:"literal,omitempty"`
+
+	// Regexp to match against the input string.
+	// Is required if `type` is `regexp`.
+	Regexp *string `json:"regexp,omitempty"`
+
+	// The value that is used as result of the transform if the pattern matches.
+	Result extv1.JSON `json:"result"`
+}
+
+// Resolve runs the Map transform.
+func (p *MatchTransformPattern) Matches(input any) (bool, error) {
+	switch p.Type {
+	case MatchTransformPatternTypeLiteral:
+		return p.matchLiteral(input)
+	case MatchTransformPatternTypeRegexp:
+		return p.matchRegexp(input)
+	}
+	return false, errors.Errorf(errFmtMatchPatternTypeInvalid, string(p.Type))
+}
+
+func (p *MatchTransformPattern) matchLiteral(input any) (bool, error) {
+	if p.Literal == nil {
+		return false, errors.Errorf(errFmtRequiredField, "literal", string(MatchTransformPatternTypeLiteral))
+	}
+	inputStr, ok := input.(string)
+	if !ok {
+		return false, errors.Errorf(errFmtMatchInputTypeInvalid, reflect.TypeOf(input).String())
+	}
+	return inputStr == *p.Literal, nil
+}
+
+func (p *MatchTransformPattern) matchRegexp(input any) (bool, error) {
+	if p.Regexp == nil {
+		return false, errors.Errorf(errFmtRequiredField, "regexp", string(MatchTransformPatternTypeRegexp))
+	}
+	re, err := regexp.Compile(*p.Regexp)
+	if err != nil {
+		return false, errors.Wrap(err, errMatchRegexpCompile)
+	}
+	if input == nil {
+		return false, errors.Errorf(errFmtMatchInputTypeInvalid, "null")
+	}
+	inputStr, ok := input.(string)
+	if !ok {
+		return false, errors.Errorf(errFmtMatchInputTypeInvalid, reflect.TypeOf(input).String())
+	}
+	return re.MatchString(inputStr), nil
+}
+
+// unmarshalJSON is a small utility function that returns nil if j contains no
+// data. json.Unmarshal seems to not be able to handle this.
+func unmarshalJSON(j extv1.JSON, output *any) error {
+	if len(j.Raw) == 0 {
+		return nil
+	}
+	return json.Unmarshal(j.Raw, output)
 }
 
 // StringTransformType transforms a string.
