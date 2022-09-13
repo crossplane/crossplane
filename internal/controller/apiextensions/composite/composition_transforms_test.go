@@ -23,6 +23,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -750,8 +751,9 @@ func TestStringResolve(t *testing.T) {
 
 func TestConvertResolve(t *testing.T) {
 	type args struct {
-		to string
-		i  any
+		to     string
+		format *v1.ConvertTransformFormat
+		i      any
 	}
 	type want struct {
 		o   any
@@ -769,6 +771,35 @@ func TestConvertResolve(t *testing.T) {
 			},
 			want: want{
 				o: true,
+			},
+		},
+		"StringToFloat64": {
+			args: args{
+				i:  "1000",
+				to: v1.ConvertTransformTypeFloat64,
+			},
+			want: want{
+				o: 1000.0,
+			},
+		},
+		"StringToQuantityFloat64": {
+			args: args{
+				i:      "1000m",
+				to:     v1.ConvertTransformTypeFloat64,
+				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
+			},
+			want: want{
+				o: 1.0,
+			},
+		},
+		"StringToQuantityFloat64InvalidFormat": {
+			args: args{
+				i:      "1000 blabla",
+				to:     v1.ConvertTransformTypeFloat64,
+				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
+			},
+			want: want{
+				err: resource.ErrFormatWrong,
 			},
 		},
 		"SameTypeNoOp": {
@@ -798,19 +829,29 @@ func TestConvertResolve(t *testing.T) {
 				err: errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String()),
 			},
 		},
+		"ConversionPairFormatNotSupported": {
+			args: args{
+				i:      100,
+				to:     v1.ConvertTransformTypeString,
+				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
+			},
+			want: want{
+				err: errors.Errorf(errConvertFormatPairNotSupported, "int", "string", string(v1.ConvertTransformFormatQuantity)),
+			},
+		},
 		"ConversionPairNotSupported": {
 			args: args{
 				i:  "[64]",
 				to: "[]int",
 			},
 			want: want{
-				err: errors.Errorf(errFmtConversionPairNotSupported, "string", "[]int"),
+				err: errors.Errorf(errConvertFormatPairNotSupported, "string", "[]int", string(v1.ConvertTransformFormatNone)),
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tr := v1.ConvertTransform{ToType: tc.args.to}
+			tr := v1.ConvertTransform{ToType: tc.args.to, Format: tc.format}
 			got, err := ResolveConvert(tr, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {

@@ -245,6 +245,12 @@ func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1beta1ContainerFu
 func (c *GeneratedRevisionSpecConverter) v1ConvertTransformToV1beta1ConvertTransform(source ConvertTransform) v1beta1.ConvertTransform {
 	var v1beta1ConvertTransform v1beta1.ConvertTransform
 	v1beta1ConvertTransform.ToType = source.ToType
+	var pV1beta1ConvertTransformFormat *v1beta1.ConvertTransformFormat
+	if source.Format != nil {
+		v1beta1ConvertTransformFormat := v1beta1.ConvertTransformFormat(*source.Format)
+		pV1beta1ConvertTransformFormat = &v1beta1ConvertTransformFormat
+	}
+	v1beta1ConvertTransform.Format = pV1beta1ConvertTransformFormat
 	return v1beta1ConvertTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1DurationToV1Duration(source v11.Duration) v11.Duration {
@@ -759,6 +765,12 @@ func (c *GeneratedRevisionSpecConverter) v1beta1ContainerFunctionToV1ContainerFu
 func (c *GeneratedRevisionSpecConverter) v1beta1ConvertTransformToV1ConvertTransform(source v1beta1.ConvertTransform) ConvertTransform {
 	var v1ConvertTransform ConvertTransform
 	v1ConvertTransform.ToType = source.ToType
+	var pV1ConvertTransformFormat *ConvertTransformFormat
+	if source.Format != nil {
+		v1ConvertTransformFormat := ConvertTransformFormat(*source.Format)
+		pV1ConvertTransformFormat = &v1ConvertTransformFormat
+	}
+	v1ConvertTransform.Format = pV1ConvertTransformFormat
 	return v1ConvertTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentConfigurationToV1EnvironmentConfiguration(source v1beta1.EnvironmentConfiguration) EnvironmentConfiguration {
