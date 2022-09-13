@@ -66,8 +66,6 @@ func toNodes(n []simpleNode) []Node {
 
 var _ DAG = &MapDag{}
 var _ NewDAGFn = NewMapDag
-var t int = 1
-var _ NodeFn = FindIndex("", &t)
 
 func sortedFnNop([]simpleNode, []string) error {
 	return nil
