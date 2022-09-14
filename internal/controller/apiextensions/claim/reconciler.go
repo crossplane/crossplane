@@ -401,6 +401,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Successfully deleted composite resource")
 		record.Event(cm, event.Normal(reasonDelete, "Successfully deleted composite resource"))
 
+		// If cp has a creation timestamp, it still does exist.
+		if meta.WasCreated(cp) {
+			log.Debug("Postponed deletion of claim because composite resource claim is still alive")
+			cm.SetConditions(xpv1.ReconcileSuccess())
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+		}
+
 		if err := r.claim.RemoveFinalizer(ctx, cm); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)

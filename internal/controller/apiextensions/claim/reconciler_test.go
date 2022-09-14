@@ -215,6 +215,45 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
+		"SuccessfulPostponeDelete": {
+			reason: "We should not delete the claim while the composite is still alive.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+							if key.Name == "composite" {
+								obj.SetCreationTimestamp(now)
+							}
+							return nil
+						},
+					},
+				},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockDelete: test.NewMockDeleteFn(nil),
+						},
+					}),
+					WithClaimFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error { return errBoom },
+					}),
+				},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName("claim")
+					o.SetDeletionTimestamp(&now)
+					o.SetResourceReference(&corev1.ObjectReference{Name: "composite"})
+				}),
+			},
+			want: want{
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetName("claim")
+					o.SetDeletionTimestamp(&now)
+					o.SetResourceReference(&corev1.ObjectReference{Name: "composite"})
+					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
+				}),
+				r: reconcile.Result{Requeue: true},
+			},
+		},
 		"RemoveFinalizerError": {
 			reason: "We should return any error we encounter while removing the claim's finalizer",
 			args: args{
