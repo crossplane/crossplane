@@ -24,8 +24,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -53,6 +56,7 @@ const (
 	errUpdateComposite                 = "cannot update composite resource"
 	errCompositionNotCompatible        = "referenced composition is not compatible with this composite resource"
 	errGetXRD                          = "cannot get composite resource definition"
+	errFmtGetComposedResourceAtIndex   = "cannot get composed resource at index %d"
 )
 
 // Event reasons.
@@ -427,4 +431,38 @@ func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Compo
 	}
 	meta.AddLabels(cp, map[string]string{xcrd.LabelKeyNamePrefixForComposed: cp.GetName()})
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
+}
+
+// An APIDeletableChecker checks if composite resource can be deleted.
+type APIDeletableChecker struct {
+	client client.Client
+}
+
+// NewAPIDeletableChecker creates a new APIDeletableChecker.
+func NewAPIDeletableChecker(c client.Client) *APIDeletableChecker {
+	return &APIDeletableChecker{c}
+}
+
+// IsDeleted checks if cr can be deleted (aka have it's finalizer removed).
+//
+// A composite resource can be deleted if all of its composed resources are
+// gone.
+func (c *APIDeletableChecker) IsDeletable(ctx context.Context, cr resource.Composite) (bool, error) {
+	for i, ref := range cr.GetResourceReferences() {
+		nn := types.NamespacedName{
+			Namespace: ref.Namespace,
+			Name:      ref.Name,
+		}
+		obj := unstructured.Unstructured{}
+		// Don't delete the composite if at least one composed resource is still
+		// alive.
+		err := c.client.Get(ctx, nn, &obj)
+		if err == nil { // Resource still exists
+			return false, nil
+		}
+		if !k8serrors.IsNotFound(err) {
+			return false, errors.Wrapf(err, errFmtGetComposedResourceAtIndex, i)
+		}
+	}
+	return true, nil
 }

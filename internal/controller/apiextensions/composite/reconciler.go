@@ -54,6 +54,7 @@ const (
 	errUpdateStatus    = "cannot update composite resource status"
 	errAddFinalizer    = "cannot add composite resource finalizer"
 	errRemoveFinalizer = "cannot remove composite resource finalizer"
+	errIsDeletable     = "cannot determine if the composite resource is deletable"
 	errSelectComp      = "cannot select Composition"
 	errFetchComp       = "cannot fetch Composition"
 	errConfigure       = "cannot configure composite resource"
@@ -165,6 +166,19 @@ func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, 
 	return fn(ctx, cd, t)
 }
 
+// A DeletableChecker checks if a composite resource can be deleted.
+type DeletableChecker interface {
+	IsDeletable(ctx context.Context, cr resource.Composite) (bool, error)
+}
+
+// A DeletableCheckerFn checks if a composed resource is deleted or not.
+type DeletableCheckerFn func(ctx context.Context, cr resource.Composite) (bool, error)
+
+// IsDeletable checks if a composite resource can be deleted.
+func (fn DeletableCheckerFn) IsDeletable(ctx context.Context, cr resource.Composite) (bool, error) {
+	return fn(ctx, cr)
+}
+
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -248,6 +262,14 @@ func WithReadinessChecker(c ReadinessChecker) ReconcilerOption {
 	}
 }
 
+// WithDeletableChecker specifies how the controller should determine if a
+// composite resource can be deleted.
+func WithDeletableChecker(c DeletableChecker) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.DeletableChecker = c
+	}
+}
+
 // WithCompositeFinalizer specifies how the composition to be used should be
 // selected.
 // WithCompositeFinalizer specifies which Finalizer should be used to finalize
@@ -301,6 +323,7 @@ type compositeResource struct {
 	Configurator
 	Renderer
 	managed.ConnectionPublisher
+	DeletableChecker
 }
 
 type composedResource struct {
@@ -335,6 +358,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 			Renderer:            RendererFn(RenderComposite),
+			DeletableChecker:    NewAPIDeletableChecker(kube),
 		},
 
 		composed: composedResource{
@@ -413,6 +437,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(cr, event.Warning(reasonDelete, err))
 			cr.SetConditions(xpv1.ReconcileError(err))
 			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		}
+
+		isDeletable, err := r.composite.IsDeletable(ctx, cr)
+		if err != nil {
+			log.Debug(errIsDeletable, "error", err)
+			err = errors.Wrap(err, errIsDeletable)
+			r.record.Event(cr, event.Warning(reasonDelete, err))
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		}
+		if !isDeletable {
+			log.Debug("Postponed deletion because some composed resources are still alive")
+			cr.SetConditions(xpv1.ReconcileSuccess())
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		if err := r.composite.RemoveFinalizer(ctx, cr); err != nil {

@@ -21,6 +21,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -1050,6 +1051,98 @@ func TestAPINamingConfigurator(t *testing.T) {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.cp, tc.args.cp); diff != "" {
+				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIDeletableChecker(t *testing.T) {
+	type args struct {
+		kube client.Client
+		cp   resource.Composite
+	}
+	type want struct {
+		isDeletable bool
+		err         error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want
+	}{
+		"DeletableIfNoComposedExists": {
+			reason: "The composite resource should be deletable if all composed resources are gone.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(k8serrors.NewNotFound(corev1.Resource("test"), "test")),
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{
+						{Name: "child-1"},
+					}},
+				},
+			},
+			want: want{
+				isDeletable: true,
+			},
+		},
+		"NotDeletableIfComposedExists": {
+			reason: "The composite resource should not be deletable if at least one composed resource still exists.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "child-1" {
+							return k8serrors.NewNotFound(corev1.Resource("test"), key.Name)
+						}
+						return nil
+					},
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{
+						{Name: "child-1"},
+						{Name: "child-2"},
+					}},
+				},
+			},
+			want: want{
+				isDeletable: false,
+			},
+		},
+		"ErrGetComposed": {
+			reason: "kube.Get errors except NotFound should be propagated upwards.",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						if key.Name == "child-1" {
+							return k8serrors.NewNotFound(corev1.Resource("test"), key.Name)
+						}
+						return errBoom
+					},
+				},
+				cp: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{
+						{Name: "child-1"},
+						{Name: "child-2"},
+					}},
+				},
+			},
+			want: want{
+				isDeletable: false,
+				err:         errors.Wrapf(errBoom, errFmtGetComposedResourceAtIndex, 1),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := NewAPIDeletableChecker(tc.args.kube)
+			got, err := c.IsDeletable(context.Background(), tc.args.cp)
+
+			if diff := cmp.Diff(tc.want.isDeletable, got); diff != "" {
+				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

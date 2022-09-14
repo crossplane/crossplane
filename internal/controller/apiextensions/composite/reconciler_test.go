@@ -177,6 +177,90 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
+		"RemoveFinalizerWait": {
+			reason: "We should wait for the composite to be deletable before removing all finalizers.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									now := metav1.Now()
+									o.SetDeletionTimestamp(&now)
+									o.SetFinalizers([]string{"test"})
+								}
+								return nil
+							}),
+						},
+					}),
+					WithDeletableChecker(DeletableCheckerFn(func(ctx context.Context, cr resource.Composite) (bool, error) {
+						return false, nil
+					})),
+					WithCompositeFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error {
+							obj.SetFinalizers([]string{})
+							return nil
+						},
+					}),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+							return nil
+						},
+					}),
+				},
+			},
+			want: want{
+				composite: withComposite(func(o resource.Composite) {
+					o.SetDeletionTimestamp(&now)
+					o.SetFinalizers([]string{"test"})
+					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
+				}),
+				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"SuccessfulRemoveFinalizer": {
+			reason: "We should the finalizer from the composite when its deletable.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								if o, ok := obj.(*composite.Unstructured); ok {
+									now := metav1.Now()
+									o.SetDeletionTimestamp(&now)
+									o.SetFinalizers([]string{"test"})
+								}
+								return nil
+							}),
+						},
+					}),
+					WithDeletableChecker(DeletableCheckerFn(func(ctx context.Context, cr resource.Composite) (bool, error) {
+						return true, nil
+					})),
+					WithCompositeFinalizer(resource.FinalizerFns{
+						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error {
+							obj.SetFinalizers([]string{})
+							return nil
+						},
+					}),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						UnpublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) error {
+							return nil
+						},
+					}),
+				},
+			},
+			want: want{
+				composite: withComposite(func(o resource.Composite) {
+					o.SetDeletionTimestamp(&now)
+					o.SetFinalizers([]string{})
+					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
+				}),
+				r: reconcile.Result{Requeue: false},
+			},
+		},
 		"SuccessfulDelete": {
 			reason: "We should return no error when deleted successfully.",
 			args: args{
