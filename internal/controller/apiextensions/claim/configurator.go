@@ -66,7 +66,7 @@ func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfi
 // composite may or may not have been created in the API server when passed to
 // this method. The configured composite may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { // nolint:gocyclo
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -105,6 +105,15 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	// rename anything after the fact.
 	if meta.WasCreated(ucp) && en != "" {
 		meta.SetExternalName(ucp, en)
+	}
+
+	// If the claim has any external finalizers, put a finalizer on the composite to reflect the dependency.
+	// This will block deletion of the composite resource until the claim has no external/additional finalizers.
+	f := string(ucm.GetUID()) + ".claim.crossplane.io"
+	if len(cm.GetFinalizers()) > 1 {
+		meta.AddFinalizer(ucp, f)
+	} else {
+		meta.RemoveFinalizer(ucp, f)
 	}
 
 	// We want to propagate the claim's spec to the composite's spec, but

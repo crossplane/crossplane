@@ -361,6 +361,15 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		SetCompositionResourceName(cd, *t.Name)
 	}
 
+	// If the composite has any external finalizers on it, put a finalizer on the composed resource to reflect the dependency.
+	// This will block deletion of the composed resource until the composite has no external/additional finalizers.
+	f := string(cp.GetUID()) + ".composite.crossplane.io"
+	if len(cp.GetFinalizers()) > 1 {
+		meta.AddFinalizer(cd, f)
+	} else {
+		meta.RemoveFinalizer(cd, f)
+	}
+
 	// We do this last to ensure that a Composition cannot influence controller references.
 	or := meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind()))
 	if err := meta.AddControllerReference(cd, or); err != nil {

@@ -289,6 +289,63 @@ func TestRender(t *testing.T) {
 				}},
 			},
 		},
+		"SuccessAddFinalizer": {
+			reason: "Configuration should result in the right object with correct generateName and a finalizer added",
+			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
+			args: args{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					xcrd.LabelKeyNamePrefixForComposed: "ola",
+					xcrd.LabelKeyClaimName:             "rola",
+					xcrd.LabelKeyClaimNamespace:        "rolans",
+				},
+					Finalizers: []string{"composite.apiextensions.crossplane.io", "testfinalizer"},
+					UID:        "testuid"}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
+				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					Name:         "cd",
+					GenerateName: "ola-",
+					Labels: map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "ola",
+						xcrd.LabelKeyClaimName:             "rola",
+						xcrd.LabelKeyClaimNamespace:        "rolans",
+					},
+					Finalizers:      []string{"testuid.composite.crossplane.io"},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl, UID: "testuid"}},
+				}},
+			},
+		},
+		"SuccessRemoveFinalizer": {
+			reason: "Configuration should result in the right object with correct generateName and remove the finalizer",
+			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
+			args: args{
+				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
+					xcrd.LabelKeyNamePrefixForComposed: "ola",
+					xcrd.LabelKeyClaimName:             "rola",
+					xcrd.LabelKeyClaimNamespace:        "rolans",
+				},
+					Finalizers: []string{"composite.apiextensions.crossplane.io"},
+					UID:        "testuid"}},
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd",
+					Finalizers: []string{"testuid.composite.crossplane.io"}}},
+				t: v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
+			},
+			want: want{
+				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
+					Name:         "cd",
+					GenerateName: "ola-",
+					Labels: map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "ola",
+						xcrd.LabelKeyClaimName:             "rola",
+						xcrd.LabelKeyClaimNamespace:        "rolans",
+					},
+					Finalizers:      []string{},
+					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl, UID: "testuid"}},
+				}},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
