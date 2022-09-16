@@ -657,9 +657,9 @@ composed resource.
 
 ```yaml
 # Always sets the XR's 'user' connection detail to 'admin'.
-- type: FromFieldPath
+- type: FromValue
   name: user
-  fromValue: admin
+  value: admin
 ```
 
 ### Readiness Checks
