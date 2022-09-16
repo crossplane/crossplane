@@ -98,7 +98,7 @@ crds.clean:
 generate.run: gen-kustomize-crds gen-install-doc gen-chart-license
 
 gen-chart-license:
-    @cp LICENSE cluster/charts/crossplane/LICENSE
+	@cp -f LICENSE cluster/charts/crossplane/LICENSE
 
 generate.done: crds.clean
 
