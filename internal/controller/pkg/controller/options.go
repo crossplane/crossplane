@@ -34,6 +34,9 @@ type Options struct {
 	// Namespace used to unpack and run packages.
 	Namespace string
 
+	// ServiceAccount is the core Crossplane ServiceAccount name.
+	ServiceAccount string
+
 	// DefaultRegistry used to pull packages.
 	DefaultRegistry string
 
