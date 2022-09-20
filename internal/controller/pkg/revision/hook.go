@@ -36,7 +36,8 @@ import (
 const (
 	errNotProvider                   = "not a provider package"
 	errNotProviderRevision           = "not a provider revision"
-	errControllerConfig              = "cannot get referenced controller config"
+	errGetControllerConfig           = "cannot get referenced controller config"
+	errGetServiceAccount             = "cannot get Crossplane service account"
 	errDeleteProviderDeployment      = "cannot delete provider package deployment"
 	errDeleteProviderSA              = "cannot delete provider package service account"
 	errDeleteProviderService         = "cannot delete provider package service"
@@ -58,15 +59,17 @@ type Hooks interface {
 // ProviderHooks performs operations for a provider package that requires a
 // controller before and after the revision establishes objects.
 type ProviderHooks struct {
-	client    resource.ClientApplicator
-	namespace string
+	client         resource.ClientApplicator
+	namespace      string
+	serviceAccount string
 }
 
 // NewProviderHooks creates a new ProviderHooks.
-func NewProviderHooks(client resource.ClientApplicator, namespace string) *ProviderHooks {
+func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccount string) *ProviderHooks {
 	return &ProviderHooks{
-		client:    client,
-		namespace: namespace,
+		client:         client,
+		namespace:      namespace,
+		serviceAccount: serviceAccount,
 	}
 }
 
@@ -92,11 +95,10 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	if pr.GetDesiredState() != v1.PackageRevisionInactive {
 		return nil
 	}
-	cc, err := h.getControllerConfig(ctx, pr)
-	if err != nil {
-		return errors.Wrap(err, errControllerConfig)
-	}
-	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
+
+	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
+	// they aren't needed to delete Deployment, ServiceAccount, and Service.
+	s, d, svc := buildProviderDeployment(pkgProvider, pr, nil, h.namespace, []corev1.LocalObjectReference{})
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
@@ -122,9 +124,13 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 	cc, err := h.getControllerConfig(ctx, pr)
 	if err != nil {
-		return errors.Wrap(err, errControllerConfig)
+		return err
 	}
-	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace)
+	ps, err := h.getSAPullSecrets(ctx)
+	if err != nil {
+		return err
+	}
+	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
@@ -149,15 +155,24 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	return nil
 }
 
-func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
-	var cc *v1alpha1.ControllerConfig
-	if pr.GetControllerConfigRef() != nil {
-		cc = &v1alpha1.ControllerConfig{}
-		if err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc); err != nil {
-			return nil, errors.Wrap(err, errControllerConfig)
-		}
+func (h *ProviderHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
+	sa := &corev1.ServiceAccount{}
+	if err := h.client.Get(ctx, types.NamespacedName{
+		Namespace: h.namespace,
+		Name:      h.serviceAccount,
+	}, sa); err != nil {
+		return []corev1.LocalObjectReference{}, errors.Wrap(err, errGetServiceAccount)
 	}
-	return cc, nil
+	return sa.ImagePullSecrets, nil
+}
+
+func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+	if pr.GetControllerConfigRef() == nil {
+		return nil, nil
+	}
+	cc := &v1alpha1.ControllerConfig{}
+	err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc)
+	return cc, errors.Wrap(err, errGetControllerConfig)
 }
 
 // ConfigurationHooks performs operations for a configuration package before and
