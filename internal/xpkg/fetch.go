@@ -54,9 +54,10 @@ type Fetcher interface {
 
 // K8sFetcher uses kubernetes credentials to fetch package images.
 type K8sFetcher struct {
-	client    kubernetes.Interface
-	namespace string
-	transport http.RoundTripper
+	client         kubernetes.Interface
+	namespace      string
+	serviceAccount string
+	transport      http.RoundTripper
 }
 
 // FetcherOpt can be used to add optional parameters to NewK8sFetcher
@@ -98,11 +99,28 @@ func WithCustomCA(rootCAs *x509.CertPool) FetcherOpt {
 	}
 }
 
+// WithNamespace is a FetcherOpt that sets the Namespace for fetching package
+// pull secrets.
+func WithNamespace(ns string) FetcherOpt {
+	return func(k *K8sFetcher) error {
+		k.namespace = ns
+		return nil
+	}
+}
+
+// WithServiceAccount is a FetcherOpt that sets the ServiceAccount name for
+// fetching package pull secrets.
+func WithServiceAccount(sa string) FetcherOpt {
+	return func(k *K8sFetcher) error {
+		k.serviceAccount = sa
+		return nil
+	}
+}
+
 // NewK8sFetcher creates a new K8sFetcher.
-func NewK8sFetcher(client kubernetes.Interface, namespace string, opts ...FetcherOpt) (*K8sFetcher, error) {
+func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher, error) {
 	k := &K8sFetcher{
 		client:    client,
-		namespace: namespace,
 		transport: remote.DefaultTransport.Clone(),
 	}
 
@@ -118,8 +136,9 @@ func NewK8sFetcher(client kubernetes.Interface, namespace string, opts ...Fetche
 // Fetch fetches a package image.
 func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
-		Namespace:        i.namespace,
-		ImagePullSecrets: secrets,
+		Namespace:          i.namespace,
+		ServiceAccountName: i.serviceAccount,
+		ImagePullSecrets:   secrets,
 	})
 	if err != nil {
 		return nil, err
@@ -130,8 +149,9 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 // Head fetches a package descriptor.
 func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
-		Namespace:        i.namespace,
-		ImagePullSecrets: secrets,
+		Namespace:          i.namespace,
+		ServiceAccountName: i.serviceAccount,
+		ImagePullSecrets:   secrets,
 	})
 	if err != nil {
 		return nil, err
@@ -150,8 +170,9 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 // Tags fetches a package's tags.
 func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
-		Namespace:        i.namespace,
-		ImagePullSecrets: secrets,
+		Namespace:          i.namespace,
+		ServiceAccountName: i.serviceAccount,
+		ImagePullSecrets:   secrets,
 	})
 	if err != nil {
 		return nil, err
