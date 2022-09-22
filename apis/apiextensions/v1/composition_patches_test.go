@@ -17,11 +17,13 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 
@@ -923,6 +925,18 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 }
 
 func TestComposedTemplates(t *testing.T) {
+	asJSON := func(val interface{}) extv1.JSON {
+		raw, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res := extv1.JSON{}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
+	}
+
 	type args struct {
 		cs CompositionSpec
 	}
@@ -1025,9 +1039,9 @@ func TestComposedTemplates(t *testing.T) {
 									Transforms: []Transform{{
 										Type: TransformTypeMap,
 										Map: &MapTransform{
-											Pairs: map[string]string{
-												"k-1": "v-1",
-												"k-2": "v-2",
+											Pairs: map[string]extv1.JSON{
+												"k-1": asJSON("v-1"),
+												"k-2": asJSON("v-2"),
 											},
 										},
 									}},
@@ -1078,9 +1092,9 @@ func TestComposedTemplates(t *testing.T) {
 								Transforms: []Transform{{
 									Type: TransformTypeMap,
 									Map: &MapTransform{
-										Pairs: map[string]string{
-											"k-1": "v-1",
-											"k-2": "v-2",
+										Pairs: map[string]extv1.JSON{
+											"k-1": asJSON("v-1"),
+											"k-2": asJSON("v-2"),
 										},
 									},
 								}},

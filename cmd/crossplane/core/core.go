@@ -61,6 +61,7 @@ func (c *Command) Run() error {
 
 type startCommand struct {
 	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	ServiceAccount       string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
 	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
 	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
 	Registry             string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
@@ -130,6 +131,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Options:              o,
 		Cache:                xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
 		Namespace:            c.Namespace,
+		ServiceAccount:       c.ServiceAccount,
 		DefaultRegistry:      c.Registry,
 		Features:             feats,
 		WebhookTLSSecretName: c.WebhookTLSSecretName,

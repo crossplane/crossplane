@@ -2,7 +2,6 @@
 title: Configuring Crossplane with Argo CD
 weight: 270
 ---  
- 
 
 [Argo CD](https://argoproj.github.io/cd/) and [Crossplane](https://crossplane.io)
 are a great combination. Argo CD provides GitOps while Crossplane turns any Kubernetes

@@ -17,6 +17,8 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+
 	"github.com/alecthomas/kong"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -33,12 +35,16 @@ import (
 	"github.com/crossplane/crossplane/apis"
 	"github.com/crossplane/crossplane/cmd/crossplane/core"
 	"github.com/crossplane/crossplane/cmd/crossplane/rbac"
+	"github.com/crossplane/crossplane/internal/version"
 )
 
 type debugFlag bool
+type versionFlag bool
 
 var cli struct {
 	Debug debugFlag `short:"d" help:"Print verbose logging statements."`
+
+	Version versionFlag `short:"v" help:"Print version and quit."`
 
 	Core core.Command `cmd:"" help:"Start core Crossplane controllers." default:"1"`
 	Rbac rbac.Command `cmd:"" help:"Start Crossplane RBAC Manager controllers."`
@@ -59,6 +65,12 @@ func (d debugFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
 	// *very* verbose even at info level, so we only provide it a real
 	// logger when we're running in debug mode.
 	ctrl.SetLogger(zl)
+	return nil
+}
+
+func (v versionFlag) BeforeApply(app *kong.Kong) error { // nolint:unparam
+	fmt.Fprintln(app.Stdout, version.New().GetVersionString())
+	app.Exit(0)
 	return nil
 }
 

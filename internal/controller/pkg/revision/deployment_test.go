@@ -334,7 +334,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			sa, d, svc := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace)
+			sa, d, svc := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace, nil)
 
 			if diff := cmp.Diff(tc.want.sa, sa, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)

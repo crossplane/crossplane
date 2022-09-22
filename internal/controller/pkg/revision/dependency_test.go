@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/utils/pointer"
@@ -60,50 +61,6 @@ func TestResolve(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ErrNotMeta": {
-			reason: "Should return error if not a valid package meta type.",
-			args: args{
-				dep:  &PackageDependencyManager{},
-				meta: &v1.Configuration{},
-			},
-			want: want{
-				err: errors.New(errNotMeta),
-			},
-		},
-		"ErrGetLock": {
-			reason: "Should return error if we cannot get lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetOrCreateLock),
-			},
-		},
-		"ErrCreateLock": {
-			reason: "Should return error if we cannot get or create lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionActive,
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetOrCreateLock),
-			},
-		},
 		"SuccessfulInactiveNoLock": {
 			reason: "Should not return error if we are inactive and lock does not exist.",
 			args: args{
@@ -121,26 +78,18 @@ func TestResolve(t *testing.T) {
 				},
 			},
 		},
-		"ErrBuildDag": {
-			reason: "Should return error if we cannot build DAG.",
+		"ErrorInactiveGetLock": {
+			reason: "Should return error if we are inactive and we fail to get the lock.",
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(nil),
-					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node, _ ...dag.NodeFn) ([]dag.Node, error) {
-								return nil, errBoom
-							},
-						}
+						MockGet: test.NewMockGetFn(errBoom),
 					},
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
-						Package: "hasheddan/config-nop-a:v0.0.1",
+						DesiredState: v1.PackageRevisionInactive,
 					},
 				},
 			},
@@ -153,19 +102,17 @@ func TestResolve(t *testing.T) {
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							return nil
+						}),
 						MockCreate: test.NewMockCreateFn(nil),
-					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(_ []dag.Node, _ ...dag.NodeFn) ([]dag.Node, error) {
-								return nil, nil
-							},
-						}
 					},
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
 						DesiredState: v1.PackageRevisionInactive,
@@ -177,7 +124,7 @@ func TestResolve(t *testing.T) {
 			},
 		},
 		"SuccessfulInactiveExists": {
-			reason: "Should not return error if we are inactive and not in lock.",
+			reason: "Should not return error if we are inactive and successfully remove from lock.",
 			args: args{
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
@@ -191,18 +138,6 @@ func TestResolve(t *testing.T) {
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
-					},
-					newDag: func() dag.DAG {
-						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
-								return nil, nil
-							},
-						}
 					},
 				},
 				meta: &pkgmetav1.Configuration{},
@@ -233,15 +168,85 @@ func TestResolve(t *testing.T) {
 						}),
 						MockUpdate: test.NewMockUpdateFn(errBoom),
 					},
+				},
+				meta: &pkgmetav1.Configuration{},
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
+						Package:      "hasheddan/config-nop-a:v0.0.1",
+						DesiredState: v1.PackageRevisionInactive,
+					},
+				},
+			},
+			want: want{
+				err: errBoom,
+			},
+		},
+		"ErrNotMeta": {
+			reason: "Should return error if not a valid package meta type.",
+			args: args{
+				dep:  &PackageDependencyManager{},
+				meta: &v1.Configuration{},
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				err: errors.New(errNotMeta),
+			},
+		},
+		"ErrGetLock": {
+			reason: "Should return error if we cannot get lock.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet: test.NewMockGetFn(errBoom),
+					},
+				},
+				meta: &pkgmetav1.Configuration{},
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetOrCreateLock),
+			},
+		},
+		"ErrCreateLock": {
+			reason: "Should return error if we cannot get or create lock.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+						MockCreate: test.NewMockCreateFn(errBoom),
+					},
+				},
+				meta: &pkgmetav1.Configuration{},
+				pr: &v1.ConfigurationRevision{
+					Spec: v1.PackageRevisionSpec{
+						DesiredState: v1.PackageRevisionActive,
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetOrCreateLock),
+			},
+		},
+		"ErrBuildDag": {
+			reason: "Should return error if we cannot build DAG.",
+			args: args{
+				dep: &PackageDependencyManager{
+					client: &test.MockClient{
+						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+						MockCreate: test.NewMockCreateFn(nil),
+					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
-								return nil, nil
+							MockInit: func(_ []dag.Node) ([]dag.Node, error) {
+								return nil, errBoom
 							},
 						}
 					},
@@ -249,8 +254,7 @@ func TestResolve(t *testing.T) {
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
-						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1.PackageRevisionInactive,
+						Package: "hasheddan/config-nop-a:v0.0.1",
 					},
 				},
 			},
@@ -267,6 +271,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
+									Name:   "config-nop-a-abc123",
 									Source: "hasheddan/config-nop-a",
 								},
 							}
@@ -275,12 +280,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
@@ -291,6 +291,9 @@ func TestResolve(t *testing.T) {
 				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
 						DesiredState: v1.PackageRevisionActive,
@@ -305,36 +308,20 @@ func TestResolve(t *testing.T) {
 				dep: &PackageDependencyManager{
 					client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							l := obj.(*v1beta1.Lock)
-							l.Packages = []v1beta1.LockPackage{
-								{
-									Source: "hasheddan/config-nop-a",
-									Dependencies: []v1beta1.Dependency{
-										{
-											Package: "not-here-1",
-											Type:    v1beta1.ProviderPackageType,
-										},
-										{
-											Package: "not-here-2",
-											Type:    v1beta1.ConfigurationPackageType,
-										},
-									},
-								},
-							}
 							return nil
 						}),
 						MockUpdate: test.NewMockUpdateFn(nil),
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
-							},
-							MockAddNode: func(_ dag.Node) error {
-								return nil
 							},
 							MockNodeExists: func(_ string) bool {
 								return false
+							},
+							MockAddNode: func(_ dag.Node) error {
+								return nil
 							},
 							MockAddOrUpdateNodes: func(_ ...dag.Node) {},
 						}
@@ -355,6 +342,9 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
 						DesiredState: v1.PackageRevisionActive,
@@ -375,6 +365,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
+									Name:   "config-nop-a-abc123",
 									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1beta1.Dependency{
 										{
@@ -403,12 +394,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return []dag.Node{
 									&v1beta1.Dependency{
 										Package: "not-here-2",
@@ -443,6 +429,9 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
 						DesiredState: v1.PackageRevisionActive,
@@ -464,6 +453,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
+									Name:   "config-nop-a-abc123",
 									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1beta1.Dependency{
 										{
@@ -492,12 +482,7 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
@@ -542,6 +527,9 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
 						DesiredState: v1.PackageRevisionActive,
@@ -564,6 +552,7 @@ func TestResolve(t *testing.T) {
 							l := obj.(*v1beta1.Lock)
 							l.Packages = []v1beta1.LockPackage{
 								{
+									Name:   "config-nop-a-abc123",
 									Source: "hasheddan/config-nop-a",
 									Dependencies: []v1beta1.Dependency{
 										{
@@ -592,13 +581,11 @@ func TestResolve(t *testing.T) {
 					},
 					newDag: func() dag.DAG {
 						return &dagfake.MockDag{
-							MockInit: func(nodes []dag.Node, fns ...dag.NodeFn) ([]dag.Node, error) {
-								for i, n := range nodes {
-									for _, f := range fns {
-										f(i, n)
-									}
-								}
+							MockInit: func(nodes []dag.Node) ([]dag.Node, error) {
 								return nil, nil
+							},
+							MockNodeExists: func(identifier string) bool {
+								return true
 							},
 							MockTraceNode: func(_ string) (map[string]dag.Node, error) {
 								return map[string]dag.Node{
@@ -642,6 +629,9 @@ func TestResolve(t *testing.T) {
 					},
 				},
 				pr: &v1.ConfigurationRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "config-nop-a-abc123",
+					},
 					Spec: v1.PackageRevisionSpec{
 						Package:      "hasheddan/config-nop-a:v0.0.1",
 						DesiredState: v1.PackageRevisionActive,

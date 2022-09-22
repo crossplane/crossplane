@@ -467,9 +467,9 @@ func (in *MapTransform) DeepCopyInto(out *MapTransform) {
 	*out = *in
 	if in.Pairs != nil {
 		in, out := &in.Pairs, &out.Pairs
-		*out = make(map[string]string, len(*in))
+		*out = make(map[string]apiextensionsv1.JSON, len(*in))
 		for key, val := range *in {
-			(*out)[key] = val
+			(*out)[key] = *val.DeepCopy()
 		}
 	}
 }

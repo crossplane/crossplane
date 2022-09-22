@@ -33,6 +33,7 @@ GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
+GOLANGCILINT_VERSION = 1.49.0
 -include build/makelib/golang.mk
 
 # ====================================================================================
@@ -94,7 +95,10 @@ crds.clean:
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate.run: gen-kustomize-crds gen-install-doc
+generate.run: gen-kustomize-crds gen-install-doc gen-chart-license
+
+gen-chart-license:
+	@cp -f LICENSE cluster/charts/crossplane/LICENSE
 
 generate.done: crds.clean
 

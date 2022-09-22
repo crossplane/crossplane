@@ -21,6 +21,7 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -381,7 +382,7 @@ type MapTransform struct {
 	// Pairs is the map that will be used for transform.
 	// +optional
 	// +immutable
-	Pairs map[string]string `json:",inline"`
+	Pairs map[string]extv1.JSON `json:",inline"`
 }
 
 // NOTE(negz): The Kubernetes JSON decoder doesn't seem to like inlining a map

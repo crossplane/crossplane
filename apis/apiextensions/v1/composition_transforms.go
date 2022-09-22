@@ -26,6 +26,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/pointer"
 )
 
@@ -41,6 +42,7 @@ const (
 	errFmtTransformTypeFailed          = "%s transform could not resolve"
 	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
 	errFmtMapNotFound                  = "key %s is not found in map"
+	errFmtMapInvalidJSON               = "value for key %s is not valid JSON"
 
 	errStringTransformTypeFailed        = "type %s is not supported for string transform type"
 	errStringTransformTypeFormat        = "string transform of type %s fmt is not set"
@@ -148,7 +150,7 @@ type MapTransform struct {
 
 	// Pairs is the map that will be used for transform.
 	// +optional
-	Pairs map[string]string `json:",inline"`
+	Pairs map[string]extv1.JSON `json:",inline"`
 }
 
 // NOTE(negz): The Kubernetes JSON decoder doesn't seem to like inlining a map
@@ -172,9 +174,13 @@ func (m MapTransform) MarshalJSON() ([]byte, error) {
 func (m *MapTransform) Resolve(input any) (any, error) {
 	switch i := input.(type) {
 	case string:
-		val, ok := m.Pairs[i]
+		p, ok := m.Pairs[i]
 		if !ok {
 			return nil, errors.Errorf(errFmtMapNotFound, i)
+		}
+		var val interface{}
+		if err := json.Unmarshal(p.Raw, &val); err != nil {
+			return nil, errors.Wrapf(err, errFmtMapInvalidJSON, i)
 		}
 		return val, nil
 	default:
