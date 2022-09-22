@@ -1,10 +1,7 @@
 ---
 title: API Documentation
-toc: true
 weight: 400
 ---
-
-# API Documentation
 
 The Crossplane ecosystem contains many CRDs that map to API types represented by
 external infrastructure providers. The documentation for these CRDs are

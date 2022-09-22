@@ -129,7 +129,7 @@ all AWS resources.
 
 [`aws` command line tool]: https://aws.amazon.com/cli/
 [AWS SDK for GO]: https://docs.aws.amazon.com/sdk-for-go/v1/developer-guide/setting-up.html
-[installed]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+[installed]: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 [configured]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
 [secret]:https://kubernetes.io/docs/concepts/configuration/secret/
@@ -138,7 +138,7 @@ all AWS resources.
 [Access Key]: https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html
 [AWS security credentials]: https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html
 [aws command line tool]: https://aws.amazon.com/cli/
-[install-aws]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html
+[install-aws]: https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
 [aws-cli-configure]: https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-configure.html
 [kubernetes secret]: https://kubernetes.io/docs/concepts/configuration/secret/
 [AWS named profile]: https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-profiles.html

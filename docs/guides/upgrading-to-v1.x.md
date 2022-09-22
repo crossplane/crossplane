@@ -1,11 +1,7 @@
 ---
 title: Upgrading to v1.x
-toc: true
 weight: 220
-indent: true
 ---
-
-# Upgrading to v1.x
 
 Crossplane versions post v1.0 do not introduce any breaking changes, but may
 make some backward compatible changes to the core Crossplane CRDs. Helm [does

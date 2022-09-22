@@ -1,13 +1,7 @@
 ---
 title: Composite Resources
-toc: true
 weight: 103
-indent: true
 ---
-
-# Composite Resources
-
-## Overview
 
 Crossplane Composite Resources are opinionated Kubernetes Custom Resources that
 are _composed_ of [Managed Resources][managed-resources]. We often call them XRs
@@ -246,11 +240,11 @@ scenarios, including:
   instantly claim infrastructure like database instances that would otherwise
   take minutes to provision on-demand.
 
-[managed-resources]: managed-resources.md
-[xrs-and-mrs]: ../media/composition-xrs-and-mrs.svg
-[xr-ref]: ../reference/composition.md
-[how-it-works]: ../media/composition-how-it-works.svg
+[managed-resources]: {{<ref "managed-resources" >}}
+[xrs-and-mrs]: ../../media/composition-xrs-and-mrs.svg
+[xr-ref]: {{<ref "../reference/composition" >}}
+[how-it-works]: ../../media/composition-how-it-works.svg
 [crd-docs]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 [provider-kubernetes]: https://github.com/crossplane-contrib/provider-kubernetes
 [provider-helm]: https://github.com/crossplane-contrib/provider-helm
-[claims-and-xrs]: ../media/composition-claims-and-xrs.svg
+[claims-and-xrs]: ../../media/composition-claims-and-xrs.svg
