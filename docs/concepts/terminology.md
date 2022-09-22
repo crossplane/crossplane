@@ -1,12 +1,7 @@
 ---
 title: Terminology
-toc: true
 weight: 110
-indent: true
 ---
-
-# Terminology
-
 ## A Note on Style
 
 Each type of Kubernetes resource has a ‘Pascal case’ name - i.e. a title case

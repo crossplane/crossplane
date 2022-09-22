@@ -1,10 +1,7 @@
 ---
 title: FAQ
-toc: true
 weight: 1200
 ---
-
-# Frequently Asked Questions (FAQs)
 
 ### Where did the name Crossplane come from?
 
@@ -20,4 +17,4 @@ We believe in a multi-flavor cloud.
 ### Related Projects
 See [Related Projects].
 
-[Related Projects]: related_projects.md
+[Related Projects]: {{<ref "related_projects" >}}

@@ -1,11 +1,7 @@
 ---
 title: Vault as an External Secret Store 
-toc: true
 weight: 230
-indent: true
 ---
-
-# Using Vault as an External Secret Store
 
 This guide walks through the steps required to configure Crossplane and
 its Providers to use [Vault] as an [External Secret Store]. For the sake of
@@ -148,12 +144,17 @@ kubectl create ns crossplane-system
 
 helm repo add crossplane-stable https://charts.crossplane.io/stable --force-update
 
-helm upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system \
-  --set 'args={--enable-external-secret-stores}' \
-  --set-string customAnnotations."vault\.hashicorp\.com/agent-inject"=true \
-  --set-string customAnnotations."vault\.hashicorp\.com/agent-inject-token"=true \
-  --set-string customAnnotations."vault\.hashicorp\.com/role"=crossplane \
-  --set-string customAnnotations."vault\.hashicorp\.com/agent-run-as-user"=65532
+
+cat << EOF > values.yaml
+enable-external-secret-stores: true
+customAnnotations:
+  vault.hashicorp.com/agent-inject-token: "true"
+  vault.hashicorp.com/role: "crossplane"
+  vault.hashicorp.com/agent-run-as-user: "65532"
+  EOF
+
+
+helm upgrade --install crossplane crossplane-stable/crossplane --namespace crossplane-system -f values.yaml
 ```
 
 2. Create a Secret `StoreConfig` for Crossplane to be used by
@@ -474,7 +475,7 @@ kubectl -n default delete claim my-ess
 
 [Vault]: https://www.vaultproject.io/
 [External Secret Store]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-external-secret-stores.md
-[the previous guide]: vault-injection.md
+[the previous guide]: {{<ref "vault-injection" >}}
 [this issue]: https://github.com/crossplane/crossplane/issues/2985
 [Kubernetes Auth Method]: https://www.vaultproject.io/docs/auth/kubernetes
 [Unseal]: https://www.vaultproject.io/docs/concepts/seal

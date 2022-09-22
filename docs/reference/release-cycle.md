@@ -1,23 +1,19 @@
 ---
 title: Release Cycle
-toc: true
 weight: 308
-indent: true
 ---
 
-# Release Cycle
+Starting with the v1.10.0 release, Crossplane is released on a quarterly (13
+week) cadence. A cycle is comprised of three general stages:
 
-Starting with the v1.0.0 release, Crossplane is released on an eight week
-cadence. A cycle is comprised of three general stages:
+- Weeks 1-11: [Active Development]
+- Week 12: [Feature Freeze]
+- Week 13: [Code Freeze]
 
-- Weeks 1-6: [Active Development]
-- Week 7: [Feature Freeze]
-- Week 8: [Code Freeze]
-
-This results in six releases per year, with the most recent three releases being
-maintained at any given time. When a new release is cut, the fourth most recent
-release reaches end of life (EOL). Users can expect any given release to be
-maintained for six months.
+This results in four releases per year, with the most recent three releases
+being maintained at any given time. When a new release is cut, the fourth most
+recent release reaches end of life (EOL). Users can expect any given release to
+be maintained for nine months.
 
 ### Definition of Maintenance
 
