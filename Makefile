@@ -66,7 +66,7 @@ OSBASEIMAGE = gcr.io/distroless/static:nonroot
 # Setup Docs
 
 SOURCE_DOCS_DIR = docs
-DEST_DOCS_DIR = docs
+DEST_DOCS_DIR = content/
 DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/crossplane.github.io.git
 -include build/makelib/docs.mk
 
@@ -112,8 +112,8 @@ gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
 	@rm cluster/kustomization.yaml
 	@echo "# This kustomization can be used to remotely install all Crossplane CRDs" >> cluster/kustomization.yaml
-	@echo "# by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master" >> cluster/kustomization.yaml 
-	@echo "resources:" >> cluster/kustomization.yaml 
+	@echo "# by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master" >> cluster/kustomization.yaml
+	@echo "resources:" >> cluster/kustomization.yaml
 	@find $(CRD_DIR) -type f -name '*.yaml' | sort | \
 		while read filename ;\
 		do echo "- $${filename#*/}" >> cluster/kustomization.yaml \
