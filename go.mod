@@ -10,13 +10,15 @@ require (
 	github.com/crossplane/crossplane-runtime v0.19.2
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/go-cmp v0.5.9
-	github.com/google/go-containerregistry v0.9.0
+	github.com/google/go-containerregistry v0.11.0
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220517194345-84eb52633e96
 	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.12
 	github.com/jmattheis/goverter v0.10.1
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/pkg/errors v0.9.1
+	github.com/sigstore/cosign v1.13.1
+	github.com/sigstore/sigstore v1.4.4
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/afero v1.8.0
 	golang.org/x/sync v0.1.0

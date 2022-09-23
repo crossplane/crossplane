@@ -96,6 +96,16 @@ type PackageRevisionSpec struct {
 	// More info: http://kubernetes.io/docs/user-guide/labels
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+
+	// Package Signature Verification Method used to verify image signatures.
+	// +optional
+	// +kubebuilder:default=cosign
+	PackageSignatureVerificationMethod string `json:"packageSignatureVerificationMethod,omitempty"`
+
+	// PackageSignatureVerificationSecrets are named secrets in the same namespace that can be
+	// used to verify package signatures.
+	// +optional
+	PackageSignatureVerificationSecrets []corev1.LocalObjectReference `json:"packageSignatureVerificationSecrets,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

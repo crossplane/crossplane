@@ -375,6 +375,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
 	pr.SetCommonLabels(p.GetCommonLabels())
 
+	// TODO: jessesanford: should we put this behind feature flag as well?
+	pr.SetPackageSignatureVerificationMethod(p.GetPackageSignatureVerificationMethod())
+	pr.SetPackageSignatureVerificationSecrets(p.GetPackageSignatureVerificationSecrets())
+
 	// If current revision is not active and we have an automatic or
 	// undefined activation policy, always activate.
 	if pr.GetDesiredState() != v1.PackageRevisionActive && (p.GetActivationPolicy() == nil || *p.GetActivationPolicy() == v1.AutomaticActivation) {

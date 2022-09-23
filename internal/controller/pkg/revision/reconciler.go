@@ -49,6 +49,7 @@ import (
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
+	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -252,7 +253,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry), WithEnablePackageSignatureVerification(o.Features.Enabled(features.EnableAlphaPackageSignatureVerification)))),
 		WithLinter(xpkg.NewProviderLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
@@ -299,7 +300,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithNewPackageRevisionFn(nr),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithParser(parser.New(metaScheme, objScheme)),
-		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry))),
+		WithParserBackend(NewImageBackend(f, WithDefaultRegistry(o.DefaultRegistry), WithEnablePackageSignatureVerification(o.Features.Enabled(features.EnableAlphaPackageSignatureVerification)))),
 		WithLinter(xpkg.NewConfigurationLinter()),
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),

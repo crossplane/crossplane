@@ -93,6 +93,12 @@ type Package interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetPackageSignatureVerificationMethod() string
+	SetPackageSignatureVerificationMethod(r string)
+
+	GetPackageSignatureVerificationSecrets() []corev1.LocalObjectReference
+	SetPackageSignatureVerificationSecrets(s []corev1.LocalObjectReference)
 }
 
 // GetCondition of this Provider.
@@ -215,6 +221,26 @@ func (p *Provider) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetPackageSignatureVerificationMethod of this Provider.
+func (p *Provider) GetPackageSignatureVerificationMethod() string {
+	return p.Spec.PackageSignatureVerificationMethod
+}
+
+// SetPackageSignatureVerificationMethod of this Provider.
+func (p *Provider) SetPackageSignatureVerificationMethod(psvm string) {
+	p.Spec.PackageSignatureVerificationMethod = psvm
+}
+
+// GetPackageSignatureVerificationSecrets of this Provider.
+func (p *Provider) GetPackageSignatureVerificationSecrets() []corev1.LocalObjectReference {
+	return p.Spec.PackageSignatureVerificationSecrets
+}
+
+// SetPackageSignatureVerificationSecrets of this Provider.
+func (p *Provider) SetPackageSignatureVerificationSecrets(psvs []corev1.LocalObjectReference) {
+	p.Spec.PackageSignatureVerificationSecrets = psvs
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -333,6 +359,26 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetPackageSignatureVerificationMethod of this Configuration.
+func (p *Configuration) GetPackageSignatureVerificationMethod() string {
+	return p.Spec.PackageSignatureVerificationMethod
+}
+
+// SetPackageSignatureVerificationMethod of this Configuration.
+func (p *Configuration) SetPackageSignatureVerificationMethod(psvm string) {
+	p.Spec.PackageSignatureVerificationMethod = psvm
+}
+
+// GetPackageSignatureVerificationSecrets of this Configuration.
+func (p *Configuration) GetPackageSignatureVerificationSecrets() []corev1.LocalObjectReference {
+	return p.Spec.PackageSignatureVerificationSecrets
+}
+
+// SetPackageSignatureVerificationSecrets of this Configuration.
+func (p *Configuration) SetPackageSignatureVerificationSecrets(psvs []corev1.LocalObjectReference) {
+	p.Spec.PackageSignatureVerificationSecrets = psvs
+}
+
 var _ PackageRevision = &ProviderRevision{}
 var _ PackageRevision = &ConfigurationRevision{}
 
@@ -380,6 +426,12 @@ type PackageRevision interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetPackageSignatureVerificationMethod() string
+	SetPackageSignatureVerificationMethod(r string)
+
+	GetPackageSignatureVerificationSecrets() []corev1.LocalObjectReference
+	SetPackageSignatureVerificationSecrets(s []corev1.LocalObjectReference)
 }
 
 // GetCondition of this ProviderRevision.
@@ -524,6 +576,26 @@ func (p *ProviderRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetPackageSignatureVerificationMethod of this ProviderRevision.
+func (p *ProviderRevision) GetPackageSignatureVerificationMethod() string {
+	return p.Spec.PackageSignatureVerificationMethod
+}
+
+// SetPackageSignatureVerificationMethod of this ProviderRevision.
+func (p *ProviderRevision) SetPackageSignatureVerificationMethod(psvm string) {
+	p.Spec.PackageSignatureVerificationMethod = psvm
+}
+
+// GetPackageSignatureVerificationSecrets of this ProviderRevision.
+func (p *ProviderRevision) GetPackageSignatureVerificationSecrets() []corev1.LocalObjectReference {
+	return p.Spec.PackageSignatureVerificationSecrets
+}
+
+// SetPackageSignatureVerificationSecrets of this ProviderRevision.
+func (p *ProviderRevision) SetPackageSignatureVerificationSecrets(psvs []corev1.LocalObjectReference) {
+	p.Spec.PackageSignatureVerificationSecrets = psvs
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -664,6 +736,26 @@ func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetPackageSignatureVerificationMethod of this ProviderRevision.
+func (p *ConfigurationRevision) GetPackageSignatureVerificationMethod() string {
+	return p.Spec.PackageSignatureVerificationMethod
+}
+
+// SetPackageSignatureVerificationMethod of this ProviderRevision.
+func (p *ConfigurationRevision) SetPackageSignatureVerificationMethod(psvm string) {
+	p.Spec.PackageSignatureVerificationMethod = psvm
+}
+
+// GetPackageSignatureVerificationSecrets of this Provider.
+func (p *ConfigurationRevision) GetPackageSignatureVerificationSecrets() []corev1.LocalObjectReference {
+	return p.Spec.PackageSignatureVerificationSecrets
+}
+
+// SetPackageSignatureVerificationSecrets of this Provider.
+func (p *ConfigurationRevision) SetPackageSignatureVerificationSecrets(psvs []corev1.LocalObjectReference) {
+	p.Spec.PackageSignatureVerificationSecrets = psvs
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}

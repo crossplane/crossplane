@@ -82,6 +82,7 @@ type startCommand struct {
 	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
 	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableCompositionFunctions bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
+	EnablePackageSignatureVerification bool `group:"Alpha Features:" help:"Enables support for verification of package."`
 }
 
 // Run core Crossplane controllers.
@@ -159,6 +160,12 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 			return errors.Wrap(err, "Cannot parse CA bundle")
 		}
 		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
+	}
+
+	if c.EnablePackageSignatureVerification {
+		feats.Enable(features.EnableAlphaPackageSignatureVerification)
+		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithEnablePackageSignatureVerification(true)}
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaPackageSignatureVerification)
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {

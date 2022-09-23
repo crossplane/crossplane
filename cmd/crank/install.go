@@ -78,11 +78,13 @@ func (c *installCmd) Run(_ *buildChild) error {
 type installConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
-	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package."`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	Name                                string        `arg:"" optional:"" help:"Name of Configuration."`
+	Wait                                time.Duration `short:"w" help:"Wait for installation of package."`
+	RevisionHistoryLimit                int64         `short:"r" help:"Revision history limit."`
+	ManualActivation                    bool          `short:"m" help:"Enable manual revision activation policy."`
+	PackagePullSecrets                  []string      `help:"List of secrets used to pull package."`
+	PackageSignatureVerificationMethod  string        `arg:"" optional:"" help:"Signature verification method to be used. Currently only 'cosign' is supported." default:"cosign"`
+	PackageSignatureVerificationSecrets []string      `help:"List of secrets to be use to verify package signatures."`
 }
 
 // Run runs the Configuration install cmd.
@@ -107,16 +109,24 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 			Name: s,
 		}
 	}
+	packageSignatureVerificationSecrets := make([]corev1.LocalObjectReference, len(c.PackageSignatureVerificationSecrets))
+	for i, s := range c.PackageSignatureVerificationSecrets {
+		packageSignatureVerificationSecrets[i] = corev1.LocalObjectReference{
+			Name: s,
+		}
+	}
 	cr := &v1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pkgName,
 		},
 		Spec: v1.ConfigurationSpec{
 			PackageSpec: v1.PackageSpec{
-				Package:                  c.Package,
-				RevisionActivationPolicy: &rap,
-				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-				PackagePullSecrets:       packagePullSecrets,
+				Package:                             c.Package,
+				RevisionActivationPolicy:            &rap,
+				RevisionHistoryLimit:                &c.RevisionHistoryLimit,
+				PackagePullSecrets:                  packagePullSecrets,
+				PackageSignatureVerificationMethod:  c.PackageSignatureVerificationMethod,
+				PackageSignatureVerificationSecrets: packageSignatureVerificationSecrets,
 			},
 		},
 	}
@@ -170,12 +180,14 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 type installProviderCmd struct {
 	Package string `arg:"" help:"Image containing Provider package."`
 
-	Name                 string        `arg:"" optional:"" help:"Name of Provider."`
-	Wait                 time.Duration `short:"w" help:"Wait for installation of package"`
-	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
-	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
-	Config               string        `help:"Specify a ControllerConfig for this Provider."`
-	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	Name                                string        `arg:"" optional:"" help:"Name of Provider."`
+	Wait                                time.Duration `short:"w" help:"Wait for installation of package"`
+	RevisionHistoryLimit                int64         `short:"r" help:"Revision history limit."`
+	ManualActivation                    bool          `short:"m" help:"Enable manual revision activation policy."`
+	Config                              string        `help:"Specify a ControllerConfig for this Provider."`
+	PackagePullSecrets                  []string      `help:"List of secrets used to pull package."`
+	PackageSignatureVerificationMethod  string        `arg:"" optional:"" help:"Signature verification method to be used. Currently only 'cosign' is supported." default:"cosign"`
+	PackageSignatureVerificationSecrets []string      `help:"List of secrets to be use to verify package signatures."`
 }
 
 // Run runs the Provider install cmd.
@@ -200,16 +212,19 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 			Name: s,
 		}
 	}
+	packageSignatureVerificationSecrets := make([]corev1.LocalObjectReference, len(c.PackageSignatureVerificationSecrets))
 	cr := &v1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pkgName,
 		},
 		Spec: v1.ProviderSpec{
 			PackageSpec: v1.PackageSpec{
-				Package:                  c.Package,
-				RevisionActivationPolicy: &rap,
-				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
-				PackagePullSecrets:       packagePullSecrets,
+				Package:                             c.Package,
+				RevisionActivationPolicy:            &rap,
+				RevisionHistoryLimit:                &c.RevisionHistoryLimit,
+				PackagePullSecrets:                  packagePullSecrets,
+				PackageSignatureVerificationMethod:  c.PackageSignatureVerificationMethod,
+				PackageSignatureVerificationSecrets: packageSignatureVerificationSecrets,
 			},
 		},
 	}

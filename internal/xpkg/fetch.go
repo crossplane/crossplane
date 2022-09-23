@@ -20,17 +20,25 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
+	soci "github.com/crossplane/crossplane/internal/oci"
+
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sirupsen/logrus"
+	corev1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -48,17 +56,19 @@ func init() {
 // Fetcher fetches package images.
 type Fetcher interface {
 	Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error)
+	FetchAndVerify(ctx context.Context, ref name.Reference, psvm string, psvs []string, secrets ...string) (v1.Image, error)
 	Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error)
 	Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error)
 }
 
 // K8sFetcher uses kubernetes credentials to fetch package images.
 type K8sFetcher struct {
-	client         kubernetes.Interface
-	namespace      string
-	serviceAccount string
-	transport      http.RoundTripper
-	userAgent      string
+	client                             kubernetes.Interface
+	namespace                          string
+	serviceAccount                     string
+	transport                          http.RoundTripper
+	userAgent                          string
+	EnablePackageSignatureVerification bool
 }
 
 // FetcherOpt can be used to add optional parameters to NewK8sFetcher
@@ -131,6 +141,15 @@ func WithServiceAccount(sa string) FetcherOpt {
 	}
 }
 
+// WithEnablePackageSignatureVerification is a FetcherOpt that enables package signature
+// verification.
+func WithEnablePackageSignatureVerification(epsv bool) FetcherOpt {
+	return func(k *K8sFetcher) error {
+		k.EnablePackageSignatureVerification = epsv
+		return nil
+	}
+}
+
 // NewK8sFetcher creates a new K8sFetcher.
 func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher, error) {
 	k := &K8sFetcher{
@@ -157,12 +176,100 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	if err != nil {
 		return nil, err
 	}
+
 	return remote.Image(ref,
 		remote.WithAuthFromKeychain(auth),
 		remote.WithTransport(i.transport),
 		remote.WithContext(ctx),
 		remote.WithUserAgent(i.userAgent),
 	)
+}
+
+// FetchAndVerify fetches a package image and verifies it's signature.
+func (i *K8sFetcher) FetchAndVerify(ctx context.Context, ref name.Reference, psvm string, psvs []string, secrets ...string) (v1.Image, error) {
+	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
+		Namespace:          i.namespace,
+		ServiceAccountName: i.serviceAccount,
+		ImagePullSecrets:   secrets,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	err = i.verifyOCISourceSignature(ctx, auth, ref, psvm, psvs)
+	if err != nil {
+		return nil, err
+	}
+
+	return i.Fetch(ctx, ref, secrets...)
+}
+
+// verifyOCISourceSignature verifies the authenticity of the given image reference url. First, it tries to keyful approach
+// by looking at whether the given secret exists. Then, if it does not exist, it pushes a keyless approach for verification.
+func (i *K8sFetcher) verifyOCISourceSignature(ctx context.Context, keychain authn.Keychain, ref name.Reference, psvm string, psvs []string) error { //nolint:gocyclo // TODO: jessesanford simplify this
+	// Verify the image
+	if psvm == "cosign" {
+		authnKeychain := soci.WithAuthnKeychain(keychain)
+
+		if len(psvs) > 0 {
+			// TODO(JesseSanford): verify the following copypasta is appropriate:
+			// https://github.com/google/go-containerregistry/blob/9e939fbf5b5903da81f258b74ef509488569d411/pkg/authn/kubernetes/keychain.go#L80-L91
+			var verificationSecrets []corev1.Secret
+			for _, name := range psvs {
+				secret, err := i.client.CoreV1().Secrets(i.namespace).Get(ctx, name, metav1.GetOptions{})
+				if k8serrors.IsNotFound(err) {
+					continue
+				} else if err != nil {
+					return err
+				}
+				verificationSecrets = append(verificationSecrets, *secret)
+			}
+
+			verified := false
+			for _, pubSecret := range verificationSecrets {
+				for k, data := range pubSecret.Data {
+					// search for public keys in the secret
+					if strings.HasSuffix(k, ".pub") {
+						verifier, err := soci.NewVerifier(soci.WithPublicKey(data), authnKeychain) //nolint:contextcheck // oci go mod WithPublicKey does not take context
+						if err != nil {
+							return err
+						}
+
+						signatures, _, err := verifier.VerifyImageSignatures(ctx, ref)
+						if err != nil {
+							continue
+						}
+
+						if signatures != nil {
+							verified = true
+							break
+						}
+					}
+				}
+			}
+
+			if !verified {
+				return fmt.Errorf("no matching signatures were found for the image %s", ref)
+			}
+
+			return nil
+		}
+
+		verifier, err := soci.NewVerifier(authnKeychain) //nolint:contextcheck // oci go mod WithPublicKey does not take context
+		if err != nil {
+			return err
+		}
+
+		signatures, _, err := verifier.VerifyImageSignatures(ctx, ref)
+		if err != nil {
+			return err
+		}
+
+		if len(signatures) > 0 {
+			return nil
+		}
+	}
+	return nil
 }
 
 // Head fetches a package descriptor.
@@ -224,6 +331,11 @@ func NewNopFetcher() *NopFetcher {
 
 // Fetch fetches an empty image and does not return error.
 func (n *NopFetcher) Fetch(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
+	return empty.Image, nil
+}
+
+// FetchAndVerify fetches an empty image and does not return error.
+func (n *NopFetcher) FetchAndVerify(ctx context.Context, ref name.Reference, psvm string, psvs []string, secrets ...string) (v1.Image, error) {
 	return empty.Image, nil
 }
 

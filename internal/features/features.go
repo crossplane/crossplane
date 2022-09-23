@@ -39,4 +39,8 @@ const (
 	// functions. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/9ee7a2/design/design-doc-composition-functions.md
 	EnableAlphaCompositionFunctions feature.Flag = "EnableAlphaCompositionFunctions"
+	// EnableAlphaPackageSignatureVerification enables alpha support for verification of package
+	// signatures using cosign. See the below design for more details
+	// https://github.com/crossplane/crossplane/pull/3297
+	EnableAlphaPackageSignatureVerification feature.Flag = "EnableAlphaPackageSignatureVerification"
 )

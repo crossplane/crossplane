@@ -22,6 +22,7 @@ import (
 	"io"
 
 	"github.com/google/go-containerregistry/pkg/name"
+	crv1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/mutate"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -48,8 +49,9 @@ const (
 
 // ImageBackend is a backend for parser.
 type ImageBackend struct {
-	registry string
-	fetcher  xpkg.Fetcher
+	registry                           string
+	fetcher                            xpkg.Fetcher
+	enablePackageSignatureVerification bool
 }
 
 // An ImageBackendOption sets configuration for an image backend.
@@ -59,6 +61,14 @@ type ImageBackendOption func(i *ImageBackend)
 func WithDefaultRegistry(registry string) ImageBackendOption {
 	return func(i *ImageBackend) {
 		i.registry = registry
+	}
+}
+
+// WithEnablePackageSignatureVerification enables package signature
+// verification.
+func WithEnablePackageSignatureVerification(epsv bool) ImageBackendOption {
+	return func(i *ImageBackend) {
+		i.enablePackageSignatureVerification = epsv
 	}
 }
 
@@ -91,10 +101,19 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}
+
 	// Fetch image from registry.
-	img, err := i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
-	if err != nil {
-		return nil, errors.Wrap(err, errFetchPackage)
+	var img crv1.Image
+	var ferr error
+	if i.enablePackageSignatureVerification {
+		psvm := n.pr.GetPackageSignatureVerificationMethod()
+		psvs := n.pr.GetPackageSignatureVerificationSecrets()
+		img, ferr = i.fetcher.FetchAndVerify(ctx, ref, psvm, v1.RefNames(psvs), v1.RefNames(n.pr.GetPackagePullSecrets())...)
+	} else {
+		img, ferr = i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
+	}
+	if ferr != nil {
+		return nil, errors.Wrap(ferr, errFetchPackage)
 	}
 	// Get image manifest.
 	manifest, err := img.Manifest()

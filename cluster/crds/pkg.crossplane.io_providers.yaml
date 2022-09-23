@@ -96,6 +96,24 @@ spec:
                   type: object
                   x-kubernetes-map-type: atomic
                 type: array
+              packageSignatureVerificationMethod:
+                default: cosign
+                description: Package Signature Verification Method used to verify
+                  image signatures.
+                type: string
+              packageSignatureVerificationSecrets:
+                description: PackageSignatureVerificationSecrets are named secrets
+                  in the same namespace that can be used to verify package signatures.
+                items:
+                  description: LocalObjectReference contains enough information to
+                    let you locate the referenced object inside the same namespace.
+                  properties:
+                    name:
+                      description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                        TODO: Add other useful fields. apiVersion, kind, uid?'
+                      type: string
+                  type: object
+                type: array
               revisionActivationPolicy:
                 default: Automatic
                 description: RevisionActivationPolicy specifies how the package controller
