@@ -18,6 +18,7 @@ package xpkg
 
 import (
 	"context"
+	"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
@@ -34,6 +35,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/sigstore/cosign/pkg/cosign"
+	ociremote "github.com/sigstore/cosign/pkg/oci/remote"
+	sigs "github.com/sigstore/cosign/pkg/signature"
 )
 
 func init() {
@@ -59,6 +63,7 @@ type K8sFetcher struct {
 	serviceAccount string
 	transport      http.RoundTripper
 	userAgent      string
+	validationPem  string
 }
 
 // FetcherOpt can be used to add optional parameters to NewK8sFetcher
@@ -131,6 +136,15 @@ func WithServiceAccount(sa string) FetcherOpt {
 	}
 }
 
+// WithValidationPem is a FetcherOpt that sets the Validation Pem for
+// validating package signatures.
+func WithValidationPem(vp string) FetcherOpt {
+	return func(k *K8sFetcher) error {
+		k.validationPem = vp
+		return nil
+	}
+}
+
 // NewK8sFetcher creates a new K8sFetcher.
 func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher, error) {
 	k := &K8sFetcher{
@@ -156,6 +170,26 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(i.validationPem) != 0 {
+		opts := []remote.Option{
+			remote.WithAuthFromKeychain(auth),
+			remote.WithContext(ctx),
+		}
+		pk, err := sigs.LoadPublicKeyRaw([]byte(i.validationPem), crypto.SHA256)
+		if err != nil {
+			return nil, err
+		}
+		co := &cosign.CheckOpts{
+			ClaimVerifier:      cosign.SimpleClaimVerifier,
+			RegistryClientOpts: []ociremote.Option{ociremote.WithRemoteOptions(opts...)},
+			SigVerifier:        pk,
+		}
+		//Verify Image
+		vs, _, err := cosign.VerifyImageSignatures(ctx, ref, co)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return remote.Image(ref,
 		remote.WithAuthFromKeychain(auth),
