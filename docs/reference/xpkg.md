@@ -186,7 +186,7 @@ annotations by third-party consumers of Crossplane packages:
 - `meta.crossplane.io/source`: The URL at which the package's source can be
   found.
 - `meta.crossplane.io/license`: The license under which the package's source is
-  released.
+  released. This should be a valid [SPDX License Identifier].
 - `meta.crossplane.io/description`: A one sentence description of the package.
 - `meta.crossplane.io/readme`: A longer description, documentation, etc.
 
@@ -212,3 +212,4 @@ unmodified.
 [index]: https://github.com/opencontainers/image-spec/blob/main/image-index.md
 [annotation]: https://github.com/opencontainers/image-spec/blob/main/annotations.md
 [applying changesets]: https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
+[SPDX License Identifier]: https://spdx.org/licenses/
