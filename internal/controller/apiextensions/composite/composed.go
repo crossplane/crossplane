@@ -321,8 +321,14 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	name := cd.GetName()
 	namespace := cd.GetNamespace()
 
-	if err := json.Unmarshal(t.Base.Raw, cd); err != nil {
-		return errors.Wrap(err, errUnmarshal)
+	fps, err := resource.GeneratePatchesFromRaw(t.Base.Raw)
+	if err != nil {
+		return errors.Wrap(err, "cannot generate patches for the base composed object")
+	}
+
+	// TODO(muvaf): Handle the type conversion better.
+	if err := fps.Apply(cd.(*composed.Unstructured).GetUnstructured()); err != nil {
+		return errors.Wrap(err, "cannot apply field patches from raw base")
 	}
 
 	// We think this composed resource exists, but when we rendered its template

@@ -23,6 +23,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -317,7 +318,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
-		client:       resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+		client:       resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIUpdatingApplicator(kube)},
 		newComposite: nc,
 
 		composition: composition{
@@ -502,6 +503,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, ta := range tas {
 		cd := composed.New(composed.FromReference(ta.Reference))
 		rendered := true
+
+		// Since cd is unstructured, GET call wouldn't work without GVK information.
+		if ta.Reference.GroupVersionKind() != schema.EmptyObjectKind.GroupVersionKind() {
+			nn := types.NamespacedName{
+				Name:      cd.GetName(),
+				Namespace: cd.GetNamespace(),
+			}
+			if err := r.client.Get(ctx, nn, cd); client.IgnoreNotFound(err) != nil {
+				log.Debug(errRenderCD, "error", err, "index", i)
+				r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
+				rendered = false
+			}
+		}
+
 		if err := r.composed.Render(ctx, cr, cd, ta.Template); err != nil {
 			log.Debug(errRenderCD, "error", err, "index", i)
 			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
