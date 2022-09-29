@@ -776,8 +776,8 @@ github.com/mozilla/tls-observatory v0.0.0-20210609171429-7bc42856d2e5/go.mod h1:
 github.com/munnerz/goautoneg v0.0.0-20120707110453-a547fc61f48d/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq1c1nUAm88MOHcQC9l5mIlSMApZMrHA=
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
-github.com/muvaf/crossplane-runtime v0.0.0-20220929140930-33aa0b053273 h1:P6g+g92kKSejZLWtUwRYKeZEirgKtnq8OYjImOIi5jw=
-github.com/muvaf/crossplane-runtime v0.0.0-20220929140930-33aa0b053273/go.mod h1:o9ExoilV6k2M3qzSFoRVX4phuww0mLmjs1WrDTvsR4s=
+github.com/muvaf/crossplane-runtime v0.0.0-20220929183136-ef774452565e h1:bcWenje6JxfK5C3wnRpOxX03gftmtu7XylcwyCwWqAE=
+github.com/muvaf/crossplane-runtime v0.0.0-20220929183136-ef774452565e/go.mod h1:o9ExoilV6k2M3qzSFoRVX4phuww0mLmjs1WrDTvsR4s=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-proto-validators v0.0.0-20180403085117-0950a7990007/go.mod h1:m2XC9Qq0AlmmVksL6FktJCdTYyLk7V3fKyp0sl1yWQo=

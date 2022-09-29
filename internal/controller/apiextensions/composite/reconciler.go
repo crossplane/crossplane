@@ -23,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -503,20 +502,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, ta := range tas {
 		cd := composed.New(composed.FromReference(ta.Reference))
 		rendered := true
-
-		// Since cd is unstructured, GET call wouldn't work without GVK information.
-		if ta.Reference.GroupVersionKind() != schema.EmptyObjectKind.GroupVersionKind() {
-			nn := types.NamespacedName{
-				Name:      cd.GetName(),
-				Namespace: cd.GetNamespace(),
-			}
-			if err := r.client.Get(ctx, nn, cd); client.IgnoreNotFound(err) != nil {
-				log.Debug(errRenderCD, "error", err, "index", i)
-				r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
-				rendered = false
-			}
-		}
-
 		if err := r.composed.Render(ctx, cr, cd, ta.Template); err != nil {
 			log.Debug(errRenderCD, "error", err, "index", i)
 			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
@@ -554,7 +539,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if !cd.rendered {
 			continue
 		}
-		if err := r.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
+		if err := r.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.PatchFields, resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
 			log.Debug(errApply, "error", err)
 			err = errors.Wrap(err, errApply)
 			r.record.Event(cr, event.Warning(reasonCompose, err))

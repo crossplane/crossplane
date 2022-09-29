@@ -2,7 +2,7 @@ module github.com/crossplane/crossplane
 
 go 1.19
 
-replace github.com/crossplane/crossplane-runtime => github.com/muvaf/crossplane-runtime v0.0.0-20220929140930-33aa0b053273
+replace github.com/crossplane/crossplane-runtime => github.com/muvaf/crossplane-runtime v0.0.0-20220929183136-ef774452565e
 
 require (
 	github.com/Masterminds/semver v1.5.0
