@@ -317,7 +317,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
-		client:       resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+		client:       resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIServerSideApplicator(kube, "composition")},
 		newComposite: nc,
 
 		composition: composition{
@@ -600,8 +600,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// will be a replace from updated. We pass a deepcopy because the Apply
 	// method doesn't update status, but calling Apply resets any pending
 	// status changes.
+	//
+	// Need to use UpdatingApplicator because we always apply patches on an
+	// existing resource rather than starting from a template, so it's more
+	// suitable compared to SSA where we're asked to give the fields only we
+	// care about, which doesn't include fields like `metadata.managedFields` etc.
 	updated := cr.DeepCopyObject().(client.Object)
-	if err := r.client.Apply(ctx, updated, mergeOptions(filterToXRPatches(tas))...); err != nil {
+	if err := resource.NewAPIUpdatingApplicator(r.client).Apply(ctx, updated, mergeOptions(filterToXRPatches(tas))...); err != nil {
 		log.Debug(errUpdate, "error", err)
 		err = errors.Wrap(err, errUpdate)
 		r.record.Event(cr, event.Warning(reasonCompose, err))

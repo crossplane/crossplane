@@ -2,6 +2,8 @@ module github.com/crossplane/crossplane
 
 go 1.19
 
+replace github.com/crossplane/crossplane-runtime => github.com/muvaf/crossplane-runtime v0.0.0-20220929084705-c6e78af2f54e
+
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.2.17
