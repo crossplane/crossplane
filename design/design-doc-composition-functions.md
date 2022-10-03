@@ -153,6 +153,10 @@ While not an explicit goal, it would also be ideal if the solution put forth by
 this document could serve as a test bed for new features in the contemporary
 'resources array' based form of Composition.
 
+The user experience around authoring and maintaining Composition Functions is
+out of scope for this proposal, which focuses only on adding foundational
+support for the feature to Crossplane.
+
 ## Proposal
 
 ### Overview
