@@ -1,4 +1,4 @@
-# Composition Functions
+ # Composition Functions
 
 * Owners: Nic Cope (@negz), Sergen Yalçın (@sergenyalcin)
 * Reviewers: Crossplane Maintainers
@@ -6,13 +6,32 @@
 
 ## Background
 
-Composition is the Crossplane feature that lets teams define their own
-opinionated APIs (i.e. Kubernetes CRs). We call these APIs "Composite
-Resources", or XRs for short. When a user creates an XR, Crossplane uses another
-kind of resource - a `Composition` - to determine what to do. For example a
-`Composition` might tell Crossplane that when a user creates an `AcmeCoDatabase`
-XR it should respond by creating a GCP `CloudSQLInstance` and a
-`ServiceAccount`. From our [terminology documentation][term-composition]:
+Crossplane is a framework for building cloud native control planes. These
+control planes sit one level above the cloud providers and allow you to
+customize the APIs they expose. Platform teams use Crossplane to offer the
+developers they support simpler, safer, self-service interfaces to the cloud.
+
+To build a control plane with Crossplane you:
+
+1. Define the APIs you’d like your control plane to expose.
+1. Extend Crossplane with support for orchestrating external resources (e.g.
+   AWS).
+1. Configure which external resources to orchestrate when someone calls your
+   APIs.
+
+Crossplane offers a handful of extension points that layer atop each other to
+help make this possible:
+
+* Providers extend Crossplane with Managed Resources (MRs), which are high
+  fidelity, declarative representations of external APIs. Crossplane reconciles
+  MRs by orchestrating an external system (e.g. AWS).
+* Configurations extend Crossplane with Composite Resources (XRs), which are
+  essentially arbitrary APIs, and Compositions. Crossplane reconciles XRs by
+  orchestrating MRs. Compositions teach Crossplane how to do this.
+
+The functionality enabled by XRs and Compositions is typically referred to as
+simply Composition. Support for Composition was added in Crossplane [v0.10.0]
+(April 2020). From our [terminology documentation][term-composition]:
 
 > Folks accustomed to Terraform might think of a Composition as a Terraform
 > module; the HCL code that describes how to take input variables and use them
@@ -25,15 +44,7 @@ resources. Each of these resources can be 'patched' with values derived from the
 XR. The functionality enabled by a `Composition` is intentionally limited - for
 example there is no support for conditionals (e.g. only create this resource if
 the following conditions are met) or iteration (e.g. create N of the following
-resource, where N is derived from an XR field). These limits:
-
-* Attempt to avoid the [pitfalls][pitfalls-dsl] of configuration domain-specific
-  languages.
-* Allow us to express "composition logic" as a custom resource that may be
-  entirely stored within and validated at create time by the Kubernetes API
-  server.
-* Allow the `Composition` type to be relatively simple, avoiding it becoming a
-  programming language expressed as YAML.
+resource, where N is derived from an XR field).
 
 Below is an example `Composition`:
 
@@ -43,7 +54,6 @@ kind: Composition
 metadata:
   name: example
 spec:
-  writeConnectionSecretsToNamespace: crossplane-system
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: AcmeCoDatabase
@@ -65,31 +75,70 @@ spec:
       toFieldPath: spec.forProvider.settings.dataDiskSizeGb
 ```
 
-Limiting the functionality of our `Composition` type allows us to reduce
-Crossplane's learning curve and implementation complexity. At the same time it
-limits Crossplane's ability to address many use cases. It's not uncommon for
-Crossplane users to resort to 'composing' Crossplane managed resources using
-more featureful tools such as Helm or jsonnet when they hit the limitations
-imposed by the `Composition` type, or even writing their own Kubernetes
-controllers (typically in Go, using [controller-runtime]) to build bespoke
-abstractions. Furthermore, some Crossplane users simply prefer to express their
-intent in a language (or with a tool) they already know and feel comfortable
-with, such as Helm, jsonnet, Python, HCL, Typescript, etc.
+The goals of the Crossplane maintainers in designing Composition were to:
 
-While it's true that users _could_ simply use Helm, jsonnet, etc etc to compose
-Crossplane managed resources into higher level abstractions (like the
-aforementioned `AcmeCoDatabase` example), we feel that these abstractions are
-best exposed as _APIs_, not as client-side constructs.
+* Empower platform teams to provide a platform of useful, opinionated
+  abstractions.
+* Enable platform teams to define abstractions that may be portable across
+  different infrastructure providers and application runtimes.
+* Enable platform teams to share and reuse the abstractions they define.
+* Leverage the Kubernetes Resource Model (KRM) to model applications,
+  infrastructure, and the product of the two in a predictable, safe, and
+  declarative fashion using low or no code.
+* Avoid imposing unnecessary opinions, assumptions, or constraints around how
+  applications and infrastructure should function.
 
-Exposing abstractions as a (Kubernetes) API:
+The design document for Composition [captures these goals][composition-design]
+using somewhat dated parlance.
 
-* Avoids the need to distribute (and version) client-side tooling as part of the
-  collaboration process.
-* Allows abstractions to be access controlled using RBAC.
-* Increases tooling support - more tools have native support for calling REST
-  APIs than (e.g.) building Helm charts.
-* _Further_ increases tooling support by leveraging the Kubernetes ecosystem -
-  things like ArgoCD and OPA.
+Our approach to achieving our goals was heavily informed by Brian Grant’s
+[Declarative application management in Kubernetes][declarative-app-management].
+Brian’s document is an excellent summary of the gotchas and pitfalls faced by
+those attempting to design new configuration management tools, informed by his
+experiences designing Kubernetes, its precursor Borg, and many generations of
+configuration languages at Google, including [BCL/GCL][bcl]. In particular we
+wanted to:
+
+* Avoid organically growing a new DSL. These languages tend to devolve to
+  incoherency as stakeholders push to “bolt on” new functionality to solve
+  pressing problems at the expense of measured design. Terraform’s DSL
+  unintuitively [supporting the count argument in some places but not
+  others][terraform-count] is a great example of this. Inventing a new DSL also
+  comes with the cost of inventing new tooling to test, lint, generate, etc,
+  your DSL.
+* Stick to configuration that could be modeled as a REST API. Modeling
+  Composition logic as a  schemafied API resource makes it possible for
+  Crossplane to validate that logic and provide feedback to the platform team at
+  configuration time. It also greatly increases interoperability thanks to broad
+  support across tools and languages for interacting with REST APIs.
+
+It was also important to avoid the “worst of both worlds” - i.e. growing a fully
+featured ([Turing-complete][turing-complete]) DSL modeled as a REST API. To this
+end we omitted common language features such as conditionals and iteration. Our
+rationale being that these features were better deferred to a General Purpose
+Programming Language (GPL) designed by language experts, and with extensive
+existing tooling.
+
+Since its inception the Crossplane maintainers’ vision has been that there
+should essentially be two variants of Composition:
+
+* For simple cases, use contemporary "Patch and Transform" (P&T) Composition.
+* For advanced cases, bring your tool or programming language of choice.
+
+In this context a “simple case” might involve composing fewer than ten resources
+without the need for logic such as conditionals and iteration. Note that the
+Composition logic, whether P&T or deferred to a tool or programming language, is
+always behind the API line (behind an XR). This means the distinction is only
+important to the people authoring the Compositions, never to the people
+consuming them.
+
+Offering two variants of Composition allows Crossplane users to pick the one
+that is best aligned with their situation, preferences, and experience level.
+For simple cases you don’t need to learn a new programming language or tool, and
+there are no external dependencies - just write familiar, Kubernetes-style YAML.
+For advanced cases leverage proven tools and languages with existing ecosystems
+and documentation. Either way, Crossplane has no religion - if you prefer not to
+“write YAML”, pick another tool and vice versa.
 
 ## Goals
 
@@ -574,7 +623,14 @@ unlikely that gVisor will work in all situations in the near future - for
 example gVisor cannot currently run inside gVisor and support for anything other
 than x86 architectures is experimental.
 
-[term-composition]: https://crossplane.io/docs/v1.6/concepts/terminology.html#composition
+[term-composition]: https://crossplane.io/docs/v1.9/concepts/terminology.html#composition
+[v0.10.0]: https://github.com/crossplane/crossplane/releases/tag/v0.10.0
+[composition-design]: https://github.com/crossplane/crossplane/blob/e02c7a3/design/design-doc-composition.md#goals
+[declarative-app-management]: https://docs.google.com/document/d/1cLPGweVEYrVqQvBLJg6sxV-TrE5Rm2MNOBA_cxZP2WU/edit
+[bcl]: https://twitter.com/bgrant0607/status/1123620689930358786?lang=en
+[terraform-count]: https://www.terraform.io/language/meta-arguments/count
+[turing-complete]: https://en.wikipedia.org/wiki/Turing_completeness#Unintentional_Turing_completeness  
+
 [pitfalls-dsl]: https://github.com/kubernetes/community/blob/8956bcd54dc6f99bcb681c79a7e5399289e15630/contributors/design-proposals/architecture/declarative-application-management.md#pitfalls-of-configuration-domain-specific-languages-dsls
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [krm-fn-spec]: https://github.com/kubernetes-sigs/kustomize/blob/9d5491/cmd/config/docs/api-conventions/functions-spec.md
