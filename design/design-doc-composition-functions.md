@@ -155,7 +155,7 @@ this document could serve as a test bed for new features in the contemporary
 
 The user experience around authoring and maintaining Composition Functions is
 out of scope for this proposal, which focuses only on adding foundational
-support for the feature to Crossplane.
+support for the feature to Crossplane. 
 
 ## Proposal
 
@@ -184,7 +184,7 @@ spec:
 
 Under this proposal each function is the entrypoint of an OCI image, though the
 API is designed to support different function implementations (such as webhooks)
-in th future. The updated API would affect only the `Composition` type - no
+in the future. The updated API would affect only the `Composition` type - no
 changes would be required to the schema of `CompositeResourceDefinitions`, XRs,
 etc.
 
@@ -232,9 +232,9 @@ spec:
       network: Accessible
       # How long the function may run before it's killed. Defaults to 10s.
       timeout: 30s
-    # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied)
-    # Kubernetes resource. Passed to the function as the functionConfig block of
-    # its ResourceList.
+    # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied
+    # Kubernetes resource). Passed to the function as the functionConfig block
+    # of its ResourceList.
     config:
       apiVersion: database.example.org/v1alpha1
       kind: Config
