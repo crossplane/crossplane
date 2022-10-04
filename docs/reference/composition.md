@@ -410,14 +410,14 @@ composed resource field.
 
 ```yaml
 # Patch from the XR's spec.parameters.location field and the
-# metadata.annotations[crossplane.io/claim-name] annotation to the composed
+# metadata.labels[crossplane.io/claim-name] label to the composed
 # resource's spec.forProvider.administratorLogin field.
 - type: CombineFromComposite
   combine:
     # The patch will only be applied when all variables have non-zero values.
     variables:
     - fromFieldPath: spec.parameters.location
-    - fromFieldPath: metadata.annotations[crossplane.io/claim-name]
+    - fromFieldPath: metadata.labels[crossplane.io/claim-name]
     strategy: string
     string:
       fmt: "%s-%s"
