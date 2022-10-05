@@ -5,6 +5,10 @@ weight: 301
 
 Crossplane can be easily installed into any existing Kubernetes cluster using
 the regularly published Helm chart. The Helm chart contains all the custom
+
+
+Crossplane can be easily installed into any existing Kubernetes cluster using
+the regularly published Helm chart. The Helm chart contains all the custom
 resources and controllers needed to deploy and configure Crossplane.
 
 ## Pre-requisites
@@ -158,5 +162,5 @@ imagePullSecrets:
 <!-- Named Links -->
 
 [Kubernetes cluster]: https://kubernetes.io/docs/setup/
-[Minikube]: https://minikube.sigs.k8s.io/docs/start/
-[Helm]: https://helm.sh/docs/intro/using_helm/
+[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
+[Helm]: https://docs.helm.sh/using_helm/
