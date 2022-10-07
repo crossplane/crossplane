@@ -164,7 +164,9 @@ support for the feature to Crossplane.
 This document proposes that a new `functions` array be added to the existing
 `Composition` type. This array of functions would be called either instead of or
 in addition to the existing `resources` array in order to determine how an XR
-should be composed.
+should be composed. The array of functions acts as a pipeline; the output of
+each function is passed as the input to the next. The output of the final
+function tells Crossplane what must be done to reconcile the XR.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2alpha1
@@ -233,8 +235,8 @@ spec:
       # How long the function may run before it's killed. Defaults to 10s.
       timeout: 30s
     # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied
-    # Kubernetes resource). Passed to the function as the functionConfig block
-    # of its ResourceList.
+    # Kubernetes resource). Passed to the function as the config block of its
+    # FunctionIO.
     config:
       apiVersion: database.example.org/v1alpha1
       kind: Config
@@ -246,53 +248,53 @@ spec:
 
 ### Function API
 
-This document proposes that each function uses a `ResourceList` type derived
-from the [KRM function specification][krm-fn-spec] as its input and output.
+This document proposes that each function uses a `FunctionIO` type as its input
+and output. This method is inspired by [KRM functions][krm-fn-spec].
 
 ```yaml
-apiVersion: fn.apiextensions.crossplane.io/v1
-kind: ResourceList
-functionConfig:
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: FunctionIO
+config:
   apiVersion: database.example.org/v1alpha1
   kind: Config
   metadata:
     name: cloudsql
   spec:
     version: POSTGRES_9_6
-items:
-- apiVersion: database.example.org/v1alpha1
+composite:
+  apiVersion: database.example.org/v1alpha1
   kind: XPostgreSQLInstance
   metadata:
     name: my-db
-    annotations:
-      fn.apiextensions.crossplane.io/type: "CompositeResource"
   spec:
     parameters:
       storageGB: 20
     compositionSelector:
       matchLabels:
         provider: gcp
-    writeConnectionSecretToRef:
-      name: db-conn
 ```
 
-Like a KRM function, a Composition function uses a `ResourceList` that consists
-of the following top-level fields:
+A Composition Function uses a `FunctionIO` that consists of the following
+top-level fields:
 
 * The `apiVersion` and `kind` (required).
-* A `functionConfig` (optional). This is a [Kubernetes resource][rawextension]
+* A `config` object (optional). This is a [Kubernetes resource][rawextension]
   with an arbitrary schema that may be used to provide additional configuration
   to a function. For example a `render-helm-chart` function might use its
-  `functionConfig` to specify which Helm chart to render.
-* An `items` array (required). The XR and zero or more composed resources.
-* A `results` object (optional). Used to communicate information about the
-  result of a function, including warnings and errors.
+  `config` to specify which Helm chart to render.
+* A `composite` object (required). This is the XR being reconciled.
+* A `resources` array (optional). Zero or more composed resources.
+* A `results` array (optional). Used to communicate information about the result
+  of a function, including warnings and errors.
 
-Each function in the array would be executed as a pipeline, with each function:
+Each function:
 
-1. Taking the XR and zero or more composed resources as input.
-1. Producing the optionally mutated XR, optionally mutated composed resources,
-   and newly rendered composed resources as output.
+1. Takes its config, XR, and zero or more composed resources as input.
+1. Optionally mutates the XR's metadata, spec, and/or status.
+1. Optionally mutates the array of composed resources. This may involve adding
+   or deleting composed resources, as well as mutating the metadata and spec of
+   any entry in the array. Updates to the status of composed resources are not
+   allowed and will be silently discarded.
 
 This allows the output of one function to be the input to the next. The first
 function in the pipeline would be supplied with either:
@@ -301,75 +303,101 @@ function in the pipeline would be supplied with either:
    did not include a `resources` array.
 1. The XR and one or more resources. This would be the case if either:
    1. The Composition included both a `resources` array and a `functions` array.
-      In this case the `resources` array is computed first then passed to
-      `functions`.
+      In this case the `resources` array is processed first, then passed to
+      `functions` for further processing.
    1. This was not a newly created XR, but instead an XR that had already
       created its composed resources and was now being updated.
 
 In the case of `Container` functions this input and output would correspond to
 stdin and stdout. This may differ for future function implementations; for
-example a hypothetical webhook function implementation might take the input as
-an HTTP PUT request body and return the output as a response body. Crossplane
-would be responsible for reading stdout from the final function and applying its
-changes to the relevant XR and subsequent composed resources.
+example a webhook function implementation might take the input as an HTTP PUT
+request body and return the output as a response body. Crossplane would be
+responsible for reading stdout from the final function and applying its changes
+to the relevant XR and subsequent composed resources.
 
 An example function that responded by asking Crossplane to create (compose) a
-`CloudSQLInstance` would do so by returning the following `ResourceList`:
+`CloudSQLInstance` would do so by returning the following `FunctionIO`:
 
 ```yaml
-apiVersion: fn.apiextensions.crossplane.io/v1alpha1
-kind: ResourceList
-functionConfig:
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: FunctionIO
+config:
   apiVersion: database.example.org/v1alpha1
   kind: Config
   metadata:
     name: cloudsql
   spec:
     version: POSTGRES_9_6
-items:
-- apiVersion: database.example.org/v1alpha1
+composite:
+  apiVersion: database.example.org/v1alpha1
   kind: XPostgreSQLInstance
   metadata:
     name: my-db
-    annotations:
-      fn.apiextensions.crossplane.io/type: "CompositeResource"
   spec:
     parameters:
       storageGB: 20
     compositionSelector:
       matchLabels:
         provider: gcp
-    writeConnectionSecretToRef:
-      name: db-conn
-- apiVersion: database.gcp.crossplane.io/v1beta1
-  kind: CloudSQLInstance
-  metadata:
-    name: cloudsqlpostgresql
-    annotations:
-      fn.apiextensions.crossplane.io/type: "ComposedResource"
-      fn.apiextensions.crossplane.io/name: cloudsqlinstance
-  spec:
-    forProvider:
-      databaseVersion: POSTGRES_9_6
-      region: us-central1
-      settings:
-        tier: db-custom-1-3840
-        dataDiskType: PD_SSD
-        dataDiskSizeGb: 20
-    writeConnectionSecretToRef:
-      namespace: crossplane-system
-      name: cloudsqlpostgresql-conn
-results:
-- severity: Error
-  message: "Could not render Database.postgresql.crossplane.io/v1alpha1`
+resources:
+- name: cloudsqlinstance
+  resource:
+    apiVersion: database.gcp.crossplane.io/v1beta1
+    kind: CloudSQLInstance
+    spec:
+      forProvider:
+        databaseVersion: POSTGRES_9_6
+        region: us-central1
+        settings:
+          tier: db-custom-1-3840
+          dataDiskType: PD_SSD
+          dataDiskSizeGb: 20
+      writeConnectionSecretToRef:
+        namespace: crossplane-system
+        name: cloudsqlpostgresql-conn
+  connectionDetails:
+  - name: hostname
+    fromConnectionSecretKey: hostname
+  readinessChecks:
+  - type: None
 ```
 
-Note the Crossplane specific `fn.apiextensions.crossplane.io/` annotations:
+Note that a the `resources` array of the `FunctionIO` type is very similar to
+the `resources` array of the `Composition` type. In comparison:
 
-1. `type` distinguishes an XR from a composed resource. XRs are the first
-   element in the `items` array by convention.
-1. `name` associates a composed resource entry in the `items` array with its
-   corresponding entry in the `resources` array (if any).
+* `name` works the same across both types, but is required by `FunctionIO`.
+* `connectionDetails` and `readinessChecks` work the same across both types.
+* `FunctionIO` does not support `base` and `patches`. Instead a function should
+  configure the `resource` field accordingly.
+
+A function that could not complete successfully could do so by returning the
+following `FunctionIO`:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: FunctionIO
+config:
+  apiVersion: database.example.org/v1alpha1
+  kind: Config
+  metadata:
+    name: cloudsql
+  spec:
+    version: POSTGRES_9_6
+composite:
+  apiVersion: database.example.org/v1alpha1
+  kind: XPostgreSQLInstance
+  metadata:
+    name: my-db
+  spec:
+    parameters:
+      storageGB: 20
+    compositionSelector:
+      matchLabels:
+        provider: gcp
+results:
+- severity: Error
+  message: "Could not render Database.postgresql.crossplane.io/v1beta1`
+```
 
 While KRM-function-like this API is not KRM function compatible. See the
 [Alternatives Considered](#alternatives-considered) section for details on why.
@@ -553,7 +581,7 @@ present time but likely will in future.
 
 Crossplane could invoke functions by calling a webhook rather than running an
 OCI container. In this model function input and output would still take the form
-of a `ResourceList`, but would be HTTP request and response bodies rather than a
+of a `FunctionIO`, but would be HTTP request and response bodies rather than a
 container's stdin and stdout.
 
 The primary detractor of this approach is the burden it puts on function authors
@@ -610,13 +638,6 @@ ideal fit. This is because:
 1. Crossplane needs additional metadata to distinguish which resource in the
    `ResourceList` is the composite resource and which are the composed
    resources.
-
-[Work is ongoing][krm-fn-runtimes] within the `kpt` project as well as
-Kubernetes sig-cli to make the KRM function specification 'server-side'
-compatible; it may be possible to achieve compatibility in future. Compatibility
-with the existing [catalog][krm-fn-catalog] of KRM functions would be nice to
-have for functions such as `set-annotations`, `gatekeeper`, and
-`render-helm-chart`.
 
 ### gVisor
 
