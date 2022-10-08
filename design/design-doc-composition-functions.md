@@ -425,7 +425,7 @@ endpoint would default to `unix:///@crossplane/fn/default.sock` - an abstract
 Communication between Crossplane and a containerized function runner would use
 the following API:
 
-```proto3
+```protobuf
 syntax = "proto3";
 
 // This service defines the APIs for a containerized function runner.
