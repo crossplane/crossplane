@@ -237,7 +237,8 @@ spec:
       # Containers are run by an external process listening at the supplied
       # endpoint. Specifying an endpoint is optional; the endpoint defaults to
       # the below value.
-      endpoint: unix:///@crossplane/fn/default.sock
+      runner:
+        endpoint: unix:///@crossplane/fn/default.sock
     # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied
     # Kubernetes resource). Passed to the function as the config block of its
     # FunctionIO.
@@ -417,7 +418,7 @@ In order to provide flexibility and choice of tradeoffs in running containers
 (e.g. speed, scalability, security) this document proposes Crossplane defer
 containerized functions to an external runner. Communication with the runner
 would occur via a gRPC API, with the runner expected to be listening at the
-`endpoint` specified via the function's `container` configuration block. This
+`endpoint` specified via the function's `runner` configuration block. This
 endpoint would default to `unix:///@crossplane/fn/default.sock` - an abstract
 [Unix domain socket][unix-domain-sockets].
 
