@@ -234,6 +234,10 @@ spec:
       network: Accessible
       # How long the function may run before it's killed. Defaults to 10s.
       timeout: 30s
+      # Containers are run by an external process listening at the supplied
+      # endpoint. Specifying an endpoint is optional; the endpoint defaults to
+      # the below value.
+      endpoint: unix:///@crossplane/fn/default.sock
     # An x-kubernetes-embedded-resource RawExtension (i.e. an unschemafied
     # Kubernetes resource). Passed to the function as the config block of its
     # FunctionIO.
@@ -404,31 +408,113 @@ While KRM-function-like this API is not KRM function compatible. See the
 
 ### Running Container Function Pipelines
 
-Crossplane is almost always deployed as a container in a Kubernetes Pod. This
-makes running a pipeline of containers challenging. There are several options,
-all of which boil down to one of:
+While Crossplane typically runs in a Kubernetes cluster - a cluster designed to
+run containers - running an ordered _pipeline_ of short-lived containers via
+Kubernetes is much less straightforward than you might expect. Refer to
+[Alternatives Considered](#alternatives-considered) for details.
 
-1. Run the container pipeline inside Crossplane's container.
-1. Ask another system to run the container pipeline.
+In order to provide flexibility and choice of tradeoffs in running containers
+(e.g. speed, scalability, security) this document proposes Crossplane defer
+containerized functions to an external runner. Communication with the runner
+would occur via a gRPC API, with the runner expected to be listening at the
+`endpoint` specified via the function's `container` configuration block. This
+endpoint would default to `unix:///@crossplane/fn/default.sock` - an abstract
+[Unix domain socket][unix-domain-sockets].
 
-This document proposes that Crossplane run the container pipeline inside its
-container. The primary advantages of doing so are speed and control. There's no
-need to wait for another system (for example the Kubernetes control plane) to
-schedule each container, and Crossplane can easily pass stdout from one
+Communication between Crossplane and a containerized function runner would use
+the following API:
+
+```proto3
+syntax = "proto3";
+
+// This service defines the APIs for a containerized function runner.
+service ContainerizedFunctionRunner {
+    rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
+}
+
+// Corresponds to Kubernetes' image pull policy.
+enum ImagePullPolicy {
+  IF_NOT_PRESENT = 0;
+  ALWAYS = 1;
+  NEVER = 2;
+}
+
+// Corresponds to go-containerregistry's AuthConfig type.
+// https://pkg.go.dev/github.com/google/go-containerregistry@v0.11.0/pkg/authn#AuthConfig
+message ImagePullAuth {
+  string username = 1;
+  string password = 2;
+  string auth = 3;
+  string identity_token = 4;
+  string registry_token = 5;
+}
+
+message ImagePullConfig {
+  ImagePullPolicy pull_policy = 1;
+  ImagePullAuth auth = 2;
+}
+
+// Containers are run without network access (in an isolated network namespace)
+// by default.
+enum NetworkPolicy = {
+  ISOLATED = 0;
+  ACCESSIBLE = 1;
+}
+
+// Only resource limits are supported. Resource requests could be added in
+// future if a runner supported them (e.g. by running containers on Kubernetes).
+message Resources {
+  ResourceLimits limits = 1;
+}
+
+message ResourceLimits {
+  string memory = 1;
+  string cpu = 2;
+}
+
+message RunFunctionConfig {
+  Resources resources = 1;
+  NetworkPolicy network = 2;
+  Duration timeout = 3;
+}
+
+// The input FunctionIO is supplied as opaque bytes.
+message RunFunctionRequest {
+  string image = 1;
+  bytes input = 2;
+  ImagePullConfig = 3;
+  RunFunctionConfig = 4;
+}
+
+// The output FunctionIO is supplied as opaque bytes. Errors encountered while
+// running a function (as opposed to errors returned _by_ a function) will be
+// encapsulated as gRPC errors.
+message RunFunctionResponse {
+  bytes output = 1;
+}
+```
+
+### The Default Function Runner
+
+This document proposes that Crossplane include a default function runner. This
+runner would be implemented as a sidecar to the core Crossplane container that
+runs functions inside itself.
+
+The primary advantages of this approach are speed and control. There's no need
+to wait for another system (for example the Kubernetes control plane) to
+schedule each container, and the runner can easily pass stdout from one
 container to another's stdin. Speed of function runs is of particular importance
-to this design given that each XR typically reconciles (i.e. invokes its
-function pipeline) once every 60 seconds.
+given that each XR typically reconciles (i.e. invokes its function pipeline)
+once every 60 seconds.
 
-The disadvantages of running the pipeline inside the Crossplane container are
-scale and reinvention of the wheel. The resources available to the Crossplane
-container will bound how many functions it can run at any one time, and
-Crossplane will need to handle features that the Kubelet already offers such as
-pull secrets, caching etc. In future Crossplane may support other ways to invoke
-the container pipeline - refer to the [Alternatives
-Considered](#alternatives-considered) section for more information.
+The disadvantages of running the pipeline inside a sidecar container are scale
+and reinvention of the wheel. The resources available to the sidecar container
+will bound how many functions it can run at any one time, and it will need to
+handle features that the Kubelet already offers such as pull secrets, caching
+etc.
 
 [Rootless containers][rootless] appear to be the most promising way to run
-functions as containers inside the Crossplane container:
+functions as containers inside a container:
 
 > Rootless containers uses `user_namespaces(7)` (UserNS) for emulating fake
 > privileges that are enough to create containers. The pseudo-root user gains
@@ -436,9 +522,9 @@ functions as containers inside the Crossplane container:
 > perform fake-privileged operations such as creating mount namespaces, network
 > namespaces, and creating TAP devices.
 
-Using user namespaces allows us to use the other kinds of namespaces listed
-above to ensure an extra layer of isolation for the functions we run. For
-example a network namespace could be configured to prevent a function having
+Using user namespaces allows the runer to use the other kinds of namespaces
+listed above to ensure an extra layer of isolation for the functions it runs.
+For example a network namespace could be configured to prevent a function having
 network access.
 
 User namespaces are well supported by modern Linux Kernels, having been
@@ -449,15 +535,16 @@ because:
 * It is more self-contained than `runc` (the reference and most commonly used
   OCI runtime), which relies on setuid binaries to setup user namespaces.
 * `runsc` (aka gVisor) uses extra defense in depth features which are not
-  allowed by most container seccomp policies.
+  allowed inside most containers due to their seccomp policies.
 
-Of course, "a container" is in fact many things and some parts of rootless
-containers are less well supported; for example cgroups v2 is required in order
-to limit resources like CPU and memory available to a particular function.
-cgroups v2 has been available in Linux since 4.15, but was not enabled by many
-distributions until 2021. In practice this means Crossplane users must use a
-[sufficiently modern][cgroups-v2-distros] distribution on their Kubernetes nodes
-in order to constrain the resources of a Composition function.
+Of course, "a container" is in fact many technologies working together and some
+parts of rootless containers are less well supported than others; for example
+cgroups v2 is required in order to limit resources like CPU and memory available
+to a particular function. cgroups v2 has been available in Linux since 4.15, but
+was not enabled by many distributions until 2021. In practice this means
+Crossplane users must use a [sufficiently modern][cgroups-v2-distros]
+distribution on their Kubernetes nodes in order to constrain the resources of a
+Composition function.
 
 Similarly, [overlayfs] was not allowed inside user namespaces until Linux 5.11.
 Overlayfs is typically used to create a root filesystem for a container that is
@@ -479,34 +566,15 @@ following steps:
    [OCI image configuration][oci-img-cfg] supplied by go-containerregistry.
 1. Execute `crun run` to invoke the function in a rootless container.
 
-```
-Usage: crun [OPTION...] COMMAND [OPTION...]
-
-COMMANDS:
-        create      - create a container
-        delete      - remove definition for a container
-        exec        - exec a command in a running container
-        list        - list known containers
-        kill        - send a signal to the container init process
-        ps          - show the processes in the container
-        run         - run a container
-        spec        - generate a configuration file
-        start       - start a container
-        state       - output the state of a container
-        pause       - pause all the processes in the container
-        resume      - unpause the processes in the container
-        update      - update container resource constraints
-```
-
 Executing `crun` directly as opposed to using a higher level tool like `docker`
-or `podman` allows Crossplane to avoid new dependencies apart from a single
-static binary (i.e. `crun`). It keeps most functionality (pulling images etc)
-inside Crossplane's codebase, delegating only container creation to an external
-tool. Crossplane functions are always short-lived and should always have their
-stdin and stdout attached to Crossplane, so wrappers like `containerd-shim` or
-`conmon` should not be required. The short-lived, "one shot" nature of
-Crossplane functions means it should also be acceptable to `crun run` the
-container rather than using `crun create`, `crun start`, etc.
+or `podman` allows the default function runner to avoid new dependencies apart
+from a single static binary (i.e. `crun`). It keeps most functionality (pulling
+images etc) inside the runner's codebase, delegating only container creation to
+an external tool. Composition Functions are always short-lived and should always
+have their stdin and stdout attached to the runner, so wrappers like
+`containerd-shim` or `conmon` should not be required. The short-lived, "one
+shot" nature of Composition Functions means it should also be acceptable to
+`crun run` the container rather than using `crun create`, `crun start`, etc.
 
 At the time of writing rootless containers appear to be supported by Kubernetes,
 including Amazon's Elastic Kubernetes Service (EKS) and Google Kubernetes Engine
@@ -606,11 +674,11 @@ support for `type: Container` functions are released if `type: Container` proves
 to be insufficiently compatible (e.g. for clusters running gVisor, or that
 require seccomp be enabled).
 
-### Using the Kubelet to Run Containzerized Functions
+### Using Kubernetes to Run Containerized Functions
 
-Asking another system to run the container pipeline has a different set of
-challenges. Crossplane could schedule a `Pod` for each XR reconcile, or create a
-`CronJob` to do so regularly. Another option could be to connect directly to a
+Asking Kubernetes to run a container pipeline is less straightforward than you
+might think. Crossplane could schedule a `Pod` for each XR reconcile, or create
+a `CronJob` to do so regularly. Another option could be to connect directly to a
 Kubelet. This approach would enjoy all the advantages of the existing Kubelet
 machinery (pull secrets, caching, etc) but incurs overhead in other areas, for
 example:
@@ -626,6 +694,10 @@ example:
 > The emissary works by replacing the container's command with its own command.
 > This allows that command to capture stdout, the exit code, and easily
 > terminate your process. The emissary can also delay the start of your process.
+
+You can see some of the many options Argo Workflows explored to address these
+issues before landing on `emissary` in their list of
+[deprecated executors][argo-deprecated-executors].
 
 ### Using KRM Function Spec Compliant Functions
 
@@ -655,12 +727,11 @@ than x86 architectures is experimental.
 [bcl]: https://twitter.com/bgrant0607/status/1123620689930358786?lang=en
 [terraform-count]: https://www.terraform.io/language/meta-arguments/count
 [turing-complete]: https://en.wikipedia.org/wiki/Turing_completeness#Unintentional_Turing_completeness  
-
 [pitfalls-dsl]: https://github.com/kubernetes/community/blob/8956bcd54dc6f99bcb681c79a7e5399289e15630/contributors/design-proposals/architecture/declarative-application-management.md#pitfalls-of-configuration-domain-specific-languages-dsls
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [krm-fn-spec]: https://github.com/kubernetes-sigs/kustomize/blob/9d5491/cmd/config/docs/api-conventions/functions-spec.md
 [rawextension]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#rawextension
-[argo-execs]: https://argoproj.github.io/argo-workflows/workflow-executors/
+[unix-domain-sockets]: https://man7.org/linux/man-pages/man7/unix.7.html
 [rootless]: https://rootlesscontaine.rs/how-it-works/userns/
 [cgroups-v2-distros]: https://rootlesscontaine.rs/getting-started/common/cgroup2/#checking-whether-cgroup-v2-is-already-enabled
 [overlayfs]: https://www.kernel.org/doc/html/latest/filesystems/overlayfs.html
@@ -673,6 +744,7 @@ than x86 architectures is experimental.
 [xpkg-spec]: https://github.com/crossplane/crossplane/blob/035e77b/docs/reference/xpkg.md
 [attach]: https://github.com/kubernetes/kubectl/blob/18a531/pkg/cmd/attach/attach.go
 [emissary]: https://github.com/argoproj/argo-workflows/blob/702b293/workflow/executor/emissary/emissary.go#L25
+[argo-deprecated-executors]: https://github.com/argoproj/argo-workflows/blob/v3.4.1/docs/workflow-executors.md
 [krm-fn-spec]: https://github.com/kubernetes-sigs/kustomize/blob/9d5491/cmd/config/docs/api-conventions/functions-spec.md
 [krm-fn-runtimes]: https://github.com/GoogleContainerTools/kpt/issues/2567
 [krm-fn-catalog]: https://catalog.kpt.dev
