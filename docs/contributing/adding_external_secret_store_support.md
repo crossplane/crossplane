@@ -1,11 +1,7 @@
 ---
 title: Adding Secret Store Support
-toc: true
 weight: 1004
-indent: true
 ---
-
-# Adding External Secret Store Support to an Existing Provider
 
 To add support for [External Secret Stores] in a provider, we need the following
 changes at a high level:
@@ -134,6 +130,6 @@ example.
 [External Secret Stores]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-external-secret-stores.md
 [this PR as a complete example]: https://github.com/crossplane/provider-gcp/pull/421
 [this PR instead]: https://github.com/crossplane-contrib/provider-jet-template/pull/23/commits
-[this commit as an example on how to add the type]: https://github.com/crossplane/provider-aws/pull/1242/commits/d8a2df323fa2489d82bf1843d2fe338de033c61d
+[this commit as an example on how to add the type]: https://github.com/crossplane-contrib/provider-aws/pull/1242/commits/d8a2df323fa2489d82bf1843d2fe338de033c61d
 [this commit as an example for adding the feature flag]: https://github.com/crossplane/provider-gcp/pull/421/commits/b5898c62dc6668d9918496de8aa9bc365c371f82
 [this commit as an example for changes in Setup functions]: https://github.com/crossplane/provider-gcp/pull/421/commits/9700d0c4fdb7e1fba8805afa309c1b1c7aa167a6

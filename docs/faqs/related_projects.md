@@ -1,11 +1,7 @@
 ---
 title: Related Projects
-toc: true
 weight: 1201
-indent: true
 ---
-
-# Related Projects
 
 While there are many projects that address similar issues, none of them
 encapsulate the full use case that Crossplane addresses. This list is not
