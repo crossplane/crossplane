@@ -256,6 +256,8 @@ type Patch struct {
 // A FromFieldPathPolicy determines how to patch from a field path.
 type FromFieldPathPolicy string
 
+type MergeOptionsPolicy xpv1.MergeOptions
+
 // FromFieldPath patch policies.
 const (
 	FromFieldPathPolicyOptional FromFieldPathPolicy = "Optional"
@@ -272,6 +274,7 @@ type PatchPolicy struct {
 	// +optional
 	// +immutable
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	MergeOptions  *MergeOptionsPolicy  `json:"mergeOptions,omitempty"`
 }
 
 // A Combine configures a patch that combines more than

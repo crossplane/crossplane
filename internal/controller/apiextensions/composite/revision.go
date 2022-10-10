@@ -17,6 +17,7 @@ limitations under the License.
 package composite
 
 import (
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -128,9 +129,16 @@ func AsCompositionPatch(rp v1alpha1.Patch) v1.Patch {
 		p.Transforms[i] = AsCompositionTransform(rp.Transforms[i])
 	}
 
-	if rp.Policy != nil && rp.Policy.FromFieldPath != nil {
-		pol := v1.FromFieldPathPolicy(*rp.Policy.FromFieldPath)
-		p.Policy = &v1.PatchPolicy{FromFieldPath: &pol}
+	if rp.Policy != nil {
+		p.Policy = &v1.PatchPolicy{}
+		if rp.Policy.FromFieldPath != nil {
+			pol := v1.FromFieldPathPolicy(*rp.Policy.FromFieldPath)
+			p.Policy.FromFieldPath = &pol
+		}
+		if rp.Policy.MergeOptions != nil {
+			pol := xpv1.MergeOptions(*rp.Policy.MergeOptions)
+			p.Policy.MergeOptions = &pol
+		}
 	}
 
 	return p
