@@ -1,11 +1,7 @@
 ---
 title: Release Cycle
-toc: true
 weight: 308
-indent: true
 ---
-
-# Release Cycle
 
 Starting with the v1.10.0 release, Crossplane is released on a quarterly (13
 week) cadence. A cycle is comprised of three general stages:

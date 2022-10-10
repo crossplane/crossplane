@@ -1,11 +1,11 @@
 ---
-title: Install
-toc: true
+title: Install Crossplane
 weight: 301
-indent: true
 ---
 
-# Install Crossplane
+Crossplane can be easily installed into any existing Kubernetes cluster using
+the regularly published Helm chart. The Helm chart contains all the custom
+
 
 Crossplane can be easily installed into any existing Kubernetes cluster using
 the regularly published Helm chart. The Helm chart contains all the custom

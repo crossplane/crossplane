@@ -1,11 +1,8 @@
 ---
 title: Install & Configure
-toc: true
 weight: 2
-indent: true
 ---
-
-# Choosing Your Crossplane Distribution
+## Choosing Your Crossplane Distribution
 
 Users looking to use Crossplane for the first time have two options available to
 them today. The first way is to use the version of Crossplane which is
@@ -16,15 +13,9 @@ distributions are [certified by the CNCF] to be conformant with Crossplane, but
 may include additional features or tooling around it that makes it easier to use
 in production environments.
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#using-upstream-crossplane" data-toggle="tab">Crossplane (upstream)</a></li>
-<li><a href="#using-a-downstream-distro" data-toggle="tab">Downstream Distributions</a></li>
-</ul>
-<br>
-<!-- Begin Distro Tabs -->
-<div class="tab-content">
-<!-- Begin Upstream Tab -->
-<div class="tab-pane fade in active" id="using-upstream-crossplane" markdown="1">
+{{% tabs "Crossplane Distros" %}}
+
+{{% tab "Crossplane (upstream)" %}}
 
 ## Start with Upstream Crossplane
 
@@ -32,91 +23,74 @@ Installing Crossplane into an existing Kubernetes cluster will require a bit
 more setup, but can provide more flexibility for users who need it.
 
 ### Get a Kubernetes Cluster
+<!-- inside Crossplane (upstream) -->
+{{% tabs "Kubernetes Clusters" %}}
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#setup-mac-brew" data-toggle="tab">macOS via Homebrew</a></li>
-<li><a href="#setup-mac-linux" data-toggle="tab">macOS / Linux</a></li>
-<li><a href="#setup-windows" data-toggle="tab">Windows</a></li>
-</ul>
-<br>
-<!-- Begin Get Cluster Tabs -->
-<div class="tab-content">
-<!-- Begin MacOS Tab -->
-<div class="tab-pane fade in active" id="setup-mac-brew" markdown="1">
+{{% tab "macOS via Homebrew" %}}
+
 For macOS via Homebrew use the following:
 
-```console
+```bash
 brew upgrade
 brew install kind
 brew install kubectl
 brew install helm
-
 kind create cluster --image kindest/node:v1.23.0 --wait 5m
 ```
-</div>
-<!-- End MacOS Tab -->
+<!-- close "macOS via Homebrew" -->
+{{% /tab  %}}
 
-<!-- Begin Linux Tab -->
-<div class="tab-pane fade" id="setup-mac-linux" markdown="1">
+{{% tab "macOS / Linux" %}}
+
 For macOS / Linux use the following:
 
-* [Kubernetes cluster]
-  * [Kind]
-  * [Minikube], minimum version `v0.28+`
-  * etc.
+* [Kubernetes cluster](https://kubernetes.io/docs/setup/)
+* [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
+* [Minikube](https://minikube.sigs.k8s.io/docs/start/), minimum version `v0.28+`
+* etc.
+* [Helm](https://helm.sh/docs/intro/using_helm/), minimum version `v3.0.0+`.
 
-* [Helm], minimum version `v3.0.0+`.
+<!-- close "macOS / Linux" -->
+{{% /tab %}}
 
-</div>
-<!-- End Linux Tab -->
-
-<!-- Begin Windows Tab -->
-<div class="tab-pane fade" id="setup-windows" markdown="1">
+{{% tab "Windows" %}}
 For Windows use the following:
 
-* [Kubernetes cluster]
-  * [Kind]
-  * [Minikube], minimum version `v0.28+`
-  * etc.
+* [Kubernetes cluster](https://kubernetes.io/docs/setup/)
+* [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
+* [Minikube](https://minikube.sigs.k8s.io/docs/start/), minimum version `v0.28+`
+* etc.
+* [Helm](https://helm.sh/docs/intro/using_helm/), minimum version `v3.0.0+`.
 
-* [Helm], minimum version `v3.0.0+`.
+<!-- close "Windows" -->
+{{% /tab %}}
 
-</div>
-<!-- End Windows Tab -->
-</div>
-<!-- End Get Cluster Tabs -->
+<!-- close "Kubernetes Clusters" -->
+{{% /tabs %}}
 
 ### Install Crossplane
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#install-tab-helm3" data-toggle="tab">Helm 3 (stable)</a></li>
-<li><a href="#install-tab-helm3-latest" data-toggle="tab">Helm 3 (latest)</a></li>
-</ul>
-<br>
-<!-- Begin Helm Tabs -->
-<div class="tab-content">
+{{% tabs "install with helm" %}}
 
-<!-- Begin Stable Tab -->
-<div class="tab-pane fade in active" id="install-tab-helm3" markdown="1">
+{{% tab "Helm 3 (stable)" %}}
 Use Helm 3 to install the latest official `stable` release of Crossplane, suitable for community use and testing:
 
-```console
+```bash
 kubectl create namespace crossplane-system
-
 helm repo add crossplane-stable https://charts.crossplane.io/stable
 helm repo update
 
 helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
 ```
 
-</div>
-<!-- End Stable Tab -->
+<!-- close "Helm 3 (stable)" -->
+{{% /tab %}}
 
-<!-- Begin Latest Tab -->
-<div class="tab-pane fade" id="install-tab-helm3-latest" markdown="1">
+{{% tab "Helm 3 (latest)" %}}
+<!-- fold start -->
 Use Helm 3 to install the latest pre-release version of Crossplane:
 
-```console
+```bash
 kubectl create namespace crossplane-system
 
 helm repo add crossplane-master https://charts.crossplane.io/master/
@@ -129,20 +103,18 @@ helm install crossplane --namespace crossplane-system crossplane-master/crosspla
 
 For example:
 
-```console
+```bash
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane \
   --version 0.11.0-rc.100.gbc5d311 --devel
 ```
-
-</div>
-<!-- End Latest Tab -->
-
-</div>
-<!-- End Helm Tabs -->
+<!-- close "Helm 3 (latest)" -->
+{{% /tab %}}
+<!-- close "install with helm" -->
+{{% /tabs %}}
 
 ### Check Crossplane Status
 
-```console
+```bash
 helm list -n crossplane-system
 
 kubectl get all -n crossplane-system
@@ -153,29 +125,18 @@ kubectl get all -n crossplane-system
 The Crossplane CLI extends `kubectl` with functionality to build, push, and
 install [Crossplane packages]:
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#install-tab-cli" data-toggle="tab">Stable</a></li>
-<li><a href="#install-tab-cli-latest" data-toggle="tab">Latest</a></li>
-</ul>
-<br>
+{{% tabs "crossplane CLI" %}}
 
-<!-- Begin CLI Tabs -->
-<div class="tab-content">
-
-<!-- Begin CLI Stable Tab -->
-<div class="tab-pane fade in active" id="install-tab-cli" markdown="1">
-
-```console
+{{% tab "Stable" %}}
+```bash
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | sh
 ```
+<!-- close "Stable" -->
+{{% /tab %}}
 
-</div>
-<!-- End CLI Stable Tab -->
+{{% tab "Latest" %}}
 
-<!-- Begin CLI Latest Tab -->
-<div class="tab-pane fade" id="install-tab-cli-latest" markdown="1">
-
-```console
+```bash
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master sh
 ```
 
@@ -183,15 +144,14 @@ You may also specify `VERSION` for download if you would like to select a
 specific version from the given release channel. If a version is not specified
 the latest version from the release channel will be used.
 
-```console
+```bash
 curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
 ```
+<!-- close "Latest" -->
+{{% /tab %}}
 
-</div>
-<!-- End CLI Latest Tab -->
-
-</div>
-<!-- End CLI tabs -->
+<!-- close "crossplane CLI" -->
+{{% /tabs %}}
 
 ## Select a Getting Started Configuration
 
@@ -222,32 +182,21 @@ single `storageGB` parameter, and creates a connection `Secret` with keys for
 `username`, `password`, and `endpoint`. A `Configuration` exists for each
 provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS (Default VPC)</a></li>
-<li><a href="#aws-new-tab-1" data-toggle="tab">AWS (New VPC)</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
+{{% tabs "getting started" %}}
 
-<!-- Begin Cloud Provider Tabs -->
-<div class="tab-content">
-
-<!-- Begin AWS Default VPC Tab -->
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
-
+{{% tab "AWS (Default VPC)" %}}
 ### Install Configuration Package
 
 > If you prefer to see the contents of this configuration package and how it is
 > constructed prior to install, skip ahead to the [create a configuration]
 > section.
 
-```console
+```bash
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:latest
 ```
 
 Wait until all packages become healthy:
-```
+```bash
 watch kubectl get pkg
 ```
 
@@ -255,13 +204,13 @@ watch kubectl get pkg
 
 Using an AWS account with permissions to manage RDS databases:
 
-```console
+```bash
 AWS_PROFILE=default && echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $AWS_PROFILE)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $AWS_PROFILE)" > creds.conf
 ```
 
 ### Create a Provider Secret
 
-```console
+```bash
 kubectl create secret generic aws-creds -n crossplane-system --from-file=creds=./creds.conf
 ```
 
@@ -283,28 +232,25 @@ spec:
       name: aws-creds
       key: creds
 ```
-```console
+```bash
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
 ```
+<!-- close "AWS (Default VPC)" -->
+{{% /tab %}}
 
-</div>
-<!-- End AWS Default VPC Tab -->
-
-<!-- Begin AWS New VPC Tab -->
-<div class="tab-pane fade" id="aws-new-tab-1" markdown="1">
-
+{{% tab "AWS (New VPC)" %}}
 ### Install Configuration Package
 
 > If you prefer to see the contents of this configuration package and how it is
 > constructed prior to install, skip ahead to the [create a configuration]
 > section.
 
-```console
+```bash
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:latest
 ```
 
 Wait until all packages become healthy:
-```
+```bash
 watch kubectl get pkg
 ```
 
@@ -312,13 +258,13 @@ watch kubectl get pkg
 
 Using an AWS account with permissions to manage RDS databases:
 
-```console
+```bash
 AWS_PROFILE=default && echo -e "[default]\naws_access_key_id = $(aws configure get aws_access_key_id --profile $AWS_PROFILE)\naws_secret_access_key = $(aws configure get aws_secret_access_key --profile $AWS_PROFILE)" > creds.conf
 ```
 
 ### Create a Provider Secret
 
-```console
+```bash
 kubectl create secret generic aws-creds -n crossplane-system --from-file=creds=./creds.conf
 ```
 
@@ -340,15 +286,14 @@ spec:
       name: aws-creds
       key: creds
 ```
-```console
+
+```bash
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
 ```
+<!-- close "AWS (New VPC)" -->
+{{% /tab %}}
 
-</div>
-<!-- End AWS New VPC Tab -->
-
-<!-- Begin GCP Tab -->
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+{{% tab "GCP" %}}
 
 ### Install Configuration Package
 
@@ -356,7 +301,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 > constructed prior to install, skip ahead to the [create a configuration]
 > section.
 
-```console
+```bash
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:latest
 ```
 
@@ -367,7 +312,7 @@ watch kubectl get pkg
 
 ### Get GCP Account Keyfile
 
-```console
+```bash
 # replace this with your own gcp project id and the name of the service account
 # that will be created.
 PROJECT_ID=my-project
@@ -391,7 +336,7 @@ gcloud iam service-accounts keys create creds.json --project $PROJECT_ID --iam-a
 
 ### Create a Provider Secret
 
-```console
+```bash
 kubectl create secret generic gcp-creds -n crossplane-system --from-file=creds=./creds.json
 ```
 
@@ -400,7 +345,7 @@ kubectl create secret generic gcp-creds -n crossplane-system --from-file=creds=.
 We will create the following `ProviderConfig` object to configure credentials
 for GCP Provider:
 
-```console
+```bash
 # replace this with your own gcp project id
 PROJECT_ID=my-project
 echo "apiVersion: gcp.crossplane.io/v1beta1
@@ -416,12 +361,10 @@ spec:
       name: gcp-creds
       key: creds" | kubectl apply -f -
 ```
+<!-- close "GCP" -->
+{{% /tab %}}
 
-</div>
-<!-- End GCP Tab -->
-
-<!-- Begin Azure Tab -->
-<div class="tab-pane fade" id="azure-tab-1" markdown="1">
+{{% tab "Azure" %}}
 
 ### Install Configuration Package
 
@@ -429,7 +372,7 @@ spec:
 > constructed prior to install, skip ahead to the [create a configuration]
 > section.
 
-```console
+```bash
 kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:latest
 ```
 
@@ -440,14 +383,14 @@ watch kubectl get pkg
 
 ### Get Azure Principal Keyfile
 
-```console
+```bash
 # create service principal with Owner role
 az ad sp create-for-rbac --role Contributor --scopes /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx > "creds.json"
 ```
 
 ### Create a Provider Secret
 
-```console
+```bash
 kubectl create secret generic azure-creds -n crossplane-system --from-file=creds=./creds.json
 ```
 
@@ -470,27 +413,22 @@ spec:
       key: creds
 ```
 
-```console
+```bash
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
 ```
+<!-- close "Azure" -->
+{{% /tab %}}
 
-</div>
-<!-- End Azure Tab -->
-
-</div>
-<!-- End Cloud Provider Tabs -->
+{{% /tabs %}}
 
 ## Next Steps
 
 Now that you have configured Crossplane with support for `PostgreSQLInstance`,
 you can [provision infrastructure].
+<!-- close "Crossplane (upstream)" -->
+{{% /tab %}}
 
-</div>
-<!-- End Upstream Tab -->
-
-<!-- Begin Downstream Tab -->
-<div class="tab-pane fade" id="using-a-downstream-distro" markdown="1">
-
+{{% tab "Downstream Distribution" %}}
 ## Start with a Downstream Distribution
 
 Upbound, the founders of Crossplane, maintains a free and open source downstream
@@ -504,11 +442,11 @@ and Configuration packages.
 <i>Want see another hosted Crossplane service listed? Please [reach out on
 Slack][Slack] and our community will highlight it here!</i>
 
-</div>
-<!-- End Downstream Tab -->
+<!-- close "Downstream Distribution" -->
+{{% /tab %}}
 
-</div>
-<!-- End Distro Tabs -->
+<!-- close "Crossplane Distros" -->
+{{% /tabs %}}
 
 ## More Info
 
@@ -523,22 +461,22 @@ Slack][Slack] and our community will highlight it here!</i>
 
 <!-- Named Links -->
 
-[package]: ../concepts/packages.md
-[provision infrastructure]: provision-infrastructure.md
-[create a configuration]: create-configuration.md
-[Install]: ../reference/install.md
-[Configure]: ../reference/configure.md
-[Uninstall]: ../reference/uninstall.md
+[package]: {{<ref "../concepts/packages" >}}
+[provision infrastructure]: {{<ref "provision-infrastructure" >}}
+[create a configuration]: {{<ref "create-configuration" >}}
+[Install]: {{<ref "../reference/install" >}}
+[Configure]: {{<ref "../reference/configure" >}}
+[Uninstall]: {{<ref "../reference/uninstall" >}}
 [Kubernetes cluster]: https://kubernetes.io/docs/setup/
-[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
-[Helm]:https://docs.helm.sh/using_helm/
+[Minikube]: https://minikube.sigs.k8s.io/docs/start/
+[Helm]:https://helm.sh/docs/intro/using_helm/
 [Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/
-[Crossplane packages]: ../concepts/packages.md
+[Crossplane packages]: {{<ref "../concepts/packages" >}}
 [Slack]: http://slack.crossplane.io/
 [up]: https://github.com/upbound/up
-[Upbound documentation]: https://cloud.upbound.io/docs
-[Providers]: ../concepts/providers.md
-[Universal Crossplane]: https://cloud.upbound.io/docs/uxp
-[Get started with Universal Crossplane]: https://cloud.upbound.io/docs/uxp/install
+[Upbound documentation]: https://https://docs.upbound.io//docs
+[Providers]: {{<ref "../concepts/providers" >}}
+[Universal Crossplane]: https://https://docs.upbound.io/uxp/
+[Get started with Universal Crossplane]: https://docs.upbound.io/uxp/install
 [certified by the CNCF]: https://github.com/cncf/crossplane-conformance
 [Crossplane GitHub]: https://github.com/crossplane/crossplane

@@ -1,11 +1,7 @@
 ---
 title: Upgrading to v0.14
-toc: true
 weight: 210
-indent: true
 ---
-
-# Upgrading to v0.14
 
 Crossplane made a small handful of breaking changes in v0.14. The most broadly
 impactful change was updating the `CompositeResourceDefinition` (XRD) schema to

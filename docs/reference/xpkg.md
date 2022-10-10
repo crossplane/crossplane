@@ -1,11 +1,7 @@
 ---
 title: xpkg Specification
-toc: true
 weight: 305
-indent: true
 ---
-
-# Overview
 
 Crossplane supports two types of [packages]: Providers and Configurations. These
 packages are distributed as generic [OCI images], which contain [YAML] content
@@ -201,7 +197,7 @@ unmodified.
 
 <!-- Named Links -->
 
-[packages]: ../concepts/packages.md
+[packages]: {{<ref "../concepts/packages" >}}
 [OCI images]: https://github.com/opencontainers/image-spec
 [OCI image specification]: https://github.com/opencontainers/image-spec/blob/main/spec.md
 [YAML]: https://yaml.org/spec/1.2.2/

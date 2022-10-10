@@ -1,11 +1,7 @@
 ---
-title: Configure
-toc: true
+title: Configure Your Cloud Provider Account
 weight: 302
-indent: true
 ---
-
-# Configure Your Cloud Provider Account
 
 In order for Crossplane to be able to manage resources in a specific cloud
 provider, you will need to create an account for Crossplane to use. Use the
@@ -21,6 +17,6 @@ provisioning resources!
 
 <!-- Named Links -->
 
-[Google Cloud Platform (GCP) Service Account]: ../cloud-providers/gcp/gcp-provider.md
-[Microsoft Azure Service Principal]: ../cloud-providers/azure/azure-provider.md
-[Amazon Web Services (AWS) IAM User]: ../cloud-providers/aws/aws-provider.md
+[Google Cloud Platform (GCP) Service Account]: {{<ref "../cloud-providers/gcp/gcp-provider" >}}
+[Microsoft Azure Service Principal]: {{<ref "../cloud-providers/azure/azure-provider" >}}
+[Amazon Web Services (AWS) IAM User]: {{<ref "../cloud-providers/aws/aws-provider" >}}
