@@ -194,7 +194,7 @@ type FavouriteDBInstanceParameters struct {
     // conventions trump cloud provider fidelity.
 
     // FancinessLevel specifies exactly how fancy this instance is.
-    FancinessLevel int `json:"fancinessLevel"`
+    FancinessLevel int `json:"fanciness_level"`
 
     // Version specifies what version of FancySQL this instance will run.
     // +optional
