@@ -1,4 +1,7 @@
-# Adding Amazon Web Services (AWS) to Crossplane
+---
+title: Adding Amazon Web Services (AWS) to Crossplane
+toc_hide: true
+---
 
 In this guide, we will walk through the steps necessary to configure your AWS
 account to be ready for integration with Crossplane. This will be done by adding
