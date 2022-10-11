@@ -1,8 +1,6 @@
 ---
 title: Uninstall
-toc: true
 weight: 303
-indent: true
 ---
 
 # Uninstalling
@@ -88,4 +86,4 @@ kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
 <!-- Named Links -->
 
 [finalizers]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers
-[troubleshooting guide]: troubleshoot.md
+[troubleshooting guide]: {{<ref "troubleshoot" >}}

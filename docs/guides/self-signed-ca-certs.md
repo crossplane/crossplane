@@ -15,7 +15,7 @@ registries, it must be configured to trust the CA and Intermediate certs.
 
 Crossplane needs to be installed via the Helm chart with the 
 `registryCaBundleConfig.name` and `registryCaBundleConfig.key` parameters 
-defined. See [Install Crossplane].
+defined. See [Install Crossplane]({{<ref "../getting-started/install-configure" >}}).
 
 ## Configure
 
@@ -53,4 +53,4 @@ in an `override.yaml` file would look like this:
 ```
 
 
-[Install Crossplane]: ../reference/install.md
+[Install Crossplane]: {{<ref "../reference/install" >}}

@@ -1,8 +1,6 @@
 ---
 title: Upgrading to v0.14
-toc: true
 weight: 210
-indent: true
 ---
 
 # Upgrading to v0.14

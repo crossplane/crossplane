@@ -1,11 +1,7 @@
 ---
 title: Multi-Tenant Crossplane
-toc: true
 weight: 240
-indent: true
 ---
-
-# Multi-Tenant Crossplane
 
 This guide describes how to use Crossplane effectively in multi-tenant
 environments by utilizing Kubernetes primitives and compatible policy
@@ -25,14 +21,15 @@ those with more complex environments, may choose to incorporate third-party
 policy engines, or scale to multiple Crossplane clusters. The following sections
 describe each of these scenarios in greater detail.
 
+- [TL;DR](#tldr)
 - [Background](#background)
-    - [Cluster Scoped Managed Resources](#cluster-scoped-managed-resources)
-    - [Namespace Scoped Claims](#namespace-scoped-claims)
-- [Single Cluster Multi Tenancy](#single-cluster-multi-tenancy)
+  - [Cluster-Scoped Managed Resources](#cluster-scoped-managed-resources)
+  - [Namespace Scoped Claims](#namespace-scoped-claims)
+- [Single Cluster Multi-Tenancy](#single-cluster-multi-tenancy)
   - [Composition as an Isolation Mechanism](#composition-as-an-isolation-mechanism)
   - [Namespaces as an Isolation Mechanism](#namespaces-as-an-isolation-mechanism)
   - [Policy Enforcement with Open Policy Agent](#policy-enforcement-with-open-policy-agent)
-- [Multi Cluster Multi Tenancy](#multi-cluster-multi-tenancy)
+- [Multi-Cluster Multi-Tenancy](#multi-cluster-multi-tenancy)
   - [Reproducible Platforms with Configuration Packages](#reproducible-platforms-with-configuration-packages)
   - [Control Plane of Control Planes](#control-plane-of-control-planes)
   - [Service Provisioning using Open Service Broker API](#service-provisioning-using-open-service-broker-api)
@@ -321,19 +318,19 @@ found under [vshn/application-catalog-demo].
 This way even a tight integration of Crossplane in to [Cloudfoundry] is possible.
 
 <!-- Named Links -->
-[managed resources]: ../concepts/managed-resources.md
+[managed resources]: {{<ref "../concepts/managed-resources" >}}
 [RBAC]: https://kubernetes.io/docs/reference/access-authn-authz/rbac/
-[Composition]: ../concepts/composition.md
+[Composition]: {{<ref "../concepts/composition" >}}
 [CustomResourceDefinitions]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [Open Policy Agent]: https://www.openpolicyagent.org/
 [Rego]: https://www.openpolicyagent.org/docs/latest/policy-language/
 [Gatekeeper]: https://open-policy-agent.github.io/gatekeeper/website/docs/
 [here]: https://youtu.be/TaF0_syejXc
 [Multiple Source Field patching]: https://github.com/crossplane/crossplane/pull/2093
-[Configuration packages]: ../concepts/packages.md
+[Configuration packages]: {{<ref "../concepts/packages" >}}
 [OCI images]: https://github.com/opencontainers/image-spec
 [EKS Cluster]: https://doc.crds.dev/github.com/crossplane/provider-aws/eks.aws.crossplane.io/Cluster/v1beta1@v0.17.0
-[provider-aws]: https://github.com/crossplane/provider-aws
+[provider-aws]: https://github.com/crossplane-contrib/provider-aws
 [provider-helm]: https://github.com/crossplane-contrib/provider-helm
 [Open Service Broker API]: https://github.com/openservicebrokerapi/servicebroker
 [Crossplane Service Broker]: https://github.com/vshn/crossplane-service-broker
