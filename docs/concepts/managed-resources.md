@@ -310,6 +310,25 @@ never deletes the external resource in the provider.
 > means Crossplane will allow immutable fields to be changed, but will not
 > actually make the desired change. This is tracked in [this issue][issue-727].
 
+#### Pausing Reconciliations
+If a managed resource being reconciled by the [managed reconciler], has the
+`crossplane.io/paused` annotation with its value set to `true` as in the
+following example, then further reconciliations are paused on that resource
+after emitting an event with the type `Synced`, the status `False`,
+and the reason `ReconcilePaused`:
+```yaml
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  name: paused-vpc
+  annotations:
+    crossplane.io/paused: "true"
+...
+```
+Reconciliations on the managed resource will resume once the 
+`crossplane.io/paused` annotation is removed or its value is set
+to anything other than `true`.
+
 ### External Name
 
 By default the name of the managed resource is used as the name of the external
@@ -462,3 +481,4 @@ including Velero.
 [issue-727]: https://github.com/crossplane/crossplane/issues/727
 [issue-1143]: https://github.com/crossplane/crossplane/issues/1143
 [managed-api-patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
+[managed reconciler]: https://github.com/crossplane/crossplane-runtime/blob/84e629b9589852df1322ff1eae4c6e7639cf6e99/pkg/reconciler/managed/reconciler.go#L637

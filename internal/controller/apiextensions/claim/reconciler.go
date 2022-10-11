@@ -76,6 +76,7 @@ const (
 	reasonCompositeConfigure event.Reason = "ConfigureCompositeResource"
 	reasonClaimConfigure     event.Reason = "ConfigureClaim"
 	reasonPropagate          event.Reason = "PropagateConnectionSecret"
+	reasonPaused             event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -342,6 +343,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"version", cm.GetResourceVersion(),
 		"external-name", meta.GetExternalName(cm),
 	)
+
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(cm) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(cm, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		cm.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
 
 	cp := r.newComposite()
 	if ref := cm.GetResourceReference(); ref != nil {

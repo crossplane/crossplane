@@ -24,6 +24,9 @@
 * 1.4 - Muvaffak Onus (@muvaf)
   * Expanded [immutability section](#immutable-properties) to cover selector fields..
   * Updated [labelling section](#external-resource-labeling) with current implementation.
+* 1.5 - Alper Rifat Ulucinar (@ulucinar)
+  * Added a new section on the [pause annotation](#pause-annotation) for
+  the managed resources.
 
 ## Terminology
 
@@ -667,6 +670,24 @@ type SubnetworkParameters struct {
 }
 ```
 
+### Pause Annotation
+Managed resources, which are reconciled with the [managed reconciler], support
+a special annotation named `crossplane.io/paused`. If a managed resource has
+this annotation with the value `true` such as the following resource:
+```yaml
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  name: paused-vpc
+  annotations:
+    crossplane.io/paused: "true"
+...
+```
+, then further reconciliations on the managed resource will be paused after
+emitting an event with the type `Synced`, the status `False`,
+and the reason `ReconcilePaused`. Reconciliations will resume when
+this annotation is removed, or set to some other value than `true`.
+
 ## Future Considerations
 
 ### Spec and Observation Drifts
@@ -688,3 +709,4 @@ one of the `Condition`s we already have or add a new one.
 [terminology]: https://github.com/crossplane/crossplane/blob/master/docs/concepts/terminology.md
 [from crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/blob/ca4b6b4/apis/core/v1alpha1/resource.go#L77
 [Kubernetes API Conventions - Spec and Status]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+[managed reconciler]: https://github.com/crossplane/crossplane-runtime/blob/84e629b9589852df1322ff1eae4c6e7639cf6e99/pkg/reconciler/managed/reconciler.go#L637

@@ -373,6 +373,45 @@ spec:
       fromFieldPath: metadata.labels[some-important-label]
 ```
 
+### Pause Annotation
+There is an annotation named `crossplane.io/paused` that you can use on
+Composite Resources and Composite Resource Claims to temporarily pause
+reconciliations of their respective controllers on them. An example
+for a Composite Resource Claim is as follows:
+```yaml
+apiVersion: test.com/v1alpha1
+kind: MyResource
+metadata:
+  annotations:
+     crossplane.io/paused: true
+  namespace: upbound-system
+  name: my-resource
+spec:
+  parameters:
+    tagValue: demo-test
+  compositionRef:
+    name: example
+```
+where `MyResource` is a Composite Resource Claim kind.
+When a Composite Resource or a Claim has the `crossplane.io/paused` annotation
+with its value set to `true`, the Composite Resource controller or the Claim
+controller pauses reconciliations on the resource until
+the annotation is removed or its value set to something other than `true`.
+Before temporarily pausing reconciliations, an event with the type `Synced`,
+the status `False`, and the reason `ReconcilePaused` is emitted
+on the resource.
+Please also note that annotations on a Composite Resource Claim are propagated
+to the associated Composite Resource but when the
+`crossplane.io/paused: true` annotation is added to a Claim, because
+reconciliations on the Claim are now paused, this newly added annotation
+will not be propagated. However, whenever the annotation's value is set to a
+non-`true` value, reconciliations on the Claim will now resume, and thus the
+annotation will now be propagated to the associated Composite Resource
+with a non-`true` value. An implication of the described behavior is that
+pausing reconciliations on the Claim will not inherently pause reconciliations
+on the associated Composite Resource.
+
+
 ### Patch Types
 
 You can use the following types of patch in a `Composition`:
