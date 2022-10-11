@@ -1,9 +1,9 @@
 ---
-title: Install
-toc: true
+title: Install Crossplane
 weight: 301
-indent: true
 ---
+
+
 
 # Install Crossplane
 

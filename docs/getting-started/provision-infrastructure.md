@@ -1,11 +1,8 @@
 ---
 title: Provision Infrastructure
-toc: true
 weight: 3
-indent: true
 ---
 
-# Provision Infrastructure
 
 Composite resources (XRs) are always cluster scoped - they exist outside of any
 namespace. This allows an XR to represent infrastructure that might be consumed
@@ -278,6 +275,6 @@ own infrastructure APIs.
 <!-- Named Links -->
 
 [Persistent Volumes (PV) and Persistent Volume Claims (PVC)]: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
-[composition]: ../concepts/composition.md
-[setup]: install-configure.md
-[next section]: create-configuration.md
+[composition]: {{<ref "../concepts/composition" >}}
+[setup]: {{<ref "install-configure" >}}
+[next section]: {{<ref "create-configuration" >}}

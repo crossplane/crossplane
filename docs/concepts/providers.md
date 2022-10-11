@@ -1,11 +1,7 @@
 ---
 title: Providers
-toc: true
 weight: 101
-indent: true
 ---
-
-# Providers
 
 Providers are Crossplane packages that bundle a set of [Managed
 Resources][managed-resources] and their respective controllers to allow
@@ -121,12 +117,12 @@ will attempt to use a `ProviderConfig` named `default`.
 
 <!-- Named Links -->
 
-[getting-started]: ../getting-started/install-configure.md
-[Google Cloud Platform (GCP) Service Account]: ../cloud-providers/gcp/gcp-provider.md
-[Microsoft Azure Service Principal]: ../cloud-providers/azure/azure-provider.md
-[Amazon Web Services (AWS) IAM User]: ../cloud-providers/aws/aws-provider.md
-[managed-resources]: managed-resources.md
-[provider-aws]: https://github.com/crossplane/provider-aws
+[getting-started]: {{<ref "../getting-started/install-configure" >}}
+[Google Cloud Platform (GCP) Service Account]: {{<ref "../cloud-providers/gcp/gcp-provider" >}}
+[Microsoft Azure Service Principal]: {{<ref "../cloud-providers/azure/azure-provider" >}}
+[Amazon Web Services (AWS) IAM User]: {{<ref "../cloud-providers/aws/aws-provider" >}}
+[managed-resources]: {{<ref "managed-resources" >}}
+[provider-aws]: https://github.com/crossplane-contrib/provider-aws
 [provider-aws-api]: https://doc.crds.dev/github.com/crossplane/provider-aws
 [provider-jet-aws]: https://github.com/crossplane-contrib/provider-jet-aws
 [provider-jet-aws-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws

@@ -1,11 +1,7 @@
 ---
 title: Uninstall
-toc: true
 weight: 303
-indent: true
 ---
-
-# Uninstalling
 
 Crossplane has a number of components that must be cleaned up in order to
 guarantee proper removal from the cluster. When deleting objects, it is best to
@@ -88,4 +84,4 @@ kubectl get crd -o name | grep crossplane.io | xargs kubectl delete
 <!-- Named Links -->
 
 [finalizers]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/#finalizers
-[troubleshooting guide]: troubleshoot.md
+[troubleshooting guide]: {{<ref "troubleshoot" >}}
