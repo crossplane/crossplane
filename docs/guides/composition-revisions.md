@@ -1,11 +1,6 @@
 ---
 title: Composition Revisions
-toc: true
-weight: 260
-indent: true
 ---
-
-# Composition Revisions
 
 This guide discusses the use of "Composition Revisions" to safely make and roll
 back changes to a Crossplane [`Composition`][composition-type]. It assumes
@@ -152,7 +147,7 @@ spec:
     name: db-conn
 ```
 
-[composition-type]: ../concepts/composition.md
-[composition-term]: ../concepts/terminology.md#composition
+[composition-type]: {{<ref "../concepts/composition" >}}
+[composition-term]: {{<ref "../concepts/terminology" >}}#composition
 [canary]: https://martinfowler.com/bliki/CanaryRelease.html
-[install-guide]: ../getting-started/install-configure.md
+[install-guide]: {{<ref "../getting-started/install-configure" >}}

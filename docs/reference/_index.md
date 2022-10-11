@@ -1,10 +1,7 @@
 ---
 title: Reference
-toc: true
 weight: 300
 ---
-
-# Overview
 
 The reference documentation includes answers to frequently asked questions,
 information about similar projects, and links to resources that can help you
@@ -13,16 +10,16 @@ that you think would be valuable for the community, please feel free to [open a
 pull request] and add it.
 
 1. [Install]
-1. [Configure]
-1. [Uninstall]
-1. [Troubleshoot]
-1. [Learn More]
+2. [Configure]
+3. [Uninstall]
+4. [Troubleshoot]
+5. [Learn More]
 
 <!-- Named Links -->
 
 [open a pull request]: https://github.com/crossplane/crossplane/compare
-[Install]: install.md
-[Configure]: configure.md
-[Uninstall]: uninstall.md
-[Troubleshoot]: troubleshoot.md
-[Learn More]: learn_more.md
+[Install]: {{<ref "install" >}}
+[Configure]: {{<ref "configure" >}}
+[Uninstall]: {{<ref "uninstall" >}}
+[Troubleshoot]: {{<ref "troubleshoot" >}}
+[Learn More]: {{<ref "learn_more" >}}

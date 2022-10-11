@@ -1,11 +1,7 @@
 ---
-title: Packages
-toc: true
+title: Crossplane Packages
 weight: 104
-indent: true
 ---
-
-# Crossplane Packages
 
 Crossplane packages are opinionated [OCI images] that contain a stream of YAML
 that can be parsed by the Crossplane package manager. Crossplane packages come
