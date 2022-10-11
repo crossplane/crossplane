@@ -1,11 +1,7 @@
 ---
 title: Terminology
-toc: true
 weight: 110
-indent: true
 ---
-
-# Terminology
 
 ## A Note on Style
 

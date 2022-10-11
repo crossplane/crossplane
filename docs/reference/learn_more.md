@@ -1,11 +1,8 @@
 ---
 title: Learn More
-toc: true
 weight: 307
-indent: true
 ---
 
-# Learn More
 
 If you have any questions, please drop us a note on [Crossplane Slack][join-crossplane-slack] or [contact us][contact-us]!
 

@@ -1,11 +1,7 @@
 ---
 title: Vault Credential Injection
-toc: true
 weight: 230
-indent: true
 ---
-
-# Using Vault for Provider Credentials
 
 > This guide is adapted from the [Vault on Minikube] and [Vault Kubernetes
 > Sidecar] guides.

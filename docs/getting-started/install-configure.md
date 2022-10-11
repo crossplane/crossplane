@@ -1,11 +1,9 @@
 ---
 title: Install & Configure
-toc: true
 weight: 2
-indent: true
 ---
 
-# Choosing Your Crossplane Distribution
+## Choosing Your Crossplane Distribution
 
 Users looking to use Crossplane for the first time have two options available to
 them today. The first way is to use the version of Crossplane which is
@@ -523,22 +521,22 @@ Slack][Slack] and our community will highlight it here!</i>
 
 <!-- Named Links -->
 
-[package]: ../concepts/packages.md
-[provision infrastructure]: provision-infrastructure.md
-[create a configuration]: create-configuration.md
-[Install]: ../reference/install.md
-[Configure]: ../reference/configure.md
-[Uninstall]: ../reference/uninstall.md
+[package]: {{<ref "../concepts/packages" >}}
+[provision infrastructure]: {{<ref "provision-infrastructure" >}}
+[create a configuration]: {{<ref "create-configuration" >}}
+[Install]: {{<ref "../reference/install" >}}
+[Configure]: {{<ref "../reference/configure" >}}
+[Uninstall]: {{<ref "../reference/uninstall" >}}
 [Kubernetes cluster]: https://kubernetes.io/docs/setup/
-[Minikube]: https://kubernetes.io/docs/tasks/tools/install-minikube/
-[Helm]:https://docs.helm.sh/using_helm/
+[Minikube]: https://minikube.sigs.k8s.io/docs/start/
+[Helm]:https://helm.sh/docs/intro/using_helm/
 [Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/
-[Crossplane packages]: ../concepts/packages.md
+[Crossplane packages]: {{<ref "../concepts/packages" >}}
 [Slack]: http://slack.crossplane.io/
 [up]: https://github.com/upbound/up
-[Upbound documentation]: https://cloud.upbound.io/docs
-[Providers]: ../concepts/providers.md
-[Universal Crossplane]: https://cloud.upbound.io/docs/uxp
-[Get started with Universal Crossplane]: https://cloud.upbound.io/docs/uxp/install
+[Upbound documentation]: https://https://docs.upbound.io//docs
+[Providers]: {{<ref "../concepts/providers" >}}
+[Universal Crossplane]: https://https://docs.upbound.io/uxp/
+[Get started with Universal Crossplane]: https://docs.upbound.io/uxp/install
 [certified by the CNCF]: https://github.com/cncf/crossplane-conformance
 [Crossplane GitHub]: https://github.com/crossplane/crossplane
