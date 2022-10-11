@@ -1,8 +1,6 @@
 ---
 title: Learn More
-toc: true
 weight: 307
-indent: true
 ---
 
 # Learn More

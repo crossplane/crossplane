@@ -1,8 +1,6 @@
 ---
 title: Troubleshoot
-toc: true
 weight: 306
-indent: true
 ---
 
 # Troubleshooting
@@ -281,7 +279,7 @@ spec:
 <!-- Named Links -->
 
 [Requested Resource Not Found]: #requested-resource-not-found
-[install Crossplane CLI]: ../getting-started/install-configure.md#install-crossplane-cli
+[install Crossplane CLI]: {{<ref "../getting-started/install-configure" >}}#install-crossplane-cli
 [Resource Status and Conditions]: #resource-status-and-conditions
 [Resource Events]: #resource-events
 [Crossplane Logs]: #crossplane-logs
@@ -290,6 +288,6 @@ spec:
 [Pausing Providers]: #pausing-providers
 [Deleting When a Resource Hangs]: #deleting-when-a-resource-hangs
 [Installing Crossplane Package]: #installing-crossplane-package
-[Crossplane package]: https://crossplane.io/docs/v1.3/concepts/packages.html
+[Crossplane package]: {{<ref "../concepts/packages" >}}
 [Handling Crossplane Package Dependency]: #handling-crossplane-package-dependency
 [semver spec]: https://github.com/Masterminds/semver#basic-comparisons

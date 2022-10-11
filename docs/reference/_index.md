@@ -1,6 +1,5 @@
 ---
 title: Reference
-toc: true
 weight: 300
 ---
 
@@ -21,8 +20,8 @@ pull request] and add it.
 <!-- Named Links -->
 
 [open a pull request]: https://github.com/crossplane/crossplane/compare
-[Install]: install.md
-[Configure]: configure.md
-[Uninstall]: uninstall.md
-[Troubleshoot]: troubleshoot.md
-[Learn More]: learn_more.md
+[Install]: {{<ref "install" >}}
+[Configure]: {{<ref "configure" >}}
+[Uninstall]: {{<ref "uninstall" >}}
+[Troubleshoot]: {{<ref "troubleshoot" >}}
+[Learn More]: {{<ref "learn_more" >}}

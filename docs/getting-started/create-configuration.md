@@ -1,11 +1,8 @@
 ---
 title: Create a Configuration
-toc: true
 weight: 4
-indent: true
 ---
 
-# Create a Configuration
 
 In the [previous section] we were able to create a PostgreSQL database because
 we had installed a configuration package that defined the `PostgreSQLInstance`
@@ -32,7 +29,7 @@ contain one XRD and one composition - it could include only an XRD, only a
 composition, several compositions, or any combination thereof.
 
 Before we go any further, we must create a directory in which to build our
-configuration:
+configuration: 
 
 ```console
 mkdir crossplane-config
@@ -733,9 +730,9 @@ rm -rf crossplane-config
 
 <!-- Named Links -->
 
-[previous section]: provision-infrastructure.md
-[composed]: ../concepts/composition.md
-[composition]: ../concepts/composition.md
+[previous section]: {{<ref "provision-infrastructure" >}}
+[composed]: {{<ref "../concepts/composition" >}}
+[composition]: {{<ref "../concepts/composition" >}}
 [Docker Hub]: https://hub.docker.com/
-[packages]: ../concepts/packages.md
-[concepts]: ../concepts/overview.md
+[packages]: {{<ref "../concepts/packages" >}}
+[concepts]: {{<ref "../concepts" >}}

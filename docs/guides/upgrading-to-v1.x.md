@@ -1,8 +1,6 @@
 ---
 title: Upgrading to v1.x
-toc: true
 weight: 220
-indent: true
 ---
 
 # Upgrading to v1.x

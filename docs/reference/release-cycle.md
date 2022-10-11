@@ -1,8 +1,6 @@
 ---
 title: Release Cycle
-toc: true
 weight: 308
-indent: true
 ---
 
 # Release Cycle

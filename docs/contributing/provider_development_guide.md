@@ -1,11 +1,7 @@
 ---
 title: Provider Development Guide
-toc: true
 weight: 1001
-indent: true
 ---
-
-# Provider Development Guide
 
 Crossplane allows you to manage infrastructure directly from Kubernetes. Each
 infrastructure API resource that Crossplane orchestrates is known as a "managed
@@ -622,7 +618,7 @@ feedback you may have about the development process!
 [crossplane-runtime v0.9.0]: https://github.com/crossplane/crossplane-runtime/releases/tag/v0.9.0
 [TBS Episode 18]: https://www.youtube.com/watch?v=rvQ8N0u3rkE&t=7s
 [What Makes a Crossplane Infrastructure Resource]: #what-makes-a-crossplane-infrastructure-resource
-[managed resource]: ../concepts/managed-resources.md
+[managed resource]: {{<ref "../concepts/managed-resources" >}}
 [`CloudMemorystoreInstance`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
 [`ProviderConfig`]: https://github.com/crossplane/provider-gcp/blob/be5aaf6/apis/v1beta1/providerconfig_types.go#L39
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
@@ -652,10 +648,10 @@ feedback you may have about the development process!
 [reach out]: https://github.com/crossplane/crossplane#get-involved
 [crossplane org]: https://github.com/crossplane
 [`angryjet`]: https://github.com/crossplane/crossplane-tools
-[Managed Resource API Patterns]: ../design/one-pager-managed-resource-api-design.md
+[Managed Resource API Patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
 [Crossplane CLI]: https://github.com/crossplane/crossplane-cli#quick-start-stacks
 [`angryjet` documentation]: https://github.com/crossplane/crossplane-tools/blob/master/README.md
-[code generation guide]: https://github.com/crossplane/provider-aws/blob/master/CODE_GENERATION.md
+[code generation guide]: https://github.com/crossplane-contrib/provider-aws/blob/master/CODE_GENERATION.md
 [Terrajet]: https://github.com/crossplane/terrajet
 [Generating a Crossplane Provider guide]: https://github.com/crossplane/terrajet/blob/main/docs/generating-a-provider.md
 [provider-template]: https://github.com/crossplane/provider-template

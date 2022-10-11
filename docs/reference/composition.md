@@ -1,11 +1,8 @@
 ---
 title: Composition
-toc: true
 weight: 304
-indent: true
 ---
 
-# Overview
 
 This reference provides detailed examples of defining, configuring, and using
 Composite Resources in Crossplane. You can also refer to Crossplane's [API
@@ -410,14 +407,14 @@ composed resource field.
 
 ```yaml
 # Patch from the XR's spec.parameters.location field and the
-# metadata.labels[crossplane.io/claim-name] label to the composed
+# metadata.annotations[crossplane.io/claim-name] annotation to the composed
 # resource's spec.forProvider.administratorLogin field.
 - type: CombineFromComposite
   combine:
     # The patch will only be applied when all variables have non-zero values.
     variables:
     - fromFieldPath: spec.parameters.location
-    - fromFieldPath: metadata.labels[crossplane.io/claim-name]
+    - fromFieldPath: metadata.annotations[crossplane.io/claim-name]
     strategy: string
     string:
       fmt: "%s-%s"
@@ -794,14 +791,14 @@ so:
 1. Use a `FromCompositeFieldPath` patch to patch from the 'intermediary' field
    you patched to in step 1 to a field on the destination composed resource.
 
-[api-docs]: ../api-docs/crossplane.md
-[xr-concepts]: ../concepts/composition.md
+[api-docs]: {{<ref "../api-docs/crossplane" >}}
+[xr-concepts]: {{<ref "../concepts/composition" >}}
 [crd-docs]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 [raise an issue]: https://github.com/crossplane/crossplane/issues/new?assignees=&labels=enhancement&template=feature_request.md
 [issue-2524]: https://github.com/crossplane/crossplane/issues/2524
 [field-paths]:  https://github.com/kubernetes/community/blob/61f3d0/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
-[pkg/fmt]: https://golang.org/pkg/fmt/
-[trouble-ref]: troubleshoot.md
+[pkg/fmt]: https://pkg.go.dev/fmt
+[trouble-ref]: {{<ref "troubleshoot" >}}
 [crossplane-contrib]: https://github.com/crossplane-contrib
 [helm-and-gcp]: https://github.com/crossplane-contrib/provider-helm/blob/2dcbdd0/examples/in-composition/composition.yaml
 [issue-2024]: https://github.com/crossplane/crossplane/issues/2024
