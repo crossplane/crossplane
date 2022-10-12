@@ -245,6 +245,6 @@ scenarios, including:
 [xr-ref]: {{<ref "../reference/composition" >}}
 [how-it-works]: /docs/v1.9/media/composition-how-it-works.svg
 [crd-docs]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
-[provider-kubernetes]: https://github.com/crossplane-contrib/provider-kubernetes
-[provider-helm]: https://github.com/crossplane-contrib/provider-helm
+[provider-kubernetes]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-kubernetes
+[provider-helm]: https://marketplace.upbound.io/providers/provider-helm
 [claims-and-xrs]: /docs/v1.9/media/composition-claims-and-xrs.svg
