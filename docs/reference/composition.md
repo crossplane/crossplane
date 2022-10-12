@@ -849,8 +849,8 @@ resources, but it's not required.
 ### Mixing and Matching Providers
 
 Crossplane has providers for many things in addition to the big clouds. Take a
-look at [github.com/crossplane-contrib][crossplane-contrib] to find many of
-them. Keep in mind that you can mix and match managed resources from different
+look at the [Upbound Marketplace][upbound-marketplace] to find many of them.
+Keep in mind that you can mix and match managed resources from different
 providers within a `Composition` to create Composite Resources. For example you
 might use provider-aws and provider-sql to create an XR that provisions an
 `RDSInstance` then creates an SQL `Database` and `User`, or provider-gcp and
@@ -884,6 +884,6 @@ so:
 [field-paths]: https://github.com/kubernetes/community/blob/61f3d0/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
 [pkg/fmt]: https://pkg.go.dev/fmt
 [trouble-ref]: {{<ref "troubleshoot" >}}
-[crossplane-contrib]: https://github.com/crossplane-contrib
+[upbound-marketplace]: https://marketplace.upbound.io
 [helm-and-gcp]: https://github.com/crossplane-contrib/provider-helm/blob/2dcbdd0/examples/in-composition/composition.yaml
 [issue-2024]: https://github.com/crossplane/crossplane/issues/2024
