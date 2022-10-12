@@ -3,34 +3,18 @@ title: API Documentation
 weight: 400
 ---
 
-The Crossplane ecosystem contains many CRDs that map to API types represented by
-external infrastructure providers. The documentation for these CRDs are
-auto-generated on [doc.crds.dev]. To find the CRDs available for providers
-maintained by the Crossplane organization, you can search for the Github URL, or
-append it in the [doc.crds.dev] URL path.
+Crossplane packages offer API types in a cluster by installing CRDs or XRDs.
+Packages that are pushed to `xpkg.upbound.io` have auto-generated documentation
+for their API types on the [Upbound Marketplace]. You can access documentation
+for the most recent release of any package by navigating to
+`https://marketplace.upbound.io/{provider|configuration}/<org>/<repo>`.
 
-For instance, to find the CRDs available for [provider-azure], you would go to:
-
-[doc.crds.dev/github.com/crossplane/provider/azure]
-
-By default, you will be served the latest CRDs on the `master` branch for the
-repository. If you prefer to see the CRDs for a specific version, you can append
-the git tag for the release:
-
-[doc.crds.dev/github.com/crossplane/provider-azure@v0.8.0]
-
-Crossplane repositories that are not providers but do publish CRDs are also
-served on [doc.crds.dev]. For instance, the [crossplane/crossplane] repository.
-
-Bugs and feature requests for API documentation should be [opened as issues] on
-the open source [doc.crds.dev repo].
+Crossplane repositories that do not contain providers or configurations, but do
+publish CRDs, are served on [doc.crds.dev]. For instance, the
+[crossplane/crossplane] repository.
 
 <!-- Named Links -->
 
+[Upbound Marketplace]: https://marketplace.upbound.io
 [doc.crds.dev]: https://doc.crds.dev/
-[provider-azure]: https://github.com/crossplane/provider-azure
-[doc.crds.dev/github.com/crossplane/provider/azure]: https://doc.crds.dev/github.com/crossplane/provider-azure
-[doc.crds.dev/github.com/crossplane/provider-azure@v0.8.0]: https://doc.crds.dev/github.com/crossplane/provider-azure@v0.8.0
 [crossplane/crossplane]: https://doc.crds.dev/github.com/crossplane/crossplane
-[opened as issues]: https://github.com/crdsdev/doc/issues/new
-[doc.crds.dev repo]: https://github.com/crdsdev/doc
