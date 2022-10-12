@@ -205,10 +205,11 @@ func TestNewCompositionRevision(t *testing.T) {
 				v1alpha1.LabelCompositionSpecHash: hash,
 			},
 			OwnerReferences: []metav1.OwnerReference{{
-				APIVersion: v1.SchemeGroupVersion.String(),
-				Kind:       v1.CompositionKind,
-				Name:       comp.GetName(),
-				Controller: &ctrl,
+				APIVersion:         v1.SchemeGroupVersion.String(),
+				Kind:               v1.CompositionKind,
+				Name:               comp.GetName(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{
