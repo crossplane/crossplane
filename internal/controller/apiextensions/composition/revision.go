@@ -152,7 +152,7 @@ func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
 			rp.Policy.FromFieldPath = &pol
 		}
 		if p.Policy.MergeOptions != nil {
-			pol := v1alpha1.MergeOptionsPolicy(*p.Policy.MergeOptions)
+			pol := *p.Policy.MergeOptions
 			rp.Policy.MergeOptions = &pol
 		}
 	}
