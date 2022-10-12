@@ -245,7 +245,7 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: crossplane/provider-gcp:v0.16.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
   controllerConfigRef:
     name: vault-config" | kubectl apply -f -
 ```

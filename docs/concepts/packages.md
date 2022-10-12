@@ -154,7 +154,7 @@ spec:
   crossplane:
     version: ">=v1.0.0"
   dependsOn:
-    - provider: crossplane/provider-gcp
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-gcp
       version: ">=v0.14.0"
 ```
 
@@ -197,13 +197,13 @@ registry is not specified they will be pushed to Docker Hub.
 To push a Provider package, execute the following command:
 
 ```
-kubectl crossplane push provider crossplane/provider-gcp:v0.14.0
+kubectl crossplane push provider xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
 ```
 
 To push a Configuration package, execute the following command:
 
 ```
-kubectl crossplane push configuration crossplane/my-org-infra:v0.1.0
+kubectl crossplane push configuration xpkg.upbound.io/crossplane-contrib/my-org-infra:v0.1.0
 ```
 
 > Note: Both of the above commands assume a single `.xpkg` file exists in the
@@ -218,13 +218,13 @@ Packages can be installed into a Crossplane cluster using the Crossplane CLI.
 To install a Provider package, execute the following command:
 
 ```
-kubectl crossplane install provider crossplane/provider-gcp:v0.12.0
+kubectl crossplane install provider xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
 ```
 
 To install a Configuration package, execute the following command:
 
 ```
-kubectl crossplane install configuration crossplane/my-org-infra:v0.1.0
+kubectl crossplane install configuration xpkg.upbound.io/crossplane-contrib/my-org-infra:v0.1.0
 ```
 
 Packages can also be installed manually by creating a `Provider` or
@@ -237,7 +237,7 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: crossplane/provider-gcp:v0.12.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1
@@ -249,7 +249,7 @@ kind: Configuration
 metadata:
   name: my-org-infra
 spec:
-  package: crossplane/my-org-infra:v0.1.0
+  package: xpkg.upbound.io/crossplane-contrib/my-org-infra:v0.1.0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1
@@ -412,7 +412,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.15.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0
   controllerConfigRef:
     name: aws-config
 ```
