@@ -321,7 +321,7 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: crossplane/provider-gcp:v0.16.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
   controllerConfigRef:
     name: vault-config" | kubectl apply -f -
 ```
@@ -431,7 +431,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.29.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0
   controllerConfigRef:
     name: aws-vault-config" | kubectl apply -f -
 ```
