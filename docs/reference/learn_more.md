@@ -23,7 +23,6 @@ If you have any questions, please drop us a note on [Crossplane Slack][join-cros
 - Join our [Community Slack](https://slack.crossplane.io/)!
 - Submit an issue on [GitHub](https://github.com/crossplane/crossplane)
 - Attend our bi-weekly [Community Meeting](https://github.com/crossplane/crossplane#get-involved)
-- Join our bi-weekly live stream: [The Binding Status](https://github.com/crossplane/tbs)
 - Subscribe to our [YouTube Channel](https://www.youtube.com/channel/UC19FgzMBMqBro361HbE46Fw)
 - Drop us a note on Twitter: [@crossplane_io](https://twitter.com/crossplane_io)
 - Email us: [info@crossplane.io](mailto:info@crossplane.io)
