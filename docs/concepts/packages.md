@@ -497,7 +497,7 @@ by [pre-pulling images] onto nodes in the cluster.
 [IAM Roles for Service Accounts]: https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
 [controller-config-docs]: https://doc.crds.dev/github.com/crossplane/crossplane/pkg.crossplane.io/ControllerConfig/v1alpha1
 [package format]: https://github.com/crossplane/crossplane/blob/1aa83092172bdf0d2ed64754d33517c612ff7368/design/one-pager-package-format-v2.md
-[provider-gcp]: https://github.com/crossplane/provider-gcp/tree/master/package
+[provider-gcp]: https://doc.crds.dev/github.com/crossplane/crossplane/meta.pkg.crossplane.io/Provider/v1
 [emptyDir-volume]: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir
 [pvc]: https://kubernetes.io/docs/concepts/storage/volumes/#persistentvolumeclaim
 [OCI registry]: https://github.com/opencontainers/distribution-spec
