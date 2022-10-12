@@ -17,9 +17,13 @@ customLabels: {}
 # -- Custom annotations to add to the Crossplane deployment and pod
 customAnnotations: {}
 
-# -- Custom annotations to add to the serviceaccount of Crossplane
 serviceAccount:
+  # -- Create serviceaccount for crossplane. If false, a own serviceAccount must be exists.
+  create: true
+  # -- Custom annotations to add to the serviceaccount of Crossplane
   customAnnotations: {}
+  # -- Custom labels to add to the serviceaccount of Crossplane
+  customLabels: {}
 
 leaderElection: true
 args: {}

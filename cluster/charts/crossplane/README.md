@@ -79,7 +79,9 @@ and their default values.
 | `nodeSelector` | Enable nodeSelector for Crossplane pod | `{}` |
 | `customLabels` | Custom labels to add into metadata | `{}` |
 | `customAnnotations` | Custom annotations to add to the Crossplane deployment and pod | `{}` |
+| `serviceAccount.create` | Create serviceaccount for crossplane. If false, a own serviceAccount must be exists. | `true` |
 | `serviceAccount.customAnnotations` | Custom annotations to add to the serviceaccount of Crossplane | `{}` |
+| `serviceAccount.customLabels` | Custom labels to add to the serviceaccount of Crossplane | `{}` |
 | `priorityClassName` | Priority class name for Crossplane and RBAC Manager (if enabled) pods | `""` |
 | `resourcesCrossplane.limits.cpu` | CPU resource limits for Crossplane | `100m` |
 | `resourcesCrossplane.limits.memory` | Memory resource limits for Crossplane | `512Mi` |
