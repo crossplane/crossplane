@@ -402,6 +402,7 @@ func TestClaimConfigure(t *testing.T) {
 	type want struct {
 		cm  resource.CompositeClaim
 		err error
+		cp  resource.Composite
 	}
 
 	cases := map[string]struct {
@@ -613,7 +614,6 @@ func TestClaimConfigure(t *testing.T) {
 								// These machinery fields should be propagated.
 								"compositionSelector":     "sel",
 								"compositionRef":          "ref",
-								"compositionRevisionRef":  "ref",
 								"compositionUpdatePolicy": "pol",
 
 								// These should be filtered out.
@@ -641,7 +641,6 @@ func TestClaimConfigure(t *testing.T) {
 								"coolness":                   23,
 								"compositionSelector":        "sel",
 								"compositionRef":             "ref",
-								"compositionRevisionRef":     "ref",
 								"compositionUpdatePolicy":    "pol",
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
@@ -712,6 +711,204 @@ func TestClaimConfigure(t *testing.T) {
 							"spec": map[string]any{
 								"resourceRef":                "ref",
 								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"UpdatePolicyManual": {
+			reason: "CompositionRevision of composite should be overwritten by the claim",
+			args: args{
+				client: test.NewMockClient(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+								"compositionUpdatePolicy":    "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "oldref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 23,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]any{
+								"resourceRefs":            "ref",
+								"claimRef":                "ref",
+								"compositionUpdatePolicy": "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "newref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+								"compositionUpdatePolicy":    "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "oldref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]any{
+								"resourceRefs":            "ref",
+								"claimRef":                "ref",
+								"compositionUpdatePolicy": "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "oldref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"UpdatePolicyAutomatic": {
+			reason: "CompositionRevision of claim should be overwritten by the composite",
+			args: args{
+				client: test.NewMockClient(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+								"compositionUpdatePolicy":    "Automatic",
+								"compositionRevisionRef": map[string]any{
+									"name": "oldref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 23,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]any{
+								"resourceRefs":            "ref",
+								"claimRef":                "ref",
+								"compositionUpdatePolicy": "Automatic",
+								"compositionRevisionRef": map[string]any{
+									"name": "newref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+								"compositionUpdatePolicy":    "Automatic",
+								"compositionRevisionRef": map[string]any{
+									"name": "newref",
+								},
 							},
 							"status": map[string]any{
 								"previousCoolness": 28,
