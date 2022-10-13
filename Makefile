@@ -29,6 +29,8 @@ NPROCS ?= 1
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
+GO_REQUIRED_VERSION = 1.19
+
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
@@ -66,7 +68,7 @@ OSBASEIMAGE = gcr.io/distroless/static:nonroot
 # Setup Docs
 
 SOURCE_DOCS_DIR = docs
-DEST_DOCS_DIR = content/docs/
+DEST_DOCS_DIR = content/docs
 DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/crossplane.github.io.git
 -include build/makelib/docs.mk
 
