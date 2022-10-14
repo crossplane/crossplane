@@ -3,7 +3,7 @@ title: "Overview"
 weight: -1
 toc_include: false
 cascade:
-    version: 1.7
+    version: "1.7"
 ---
 
 ![Crossplane](/docs/v1.7/media/banner.png)
