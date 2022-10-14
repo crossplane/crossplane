@@ -254,7 +254,9 @@ spec:
 ### Function API
 
 This document proposes that each function uses a `FunctionIO` type as its input
-and output. This method is inspired by [KRM functions][krm-fn-spec].
+and output. In the case of `Container` functions this would correspond to stdin
+and stdout. Crossplane would be responsible for reading stdout from the final
+function and applying its changes to the relevant XR and composed resources.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -266,114 +268,150 @@ config:
     name: cloudsql
   spec:
     version: POSTGRES_9_6
-composite:
-  apiVersion: database.example.org/v1alpha1
-  kind: XPostgreSQLInstance
-  metadata:
-    name: my-db
-  spec:
-    parameters:
-      storageGB: 20
-    compositionSelector:
-      matchLabels:
-        provider: gcp
+observed:
+  composite:
+    resource:
+      apiVersion: database.example.org/v1alpha1
+      kind: XPostgreSQLInstance
+      metadata:
+        name: my-db
+      spec:
+        parameters:
+          storageGB: 20
+        compositionSelector:
+          matchLabels:
+            provider: gcp
+      status:
+        conditions:
+        - type: Ready
+          status: True
+    connectionDetails:
+    - name: uri
+      value: postgresql://db.example.org:5432
 ```
 
-A Composition Function uses a `FunctionIO` that consists of the following
-top-level fields:
+A `FunctionIO` resource consists of the following top-level fields:
 
 * The `apiVersion` and `kind` (required).
 * A `config` object (optional). This is a [Kubernetes resource][rawextension]
   with an arbitrary schema that may be used to provide additional configuration
   to a function. For example a `render-helm-chart` function might use its
-  `config` to specify which Helm chart to render.
-* A `composite` object (required). This is the XR being reconciled.
-* A `resources` array (optional). Zero or more composed resources.
+  `config` to specify which Helm chart to render. Functions need not return
+  their `config`, and any mutations will be ignored.
+* An `observed` object (required). This reflects the observed state of the XR,
+  any existing composed resources, and their connection details. Functions must
+  return the `observed` object unmodified.
+* A `desired` object (optional). This reflects the accumulated desired state of
+  the XR and any composed resources. Functions may mutate the `desired` object.
 * A `results` array (optional). Used to communicate information about the result
-  of a function, including warnings and errors.
+  of a function, including warnings and errors. Functions may mutate the
+  `results` object.
 
-Each function:
+Each function takes its `config` (if any), `observed` state, and any previously
+accumulated `desired` state as input, and optionally mutates the `desired`
+state. This allows the output of one function to be the input to the next.
 
-1. Takes its config, XR, and zero or more composed resources as input.
-1. Optionally mutates the XR's metadata, spec, and/or status.
-1. Optionally mutates the array of composed resources. This may involve adding
-   or deleting composed resources, as well as mutating the metadata and spec of
-   any entry in the array. Updates to the status of composed resources are not
-   allowed and will be silently discarded.
+The `observed` object consists of:
 
-This allows the output of one function to be the input to the next. The first
-function in the pipeline would be supplied with either:
+* `observed.composite.resource`. The observed XR.
+* `observed.composite.connectionDetails`: The observed XR connection details.
+* `observed.resources[N].name`: The name of an observed composed resource.
+* `observed.resources[N].resource`: An observed composed resource.
+* `observed.resources[N].connectionDetails`: An observed composed resource's
+  current connection details.
 
-1. Only the XR. This would be the case for newly created XRs whose Composition
-   did not include a `resources` array.
-1. The XR and one or more resources. This would be the case if either:
-   1. The Composition included both a `resources` array and a `functions` array.
-      In this case the `resources` array is processed first, then passed to
-      `functions` for further processing.
-   1. This was not a newly created XR, but instead an XR that had already
-      created its composed resources and was now being updated.
+If an observed composed resource appears in the Composition's `spec.resources`
+array their `name` fields will match. Note that the `name` field is distinct
+from a composed resource's `metadata.name` - it is used to identify the resource
+within a Composition and/or its function pipeline.
 
-In the case of `Container` functions this input and output would correspond to
-stdin and stdout. This may differ for future function implementations; for
-example a webhook function implementation might take the input as an HTTP PUT
-request body and return the output as a response body. Crossplane would be
-responsible for reading stdout from the final function and applying its changes
-to the relevant XR and subsequent composed resources.
+The `desired` object consists of:
 
-An example function that responded by asking Crossplane to create (compose) a
-`CloudSQLInstance` would do so by returning the following `FunctionIO`:
+* `desired.composite.resource`. The desired XR.
+* `desired.composite.resource.connectionDetails`. Desired XR connection details.
+* `desired.resources[N].name`. The name of a desired composed resource.
+* `desired.resources[N].resource`. A desired composed resource.
+* `desired.resources[N].connectionDetails`. A desired composed resource's
+  connection details.
+* `desired.resources[N].readinessChecks`. A desired composed resource's
+  readiness checks.
 
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: FunctionIO
-config:
-  apiVersion: database.example.org/v1alpha1
-  kind: Config
-  metadata:
-    name: cloudsql
-  spec:
-    version: POSTGRES_9_6
-composite:
-  apiVersion: database.example.org/v1alpha1
-  kind: XPostgreSQLInstance
-  metadata:
-    name: my-db
-  spec:
-    parameters:
-      storageGB: 20
-    compositionSelector:
-      matchLabels:
-        provider: gcp
-resources:
-- name: cloudsqlinstance
-  resource:
-    apiVersion: database.gcp.crossplane.io/v1beta1
-    kind: CloudSQLInstance
-    spec:
-      forProvider:
-        databaseVersion: POSTGRES_9_6
-        region: us-central1
-        settings:
-          tier: db-custom-1-3840
-          dataDiskType: PD_SSD
-          dataDiskSizeGb: 20
-      writeConnectionSecretToRef:
-        namespace: crossplane-system
-        name: cloudsqlpostgresql-conn
-  connectionDetails:
-  - name: hostname
-    fromConnectionSecretKey: hostname
-  readinessChecks:
-  - type: None
-```
-
-Note that a the `resources` array of the `FunctionIO` type is very similar to
-the `resources` array of the `Composition` type. In comparison:
+Note that a the `desired.resources` array of the `FunctionIO` type is very
+similar to the `spec.resources` array of the `Composition` type. In comparison:
 
 * `name` works the same across both types, but is required by `FunctionIO`.
 * `connectionDetails` and `readinessChecks` work the same across both types.
 * `FunctionIO` does not support `base` and `patches`. Instead a function should
   configure the `resource` field accordingly.
+
+The `desired` state is _accumulated_ across the Composition and all of its
+functions. This means the first function may be passed desired state as
+specified by the `spec.resources` array of a Composite, if any, and each
+function must include the accumulated desired state in its output. Desired state
+is treated as an overlay on observed state, so a function pipeline need not
+specify the desired state of the XR (for example) unless a function wishes to
+mutate it.
+
+A full `FunctionIO` specification will accompany the implementation. Some
+example scenarios are illustrated below.
+
+A function that wanted to create (compose) a `CloudSQLInstance` would do so by
+returning the following `FunctionIO`:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: FunctionIO
+observed: {}  # Omitted for brevity.
+desired:
+  resources:
+  - name: cloudsqlinstance
+    resource:
+      apiVersion: database.gcp.crossplane.io/v1beta1
+      kind: CloudSQLInstance
+      spec:
+        forProvider:
+          databaseVersion: POSTGRES_9_6
+          region: us-central1
+          settings:
+            tier: db-custom-1-3840
+            dataDiskType: PD_SSD
+            dataDiskSizeGb: 20
+        writeConnectionSecretToRef:
+          namespace: crossplane-system
+          name: cloudsqlpostgresql-conn
+    connectionDetails:
+    - name: hostname
+      fromConnectionSecretKey: hostname
+    readinessChecks:
+    - type: None
+```
+
+A function that wanted to set only an XR connection detail could return:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: FunctionIO
+observed: {}  # Omitted for brevity.
+desired:
+  composite:
+    connectionDetails:
+    - type: FromValue
+      name: username
+      value: admin
+```
+
+A function wishing to delete a composed resource may do so by setting its
+`resource` to null, for example:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: FunctionIO
+observed: {}  # Omitted for brevity.
+desired:
+  resources:
+  - name: cloudsqlinstance
+    resource: null
+```
 
 A function that could not complete successfully could do so by returning the
 following `FunctionIO`:
@@ -388,24 +426,11 @@ config:
     name: cloudsql
   spec:
     version: POSTGRES_9_6
-composite:
-  apiVersion: database.example.org/v1alpha1
-  kind: XPostgreSQLInstance
-  metadata:
-    name: my-db
-  spec:
-    parameters:
-      storageGB: 20
-    compositionSelector:
-      matchLabels:
-        provider: gcp
+observed: {}  # Omitted for brevity.
 results:
 - severity: Error
   message: "Could not render Database.postgresql.crossplane.io/v1beta1`
 ```
-
-While KRM-function-like this API is not KRM function compatible. See the
-[Alternatives Considered](#alternatives-considered) section for details on why.
 
 ### Running Container Function Pipelines
 
