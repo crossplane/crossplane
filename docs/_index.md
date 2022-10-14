@@ -5,7 +5,7 @@ weight: -1
 aliases:
     - /docs/v1.8/index.html
 cascade:
-    version: 1.8
+    version: "1.8"
 ---
 
 ![Crossplane](/docs/v1.8/media/banner.png)
