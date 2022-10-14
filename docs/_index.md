@@ -5,7 +5,7 @@ toc_include: false
 aliases:
     - /docs/v1.9/index.html
 cascade:
-    version: 1.9
+    version: "1.9"
 ---
 
 ![Crossplane](/docs/v1.9/media/banner.png)
