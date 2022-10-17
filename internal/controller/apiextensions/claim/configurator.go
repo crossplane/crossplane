@@ -26,6 +26,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -66,7 +67,7 @@ func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfi
 // composite may or may not have been created in the API server when passed to
 // this method. The configured composite may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error {
+func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil
@@ -117,6 +118,14 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownClaimFields, field)
 	}
+
+	// CompositionRevision is a special field which needs to be propagated
+	// based on the Update policy. If the policy is `Manual`, we need to
+	// overwrite the composite's value with the claim's
+	if cp.GetCompositionUpdatePolicy() != nil && *cp.GetCompositionUpdatePolicy() == xpv1.UpdateManual {
+		cp.SetCompositionRevisionReference(cm.GetCompositionRevisionReference())
+	}
+
 	claimSpecFilter := xcrd.GetPropFields(wellKnownClaimFields)
 	ucp.Object["spec"] = filter(spec, claimSpecFilter...)
 
@@ -211,6 +220,15 @@ func (c *APIClaimConfigurator) Configure(ctx context.Context, cm resource.Compos
 	for _, field := range xcrd.PropagateSpecProps {
 		delete(wellKnownCompositeFields, field)
 	}
+
+	// CompositionRevision is a special field which needs to be propagated
+	// based on the Update policy. If the policy is `Automatic`, we need to
+	// overwrite the claim's value with the composite's which should be the
+	// `currentRevision`
+	if cp.GetCompositionUpdatePolicy() != nil && *cp.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic {
+		cm.SetCompositionRevisionReference(cp.GetCompositionRevisionReference())
+	}
+
 	compositeSpecFilter := xcrd.GetPropFields(wellKnownCompositeFields)
 	if err := merge(ucm.Object["spec"], ucp.Object["spec"],
 		withSrcFilter(compositeSpecFilter...)); err != nil {
