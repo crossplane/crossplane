@@ -1,9 +1,6 @@
 ---
 title: "Getting Started"
 weight: 1
-toc_include: false
-cascade:
-    version: 1.9
 ---
 
 ![Crossplane](/docs/v1.9/media/banner.png)
