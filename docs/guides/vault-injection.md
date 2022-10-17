@@ -245,7 +245,7 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: crossplane/provider-gcp:v0.16.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
   controllerConfigRef:
     name: vault-config" | kubectl apply -f -
 ```
@@ -312,7 +312,7 @@ kubectl get cloudsqlinstance -w
 [Vault Kubernetes Sidecar]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar
 [Vault]: https://www.vaultproject.io/
 [Vault Kubernetes Sidecar]: https://www.vaultproject.io/docs/platform/k8s/injector
-[provider-gcp]: https://github.com/crossplane/provider-gcp
+[provider-gcp]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-gcp
 [AWS]: https://www.vaultproject.io/docs/secrets/aws
 [Azure]: https://www.vaultproject.io/docs/secrets/azure
 [GCP]: https://www.vaultproject.io/docs/secrets/gcp 

@@ -7,33 +7,6 @@ Providers are Crossplane packages that bundle a set of [Managed
 Resources][managed-resources] and their respective controllers to allow
 Crossplane to provision the respective infrastructure resource.
 
-Here is the list of prominent providers:
-
-|   |   |   |   |
-|---|---|---|---|
-| Provider AWS  |  [GitHub Repo][provider-aws] | [API Reference][provider-aws-api]  |  [Amazon Web Services (AWS) IAM User] |
-| Provider Jet AWS  |  [GitHub Repo][provider-jet-aws] | [API Reference][provider-jet-aws-api] |   | 
-| Provider GCP |  [GitHub Repo][provider-gcp] | [API Reference][provider-gcp-api] |   [Google Cloud Platform (GCP) Service Account] | 
-| Provider Jet GCP  |  [GitHub Repo][provider-jet-gcp] | [API Reference][provider-jet-gcp-api]  |   | 
-| Provider Azure  | [GitHub Repo][provider-azure] | [API Reference][provider-azure-api]  |  [Microsoft Azure Service Principal] | 
-| Provider Jet Azure  |  [GitHub Repo][provider-jet-azure] | [API Reference][provider-jet-azure-api] |   | 
-| Provider Alibaba |  [GitHub Repo][provider-alibaba] | [API Reference][provider-alibaba-api]  |   | 
-|   |   |   |   |
-| Provider Rook  |  [GitHub Repo][provider-rook] | [API Reference][provider-rook-api]  |  |
-| Provider Helm  |  [GitHub Repo][provider-helm] | [API Reference][provider-helm-api]  |  |
-| Provider Terraform  |  [GitHub Repo][provider-terraform] | [API Reference][provider-terraform-api]  |  |
-| Provider Kubernetes  |  [GitHub Repo][provider-kubernetes] | [API Reference][provider-kubernetes-api]  |  |
-| Provider SQL | [GitHub Repo][provider-sql] | [API Reference][provider-sql-api]  |  |
-| Provider Gitlab  | [GitHub Repo][provider-gitlab] | [API Reference][provider-gitlab-api]  |  |
-| Provider Equinix Metal | [GitHub Repo][provider-equinix-metal] | [API Reference][provider-equinix-metal-api]  |  |
-| Provider Digital Ocean | [GitHub Repo][provider-digitalocean] | [API Reference][provider-digitalocean-api]  |  |
-| Provider Civo | [GitHub Repo][provider-civo] | [API Reference][provider-civo-api]  |  |
-| Provider IBM Cloud | [GitHub Repo][provider-ibm-cloud] | [API Reference][provider-ibm-cloud-api]  |  |
-| Provider Argocd | [GitHub Repo][provider-argocd] | [API Reference][provider-argocd-api]  |  |
-| Provider Styra | [GitHub Repo][provider-styra] | [API Reference][provider-styra-api]  |  |
-| Provider Cloudflare | [GitHub Repo][provider-cloudflare] | [API Reference][provider-cloudflare-api]  |  |
-
-
 ## Installing Providers
 
 The core Crossplane controller can install provider controllers and CRDs for you
@@ -48,7 +21,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: "crossplane/provider-aws:v1.9.0"
+  package: "xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0"
 ```
 
 The field `spec.package` is where you refer to the container image of the
@@ -59,9 +32,9 @@ There are a few other ways to to trigger the installation of provider packages:
 
 * As part of Crossplane Helm chart by adding the following statement to your
   `helm install` command: `--set
-  provider.packages={crossplane/provider-aws:v1.9.0}`.
+  provider.packages={xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0}`.
 * Using the Crossplane CLI: `kubectl crossplane install provider
-  crossplane/provider-aws:v1.9.0`
+  xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0`
 
 You can uninstall a provider by deleting the `Provider` resource
 you've created.
@@ -122,43 +95,3 @@ will attempt to use a `ProviderConfig` named `default`.
 [Microsoft Azure Service Principal]: {{<ref "../cloud-providers/azure/azure-provider" >}}
 [Amazon Web Services (AWS) IAM User]: {{<ref "../cloud-providers/aws/aws-provider" >}}
 [managed-resources]: {{<ref "managed-resources" >}}
-[provider-aws]: https://github.com/crossplane-contrib/provider-aws
-[provider-aws-api]: https://doc.crds.dev/github.com/crossplane/provider-aws
-[provider-jet-aws]: https://github.com/crossplane-contrib/provider-jet-aws
-[provider-jet-aws-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-aws
-[provider-gcp]: https://github.com/crossplane/provider-gcp
-[provider-gcp-api]: https://doc.crds.dev/github.com/crossplane/provider-gcp
-[provider-jet-gcp]: https://github.com/crossplane-contrib/provider-jet-gcp
-[provider-jet-gcp-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-gcp
-[provider-azure]: https://github.com/crossplane/provider-azure
-[provider-azure-api]: https://doc.crds.dev/github.com/crossplane/provider-azure
-[provider-jet-azure]: https://github.com/crossplane-contrib/provider-jet-azure
-[provider-jet-azure-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-jet-azure
-[provider-alibaba]: https://github.com/crossplane/provider-alibaba
-[provider-alibaba-api]: https://doc.crds.dev/github.com/crossplane/provider-alibaba 
-[provider-rook]: https://github.com/crossplane/provider-rook
-[provider-rook-api]: https://doc.crds.dev/github.com/crossplane/provider-rook
-[provider-helm]: https://github.com/crossplane-contrib/provider-helm
-[provider-helm-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-helm
-[provider-terraform]: https://github.com/crossplane-contrib/provider-terraform
-[provider-terraform-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-terraform
-[provider-kubernetes]: https://github.com/crossplane-contrib/provider-kubernetes
-[provider-kubernetes-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-kubernetes
-[provider-sql]: https://github.com/crossplane-contrib/provider-sql
-[provider-sql-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-sql
-[provider-gitlab]: https://github.com/crossplane-contrib/provider-gitlab
-[provider-gitlab-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-gitlab
-[provider-equinix-metal]: https://github.com/crossplane-contrib/provider-equinix-metal
-[provider-equinix-metal-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-equinix-metal
-[provider-digitalocean]: https://github.com/crossplane-contrib/provider-digitalocean
-[provider-digitalocean-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-digitalocean
-[provider-civo]: https://github.com/crossplane-contrib/provider-civo
-[provider-civo-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-civo
-[provider-ibm-cloud]: https://github.com/crossplane-contrib/provider-ibm-cloud
-[provider-ibm-cloud-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-ibm-cloud
-[provider-argocd]: https://github.com/crossplane-contrib/provider-argocd
-[provider-argocd-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-argocd
-[provider-styra]: https://github.com/crossplane-contrib/provider-styra
-[provider-styra-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-styra
-[provider-cloudflare]: https://github.com/crossplane-contrib/provider-cloudflare
-[provider-cloudflare-api]: https://doc.crds.dev/github.com/crossplane-contrib/provider-cloudflare

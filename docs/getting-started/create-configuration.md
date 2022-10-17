@@ -569,7 +569,7 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-aws
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
       version: ">=v0.18.2"
 ```
 
@@ -609,7 +609,7 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-aws
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
       version: ">=v0.18.2"
 ```
 
@@ -648,7 +648,7 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-gcp
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-gcp
       version: ">=v0.13.0"
 ```
 
@@ -687,7 +687,7 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-azure
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-azure
       version: ">=v0.13.0"
 ```
 
