@@ -18,6 +18,7 @@ package composition
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -193,13 +194,13 @@ func TestNewCompositionRevision(t *testing.T) {
 
 	var (
 		rev  int64  = 1
-		hash string = "hash"
+		hash string = "comphash"
 	)
 
 	ctrl := true
 	want := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: comp.GetName() + "-",
+			Name: fmt.Sprintf("%s-%s", comp.GetName(), hash[0:5]),
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionName:     comp.GetName(),
 				v1alpha1.LabelCompositionSpecHash: hash,
