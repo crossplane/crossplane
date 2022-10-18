@@ -29,6 +29,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -108,6 +109,38 @@ func TestPatchApply(t *testing.T) {
 						},
 					},
 					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"ValidCompositeFieldPathPatchWithNilLastPublishTime": {
+			reason: "Should correctly apply a CompositeFieldPathPatch with valid settings",
+			args: args{
+				patch: Patch{
+					Type:          PatchTypeFromCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
 				},
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
@@ -826,7 +859,7 @@ func TestPatchApply(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			ncp := tc.args.cp.DeepCopyObject()
+			ncp := tc.args.cp.DeepCopyObject().(resource.Composite)
 			err := tc.args.patch.Apply(ncp, tc.args.cd, tc.args.only...)
 
 			if tc.want.cp != nil {
