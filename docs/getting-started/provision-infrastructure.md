@@ -1,6 +1,6 @@
 ---
 title: Provision Infrastructure
-weight: 3
+weight: 11
 ---
 
 Composite resources (XRs) are always cluster scoped - they exist outside of any

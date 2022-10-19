@@ -1,6 +1,6 @@
 ---
 title: Create a Configuration
-weight: 4
+weight: 14
 ---
 
 In the [previous section] we were able to create a PostgreSQL database because

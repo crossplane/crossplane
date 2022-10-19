@@ -1,6 +1,6 @@
 ---
 title: Install & Configure
-weight: 2
+weight: 10
 ---
 ## Choosing Your Crossplane Distribution
 
