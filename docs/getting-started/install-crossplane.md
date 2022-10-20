@@ -74,7 +74,7 @@ crossplane-rbac-manager-84769b574-6mw6f   1/1     Running   0          54s
 
 {{< /tab >}}
 
-{{< tab "Vendor distributions" >}}
+{{< tab "Vendor Distributions" >}}
 
 ## Upbound
 Upbound are the founders of Crossplane. Upbound maintains and supports an open source distribution of Crossplane called [Upbound Universal Crossplane](https://github.com/upbound/universal-crossplane) (_UXP_).
