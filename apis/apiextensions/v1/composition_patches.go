@@ -26,6 +26,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )
 
 const (
@@ -119,7 +120,7 @@ type Patch struct {
 
 // Apply executes a patching operation between the from and to resources.
 // Applies all patch types unless an 'only' filter is supplied.
-func (c *Patch) Apply(cp, cd runtime.Object, only ...PatchType) error {
+func (c *Patch) Apply(cp resource.Composite, cd resource.Composed, only ...PatchType) error {
 	if c.filterPatch(only...) {
 		return nil
 	}
