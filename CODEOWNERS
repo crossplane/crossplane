@@ -25,13 +25,13 @@
 *                                   @crossplane/crossplane-maintainers @crossplane/crossplane-reviewers
 
 # Governance owners - steering committee
-README.md                           @crossplane/steering-committee
-OWNERS.md                           @crossplane/steering-committee
-CHARTER.md                          @crossplane/steering-committee
-CODE_OF_CONDUCT.md                  @crossplane/steering-committee
-GOVERNANCE.md                       @crossplane/steering-committee
-ROADMAP.md                          @crossplane/steering-committee
-LICENSE                             @crossplane/steering-committee
+/README.md                           @crossplane/steering-committee
+/OWNERS.md                           @crossplane/steering-committee
+/CHARTER.md                          @crossplane/steering-committee
+/CODE_OF_CONDUCT.md                  @crossplane/steering-committee
+/GOVERNANCE.md                       @crossplane/steering-committee
+/ROADMAP.md                          @crossplane/steering-committee
+/LICENSE                             @crossplane/steering-committee
 
 # Design documents
 /design/                             @crossplane/crossplane-maintainers @negz
