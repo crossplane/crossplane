@@ -70,7 +70,7 @@ and their default values.
 | `image.repository` | Image | `crossplane/crossplane` |
 | `image.tag` | Image tag | `master` |
 | `image.pullPolicy` | Image pull policy used in all containers | `IfNotPresent` |
-| `imagePullSecrets` | Names of image pull secrets to use | `dockerhub` |
+| `imagePullSecrets` | Names of image pull secrets to use | `{}` |
 | `registryCaBundleConfig.name` | Name of ConfigMap containing additional CA bundle for fetching from package registries  | `{}` |
 | `registryCaBundleConfig.key` | Key to use from ConfigMap containing additional CA bundle for fetching from package registries | `{}` |
 | `replicas` | The number of replicas to run for the Crossplane pods | `1` |
@@ -147,9 +147,6 @@ image:
   repository: crossplane/crossplane
   tag: alpha
   pullPolicy: Always
-
-imagePullSecrets:
-- dockerhub
 ```
 
 <!-- Named Links -->
