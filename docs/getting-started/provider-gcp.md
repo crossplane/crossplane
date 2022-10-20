@@ -38,7 +38,7 @@ All commands use the current `kubeconfig` context and configuration.
 You need your:
 * GCP service account key
 
-{{< include file="quickstart/quickstart-common.md" type="page" >}}
+{{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
 
 ### Install the official GCP provider
 

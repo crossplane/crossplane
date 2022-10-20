@@ -36,7 +36,7 @@ If you don't have a Kubernetes cluster create one locally with [minikube](https:
 All commands use the current `kubeconfig` context and configuration. 
 {{< /hint >}}
 
-{{< include file="quickstart/quickstart-common.md" type="page" >}}
+{{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
 
 ### Install the official Azure provider
 
