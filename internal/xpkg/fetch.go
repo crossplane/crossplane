@@ -58,6 +58,7 @@ type K8sFetcher struct {
 	namespace      string
 	serviceAccount string
 	transport      http.RoundTripper
+	userAgent      string
 }
 
 // FetcherOpt can be used to add optional parameters to NewK8sFetcher
@@ -86,7 +87,7 @@ func ParseCertificatesFromPath(path string) (*x509.CertPool, error) {
 	return rootCAs, nil
 }
 
-// WithCustomCA is a FetcherOpt that can be used to add a custom CA bundle to a K8sFetcher
+// WithCustomCA is a FetcherOpt that can be used to add a custom CA bundle to a K8sFetcher.
 func WithCustomCA(rootCAs *x509.CertPool) FetcherOpt {
 	return func(k *K8sFetcher) error {
 		t, ok := k.transport.(*http.Transport)
@@ -95,6 +96,19 @@ func WithCustomCA(rootCAs *x509.CertPool) FetcherOpt {
 		}
 
 		t.TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+		return nil
+	}
+}
+
+// WithUserAgent is a FetcherOpt that can be used to set the user agent on all HTTP requests.
+func WithUserAgent(userAgent string) FetcherOpt {
+	return func(k *K8sFetcher) error {
+		// TODO(hasheddan): go-containerregistry currently does not allow for
+		// removal of the go-containerregistry user-agent header, so the
+		// provided one is appended rather than replacing. In the future, this
+		// should be replaced with wrapping the transport with
+		// transport.NewUserAgent.
+		k.userAgent = userAgent
 		return nil
 	}
 }
@@ -143,7 +157,12 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	if err != nil {
 		return nil, err
 	}
-	return remote.Image(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+	return remote.Image(ref,
+		remote.WithAuthFromKeychain(auth),
+		remote.WithTransport(i.transport),
+		remote.WithContext(ctx),
+		remote.WithUserAgent(i.userAgent),
+	)
 }
 
 // Head fetches a package descriptor.
@@ -156,9 +175,19 @@ func (i *K8sFetcher) Head(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	d, err := remote.Head(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+	d, err := remote.Head(ref,
+		remote.WithAuthFromKeychain(auth),
+		remote.WithTransport(i.transport),
+		remote.WithContext(ctx),
+		remote.WithUserAgent(i.userAgent),
+	)
 	if err != nil || d == nil {
-		rd, gErr := remote.Get(ref, remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+		rd, gErr := remote.Get(ref,
+			remote.WithAuthFromKeychain(auth),
+			remote.WithTransport(i.transport),
+			remote.WithContext(ctx),
+			remote.WithUserAgent(i.userAgent),
+		)
 		if gErr != nil {
 			return nil, errors.Wrapf(gErr, "failed to fetch package descriptor with a GET request after a previous HEAD request failure: %v", err)
 		}
@@ -177,7 +206,12 @@ func (i *K8sFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...st
 	if err != nil {
 		return nil, err
 	}
-	return remote.List(ref.Context(), remote.WithAuthFromKeychain(auth), remote.WithTransport(i.transport), remote.WithContext(ctx))
+	return remote.List(ref.Context(),
+		remote.WithAuthFromKeychain(auth),
+		remote.WithTransport(i.transport),
+		remote.WithContext(ctx),
+		remote.WithUserAgent(i.userAgent),
+	)
 }
 
 // NopFetcher always returns an empty image and never returns error.
