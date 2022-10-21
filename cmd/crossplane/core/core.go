@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
+	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -134,6 +135,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		ServiceAccount:       c.ServiceAccount,
 		DefaultRegistry:      c.Registry,
 		Features:             feats,
+		FetcherOptions:       []xpkg.FetcherOpt{xpkg.WithUserAgent(transport.DefaultUserAgent)},
 		WebhookTLSSecretName: c.WebhookTLSSecretName,
 	}
 
@@ -142,7 +144,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "Cannot parse CA bundle")
 		}
-		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithCustomCA(rootCAs)}
+		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
