@@ -3,13 +3,12 @@ title: Azure Quickstart
 weight: 3
 ---
 
-Connect Crossplane to Microsoft Azure to create and manage cloud resources from Kubernetes with the [Azure Official Provider](https://marketplace.upbound.io/providers/upbound/provider-azure).
+Connect Crossplane to Microsoft Azure to create and manage cloud resources from Kubernetes with the [Upbound Azure Provider](https://marketplace.upbound.io/providers/upbound/provider-azure).
 
-This guide walks you through the steps required to get started with the Azure Official Provider. This includes installing Crossplane, configuring the provider to authenticate to Azure and creating a _Managed Resource_ in Azure directly from your Kubernetes cluster.
+This guide walks you through the steps required to get started with the Upbound Azure Provider. This includes installing Crossplane, configuring the provider to authenticate to Azure and creating a _Managed Resource_ in Azure directly from your Kubernetes cluster.
 
 - [Prerequisites](#prerequisites)
-- [Guided tour](#guided-tour)
-  - [Install the official Azure provider](#install-the-official-azure-provider)
+  - [Install the Azure provider](#install-the-azure-provider)
   - [Create a Kubernetes secret for Azure](#create-a-kubernetes-secret-for-azure)
     - [Install the Azure command-line](#install-the-azure-command-line)
     - [Create an Azure service principal](#create-an-azure-service-principal)
@@ -23,35 +22,24 @@ This guide walks you through the steps required to get started with the Azure Of
 This quickstart requires:
 * a Kubernetes cluster with at least 3 GB of RAM
 * permissions to create pods and secrets in the Kubernetes cluster
+* [Helm] version `v3.2.0` or later
 * an Azure account with permissions to create an Azure [service principal](https://learn.microsoft.com/en-us/azure/active-directory/develop/app-objects-and-service-principals#service-principal-object) and an [Azure Resource Group](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/manage-resource-groups-portal)
 
 {{< hint type="tip" >}}
 If you don't have a Kubernetes cluster create one locally with [minikube](https://minikube.sigs.k8s.io/docs/start/) or [kind](https://kind.sigs.k8s.io/).
 {{< /hint >}}
 
-<!-- due to Azure CLI auth, this can't be automated -->
 
-## Guided tour
 {{< hint type="note" >}}
 All commands use the current `kubeconfig` context and configuration. 
 {{< /hint >}}
 
 {{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
 
-### Install the official Azure provider
+### Install the Azure provider
 
-Install the official provider into the Kubernetes cluster with the `up` command-line or a Kubernetes configuration file. 
-{{< tabs "provider-install" >}}
+Install the provider into the Kubernetes cluster with a Kubernetes configuration file. 
 
-{{< tab "with the Up command-line" >}}
-```shell {copy-lines="all"}
-up controlplane \
-provider install \
-xpkg.upbound.io/upbound/provider-azure:v0.16.0
-```
-{{< /tab >}}
-
-{{< tab "with a Kubernetes manifest" >}}
 ```shell {label="provider",copy-lines="all"}
 cat <<EOF | kubectl apply -f -
 apiVersion: pkg.crossplane.io/v1
@@ -64,10 +52,6 @@ EOF
 ```
 
 The {{< hover label="provider" line="3">}}kind: Provider{{< /hover >}} uses the Crossplane `Provider` _Custom Resource Definition_ to connect your Kubernetes cluster to your cloud provider.  
-
-{{< /tab >}}
-
-{{< /tabs >}}
 
 Verify the provider installed with `kubectl get providers`. 
 
@@ -85,7 +69,10 @@ A provider installs their own Kubernetes _Custom Resource Definitions_ (CRDs). T
 
 You can view the new CRDs with `kubectl get crds`. Every CRD maps to a unique Azure service Crossplane can provision and manage.
 
-All the supported CRDs are also available in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-azure/v0.16.0/crds).
+{{< hint type="tip" >}}
+All the supported CRDs are also available in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-azure/latest/crds).
+{{< /hint >}}
+
 
 ### Create a Kubernetes secret for Azure
 The provider requires credentials to create and manage Azure resources. Providers use a Kubernetes _Secret_ to connect the credentials to the provider.
@@ -225,5 +212,5 @@ resourcegroup.azure.upbound.io "example-rg" deleted
 ```
 
 ### Next steps 
-* Explore Azure resources that can Crossplane can configure in the [Provider CRD reference](https://marketplace.upbound.io/providers/upbound/provider-azure/v0.16.0/crds).
+* Explore Azure resources that can Crossplane can configure in the [Provider CRD reference](https://marketplace.upbound.io/providers/upbound/provider-azure/latest/crds).
 * Join the [Crossplane Slack](https://slack.crossplane.io/) and connect with Crossplane users and contributors.

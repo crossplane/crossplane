@@ -3,12 +3,12 @@ title: AWS Quickstart
 weight: 2
 ---
 
-Connect Crossplane to AWS to create and manage cloud resources from Kubernetes with the [AWS Official Provider](https://marketplace.upbound.io/providers/upbound/provider-aws).
+Connect Crossplane to AWS to create and manage cloud resources from Kubernetes with the [Upbound AWS Provider](https://marketplace.upbound.io/providers/upbound/provider-aws).
 
-This guide walks you through the steps required to get started with the AWS Official Provider. This includes installing Crossplane, configuring the provider to authenticate to AWS and creating a _Managed Resource_ in AWS directly from your Kubernetes cluster.
+This guide walks you through the steps required to get started with the Upbound AWS Provider. This includes installing Crossplane, configuring the provider to authenticate to AWS and creating a _Managed Resource_ in AWS directly from your Kubernetes cluster.
 
 - [Prerequisites](#prerequisites)
-  - [Install the official AWS provider](#install-the-official-aws-provider)
+  - [Install the AWS provider](#install-the-aws-provider)
   - [Create a Kubernetes secret for AWS](#create-a-kubernetes-secret-for-aws)
     - [Generate an AWS key-pair file](#generate-an-aws-key-pair-file)
     - [Create a Kubernetes secret with the AWS credentials](#create-a-kubernetes-secret-with-the-aws-credentials)
@@ -21,7 +21,7 @@ This guide walks you through the steps required to get started with the AWS Offi
 This quickstart requires:
 * a Kubernetes cluster with at least 3 GB of RAM
 * permissions to create pods and secrets in the Kubernetes cluster
-* [Helm] version `v3.0.0` or later
+* [Helm] version `v3.2.0` or later
 * an AWS account with permissions to create an S3 storage bucket
 * AWS [access keys](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html#cli-configure-quickstart-creds)
 
@@ -36,20 +36,10 @@ All commands use the current `kubeconfig` context and configuration.
 
 {{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
 
-### Install the official AWS provider
+### Install the AWS provider
 
-Install the official provider into the Kubernetes cluster with the `up` command-line or a Kubernetes configuration file. 
-{{< tabs "provider-install" >}}
+Install the provider into the Kubernetes cluster with a Kubernetes configuration file. 
 
-{{< tab "with the Up command-line" >}}
-```shell {copy-lines="all"}
-up controlplane \
-provider install \
-xpkg.upbound.io/upbound/provider-aws:v0.17.0
-```
-{{< /tab >}}
-
-{{< tab "with a Kubernetes manifest" >}}
 ```shell {label="provider",copy-lines="all"}
 cat <<EOF | kubectl apply -f -
 apiVersion: pkg.crossplane.io/v1
@@ -62,10 +52,6 @@ EOF
 ```
 
 The {{< hover label="provider" line="3">}}kind: Provider{{< /hover >}} uses the Crossplane `Provider` _Custom Resource Definition_ to connect your Kubernetes cluster to your cloud provider.  
-
-{{< /tab >}}
-
-{{< /tabs >}}
 
 Verify the provider installed with `kubectl get providers`. 
 
@@ -83,12 +69,19 @@ A provider installs their own Kubernetes _Custom Resource Definitions_ (CRDs). T
 
 You can view the new CRDs with `kubectl get crds`. Every CRD maps to a unique AWS service Crossplane can provision and manage.
 
-All the supported CRDs are also available in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-aws/v0.17.0/crds).
+
+{{< hint type="tip" >}}
+See details about all the supported CRDs in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-aws/latest/crds).
+{{< /hint >}}
 
 ### Create a Kubernetes secret for AWS
 The provider requires credentials to create and manage AWS resources. Providers use a Kubernetes _Secret_ to connect the credentials to the provider.
 
 First generate a Kubernetes _Secret_ from your AWS key-pair and then configure the Provider to use it.
+
+{{< hint type="note" >}}
+Other authentication methods exist and are beyond the scope of this guide. The [Provider documentation](https://marketplace.upbound.io/providers/upbound/provider-aws/latest/docs/configuration) contains information on alternative authentication methods. 
+{{< /hint >}}
 
 #### Generate an AWS key-pair file
 For basic user authentication, use an AWS Access keys key-pair file. 
@@ -222,5 +215,5 @@ bucket.s3.aws.upbound.io "crossplane-bucket-45eed4ae0" deleted
 ```
 
 ## Next steps
-* Explore AWS resources that can Crossplane can configure in the [Provider CRD reference](https://marketplace.upbound.io/providers/upbound/provider-aws/v0.15.0/crds).
+* Explore AWS resources that can Crossplane can configure in the [Provider CRD reference](https://marketplace.upbound.io/providers/upbound/provider-aws/latest/crds).
 * Join the [Crossplane Slack](https://slack.crossplane.io/) and connect with Crossplane users and contributors.
