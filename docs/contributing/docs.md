@@ -17,6 +17,9 @@ weight: 2000
     - [Linking between docs pages](#linking-between-docs-pages)
     - [Linking to external sites](#linking-to-external-sites)
   - [Tabs](#tabs)
+  - [Code blocks](#code-blocks)
+    - [Hover to highlight](#hover-to-highlight)
+    - [Copying code](#copying-code)
 
 ## Code of Conduct
 We follow the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
@@ -184,4 +187,73 @@ A second example tab.
 
 
 Both `tab` and `tabs` require opening and closing tags. Unclosed tags causes Hugo to fail.
+
+### Code blocks
+Hugo supports standard markdown code fences with ` ``` `
+
+Specify the language of the code block after the code fence with no space, for example ` ```yaml `.
+
+{{< hint type="important" >}}
+Not providing a language renders no line numbers or styling.
+{{< /hint >}}
+
+Hugo has a [full list](https://gohugo.io/content-management/syntax-highlighting/#list-of-chroma-highlighting-languages) of supported languages.
+
+The language hint determines the styling and may not match the exact code represented.
+For example, using a `yaml` highlight hint provides greater readability for a block that is technically a `bash` command.
+
+Using the `yaml` hint:
+```yaml
+cat <<EOF | kubectl apply -f -
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+```
+
+Using the `bash` hint:
+```bash
+cat <<EOF | kubectl apply -f -
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+```
+
+
+#### Hover to highlight
+{{< hint type="warning" >}}
+This is a future capability for the Crossplane documentation and isn't supported today. You can add the `hover` tag and shortcode today to automatically enable highlighting when supported.
+{{< /hint >}}
+A single line in a code block can be highlighted on mouseover of another command with the `{{</* hover */>}}` shortcode.
+
+A command inside the shortcode highlights lines in an associated code block.
+
+To enable hover to highlight, first apply a `{label="<label>"}` tag on a code block.
+
+````markdown
+```shell {label="an_example"}
+echo hello
+hello
+```
+````
+
+Outside of the code block, reference the `label` and line number to provide highlighting.
+
+For example:
+````markdown
+```shell {label="an_example"}
+echo hello
+hello
+```
+````
+Hover over <code>&#123;&#123;< hover label="an_example" line="2">&#125;&#125;</code> hello <code>&#123;&#123;< hover >&#125;&#125;</code> to see it in action.
+
+The command must include a closing shortcode of <code>&#123;&#123;< hover >&#125;&#125;</code>.  
+
+#### Copying code
+{{< hint type="warning" >}}
+This is a future capability for the Crossplane documentation and isn't supported today. You can add the `copy-lines` tag today to automatically enable copying when supported.
+{{< /hint >}}
+By default the copy button copies the first line of the code block. Attach a `copy-lines=<start>-<end>` tag to the code block.
 
