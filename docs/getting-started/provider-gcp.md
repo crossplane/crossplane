@@ -8,14 +8,14 @@ Connect Crossplane to Google GCP to create and manage cloud resources from Kuber
 This guide walks you through the steps required to get started with the Upbound GCP Provider. This includes installing Crossplane, configuring the provider to authenticate to GCP and creating a _Managed Resource_ in GCP directly from your Kubernetes cluster.
 
 - [Prerequisites](#prerequisites)
-  - [Install the GCP provider](#install-the-gcp-provider)
-  - [Create a Kubernetes secret for GCP](#create-a-kubernetes-secret-for-gcp)
-    - [Generate a GCP service account JSON file](#generate-a-gcp-service-account-json-file)
-    - [Create a Kubernetes secret with the GCP credentials](#create-a-kubernetes-secret-with-the-gcp-credentials)
-  - [Create a ProviderConfig](#create-a-providerconfig)
-  - [Create a managed resource](#create-a-managed-resource)
-  - [Delete the managed resource](#delete-the-managed-resource)
-  - [Next steps](#next-steps)
+- [Install the GCP provider](#install-the-gcp-provider)
+- [Create a Kubernetes secret for GCP](#create-a-kubernetes-secret-for-gcp)
+  - [Generate a GCP service account JSON file](#generate-a-gcp-service-account-json-file)
+  - [Create a Kubernetes secret with the GCP credentials](#create-a-kubernetes-secret-with-the-gcp-credentials)
+- [Create a ProviderConfig](#create-a-providerconfig)
+- [Create a managed resource](#create-a-managed-resource)
+- [Delete the managed resource](#delete-the-managed-resource)
+- [Next steps](#next-steps)
 
 ## Prerequisites
 This quickstart requires:
@@ -38,7 +38,7 @@ All commands use the current `kubeconfig` context and configuration.
 
 {{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
 
-### Install the GCP provider
+## Install the GCP provider
 
 Install the provider into the Kubernetes cluster with a Kubernetes configuration file. 
 
@@ -75,7 +75,7 @@ You can view the new CRDs with `kubectl get crds`. Every CRD maps to a unique GC
 All the supported CRDs are also available in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-gcp/latest/crds).
 {{< /hint >}}
 
-### Create a Kubernetes secret for GCP
+## Create a Kubernetes secret for GCP
 The provider requires credentials to create and manage GCP resources. Providers use a Kubernetes _Secret_ to connect the credentials to the provider.
 
 First generate a Kubernetes _Secret_ from a Google Cloud service account JSON file and then configure the Provider to use it.
@@ -84,7 +84,7 @@ First generate a Kubernetes _Secret_ from a Google Cloud service account JSON fi
 Other authentication methods exist and are beyond the scope of this guide. The [Provider documentation](https://marketplace.upbound.io/providers/upbound/provider-gcp/latest/docs/configuration) contains information on alternative authentication methods. 
 {{< /hint >}}
 
-#### Generate a GCP service account JSON file
+### Generate a GCP service account JSON file
 For basic user authentication, use a Google Cloud service account JSON file. 
 
 {{< hint type="tip" >}}
@@ -97,7 +97,7 @@ Save this JSON file as `gcp-credentials.json`
 The [Configuration](https://marketplace.upbound.io/providers/upbound/provider-gcp/latest/docs/configuration) section of the Provider documentation describes other authentication methods.
 {{< /hint >}}
 
-#### Create a Kubernetes secret with the GCP credentials
+### Create a Kubernetes secret with the GCP credentials
 <!-- vale gitlab.Substitutions = NO -->
 <!-- ignore .json file name -->
 A Kubernetes generic secret has a name and contents. Use {{< hover label="kube-create-secret" line="1">}}kubectl create secret{{< /hover >}} to generate the secret object named {{< hover label="kube-create-secret" line="2">}}gcp-secret{{< /hover >}} in the {{< hover label="kube-create-secret" line="3">}}crossplane-system{{</ hover >}} namespace.  
@@ -131,7 +131,7 @@ Data
 creds:  2330 bytes
 ```
 
-### Create a ProviderConfig
+## Create a ProviderConfig
 A `ProviderConfig` customizes the settings of the GCP Provider.  
 
 Apply the {{< hover label="providerconfig" line="2">}}ProviderConfig{{</ hover >}}. Include your {{< hover label="providerconfig" line="7" >}}GCP project ID{{< /hover >}}.
@@ -162,7 +162,7 @@ This attaches the GCP credentials, saved as a Kubernetes secret, as a {{< hover 
 The {{< hover label="providerconfig" line="12">}}spec.credentials.secretRef.name{{< /hover >}} value is the name of the Kubernetes secret containing the GCP credentials in the {{< hover label="providerconfig" line="11">}}spec.credentials.secretRef.namespace{{< /hover >}}.
 
 
-### Create a managed resource
+## Create a managed resource
 A _managed resource_ is anything Crossplane creates and manages outside of the Kubernetes cluster. This creates a GCP storage bucket with Crossplane. The storage bucket is a _managed resource_.
 
 This generates a random name for the storage bucket starting with {{< hover label="xr" line="1" >}}crossplane-bucket{{< /hover >}}
@@ -209,7 +209,7 @@ crossplane-bucket-cf2b6d853   True    True     crossplane-bucket-cf2b6d853   3m3
 
 Optionally, log into the [GCP Console](https://console.cloud.google.com/) and see the storage bucket inside GCP.
 
-### Delete the managed resource
+## Delete the managed resource
 Before shutting down your Kubernetes cluster, delete the S3 bucket just created.
 
 Use `kubectl delete bucket <bucketname>` to remove the bucket.
@@ -222,6 +222,6 @@ bucket.storage.gcp.upbound.io "crossplane-bucket-b7cf6b590" deleted
 Look in the [GCP Console](https://console.cloud.google.com/) to confirm Crossplane deleted the bucket from GCP.
 
 
-### Next steps 
+## Next steps 
 * Explore GCP resources that can Crossplane can configure in the [Provider CRD reference](https://marketplace.upbound.io/providers/upbound/provider-gcp/latest/crds).
 * Join the [Crossplane Slack](https://slack.crossplane.io/) and connect with Crossplane users and contributors.
