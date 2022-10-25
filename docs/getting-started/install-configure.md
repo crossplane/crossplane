@@ -17,78 +17,11 @@ in production environments.
 
 {{% tab "Crossplane (upstream)" %}}
 
-## Start with Upstream Crossplane
+{{< include file="install-crossplane.md" type="page" >}}
 
-Installing Crossplane into an existing Kubernetes cluster will require a bit
-more setup, but can provide more flexibility for users who need it.
+### Install a pre-release version of Crossplane
 
-### Get a Kubernetes Cluster
-<!-- inside Crossplane (upstream) -->
-{{% tabs "Kubernetes Clusters" %}}
-
-{{% tab "macOS via Homebrew" %}}
-
-For macOS via Homebrew use the following:
-
-```bash
-brew upgrade
-brew install kind
-brew install kubectl
-brew install helm
-kind create cluster --image kindest/node:v1.23.0 --wait 5m
-```
-<!-- close "macOS via Homebrew" -->
-{{% /tab  %}}
-
-{{% tab "macOS / Linux" %}}
-
-For macOS / Linux use the following:
-
-* [Kubernetes cluster](https://kubernetes.io/docs/setup/)
-* [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-* [Minikube](https://minikube.sigs.k8s.io/docs/start/), minimum version `v0.28+`
-* etc.
-* [Helm](https://helm.sh/docs/intro/using_helm/), minimum version `v3.0.0+`.
-
-<!-- close "macOS / Linux" -->
-{{% /tab %}}
-
-{{% tab "Windows" %}}
-For Windows use the following:
-
-* [Kubernetes cluster](https://kubernetes.io/docs/setup/)
-* [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/)
-* [Minikube](https://minikube.sigs.k8s.io/docs/start/), minimum version `v0.28+`
-* etc.
-* [Helm](https://helm.sh/docs/intro/using_helm/), minimum version `v3.0.0+`.
-
-<!-- close "Windows" -->
-{{% /tab %}}
-
-<!-- close "Kubernetes Clusters" -->
-{{% /tabs %}}
-
-### Install Crossplane
-
-{{% tabs "install with helm" %}}
-
-{{% tab "Helm 3 (stable)" %}}
-Use Helm 3 to install the latest official `stable` release of Crossplane, suitable for community use and testing:
-
-```bash
-kubectl create namespace crossplane-system
-helm repo add crossplane-stable https://charts.crossplane.io/stable
-helm repo update
-
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane
-```
-
-<!-- close "Helm 3 (stable)" -->
-{{% /tab %}}
-
-{{% tab "Helm 3 (latest)" %}}
-<!-- fold start -->
-Use Helm 3 to install the latest pre-release version of Crossplane:
+To install a pre-release version of Crossplane use `--devel` with `helm install`.
 
 ```bash
 kubectl create namespace crossplane-system
@@ -107,11 +40,6 @@ For example:
 helm install crossplane --namespace crossplane-system crossplane-master/crossplane \
   --version 0.11.0-rc.100.gbc5d311 --devel
 ```
-<!-- close "Helm 3 (latest)" -->
-{{% /tab %}}
-<!-- close "install with helm" -->
-{{% /tabs %}}
-
 ### Check Crossplane Status
 
 ```bash
