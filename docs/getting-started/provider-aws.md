@@ -8,13 +8,13 @@ Connect Crossplane to AWS to create and manage cloud resources from Kubernetes w
 This guide walks you through the steps required to get started with the Upbound AWS Provider. This includes installing Crossplane, configuring the provider to authenticate to AWS and creating a _Managed Resource_ in AWS directly from your Kubernetes cluster.
 
 - [Prerequisites](#prerequisites)
-  - [Install the AWS provider](#install-the-aws-provider)
-  - [Create a Kubernetes secret for AWS](#create-a-kubernetes-secret-for-aws)
-    - [Generate an AWS key-pair file](#generate-an-aws-key-pair-file)
-    - [Create a Kubernetes secret with the AWS credentials](#create-a-kubernetes-secret-with-the-aws-credentials)
-  - [Create a ProviderConfig](#create-a-providerconfig)
-  - [Create a managed resource](#create-a-managed-resource)
-  - [Delete the managed resource](#delete-the-managed-resource)
+- [Install the AWS provider](#install-the-aws-provider)
+- [Create a Kubernetes secret for AWS](#create-a-kubernetes-secret-for-aws)
+  - [Generate an AWS key-pair file](#generate-an-aws-key-pair-file)
+  - [Create a Kubernetes secret with the AWS credentials](#create-a-kubernetes-secret-with-the-aws-credentials)
+- [Create a ProviderConfig](#create-a-providerconfig)
+- [Create a managed resource](#create-a-managed-resource)
+- [Delete the managed resource](#delete-the-managed-resource)
 - [Next steps](#next-steps)
 
 ## Prerequisites
@@ -36,7 +36,7 @@ All commands use the current `kubeconfig` context and configuration.
 
 {{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
 
-### Install the AWS provider
+## Install the AWS provider
 
 Install the provider into the Kubernetes cluster with a Kubernetes configuration file. 
 
@@ -74,7 +74,7 @@ You can view the new CRDs with `kubectl get crds`. Every CRD maps to a unique AW
 See details about all the supported CRDs in the [Upbound Marketplace](https://marketplace.upbound.io/providers/upbound/provider-aws/latest/crds).
 {{< /hint >}}
 
-### Create a Kubernetes secret for AWS
+## Create a Kubernetes secret for AWS
 The provider requires credentials to create and manage AWS resources. Providers use a Kubernetes _Secret_ to connect the credentials to the provider.
 
 First generate a Kubernetes _Secret_ from your AWS key-pair and then configure the Provider to use it.
@@ -83,7 +83,7 @@ First generate a Kubernetes _Secret_ from your AWS key-pair and then configure t
 Other authentication methods exist and are beyond the scope of this guide. The [Provider documentation](https://marketplace.upbound.io/providers/upbound/provider-aws/latest/docs/configuration) contains information on alternative authentication methods. 
 {{< /hint >}}
 
-#### Generate an AWS key-pair file
+### Generate an AWS key-pair file
 For basic user authentication, use an AWS Access keys key-pair file. 
 
 {{< hint type="tip" >}}
@@ -104,7 +104,7 @@ Save this text file as `aws-credentials.txt`.
 The [Configuration](https://marketplace.upbound.io/providers/upbound/provider-aws/latest/docs/configuration) section of the Provider documentation describes other authentication methods.
 {{< /hint >}}
 
-#### Create a Kubernetes secret with the AWS credentials
+### Create a Kubernetes secret with the AWS credentials
 A Kubernetes generic secret has a name and contents. Use {{< hover label="kube-create-secret" line="1">}}kubectl create secret{{< /hover >}} to generate the secret object named {{< hover label="kube-create-secret" line="2">}}aws-secret{{< /hover >}} in the {{< hover label="kube-create-secret" line="3">}}crossplane-system{{</ hover >}} namespace.  
 Use the {{< hover label="kube-create-secret" line="4">}}--from-file={{</hover>}} argument to set the value to the contents of the  {{< hover label="kube-create-secret" line="4">}}aws-credentials.txt{{< /hover >}} file.
 
@@ -135,7 +135,7 @@ Data
 creds:  114 bytes
 ```
 
-### Create a ProviderConfig
+## Create a ProviderConfig
 A `ProviderConfig` customizes the settings of the AWS Provider.  
 
 Apply the {{< hover label="providerconfig" line="2">}}ProviderConfig{{</ hover >}} with the command:
@@ -160,7 +160,7 @@ This attaches the AWS credentials, saved as a Kubernetes secret, as a {{< hover 
 The {{< hover label="providerconfig" line="11">}}spec.credentials.secretRef.name{{< /hover >}} value is the name of the Kubernetes secret containing the AWS credentials in the {{< hover label="providerconfig" line="10">}}spec.credentials.secretRef.namespace{{< /hover >}}.
 
 
-### Create a managed resource
+## Create a managed resource
 A _managed resource_ is anything Crossplane creates and manages outside of the Kubernetes cluster. This creates an AWS S3 bucket with Crossplane. The S3 bucket is a _managed resource_.
 
 {{< hint type="note" >}}
@@ -204,7 +204,7 @@ NAME                          READY   SYNCED   EXTERNAL-NAME                 AGE
 crossplane-bucket-45eed4ae0   True    True     crossplane-bucket-45eed4ae0   61s
 ```
 
-### Delete the managed resource
+## Delete the managed resource
 Before shutting down your Kubernetes cluster, delete the S3 bucket just created.
 
 Use `kubectl delete bucket <bucketname>` to remove the bucket.
