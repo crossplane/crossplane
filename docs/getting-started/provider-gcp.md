@@ -36,7 +36,7 @@ All commands use the current `kubeconfig` context and configuration.
 {{< /hint >}}
 
 
-{{< include file="/docs/master/getting-started/install-crossplane.md" type="page" >}}
+{{< include file="install-crossplane.md" type="page" >}}
 
 ## Install the GCP provider
 
