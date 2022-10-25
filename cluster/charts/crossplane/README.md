@@ -94,7 +94,7 @@ and their default values.
 | `packageCache.medium` | Storage medium for package cache. `Memory` means volume will be backed by tmpfs, which can be useful for development. | `""` |
 | `packageCache.sizeLimit` | Size limit for package cache. If medium is `Memory` then maximum usage would be the minimum of this value the sum of all memory limits on containers in the Crossplane pod. | `5Mi` |
 | `packageCache.pvc` | Name of the PersistentVolumeClaim to be used as the package cache. Providing a value will cause the default emptyDir volume to not be mounted. | `""` |
-| `tolerations` | Enable tolerations for Crossplane pod | `{}` |
+| `tolerations` | Enable tolerations for Crossplane pod | `[]` |
 | `resourcesRBACManager.limits.cpu` | CPU resource limits for RBAC Manager | `100m` |
 | `resourcesRBACManager.limits.memory` | Memory resource limits for RBAC Manager | `512Mi` |
 | `resourcesRBACManager.requests.cpu` | CPU resource requests for RBAC Manager | `100m` |
@@ -109,7 +109,7 @@ and their default values.
 | `rbacManager.replicas` | The number of replicas to run for the RBAC Manager pods | `1` |
 | `rbacManager.leaderElection` | Enable leader election for RBAC Managers pod | `true` |
 | `rbacManager.managementPolicy`| The extent to which the RBAC manager will manage permissions. `All` indicates to manage all Crossplane controller and user roles. `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `All` |
-| `rbacManager.tolerations` | Enable tolerations for RBAC Managers pod | `{}` |
+| `rbacManager.tolerations` | Enable tolerations for RBAC Managers pod | `[]` |
 | `rbacManager.skipAggregatedClusterRoles` | Opt out of deploying aggregated ClusterRoles | `false` |
 | `metrics.enabled` | Expose Crossplane and RBAC Manager metrics endpoint | `false` |
 | `extraEnvVarsCrossplane` | List of extra environment variables to set in the crossplane deployment. Any `.` in variable names will be replaced with `_` (example: `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`). | `{}` |
