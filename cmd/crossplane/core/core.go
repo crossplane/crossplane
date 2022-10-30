@@ -37,6 +37,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
+	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -49,7 +50,8 @@ type Command struct {
 // KongVars represent the kong variables associated with the CLI parser
 // required for the Registry default variable interpolation.
 var KongVars = kong.Vars{
-	"default_registry": name.DefaultRegistry,
+	"default_registry":   name.DefaultRegistry,
+	"default_user_agent": transport.DefaultUserAgent,
 }
 
 // Run is the no-op method required for kong call tree
@@ -68,6 +70,7 @@ type startCommand struct {
 	CABundlePath         string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
 	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
 	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
+	UserAgent            string `help:"The User-Agent header that will be set on all package requests." default:"${default_user_agent}" env:"USER_AGENT"`
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
@@ -134,6 +137,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		ServiceAccount:       c.ServiceAccount,
 		DefaultRegistry:      c.Registry,
 		Features:             feats,
+		FetcherOptions:       []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		WebhookTLSSecretName: c.WebhookTLSSecretName,
 	}
 
@@ -142,7 +146,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "Cannot parse CA bundle")
 		}
-		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithCustomCA(rootCAs)}
+		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {
