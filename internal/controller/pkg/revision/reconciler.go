@@ -19,6 +19,7 @@ package revision
 import (
 	"context"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -581,6 +582,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Update object list in package revision status with objects for which
 	// ownership or control has been established.
+	// NOTE(hasheddan): the collection of resource references is
+	// non-deterministic due to concurrent establishment, so we perform a stable
+	// sort to avoid constant status changes.
+	sort.SliceStable(refs, func(i, j int) bool {
+		return string(refs[i].UID) < string(refs[j].UID)
+	})
 	pr.SetObjects(refs)
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {
