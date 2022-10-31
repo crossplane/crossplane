@@ -192,7 +192,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.10.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.10.1
 ```
 
 Wait until all packages become healthy:
@@ -233,7 +233,7 @@ spec:
       key: creds
 ```
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/configure/aws/providerconfig.yaml
 ```
 <!-- close "AWS (Default VPC)" -->
 {{% /tab %}}
@@ -246,7 +246,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.10.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.10.1
 ```
 
 Wait until all packages become healthy:
@@ -288,7 +288,7 @@ spec:
 ```
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/configure/aws/providerconfig.yaml
 ```
 <!-- close "AWS (New VPC)" -->
 {{% /tab %}}
@@ -302,7 +302,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.10.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.10.1
 ```
 
 Wait until all packages become healthy:
@@ -373,7 +373,7 @@ spec:
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.10.0
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.10.1
 ```
 
 Wait until all packages become healthy:
@@ -414,7 +414,7 @@ spec:
 ```
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/configure/azure/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/configure/azure/providerconfig.yaml
 ```
 <!-- close "Azure" -->
 {{% /tab %}}

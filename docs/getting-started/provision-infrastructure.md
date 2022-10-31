@@ -62,7 +62,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/compose/claim-aws.yaml
 ```
 
 </div>
@@ -91,7 +91,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-aws-new.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/compose/claim-aws-new.yaml
 ```
 
 </div>
@@ -114,7 +114,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/compose/claim-gcp.yaml
 ```
 
 </div>
@@ -137,7 +137,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/claim-azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/compose/claim-azure.yaml
 ```
 
 </div>
@@ -236,7 +236,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/compose/pod.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/compose/pod.yaml
 ```
 
 This `Pod` simply connects to a PostgreSQL database and prints its name, so you
