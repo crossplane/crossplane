@@ -7,7 +7,7 @@ toc_hide: true
 Crossplane installs into an existing Kubernetes cluster. 
 
 {{< hint type="tip" >}}
-If you don't have a Kubernetes cluster create one locally with [minikube](https://minikube.sigs.k8s.io/docs/start/) or [kind](https://kind.sigs.k8s.io/).
+If you don't have a Kubernetes cluster create one locally with [kind](https://kind.sigs.k8s.io/).
 {{< /hint >}}
 
 ### Install the Crossplane Helm chart
