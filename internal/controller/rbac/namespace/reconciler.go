@@ -18,6 +18,7 @@ package namespace
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -216,9 +217,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 }
 
 // RolesDiffer returns true if the supplied objects are different Roles. We
-// consider Roles to be different if their annotations and rules do not match.
+// consider Roles to be different if their crossplane annotations or rules do not match.
 func RolesDiffer(current, desired runtime.Object) bool {
 	c := current.(*rbacv1.Role)
 	d := desired.(*rbacv1.Role)
-	return !cmp.Equal(c.GetAnnotations(), d.GetAnnotations()) || !cmp.Equal(c.Rules, d.Rules)
+	return !equalRolesAnnotations(c, d) || !cmp.Equal(c.Rules, d.Rules)
+}
+
+// equalRolesAnnotations compares the crossplane rbac annotations (prefixed by "rbac.crossplane.io/")
+// of two Roles and returns true if they are equal.
+func equalRolesAnnotations(current, desired *rbacv1.Role) bool {
+	currentFiltered := make(map[string]string)
+	for k, v := range current.GetAnnotations() {
+		if strings.HasPrefix(k, keyPrefix) {
+			currentFiltered[k] = v
+		}
+	}
+
+	desiredFiltered := make(map[string]string)
+	for k, v := range desired.GetAnnotations() {
+		if strings.HasPrefix(k, keyPrefix) {
+			desiredFiltered[k] = v
+		}
+	}
+	return cmp.Equal(currentFiltered, desiredFiltered)
 }

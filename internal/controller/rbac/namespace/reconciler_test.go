@@ -224,13 +224,31 @@ func TestRolesDiffer(t *testing.T) {
 		"Equal": {
 			current: &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"a": "a"},
+					Annotations: map[string]string{"rbac.crossplane.io/a": "a"},
 				},
 				Rules: []rbacv1.PolicyRule{{}},
 			},
 			desired: &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"a": "a"},
+					Annotations: map[string]string{"rbac.crossplane.io/a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			want: false,
+		},
+		"EqualMixedNonCrossplane": {
+			current: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{"rbac.crossplane.io/a": "a"},
+				},
+				Rules: []rbacv1.PolicyRule{{}},
+			},
+			desired: &rbacv1.Role{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"rbac.crossplane.io/a":        "a",
+						"not-managed-by-crossplane/b": "b",
+					},
 				},
 				Rules: []rbacv1.PolicyRule{{}},
 			},
@@ -239,13 +257,13 @@ func TestRolesDiffer(t *testing.T) {
 		"AnnotationsDiffer": {
 			current: &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"a": "a"},
+					Annotations: map[string]string{"rbac.crossplane.io/a": "a"},
 				},
 				Rules: []rbacv1.PolicyRule{{}},
 			},
 			desired: &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"b": "b"},
+					Annotations: map[string]string{"rbac.crossplane.io/b": "b"},
 				},
 				Rules: []rbacv1.PolicyRule{{}},
 			},
@@ -254,13 +272,13 @@ func TestRolesDiffer(t *testing.T) {
 		"RulesDiffer": {
 			current: &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"a": "a"},
+					Annotations: map[string]string{"rbac.crossplane.io/a": "a"},
 				},
 				Rules: []rbacv1.PolicyRule{{}},
 			},
 			desired: &rbacv1.Role{
 				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{"a": "a"},
+					Annotations: map[string]string{"rbac.crossplane.io/a": "a"},
 				},
 			},
 			want: true,
