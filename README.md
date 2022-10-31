@@ -9,7 +9,7 @@ build a control plane that can orchestrate applications and infrastructure no
 matter where they run, and a highly configurable frontend that puts you in
 control of the schema of the declarative API it offers.
 
-Crossplane is a [Cloud Native Compute Foundation][cncf] project.
+Crossplane is a [Cloud Native Computing Foundation][cncf] project.
 
 ## Releases
 
