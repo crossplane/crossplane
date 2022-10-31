@@ -77,6 +77,10 @@ All the supported CRDs are also available in the [Upbound Marketplace](https://m
 ## Create a Kubernetes secret for Azure
 The provider requires credentials to create and manage Azure resources. Providers use a Kubernetes _Secret_ to connect the credentials to the provider.
 
+{{< hint type="note" >}}
+Other authentication methods exist and are beyond the scope of this guide. The [Provider documentation](https://marketplace.upbound.io/providers/upbound/provider-azure/latest/docs/configuration) contains information on alternative authentication methods. 
+{{< /hint >}}
+
 First generate a Kubernetes _Secret_ from your Azure JSON file and then configure the Provider to use it.
 
 ### Install the Azure command-line
