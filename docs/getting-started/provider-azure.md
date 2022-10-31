@@ -8,15 +8,15 @@ Connect Crossplane to Microsoft Azure to create and manage cloud resources from 
 This guide walks you through the steps required to get started with the Upbound Azure Provider. This includes installing Crossplane, configuring the provider to authenticate to Azure and creating a _Managed Resource_ in Azure directly from your Kubernetes cluster.
 
 - [Prerequisites](#prerequisites)
-  - [Install the Azure provider](#install-the-azure-provider)
-  - [Create a Kubernetes secret for Azure](#create-a-kubernetes-secret-for-azure)
-    - [Install the Azure command-line](#install-the-azure-command-line)
-    - [Create an Azure service principal](#create-an-azure-service-principal)
-    - [Create a Kubernetes secret with the Azure credentials](#create-a-kubernetes-secret-with-the-azure-credentials)
-  - [Create a ProviderConfig](#create-a-providerconfig)
-  - [Create a managed resource](#create-a-managed-resource)
-  - [Delete the managed resource](#delete-the-managed-resource)
-  - [Next steps](#next-steps)
+- [Install the Azure provider](#install-the-azure-provider)
+- [Create a Kubernetes secret for Azure](#create-a-kubernetes-secret-for-azure)
+  - [Install the Azure command-line](#install-the-azure-command-line)
+  - [Create an Azure service principal](#create-an-azure-service-principal)
+  - [Create a Kubernetes secret with the Azure credentials](#create-a-kubernetes-secret-with-the-azure-credentials)
+- [Create a ProviderConfig](#create-a-providerconfig)
+- [Create a managed resource](#create-a-managed-resource)
+- [Delete the managed resource](#delete-the-managed-resource)
+- [Next steps](#next-steps)
 
 ## Prerequisites
 This quickstart requires:
@@ -36,7 +36,7 @@ All commands use the current `kubeconfig` context and configuration.
 
 {{< include file="install-crossplane.md" type="page" >}}
 
-### Install the Azure provider
+## Install the Azure provider
 
 Install the provider into the Kubernetes cluster with a Kubernetes configuration file. 
 
@@ -74,12 +74,12 @@ All the supported CRDs are also available in the [Upbound Marketplace](https://m
 {{< /hint >}}
 
 
-### Create a Kubernetes secret for Azure
+## Create a Kubernetes secret for Azure
 The provider requires credentials to create and manage Azure resources. Providers use a Kubernetes _Secret_ to connect the credentials to the provider.
 
 First generate a Kubernetes _Secret_ from your Azure JSON file and then configure the Provider to use it.
 
-#### Install the Azure command-line
+### Install the Azure command-line
 Generating an [authentication file](https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authorization#use-file-based-authentication) requires the Azure command-line.  
 Follow the documentation from Microsoft to [Download and install the Azure command-line](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli).
 
@@ -88,7 +88,7 @@ Log in to the Azure command-line.
 ```command
 az login
 ```
-#### Create an Azure service principal
+### Create an Azure service principal
 Follow the Azure documentation to [find your Subscription ID](https://docs.microsoft.com/en-us/azure/azure-portal/get-subscription-tenant-id) from the Azure Portal.
 
 Using the Azure command-line and provide your Subscription ID create a service principal and authentication file.
@@ -106,7 +106,7 @@ Save your Azure JSON output as `azure-credentials.json`.
 The [Configuration](https://marketplace.upbound.io/providers/upbound/provider-azure/latest/docs/configuration) section of the Provider documentation describes other authentication methods.
 {{< /hint >}}
 
-#### Create a Kubernetes secret with the Azure credentials
+### Create a Kubernetes secret with the Azure credentials
 A Kubernetes generic secret has a name and contents. Use {{< hover label="kube-create-secret" line="1">}}kubectl create secret{{< /hover >}} to generate the secret object named {{< hover label="kube-create-secret" line="2">}}azure-secret{{< /hover >}} in the {{< hover label="kube-create-secret" line="3">}}crossplane-system{{</ hover >}} namespace.  
 
 <!-- vale gitlab.Substitutions = NO -->
@@ -140,7 +140,7 @@ Data
 creds:  629 bytes
 ```
 
-### Create a ProviderConfig
+## Create a ProviderConfig
 A `ProviderConfig` customizes the settings of the Azure Provider.  
 
 Apply the {{< hover label="providerconfig" line="2">}}ProviderConfig{{</ hover >}} with the command:
@@ -165,7 +165,7 @@ This attaches the Azure credentials, saved as a Kubernetes secret, as a {{< hove
 The {{< hover label="providerconfig" line="11">}}spec.credentials.secretRef.name{{< /hover >}} value is the name of the Kubernetes secret containing the Azure credentials in the {{< hover label="providerconfig" line="10">}}spec.credentials.secretRef.namespace{{< /hover >}}.
 
 
-### Create a managed resource
+## Create a managed resource
 A _managed resource_ is anything Crossplane creates and manages outside of the Kubernetes cluster. This creates an Azure Resource group with Crossplane. The Resource group is a _managed resource_.
 
 {{< hint type="tip" >}}
@@ -201,7 +201,7 @@ NAME         READY   SYNCED   EXTERNAL-NAME   AGE
 example-rg   True    True     example-rg      4m58s
 ```
 
-### Delete the managed resource
+## Delete the managed resource
 Before shutting down your Kubernetes cluster, delete the resource group just created.
 
 Use `kubectl delete resource-group` to remove the bucket.
@@ -211,6 +211,6 @@ kubectl delete resourcegroup example-rg
 resourcegroup.azure.upbound.io "example-rg" deleted
 ```
 
-### Next steps 
+## Next steps 
 * Explore Azure resources that can Crossplane can configure in the [Provider CRD reference](https://marketplace.upbound.io/providers/upbound/provider-azure/latest/crds).
 * Join the [Crossplane Slack](https://slack.crossplane.io/) and connect with Crossplane users and contributors.
