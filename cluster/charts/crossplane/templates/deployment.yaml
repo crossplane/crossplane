@@ -61,6 +61,16 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
           env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.memory
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
@@ -107,6 +117,16 @@ spec:
         securityContext:
           {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
         env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.memory
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
