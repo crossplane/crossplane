@@ -45,6 +45,17 @@ spec:
           {{- toYaml .Values.resourcesRBACManager | nindent 12 }}
         securityContext:
           {{- toYaml .Values.securityContextRBACManager | nindent 12 }}
+        env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.memory
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
@@ -69,6 +80,16 @@ spec:
         securityContext:
           {{- toYaml .Values.securityContextRBACManager | nindent 12 }}
         env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.memory
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
         {{- range $key, $value := .Values.extraEnvVarsRBACManager }}
