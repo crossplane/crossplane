@@ -128,7 +128,7 @@ A basic `Composition` for the above `XPostgreSQLInstance` might look like this:
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: example
+  name: production
   labels:
     crossplane.io/xrd: xpostgresqlinstances.database.example.org
     provider: gcp
