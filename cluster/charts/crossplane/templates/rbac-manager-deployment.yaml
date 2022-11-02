@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "crossplane.name" . }}-rbac-manager
+  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "crossplane.name" . }}-rbac-manager
     release: {{ .Release.Name }}
