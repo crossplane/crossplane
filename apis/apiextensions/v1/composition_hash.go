@@ -17,15 +17,15 @@ limitations under the License.
 package v1
 
 import (
+	"crypto/sha256"
 	"fmt"
-	"hash/fnv"
 
 	"sigs.k8s.io/yaml"
 )
 
 // Hash of the CompositionSpec.
 func (cs CompositionSpec) Hash() string {
-	h := fnv.New64a()
+	h := sha256.New()
 	y, err := yaml.Marshal(cs)
 	if err != nil {
 		// I believe this should be impossible given we're marshalling a
@@ -33,5 +33,5 @@ func (cs CompositionSpec) Hash() string {
 		return "unknown"
 	}
 	h.Write(y) //nolint:errcheck // Writing to a hash never errors.
-	return fmt.Sprintf("%x", h.Sum64())
+	return fmt.Sprintf("%x", h.Sum(nil))
 }

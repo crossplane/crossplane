@@ -194,16 +194,16 @@ func TestNewCompositionRevision(t *testing.T) {
 
 	var (
 		rev  int64  = 1
-		hash string = "comphash"
+		hash string = "1af1dfa857bf1d8814fe1af8983c18080019922e557f15a8a0d3db739d77aacb"
 	)
 
 	ctrl := true
 	want := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", comp.GetName(), hash[0:5]),
+			Name: fmt.Sprintf("%s-%s", comp.GetName(), hash[0:7]),
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionName:     comp.GetName(),
-				v1alpha1.LabelCompositionSpecHash: hash,
+				v1alpha1.LabelCompositionSpecHash: hash[0:63],
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion:         v1.SchemeGroupVersion.String(),
