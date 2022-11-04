@@ -164,6 +164,9 @@ spec:
         {{- if .Values.packageCache.pvc }}
         persistentVolumeClaim:
           claimName: {{ .Values.packageCache.pvc }}
+        {{- else if .Values.packageCache.configMap }}
+        configMap:
+          name: {{ .Values.packageCache.configMap }}
         {{- else }}
         emptyDir:
           medium: {{ .Values.packageCache.medium }}
