@@ -470,6 +470,30 @@ fields are there and those are enough to import a resource. The tool you're
 using needs to store `annotations` and `spec` fields, which most tools do
 including Velero.
 
+## Reference Policies
+
+We have two types of policies for reference fields: Resolve and Resolution.
+
+Resolve specifies when this reference should be resolved. The default is
+‘IfNotPresent’, which will attempt to resolve the reference only when the
+corresponding field is not present. Use ‘Always’ to resolve the reference on
+every reconcile.
+
+Resolution specifies whether resolution of this reference is required. The
+default is ‘Required’, which means the reconcile will fail if the reference
+cannot be resolved. ‘Optional’ means this reference will be a no-op if it cannot
+be resolved.
+
+Example usage:
+
+```yaml
+subnetIdRefs:
+  - name: example
+    policy:
+      resolve: Always
+      resolution: Required
+```
+
 [term-xrm]: {{<ref "terminology" >}}#crossplane-resource-model
 [rds]: https://aws.amazon.com/rds/
 [cloudsql]: https://cloud.google.com/sql
