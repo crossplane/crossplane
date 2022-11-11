@@ -357,7 +357,7 @@ func TestNewCompositionRevision(t *testing.T) {
 		Status: v1alpha1.CompositionRevisionStatus{
 			ConditionedStatus: xpv1.ConditionedStatus{
 				Conditions: []xpv1.Condition{
-					v1alpha1.CompositionSpecMatches(),
+					v1alpha1.CompositionMatches(),
 				},
 			},
 		},

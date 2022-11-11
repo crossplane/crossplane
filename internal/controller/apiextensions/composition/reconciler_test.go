@@ -78,7 +78,7 @@ func TestReconcile(t *testing.T) {
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
 		Status: v1alpha1.CompositionRevisionStatus{
 			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{v1alpha1.CompositionSpecMatches()},
+				Conditions: []xpv1.Condition{v1alpha1.CompositionMatches()},
 			},
 		},
 	}
@@ -100,7 +100,7 @@ func TestReconcile(t *testing.T) {
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
 		Status: v1alpha1.CompositionRevisionStatus{
 			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{v1alpha1.CompositionSpecDiffers()},
+				Conditions: []xpv1.Condition{v1alpha1.CompositionDiffers()},
 			},
 		},
 	}
@@ -122,7 +122,7 @@ func TestReconcile(t *testing.T) {
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
 		Status: v1alpha1.CompositionRevisionStatus{
 			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{v1alpha1.CompositionSpecMatches()},
+				Conditions: []xpv1.Condition{v1alpha1.CompositionMatches()},
 			},
 		},
 	}
@@ -289,7 +289,7 @@ func TestReconcile(t *testing.T) {
 						}),
 						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
 							want := rev2.DeepCopy()
-							want.Status.SetConditions(v1alpha1.CompositionSpecDiffers())
+							want.Status.SetConditions(v1alpha1.CompositionDiffers())
 
 							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
 								t.Errorf("Status().Update(...): -want, +got:\n%s", diff)

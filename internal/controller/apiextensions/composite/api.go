@@ -24,7 +24,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -179,11 +178,19 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	}
 
 	rl := &v1alpha1.CompositionRevisionList{}
-	if err := f.ca.List(ctx, rl, client.MatchingLabels{v1alpha1.LabelCompositionName: comp.GetName()}); err != nil {
+	ml := client.MatchingLabels{}
+
+	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
+		cr.GetCompositionRevisionSelector() != nil && len(cr.GetCompositionRevisionSelector().MatchLabels) != 0 {
+		ml = cr.GetCompositionRevisionSelector().MatchLabels
+	}
+
+	ml[v1alpha1.LabelCompositionName] = comp.GetName()
+	if err := f.ca.List(ctx, rl, ml); err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 
-	current := currentRevision(comp, rl.Items)
+	current := LatestRevision(rl.Items)
 	if current == nil {
 		return nil, errors.New(errNoCompatibleCompositionRevision)
 	}
@@ -198,27 +205,26 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	return AsComposition(current), nil
 }
 
-// currentRevision returns the current revision of the supplied composition. It
-// returns nil if none of the supplied revisions appear to be currentRevision.
+// LatestRevision returns the current revision of the supplied composition. It
+// returns nil if none of the supplied revisions appear to be LatestRevision.
 // We use a hash of the spec, not the revision number, to determine which
-// revision is currentRevision. This is because the Composition may have been
+// revision is LatestRevision. This is because the Composition may have been
 // reverted to an older state. When this happens we don't create a new
 // CompositionRevision; rather the prior revision becomes effectively
-// 'currentRevision'.
-func currentRevision(c *v1.Composition, revs []v1alpha1.CompositionRevision) *v1alpha1.CompositionRevision {
-	currentHash := c.Spec.Hash()
+// 'LatestRevision'.
+func LatestRevision(revs []v1alpha1.CompositionRevision) *v1alpha1.CompositionRevision {
+	if len(revs) == 0 {
+		return nil
+	}
 
+	latest := revs[0]
 	for i := range revs {
-		if !metav1.IsControlledBy(&revs[i], c) {
-			continue
-		}
-
-		if revs[i].GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
-			return &revs[i]
+		if latest.Spec.Revision < revs[i].Spec.Revision {
+			latest = revs[i]
 		}
 	}
 
-	return nil
+	return &latest
 }
 
 // NewCompositionSelectorChain returns a new CompositionSelectorChain.

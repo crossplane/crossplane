@@ -18,11 +18,12 @@ package composition
 
 import (
 	"context"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	"strings"
 	"time"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -51,6 +52,7 @@ const (
 	errListRevs        = "cannot list CompositionRevisions"
 	errCreateRev       = "cannot create CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
+	errUpdateRevSpec   = "cannot update CompositionRevision spec"
 )
 
 // Event reasons.
@@ -139,7 +141,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	currentHash := comp.Spec.Hash()
+	currentHash := comp.Hash()
 
 	log = log.WithValues(
 		"uid", comp.GetUID(),
@@ -156,20 +158,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	var latestRev, existingRev int64
+
+	if lr := composite.LatestRevision(rl.Items); lr != nil {
+		latestRev = composite.LatestRevision(rl.Items).Spec.Revision
+	}
+
 	for i := range rl.Items {
 		rev := &rl.Items[i]
-		if !metav1.IsControlledBy(rev, comp) {
-			continue
-		}
 
-		if rev.Spec.Revision > latestRev {
-			latestRev = rev.Spec.Revision
-		}
-
-		want := v1alpha1.CompositionSpecDiffers()
+		want := v1alpha1.CompositionDiffers()
 		if rev.GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
+			if rev.Status.GetCondition(v1alpha1.TypeCurrent).Status == corev1.ConditionFalse {
+				rev.Spec.Revision = latestRev + 1
+				if err := r.client.Update(ctx, rev); err != nil {
+					return reconcile.Result{}, errors.Wrap(err, errUpdateRevSpec)
+				}
+			}
 			existingRev = rev.Spec.Revision
-			want = v1alpha1.CompositionSpecMatches()
+			want = v1alpha1.CompositionMatches()
 		}
 
 		// No need to update this revision's status; it already has the

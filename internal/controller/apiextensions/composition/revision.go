@@ -45,7 +45,11 @@ func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash stri
 	ref := meta.TypedReferenceTo(c, v1.CompositionGroupVersionKind)
 	meta.AddOwnerReference(cr, meta.AsController(ref))
 
-	cr.Status.SetConditions(v1alpha1.CompositionSpecMatches())
+	cr.Status.SetConditions(v1alpha1.CompositionMatches())
+
+	for k, v := range c.GetLabels() {
+		cr.ObjectMeta.Labels[k] = v
+	}
 
 	return cr
 }

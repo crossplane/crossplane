@@ -32,28 +32,28 @@ const (
 
 // Reasons a package is or is not current.
 const (
-	ReasonCompositionSpecMatches xpv1.ConditionReason = "CompositionSpecMatches"
-	ReasonCompositionSpecDiffers xpv1.ConditionReason = "CompositionSpecDiffers"
+	ReasonCompositionMatches xpv1.ConditionReason = "CompositionMatches"
+	ReasonCompositionDiffers xpv1.ConditionReason = "CompositionDiffers"
 )
 
-// CompositionSpecMatches indicates that a revision is current because its spec
+// CompositionMatches indicates that a revision is current because its spec, labels and annotations
 // matches the Composition's.
-func CompositionSpecMatches() xpv1.Condition {
+func CompositionMatches() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeCurrent,
 		Status:             corev1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonCompositionSpecMatches,
+		Reason:             ReasonCompositionMatches,
 	}
 }
 
-// CompositionSpecDiffers indicates that a revision is current because its spec
+// CompositionDiffers indicates that a revision is not current because its spec, labels or annotations
 // differs from the Composition's.
-func CompositionSpecDiffers() xpv1.Condition {
+func CompositionDiffers() xpv1.Condition {
 	return xpv1.Condition{
 		Type:               TypeCurrent,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonCompositionSpecDiffers,
+		Reason:             ReasonCompositionDiffers,
 	}
 }
