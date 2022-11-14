@@ -18,8 +18,6 @@ package composition
 
 import (
 	"context"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	corev1 "k8s.io/api/core/v1"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +38,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 const (
@@ -166,30 +165,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i := range rl.Items {
 		rev := &rl.Items[i]
 
-		want := v1alpha1.CompositionDiffers()
-		if rev.GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
-			if rev.Status.GetCondition(v1alpha1.TypeCurrent).Status == corev1.ConditionFalse {
+		if rev.GetLabels()[v1alpha1.LabelCompositionHash] == currentHash[:63] {
+			if rev.Spec.Revision != latestRev {
 				rev.Spec.Revision = latestRev + 1
 				if err := r.client.Update(ctx, rev); err != nil {
+					log.Debug(errUpdateRevSpec, "error", err)
+					r.record.Event(comp, event.Warning(reasonUpdateRev, err))
 					return reconcile.Result{}, errors.Wrap(err, errUpdateRevSpec)
 				}
 			}
 			existingRev = rev.Spec.Revision
-			want = v1alpha1.CompositionMatches()
-		}
-
-		// No need to update this revision's status; it already has the
-		// appropriate 'Current' condition.
-		if got := rev.Status.GetCondition(v1alpha1.TypeCurrent); got.Status == want.Status {
-			continue
-		}
-
-		// Toggle the 'Current' condition of this revision.
-		rev.Status.SetConditions(want)
-		if err := r.client.Status().Update(ctx, rev); err != nil {
-			log.Debug(errUpdateRevStatus, "error", err)
-			r.record.Event(comp, event.Warning(reasonUpdateRev, err))
-			return reconcile.Result{}, errors.Wrap(err, errUpdateRevStatus)
 		}
 	}
 

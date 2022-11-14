@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -61,8 +60,7 @@ func TestReconcile(t *testing.T) {
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 1},
 	}
 
-	// Owned by the above composition, but with an 'older' hash. The status
-	// indicates it is the current version, and thus should be updated.
+	// Owned by the above composition, but with an 'older' hash.
 	rev2 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-2",
@@ -72,19 +70,15 @@ func TestReconcile(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: "some-older-hash",
+				v1alpha1.LabelCompositionHash: "some-older-hash",
+				v1alpha1.LabelCompositionName: comp.Name,
 			},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
-		Status: v1alpha1.CompositionRevisionStatus{
-			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{v1alpha1.CompositionMatches()},
-			},
-		},
 	}
 
-	// Owned by the above composition, with a current hash. The status
-	// indicates it is not the current revision, and thus should be updated.
+	// Owned by the above composition, with a current hash. The revision number
+	// indicates it is the current revision, and thus should not be updated.
 	rev3 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-3",
@@ -94,37 +88,11 @@ func TestReconcile(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
+				v1alpha1.LabelCompositionHash: comp.Hash()[:63],
+				v1alpha1.LabelCompositionName: comp.Name,
 			},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
-		Status: v1alpha1.CompositionRevisionStatus{
-			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{v1alpha1.CompositionDiffers()},
-			},
-		},
-	}
-
-	// Owned by the above composition, with a current hash. The status
-	// indicates it is the current revision, and thus should not be updated.
-	rev4 := &v1alpha1.CompositionRevision{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-4",
-			OwnerReferences: []metav1.OwnerReference{{
-				UID:                comp.GetUID(),
-				Controller:         &ctrl,
-				BlockOwnerDeletion: &ctrl,
-			}},
-			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
-			},
-		},
-		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
-		Status: v1alpha1.CompositionRevisionStatus{
-			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{v1alpha1.CompositionMatches()},
-			},
-		},
 	}
 
 	type args struct {
@@ -200,7 +168,7 @@ func TestReconcile(t *testing.T) {
 			},
 		},
 		"SuccessfulNoOp": {
-			reason: "We should not create a new CompositionRevision if one exists that matches the Composition's spec hash.",
+			reason: "We should not create a new CompositionRevision if one exists that matches the Composition's hash.",
 			args: args{
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
@@ -216,40 +184,6 @@ func TestReconcile(t *testing.T) {
 
 									// Controlled by the above composition with a current hash.
 									// This indicates we don't need to create a new revision.
-									// It does not need its status updated.
-									*rev4,
-								},
-							}
-							return nil
-						}),
-					},
-				},
-			},
-			want: want{
-				r:   reconcile.Result{},
-				err: nil,
-			},
-		},
-		"UpdateRevisionStatusError": {
-			reason: "We should return any error encountered while updating a CompositionRevision's status.",
-			args: args{
-				mgr: &fake.Manager{
-					Client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							*obj.(*v1.Composition) = *comp
-							return nil
-						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
-						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
-								Items: []v1alpha1.CompositionRevision{
-									// Not controlled by the above composition.
-									*rev1,
-
-									// Controlled by the above composition with a current hash.
-									// This indicates we don't need to create a new revision.
-									// It does need its status updated to indicate that it it's
-									// the current revision, though.
 									*rev3,
 								},
 							}
@@ -260,7 +194,7 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r:   reconcile.Result{},
-				err: errors.Wrap(errBoom, errUpdateRevStatus),
+				err: nil,
 			},
 		},
 		"CreateCompositionRevisionError": {
@@ -287,16 +221,6 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1.Composition) = *comp
 							return nil
 						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
-							want := rev2.DeepCopy()
-							want.Status.SetConditions(v1alpha1.CompositionDiffers())
-
-							if diff := cmp.Diff(want, obj, test.EquateConditions()); diff != "" {
-								t.Errorf("Status().Update(...): -want, +got:\n%s", diff)
-							}
-
-							return nil
-						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
 								Items: []v1alpha1.CompositionRevision{
@@ -304,15 +228,14 @@ func TestReconcile(t *testing.T) {
 									*rev1,
 
 									// Controlled by the above composition, but with an older hash.
-									// This indicates we need to create a new composition. The status
-									// also needs updating to indicate this is not the currenr revision.
+									// This indicates we need to create a new composition.
 									*rev2,
 								},
 							}
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
-							want := NewCompositionRevision(comp, rev2.Spec.Revision+1, comp.Spec.Hash())
+							want := NewCompositionRevision(comp, rev2.Spec.Revision+1, comp.Hash())
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("Create(): -want, +got:\n%s", diff)

@@ -27,7 +27,7 @@ import (
 func (c Composition) Hash() string {
 	h := sha256.New()
 
-	l, err := yaml.Marshal(c.ObjectMeta.Labels)
+	y, err := yaml.Marshal(c.ObjectMeta.Labels)
 	if err != nil {
 		// I believe this should be impossible given we're marshalling a
 		// known, strongly typed struct.
@@ -48,8 +48,8 @@ func (c Composition) Hash() string {
 		return "unknown"
 	}
 
-	y := append(l, a[:]...)
-	y = append(y, s[:]...)
+	y = append(y, a...)
+	y = append(y, s...)
 	h.Write(y) //nolint:errcheck // Writing to a hash never errors.
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

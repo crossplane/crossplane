@@ -177,16 +177,8 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 		return nil, errors.Wrap(err, errGetComposition)
 	}
 
-	rl := &v1alpha1.CompositionRevisionList{}
-	ml := client.MatchingLabels{}
-
-	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
-		cr.GetCompositionRevisionSelector() != nil && len(cr.GetCompositionRevisionSelector().MatchLabels) != 0 {
-		ml = cr.GetCompositionRevisionSelector().MatchLabels
-	}
-
-	ml[v1alpha1.LabelCompositionName] = comp.GetName()
-	if err := f.ca.List(ctx, rl, ml); err != nil {
+	rl, err := f.getCompositionRevisionList(ctx, cr, comp)
+	if err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 
@@ -203,6 +195,22 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	}
 
 	return AsComposition(current), nil
+}
+
+func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1alpha1.CompositionRevisionList, error) {
+	rl := &v1alpha1.CompositionRevisionList{}
+	ml := client.MatchingLabels{}
+
+	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
+		cr.GetCompositionRevisionSelector() != nil && len(cr.GetCompositionRevisionSelector().MatchLabels) != 0 {
+		ml = cr.GetCompositionRevisionSelector().MatchLabels
+	}
+
+	ml[v1alpha1.LabelCompositionName] = comp.GetName()
+	if err := f.ca.List(ctx, rl, ml); err != nil {
+		return nil, err
+	}
+	return rl, nil
 }
 
 // LatestRevision returns the current revision of the supplied composition. It

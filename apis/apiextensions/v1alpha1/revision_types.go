@@ -39,10 +39,10 @@ const (
 	// this CompositionRevision.
 	LabelCompositionName = "crossplane.io/composition-name"
 
-	// LabelCompositionSpecHash is a hash of the Composition spec used to
-	// create this CompositionRevision. Used to identify identical
-	// revisions.
-	LabelCompositionSpecHash = "crossplane.io/composition-spec-hash"
+	// LabelCompositionHash is a hash of the Composition label, annotation
+	// and spec used to create this CompositionRevision. Used to identify
+	// identical revisions.
+	LabelCompositionHash = "crossplane.io/composition-hash"
 )
 
 // CompositionRevisionSpec specifies the desired state of the composition
