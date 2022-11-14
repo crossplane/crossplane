@@ -45,17 +45,43 @@ func TestReconcile(t *testing.T) {
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	ctrl := true
 
-	comp := &v1.Composition{
+	compDev := &v1.Composition{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "cool-composition",
 			UID:  types.UID("no-you-uid"),
+			Labels: map[string]string{
+				"channel": "dev",
+			},
+		},
+	}
+
+	compStaging := &v1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cool-composition",
+			UID:  types.UID("no-you-uid"),
+			Labels: map[string]string{
+				"channel": "staging",
+			},
+		},
+	}
+
+	compDevWithAnn := &v1.Composition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "cool-composition",
+			UID:  types.UID("no-you-uid"),
+			Labels: map[string]string{
+				"channel": "dev",
+			},
+			Annotations: map[string]string{
+				"myannotation": "coolannotation",
+			},
 		},
 	}
 
 	// Not owned by the above composition.
 	rev1 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-1",
+			Name: compDev.GetName() + "-1",
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 1},
 	}
@@ -63,15 +89,15 @@ func TestReconcile(t *testing.T) {
 	// Owned by the above composition, but with an 'older' hash.
 	rev2 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-2",
+			Name: compDev.GetName() + "-2",
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:                comp.GetUID(),
+				UID:                compDev.GetUID(),
 				Controller:         &ctrl,
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionHash: "some-older-hash",
-				v1alpha1.LabelCompositionName: comp.Name,
+				v1alpha1.LabelCompositionName: compDev.Name,
 			},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
@@ -81,15 +107,16 @@ func TestReconcile(t *testing.T) {
 	// indicates it is the current revision, and thus should not be updated.
 	rev3 := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: comp.GetName() + "-3",
+			Name: compDev.GetName() + "-3",
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:                comp.GetUID(),
+				UID:                compDev.GetUID(),
 				Controller:         &ctrl,
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionHash: comp.Hash()[:63],
-				v1alpha1.LabelCompositionName: comp.Name,
+				v1alpha1.LabelCompositionHash: compDev.Hash()[:63],
+				v1alpha1.LabelCompositionName: compDev.Name,
+				"channel":                     "dev",
 			},
 		},
 		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
@@ -173,7 +200,7 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							*obj.(*v1.Composition) = *comp
+							*obj.(*v1.Composition) = *compDev
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -218,7 +245,7 @@ func TestReconcile(t *testing.T) {
 				mgr: &fake.Manager{
 					Client: &test.MockClient{
 						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							*obj.(*v1.Composition) = *comp
+							*obj.(*v1.Composition) = *compDev
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -235,7 +262,83 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
-							want := NewCompositionRevision(comp, rev2.Spec.Revision+1, comp.Hash())
+							want := NewCompositionRevision(compDev, rev2.Spec.Revision+1, compDev.Hash())
+
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("Create(): -want, +got:\n%s", diff)
+							}
+
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"SuccessfulCreationLabelUpdate": {
+			reason: "We should create a new composition revision when we update labels.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compStaging
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
+								Items: []v1alpha1.CompositionRevision{
+									// Not controlled by the above composition.
+									*rev1,
+
+									// Controlled by the above composition with previous label
+									*rev3,
+								},
+							}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
+							want := NewCompositionRevision(compStaging, rev3.Spec.Revision+1, compStaging.Hash())
+
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("Create(): -want, +got:\n%s", diff)
+							}
+
+							return nil
+						}),
+					},
+				},
+			},
+			want: want{
+				r:   reconcile.Result{},
+				err: nil,
+			},
+		},
+		"SuccessfulCreationAnnotationUpdate": {
+			reason: "We should create a new composition revision when we update annotations.",
+			args: args{
+				mgr: &fake.Manager{
+					Client: &test.MockClient{
+						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+							*obj.(*v1.Composition) = *compDevWithAnn
+							return nil
+						}),
+						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+							*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
+								Items: []v1alpha1.CompositionRevision{
+									// Not controlled by the above composition.
+									*rev1,
+
+									// Controlled by the above composition, but with an older annotation
+									*rev3,
+								},
+							}
+							return nil
+						}),
+						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
+							want := NewCompositionRevision(compDevWithAnn, rev3.Spec.Revision+1, compDevWithAnn.Hash())
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("Create(): -want, +got:\n%s", diff)
