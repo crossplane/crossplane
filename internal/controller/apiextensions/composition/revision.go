@@ -17,6 +17,8 @@ limitations under the License.
 package composition
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -29,10 +31,12 @@ import (
 func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) *v1alpha1.CompositionRevision {
 	cr := &v1alpha1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: c.GetName() + "-",
+			Name: fmt.Sprintf("%s-%s", c.GetName(), compSpecHash[0:7]),
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionName:     c.GetName(),
-				v1alpha1.LabelCompositionSpecHash: compSpecHash,
+				v1alpha1.LabelCompositionName: c.GetName(),
+				// We cannot have a label value longer than 63 chars
+				// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
+				v1alpha1.LabelCompositionSpecHash: compSpecHash[0:63],
 			},
 		},
 		Spec: NewCompositionRevisionSpec(c.Spec, revision),
