@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.2.17
-	github.com/crossplane/crossplane-runtime v0.19.0-rc.0.0.20221020071948-fa5545f26b04
+	github.com/crossplane/crossplane-runtime v0.19.0-rc.0.0.20221114195150-65044f043902
 	github.com/google/go-cmp v0.5.8
 	github.com/google/go-containerregistry v0.9.0
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220517194345-84eb52633e96
@@ -160,5 +160,3 @@ require (
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.1 // indirect
 )
-
-replace github.com/crossplane/crossplane-runtime => github.com/ezgidemirel/crossplane-runtime v0.17.0-rc.0.0.20221103114145-efc8702e31f1

@@ -182,7 +182,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 
-	current := LatestRevision(rl.Items)
+	current := v1.LatestRevision(comp, rl.Items)
 	if current == nil {
 		return nil, errors.New(errNoCompatibleCompositionRevision)
 	}
@@ -202,7 +202,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 	ml := client.MatchingLabels{}
 
 	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
-		cr.GetCompositionRevisionSelector() != nil && len(cr.GetCompositionRevisionSelector().MatchLabels) != 0 {
+		cr.GetCompositionRevisionSelector() != nil {
 		ml = cr.GetCompositionRevisionSelector().MatchLabels
 	}
 
@@ -211,28 +211,6 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 		return nil, err
 	}
 	return rl, nil
-}
-
-// LatestRevision returns the current revision of the supplied composition. It
-// returns nil if none of the supplied revisions appear to be LatestRevision.
-// We use a hash of the spec, not the revision number, to determine which
-// revision is LatestRevision. This is because the Composition may have been
-// reverted to an older state. When this happens we don't create a new
-// CompositionRevision; rather the prior revision becomes effectively
-// 'LatestRevision'.
-func LatestRevision(revs []v1alpha1.CompositionRevision) *v1alpha1.CompositionRevision {
-	if len(revs) == 0 {
-		return nil
-	}
-
-	latest := revs[0]
-	for i := range revs {
-		if latest.Spec.Revision < revs[i].Spec.Revision {
-			latest = revs[i]
-		}
-	}
-
-	return &latest
 }
 
 // NewCompositionSelectorChain returns a new CompositionSelectorChain.

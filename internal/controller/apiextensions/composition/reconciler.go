@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -38,7 +39,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 )
 
 const (
@@ -158,23 +158,35 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	var latestRev, existingRev int64
 
-	if lr := composite.LatestRevision(rl.Items); lr != nil {
-		latestRev = composite.LatestRevision(rl.Items).Spec.Revision
+	if lr := v1.LatestRevision(comp, rl.Items); lr != nil {
+		latestRev = lr.Spec.Revision
 	}
 
 	for i := range rl.Items {
 		rev := &rl.Items[i]
+		if !metav1.IsControlledBy(rev, comp) {
+			continue
+		}
 
-		if rev.GetLabels()[v1alpha1.LabelCompositionHash] == currentHash[:63] {
-			if rev.Spec.Revision != latestRev {
-				rev.Spec.Revision = latestRev + 1
-				if err := r.client.Update(ctx, rev); err != nil {
-					log.Debug(errUpdateRevSpec, "error", err)
-					r.record.Event(comp, event.Warning(reasonUpdateRev, err))
-					return reconcile.Result{}, errors.Wrap(err, errUpdateRevSpec)
-				}
-			}
-			existingRev = rev.Spec.Revision
+		// This revision does not match our current Composition.
+		if rev.GetLabels()[v1alpha1.LabelCompositionHash] != currentHash[:63] {
+			continue
+		}
+
+		// This revision matches our current Composition. We don't need a new one.
+		existingRev = rev.Spec.Revision
+
+		// This revision has the highest revision number - it doesn't need updating.
+		if rev.Spec.Revision == latestRev {
+			continue
+		}
+
+		// This revision does not have the highest revision number. Update it so that it does.
+		rev.Spec.Revision = latestRev + 1
+		if err := r.client.Update(ctx, rev); err != nil {
+			log.Debug(errUpdateRevSpec, "error", err)
+			r.record.Event(comp, event.Warning(reasonUpdateRev, err))
+			return reconcile.Result{}, errors.Wrap(err, errUpdateRevSpec)
 		}
 	}
 

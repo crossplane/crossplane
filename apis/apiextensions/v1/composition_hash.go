@@ -27,24 +27,21 @@ import (
 func (c Composition) Hash() string {
 	h := sha256.New()
 
+	// I believe this should be impossible given we're marshalling a
+	// known, strongly typed struct.
+
 	y, err := yaml.Marshal(c.ObjectMeta.Labels)
 	if err != nil {
-		// I believe this should be impossible given we're marshalling a
-		// known, strongly typed struct.
 		return "unknown"
 	}
 
 	a, err := yaml.Marshal(c.ObjectMeta.Annotations)
 	if err != nil {
-		// I believe this should be impossible given we're marshalling a
-		// known, strongly typed struct.
 		return "unknown"
 	}
 
 	s, err := yaml.Marshal(c.Spec)
 	if err != nil {
-		// I believe this should be impossible given we're marshalling a
-		// known, strongly typed struct.
 		return "unknown"
 	}
 
