@@ -652,6 +652,6 @@ feedback you may have about the development process!
 [Crossplane CLI]: https://github.com/crossplane/crossplane-cli#quick-start-stacks
 [`angryjet` documentation]: https://github.com/crossplane/crossplane-tools/blob/master/README.md
 [code generation guide]: https://github.com/crossplane-contrib/provider-aws/blob/master/CODE_GENERATION.md
-[Terrajet]: https://github.com/upbound/upjet
+[Upjet]: https://github.com/upbound/upjet
 [Generating a Crossplane Provider guide]: https://github.com/upbound/upjet/blob/main/docs/generating-a-provider.md
 [provider-template]: https://github.com/crossplane/provider-template
