@@ -52,6 +52,7 @@ const (
 	errUpdateComposite                 = "cannot update composite resource"
 	errCompositionNotCompatible        = "referenced composition is not compatible with this composite resource"
 	errGetXRD                          = "cannot get composite resource definition"
+	errFetchCompositionRevision        = "cannot fetch composition revision"
 )
 
 // Event reasons.
@@ -179,7 +180,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 
 	rl, err := f.getCompositionRevisionList(ctx, cr, comp)
 	if err != nil {
-		return nil, errors.Wrap(err, errListCompositionRevisions)
+		return nil, errors.Wrap(err, errFetchCompositionRevision)
 	}
 
 	current := v1.LatestRevision(comp, rl.Items)
@@ -208,7 +209,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 
 	ml[v1alpha1.LabelCompositionName] = comp.GetName()
 	if err := f.ca.List(ctx, rl, ml); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}
 	return rl, nil
 }

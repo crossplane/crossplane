@@ -341,7 +341,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListCompositionRevisions),
+				err: errors.Wrap(errors.Wrap(errBoom, errListCompositionRevisions), errFetchCompositionRevision),
 			},
 		},
 		"NoCompositionRevisionsError": {
