@@ -25,6 +25,14 @@ I have:
 - [ ] Run `make reviewable` to ensure this PR is ready for review.
 - [ ] Added `backport release-x.y` labels to auto-backport this PR if necessary.
 
+### Code review process
+For full details refer to the [contribution process].
+
+- [ ] Request a review from a Reviewer or Code Owner 
+- [ ] At least one approval from a Reviewer or Code Owner
+- [ ] Request a Maintainer to review AFTER approval from a Reviewer/Code Owner
+- [ ] At least one approval from a Maintainer 
+
 ### How has this code been tested
 
 <!--

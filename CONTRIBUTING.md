@@ -1,5 +1,13 @@
 # Contributing to Crossplane
 
+Table of contents:
+- [Contributing Code](#contributing-code)
+- [Coding Style](#coding-style)
+- [Establishing a Development Environment](#establishing-a-development-environment)
+- [Code Review Process](#code-review-process)
+
+---
+
 Welcome, and thank you for considering contributing to Crossplane. We encourage
 you to help out by raising issues, improving documentation, fixing bugs, or
 adding new features
@@ -502,6 +510,45 @@ kubectl -n crossplane-system scale deploy crossplane --replicas=0
 make run
 ```
 
+## Code Review Process
+
+All Pull Requests (PR), whether written by a Crossplane maintainer or a
+community member, must go through code review. This ensures that the code is
+correct, maintainable, and secure.
+
+We encourage anyone in the community to conduct a code review on a PR,
+however, we require the following approvals before merging a PR:
+- At least one approval from [Reviewers] or [Code Owners]
+- At least one approval from [Maintainers]
+
+When opening a PR, GitHub will automatically assign the
+[crossplane-reviewers] and [crossplane-maintainers] teams, as well as
+any [Code Owners]. The PR author may also add any additional reviewers they
+might want to have a look at the PR.
+
+If the PR author has a specific code reviewer in mind, we encourage them to
+remove the auto-assigned reviewers and directly add the individuals they would
+like to review the code.
+
+[Maintainers] will be the last to review a PR, after the initial review from
+[Reviewers] and are the only ones that can merge a PR.
+
+The PR author should notify the [crossplane-maintainers] team or the
+individual maintainer assigned to the PR, when the PR is ready for their final
+review.
+
+### Reviewers vs Maintainers
+
+[Reviewers] (or [Code Owners]) are there to ensure the code is functionally
+correct, written according to the [Coding Style](#coding-style), and
+sufficiently covered by tests. They take care of basic PR hygience by ensuring
+the PR author has signed the DCO, and all CI jobs are passing before giving
+their approval.
+
+[Maintainers] will conduct a review focusing on ensuring APIs are
+idiomatically aligned with the existing Crossplane codebase and does not steer
+the project in the wrong direction.
+
 [Slack]: https://slack.crossplane.io/
 [code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 [build submodule]: https://github.com/upbound/build/
@@ -518,3 +565,8 @@ make run
 [Dave Cheney's blog]: https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
 [`crossplane-runtime/pkg/errors`]: https://pkg.go.dev/github.com/crossplane/crossplane-runtime/pkg/errors
 [golangci-lint]: https://golangci-lint.run/
+[crossplane-maintainers]: https://github.com/orgs/crossplane/teams/crossplane-maintainers
+[crossplane-reviewers]: https://github.com/orgs/crossplane/teams/crossplane-reviewers
+[Code Owners]: CODEOWNERS 
+[Reviewers]: OWNERS#reviewers
+[Maintainers]: OWNERS#maintainers
