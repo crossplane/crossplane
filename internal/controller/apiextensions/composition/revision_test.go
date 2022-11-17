@@ -27,8 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/utils/pointer"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -202,8 +200,8 @@ func TestNewCompositionRevision(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", comp.GetName(), hash[0:7]),
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionName:     comp.GetName(),
-				v1alpha1.LabelCompositionSpecHash: hash[0:63],
+				v1alpha1.LabelCompositionName: comp.GetName(),
+				v1alpha1.LabelCompositionHash: hash[0:63],
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion:         v1.SchemeGroupVersion.String(),
@@ -353,13 +351,6 @@ func TestNewCompositionRevision(t *testing.T) {
 					MatchInteger: 42,
 				}},
 			}},
-		},
-		Status: v1alpha1.CompositionRevisionStatus{
-			ConditionedStatus: xpv1.ConditionedStatus{
-				Conditions: []xpv1.Condition{
-					v1alpha1.CompositionSpecMatches(),
-				},
-			},
 		},
 	}
 

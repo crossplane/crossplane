@@ -27,7 +27,7 @@ const (
 
 // PropagateSpecProps is the list of XRC spec properties to propagate
 // when translating an XRC into an XR and vice-versa.
-var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionUpdatePolicy"}
+var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionUpdatePolicy", "compositionRevisionSelector"}
 
 // TODO(negz): Add descriptions to schema fields.
 
@@ -91,6 +91,20 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 			Required: []string{"name"},
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
+			},
+			Description: "Alpha: This field may be deprecated or changed without notice.",
+		},
+		"compositionRevisionSelector": {
+			Type:     "object",
+			Required: []string{"matchLabels"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"matchLabels": {
+					Type: "object",
+					AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+						Allows: true,
+						Schema: &extv1.JSONSchemaProps{Type: "string"},
+					},
+				},
 			},
 			Description: "Alpha: This field may be deprecated or changed without notice.",
 		},
@@ -207,6 +221,20 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
 			},
+		},
+		"compositionRevisionSelector": {
+			Type:     "object",
+			Required: []string{"matchLabels"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"matchLabels": {
+					Type: "object",
+					AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+						Allows: true,
+						Schema: &extv1.JSONSchemaProps{Type: "string"},
+					},
+				},
+			},
+			Description: "Alpha: This field may be deprecated or changed without notice.",
 		},
 		"compositionUpdatePolicy": {
 			Type: "string",

@@ -24,14 +24,29 @@ import (
 )
 
 // Hash of the CompositionSpec.
-func (cs CompositionSpec) Hash() string {
+func (c Composition) Hash() string {
 	h := sha256.New()
-	y, err := yaml.Marshal(cs)
+
+	// I believe marshaling errors should be impossible given we're
+	// marshalling a known, strongly typed struct.
+
+	y, err := yaml.Marshal(c.ObjectMeta.Labels)
 	if err != nil {
-		// I believe this should be impossible given we're marshalling a
-		// known, strongly typed struct.
 		return "unknown"
 	}
+
+	a, err := yaml.Marshal(c.ObjectMeta.Annotations)
+	if err != nil {
+		return "unknown"
+	}
+
+	s, err := yaml.Marshal(c.Spec)
+	if err != nil {
+		return "unknown"
+	}
+
+	y = append(y, a...)
+	y = append(y, s...)
 	h.Write(y) //nolint:errcheck // Writing to a hash never errors.
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

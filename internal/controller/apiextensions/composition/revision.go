@@ -36,7 +36,7 @@ func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash stri
 				v1alpha1.LabelCompositionName: c.GetName(),
 				// We cannot have a label value longer than 63 chars
 				// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
-				v1alpha1.LabelCompositionSpecHash: compSpecHash[0:63],
+				v1alpha1.LabelCompositionHash: compSpecHash[0:63],
 			},
 		},
 		Spec: NewCompositionRevisionSpec(c.Spec, revision),
@@ -45,7 +45,9 @@ func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash stri
 	ref := meta.TypedReferenceTo(c, v1.CompositionGroupVersionKind)
 	meta.AddOwnerReference(cr, meta.AsController(ref))
 
-	cr.Status.SetConditions(v1alpha1.CompositionSpecMatches())
+	for k, v := range c.GetLabels() {
+		cr.ObjectMeta.Labels[k] = v
+	}
 
 	return cr
 }

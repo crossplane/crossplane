@@ -249,6 +249,20 @@ func TestForCompositeResource(t *testing.T) {
 										},
 										Description: "Alpha: This field may be deprecated or changed without notice.",
 									},
+									"compositionRevisionSelector": {
+										Description: "Alpha: This field may be deprecated or changed without notice.",
+										Type:        "object",
+										Required:    []string{"matchLabels"},
+										Properties: map[string]extv1.JSONSchemaProps{
+											"matchLabels": {
+												Type: "object",
+												AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+													Allows: true,
+													Schema: &extv1.JSONSchemaProps{Type: "string"},
+												},
+											},
+										},
+									},
 									"compositionUpdatePolicy": {
 										Type: "string",
 										Enum: []extv1.JSON{
@@ -669,6 +683,20 @@ func TestForCompositeResourceClaim(t *testing.T) {
 											Required: []string{"name"},
 											Properties: map[string]extv1.JSONSchemaProps{
 												"name": {Type: "string"},
+											},
+										},
+										"compositionRevisionSelector": {
+											Description: "Alpha: This field may be deprecated or changed without notice.",
+											Type:        "object",
+											Required:    []string{"matchLabels"},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"matchLabels": {
+													Type: "object",
+													AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+														Allows: true,
+														Schema: &extv1.JSONSchemaProps{Type: "string"},
+													},
+												},
 											},
 										},
 										"compositionUpdatePolicy": {

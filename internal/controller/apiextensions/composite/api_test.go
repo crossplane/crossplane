@@ -239,7 +239,7 @@ func TestFetchRevision(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-dl2nd",
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
+				v1alpha1.LabelCompositionHash: comp.Hash(),
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:                comp.GetUID(),
@@ -255,7 +255,7 @@ func TestFetchRevision(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-mdk12",
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: "I'm different!",
+				v1alpha1.LabelCompositionHash: "I'm different!",
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:                comp.GetUID(),
@@ -341,7 +341,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListCompositionRevisions),
+				err: errors.Wrap(errors.Wrap(errBoom, errListCompositionRevisions), errFetchCompositionRevision),
 			},
 		},
 		"NoCompositionRevisionsError": {
