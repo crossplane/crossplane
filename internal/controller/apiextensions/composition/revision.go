@@ -151,9 +151,16 @@ func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
 		rp.Transforms[i] = NewCompositionRevisionTransform(p.Transforms[i])
 	}
 
-	if p.Policy != nil && p.Policy.FromFieldPath != nil {
-		pol := v1alpha1.FromFieldPathPolicy(*p.Policy.FromFieldPath)
-		rp.Policy = &v1alpha1.PatchPolicy{FromFieldPath: &pol}
+	if p.Policy != nil {
+		rp.Policy = &v1alpha1.PatchPolicy{}
+		if p.Policy.FromFieldPath != nil {
+			pol := v1alpha1.FromFieldPathPolicy(*p.Policy.FromFieldPath)
+			rp.Policy.FromFieldPath = &pol
+		}
+		if p.Policy.MergeOptions != nil {
+			pol := *p.Policy.MergeOptions
+			rp.Policy.MergeOptions = &pol
+		}
 	}
 
 	return rp

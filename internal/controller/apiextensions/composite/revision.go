@@ -128,9 +128,16 @@ func AsCompositionPatch(rp v1alpha1.Patch) v1.Patch {
 		p.Transforms[i] = AsCompositionTransform(rp.Transforms[i])
 	}
 
-	if rp.Policy != nil && rp.Policy.FromFieldPath != nil {
-		pol := v1.FromFieldPathPolicy(*rp.Policy.FromFieldPath)
-		p.Policy = &v1.PatchPolicy{FromFieldPath: &pol}
+	if rp.Policy != nil {
+		p.Policy = &v1.PatchPolicy{}
+		if rp.Policy.FromFieldPath != nil {
+			pol := v1.FromFieldPathPolicy(*rp.Policy.FromFieldPath)
+			p.Policy.FromFieldPath = &pol
+		}
+		if rp.Policy.MergeOptions != nil {
+			pol := *rp.Policy.MergeOptions
+			p.Policy.MergeOptions = &pol
+		}
 	}
 
 	return p

@@ -22,7 +22,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane-runtime/apis/common/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -281,7 +282,7 @@ func (in *MapTransform) DeepCopyInto(out *MapTransform) {
 	*out = *in
 	if in.Pairs != nil {
 		in, out := &in.Pairs, &out.Pairs
-		*out = make(map[string]v1.JSON, len(*in))
+		*out = make(map[string]apiextensionsv1.JSON, len(*in))
 		for key, val := range *in {
 			(*out)[key] = *val.DeepCopy()
 		}
@@ -372,6 +373,11 @@ func (in *PatchPolicy) DeepCopyInto(out *PatchPolicy) {
 		in, out := &in.FromFieldPath, &out.FromFieldPath
 		*out = new(FromFieldPathPolicy)
 		**out = **in
+	}
+	if in.MergeOptions != nil {
+		in, out := &in.MergeOptions, &out.MergeOptions
+		*out = new(v1.MergeOptions)
+		(*in).DeepCopyInto(*out)
 	}
 }
 

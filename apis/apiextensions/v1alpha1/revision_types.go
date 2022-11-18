@@ -272,6 +272,7 @@ type PatchPolicy struct {
 	// +optional
 	// +immutable
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
+	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
 }
 
 // A Combine configures a patch that combines more than
