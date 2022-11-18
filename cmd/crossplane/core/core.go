@@ -77,7 +77,6 @@ type startCommand struct {
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
-	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
 	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for ExternalSecretStores."`
 }
 
@@ -110,10 +109,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	feats := &feature.Flags{}
-	if c.EnableCompositionRevisions {
-		feats.Enable(features.EnableAlphaCompositionRevisions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisions)
-	}
 	if c.EnableExternalSecretStores {
 		feats.Enable(features.EnableAlphaExternalSecretStores)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
