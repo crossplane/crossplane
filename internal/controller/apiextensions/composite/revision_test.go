@@ -73,6 +73,17 @@ func TestAsComposition(t *testing.T) {
 						Map: &v1alpha1.MapTransform{
 							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
+						Match: &v1alpha1.MatchTransform{
+							Patterns: []v1alpha1.MatchTransformPattern{
+								{
+									Type:    v1alpha1.MatchTransformPatternTypeLiteral,
+									Literal: pointer.String("literal"),
+									Regexp:  pointer.String("regexp"),
+									Result:  asJSON("value"),
+								},
+							},
+							FallbackValue: asJSON("value"),
+						},
 						String: &v1alpha1.StringTransform{
 							Type:   v1alpha1.StringTransformTypeFormat,
 							Format: pointer.String("f"),
@@ -117,6 +128,20 @@ func TestAsComposition(t *testing.T) {
 							Type: v1alpha1.TransformTypeMap,
 							Map: &v1alpha1.MapTransform{
 								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
+							},
+						},
+						{
+							Type: v1alpha1.TransformTypeMatch,
+							Match: &v1alpha1.MatchTransform{
+								Patterns: []v1alpha1.MatchTransformPattern{
+									{
+										Type:    v1alpha1.MatchTransformPatternTypeLiteral,
+										Literal: pointer.String("literal"),
+										Regexp:  pointer.String("regexp"),
+										Result:  asJSON("value"),
+									},
+								},
+								FallbackValue: asJSON("value"),
 							},
 						},
 						{
@@ -217,6 +242,17 @@ func TestAsComposition(t *testing.T) {
 						Map: &v1.MapTransform{
 							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
+						Match: &v1.MatchTransform{
+							Patterns: []v1.MatchTransformPattern{
+								{
+									Type:    v1.MatchTransformPatternTypeLiteral,
+									Literal: pointer.String("literal"),
+									Regexp:  pointer.String("regexp"),
+									Result:  asJSON("value"),
+								},
+							},
+							FallbackValue: asJSON("value"),
+						},
 						String: &v1.StringTransform{
 							Type:   v1.StringTransformTypeFormat,
 							Format: &sf,
@@ -261,6 +297,20 @@ func TestAsComposition(t *testing.T) {
 							Type: v1.TransformTypeMap,
 							Map: &v1.MapTransform{
 								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
+							},
+						},
+						{
+							Type: v1.TransformTypeMatch,
+							Match: &v1.MatchTransform{
+								Patterns: []v1.MatchTransformPattern{
+									{
+										Type:    v1.MatchTransformPatternTypeLiteral,
+										Literal: pointer.String("literal"),
+										Regexp:  pointer.String("regexp"),
+										Result:  asJSON("value"),
+									},
+								},
+								FallbackValue: asJSON("value"),
 							},
 						},
 						{

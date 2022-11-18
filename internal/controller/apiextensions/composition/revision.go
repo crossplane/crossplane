@@ -168,13 +168,27 @@ func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
 
 // NewCompositionRevisionTransform translates a compostion's transform to a
 // composition revision transform.
-func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform {
+func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform { //nolint:gocyclo
 	rt := v1alpha1.Transform{Type: v1alpha1.TransformType(t.Type)}
 	if t.Math != nil {
 		rt.Math = &v1alpha1.MathTransform{Multiply: t.Math.Multiply}
 	}
 	if t.Map != nil {
 		rt.Map = &v1alpha1.MapTransform{Pairs: t.Map.Pairs}
+	}
+	if t.Match != nil {
+		rt.Match = &v1alpha1.MatchTransform{
+			Patterns:      make([]v1alpha1.MatchTransformPattern, len(t.Match.Patterns)),
+			FallbackValue: t.Match.FallbackValue,
+		}
+		for i, p := range t.Match.Patterns {
+			rt.Match.Patterns[i] = v1alpha1.MatchTransformPattern{
+				Type:    v1alpha1.MatchTransformPatternType(p.Type),
+				Literal: p.Literal,
+				Regexp:  p.Regexp,
+				Result:  p.Result,
+			}
+		}
 	}
 	if t.String != nil {
 		rt.String = &v1alpha1.StringTransform{Type: v1alpha1.StringTransformType(t.String.Type)}

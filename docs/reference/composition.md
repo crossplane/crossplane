@@ -557,6 +557,25 @@ You can use the following types of transform on a value being patched:
     au-east: Australia East
 ```
 
+`match`. A more complex version of `map` that can match different kinds of
+patterns. It should be used if more advanced pattern matchings than a simple
+string equality check are required.
+The result of the first matching pattern is used as the output of this
+transform.
+
+```yaml
+- type: match
+  match:
+    patterns:
+      - type: literal # Not needed. This is the default.
+        literal: us-west
+        result: West US
+      - type: regexp
+        regexp: '^af-.*'
+        result: Somewhere in Africa
+    fallbackValue: Unknown
+```
+
 `math`. Transforms values using math. The input value must be an integer.
 Currently only `multiply` is supported.
 
