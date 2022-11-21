@@ -495,6 +495,9 @@ func TestStringResolve(t *testing.T) {
 	frombase64 := v1.StringConversionTypeFromBase64
 	toJSON := v1.StringConversionTypeToJSON
 	wrongConvertType := v1.StringConversionType("Something")
+	toSha1 := v1.StringConversionTypeToSHA1
+	toSha256 := v1.StringConversionTypeToSHA256
+	toSha512 := v1.StringConversionTypeToSHA512
 
 	prefix := "https://"
 	suffix := "-test"
@@ -609,6 +612,69 @@ func TestStringResolve(t *testing.T) {
 			want: want{
 				o:   "N\x18\xacJ\xda\xe2\x9e\x02,6\x8bAjǺ",
 				err: errors.Wrap(errors.New("illegal base64 data at input byte 20"), errDecodeString),
+			},
+		},
+		"ConvertToSha1": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha1,
+				i:       "Crossplane",
+			},
+			want: want{
+				o: "f9fd1da3c0cc298643ff098a0c59febf1d8b7b84",
+			},
+		},
+		"ConvertToSha1Error": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha1,
+				i:       func() {},
+			},
+			want: want{
+				o:   "0000000000000000000000000000000000000000",
+				err: errors.Wrap(errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON), errHash),
+			},
+		},
+		"ConvertToSha256": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha256,
+				i:       "Crossplane",
+			},
+			want: want{
+				o: "e84ae541a0725d73154ee76b7ac3fec4b007dd01ed701d506cd7e7a45bb48935",
+			},
+		},
+		"ConvertToSha256Error": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha256,
+				i:       func() {},
+			},
+			want: want{
+				o:   "0000000000000000000000000000000000000000000000000000000000000000",
+				err: errors.Wrap(errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON), errHash),
+			},
+		},
+		"ConvertToSha512": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha512,
+				i:       "Crossplane",
+			},
+			want: want{
+				o: "b48622a3f487b8cb7748b356c9531cf54d9125c1456689c115744821f3dafd59c8c7d4dc5627c4a1e4082c67ee9f4528365a644a01a0c46d6dd0a6d979c8f51f",
+			},
+		},
+		"ConvertToSha512Error": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha512,
+				i:       func() {},
+			},
+			want: want{
+				o:   "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+				err: errors.Wrap(errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON), errHash),
 			},
 		},
 		"TrimPrefix": {

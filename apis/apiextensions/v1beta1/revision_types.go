@@ -639,6 +639,9 @@ const (
 	StringConversionTypeToLower    StringConversionType = "ToLower"
 	StringConversionTypeToBase64   StringConversionType = "ToBase64"
 	StringConversionTypeFromBase64 StringConversionType = "FromBase64"
+	StringConversionTypeToSHA1     StringConversionType = "ToSha1"
+	StringConversionTypeToSHA256   StringConversionType = "ToSha256"
+	StringConversionTypeToSHA512   StringConversionType = "ToSha512"
 )
 
 // A StringTransform returns a string given the supplied input.
@@ -653,12 +656,16 @@ type StringTransform struct {
 	// Format the input using a Go format string. See
 	// https://golang.org/pkg/fmt/ for details.
 	// +optional
-	// +immutable
 	Format *string `json:"fmt,omitempty"`
 
-	// Convert the type of conversion to Upper/Lower case.
+	// Optional conversion method to be used.
+	// `ToUpper` and `ToLower` convert the letter case of the input string.
+	// `ToBase64` and `FromBase64` create / read a base64 representation of the
+	// input value.
+	// `ToSha1`, `ToSha256` and `ToSha512` generate a hash value based on the input
+	// converted to JSON.
 	// +optional
-	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64
+	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64;ToSha1;ToSha256;ToSha512
 	Convert *StringConversionType `json:"convert,omitempty"`
 
 	// Trim the prefix or suffix from the input

@@ -17,7 +17,11 @@ limitations under the License.
 package composite
 
 import (
+	"crypto/sha1" //nolint:gosec // Not used for secure hashing
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -70,6 +74,7 @@ const (
 
 	errDecodeString = "string is not valid base64"
 	errMarshalJSON  = "cannot marshal to JSON"
+	errHash         = "cannot generate hash"
 )
 
 // Resolve the supplied Transform.
@@ -262,9 +267,27 @@ func stringConvertTransform(input any, t *v1.StringConversionType) (any, error) 
 	case v1.StringConversionTypeFromBase64:
 		s, err := base64.StdEncoding.DecodeString(str)
 		return string(s), errors.Wrap(err, errDecodeString)
+	case v1.StringConversionTypeToSHA1:
+		hash, err := stringGenerateHash(input, sha1.Sum)
+		return hex.EncodeToString(hash[:]), errors.Wrap(err, errHash)
+	case v1.StringConversionTypeToSHA256:
+		hash, err := stringGenerateHash(input, sha256.Sum256)
+		return hex.EncodeToString(hash[:]), errors.Wrap(err, errHash)
+	case v1.StringConversionTypeToSHA512:
+		hash, err := stringGenerateHash(input, sha512.Sum512)
+		return hex.EncodeToString(hash[:]), errors.Wrap(err, errHash)
 	default:
 		return nil, errors.Errorf(errStringConvertTypeFailed, *t)
 	}
+}
+
+func stringGenerateHash[THash any](input any, hashFunc func([]byte) THash) (THash, error) {
+	inputJSON, err := json.Marshal(input)
+	if err != nil {
+		var ret THash
+		return ret, errors.Wrap(err, errMarshalJSON)
+	}
+	return hashFunc(inputJSON), nil
 }
 
 func stringTrimTransform(input any, t v1.StringTransformType, trim string) string {
@@ -346,7 +369,6 @@ var conversions = map[conversionPair]func(any) (any, error){
 		}
 		return float64(0), nil
 	},
-
 	{From: v1.ConvertTransformTypeFloat64, To: v1.ConvertTransformTypeString, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
 	},
