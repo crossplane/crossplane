@@ -65,6 +65,7 @@ const (
 	errStringConvertTypeFailed          = "type %s is not supported for string convert"
 
 	errDecodeString = "string is not valid base64"
+	errMarshalJSON  = "cannot marshal to JSON"
 )
 
 // Resolve the supplied Transform.
@@ -249,6 +250,9 @@ func stringConvertTransform(input any, t *v1.StringConversionType) (any, error) 
 		return strings.ToUpper(str), nil
 	case v1.StringConversionTypeToLower:
 		return strings.ToLower(str), nil
+	case v1.StringConversionTypeToJSON:
+		raw, err := json.Marshal(input)
+		return string(raw), errors.Wrap(err, errMarshalJSON)
 	case v1.StringConversionTypeToBase64:
 		return base64.StdEncoding.EncodeToString([]byte(str)), nil
 	case v1.StringConversionTypeFromBase64:

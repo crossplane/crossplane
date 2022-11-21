@@ -168,6 +168,7 @@ type StringConversionType string
 const (
 	StringConversionTypeToUpper    StringConversionType = "ToUpper"
 	StringConversionTypeToLower    StringConversionType = "ToLower"
+	StringConversionTypeToJSON     StringConversionType = "ToJson"
 	StringConversionTypeToBase64   StringConversionType = "ToBase64"
 	StringConversionTypeFromBase64 StringConversionType = "FromBase64"
 )
@@ -186,9 +187,12 @@ type StringTransform struct {
 	// +optional
 	Format *string `json:"fmt,omitempty"`
 
-	// Convert the type of conversion to Upper/Lower case.
+	// Optional conversion method to be specified.
+	// `ToUpper` and `ToLower` change the letter case of the input string.
+	// `ToBase64` and `FromBase64` perform a base64 conversion based on the input string.
+	// `ToJson` converts any input value into its raw JSON representation.
 	// +optional
-	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64
+	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64;ToJson
 	Convert *StringConversionType `json:"convert,omitempty"`
 
 	// Trim the prefix or suffix from the input
