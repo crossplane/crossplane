@@ -402,7 +402,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	recorder := r.record.WithAnnotations("controller", composite.ControllerName(d.GetName()))
 
-	a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
 	o := []composite.ReconcilerOption{
 		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(r.client, d.GetConnectionSecretKeys())),
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
@@ -412,7 +411,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		)),
 		composite.WithLogger(log.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(recorder),
-		composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)),
+	}
+
+	// We only want to enable CompositionRevision support if the relevant
+	// feature flag is enabled. Otherwise we start the XR Reconciler with
+	// its default CompositionFetcher.
+	if r.options.Features.Enabled(features.EnableBetaCompositionRevisions) {
+		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
+		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
 	}
 
 	// We only want to enable ExternalSecretStore support if the relevant

@@ -18,7 +18,7 @@ package composite
 
 import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 // AsComposition creates a new composition from the supplied revision. It
@@ -26,13 +26,13 @@ import (
 // alpha CompositionRevision type with minimal changes to the XR reconciler.
 // Once CompositionRevision leaves alpha this code should be removed and the XR
 // reconciler should operate on CompositionRevisions instead.
-func AsComposition(cr *v1alpha1.CompositionRevision) *v1.Composition {
+func AsComposition(cr *v1beta1.CompositionRevision) *v1.Composition {
 	return &v1.Composition{Spec: AsCompositionSpec(cr.Spec)}
 }
 
 // AsCompositionSpec translates a composition revision's spec to a composition
 // spec.
-func AsCompositionSpec(crs v1alpha1.CompositionRevisionSpec) v1.CompositionSpec {
+func AsCompositionSpec(crs v1beta1.CompositionRevisionSpec) v1.CompositionSpec {
 	cs := v1.CompositionSpec{
 		CompositeTypeRef: v1.TypeReference{
 			APIVersion: crs.CompositeTypeRef.APIVersion,
@@ -60,7 +60,7 @@ func AsCompositionSpec(crs v1alpha1.CompositionRevisionSpec) v1.CompositionSpec 
 
 // AsCompositionPatchSet translates a composition revision's patch set to a
 // composition patch set.
-func AsCompositionPatchSet(rps v1alpha1.PatchSet) v1.PatchSet {
+func AsCompositionPatchSet(rps v1beta1.PatchSet) v1.PatchSet {
 	ps := v1.PatchSet{
 		Name:    rps.Name,
 		Patches: make([]v1.Patch, len(rps.Patches)),
@@ -74,7 +74,7 @@ func AsCompositionPatchSet(rps v1alpha1.PatchSet) v1.PatchSet {
 
 // AsCompositionComposedTemplate translates a composition revision's composed
 // (resource) template to a composition composed template.
-func AsCompositionComposedTemplate(rct v1alpha1.ComposedTemplate) v1.ComposedTemplate {
+func AsCompositionComposedTemplate(rct v1beta1.ComposedTemplate) v1.ComposedTemplate {
 	ct := v1.ComposedTemplate{
 		Name:              rct.Name,
 		Base:              rct.Base,
@@ -100,7 +100,7 @@ func AsCompositionComposedTemplate(rct v1alpha1.ComposedTemplate) v1.ComposedTem
 
 // AsCompositionPatch translates a composition revision's patch to a
 // composition patch.
-func AsCompositionPatch(rp v1alpha1.Patch) v1.Patch {
+func AsCompositionPatch(rp v1beta1.Patch) v1.Patch {
 	p := v1.Patch{
 		Type:          v1.PatchType(rp.Type),
 		FromFieldPath: rp.FromFieldPath,
@@ -145,7 +145,7 @@ func AsCompositionPatch(rp v1alpha1.Patch) v1.Patch {
 
 // AsCompositionTransform translates a compostion revision's transform to a
 // composition transform.
-func AsCompositionTransform(rt v1alpha1.Transform) v1.Transform { //nolint:gocyclo // Only slightly over (11).
+func AsCompositionTransform(rt v1beta1.Transform) v1.Transform { //nolint:gocyclo // Only slightly over (11).
 	t := v1.Transform{Type: v1.TransformType(rt.Type)}
 	if rt.Math != nil {
 		t.Math = &v1.MathTransform{Multiply: rt.Math.Multiply}
@@ -197,7 +197,7 @@ func AsCompositionTransform(rt v1alpha1.Transform) v1.Transform { //nolint:gocyc
 
 // AsCompositionConnectionDetail translates a composition revision's connection
 // detail to a composition connection detail.
-func AsCompositionConnectionDetail(rcd v1alpha1.ConnectionDetail) v1.ConnectionDetail {
+func AsCompositionConnectionDetail(rcd v1beta1.ConnectionDetail) v1.ConnectionDetail {
 	return v1.ConnectionDetail{
 		Name: rcd.Name,
 		Type: func() *v1.ConnectionDetailType {
@@ -215,7 +215,7 @@ func AsCompositionConnectionDetail(rcd v1alpha1.ConnectionDetail) v1.ConnectionD
 
 // AsCompositionReadinessCheck translates a composition revision's readiness
 // check to a composition readiness check.
-func AsCompositionReadinessCheck(rrc v1alpha1.ReadinessCheck) v1.ReadinessCheck {
+func AsCompositionReadinessCheck(rrc v1beta1.ReadinessCheck) v1.ReadinessCheck {
 	return v1.ReadinessCheck{
 		Type:         v1.ReadinessCheckType(rrc.Type),
 		FieldPath:    rrc.FieldPath,

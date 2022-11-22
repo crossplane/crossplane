@@ -35,7 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -165,7 +165,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	// We've already selected a revision, and our update policy is manual.
 	// Just fetch and return the selected revision.
 	if ref != nil && pol != nil && *pol == xpv1.UpdateManual {
-		rev := &v1alpha1.CompositionRevision{}
+		rev := &v1beta1.CompositionRevision{}
 		err := f.ca.Get(ctx, meta.NamespacedNameOf(ref), rev)
 		return AsComposition(rev), errors.Wrap(err, errGetCompositionRevision)
 	}
@@ -189,7 +189,7 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	}
 
 	if ref == nil || ref.Name != current.GetName() {
-		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1alpha1.CompositionRevisionGroupVersionKind))
+		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1beta1.CompositionRevisionGroupVersionKind))
 		if err := f.ca.Apply(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}
@@ -198,8 +198,8 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	return AsComposition(current), nil
 }
 
-func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1alpha1.CompositionRevisionList, error) {
-	rl := &v1alpha1.CompositionRevisionList{}
+func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1beta1.CompositionRevisionList, error) {
+	rl := &v1beta1.CompositionRevisionList{}
 	ml := client.MatchingLabels{}
 
 	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
@@ -207,7 +207,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 		ml = cr.GetCompositionRevisionSelector().MatchLabels
 	}
 
-	ml[v1alpha1.LabelCompositionName] = comp.GetName()
+	ml[v1beta1.LabelCompositionName] = comp.GetName()
 	if err := f.ca.List(ctx, rl, ml); err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}

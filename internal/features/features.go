@@ -21,6 +21,12 @@ import "github.com/crossplane/crossplane-runtime/pkg/feature"
 
 // Feature flags.
 const (
+	// EnableBetaCompositionRevisions enables beta support for
+	// CompositionRevisions. See the below docs for more details.
+	// https://github.com/crossplane/crossplane/blob/ecd9d5/design/one-pager-composition-revisions.md
+	// https://github.com/crossplane/crossplane/issues/3415
+	EnableBetaCompositionRevisions feature.Flag = "EnableBetaCompositionRevisions"
+
 	// EnableAlphaExternalSecretStores enables alpha support for
 	// External Secret Stores. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
