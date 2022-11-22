@@ -26,14 +26,8 @@ Composite Resources or XRs - not used directly. See the
 Crossplane API conventions extend the Kubernetes API conventions for the schema
 of Crossplane managed resources. Following is an example of a managed resource:
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+{{< tabs >}}
+{{< tab "AWS" >}}
 
 The AWS provider supports provisioning an [RDS][rds] instance via the `RDSInstance`
 managed resource it adds to Crossplane.
@@ -82,8 +76,8 @@ You can then delete the `RDSInstance`:
 kubectl delete rdsinstance rdspostgresql
 ```
 
-</div>
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "GCP" >}}
 
 The GCP provider supports provisioning a [CloudSQL][cloudsql] instance with the
 `CloudSQLInstance` managed resource it adds to Crossplane.
@@ -131,8 +125,8 @@ You can then delete the `CloudSQLInstance`:
 kubectl delete cloudsqlinstance cloudsqlpostgresql
 ```
 
-</div>
-<div class="tab-pane fade" id="azure-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "Azure" >}}
 
 The Azure provider supports provisioning an [Azure Database for PostgreSQL]
 instance with the `PostgreSQLServer` managed resource it adds to Crossplane.
@@ -200,8 +194,8 @@ kubectl delete postgresqlserver sqlserverpostgresql
 kubectl delete resourcegroup sqlserverpostgresql-rg
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 In Kubernetes, `spec` top field represents the desired state of the user.
 Crossplane adheres to that and has its own conventions about how the fields
