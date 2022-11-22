@@ -25,5 +25,5 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-aws
-      version: ">=v0.18.2"
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
+      version: ">=v0.24.1"
