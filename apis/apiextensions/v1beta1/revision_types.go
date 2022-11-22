@@ -330,6 +330,7 @@ type TransformType string
 // Accepted TransformTypes.
 const (
 	TransformTypeMap     TransformType = "map"
+	TransformTypeMatch   TransformType = "match"
 	TransformTypeMath    TransformType = "math"
 	TransformTypeString  TransformType = "string"
 	TransformTypeConvert TransformType = "convert"
@@ -354,6 +355,10 @@ type Transform struct {
 	// +optional
 	// +immutable
 	Map *MapTransform `json:"map,omitempty"`
+
+	// Match is a more complex version of Map that matches a list of patterns.
+	// +optional
+	Match *MatchTransform `json:"match,omitempty"`
 
 	// String is used to transform the input into a string or a different kind
 	// of string. Note that the input does not necessarily need to be a string.
@@ -415,6 +420,56 @@ func (m *MapTransform) Resolve(input any) (any, error) {
 	default:
 		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
 	}
+}
+
+// MatchTransform is a more complex version of a map transform that matches a
+// list of patterns.
+type MatchTransform struct {
+	// The patterns that should be tested against the input string.
+	// Patterns are tested in order. The value of the first match is used as
+	// result of this transform.
+	Patterns []MatchTransformPattern `json:"patterns,omitempty"`
+
+	// The fallback value that should be returned by the transform if now pattern
+	// matches.
+	FallbackValue extv1.JSON `json:"fallbackValue,omitempty"`
+}
+
+// MatchTransformPatternType defines the type of a MatchTransformPattern.
+type MatchTransformPatternType string
+
+// Valid MatchTransformPatternTypes.
+const (
+	MatchTransformPatternTypeLiteral MatchTransformPatternType = "literal"
+	MatchTransformPatternTypeRegexp  MatchTransformPatternType = "regexp"
+)
+
+// MatchTransformPattern is a transform that returns the value that matches a
+// pattern.
+type MatchTransformPattern struct {
+	// Type specifies how the pattern matches the input.
+	//
+	// * `literal` - the pattern value has to exactly match (case sensitive) the
+	// input string. This is the default.
+	//
+	// * `regexp` - the pattern treated as a regular expression against
+	// which the input string is tested. Crossplane will throw an error if the
+	// key is not a valid regexp.
+	//
+	// +kubebuilder:validation:Enum=literal;regexp
+	// +kubebuilder:default=literal
+	Type MatchTransformPatternType `json:"type"`
+
+	// Literal exactly matches the input string (case sensitive).
+	// Is required if `type` is `literal`.
+	Literal *string `json:"literal,omitempty"`
+
+	// Regexp to match against the input string.
+	// Is required if `type` is `regexp`.
+	Regexp *string `json:"regexp,omitempty"`
+
+	// The value that is used as result of the transform if the pattern matches.
+	Result extv1.JSON `json:"result"`
 }
 
 // A StringTransformType transforms a string.

@@ -15,6 +15,7 @@ limitations under the License.
 */
 
 // Package v1alpha1 contains API types that extend the Crossplane API.
+// v1alpha1 composition revision schema is identical to v1beta1
 // +kubebuilder:object:generate=true
 // +groupName=apiextensions.crossplane.io
 // +versionName=v1alpha1
