@@ -518,7 +518,7 @@ correct, maintainable, and secure.
 
 We encourage anyone in the community to conduct a code review on a PR,
 however, we require the following approvals before merging a PR:
-- At least one approval from [Reviewers] or [Code Owners]
+- At least one approval from [Reviewers]
 - At least one approval from [Maintainers]
 
 When opening a PR, GitHub will automatically assign the
