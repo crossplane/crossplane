@@ -154,33 +154,6 @@ To create a tab set, first create a `tabs` shortcode and use multiple `tab` shor
 
 Each `tabs` shortcode requires a name that's unique to the page it's on. Each `tab` name is the title of the tab on the webpage. 
 
-For example
-```
-{{</* tabs "my-unique-name" */>}}
-
-{{</* tab "Command-line" */>}}
-An example tab. Place anything inside a tab.
-{{</* /tab */>}}
-
-{{</* tab "GUI" */>}}
-A second example tab. 
-{{</* /tab */>}}
-
-{{</* /tabs */>}}
-```
-
-This code block renders the following tabs
-{{< tabs "my-unique-name" >}}
-
-{{< tab "Command-line" >}}
-An example tab. Place anything inside a tab.
-{{< /tab >}}
-
-{{< tab "GUI" >}}
-A second example tab. 
-{{< /tab >}}
-
-{{< /tabs >}}
 
 
 Both `tab` and `tabs` require opening and closing tags. Unclosed tags causes Hugo to fail.

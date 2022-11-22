@@ -33,7 +33,7 @@ Managed resources are Kubernetes custom resources that represent infrastructure
 primitives. Managed resources with an API version of `v1beta1` or higher support
 every field that the cloud provider does for the given resource. You can find
 the Managed Resources and their API specifications for each provider on
-[doc.crds.dev] and learn more in the [managed resources documentation].
+the [Upbound Marketplace] and learn more in the [managed resources documentation].
 
 ## Composite Resources
 
@@ -50,6 +50,6 @@ learn more about all of these concepts in the [composition documentation].
 [CRDs]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/
 [controllers]: https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#custom-controllers
 [providers documentation]: {{<ref "providers" >}}
-[doc.crds.dev]: https://doc.crds.dev
+[Upbound Marketplace]: https://marketplace.upbound.io
 [managed resources documentation]: {{<ref "managed-resources" >}}
 [composition documentation]: {{<ref "composition" >}}

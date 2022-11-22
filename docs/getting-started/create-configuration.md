@@ -88,7 +88,7 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/definition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/definition.yaml
 ```
 
 > You might notice that the XRD we created specifies both "names" and "claim
@@ -103,15 +103,8 @@ this by defining a `Composition` that can satisfy the XR we defined above. In
 this case, our `Composition` will specify how to provision a public PostgreSQL
 instance on the chosen provider.
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS (Default VPC)</a></li>
-<li><a href="#aws-new-tab-2" data-toggle="tab">AWS (New VPC)</a></li>
-<li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-2" markdown="1">
+{{< tabs >}}
+{{< tab "AWS (Default VPC)" >}}
 
 > Note that this Composition will create an RDS instance using your default VPC,
 > which may or may not allow connections from the internet depending on how it
@@ -165,11 +158,11 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/aws/composition.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="aws-new-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "AWS (New VPC)" >}}
 
 > Note: this `Composition` for AWS also includes several networking managed
 > resources that are required to provision a publicly available PostgreSQL
@@ -339,11 +332,11 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws-with-vpc/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/aws-with-vpc/composition.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="gcp-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "GCP" >}}
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1
@@ -395,11 +388,11 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/gcp/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/gcp/composition.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="azure-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "Azure" >}}
 
 > Note: the `Composition` for Azure also includes a `ResourceGroup` and
 > `PostgreSQLServerFirewallRule` that are required to provision a publicly
@@ -481,61 +474,11 @@ spec:
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/azure/composition.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/azure/composition.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="alibaba-tab-2" markdown="1">
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1
-kind: Composition
-metadata:
-  name: xpostgresqlinstances.alibaba.database.example.org
-  labels:
-    provider: alibaba
-    guide: quickstart
-spec:
-  writeConnectionSecretsToNamespace: crossplane-system
-  compositeTypeRef:
-    apiVersion: database.example.org/v1alpha1
-    kind: XPostgreSQLInstance
-  resources:
-    - name: rdsinstance
-      base:
-        apiVersion: database.alibaba.crossplane.io/v1alpha1
-        kind: RDSInstance
-        spec:
-          forProvider:
-            engine: PostgreSQL
-            engineVersion: "9.4"
-            dbInstanceClass: rds.pg.s1.small
-            securityIPList: "0.0.0.0/0"
-            masterUsername: "myuser"
-          writeConnectionSecretToRef:
-            namespace: crossplane-system
-      patches:
-        - fromFieldPath: "metadata.uid"
-          toFieldPath: "spec.writeConnectionSecretToRef.name"
-          transforms:
-            - type: string
-              string:
-                fmt: "%s-postgresql"
-        - fromFieldPath: "spec.parameters.storageGB"
-          toFieldPath: "spec.forProvider.dbInstanceStorageInGB"
-      connectionDetails:
-        - fromConnectionSecretKey: username
-        - fromConnectionSecretKey: password
-        - fromConnectionSecretKey: endpoint
-        - fromConnectionSecretKey: port
-```
-
-```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/alibaba/composition.yaml
-```
-
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Build and Push The Configuration
 
@@ -546,15 +489,8 @@ so that Crossplane users may install it.
 > Hub] by default. You may need to run `docker login` before you are able to
 > push a package.
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-3" data-toggle="tab">AWS (Default VPC)</a></li>
-<li><a href="#aws-new-tab-3" data-toggle="tab">AWS (New VPC)</a></li>
-<li><a href="#gcp-tab-3" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-3" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-3" markdown="1">
+{{< tabs >}}
+{{< tab "AWS (Default VPC)" >}}
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
@@ -569,12 +505,12 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-aws
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
       version: ">=v0.18.2"
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/aws/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -587,14 +523,14 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-aws:master
+kubectl crossplane push configuration ${REG}/getting-started-with-aws:v1.10.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
 > root package directory.
 
-</div>
-<div class="tab-pane fade" id="aws-new-tab-3" markdown="1">
+{{< /tab >}}
+{{< tab "AWS (Default VPC)" >}}
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
@@ -609,12 +545,12 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-aws
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
       version: ">=v0.18.2"
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/aws-with-vpc/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/aws-with-vpc/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -627,14 +563,14 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:master
+kubectl crossplane push configuration ${REG}/getting-started-with-aws-with-vpc:v1.10.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
 > root package directory.
 
-</div>
-<div class="tab-pane fade" id="gcp-tab-3" markdown="1">
+{{< /tab >}}
+{{< tab "GCP" >}}
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
@@ -648,12 +584,12 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-gcp
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-gcp
       version: ">=v0.13.0"
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/gcp/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/gcp/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -666,14 +602,14 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-gcp:master
+kubectl crossplane push configuration ${REG}/getting-started-with-gcp:v1.10.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
 > root package directory.
 
-</div>
-<div class="tab-pane fade" id="azure-tab-3" markdown="1">
+{{< /tab >}}
+{{< tab "Azure" >}}
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
@@ -687,12 +623,12 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-azure
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-azure
       version: ">=v0.13.0"
 ```
 
 ```console
-curl -OL https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/package/azure/crossplane.yaml
+curl -OL https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/package/azure/crossplane.yaml
 
 kubectl crossplane build configuration
 ```
@@ -705,14 +641,14 @@ you may specify a specific package by using the `-f` flag.
 ```console
 # Set this to the Docker Hub username or OCI registry you wish to use.
 REG=my-package-repo
-kubectl crossplane push configuration ${REG}/getting-started-with-azure:master
+kubectl crossplane push configuration ${REG}/getting-started-with-azure:v1.10.1
 ```
 
 > Note that the Crossplane CLI will not follow symbolic links for files in the
 > root package directory.
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 That's it! You've now built and pushed your package. Take a look at the
 Crossplane [packages] documentation for more information about installing and

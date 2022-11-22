@@ -25,14 +25,8 @@ Composite Resources or XRs - not used directly. See the
 Crossplane API conventions extend the Kubernetes API conventions for the schema
 of Crossplane managed resources. Following is an example of a managed resource:
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+{{< tabs >}}
+{{< tab "AWS" >}}
 
 The AWS provider supports provisioning an [RDS][rds] instance via the `RDSInstance`
 managed resource it adds to Crossplane.
@@ -57,7 +51,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/aws.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/provision/aws.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision an RDS instance
@@ -81,8 +75,8 @@ You can then delete the `RDSInstance`:
 kubectl delete rdsinstance rdspostgresql
 ```
 
-</div>
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "GCP" >}}
 
 The GCP provider supports provisioning a [CloudSQL][cloudsql] instance with the
 `CloudSQLInstance` managed resource it adds to Crossplane.
@@ -106,7 +100,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/gcp.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/provision/gcp.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision a CloudSQL
@@ -130,8 +124,8 @@ You can then delete the `CloudSQLInstance`:
 kubectl delete cloudsqlinstance cloudsqlpostgresql
 ```
 
-</div>
-<div class="tab-pane fade" id="azure-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "Azure" >}}
 
 The Azure provider supports provisioning an [Azure Database for PostgreSQL]
 instance with the `PostgreSQLServer` managed resource it adds to Crossplane.
@@ -173,7 +167,7 @@ spec:
 ```
 
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/master/docs/snippets/provision/azure.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/provision/azure.yaml
 ```
 
 Creating the above instance will cause Crossplane to provision a PostgreSQL
@@ -199,8 +193,8 @@ kubectl delete postgresqlserver sqlserverpostgresql
 kubectl delete resourcegroup sqlserverpostgresql-rg
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 In Kubernetes, `spec` top field represents the desired state of the user.
 Crossplane adheres to that and has its own conventions about how the fields
@@ -480,5 +474,5 @@ including Velero.
 [provider]: {{<ref "providers" >}}
 [issue-727]: https://github.com/crossplane/crossplane/issues/727
 [issue-1143]: https://github.com/crossplane/crossplane/issues/1143
-[managed-api-patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
+[managed-api-patterns]: https://github.com/crossplane/crossplane/blob/release-1.10/design/one-pager-managed-resource-api-design.md
 [managed reconciler]: https://github.com/crossplane/crossplane-runtime/blob/84e629b9589852df1322ff1eae4c6e7639cf6e99/pkg/reconciler/managed/reconciler.go#L637
