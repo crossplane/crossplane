@@ -1,6 +1,6 @@
 ---
 title: Adding Microsoft Azure to Crossplane
-toc_hide: true
+tocHidden: true
 ---
 
 In this guide, we will walk through the steps necessary to configure your Azure
