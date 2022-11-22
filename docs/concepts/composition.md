@@ -241,10 +241,10 @@ scenarios, including:
   take minutes to provision on-demand.
 
 [managed-resources]: {{<ref "managed-resources" >}}
-[xrs-and-mrs]: /docs/master/media/composition-xrs-and-mrs.svg
+[xrs-and-mrs]: /master/media/composition-xrs-and-mrs.svg
 [xr-ref]: {{<ref "../reference/composition" >}}
-[how-it-works]: /docs/master/media/composition-how-it-works.svg
+[how-it-works]: /master/media/composition-how-it-works.svg
 [crd-docs]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 [provider-kubernetes]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-kubernetes
-[provider-helm]: https://marketplace.upbound.io/providers/provider-helm
-[claims-and-xrs]: /docs/master/media/composition-claims-and-xrs.svg
+[provider-helm]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-helm/
+[claims-and-xrs]: /master/media/composition-claims-and-xrs.svg

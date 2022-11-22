@@ -331,7 +331,7 @@ This way even a tight integration of Crossplane in to [Cloudfoundry] is possible
 [OCI images]: https://github.com/opencontainers/image-spec
 [EKS Cluster]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-aws/latest/resources/eks.aws.crossplane.io/Cluster/v1beta1
 [provider-aws]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-aws
-[provider-helm]: https://marketplace.upbound.io/providerscrossplane-contrib/provider-helm
+[provider-helm]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-helm/
 [Open Service Broker API]: https://github.com/openservicebrokerapi/servicebroker
 [Crossplane Service Broker]: https://github.com/vshn/crossplane-service-broker
 [Cloudfoundry]: https://www.cloudfoundry.org/
