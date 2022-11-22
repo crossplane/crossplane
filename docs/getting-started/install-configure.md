@@ -437,7 +437,7 @@ Universal Crossplane, or UXP for short, connects to Upbound's hosted management
 console and Registry to make it easier to develop, debug, and manage Provider
 and Configuration packages.
 
-[Get started with Universal Crossplane] on the Upbound Documentation site.
+[Get started with Universal Crossplane](https://docs.upbound.io/uxp/install) on the Upbound Documentation site.
 
 <i>Want see another hosted Crossplane service listed? Please [reach out on
 Slack][Slack] and our community will highlight it here!</i>
@@ -477,6 +477,5 @@ Slack][Slack] and our community will highlight it here!</i>
 [Upbound documentation]: https://https://docs.upbound.io//docs
 [Providers]: {{<ref "../concepts/providers" >}}
 [Universal Crossplane]: https://https://docs.upbound.io/uxp/
-[Get started with Universal Crossplane]: https://docs.upbound.io/uxp/install
 [certified by the CNCF]: https://github.com/cncf/crossplane-conformance
 [Crossplane GitHub]: https://github.com/crossplane/crossplane
