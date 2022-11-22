@@ -1,12 +1,8 @@
 ---
 title: "Overview"
 weight: -1
-toc_include: false
-aliases:
-    - /docs/master/index.html
 cascade:
     version: master
-    version_weight: 1
 ---
 
 {{< img src="media/banner.png" alt="Crossplane Popsicle Truck" size="large" >}}
