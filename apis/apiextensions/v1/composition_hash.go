@@ -47,6 +47,6 @@ func (c Composition) Hash() string {
 
 	y = append(y, a...)
 	y = append(y, s...)
-	h.Write(y) //nolint:errcheck // Writing to a hash never errors.
+	_, _ = h.Write(y)
 	return fmt.Sprintf("%x", h.Sum(nil))
 }

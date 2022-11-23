@@ -84,9 +84,7 @@ func (c *FsPackageCache) Store(id string, content io.ReadCloser) error {
 	if err != nil {
 		return err
 	}
-	// NOTE(hasheddan): we don't check error on deferred file close as Close()
-	// is explicitly called in the happy path.
-	defer cf.Close() //nolint:errcheck
+	defer cf.Close() //nolint:errcheck // Error is checked in the happy path.
 	w, err := gzip.NewWriterLevel(cf, gzip.BestSpeed)
 	if err != nil {
 		return err

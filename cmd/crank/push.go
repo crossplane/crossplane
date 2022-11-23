@@ -93,7 +93,7 @@ type pushConfigCmd struct {
 }
 
 // AfterApply sets the tag for the parent push command.
-func (c pushConfigCmd) AfterApply(p *pushChild) error { // nolint:unparam
+func (c pushConfigCmd) AfterApply(p *pushChild) error { //nolint:unparam // AfterApply requires this signature.
 	p.tag = c.Tag
 	return nil
 }
@@ -104,7 +104,7 @@ type pushProviderCmd struct {
 }
 
 // AfterApply sets the tag for the parent push command.
-func (c pushProviderCmd) AfterApply(p *pushChild) error { // nolint:unparam
+func (c pushProviderCmd) AfterApply(p *pushChild) error { //nolint:unparam // AfterApply requires this signature.
 	p.tag = c.Tag
 	return nil
 }

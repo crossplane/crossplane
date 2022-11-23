@@ -71,7 +71,7 @@ func (d *MapDag) Init(nodes []Node) ([]Node, error) {
 			return nil, err
 		}
 	}
-	var implied []Node // nolint:prealloc
+	var implied []Node
 	for _, node := range nodes {
 		miss, err := d.AddEdges(map[string][]Node{
 			node.Identifier(): node.Neighbors(),

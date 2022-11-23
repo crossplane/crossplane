@@ -113,7 +113,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { // nolint:gocyclo
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // Only slightly over (12).
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {

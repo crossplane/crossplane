@@ -121,9 +121,7 @@ type Reconciler struct {
 }
 
 // Reconcile a Composition.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
-	// NOTE(negz): This method is a little over our complexity goal. Be wary
-	// of making it more complex.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Only slightly over (12).
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

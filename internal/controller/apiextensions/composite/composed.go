@@ -210,10 +210,7 @@ func NewGarbageCollectingAssociator(c client.Client) *GarbageCollectingAssociato
 }
 
 // AssociateTemplates with composed resources.
-func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) { //nolint:gocyclo
-	// NOTE(negz): This method is a little over our complexity goal. Be wary of
-	// making it more complex.
-
+func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) { //nolint:gocyclo // Only slightly over (13).
 	templates := map[string]int{}
 	for i, t := range ct {
 		if t.Name == nil {
@@ -315,7 +312,7 @@ func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
 // Render the supplied composed resource using the supplied composite resource
 // and template. The rendered resource may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error { // nolint:gocyclo
+func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error { //nolint:gocyclo // Only slightly over (11).
 	kind := cd.GetObjectKind().GroupVersionKind().Kind
 	name := cd.GetName()
 	namespace := cd.GetNamespace()
@@ -409,7 +406,7 @@ func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetche
 }
 
 // FetchConnectionDetails of the supplied composed resource, if any.
-func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
+func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { //nolint:gocyclo // Relatively simple; complexity is mostly a switch.
 	data := map[string][]byte{}
 	if sref := cd.GetWriteConnectionSecretToReference(); sref != nil {
 		// It's possible that the composed resource does want to write a
@@ -519,11 +516,7 @@ func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn
 }
 
 // IsReady returns whether the composed resource is ready.
-func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bool, error) { // nolint:gocyclo
-	// NOTE(muvaf): The cyclomatic complexity of this function comes from the
-	// mandatory repetitiveness of the switch clause, which is not really complex
-	// in reality. Though beware of adding additional complexity besides that.
-
+func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bool, error) { //nolint:gocyclo // Complexity is mostly due to the switch.
 	if len(t.ReadinessChecks) == 0 {
 		return resource.IsConditionTrue(cd.GetCondition(xpv1.TypeReady)), nil
 	}
