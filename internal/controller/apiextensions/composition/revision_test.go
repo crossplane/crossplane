@@ -216,8 +216,8 @@ func TestNewCompositionRevision(t *testing.T) {
 	}
 
 	var (
-		rev  int64  = 1
-		hash string = "1af1dfa857bf1d8814fe1af8983c18080019922e557f15a8a0d3db739d77aacb"
+		rev  int64 = 1
+		hash       = "1af1dfa857bf1d8814fe1af8983c18080019922e557f15a8a0d3db739d77aacb"
 	)
 
 	ctrl := true

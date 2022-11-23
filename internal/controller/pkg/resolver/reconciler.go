@@ -14,6 +14,7 @@ See the License for the specific language governing perimpliedions and
 limitations under the License.
 */
 
+// Package resolver implements the Crossplane Package Lock controller.
 package resolver
 
 import (

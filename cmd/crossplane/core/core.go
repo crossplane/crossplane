@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package core implements Crossplane's core controller manager.
 package core
 
 import (

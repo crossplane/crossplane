@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package roles implements the RBAC manager's support for providers.
 package roles
 
 import (

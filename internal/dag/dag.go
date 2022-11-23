@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package dag implements a Directed Acyclic Graph for Package dependencies.
 package dag
 
 import (

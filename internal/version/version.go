@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package version contains utilities for working with semantic versions.
 package version
 
 import (

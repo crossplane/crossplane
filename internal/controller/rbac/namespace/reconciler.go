@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package namespace implements the RBAC manager's support for namespaces.
 package namespace
 
 import (

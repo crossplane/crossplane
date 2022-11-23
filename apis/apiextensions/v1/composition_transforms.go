@@ -274,7 +274,7 @@ type MatchTransformPattern struct {
 	Result extv1.JSON `json:"result"`
 }
 
-// Resolve runs the Map transform.
+// Matches returns true if the pattern matches the supplied input.
 func (p *MatchTransformPattern) Matches(input any) (bool, error) {
 	switch p.Type {
 	case MatchTransformPatternTypeLiteral:

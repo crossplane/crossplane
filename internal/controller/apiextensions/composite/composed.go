@@ -18,7 +18,6 @@ package composite
 
 import (
 	"context"
-	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -560,7 +559,7 @@ func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bo
 			}
 			ready = !fieldpath.IsNotFound(err) && val == check.MatchInteger
 		default:
-			return false, errors.New(fmt.Sprintf("readiness check at index %d: an unknown type is chosen", i))
+			return false, errors.Errorf("readiness check at index %d: an unknown type is chosen", i)
 		}
 		if !ready {
 			return false, nil

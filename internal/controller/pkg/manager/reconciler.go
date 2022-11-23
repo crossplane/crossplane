@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package manager implements the Crossplane Package controllers.
 package manager
 
 import (
