@@ -27,10 +27,6 @@ linters-settings:
     # report about shadowed variables
     check-shadowing: false
 
-  revive:
-    # confidence for issues, default is 0.8
-    confidence: 0.8
-
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
