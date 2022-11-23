@@ -7,32 +7,54 @@ weight: 270
 are a great combination. Argo CD provides GitOps while Crossplane turns any Kubernetes
 cluster into a Universal Control Plane for all of your resources. There are
 configuration details required in order for the two to work together properly.
-This doc will help you understand these requirements. It is recommended to use
+This doc will help you understand these requirements.
 
-Argo CD version 2.4.8 or later with Crossplane.
- 
-Argo CD synchronizes Kubernetes resource manifests stored in a Git repository
-with those running in a Kubernetes cluster (GitOps). There are different ways to configure 
+It is recommended to use Argo CD version 2.4.8 or later.
 
-how Argo CD tracks resources. With Crossplane, you need to configure Argo CD 
-to use Annotation based resource tracking. See the [Argo CD docs](https://argo-cd.readthedocs.io/en/latest/user-guide/resource_tracking/) for additional detail.
- 
-### Configuring Argo CD with Crossplane
- 
-To configure Argo CD for Annotation resource tracking, edit the `argocd-cm`
+### Resource Tracking with annotations
 
-`ConfigMap` in the `argocd` `Namespace`. Add `application.resourceTrackingMethod: annotation`
-
-to the data section as below:
+In order for Argo CD to properly track Crossplane generated resources, tracking method must be updated to annotations:
 
 ```yaml
-
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
 data:
   application.resourceTrackingMethod: annotation
-kind: ConfigMap
 ```
 
-On the next Argo CD sync, Crossplane `Claims` and `Composite Resources` will
+### Resource Exclusions
 
-be considered synchronized and will not trigger auto-pruning.
+By default Argo CD uses Kubernetes API discovery to watch all the resources that are part of a cluster. It is possible
+to exclude certain resource from being watch an showed in the UI.
+
+#### Decluttering the UI by excluding `ProviderConfigUsage`
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.exclusions: |
+    - apiGroups:
+      - "*"
+      kinds:
+      - ProviderConfigUsage
+```
+
+#### Reducing resource usages by excluding unused CRDs
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  resource.exclusions: |
+    - apiGroups:
+      - apigateway.aws.upbound.io
+      - cloudwatch.aws.upbound.io
+```
+
