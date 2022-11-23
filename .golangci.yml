@@ -98,6 +98,11 @@ linters-settings:
       rangeValCopy:
         sizeThreshold: 32
 
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+
+
 linters:
   enable:
     - megacheck
@@ -112,6 +117,7 @@ linters:
     - unconvert
     - misspell
     - nakedret
+    - nolintlint
   
   disable:
     # These linters are all deprecated as of golangci-lint v1.49.0. We disable
