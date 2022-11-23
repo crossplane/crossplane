@@ -75,7 +75,7 @@ type WebhookConfigurations struct {
 
 // Run applies all webhook ValidatingWebhookConfigurations and
 // MutatingWebhookConfiguration in the given directory.
-func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) error { // nolint:gocyclo
+func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo // Only slightly over (11).
 	s := &corev1.Secret{}
 	if err := kube.Get(ctx, c.TLSSecretRef, s); err != nil {
 		return errors.Wrap(err, errGetWebhookSecret)

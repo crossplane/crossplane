@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package definition manages the lifecycle of XR controllers.
 package definition
 
 import (
@@ -231,11 +232,7 @@ type Reconciler struct {
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
 // resource and starting a controller to reconcile it.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
-	// complexity goal. Be wary when adding branches, and look for functionality
-	// that could be reasonably moved into an injected dependency.
-
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are complex. Be wary of adding more.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

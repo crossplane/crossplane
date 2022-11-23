@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package revision implements the Crossplane Package Revision controllers.
 package revision
 
 import (
@@ -326,7 +327,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 }
 
 // Reconcile package revision.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are often very complex.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -454,7 +455,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pipeR, pipeW := io.Pipe()
 		rc = xpkg.TeeReadCloser(imgrc, pipeW)
 		go func() {
-			defer pipeR.Close() //nolint:errcheck
+			defer pipeR.Close() //nolint:errcheck // Not much we can do if this fails.
 			if err := r.cache.Store(pr.GetName(), pipeR); err != nil {
 				_ = pipeR.CloseWithError(err)
 				cacheWrite <- err

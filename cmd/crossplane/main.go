@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package main implements Crossplane's controller managers.
 package main
 
 import (
@@ -55,7 +56,7 @@ var cli struct {
 // This method requires unparam lint exception as Kong expects
 // an error value in return from Hook methods but in our case
 // there are no error introducing steps.
-func (d debugFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
+func (d debugFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // BeforeApply requires this signature.
 	zl := zap.New(zap.UseDevMode(true)).WithName("crossplane")
 	// BindTo uses reflect.TypeOf to get reflection type of used interface
 	// A *logging.Logger value here is used to find the reflection type here.
@@ -68,7 +69,7 @@ func (d debugFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
 	return nil
 }
 
-func (v versionFlag) BeforeApply(app *kong.Kong) error { // nolint:unparam
+func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // BeforeApply requires this signature.
 	fmt.Fprintln(app.Stdout, version.New().GetVersionString())
 	app.Exit(0)
 	return nil

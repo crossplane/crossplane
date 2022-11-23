@@ -113,7 +113,7 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 	return resourceRefs, nil
 }
 
-func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { // nolint:gocyclo
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
 	if parent.GetWebhookTLSSecretName() != nil {
 		s := &corev1.Secret{}
@@ -255,7 +255,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 	return allObjs, nil
 }
 
-func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) { // nolint:gocyclo
+func (e *APIEstablisher) establish(ctx context.Context, allObjs []currentDesired, parent client.Object, control bool) ([]xpv1.TypedReference, error) { //nolint:gocyclo // Only slightly over (12).
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(maxConcurrentEstablishers)
 	out := make(chan xpv1.TypedReference, len(allObjs))

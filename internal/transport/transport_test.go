@@ -127,7 +127,7 @@ func TestUserAgent(t *testing.T) {
 			u := NewUserAgent(&validatingRoundTripper{
 				validations: tc.validations,
 			}, tc.userAgent)
-			_, err := u.RoundTrip(tc.req) //nolint:bodyclose
+			_, err := u.RoundTrip(tc.req) //nolint:bodyclose // No body to close.
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRoundTrip(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

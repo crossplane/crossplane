@@ -168,7 +168,7 @@ func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
 
 // NewCompositionRevisionTransform translates a compostion's transform to a
 // composition revision transform.
-func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform { //nolint:gocyclo
+func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform { //nolint:gocyclo // Only slightly over (11)
 	rt := v1alpha1.Transform{Type: v1alpha1.TransformType(t.Type)}
 	if t.Math != nil {
 		rt.Math = &v1alpha1.MathTransform{Multiply: t.Math.Multiply}

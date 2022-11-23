@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package composite implements Crossplane composite resources.
 package composite
 
 import (
@@ -381,11 +382,7 @@ type composedRenderState struct {
 }
 
 // Reconcile a composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
-	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
-	// complexity goal. Be wary when adding branches, and look for functionality
-	// that could be reasonably moved into an injected dependency.
-
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 

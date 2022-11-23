@@ -135,7 +135,7 @@ type buildConfigCmd struct {
 }
 
 // AfterApply sets the name and linter for the parent build command.
-func (c buildConfigCmd) AfterApply(b *buildChild) error { // nolint:unparam
+func (c buildConfigCmd) AfterApply(b *buildChild) error { //nolint:unparam // AfterApply requires this signature.
 	b.name = c.Name
 	b.linter = xpkg.NewConfigurationLinter()
 	return nil
@@ -147,7 +147,7 @@ type buildProviderCmd struct {
 }
 
 // AfterApply sets the name and linter for the parent build command.
-func (c buildProviderCmd) AfterApply(b *buildChild) error { // nolint:unparam
+func (c buildProviderCmd) AfterApply(b *buildChild) error { //nolint:unparam // AfterApply requires this signature.
 	b.name = c.Name
 	b.linter = xpkg.NewProviderLinter()
 	return nil
