@@ -16,7 +16,7 @@ deprecation.
 ## Alpha Features
 
 Alpha are off by default, and must be enabled by a feature flag, for example
-`--enable-composition-revisions`. API types pertaining to alpha features use a
+`--enable-external-secret-stores`. API types pertaining to alpha features use a
 `vNalphaN` style API version, like `v1alpha`. **Alpha features are subject to
 removal or breaking changes without notice**, and generally not considered ready
 for use in production. 

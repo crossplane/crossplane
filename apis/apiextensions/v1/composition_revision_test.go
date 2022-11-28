@@ -23,7 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 func TestLatestRevision(t *testing.T) {
@@ -40,7 +40,7 @@ func TestLatestRevision(t *testing.T) {
 	}
 
 	// Owned by the above composition, with an old hash.
-	rev1 := &v1alpha1.CompositionRevision{
+	rev1 := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-1",
 			OwnerReferences: []metav1.OwnerReference{{
@@ -49,15 +49,15 @@ func TestLatestRevision(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionHash: "some-older-hash",
-				v1alpha1.LabelCompositionName: comp.Name,
+				v1beta1.LabelCompositionHash: "some-older-hash",
+				v1beta1.LabelCompositionName: comp.Name,
 			},
 		},
-		Spec: v1alpha1.CompositionRevisionSpec{Revision: 1},
+		Spec: v1beta1.CompositionRevisionSpec{Revision: 1},
 	}
 
 	// Owned by the above composition, with the current hash.
-	rev2 := &v1alpha1.CompositionRevision{
+	rev2 := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-2",
 			OwnerReferences: []metav1.OwnerReference{{
@@ -66,34 +66,34 @@ func TestLatestRevision(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionHash: comp.Hash()[:63],
-				v1alpha1.LabelCompositionName: comp.Name,
+				v1beta1.LabelCompositionHash: comp.Hash()[:63],
+				v1beta1.LabelCompositionName: comp.Name,
 			},
 		},
-		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
+		Spec: v1beta1.CompositionRevisionSpec{Revision: 2},
 	}
 
 	// Not owned by the above composition. Has the largest revision number.
-	rev3 := &v1alpha1.CompositionRevision{
+	rev3 := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-3",
 		},
-		Spec: v1alpha1.CompositionRevisionSpec{Revision: 3},
+		Spec: v1beta1.CompositionRevisionSpec{Revision: 3},
 	}
 
 	cases := map[string]struct {
 		reason string
-		args   []v1alpha1.CompositionRevision
-		want   *v1alpha1.CompositionRevision
+		args   []v1beta1.CompositionRevision
+		want   *v1beta1.CompositionRevision
 	}{
 		"GetLatestRevision": {
 			reason: "We should return rev2 as the latest revision.",
-			args:   []v1alpha1.CompositionRevision{*rev3, *rev1, *rev2},
+			args:   []v1beta1.CompositionRevision{*rev3, *rev1, *rev2},
 			want:   rev2,
 		},
 		"NoControlledRevision": {
 			reason: "We should return nil since the revision is not controlled by the comp.",
-			args:   []v1alpha1.CompositionRevision{*rev3},
+			args:   []v1beta1.CompositionRevision{*rev3},
 			want:   nil,
 		},
 	}

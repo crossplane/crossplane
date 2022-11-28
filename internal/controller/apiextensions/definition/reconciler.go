@@ -416,7 +416,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// We only want to enable CompositionRevision support if the relevant
 	// feature flag is enabled. Otherwise we start the XR Reconciler with
 	// its default CompositionFetcher.
-	if r.options.Features.Enabled(features.EnableAlphaCompositionRevisions) {
+	if r.options.Features.Enabled(features.EnableBetaCompositionRevisions) {
 		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
 		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
 	}

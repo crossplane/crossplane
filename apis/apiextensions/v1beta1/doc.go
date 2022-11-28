@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2022 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains API types that extend the Crossplane API.
-// v1alpha1 composition revision schema is identical to v1beta1
+// Package v1beta1 contains API types that extend the Crossplane API.
+// v1beta1 composition revision schema is identical to v1alpha1
 // +kubebuilder:object:generate=true
 // +groupName=apiextensions.crossplane.io
-// +versionName=v1alpha1
-package v1alpha1
+// +versionName=v1beta1
+package v1beta1

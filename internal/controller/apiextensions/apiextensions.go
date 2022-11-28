@@ -30,11 +30,10 @@ import (
 
 // Setup API extensions controllers.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-
 	// The Composition controller only deals in the management of
 	// CompositionRevisions, so we don't need it at all unless the
 	// CompositionRevision feature flag is enabled.
-	if o.Features.Enabled(features.EnableAlphaCompositionRevisions) {
+	if o.Features.Enabled(features.EnableBetaCompositionRevisions) {
 		if err := composition.Setup(mgr, o); err != nil {
 			return err
 		}
