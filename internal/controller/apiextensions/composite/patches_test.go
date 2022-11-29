@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package composite
 
 import (
 	"encoding/json"
@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 func TestPatchApply(t *testing.T) {
@@ -47,10 +48,10 @@ func TestPatchApply(t *testing.T) {
 	}
 
 	type args struct {
-		patch Patch
+		patch v1.Patch
 		cp    *fake.Composite
 		cd    *fake.Composed
-		only  []PatchType
+		only  []v1.PatchType
 	}
 	type want struct {
 		cp  *fake.Composite
@@ -66,8 +67,8 @@ func TestPatchApply(t *testing.T) {
 		"InvalidCompositeFieldPathPatch": {
 			reason: "Should return error when required fields not passed to applyFromFieldPathPatch",
 			args: args{
-				patch: Patch{
-					Type: PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type: v1.PatchTypeFromCompositeFieldPath,
 				},
 				cp: &fake.Composite{
 					ConnectionDetailsLastPublishedTimer: lpt,
@@ -75,13 +76,13 @@ func TestPatchApply(t *testing.T) {
 				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
 			},
 			want: want{
-				err: errors.Errorf(errFmtRequiredField, "FromFieldPath", PatchTypeFromCompositeFieldPath),
+				err: errors.Errorf(errFmtRequiredField, "FromFieldPath", v1.PatchTypeFromCompositeFieldPath),
 			},
 		},
-		"InvalidPatchType": {
+		"Invalidv1.PatchType": {
 			reason: "Should return an error if an invalid patch type is specified",
 			args: args{
-				patch: Patch{
+				patch: v1.Patch{
 					Type: "invalid-patchtype",
 				},
 				cp: &fake.Composite{
@@ -96,8 +97,8 @@ func TestPatchApply(t *testing.T) {
 		"ValidCompositeFieldPathPatch": {
 			reason: "Should correctly apply a CompositeFieldPathPatch with valid settings",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
 				},
@@ -129,8 +130,8 @@ func TestPatchApply(t *testing.T) {
 		"ValidCompositeFieldPathPatchWithNilLastPublishTime": {
 			reason: "Should correctly apply a CompositeFieldPathPatch with valid settings",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
 				},
@@ -161,8 +162,8 @@ func TestPatchApply(t *testing.T) {
 		"ValidCompositeFieldPathPatchWithWildcards": {
 			reason: "When passed a wildcarded path, adds a field to each element of an array",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.name"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.ownerReferences[*].name"),
 				},
@@ -207,8 +208,8 @@ func TestPatchApply(t *testing.T) {
 		"InvalidCompositeFieldPathPatchWithWildcards": {
 			reason: "When passed a wildcarded path, throws an error if ToFieldPath cannot be expanded",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.name"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.ownerReferences[*].badField"),
 				},
@@ -236,8 +237,8 @@ func TestPatchApply(t *testing.T) {
 		"MissingOptionalFieldPath": {
 			reason: "A FromFieldPath patch should be a no-op when an optional fromFieldPath doesn't exist",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
 				},
@@ -263,12 +264,12 @@ func TestPatchApply(t *testing.T) {
 		"MissingRequiredFieldPath": {
 			reason: "A FromFieldPath patch should return an error when a required fromFieldPath doesn't exist",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("wat"),
-					Policy: &PatchPolicy{
-						FromFieldPath: func() *FromFieldPathPolicy {
-							s := FromFieldPathPolicyRequired
+					Policy: &v1.PatchPolicy{
+						FromFieldPath: func() *v1.FromFieldPathPolicy {
+							s := v1.FromFieldPathPolicyRequired
 							return &s
 						}(),
 					},
@@ -293,10 +294,10 @@ func TestPatchApply(t *testing.T) {
 		"MergeOptionsKeepMapValues": {
 			reason: "Setting mergeOptions.keepMapValues = true adds new map values to existing ones",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
-					Policy: &PatchPolicy{
+					Policy: &v1.PatchPolicy{
 						MergeOptions: &xpv1.MergeOptions{
 							KeepMapValues: pointer.BoolPtr(true),
 						},
@@ -337,10 +338,10 @@ func TestPatchApply(t *testing.T) {
 			},
 		},
 		"FilterExcludeCompositeFieldPathPatch": {
-			reason: "Should not apply the patch as the PatchType is not present in filter.",
+			reason: "Should not apply the patch as the v1.PatchType is not present in filter.",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
 				},
@@ -356,7 +357,7 @@ func TestPatchApply(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
 				},
-				only: []PatchType{PatchTypePatchSet},
+				only: []v1.PatchType{v1.PatchTypePatchSet},
 			},
 			want: want{
 				cd: &fake.Composed{
@@ -368,10 +369,10 @@ func TestPatchApply(t *testing.T) {
 			},
 		},
 		"FilterIncludeCompositeFieldPathPatch": {
-			reason: "Should apply the patch as the PatchType is present in filter.",
+			reason: "Should apply the patch as the v1.PatchType is present in filter.",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
 				},
@@ -387,7 +388,7 @@ func TestPatchApply(t *testing.T) {
 				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
 				},
-				only: []PatchType{PatchTypeFromCompositeFieldPath},
+				only: []v1.PatchType{v1.PatchTypeFromCompositeFieldPath},
 			},
 			want: want{
 				cd: &fake.Composed{
@@ -403,8 +404,8 @@ func TestPatchApply(t *testing.T) {
 		"DefaultToFieldCompositeFieldPathPatch": {
 			reason: "Should correctly default the ToFieldPath value if not specified.",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeFromCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 				},
 				cp: &fake.Composite{
@@ -445,8 +446,8 @@ func TestPatchApply(t *testing.T) {
 		"ValidToCompositeFieldPathPatch": {
 			reason: "Should correctly apply a ToCompositeFieldPath patch with valid settings",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeToCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeToCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
 				},
@@ -488,8 +489,8 @@ func TestPatchApply(t *testing.T) {
 		"ValidToCompositeFieldPathPatchWithWildcards": {
 			reason: "When passed a wildcarded path, adds a field to each element of an array",
 			args: args{
-				patch: Patch{
-					Type:          PatchTypeToCompositeFieldPath,
+				patch: v1.Patch{
+					Type:          v1.PatchTypeToCompositeFieldPath,
 					FromFieldPath: pointer.StringPtr("objectMeta.name"),
 					ToFieldPath:   pointer.StringPtr("objectMeta.ownerReferences[*].name"),
 				},
@@ -535,8 +536,8 @@ func TestPatchApply(t *testing.T) {
 		"MissingCombineFromCompositeConfig": {
 			reason: "Should return an error if Combine config is not passed",
 			args: args{
-				patch: Patch{
-					Type:        PatchTypeCombineFromComposite,
+				patch: v1.Patch{
+					Type:        v1.PatchTypeCombineFromComposite,
 					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
 				},
 				cp: &fake.Composite{
@@ -576,20 +577,20 @@ func TestPatchApply(t *testing.T) {
 							"Test": "blah",
 						}},
 				},
-				err: errors.Errorf(errFmtRequiredField, "Combine", PatchTypeCombineFromComposite),
+				err: errors.Errorf(errFmtRequiredField, "Combine", v1.PatchTypeCombineFromComposite),
 			},
 		},
 		"MissingCombineStrategyFromCompositeConfig": {
 			reason: "Should return an error if Combine strategy config is not passed",
 			args: args{
-				patch: Patch{
-					Type: PatchTypeCombineFromComposite,
-					Combine: &Combine{
-						Variables: []CombineVariable{
+				patch: v1.Patch{
+					Type: v1.PatchTypeCombineFromComposite,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
 							{FromFieldPath: "objectMeta.labels.source1"},
 							{FromFieldPath: "objectMeta.labels.source2"},
 						},
-						Strategy: CombineStrategyString,
+						Strategy: v1.CombineStrategyString,
 					},
 					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
 				},
@@ -630,18 +631,18 @@ func TestPatchApply(t *testing.T) {
 							"Test": "blah",
 						}},
 				},
-				err: errors.Errorf(errFmtCombineConfigMissing, CombineStrategyString),
+				err: errors.Errorf(errFmtCombineConfigMissing, v1.CombineStrategyString),
 			},
 		},
 		"MissingCombineVariablesFromCompositeConfig": {
 			reason: "Should return an error if no variables have been passed",
 			args: args{
-				patch: Patch{
-					Type: PatchTypeCombineFromComposite,
-					Combine: &Combine{
-						Variables: []CombineVariable{},
-						Strategy:  CombineStrategyString,
-						String:    &StringCombine{Format: "%s-%s"},
+				patch: v1.Patch{
+					Type: v1.PatchTypeCombineFromComposite,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{},
+						Strategy:  v1.CombineStrategyString,
+						String:    &v1.StringCombine{Format: "%s-%s"},
 					},
 					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
 				},
@@ -691,16 +692,16 @@ func TestPatchApply(t *testing.T) {
 			// not available.
 			reason: "Should return no error and not apply patch if an optional variable is missing",
 			args: args{
-				patch: Patch{
-					Type: PatchTypeCombineFromComposite,
-					Combine: &Combine{
-						Variables: []CombineVariable{
+				patch: v1.Patch{
+					Type: v1.PatchTypeCombineFromComposite,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
 							{FromFieldPath: "objectMeta.labels.source1"},
 							{FromFieldPath: "objectMeta.labels.source2"},
 							{FromFieldPath: "objectMeta.labels.source3"},
 						},
-						Strategy: CombineStrategyString,
-						String:   &StringCombine{Format: "%s-%s"},
+						Strategy: v1.CombineStrategyString,
+						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
 					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
 				},
@@ -747,15 +748,15 @@ func TestPatchApply(t *testing.T) {
 		"ValidCombineFromComposite": {
 			reason: "Should correctly apply a CombineFromComposite patch with valid settings",
 			args: args{
-				patch: Patch{
-					Type: PatchTypeCombineFromComposite,
-					Combine: &Combine{
-						Variables: []CombineVariable{
+				patch: v1.Patch{
+					Type: v1.PatchTypeCombineFromComposite,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
 							{FromFieldPath: "objectMeta.labels.source1"},
 							{FromFieldPath: "objectMeta.labels.source2"},
 						},
-						Strategy: CombineStrategyString,
-						String:   &StringCombine{Format: "%s-%s"},
+						Strategy: v1.CombineStrategyString,
+						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
 					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
 				},
@@ -803,15 +804,15 @@ func TestPatchApply(t *testing.T) {
 		"ValidCombineToComposite": {
 			reason: "Should correctly apply a CombineToComposite patch with valid settings",
 			args: args{
-				patch: Patch{
-					Type: PatchTypeCombineToComposite,
-					Combine: &Combine{
-						Variables: []CombineVariable{
+				patch: v1.Patch{
+					Type: v1.PatchTypeCombineToComposite,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
 							{FromFieldPath: "objectMeta.labels.source1"},
 							{FromFieldPath: "objectMeta.labels.source2"},
 						},
-						Strategy: CombineStrategyString,
-						String:   &StringCombine{Format: "%s-%s"},
+						Strategy: v1.CombineStrategyString,
+						String:   &v1.StringCombine{Format: "%s-%s"},
 					},
 					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
 				},
@@ -860,7 +861,7 @@ func TestPatchApply(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			ncp := tc.args.cp.DeepCopyObject().(resource.Composite)
-			err := tc.args.patch.Apply(ncp, tc.args.cd, tc.args.only...)
+			err := Apply(tc.args.patch, ncp, tc.args.cd, tc.args.only...)
 
 			if tc.want.cp != nil {
 				if diff := cmp.Diff(tc.want.cp, ncp); diff != "" {
@@ -886,11 +887,11 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 		_, err := p.GetValue("boom")
 		return err
 	}
-	required := FromFieldPathPolicyRequired
-	optional := FromFieldPathPolicyOptional
+	required := v1.FromFieldPathPolicyRequired
+	optional := v1.FromFieldPathPolicyOptional
 	type args struct {
 		err error
-		p   *PatchPolicy
+		p   *v1.PatchPolicy
 	}
 
 	cases := map[string]struct {
@@ -920,7 +921,7 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 		"DefaultOptionalNoPathPolicy": {
 			reason: "Should return no-op if field not found and empty patch policy specified.",
 			args: args{
-				p:   &PatchPolicy{},
+				p:   &v1.PatchPolicy{},
 				err: errNotFound(),
 			},
 			want: true,
@@ -928,7 +929,7 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 		"OptionalNotFound": {
 			reason: "Should return no-op if field not found and optional patch policy explicitly specified.",
 			args: args{
-				p: &PatchPolicy{
+				p: &v1.PatchPolicy{
 					FromFieldPath: &optional,
 				},
 				err: errNotFound(),
@@ -938,7 +939,7 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 		"RequiredNotFound": {
 			reason: "Should return error if field not found and required patch policy explicitly specified.",
 			args: args{
-				p: &PatchPolicy{
+				p: &v1.PatchPolicy{
 					FromFieldPath: &required,
 				},
 				err: errNotFound(),
@@ -971,11 +972,11 @@ func TestComposedTemplates(t *testing.T) {
 	}
 
 	type args struct {
-		cs CompositionSpec
+		cs v1.CompositionSpec
 	}
 
 	type want struct {
-		ct  []ComposedTemplate
+		ct  []v1.ComposedTemplate
 		err error
 	}
 
@@ -987,16 +988,16 @@ func TestComposedTemplates(t *testing.T) {
 		"NoCompositionPatchSets": {
 			reason: "Patches defined on a composite resource should be applied correctly if no PatchSets are defined on the composition",
 			args: args{
-				cs: CompositionSpec{
-					Resources: []ComposedTemplate{
+				cs: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
 						{
-							Patches: []Patch{
+							Patches: []v1.Patch{
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.name"),
 								},
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.namespace"),
 								},
 							},
@@ -1005,15 +1006,15 @@ func TestComposedTemplates(t *testing.T) {
 				},
 			},
 			want: want{
-				ct: []ComposedTemplate{
+				ct: []v1.ComposedTemplate{
 					{
-						Patches: []Patch{
+						Patches: []v1.Patch{
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.name"),
 							},
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.namespace"),
 							},
 						},
@@ -1024,11 +1025,11 @@ func TestComposedTemplates(t *testing.T) {
 		"UndefinedPatchSet": {
 			reason: "Should return error and not modify the patches field when referring to an undefined PatchSet",
 			args: args{
-				cs: CompositionSpec{
-					Resources: []ComposedTemplate{{
-						Patches: []Patch{
+				cs: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{{
+						Patches: []v1.Patch{
 							{
-								Type:         PatchTypePatchSet,
+								Type:         v1.PatchTypePatchSet,
 								PatchSetName: pointer.StringPtr("patch-set-1"),
 							},
 						},
@@ -1042,36 +1043,36 @@ func TestComposedTemplates(t *testing.T) {
 		"DefinedPatchSets": {
 			reason: "Should de-reference PatchSets defined on the Composition when referenced in a composed resource",
 			args: args{
-				cs: CompositionSpec{
+				cs: v1.CompositionSpec{
 					// PatchSets, existing patches and references
 					// should output in the correct order.
-					PatchSets: []PatchSet{
+					PatchSets: []v1.PatchSet{
 						{
 							Name: "patch-set-1",
-							Patches: []Patch{
+							Patches: []v1.Patch{
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.namespace"),
 								},
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("spec.parameters.test"),
 								},
 							},
 						},
 						{
 							Name: "patch-set-2",
-							Patches: []Patch{
+							Patches: []v1.Patch{
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-1"),
 								},
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-2"),
-									Transforms: []Transform{{
-										Type: TransformTypeMap,
-										Map: &MapTransform{
+									Transforms: []v1.Transform{{
+										Type: v1.TransformTypeMap,
+										Map: &v1.MapTransform{
 											Pairs: map[string]extv1.JSON{
 												"k-1": asJSON("v-1"),
 												"k-2": asJSON("v-2"),
@@ -1082,27 +1083,27 @@ func TestComposedTemplates(t *testing.T) {
 							},
 						},
 					},
-					Resources: []ComposedTemplate{
+					Resources: []v1.ComposedTemplate{
 						{
-							Patches: []Patch{
+							Patches: []v1.Patch{
 								{
-									Type:         PatchTypePatchSet,
+									Type:         v1.PatchTypePatchSet,
 									PatchSetName: pointer.StringPtr("patch-set-2"),
 								},
 								{
-									Type:          PatchTypeFromCompositeFieldPath,
+									Type:          v1.PatchTypeFromCompositeFieldPath,
 									FromFieldPath: pointer.StringPtr("metadata.name"),
 								},
 								{
-									Type:         PatchTypePatchSet,
+									Type:         v1.PatchTypePatchSet,
 									PatchSetName: pointer.StringPtr("patch-set-1"),
 								},
 							},
 						},
 						{
-							Patches: []Patch{
+							Patches: []v1.Patch{
 								{
-									Type:         PatchTypePatchSet,
+									Type:         v1.PatchTypePatchSet,
 									PatchSetName: pointer.StringPtr("patch-set-1"),
 								},
 							},
@@ -1112,19 +1113,19 @@ func TestComposedTemplates(t *testing.T) {
 			},
 			want: want{
 				err: nil,
-				ct: []ComposedTemplate{
+				ct: []v1.ComposedTemplate{
 					{
-						Patches: []Patch{
+						Patches: []v1.Patch{
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-1"),
 							},
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.annotations.patch-test-2"),
-								Transforms: []Transform{{
-									Type: TransformTypeMap,
-									Map: &MapTransform{
+								Transforms: []v1.Transform{{
+									Type: v1.TransformTypeMap,
+									Map: &v1.MapTransform{
 										Pairs: map[string]extv1.JSON{
 											"k-1": asJSON("v-1"),
 											"k-2": asJSON("v-2"),
@@ -1133,27 +1134,27 @@ func TestComposedTemplates(t *testing.T) {
 								}},
 							},
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.name"),
 							},
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.namespace"),
 							},
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("spec.parameters.test"),
 							},
 						},
 					},
 					{
-						Patches: []Patch{
+						Patches: []v1.Patch{
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("metadata.namespace"),
 							},
 							{
-								Type:          PatchTypeFromCompositeFieldPath,
+								Type:          v1.PatchTypeFromCompositeFieldPath,
 								FromFieldPath: pointer.StringPtr("spec.parameters.test"),
 							},
 						},
@@ -1165,7 +1166,7 @@ func TestComposedTemplates(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.cs.ComposedTemplates()
+			got, err := ComposedTemplates(tc.args.cs)
 
 			if diff := cmp.Diff(tc.want.ct, got); diff != "" {
 				t.Errorf("\n%s\nrs.ComposedTemplates(...): -want, +got:\n%s", tc.reason, diff)
