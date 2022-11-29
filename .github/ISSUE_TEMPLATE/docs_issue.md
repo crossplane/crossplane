@@ -1,7 +1,7 @@
 ---
 name: Docs Issue
 about: Report issues or request new content in the Crossplane documentation.
-labels: ["docs", "exempt-from-stale"]
+labels: ["docs"]
 ---
 
 <!-- If it's a bug tell us where you found it -->
