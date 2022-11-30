@@ -194,7 +194,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.9.1
 ```
 
 Wait until all packages become healthy:
@@ -248,7 +248,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.9.1
 ```
 
 Wait until all packages become healthy:
@@ -303,7 +303,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.9.1
 ```
 
 Wait until all packages become healthy:
@@ -374,7 +374,7 @@ spec:
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.9.1
 ```
 
 Wait until all packages become healthy:
