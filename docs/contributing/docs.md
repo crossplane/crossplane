@@ -34,7 +34,7 @@ The Crossplane documentation is under the [Creative Commons Attribution](https:/
 
 
 ### Directory structure
-The relevant directories of the docs repository are:
+The relevant directories of the [docs repository](https://github.com/crossplane/crossplane.github.io) are:
 | Directory | Purpose |
 | ----- | ---- |
 | `content` | Markdown files for all individual pages. |
