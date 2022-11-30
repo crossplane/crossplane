@@ -123,7 +123,7 @@ kubectl get all -n crossplane-system
 ## Install Crossplane CLI
 
 The Crossplane CLI extends `kubectl` with functionality to build, push, and
-install [Crossplane packages]:
+install [Crossplane packages]({{<ref "../concepts/packages" >}}):
 
 {{% tabs "crossplane CLI" %}}
 
@@ -137,15 +137,15 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 {{% tab "Latest" %}}
 
 ```bash
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master sh
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | XP_CHANNEL=master sh
 ```
 
-You may also specify `VERSION` for download if you would like to select a
-specific version from the given release channel. If a version is not specified
+You may also specify `XP_VERSION` for download if you would like to select
+a specific version from the given release channel. If a version is not specified
 the latest version from the release channel will be used.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | XP_CHANNEL=master XP_VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
 ```
 <!-- close "Latest" -->
 {{% /tab %}}
@@ -172,7 +172,7 @@ resources:
   `Composition` options for each composite resource.
 
 XRDs and Compositions may be packaged and installed as a _configuration_. A
-configuration is a [package] of composition configuration that can easily be
+configuration is a [package]({{<ref "../concepts/packages" >}}) of composition configuration that can easily be
 installed to Crossplane by creating a declarative `Configuration` resource, or
 by using `kubectl crossplane install configuration`.
 
@@ -188,7 +188,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 ### Install Configuration Package
 
 > If you prefer to see the contents of this configuration package and how it is
-> constructed prior to install, skip ahead to the [create a configuration]
+> constructed prior to install, skip ahead to the [create a configuration]({{<ref "create-configuration" >}})
 > section.
 
 ```bash
@@ -242,7 +242,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 ### Install Configuration Package
 
 > If you prefer to see the contents of this configuration package and how it is
-> constructed prior to install, skip ahead to the [create a configuration]
+> constructed prior to install, skip ahead to the [create a configuration]({{<ref "create-configuration" >}})
 > section.
 
 ```bash
@@ -298,7 +298,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 ### Install Configuration Package
 
 > If you prefer to see the contents of this configuration package and how it is
-> constructed prior to install, skip ahead to the [create a configuration]
+> constructed prior to install, skip ahead to the [create a configuration]({{<ref "create-configuration" >}})
 > section.
 
 ```bash
@@ -369,7 +369,7 @@ spec:
 ### Install Configuration Package
 
 > If you prefer to see the contents of this configuration package and how it is
-> constructed prior to install, skip ahead to the [create a configuration]
+> constructed prior to install, skip ahead to the [create a configuration]({{<ref "create-configuration" >}})
 > section.
 
 ```bash
@@ -424,7 +424,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 ## Next Steps
 
 Now that you have configured Crossplane with support for `PostgreSQLInstance`,
-you can [provision infrastructure].
+you can [provision infrastructure]({{<ref "provision-infrastructure" >}}).
 <!-- close "Crossplane (upstream)" -->
 {{% /tab %}}
 
@@ -437,10 +437,10 @@ Universal Crossplane, or UXP for short, connects to Upbound's hosted management
 console and Registry to make it easier to develop, debug, and manage Provider
 and Configuration packages.
 
-[Get started with Universal Crossplane] on the Upbound Documentation site.
+[Get started with Universal Crossplane](https://docs.upbound.io/uxp/install) on the Upbound Documentation site.
 
-<i>Want see another hosted Crossplane service listed? Please [reach out on
-Slack][Slack] and our community will highlight it here!</i>
+<i>Want see another hosted Crossplane service listed? Please reach out on 
+[Slack](http://slack.crossplane.io/) and our community will highlight it here!</i>
 
 <!-- close "Downstream Distribution" -->
 {{% /tab %}}
@@ -460,23 +460,9 @@ Slack][Slack] and our community will highlight it here!</i>
   and Azure mentionded in this guide.
 
 <!-- Named Links -->
-
-[package]: {{<ref "../concepts/packages" >}}
-[provision infrastructure]: {{<ref "provision-infrastructure" >}}
-[create a configuration]: {{<ref "create-configuration" >}}
 [Install]: {{<ref "../reference/install" >}}
 [Configure]: {{<ref "../reference/configure" >}}
 [Uninstall]: {{<ref "../reference/uninstall" >}}
-[Kubernetes cluster]: https://kubernetes.io/docs/setup/
-[Minikube]: https://minikube.sigs.k8s.io/docs/start/
-[Helm]:https://helm.sh/docs/intro/using_helm/
-[Kind]: https://kind.sigs.k8s.io/docs/user/quick-start/
-[Crossplane packages]: {{<ref "../concepts/packages" >}}
-[Slack]: http://slack.crossplane.io/
-[up]: https://github.com/upbound/up
-[Upbound documentation]: https://https://docs.upbound.io//docs
 [Providers]: {{<ref "../concepts/providers" >}}
-[Universal Crossplane]: https://https://docs.upbound.io/uxp/
-[Get started with Universal Crossplane]: https://docs.upbound.io/uxp/install
 [certified by the CNCF]: https://github.com/cncf/crossplane-conformance
 [Crossplane GitHub]: https://github.com/crossplane/crossplane

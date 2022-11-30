@@ -37,6 +37,17 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
     name: my-db
+  # The compositeDeletePolicy specifies the propagation policy that will be used by Crossplane
+  # when deleting the Composite Resource that is associated with the Claim.  The default
+  # value is Background, which causes the Composite resource to be deleted using
+  # the kubernetes default propagation policy of Background, and all associated
+  # resources will be deleted simultaneously.  The other value for this field is Foreground,
+  # which will cause the Composite resource to be deleted using Foreground Cascading Deletion.
+  # Kubernetes will add a foregroundDeletion finalizer to all of the resources in the
+  # dependency graph, and they will be deleted starting with the edge or leaf nodes and
+  # working back towards the root Composite.  See https://kubernetes.io/docs/concepts/architecture/garbage-collection/#cascading-deletion
+  # for more information on cascading deletion.
+  compositeDeletePolicy: Background
   # The compositionRef specifies which Composition this XR will use to compose
   # resources when it is created, updated, or deleted. This can be omitted and
   # will be set automatically if the XRD has a default or enforced composition
