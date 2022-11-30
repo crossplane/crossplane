@@ -57,4 +57,3 @@ data:
       - apigateway.aws.upbound.io
       - cloudwatch.aws.upbound.io
 ```
-

@@ -45,6 +45,7 @@ prescriptive detail.
 Feature freeze should be performed on all repos.  In order to start the feature
 freeze period, the following conditions should be met:
 
+
 * All issues in the
   [milestone](https://github.com/crossplane/crossplane/milestones) should be
   closed
