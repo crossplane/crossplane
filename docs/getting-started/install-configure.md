@@ -194,7 +194,7 @@ provider that can satisfy a `PostgreSQLInstance`. Let's get started!
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws:v1.8.2
 ```
 
 Wait until all packages become healthy:
@@ -235,7 +235,7 @@ spec:
       key: creds
 ```
 ```console
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.9/docs/snippets/configure/aws/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.8/docs/snippets/configure/aws/providerconfig.yaml
 ```
 <!-- close "AWS (Default VPC)" -->
 {{% /tab %}}
@@ -248,7 +248,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-aws-with-vpc:v1.8.2
 ```
 
 Wait until all packages become healthy:
@@ -303,7 +303,7 @@ kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-gcp:v1.8.2
 ```
 
 Wait until all packages become healthy:
@@ -374,7 +374,7 @@ spec:
 > section.
 
 ```bash
-kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.10.1
+kubectl crossplane install configuration registry.upbound.io/xp/getting-started-with-azure:v1.8.2
 ```
 
 Wait until all packages become healthy:
@@ -386,7 +386,7 @@ watch kubectl get pkg
 
 ```bash
 # create service principal with Owner role
-az ad sp create-for-rbac --role Contributor --scopes /subscriptions/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx > "creds.json"
+az ad sp create-for-rbac --sdk-auth --role Owner > "creds.json"
 ```
 
 ### Create a Provider Secret
