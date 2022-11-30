@@ -54,11 +54,6 @@ Documentation content contributions are always welcome.
 The Crossplane documentation source is in the [Crossplane
 repository](https://github.com/crossplane/crossplane) `/docs` directory. 
 
-Crossplane recommends using the [website
-repository](https://github.com/crossplane/crossplane.github.io) for local development.
-When a contribution is ready, submit a pull request to the [Crossplane
-repository](https://github.com/crossplane/crossplane).
-
 
 ### Local development
 Build the Crossplane documentation site locally for development and
