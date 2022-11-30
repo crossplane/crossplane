@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
@@ -31,6 +32,36 @@ const (
 	errWrongConvertFromProvider = "must convert from *v1.Provider"
 )
 
+// A ToHubConverter converts v1alpha1 types to the 'hub' v1 type.
+//
+// goverter:converter
+// goverter:name GeneratedToHubConverter
+// goverter:extend ConvertObjectMeta
+// +k8s:deepcopy-gen=false
+type ToHubConverter interface {
+	Configuration(in *Configuration) *v1.Configuration
+	Provider(in *Provider) *v1.Provider
+}
+
+// A FromHubConverter converts v1alpha1 types from the 'hub' v1 type.
+//
+// goverter:converter
+// goverter:name GeneratedFromHubConverter
+// goverter:extend ConvertObjectMeta
+// +k8s:deepcopy-gen=false
+type FromHubConverter interface {
+	Configuration(in *v1.Configuration) *Configuration
+	Provider(in *v1.Provider) *Provider
+}
+
+// ConvertObjectMeta 'converts' ObjectMeta by producing a deepcopy. This
+// is necessary because goverter can't convert metav1.Time. It also prevents
+// goverter generating code that is functionally identical to deepcopygen's.
+func ConvertObjectMeta(in metav1.ObjectMeta) metav1.ObjectMeta {
+	out := in.DeepCopy()
+	return *out
+}
+
 // ConvertTo converts this Configuration to the Hub version.
 func (c *Configuration) ConvertTo(hub conversion.Hub) error {
 	out, ok := hub.(*v1.Configuration)
@@ -38,24 +69,8 @@ func (c *Configuration) ConvertTo(hub conversion.Hub) error {
 		return errors.New(errWrongConvertToConfiguration)
 	}
 
-	c.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-
-	if c.Spec.Crossplane != nil {
-		out.Spec.Crossplane = &v1.CrossplaneConstraints{Version: c.Spec.Crossplane.Version}
-	}
-
-	if len(c.Spec.DependsOn) == 0 {
-		return nil
-	}
-
-	out.Spec.DependsOn = make([]v1.Dependency, len(c.Spec.DependsOn))
-	for i := range c.Spec.DependsOn {
-		out.Spec.DependsOn[i] = v1.Dependency{
-			Provider:      c.Spec.DependsOn[i].Provider,
-			Configuration: c.Spec.DependsOn[i].Configuration,
-			Version:       c.Spec.DependsOn[i].Version,
-		}
-	}
+	conv := &GeneratedToHubConverter{}
+	*out = *conv.Configuration(c)
 
 	return nil
 }
@@ -67,24 +82,8 @@ func (c *Configuration) ConvertFrom(hub conversion.Hub) error {
 		return errors.New(errWrongConvertFromConfiguration)
 	}
 
-	in.ObjectMeta.DeepCopyInto(&c.ObjectMeta)
-
-	if in.Spec.Crossplane != nil {
-		c.Spec.Crossplane = &CrossplaneConstraints{Version: in.Spec.Crossplane.Version}
-	}
-
-	if len(in.Spec.DependsOn) == 0 {
-		return nil
-	}
-
-	c.Spec.DependsOn = make([]Dependency, len(in.Spec.DependsOn))
-	for i := range in.Spec.DependsOn {
-		c.Spec.DependsOn[i] = Dependency{
-			Provider:      in.Spec.DependsOn[i].Provider,
-			Configuration: in.Spec.DependsOn[i].Configuration,
-			Version:       in.Spec.DependsOn[i].Version,
-		}
-	}
+	conv := &GeneratedFromHubConverter{}
+	*c = *conv.Configuration(in)
 
 	return nil
 }
@@ -96,31 +95,8 @@ func (p *Provider) ConvertTo(hub conversion.Hub) error {
 		return errors.New(errWrongConvertToProvider)
 	}
 
-	p.ObjectMeta.DeepCopyInto(&out.ObjectMeta)
-
-	out.Spec = v1.ProviderSpec{
-		Controller: v1.ControllerSpec{
-			Image:              p.Spec.Controller.Image,
-			PermissionRequests: p.Spec.Controller.PermissionRequests,
-		},
-	}
-
-	if p.Spec.Crossplane != nil {
-		out.Spec.Crossplane = &v1.CrossplaneConstraints{Version: p.Spec.Crossplane.Version}
-	}
-
-	if len(p.Spec.DependsOn) == 0 {
-		return nil
-	}
-
-	out.Spec.DependsOn = make([]v1.Dependency, len(p.Spec.DependsOn))
-	for i := range p.Spec.DependsOn {
-		out.Spec.DependsOn[i] = v1.Dependency{
-			Provider:      p.Spec.DependsOn[i].Provider,
-			Configuration: p.Spec.DependsOn[i].Configuration,
-			Version:       p.Spec.DependsOn[i].Version,
-		}
-	}
+	conv := &GeneratedToHubConverter{}
+	*out = *conv.Provider(p)
 
 	return nil
 }
@@ -132,31 +108,8 @@ func (p *Provider) ConvertFrom(hub conversion.Hub) error {
 		return errors.New(errWrongConvertFromProvider)
 	}
 
-	in.ObjectMeta.DeepCopyInto(&p.ObjectMeta)
-
-	p.Spec = ProviderSpec{
-		Controller: ControllerSpec{
-			Image:              in.Spec.Controller.Image,
-			PermissionRequests: in.Spec.Controller.PermissionRequests,
-		},
-	}
-
-	if in.Spec.Crossplane != nil {
-		p.Spec.Crossplane = &CrossplaneConstraints{Version: in.Spec.Crossplane.Version}
-	}
-
-	if len(in.Spec.DependsOn) == 0 {
-		return nil
-	}
-
-	p.Spec.DependsOn = make([]Dependency, len(in.Spec.DependsOn))
-	for i := range in.Spec.DependsOn {
-		p.Spec.DependsOn[i] = Dependency{
-			Provider:      in.Spec.DependsOn[i].Provider,
-			Configuration: in.Spec.DependsOn[i].Configuration,
-			Version:       in.Spec.DependsOn[i].Version,
-		}
-	}
+	conv := &GeneratedFromHubConverter{}
+	*p = *conv.Provider(in)
 
 	return nil
 }
