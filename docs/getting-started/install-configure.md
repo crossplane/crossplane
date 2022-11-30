@@ -139,15 +139,15 @@ curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.
 {{% tab "Latest" %}}
 
 ```bash
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master sh
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | XP_CHANNEL=master XP_VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
 ```
 
-You may also specify `VERSION` for download if you would like to select a
+You may also specify `XP_VERSION` for download if you would like to select a
 specific version from the given release channel. If a version is not specified
 the latest version from the release channel will be used.
 
 ```bash
-curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | CHANNEL=master VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
+curl -sL https://raw.githubusercontent.com/crossplane/crossplane/master/install.sh | XP_CHANNEL=master XP_VERSION=v1.0.0-rc.0.130.g94f34fd3 sh
 ```
 <!-- close "Latest" -->
 {{% /tab %}}
@@ -415,7 +415,7 @@ spec:
 ```
 
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.10/docs/snippets/configure/azure/providerconfig.yaml
+kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.8/docs/snippets/configure/azure/providerconfig.yaml
 ```
 <!-- close "Azure" -->
 {{% /tab %}}
