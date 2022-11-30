@@ -26,6 +26,9 @@ limitations under the License.
 
 // Replicate identical API versions
 //go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/revision_types.go apiextensions/v1alpha1
+//go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/configuration_types.go pkg/meta/v1alpha1
+//go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/provider_types.go pkg/meta/v1alpha1
+//go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/meta.go pkg/meta/v1alpha1
 
 // Generate deepcopy methodsets and CRD manifests
 //go:generate go run -tags generate sigs.k8s.io/controller-tools/cmd/controller-gen object:headerFile=../hack/boilerplate.go.txt paths=./pkg/v1alpha1;./pkg/v1beta1;./pkg/v1;./apiextensions/...;./secrets/... crd:crdVersions=v1 output:artifacts:config=../cluster/crds

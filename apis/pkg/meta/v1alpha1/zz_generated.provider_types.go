@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+// Generated from pkg/meta/v1/provider_types.go by hack/duplicate_type.sh. DO NOT EDIT.
+
+package v1alpha1
 
 import (
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -43,7 +45,6 @@ type ControllerSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 
 // A Provider is the description of a Crossplane Provider package.
 type Provider struct {
