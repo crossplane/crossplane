@@ -7,8 +7,7 @@ back changes to a Crossplane [`Composition`][composition-type]. It assumes
 familiarity with Crossplane, and particularly with
 [Composition][composition-term].
 
-> Composition Revisions are a __beta feature__. They are not yet recommended
-> for production use, and are enabled by default.
+> Composition Revisions are a __beta feature__.
 
 A `Composition` configures how Crossplane should reconcile a Composite Resource
 (XR). Put otherwise, when you create an XR the selected `Composition` determines
