@@ -36,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
@@ -66,8 +67,9 @@ func TestReconcile(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-2",
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionSpecHash: "some-older-hash",
@@ -87,8 +89,9 @@ func TestReconcile(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-3",
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
@@ -108,8 +111,9 @@ func TestReconcile(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-4",
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
 				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),

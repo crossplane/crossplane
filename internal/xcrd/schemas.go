@@ -216,6 +216,13 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 			},
 			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
+		"compositeDeletePolicy": {
+			Type: "string",
+			Enum: []extv1.JSON{
+				{Raw: []byte(`"Background"`)},
+				{Raw: []byte(`"Foreground"`)},
+			},
+			Default: &extv1.JSON{Raw: []byte(`"Background"`)}},
 		"resourceRef": {
 			Type:     "object",
 			Required: []string{"apiVersion", "kind", "name"},

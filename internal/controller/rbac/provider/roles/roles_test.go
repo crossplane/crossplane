@@ -34,11 +34,12 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	ctrl := true
 	crCtrlr := metav1.OwnerReference{
-		APIVersion: v1.ProviderRevisionGroupVersionKind.GroupVersion().String(),
-		Kind:       v1.ProviderRevisionKind,
-		Name:       prName,
-		UID:        prUID,
-		Controller: &ctrl,
+		APIVersion:         v1.ProviderRevisionGroupVersionKind.GroupVersion().String(),
+		Kind:               v1.ProviderRevisionKind,
+		Name:               prName,
+		UID:                prUID,
+		Controller:         &ctrl,
+		BlockOwnerDeletion: &ctrl,
 	}
 
 	nameEdit := namePrefix + prName + nameSuffixEdit
