@@ -274,7 +274,7 @@ type MatchTransformPattern struct {
 	Result extv1.JSON `json:"result"`
 }
 
-// Resolve runs the Map transform.
+// Matches returns true if the pattern matches the supplied input.
 func (p *MatchTransformPattern) Matches(input any) (bool, error) {
 	switch p.Type {
 	case MatchTransformPatternTypeLiteral:
@@ -482,6 +482,10 @@ type ConvertTransform struct {
 	ToType string `json:"toType"`
 }
 
+// The unparam linter is complaining that these functions always return a nil
+// error, but we need this to be the case given some other functions in the map
+// may return an error.
+
 var conversions = map[conversionPair]func(any) (any, error){
 	{From: ConvertTransformTypeString, To: ConvertTransformTypeInt64}: func(i any) (any, error) {
 		return strconv.ParseInt(i.(string), 10, 64)
@@ -493,39 +497,39 @@ var conversions = map[conversionPair]func(any) (any, error){
 		return strconv.ParseFloat(i.(string), 64)
 	},
 
-	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeString}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeString}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return strconv.FormatInt(i.(int64), 10), nil
 	},
-	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeBool}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeBool}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return i.(int64) == 1, nil
 	},
-	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeFloat64}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeInt64, To: ConvertTransformTypeFloat64}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return float64(i.(int64)), nil
 	},
 
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeString}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeString}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return strconv.FormatBool(i.(bool)), nil
 	},
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt64}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeInt64}: func(i any) (any, error) { //nolint:unparam // See note above.
 		if i.(bool) {
 			return int64(1), nil
 		}
 		return int64(0), nil
 	},
-	{From: ConvertTransformTypeBool, To: ConvertTransformTypeFloat64}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeBool, To: ConvertTransformTypeFloat64}: func(i any) (any, error) { //nolint:unparam // See note above.
 		if i.(bool) {
 			return float64(1), nil
 		}
 		return float64(0), nil
 	},
 
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeString}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeString}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
 	},
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt64}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeInt64}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return int64(i.(float64)), nil
 	},
-	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeBool}: func(i any) (any, error) { // nolint:unparam
+	{From: ConvertTransformTypeFloat64, To: ConvertTransformTypeBool}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return i.(float64) == float64(1), nil
 	},
 }

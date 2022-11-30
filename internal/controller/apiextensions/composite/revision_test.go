@@ -26,7 +26,7 @@ import (
 	"k8s.io/utils/pointer"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 func TestAsComposition(t *testing.T) {
@@ -43,40 +43,40 @@ func TestAsComposition(t *testing.T) {
 	}
 
 	sf := "f"
-	rev := &v1alpha1.CompositionRevision{
-		Spec: v1alpha1.CompositionRevisionSpec{
-			CompositeTypeRef: v1alpha1.TypeReference{
+	rev := &v1beta1.CompositionRevision{
+		Spec: v1beta1.CompositionRevisionSpec{
+			CompositeTypeRef: v1beta1.TypeReference{
 				APIVersion: "v",
 				Kind:       "k",
 			},
-			PatchSets: []v1alpha1.PatchSet{{
+			PatchSets: []v1beta1.PatchSet{{
 				Name: "p",
-				Patches: []v1alpha1.Patch{{
-					Type:          v1alpha1.PatchType("t"),
+				Patches: []v1beta1.Patch{{
+					Type:          v1beta1.PatchType("t"),
 					FromFieldPath: pointer.String("from"),
-					Combine: &v1alpha1.Combine{
-						Strategy: v1alpha1.CombineStrategy("s"),
-						Variables: []v1alpha1.CombineVariable{{
+					Combine: &v1beta1.Combine{
+						Strategy: v1beta1.CombineStrategy("s"),
+						Variables: []v1beta1.CombineVariable{{
 							FromFieldPath: "from",
 						}},
-						String: &v1alpha1.StringCombine{
+						String: &v1beta1.StringCombine{
 							Format: "f",
 						},
 					},
 					ToFieldPath:  pointer.String("to"),
 					PatchSetName: pointer.String("n"),
-					Transforms: []v1alpha1.Transform{{
-						Type: v1alpha1.TransformType("t"),
-						Math: &v1alpha1.MathTransform{
+					Transforms: []v1beta1.Transform{{
+						Type: v1beta1.TransformType("t"),
+						Math: &v1beta1.MathTransform{
 							Multiply: pointer.Int64(42),
 						},
-						Map: &v1alpha1.MapTransform{
+						Map: &v1beta1.MapTransform{
 							Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 						},
-						Match: &v1alpha1.MatchTransform{
-							Patterns: []v1alpha1.MatchTransformPattern{
+						Match: &v1beta1.MatchTransform{
+							Patterns: []v1beta1.MatchTransformPattern{
 								{
-									Type:    v1alpha1.MatchTransformPatternTypeLiteral,
+									Type:    v1beta1.MatchTransformPatternTypeLiteral,
 									Literal: pointer.String("literal"),
 									Regexp:  pointer.String("regexp"),
 									Result:  asJSON("value"),
@@ -84,58 +84,58 @@ func TestAsComposition(t *testing.T) {
 							},
 							FallbackValue: asJSON("value"),
 						},
-						String: &v1alpha1.StringTransform{
-							Type:   v1alpha1.StringTransformTypeFormat,
+						String: &v1beta1.StringTransform{
+							Type:   v1beta1.StringTransformTypeFormat,
 							Format: pointer.String("f"),
 						},
-						Convert: &v1alpha1.ConvertTransform{
+						Convert: &v1beta1.ConvertTransform{
 							ToType: "t",
 						},
 					}},
-					Policy: &v1alpha1.PatchPolicy{
-						FromFieldPath: func() *v1alpha1.FromFieldPathPolicy {
-							p := v1alpha1.FromFieldPathPolicy("p")
+					Policy: &v1beta1.PatchPolicy{
+						FromFieldPath: func() *v1beta1.FromFieldPathPolicy {
+							p := v1beta1.FromFieldPathPolicy("p")
 							return &p
 						}(),
 					},
 				}},
 			}},
-			Resources: []v1alpha1.ComposedTemplate{{
+			Resources: []v1beta1.ComposedTemplate{{
 				Name: pointer.String("t"),
 				Base: runtime.RawExtension{Raw: []byte("bytes")},
-				Patches: []v1alpha1.Patch{{
-					Type:          v1alpha1.PatchType("t"),
+				Patches: []v1beta1.Patch{{
+					Type:          v1beta1.PatchType("t"),
 					FromFieldPath: pointer.String("from"),
-					Combine: &v1alpha1.Combine{
-						Strategy: v1alpha1.CombineStrategy("s"),
-						Variables: []v1alpha1.CombineVariable{{
+					Combine: &v1beta1.Combine{
+						Strategy: v1beta1.CombineStrategy("s"),
+						Variables: []v1beta1.CombineVariable{{
 							FromFieldPath: "from",
 						}},
-						String: &v1alpha1.StringCombine{
+						String: &v1beta1.StringCombine{
 							Format: "f",
 						},
 					},
 					ToFieldPath:  pointer.String("to"),
 					PatchSetName: pointer.String("n"),
-					Transforms: []v1alpha1.Transform{
+					Transforms: []v1beta1.Transform{
 						{
-							Type: v1alpha1.TransformTypeMath,
-							Math: &v1alpha1.MathTransform{
+							Type: v1beta1.TransformTypeMath,
+							Math: &v1beta1.MathTransform{
 								Multiply: pointer.Int64(42),
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeMap,
-							Map: &v1alpha1.MapTransform{
+							Type: v1beta1.TransformTypeMap,
+							Map: &v1beta1.MapTransform{
 								Pairs: map[string]extv1.JSON{"k": asJSON("v")},
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeMatch,
-							Match: &v1alpha1.MatchTransform{
-								Patterns: []v1alpha1.MatchTransformPattern{
+							Type: v1beta1.TransformTypeMatch,
+							Match: &v1beta1.MatchTransform{
+								Patterns: []v1beta1.MatchTransformPattern{
 									{
-										Type:    v1alpha1.MatchTransformPatternTypeLiteral,
+										Type:    v1beta1.MatchTransformPatternTypeLiteral,
 										Literal: pointer.String("literal"),
 										Regexp:  pointer.String("regexp"),
 										Result:  asJSON("value"),
@@ -145,65 +145,65 @@ func TestAsComposition(t *testing.T) {
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeString,
-							String: &v1alpha1.StringTransform{
-								Type:   v1alpha1.StringTransformTypeFormat,
+							Type: v1beta1.TransformTypeString,
+							String: &v1beta1.StringTransform{
+								Type:   v1beta1.StringTransformTypeFormat,
 								Format: pointer.String("fmt"),
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeString,
-							String: &v1alpha1.StringTransform{
-								Type: v1alpha1.StringTransformTypeConvert,
-								Convert: func() *v1alpha1.StringConversionType {
-									t := v1alpha1.StringConversionTypeToUpper
+							Type: v1beta1.TransformTypeString,
+							String: &v1beta1.StringTransform{
+								Type: v1beta1.StringTransformTypeConvert,
+								Convert: func() *v1beta1.StringConversionType {
+									t := v1beta1.StringConversionTypeToUpper
 									return &t
 								}(),
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeString,
-							String: &v1alpha1.StringTransform{
-								Type: v1alpha1.StringTransformTypeTrimSuffix,
+							Type: v1beta1.TransformTypeString,
+							String: &v1beta1.StringTransform{
+								Type: v1beta1.StringTransformTypeTrimSuffix,
 								Trim: pointer.String("trim"),
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeString,
-							String: &v1alpha1.StringTransform{
-								Type: v1alpha1.StringTransformTypeRegexp,
-								Regexp: &v1alpha1.StringTransformRegexp{
+							Type: v1beta1.TransformTypeString,
+							String: &v1beta1.StringTransform{
+								Type: v1beta1.StringTransformTypeRegexp,
+								Regexp: &v1beta1.StringTransformRegexp{
 									Match: "https://twitter.com/junyer/status/699892454749700096",
 									Group: pointer.Int(0),
 								},
 							},
 						},
 						{
-							Type: v1alpha1.TransformTypeConvert,
-							Convert: &v1alpha1.ConvertTransform{
-								ToType: v1alpha1.ConvertTransformTypeBool,
+							Type: v1beta1.TransformTypeConvert,
+							Convert: &v1beta1.ConvertTransform{
+								ToType: v1beta1.ConvertTransformTypeBool,
 							},
 						},
 					},
-					Policy: &v1alpha1.PatchPolicy{
-						FromFieldPath: func() *v1alpha1.FromFieldPathPolicy {
-							p := v1alpha1.FromFieldPathPolicy("p")
+					Policy: &v1beta1.PatchPolicy{
+						FromFieldPath: func() *v1beta1.FromFieldPathPolicy {
+							p := v1beta1.FromFieldPathPolicy("p")
 							return &p
 						}(),
 					},
 				}},
-				ConnectionDetails: []v1alpha1.ConnectionDetail{{
+				ConnectionDetails: []v1beta1.ConnectionDetail{{
 					Name: pointer.String("cd"),
-					Type: func() *v1alpha1.ConnectionDetailType {
-						t := v1alpha1.ConnectionDetailType("t")
+					Type: func() *v1beta1.ConnectionDetailType {
+						t := v1beta1.ConnectionDetailType("t")
 						return &t
 					}(),
 					FromConnectionSecretKey: pointer.String("k"),
 					FromFieldPath:           pointer.String("p"),
 					Value:                   pointer.String("v"),
 				}},
-				ReadinessChecks: []v1alpha1.ReadinessCheck{{
-					Type:         v1alpha1.ReadinessCheckType("c"),
+				ReadinessChecks: []v1beta1.ReadinessCheck{{
+					Type:         v1beta1.ReadinessCheckType("c"),
 					FieldPath:    "p",
 					MatchString:  "s",
 					MatchInteger: 42,

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package apiextensions implements the Crossplane Composition controllers.
 package apiextensions
 
 import (
@@ -29,11 +30,10 @@ import (
 
 // Setup API extensions controllers.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-
 	// The Composition controller only deals in the management of
 	// CompositionRevisions, so we don't need it at all unless the
 	// CompositionRevision feature flag is enabled.
-	if o.Features.Enabled(features.EnableAlphaCompositionRevisions) {
+	if o.Features.Enabled(features.EnableBetaCompositionRevisions) {
 		if err := composition.Setup(mgr, o); err != nil {
 			return err
 		}

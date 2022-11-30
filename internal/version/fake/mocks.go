@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package fake contains semantic version mocks.
 package fake
 
 import (

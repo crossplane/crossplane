@@ -86,7 +86,7 @@ type installConfigCmd struct {
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo
+func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -179,7 +179,7 @@ type installProviderCmd struct {
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo
+func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation

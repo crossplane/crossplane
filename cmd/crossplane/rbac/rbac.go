@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package rbac implements Crossplane's RBAC controller manager.
 package rbac
 
 import (

@@ -67,7 +67,7 @@ func NewAPIDryRunCompositeConfigurator(c client.Client) *APIDryRunCompositeConfi
 // composite may or may not have been created in the API server when passed to
 // this method. The configured composite may be submitted to an API server via a
 // dry run create in order to name and validate it.
-func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo
+func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { //nolint:gocyclo // Only slightly over (12).
 	ucm, ok := cm.(*claim.Unstructured)
 	if !ok {
 		return nil

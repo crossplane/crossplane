@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package initializer initializes a new installation of Crossplane.
 package initializer
 
 import (

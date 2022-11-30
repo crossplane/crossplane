@@ -39,7 +39,7 @@ simply Composition. Support for Composition was added in Crossplane [v0.10.0]
 > a Composition as a Helm chart’s templates; the moustache templated YAML files
 > that describe how to take Helm chart values and render Kubernetes resources.
 
-A Crossplane `Composition` consists of an array of one ore more 'base'
+A Crossplane `Composition` consists of an array of one or more 'base'
 resources. Each of these resources can be 'patched' with values derived from the
 XR. The functionality enabled by a `Composition` is intentionally limited - for
 example there is no support for conditionals (e.g. only create this resource if
@@ -96,7 +96,7 @@ Our approach to achieving our goals was heavily informed by Brian Grant’s
 Brian’s document is an excellent summary of the gotchas and pitfalls faced by
 those attempting to design new configuration management tools, informed by his
 experiences designing Kubernetes, its precursor Borg, and many generations of
-configuration languages at Google, including [BCL/GCL][bcl]. In particular we
+configuration languages at Google, including [BCL/GCL][bcl]. In particular, we
 wanted to:
 
 * Avoid organically growing a new DSL. These languages tend to devolve to
@@ -107,7 +107,7 @@ wanted to:
   comes with the cost of inventing new tooling to test, lint, generate, etc,
   your DSL.
 * Stick to configuration that could be modeled as a REST API. Modeling
-  Composition logic as a  schemafied API resource makes it possible for
+  Composition logic as a schemafied API resource makes it possible for
   Crossplane to validate that logic and provide feedback to the platform team at
   configuration time. It also greatly increases interoperability thanks to broad
   support across tools and languages for interacting with REST APIs.
@@ -191,7 +191,7 @@ changes would be required to the schema of `CompositeResourceDefinitions`, XRs,
 etc.
 
 Notably the functions would not be responsible for interacting with the API
-server to create, update, or delete composed resources. Instead they instruct
+server to create, update, or delete composed resources. Instead, they instruct
 Crossplane which resources should be created, updated, or deleted.
 
 Under the proposed design functions could also be used for purposes besides
@@ -336,12 +336,12 @@ The `desired` object consists of:
 * `desired.resources[N].readinessChecks`. A desired composed resource's
   readiness checks.
 
-Note that a the `desired.resources` array of the `FunctionIO` type is very
+Note that the `desired.resources` array of the `FunctionIO` type is very
 similar to the `spec.resources` array of the `Composition` type. In comparison:
 
 * `name` works the same across both types, but is required by `FunctionIO`.
 * `connectionDetails` and `readinessChecks` work the same across both types.
-* `FunctionIO` does not support `base` and `patches`. Instead a function should
+* `FunctionIO` does not support `base` and `patches`. Instead, a function should
   configure the `resource` field accordingly.
 
 The `desired` state is _accumulated_ across the Composition and all of its
@@ -548,7 +548,7 @@ functions as containers inside a container:
 > perform fake-privileged operations such as creating mount namespaces, network
 > namespaces, and creating TAP devices.
 
-Using user namespaces allows the runer to use the other kinds of namespaces
+Using user namespaces allows the runner to use the other kinds of namespaces
 listed above to ensure an extra layer of isolation for the functions it runs.
 For example a network namespace could be configured to prevent a function having
 network access.
@@ -645,7 +645,7 @@ Unlike `Configuration` and `Provider` packages, `Function` packages would not
 actually be processed by the Crossplane package manager but rather by the
 Composition (`apiextensions`) machinery. In practice Crossplane would be
 ignorant of the `package.yaml` file; it would exist purely as a way to attach
-"package-like" metadata to containerized Crossplane functions. Therefore unlike
+"package-like" metadata to containerized Crossplane functions. Therefore, unlike
 the existing package types the `package.yaml` would contain no `spec` section.
 
 An example `package.yaml` might look like:
@@ -669,7 +669,7 @@ metadata:
 
 Most of the alternatives considered in this design could also be thought of as
 future considerations. In most cases these alternatives don't make sense at the
-present time but likely will in future.
+present time but likely will in the future.
 
 ### Using Webhooks to Run Functions
 

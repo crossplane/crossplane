@@ -24,19 +24,19 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 // NewCompositionRevision creates a new revision of the supplied Composition.
-func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) *v1alpha1.CompositionRevision {
-	cr := &v1alpha1.CompositionRevision{
+func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) *v1beta1.CompositionRevision {
+	cr := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", c.GetName(), compSpecHash[0:7]),
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionName: c.GetName(),
+				v1beta1.LabelCompositionName: c.GetName(),
 				// We cannot have a label value longer than 63 chars
 				// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
-				v1alpha1.LabelCompositionHash: compSpecHash[0:63],
+				v1beta1.LabelCompositionHash: compSpecHash[0:63],
 			},
 		},
 		Spec: NewCompositionRevisionSpec(c.Spec, revision),
@@ -54,20 +54,20 @@ func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash stri
 
 // NewCompositionRevisionSpec translates a composition's spec to a composition
 // revision spec.
-func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1alpha1.CompositionRevisionSpec {
-	rs := v1alpha1.CompositionRevisionSpec{
+func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1beta1.CompositionRevisionSpec {
+	rs := v1beta1.CompositionRevisionSpec{
 		Revision: revision,
-		CompositeTypeRef: v1alpha1.TypeReference{
+		CompositeTypeRef: v1beta1.TypeReference{
 			APIVersion: cs.CompositeTypeRef.APIVersion,
 			Kind:       cs.CompositeTypeRef.Kind,
 		},
-		PatchSets:                         make([]v1alpha1.PatchSet, len(cs.PatchSets)),
-		Resources:                         make([]v1alpha1.ComposedTemplate, len(cs.Resources)),
+		PatchSets:                         make([]v1beta1.PatchSet, len(cs.PatchSets)),
+		Resources:                         make([]v1beta1.ComposedTemplate, len(cs.Resources)),
 		WriteConnectionSecretsToNamespace: cs.WriteConnectionSecretsToNamespace,
 	}
 
 	if cs.PublishConnectionDetailsWithStoreConfigRef != nil {
-		rs.PublishConnectionDetailsWithStoreConfigRef = &v1alpha1.StoreConfigReference{Name: cs.PublishConnectionDetailsWithStoreConfigRef.Name}
+		rs.PublishConnectionDetailsWithStoreConfigRef = &v1beta1.StoreConfigReference{Name: cs.PublishConnectionDetailsWithStoreConfigRef.Name}
 	}
 
 	for i := range cs.PatchSets {
@@ -83,10 +83,10 @@ func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1alpha1.
 
 // NewCompositionRevisionPatchSet translates a composition's patch set to a
 // composition revision patch set.
-func NewCompositionRevisionPatchSet(ps v1.PatchSet) v1alpha1.PatchSet {
-	rps := v1alpha1.PatchSet{
+func NewCompositionRevisionPatchSet(ps v1.PatchSet) v1beta1.PatchSet {
+	rps := v1beta1.PatchSet{
 		Name:    ps.Name,
-		Patches: make([]v1alpha1.Patch, len(ps.Patches)),
+		Patches: make([]v1beta1.Patch, len(ps.Patches)),
 	}
 
 	for i := range ps.Patches {
@@ -97,13 +97,13 @@ func NewCompositionRevisionPatchSet(ps v1.PatchSet) v1alpha1.PatchSet {
 
 // NewCompositionRevisionComposedTemplate translates a composition's composed
 // (resource) template to a composition composed template.
-func NewCompositionRevisionComposedTemplate(ct v1.ComposedTemplate) v1alpha1.ComposedTemplate {
-	rct := v1alpha1.ComposedTemplate{
+func NewCompositionRevisionComposedTemplate(ct v1.ComposedTemplate) v1beta1.ComposedTemplate {
+	rct := v1beta1.ComposedTemplate{
 		Name:              ct.Name,
 		Base:              ct.Base,
-		Patches:           make([]v1alpha1.Patch, len(ct.Patches)),
-		ConnectionDetails: make([]v1alpha1.ConnectionDetail, len(ct.ConnectionDetails)),
-		ReadinessChecks:   make([]v1alpha1.ReadinessCheck, len(ct.ReadinessChecks)),
+		Patches:           make([]v1beta1.Patch, len(ct.Patches)),
+		ConnectionDetails: make([]v1beta1.ConnectionDetail, len(ct.ConnectionDetails)),
+		ReadinessChecks:   make([]v1beta1.ReadinessCheck, len(ct.ReadinessChecks)),
 	}
 
 	for i := range ct.Patches {
@@ -123,23 +123,23 @@ func NewCompositionRevisionComposedTemplate(ct v1.ComposedTemplate) v1alpha1.Com
 
 // NewCompositionRevisionPatch translates a composition's patch to a
 // composition revision patch.
-func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
-	rp := v1alpha1.Patch{
-		Type:          v1alpha1.PatchType(p.Type),
+func NewCompositionRevisionPatch(p v1.Patch) v1beta1.Patch {
+	rp := v1beta1.Patch{
+		Type:          v1beta1.PatchType(p.Type),
 		FromFieldPath: p.FromFieldPath,
 		ToFieldPath:   p.ToFieldPath,
 		PatchSetName:  p.PatchSetName,
-		Transforms:    make([]v1alpha1.Transform, len(p.Transforms)),
+		Transforms:    make([]v1beta1.Transform, len(p.Transforms)),
 	}
 
 	if p.Combine != nil {
-		rp.Combine = &v1alpha1.Combine{
-			Strategy:  v1alpha1.CombineStrategy(p.Combine.Strategy),
-			Variables: make([]v1alpha1.CombineVariable, len(p.Combine.Variables)),
+		rp.Combine = &v1beta1.Combine{
+			Strategy:  v1beta1.CombineStrategy(p.Combine.Strategy),
+			Variables: make([]v1beta1.CombineVariable, len(p.Combine.Variables)),
 		}
 
 		if p.Combine.String != nil {
-			rp.Combine.String = &v1alpha1.StringCombine{Format: p.Combine.String.Format}
+			rp.Combine.String = &v1beta1.StringCombine{Format: p.Combine.String.Format}
 		}
 
 		for i := range p.Combine.Variables {
@@ -152,9 +152,9 @@ func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
 	}
 
 	if p.Policy != nil {
-		rp.Policy = &v1alpha1.PatchPolicy{}
+		rp.Policy = &v1beta1.PatchPolicy{}
 		if p.Policy.FromFieldPath != nil {
-			pol := v1alpha1.FromFieldPathPolicy(*p.Policy.FromFieldPath)
+			pol := v1beta1.FromFieldPathPolicy(*p.Policy.FromFieldPath)
 			rp.Policy.FromFieldPath = &pol
 		}
 		if p.Policy.MergeOptions != nil {
@@ -168,22 +168,22 @@ func NewCompositionRevisionPatch(p v1.Patch) v1alpha1.Patch {
 
 // NewCompositionRevisionTransform translates a compostion's transform to a
 // composition revision transform.
-func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform { //nolint:gocyclo
-	rt := v1alpha1.Transform{Type: v1alpha1.TransformType(t.Type)}
+func NewCompositionRevisionTransform(t v1.Transform) v1beta1.Transform { //nolint:gocyclo // Only slightly over (11)
+	rt := v1beta1.Transform{Type: v1beta1.TransformType(t.Type)}
 	if t.Math != nil {
-		rt.Math = &v1alpha1.MathTransform{Multiply: t.Math.Multiply}
+		rt.Math = &v1beta1.MathTransform{Multiply: t.Math.Multiply}
 	}
 	if t.Map != nil {
-		rt.Map = &v1alpha1.MapTransform{Pairs: t.Map.Pairs}
+		rt.Map = &v1beta1.MapTransform{Pairs: t.Map.Pairs}
 	}
 	if t.Match != nil {
-		rt.Match = &v1alpha1.MatchTransform{
-			Patterns:      make([]v1alpha1.MatchTransformPattern, len(t.Match.Patterns)),
+		rt.Match = &v1beta1.MatchTransform{
+			Patterns:      make([]v1beta1.MatchTransformPattern, len(t.Match.Patterns)),
 			FallbackValue: t.Match.FallbackValue,
 		}
 		for i, p := range t.Match.Patterns {
-			rt.Match.Patterns[i] = v1alpha1.MatchTransformPattern{
-				Type:    v1alpha1.MatchTransformPatternType(p.Type),
+			rt.Match.Patterns[i] = v1beta1.MatchTransformPattern{
+				Type:    v1beta1.MatchTransformPatternType(p.Type),
 				Literal: p.Literal,
 				Regexp:  p.Regexp,
 				Result:  p.Result,
@@ -191,13 +191,13 @@ func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform { //noli
 		}
 	}
 	if t.String != nil {
-		rt.String = &v1alpha1.StringTransform{Type: v1alpha1.StringTransformType(t.String.Type)}
+		rt.String = &v1beta1.StringTransform{Type: v1beta1.StringTransformType(t.String.Type)}
 		if t.String.Format != nil {
 			rt.String.Format = t.String.Format
 		}
 		if t.String.Convert != nil {
-			rt.String.Convert = func() *v1alpha1.StringConversionType {
-				t := v1alpha1.StringConversionType(*t.String.Convert)
+			rt.String.Convert = func() *v1beta1.StringConversionType {
+				t := v1beta1.StringConversionType(*t.String.Convert)
 				return &t
 			}()
 		}
@@ -205,28 +205,28 @@ func NewCompositionRevisionTransform(t v1.Transform) v1alpha1.Transform { //noli
 			rt.String.Trim = t.String.Trim
 		}
 		if t.String.Regexp != nil {
-			rt.String.Regexp = &v1alpha1.StringTransformRegexp{
+			rt.String.Regexp = &v1beta1.StringTransformRegexp{
 				Match: t.String.Regexp.Match,
 				Group: t.String.Regexp.Group,
 			}
 		}
 	}
 	if t.Convert != nil {
-		rt.Convert = &v1alpha1.ConvertTransform{ToType: t.Convert.ToType}
+		rt.Convert = &v1beta1.ConvertTransform{ToType: t.Convert.ToType}
 	}
 	return rt
 }
 
 // NewCompositionRevisionConnectionDetail translates a composition's connection
 // detail to a composition revision connection detail.
-func NewCompositionRevisionConnectionDetail(cd v1.ConnectionDetail) v1alpha1.ConnectionDetail {
-	return v1alpha1.ConnectionDetail{
+func NewCompositionRevisionConnectionDetail(cd v1.ConnectionDetail) v1beta1.ConnectionDetail {
+	return v1beta1.ConnectionDetail{
 		Name: cd.Name,
-		Type: func() *v1alpha1.ConnectionDetailType {
+		Type: func() *v1beta1.ConnectionDetailType {
 			if cd.Type == nil {
 				return nil
 			}
-			t := v1alpha1.ConnectionDetailType(*cd.Type)
+			t := v1beta1.ConnectionDetailType(*cd.Type)
 			return &t
 		}(),
 		FromConnectionSecretKey: cd.FromConnectionSecretKey,
@@ -237,9 +237,9 @@ func NewCompositionRevisionConnectionDetail(cd v1.ConnectionDetail) v1alpha1.Con
 
 // NewCompositionRevisionReadinessCheck translates a composition's readiness
 // check to a composition revision readiness check.
-func NewCompositionRevisionReadinessCheck(rc v1.ReadinessCheck) v1alpha1.ReadinessCheck {
-	return v1alpha1.ReadinessCheck{
-		Type:         v1alpha1.ReadinessCheckType(rc.Type),
+func NewCompositionRevisionReadinessCheck(rc v1.ReadinessCheck) v1beta1.ReadinessCheck {
+	return v1beta1.ReadinessCheck{
+		Type:         v1beta1.ReadinessCheckType(rc.Type),
 		FieldPath:    rc.FieldPath,
 		MatchString:  rc.MatchString,
 		MatchInteger: rc.MatchInteger,

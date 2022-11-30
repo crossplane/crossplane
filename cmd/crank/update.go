@@ -40,7 +40,7 @@ type updateConfigCmd struct {
 }
 
 // Run runs the Configuration update cmd.
-func (c *updateConfigCmd) Run(k *kong.Context, logger logging.Logger) error { // nolint:gocyclo
+func (c *updateConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 	logger = logger.WithValues("Name", c.Name)
 	kubeConfig, err := ctrl.GetConfig()
 	if err != nil {
@@ -98,7 +98,7 @@ type updateProviderCmd struct {
 }
 
 // Run runs the Provider update cmd.
-func (c *updateProviderCmd) Run(k *kong.Context, logger logging.Logger) error { // nolint:gocyclo
+func (c *updateProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 	kubeConfig, err := ctrl.GetConfig()
 	if err != nil {
 		logger.Debug(errKubeConfig, "error", err)

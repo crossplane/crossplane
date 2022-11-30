@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package claim implements composite resource claims.
 package claim
 
 import (
@@ -319,9 +320,7 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 }
 
 // Reconcile a composite resource claim with a concrete composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): This method is well over our cyclomatic complexity goal.
-	// Be wary of adding additional complexity.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Complexity is tough to avoid here.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")

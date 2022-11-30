@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package composition creates composition revisions.
 package composition
 
 import (
@@ -38,7 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 const (
@@ -72,7 +73,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Composition{}).
-		Owns(&v1alpha1.CompositionRevision{}).
+		Owns(&v1beta1.CompositionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
@@ -120,9 +121,7 @@ type Reconciler struct {
 }
 
 // Reconcile a Composition.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
-	// NOTE(negz): This method is a little over our complexity goal. Be wary
-	// of making it more complex.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Only slightly over (12).
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -149,8 +148,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"spec-hash", currentHash,
 	)
 
-	rl := &v1alpha1.CompositionRevisionList{}
-	if err := r.client.List(ctx, rl, client.MatchingLabels{v1alpha1.LabelCompositionName: comp.GetName()}); err != nil {
+	rl := &v1beta1.CompositionRevisionList{}
+	if err := r.client.List(ctx, rl, client.MatchingLabels{v1beta1.LabelCompositionName: comp.GetName()}); err != nil {
 		log.Debug(errListRevs, "error", err)
 		r.record.Event(comp, event.Warning(reasonCreateRev, errors.Wrap(err, errListRevs)))
 		return reconcile.Result{}, errors.Wrap(err, errListRevs)
@@ -169,7 +168,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// This revision does not match our current Composition.
-		if rev.GetLabels()[v1alpha1.LabelCompositionHash] != currentHash[:63] {
+		if rev.GetLabels()[v1beta1.LabelCompositionHash] != currentHash[:63] {
 			continue
 		}
 

@@ -14,6 +14,7 @@ See the License for the specific language governing perimpliedions and
 limitations under the License.
 */
 
+// Package resolver implements the Crossplane Package Lock controller.
 package resolver
 
 import (
@@ -152,7 +153,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 }
 
 // Reconcile package revision.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are complex. Be wary of adding more.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
