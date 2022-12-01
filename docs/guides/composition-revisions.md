@@ -7,8 +7,7 @@ back changes to a Crossplane [`Composition`][composition-type]. It assumes
 familiarity with Crossplane, and particularly with
 [Composition][composition-term].
 
-> Composition Revisions are an __alpha feature__. They are not yet recommended
-> for production use, and are disabled by default.
+> Composition Revisions are a __beta feature__.
 
 A `Composition` configures how Crossplane should reconcile a Composite Resource
 (XR). Put otherwise, when you create an XR the selected `Composition` determines
@@ -39,23 +38,10 @@ update your XRs to leverage the latest `Composition` settings at your own pace.
 This enables you to [canary] changes to your infrastructure, or to roll back
 some XRs to previous `Composition` settings without rolling back all XRs.
 
-## Enabling Composition Revisions
-
-Composition Revisions are an alpha feature. They are not yet recommended for
-production use, and are disabled by default. Start Crossplane with the
-`--enable-composition-revisions` flag to enable Composition Revision support.
-
-```console
-kubectl create namespace crossplane-system
-helm install crossplane --namespace crossplane-system crossplane-stable/crossplane --set args='{--enable-composition-revisions}'
-```
-
-See the [getting started guide][install-guide] for more information on
-installing Crossplane.
 
 ## Using Composition Revisions
 
-When you enable Composition Revisions three things happen:
+When Composition Revisions are enabled three things happen:
 
 1. Crossplane creates a `CompositionRevision` for each `Composition` update.
 1. Composite Resources gain a `spec.compositionRevisionRef` field that specifies
@@ -69,12 +55,6 @@ that unique state. Each revision is allocated an increasing revision number.
 This gives `CompositionRevision` consumers an idea about which revision is
 'newest'.
 
-Crossplane distinguishes between the 'newest' and the 'current' revision of a
-`Composition`. That is, if you revert a `Composition` to a previous state that
-corresponds to an existing `CompositionRevision` that revision will become
-'current' even if it is not the 'newest' revision (i.e. the most latest _unique_
-`Composition` configuration).
-
 You can discover which revisions exist using `kubectl`:
 
 ```console
@@ -85,10 +65,10 @@ kubectl get compositionrevision -l crossplane.io/composition-name=example
 This should produce output something like:
 
 ```console
-NAME            REVISION   CURRENT   AGE
-example-18pdg   1          False     4m36s
-example-2bgdr   2          True      73s
-example-xjrdm   3          False     61s
+NAME            REVISION   AGE
+example-18pdgs2   1          4m36s
+example-2bgdr31   2          73s
+example-xjrdmzz   3          61s
 ```
 
 > A `Composition` is a mutable resource that you can update as your needs
@@ -100,11 +80,11 @@ enabled or not. This is because when you enable Composition Revisions all XRs
 default to the `Automatic` `compositionUpdatePolicy`. XRs support two update
 policies:
 
-* `Automatic`: Automatically use the current `CompositionRevision`. (Default)
+* `Automatic`: Automatically use the latest `CompositionRevision`. (Default)
 * `Manual`: Require manual intervention to change `CompositionRevision`.
 
 The below XR uses the `Manual` policy. When this policy is used the XR will
-select the current `CompositionRevision` when it is first created, but must
+select the latest `CompositionRevision` when it is first created, but must
 manually be updated when you wish it to use another `CompositionRevision`.
 
 ```yaml
@@ -116,7 +96,7 @@ spec:
   parameters:
     storageGB: 20
   # The Manual policy specifies that you do not want this XR to update to the
-  # current CompositionRevision automatically.
+  # latest CompositionRevision automatically.
   compositionUpdatePolicy: Manual
   compositionRef:
     name: example
@@ -145,6 +125,28 @@ spec:
     name: example-18pdg
   writeConnectionSecretToRef:
     name: db-conn
+```
+
+To implement channel-based deployments, you can use `compositionUpdatePolicy: Automatic`
+and `compositionRevisionSelector` fields. Each time you create or update a `Composition`, its labels
+will be propagated to the `CompositionRevision` that is created. You can use `matchLabels` in the
+composites to select the channel you want to listen and always use the latest `CompositionRevision` 
+that matches the selector.
+
+```yaml
+apiVersion: example.org/v1alpha1
+kind: PlatformDB
+metadata:
+   name: example
+spec:
+  parameters:
+    storageGB: 20
+  compositionUpdatePolicy: Automatic
+  compositionRevisionSelector:
+     matchLabels:
+       channel: prod
+   writeConnectionSecretToRef:
+     name: db-conn
 ```
 
 [composition-type]: {{<ref "../concepts/composition" >}}
