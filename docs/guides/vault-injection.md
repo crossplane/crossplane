@@ -93,13 +93,8 @@ The next steps will be executed in your local environment.
 exit
 ```
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+{{< tabs >}}
+{{< tab "GCP" >}}
 
 ## Create GCP Service Account
 
@@ -182,8 +177,8 @@ ahead and clean it up.
 rm tmp/creds.json
 ```
 
-</div>
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "AWS" >}}
 
 ## Create AWS IAM User
 
@@ -237,8 +232,8 @@ injecting it into the `provider-aws` controller `Pod`.
 vault kv put secret/provider-creds/aws-default access_key="$ACCESS_KEY_ID" secret_key="$AWS_SECRET_ACCESS_KEY"
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Create a Vault Policy for Reading Provider Credentials
 
@@ -279,13 +274,8 @@ The next steps will be executed in your local environment.
 exit
 ```
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade" id="gcp-tab-2" markdown="1">
+{{< tabs >}}
+{{< tab "GCP" >}}
 
 ## Install provider-gcp
 
@@ -390,8 +380,8 @@ command:
 kubectl get cloudsqlinstance -w
 ```
 
-</div>
-<div class="tab-pane fade in active" id="aws-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "AWS" >}}
 
 ## Install provider-aws
 
@@ -496,8 +486,8 @@ command:
 kubectl get bucket -w
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 <!-- named links -->
 

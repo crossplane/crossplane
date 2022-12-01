@@ -1,3 +1,6 @@
+---
+tocHidden: true
+---
 # Overview
 
 ![Crossplane](media/banner.png)
