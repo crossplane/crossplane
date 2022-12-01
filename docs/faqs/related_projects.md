@@ -75,7 +75,7 @@ plane.
 <!-- Named Links -->
 
 [Open Service Broker]: https://www.openservicebrokerapi.org/
-[Kubernetes Service Catalog]: https://kubernetes.io/docs/concepts/extend-kubernetes/service-catalog/
+[Kubernetes Service Catalog]: https://github.com/kubernetes-retired/service-catalog
 [GCP OSB]: https://cloud.google.com/kubernetes-engine/docs/concepts/google-cloud-platform-service-broker
 [GCP Config Connector]: https://github.com/GoogleCloudPlatform/k8s-config-connector
 [AWS Controllers for Kubernetes]: https://github.com/aws-controllers-k8s/community
