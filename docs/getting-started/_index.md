@@ -3,7 +3,8 @@ title: "Getting Started"
 weight: 1
 ---
 
-![Crossplane](/docs/v1.9/media/banner.png)
+{{< img src="../media/banner.png" alt="Crossplane Popsicle Truck" size="large" >}}
+
 
 Crossplane is an open source Kubernetes add-on that transforms your cluster into
 a **universal control plane**. Crossplane enables platform teams to assemble

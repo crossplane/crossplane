@@ -31,15 +31,8 @@ This means that we can create a `PostgreSQLInstance` XRC in the `default`
 namespace to provision a PostgreSQL instance and all the supporting
 infrastructure (VPCs, firewall rules, resource groups, etc) that it may need!
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS (Default VPC)</a></li>
-<li><a href="#aws-new-tab-2" data-toggle="tab">AWS (New VPC)</a></li>
-<li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-2" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-2" markdown="1">
+{{< tabs >}}
+{{< tab "AWS (Default VPC)" >}}
 
 > Note that this resource will create an RDS instance using your default VPC,
 > which may or may not allow connections from the internet depending on how it
@@ -66,8 +59,8 @@ spec:
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.9/docs/snippets/compose/claim-aws.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="aws-new-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "AWS (New VPC)" >}}
 
 > Note that this resource also includes several networking managed resources
 > that are required to provision a publicly available PostgreSQL instance.
@@ -95,8 +88,8 @@ spec:
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.9/docs/snippets/compose/claim-aws.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="gcp-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "GCP" >}}
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
@@ -118,8 +111,8 @@ spec:
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.9/docs/snippets/compose/claim-gcp.yaml
 ```
 
-</div>
-<div class="tab-pane fade" id="azure-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "Azure" >}}
 
 ```yaml
 apiVersion: database.example.org/v1alpha1
@@ -141,8 +134,8 @@ spec:
 kubectl apply -f https://raw.githubusercontent.com/crossplane/crossplane/release-1.9/docs/snippets/compose/claim-azure.yaml
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 After creating the `PostgreSQLInstance` Crossplane will begin provisioning a
 database instance on your provider of choice. Once provisioning is complete, you
