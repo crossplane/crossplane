@@ -14,7 +14,7 @@ set -e
 FROM_PATH=${1}
 TO_DIR=${2}
 
-DO_NOT_EDIT="// Generated from ${FROM_PATH} by hack/duplicate_type.sh. DO NOT EDIT."
+DO_NOT_EDIT="// Generated from ${FROM_PATH} by ${0}. DO NOT EDIT."
 
 FROM_DIR=$(dirname ${FROM_PATH})
 FROM_FILE=$(basename ${FROM_PATH})
