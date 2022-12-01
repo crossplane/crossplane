@@ -26,7 +26,7 @@ which expect input parameters that could be sensitive. Initial password of a
 managed database is a good example of this category.
 
 It is already possible to use Vault for the 1st category (i.e. Provider
-Credentials) as described in [the previous guide]. 3rd use case is a relatively
+Credentials) as described in [the previous guide]. The 3rd use case is relatively
 rare and being tracked with [this issue].
 
 In this guide we will focus on the 2nd category, which is storing Connection
