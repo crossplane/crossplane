@@ -59,26 +59,44 @@ repository](https://github.com/crossplane/crossplane) `/docs` directory.
 Build the Crossplane documentation site locally for development and
 testing. 
 
-#### Clone the documentation site
-Clone the [documentation
-repository](https://github.com/crossplane/crossplane.github.io) with
+#### Clone the Crossplane repository
+Clone the [crossplane
+repository](https://github.com/crossplane/crossplane) with
 
 ```command
-git clone https://github.com/crossplane/crossplane.github.io.git
+git clone https://github.com/crossplane/crossplane.git
 ```
 
-#### Download the Hugo static site generator
-Crossplane uses [Hugo](https://github.com/gohugoio/hugo), a static site
-generator. 
+#### Install Make
 
-Download a Hugo v0.101.0 or later from the [Hugo
-releases](https://github.com/gohugoio/hugo/releases/tag/v0.106.0).
+{{< tabs >}}
 
-#### Build the Crossplane documentation
-From the `crossplane.github.io` folder run 
+{{< tab "MacOS" >}}
+Install `make` with [Homebrew](https://formulae.brew.sh/formula/make).
 
 ```command
-hugo server
+brew install make
+```
+{{< /tab >}}
+
+{{<tab "Linux" >}}
+Most Linux distributions include `make` by default. For more information on
+`make` for Linux, visit the [GNU make
+website](https://www.gnu.org/software/make/).
+
+{{< /tab >}}
+
+{{<tab "Windows" >}}
+Currently the Crossplane build system does not support Windows.
+{{< /tab >}}
+
+{{< /tabs >}}
+
+#### Build the Crossplane documentation
+From the `crossplane` folder run
+
+```command
+make docs.run
 ```
 
 Hugo builds the website and launch a local web server on
@@ -88,14 +106,8 @@ Any changes made are instantly reflected on the local web server. You
 don't need to restart Hugo.
 
 ### Contribute to a specific version
-The documentation location for the various Crossplane versions are different 
-for the Crossplane source and docs website.
-
-#### Crossplane repository
 In the [crossplane/crossplane](https://github.com/crossplane/crossplane)
-repository documentation is in the `/docs` directory.
-
-Each active release has a `/docs` folder in a branch called
+each active release has a `/docs` folder in a branch called
 `release-<version>`. For example, v1.10 docs are in the branch
 [release-1.10](https://github.com/crossplane/crossplane/tree/release-1.10).
 
@@ -103,12 +115,6 @@ To contribute to a specific release submit a pull-request to the
 `release-<version>` or `master` branch.
 
 The next Crossplane release uses `master` as the starting documentation.
-
-#### Website repository
-The [docs website
-repository](https://github.com/crossplane/crossplane.github.io) combines all
-active versions in the `/content` directory. 
-
 ## Style guidelines
 The official Crossplane documentation style guide is still under construction.
 Guiding principals for the documentation include:
