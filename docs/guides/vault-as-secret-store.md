@@ -146,7 +146,8 @@ helm repo add crossplane-stable https://charts.crossplane.io/stable --force-upda
 
 
 cat << EOF > values.yaml
-enable-external-secret-stores: true
+args:
+- --enable-external-secret-stores
 customAnnotations:
   vault.hashicorp.com/agent-inject-token: "true"
   vault.hashicorp.com/role: "crossplane"
