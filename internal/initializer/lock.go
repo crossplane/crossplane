@@ -24,8 +24,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 const (
@@ -42,7 +41,7 @@ type LockObject struct{}
 
 // Run makes sure Lock object exists.
 func (lo *LockObject) Run(ctx context.Context, kube client.Client) error {
-	l := &v1alpha1.Lock{
+	l := &v1beta1.Lock{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "lock",
 		},

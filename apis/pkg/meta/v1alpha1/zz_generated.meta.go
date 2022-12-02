@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Generated from pkg/meta/v1/meta.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+
 package v1alpha1
 
 // MetaSpec are fields that every meta package type must implement.

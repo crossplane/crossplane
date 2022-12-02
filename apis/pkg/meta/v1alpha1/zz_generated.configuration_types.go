@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+// Generated from pkg/meta/v1/configuration_types.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +28,6 @@ type ConfigurationSpec struct {
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 
 // A Configuration is the description of a Crossplane Configuration package.
 type Configuration struct {

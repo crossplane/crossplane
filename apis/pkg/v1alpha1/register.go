@@ -48,15 +48,6 @@ var (
 	ControllerConfigGroupVersionKind = SchemeGroupVersion.WithKind(ControllerConfigKind)
 )
 
-// Lock type metadata.
-var (
-	LockKind             = reflect.TypeOf(Lock{}).Name()
-	LockGroupKind        = schema.GroupKind{Group: Group, Kind: LockKind}.String()
-	LockKindAPIVersion   = LockKind + "." + SchemeGroupVersion.String()
-	LockGroupVersionKind = SchemeGroupVersion.WithKind(LockKind)
-)
-
 func init() {
 	SchemeBuilder.Register(&ControllerConfig{}, &ControllerConfigList{})
-	SchemeBuilder.Register(&Lock{}, &LockList{})
 }

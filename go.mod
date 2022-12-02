@@ -10,6 +10,7 @@ require (
 	github.com/google/go-containerregistry v0.9.0
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220517194345-84eb52633e96
 	github.com/imdario/mergo v0.3.12
+	github.com/jmattheis/goverter v0.10.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/afero v1.8.0
@@ -57,6 +58,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20220327082430-c57b701bfc08 // indirect
 	github.com/containerd/stargz-snapshotter/estargz v0.11.4 // indirect
+	github.com/dave/jennifer v1.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/docker/cli v20.10.16+incompatible // indirect
@@ -142,7 +144,7 @@ require (
 	golang.org/x/term v0.0.0-20220411215600-e5f449aeb171 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
-	golang.org/x/tools v0.1.10 // indirect
+	golang.org/x/tools v0.1.11-0.20220413170336-afc6aad76eb1 // indirect
 	golang.org/x/xerrors v0.0.0-20220411194840-2f41105eb62f // indirect
 	gomodules.xyz/jsonpatch/v2 v2.2.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

@@ -198,6 +198,16 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	return AsComposition(current), nil
 }
 
+// AsComposition creates a new composition from the supplied revision. It
+// exists only as a temporary translation layer to allow us to introduce the
+// alpha CompositionRevision type with minimal changes to the XR reconciler.
+// Once CompositionRevision leaves alpha this code should be removed and the XR
+// reconciler should operate on CompositionRevisions instead.
+func AsComposition(cr *v1beta1.CompositionRevision) *v1.Composition {
+	conv := &v1.GeneratedRevisionSpecConverter{}
+	return &v1.Composition{Spec: conv.FromRevisionSpec(cr.Spec)}
+}
+
 func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1beta1.CompositionRevisionList, error) {
 	rl := &v1beta1.CompositionRevisionList{}
 	ml := client.MatchingLabels{}
