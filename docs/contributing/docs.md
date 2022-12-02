@@ -30,11 +30,11 @@ Crossplane documentation lives in two repositories:
 repository](https://github.com/crossplane/crossplane) `/docs` directory. 
 
 * The Crossplane docs website is in the
-  [crossplane.github.io](https://github.com/crossplane/crossplane.github.io)
+  [docs](https://github.com/crossplane/docs)
 repository.
 
 Use `crossplane/crossplane` for documentation contributions.  
-Use `crossplane/crossplane.github.io` for local development or updates involving
+Use `crossplane/docs` for local development or updates involving
 HTML, CSS or Hugo.
 
 ### Licensing
@@ -369,7 +369,7 @@ matter of the page. The docs website skips pages with `tocHidden:true` when buil
 
 ## Docs website
 The Crossplane document website is in a unique [website GitHub
-repository](https://github.com/crossplane/crossplane.github.io).
+repository](https://github.com/crossplane/docs).
 
 Crossplane uses [Hugo](https://gohugo.io/), a static site generator. Hugo
 influences the directory structure of the website repository.
