@@ -92,7 +92,6 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
 			},
-			Description: "Alpha: This field may be deprecated or changed without notice.",
 		},
 		"compositionRevisionSelector": {
 			Type:     "object",
@@ -106,7 +105,6 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 					},
 				},
 			},
-			Description: "Alpha: This field may be deprecated or changed without notice.",
 		},
 		"compositionUpdatePolicy": {
 			Type: "string",
@@ -114,8 +112,7 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Automatic"`)},
 				{Raw: []byte(`"Manual"`)},
 			},
-			Default:     &extv1.JSON{Raw: []byte(`"Automatic"`)},
-			Description: "Alpha: This field may be deprecated or changed without notice.",
+			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
 		"claimRef": {
 			Type:     "object",
@@ -234,7 +231,6 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 					},
 				},
 			},
-			Description: "Alpha: This field may be deprecated or changed without notice.",
 		},
 		"compositionUpdatePolicy": {
 			Type: "string",
