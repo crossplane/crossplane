@@ -54,7 +54,7 @@ examples of each step.
 [registry.upbound.io]: https://cloud.upbound.io/browse
 [new release]: https://github.com/crossplane/crossplane/releases/new
 [releases table]: https://github.com/crossplane/crossplane#releases
-[Crossplane docs website repo]: https://github.com/crossplane/crossplane.github.io
+[Crossplane docs website repo]: https://github.com/crossplane/docs
 [docs removal directive]: https://github.com/crossplane/crossplane/pull/3003
 [tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
