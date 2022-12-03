@@ -20,9 +20,6 @@ spec:
     - jsonPath: .spec.revision
       name: REVISION
       type: string
-    - jsonPath: .status.conditions[?(@.type=='Current')].status
-      name: CURRENT
-      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
