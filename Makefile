@@ -106,7 +106,7 @@ generate.done: crds.clean
 
 gen-install-doc:
 	@$(INFO) Generating install documentation from Helm chart
-	@head -7 docs/reference/install.md | cat - cluster/charts/crossplane/README.md > reference-install.tmp
+	@head -4 docs/reference/install.md | cat - cluster/charts/crossplane/README.md > reference-install.tmp
 	@mv reference-install.tmp docs/reference/install.md
 	@$(OK) Successfully generated install documentation
 

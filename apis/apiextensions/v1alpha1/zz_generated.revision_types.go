@@ -621,7 +621,6 @@ type CompositionRevisionStatus struct {
 // A CompositionRevision represents a revision in time of a Composition.
 // Revisions are created by Crossplane; they should be treated as immutable.
 // +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
-// +kubebuilder:printcolumn:name="CURRENT",type="string",JSONPath=".status.conditions[?(@.type=='Current')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
 // +kubebuilder:subresource:status
