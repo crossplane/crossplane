@@ -156,7 +156,7 @@ this is a code block
 ```
 ````
 
-Only use single backtick (`` ` ``) for commands used in a sentence. 
+Only use a single backtick (`` ` ``) for commands used in a sentence. 
 
 For example, the command `kubectl apply` is inside a sentence. 
 
