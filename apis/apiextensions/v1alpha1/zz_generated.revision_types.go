@@ -343,7 +343,7 @@ const (
 type Transform struct {
 
 	// Type of the transform to be run.
-	// +kubebuilder:validation:Enum=map;math;string;convert
+	// +kubebuilder:validation:Enum=map;match;math;string;convert
 	// +immutable
 	Type TransformType `json:"type"`
 
