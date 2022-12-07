@@ -320,6 +320,7 @@ spec:
                                   description: Type of the transform to be run.
                                   enum:
                                   - map
+                                  - match
                                   - math
                                   - string
                                   - convert
@@ -681,6 +682,7 @@ spec:
                                   description: Type of the transform to be run.
                                   enum:
                                   - map
+                                  - match
                                   - math
                                   - string
                                   - convert
@@ -1107,6 +1109,7 @@ spec:
                                   description: Type of the transform to be run.
                                   enum:
                                   - map
+                                  - match
                                   - math
                                   - string
                                   - convert
@@ -1468,6 +1471,7 @@ spec:
                                   description: Type of the transform to be run.
                                   enum:
                                   - map
+                                  - match
                                   - math
                                   - string
                                   - convert

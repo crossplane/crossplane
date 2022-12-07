@@ -80,7 +80,7 @@ const (
 type Transform struct {
 
 	// Type of the transform to be run.
-	// +kubebuilder:validation:Enum=map;math;string;convert
+	// +kubebuilder:validation:Enum=map;match;math;string;convert
 	Type TransformType `json:"type"`
 
 	// Math is used to transform the input via mathematical operations such as
