@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
-// Hash of the CompositionSpec.
+// Hash of the Composition.
 func (c Composition) Hash() string {
 	h := sha256.New()
 

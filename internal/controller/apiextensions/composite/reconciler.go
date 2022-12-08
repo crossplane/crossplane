@@ -484,7 +484,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Inline PatchSets from Composition Spec before composing resources.
-	ct, err := comp.Spec.ComposedTemplates()
+	ct, err := ComposedTemplates(comp.Spec)
 	if err != nil {
 		log.Debug(errInline, "error", err)
 		err = errors.Wrap(err, errInline)

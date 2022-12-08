@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2022 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package composite
 
 import (
 	"encoding/json"
@@ -22,11 +22,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/pkg/errors"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/utils/pointer"
 
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 func TestMapResolve(t *testing.T) {
@@ -43,7 +45,7 @@ func TestMapResolve(t *testing.T) {
 	}
 
 	type args struct {
-		m map[string]extv1.JSON
+		t v1.MapTransform
 		i any
 	}
 	type want struct {
@@ -73,7 +75,7 @@ func TestMapResolve(t *testing.T) {
 		},
 		"SuccessString": {
 			args: args{
-				m: map[string]extv1.JSON{"ola": asJSON("voila")},
+				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON("voila")}},
 				i: "ola",
 			},
 			want: want{
@@ -82,7 +84,7 @@ func TestMapResolve(t *testing.T) {
 		},
 		"SuccessNumber": {
 			args: args{
-				m: map[string]extv1.JSON{"ola": asJSON(1.0)},
+				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON(1.0)}},
 				i: "ola",
 			},
 			want: want{
@@ -91,7 +93,7 @@ func TestMapResolve(t *testing.T) {
 		},
 		"SuccessBoolean": {
 			args: args{
-				m: map[string]extv1.JSON{"ola": asJSON(true)},
+				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON(true)}},
 				i: "ola",
 			},
 			want: want{
@@ -100,9 +102,7 @@ func TestMapResolve(t *testing.T) {
 		},
 		"SuccessObject": {
 			args: args{
-				m: map[string]extv1.JSON{
-					"ola": asJSON(map[string]interface{}{"foo": "bar"}),
-				},
+				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON(map[string]interface{}{"foo": "bar"})}},
 				i: "ola",
 			},
 			want: want{
@@ -111,9 +111,7 @@ func TestMapResolve(t *testing.T) {
 		},
 		"SuccessSlice": {
 			args: args{
-				m: map[string]extv1.JSON{
-					"ola": asJSON([]string{"foo", "bar"}),
-				},
+				t: v1.MapTransform{Pairs: map[string]extv1.JSON{"ola": asJSON([]string{"foo", "bar"})}},
 				i: "ola",
 			},
 			want: want{
@@ -123,7 +121,7 @@ func TestMapResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&MapTransform{Pairs: tc.m}).Resolve(tc.i)
+			got, err := ResolveMap(tc.t, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -149,7 +147,7 @@ func TestMatchResolve(t *testing.T) {
 	}
 
 	type args struct {
-		m MatchTransform
+		t v1.MatchTransform
 		i any
 	}
 	type want struct {
@@ -163,10 +161,10 @@ func TestMatchResolve(t *testing.T) {
 	}{
 		"ErrNonStringInput": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("5"),
 						},
 					},
@@ -179,8 +177,8 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"NoPatternsFallback": {
 			args: args{
-				m: MatchTransform{
-					Patterns:      []MatchTransformPattern{},
+				t: v1.MatchTransform{
+					Patterns:      []v1.MatchTransformPattern{},
 					FallbackValue: asJSON("bar"),
 				},
 				i: "foo",
@@ -191,8 +189,8 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"NoPatternsFallbackNil": {
 			args: args{
-				m: MatchTransform{
-					Patterns:      []MatchTransformPattern{},
+				t: v1.MatchTransform{
+					Patterns:      []v1.MatchTransformPattern{},
 					FallbackValue: asJSON(nil),
 				},
 				i: "foo",
@@ -201,10 +199,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteral": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result:  asJSON("bar"),
 						},
@@ -218,15 +216,15 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteralFirst": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result:  asJSON("bar"),
 						},
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result:  asJSON("not this"),
 						},
@@ -240,10 +238,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteralWithResultStruct": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result: asJSON(map[string]interface{}{
 								"Hello": "World",
@@ -261,10 +259,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteralWithResultSlice": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result: asJSON([]string{
 								"Hello", "World",
@@ -282,10 +280,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteralWithResultNumber": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result:  asJSON(5),
 						},
@@ -299,10 +297,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteralWithResultBool": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result:  asJSON(true),
 						},
@@ -316,10 +314,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchLiteralWithResultNil": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:    MatchTransformPatternTypeLiteral,
+							Type:    v1.MatchTransformPatternTypeLiteral,
 							Literal: pointer.String("foo"),
 							Result:  asJSON(nil),
 						},
@@ -331,10 +329,10 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"MatchRegexp": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:   MatchTransformPatternTypeRegexp,
+							Type:   v1.MatchTransformPatternTypeRegexp,
 							Regexp: pointer.String("^foo.*$"),
 							Result: asJSON("Hello World"),
 						},
@@ -348,24 +346,24 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"ErrMissingRegexp": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type: MatchTransformPatternTypeRegexp,
+							Type: v1.MatchTransformPatternTypeRegexp,
 						},
 					},
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "regexp", string(MatchTransformPatternTypeRegexp)), errFmtMatchPattern, 0),
+				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "regexp", string(v1.MatchTransformPatternTypeRegexp)), errFmtMatchPattern, 0),
 			},
 		},
 		"ErrInvalidRegexp": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type:   MatchTransformPatternTypeRegexp,
+							Type:   v1.MatchTransformPatternTypeRegexp,
 							Regexp: pointer.String("?="),
 						},
 					},
@@ -379,22 +377,22 @@ func TestMatchResolve(t *testing.T) {
 		},
 		"ErrMissingLiteral": {
 			args: args{
-				m: MatchTransform{
-					Patterns: []MatchTransformPattern{
+				t: v1.MatchTransform{
+					Patterns: []v1.MatchTransformPattern{
 						{
-							Type: MatchTransformPatternTypeLiteral,
+							Type: v1.MatchTransformPatternTypeLiteral,
 						},
 					},
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "literal", string(MatchTransformPatternTypeLiteral)), errFmtMatchPattern, 0),
+				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "literal", string(v1.MatchTransformPatternTypeLiteral)), errFmtMatchPattern, 0),
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := tc.args.m.Resolve(tc.i)
+			got, err := ResolveMatch(tc.args.t, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -460,7 +458,8 @@ func TestMathResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&MathTransform{Multiply: tc.multiplier}).Resolve(tc.i)
+			tr := v1.MathTransform{Multiply: tc.multiplier}
+			got, err := ResolveMath(tr, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -475,11 +474,11 @@ func TestMathResolve(t *testing.T) {
 func TestStringResolve(t *testing.T) {
 
 	type args struct {
-		stype   StringTransformType
+		stype   v1.StringTransformType
 		fmts    *string
-		convert *StringConversionType
+		convert *v1.StringConversionType
 		trim    *string
-		regexp  *StringTransformRegexp
+		regexp  *v1.StringTransformRegexp
 		i       any
 	}
 	type want struct {
@@ -489,7 +488,7 @@ func TestStringResolve(t *testing.T) {
 	sFmt := "verycool%s"
 	iFmt := "the largest %d"
 
-	var upper, lower, tobase64, frombase64, wrongConvertType StringConversionType = StringConversionTypeToUpper, StringConversionTypeToLower, StringConversionTypeToBase64, StringConversionTypeFromBase64, "Something"
+	var upper, lower, tobase64, frombase64, wrongConvertType v1.StringConversionType = v1.StringConversionTypeToUpper, v1.StringConversionTypeToLower, v1.StringConversionTypeToBase64, v1.StringConversionTypeFromBase64, "Something"
 
 	prefix := "https://"
 	suffix := "-test"
@@ -509,16 +508,16 @@ func TestStringResolve(t *testing.T) {
 		},
 		"FmtFailed": {
 			args: args{
-				stype: StringTransformTypeFormat,
+				stype: v1.StringTransformTypeFormat,
 				i:     "value",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypeFormat, string(StringTransformTypeFormat)),
+				err: errors.Errorf(errStringTransformTypeFormat, string(v1.StringTransformTypeFormat)),
 			},
 		},
 		"FmtString": {
 			args: args{
-				stype: StringTransformTypeFormat,
+				stype: v1.StringTransformTypeFormat,
 				fmts:  &sFmt,
 				i:     "thing",
 			},
@@ -528,7 +527,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"FmtInteger": {
 			args: args{
-				stype: StringTransformTypeFormat,
+				stype: v1.StringTransformTypeFormat,
 				fmts:  &iFmt,
 				i:     8,
 			},
@@ -538,16 +537,16 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertNotSet": {
 			args: args{
-				stype: StringTransformTypeConvert,
+				stype: v1.StringTransformTypeConvert,
 				i:     "crossplane",
 			},
 			want: want{
-				err: errors.Errorf(errStringTransformTypeConvert, string(StringTransformTypeConvert)),
+				err: errors.Errorf(errStringTransformTypeConvert, string(v1.StringTransformTypeConvert)),
 			},
 		},
 		"ConvertTypFailed": {
 			args: args{
-				stype:   StringTransformTypeConvert,
+				stype:   v1.StringTransformTypeConvert,
 				convert: &wrongConvertType,
 				i:       "crossplane",
 			},
@@ -557,7 +556,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertToUpper": {
 			args: args{
-				stype:   StringTransformTypeConvert,
+				stype:   v1.StringTransformTypeConvert,
 				convert: &upper,
 				i:       "crossplane",
 			},
@@ -567,7 +566,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertToLower": {
 			args: args{
-				stype:   StringTransformTypeConvert,
+				stype:   v1.StringTransformTypeConvert,
 				convert: &lower,
 				i:       "CrossPlane",
 			},
@@ -577,7 +576,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertToBase64": {
 			args: args{
-				stype:   StringTransformTypeConvert,
+				stype:   v1.StringTransformTypeConvert,
 				convert: &tobase64,
 				i:       "CrossPlane",
 			},
@@ -587,7 +586,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertFromBase64": {
 			args: args{
-				stype:   StringTransformTypeConvert,
+				stype:   v1.StringTransformTypeConvert,
 				convert: &frombase64,
 				i:       "Q3Jvc3NQbGFuZQ==",
 			},
@@ -597,18 +596,18 @@ func TestStringResolve(t *testing.T) {
 		},
 		"ConvertFromBase64Error": {
 			args: args{
-				stype:   StringTransformTypeConvert,
+				stype:   v1.StringTransformTypeConvert,
 				convert: &frombase64,
 				i:       "ThisStringIsNotBase64",
 			},
 			want: want{
 				o:   "N\x18\xacJ\xda\xe2\x9e\x02,6\x8bAjǺ",
-				err: errors.WithStack(errors.New(errDecodeString + ": illegal base64 data at input byte 20")),
+				err: errors.Wrap(errors.New("illegal base64 data at input byte 20"), errDecodeString),
 			},
 		},
 		"TrimPrefix": {
 			args: args{
-				stype: StringTransformTypeTrimPrefix,
+				stype: v1.StringTransformTypeTrimPrefix,
 				trim:  &prefix,
 				i:     "https://crossplane.io",
 			},
@@ -618,7 +617,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimSuffix": {
 			args: args{
-				stype: StringTransformTypeTrimSuffix,
+				stype: v1.StringTransformTypeTrimSuffix,
 				trim:  &suffix,
 				i:     "my-string-test",
 			},
@@ -628,7 +627,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimPrefixWithoutMatch": {
 			args: args{
-				stype: StringTransformTypeTrimPrefix,
+				stype: v1.StringTransformTypeTrimPrefix,
 				trim:  &prefix,
 				i:     "crossplane.io",
 			},
@@ -638,7 +637,7 @@ func TestStringResolve(t *testing.T) {
 		},
 		"TrimSuffixWithoutMatch": {
 			args: args{
-				stype: StringTransformTypeTrimSuffix,
+				stype: v1.StringTransformTypeTrimSuffix,
 				trim:  &suffix,
 				i:     "my-string",
 			},
@@ -648,8 +647,8 @@ func TestStringResolve(t *testing.T) {
 		},
 		"RegexpNotCompiling": {
 			args: args{
-				stype: StringTransformTypeRegexp,
-				regexp: &StringTransformRegexp{
+				stype: v1.StringTransformTypeRegexp,
+				regexp: &v1.StringTransformRegexp{
 					Match: "[a-z",
 				},
 				i: "my-string",
@@ -660,8 +659,8 @@ func TestStringResolve(t *testing.T) {
 		},
 		"RegexpSimpleMatch": {
 			args: args{
-				stype: StringTransformTypeRegexp,
-				regexp: &StringTransformRegexp{
+				stype: v1.StringTransformTypeRegexp,
+				regexp: &v1.StringTransformRegexp{
 					Match: "[0-9]",
 				},
 				i: "my-1-string",
@@ -672,8 +671,8 @@ func TestStringResolve(t *testing.T) {
 		},
 		"RegexpCaptureGroup": {
 			args: args{
-				stype: StringTransformTypeRegexp,
-				regexp: &StringTransformRegexp{
+				stype: v1.StringTransformTypeRegexp,
+				regexp: &v1.StringTransformRegexp{
 					Match: "my-([0-9]+)-string",
 					Group: pointer.Int(1),
 				},
@@ -685,8 +684,8 @@ func TestStringResolve(t *testing.T) {
 		},
 		"RegexpNoSuchCaptureGroup": {
 			args: args{
-				stype: StringTransformTypeRegexp,
-				regexp: &StringTransformRegexp{
+				stype: v1.StringTransformTypeRegexp,
+				regexp: &v1.StringTransformRegexp{
 					Match: "my-([0-9]+)-string",
 					Group: pointer.Int(2),
 				},
@@ -699,12 +698,15 @@ func TestStringResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&StringTransform{Type: tc.stype,
+
+			tr := v1.StringTransform{Type: tc.stype,
 				Format:  tc.fmts,
 				Convert: tc.convert,
 				Trim:    tc.trim,
 				Regexp:  tc.regexp,
-			}).Resolve(tc.i)
+			}
+
+			got, err := ResolveString(tr, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
@@ -718,7 +720,7 @@ func TestStringResolve(t *testing.T) {
 
 func TestConvertResolve(t *testing.T) {
 	type args struct {
-		ot string
+		to string
 		i  any
 	}
 	type want struct {
@@ -733,7 +735,7 @@ func TestConvertResolve(t *testing.T) {
 		"StringToBool": {
 			args: args{
 				i:  "true",
-				ot: ConvertTransformTypeBool,
+				to: v1.ConvertTransformTypeBool,
 			},
 			want: want{
 				o: true,
@@ -742,7 +744,7 @@ func TestConvertResolve(t *testing.T) {
 		"SameTypeNoOp": {
 			args: args{
 				i:  true,
-				ot: ConvertTransformTypeBool,
+				to: v1.ConvertTransformTypeBool,
 			},
 			want: want{
 				o: true,
@@ -751,7 +753,7 @@ func TestConvertResolve(t *testing.T) {
 		"IntAliasToInt64": {
 			args: args{
 				i:  int64(1),
-				ot: ConvertTransformTypeInt,
+				to: v1.ConvertTransformTypeInt,
 			},
 			want: want{
 				o: int64(1),
@@ -760,7 +762,7 @@ func TestConvertResolve(t *testing.T) {
 		"InputTypeNotSupported": {
 			args: args{
 				i:  []int{64},
-				ot: ConvertTransformTypeString,
+				to: v1.ConvertTransformTypeString,
 			},
 			want: want{
 				err: errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String()),
@@ -769,7 +771,7 @@ func TestConvertResolve(t *testing.T) {
 		"ConversionPairNotSupported": {
 			args: args{
 				i:  "[64]",
-				ot: "[]int",
+				to: "[]int",
 			},
 			want: want{
 				err: errors.Errorf(errFmtConversionPairNotSupported, "string", "[]int"),
@@ -778,7 +780,8 @@ func TestConvertResolve(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := (&ConvertTransform{ToType: tc.args.ot}).Resolve(tc.i)
+			tr := v1.ConvertTransform{ToType: tc.args.to}
+			got, err := ResolveConvert(tr, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
