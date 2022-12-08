@@ -142,6 +142,68 @@ definitions](https://github.com/upbound/vale) for style guidelines.
 Beyond Vale, Crossplane recommends [Grammarly](https://www.grammarly.com/) and [Hemingway
 Editor](https://hemingwayapp.com/) to improve writing quality.
 
+### Code examples
+
+#### Fenced code blocks
+Use Markdown [fenced code
+blocks](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks) with
+three backticks (` ``` `) for
+all command examples and outputs.
+
+````markdown
+```
+this is a code block
+```
+````
+
+Only use a single backtick (`` ` ``) for commands used in a sentence. 
+
+For example, the command `kubectl apply` is inside a sentence. 
+
+#### Syntax highlighting
+Hugo attempts to determine the language and apply proper highlighting, but it's
+not always optimized for readability. 
+
+For example, this YAML output isn't automatically detected.
+```
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresqlinstances.database.example.org
+```
+
+All code blocks must include a language definition on the same line as the backticks.
+````yaml
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xpostgresqlinstances.database.example.org
+```
+````
+
+Find a [full list of supported languages](https://github.com/alecthomas/chroma/#supported-languages) in the Chroma documentation.
+
+The language definition should optimize for display and not technical correctness.
+
+For example, this uses the `shell` highlighter.
+
+```shell
+cat test.yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+
+Using the `yaml` highlighter provides improved readability. 
+```yaml
+cat test.yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
 ## Docs site styling features
 The Crossplane documentation supports multiple styling features to improve
 readability.
