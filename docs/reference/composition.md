@@ -756,7 +756,7 @@ field within that resource matches a specified integer.
 ```yaml
 # The composed resource will be considered ready when the 'state' status field
 # matches the integer 4.
-- type: MatchString
+- type: MatchInteger
   fieldPath: status.atProvider.state
   matchInteger: 4
 ```
