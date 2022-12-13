@@ -149,6 +149,7 @@ cat << EOF > values.yaml
 args:
 - --enable-external-secret-stores
 customAnnotations:
+  vault.hashicorp.com/agent-inject: "true"
   vault.hashicorp.com/agent-inject-token: "true"
   vault.hashicorp.com/role: "crossplane"
   vault.hashicorp.com/agent-run-as-user: "65532"
