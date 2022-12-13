@@ -17,15 +17,17 @@ limitations under the License.
 package composition
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha2"
 )
 
 func TestNewCompositionRevision(t *testing.T) {
@@ -35,18 +37,20 @@ func TestNewCompositionRevision(t *testing.T) {
 		},
 	}
 
+	compManifest, _ := json.Marshal(comp)
+
 	var (
 		rev  int64 = 1
 		hash       = "1af1dfa857bf1d8814fe1af8983c18080019922e557f15a8a0d3db739d77aacb"
 	)
 
 	ctrl := true
-	want := &v1beta1.CompositionRevision{
+	want := &v1alpha2.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", comp.GetName(), hash[0:7]),
 			Labels: map[string]string{
-				v1beta1.LabelCompositionName: comp.GetName(),
-				v1beta1.LabelCompositionHash: hash[0:63],
+				v1alpha2.LabelCompositionName: comp.GetName(),
+				v1alpha2.LabelCompositionHash: hash[0:63],
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion:         v1.SchemeGroupVersion.String(),
@@ -60,12 +64,15 @@ func TestNewCompositionRevision(t *testing.T) {
 		// type. We don't want to test generated code, and we've historically
 		// demonstrated that it's tough to remember to update these conversion
 		// tests when new fields are added to a type.
-		Spec: v1beta1.CompositionRevisionSpec{
+		Spec: v1alpha2.CompositionRevisionSpec{
 			Revision: rev,
+			Composition: extv1.JSON{
+				Raw: compManifest,
+			},
 		},
 	}
 
-	got := NewCompositionRevision(comp, rev, hash)
+	got, _ := NewCompositionRevision(comp, rev, hash)
 	if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("NewCompositionRevision(): -want, +got:\n%s", diff)
 	}

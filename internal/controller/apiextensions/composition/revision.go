@@ -17,29 +17,53 @@ limitations under the License.
 package composition
 
 import (
+	"encoding/json"
 	"fmt"
 
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	"github.com/pkg/errors"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha2"
+)
+
+const (
+	errMarshalComposition = "cannot marshal composition"
 )
 
 // NewCompositionRevision creates a new revision of the supplied Composition.
-func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) *v1beta1.CompositionRevision {
-	cr := &v1beta1.CompositionRevision{
+func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) (*v1alpha2.CompositionRevision, error) {
+	cr := &v1alpha2.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", c.GetName(), compSpecHash[0:7]),
 			Labels: map[string]string{
-				v1beta1.LabelCompositionName: c.GetName(),
+				v1alpha2.LabelCompositionName: c.GetName(),
 				// We cannot have a label value longer than 63 chars
 				// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
-				v1beta1.LabelCompositionHash: compSpecHash[0:63],
+				v1alpha2.LabelCompositionHash: compSpecHash[0:63],
 			},
 		},
-		Spec: NewCompositionRevisionSpec(c.Spec, revision),
+	}
+
+	comp := v1.Composition{}
+	comp.SetGroupVersionKind(c.GroupVersionKind())
+	comp.SetName(c.GetName())
+	comp.SetLabels(c.GetLabels())
+	comp.SetAnnotations(c.GetAnnotations())
+	c.Spec.DeepCopyInto(&comp.Spec)
+
+	manifest, err := json.Marshal(comp)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalComposition)
+	}
+	cr.Spec = v1alpha2.CompositionRevisionSpec{
+		Revision: revision,
+		Composition: extv1.JSON{
+			Raw: manifest,
+		},
 	}
 
 	ref := meta.TypedReferenceTo(c, v1.CompositionGroupVersionKind)
@@ -49,14 +73,5 @@ func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash stri
 		cr.ObjectMeta.Labels[k] = v
 	}
 
-	return cr
-}
-
-// NewCompositionRevisionSpec translates a composition's spec to a composition
-// revision spec.
-func NewCompositionRevisionSpec(cs v1.CompositionSpec, revision int64) v1beta1.CompositionRevisionSpec {
-	conv := v1.GeneratedRevisionSpecConverter{}
-	rs := conv.ToRevisionSpec(cs)
-	rs.Revision = revision
-	return rs
+	return cr, nil
 }

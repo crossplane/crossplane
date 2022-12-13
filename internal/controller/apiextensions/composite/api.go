@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"encoding/json"
 	"math/rand"
 	"time"
 
@@ -35,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha2"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -53,6 +54,7 @@ const (
 	errCompositionNotCompatible        = "referenced composition is not compatible with this composite resource"
 	errGetXRD                          = "cannot get composite resource definition"
 	errFetchCompositionRevision        = "cannot fetch composition revision"
+	errParseCompositionFromManifest    = "cannot parse composition from revision manifest"
 )
 
 // Event reasons.
@@ -165,9 +167,11 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	// We've already selected a revision, and our update policy is manual.
 	// Just fetch and return the selected revision.
 	if ref != nil && pol != nil && *pol == xpv1.UpdateManual {
-		rev := &v1beta1.CompositionRevision{}
-		err := f.ca.Get(ctx, meta.NamespacedNameOf(ref), rev)
-		return AsComposition(rev), errors.Wrap(err, errGetCompositionRevision)
+		rev := &v1alpha2.CompositionRevision{}
+		if err := f.ca.Get(ctx, meta.NamespacedNameOf(ref), rev); err != nil {
+			return nil, errors.Wrap(err, errGetCompositionRevision)
+		}
+		return AsComposition(rev)
 	}
 
 	// We either haven't yet selected a revision, or our update policy is
@@ -189,27 +193,25 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 	}
 
 	if ref == nil || ref.Name != current.GetName() {
-		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1beta1.CompositionRevisionGroupVersionKind))
+		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1alpha2.CompositionRevisionGroupVersionKind))
 		if err := f.ca.Apply(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}
 	}
 
-	return AsComposition(current), nil
+	return AsComposition(current)
 }
 
-// AsComposition creates a new composition from the supplied revision. It
-// exists only as a temporary translation layer to allow us to introduce the
-// alpha CompositionRevision type with minimal changes to the XR reconciler.
-// Once CompositionRevision leaves alpha this code should be removed and the XR
-// reconciler should operate on CompositionRevisions instead.
-func AsComposition(cr *v1beta1.CompositionRevision) *v1.Composition {
-	conv := &v1.GeneratedRevisionSpecConverter{}
-	return &v1.Composition{Spec: conv.FromRevisionSpec(cr.Spec)}
+// AsComposition creates a new composition from the supplied revision.
+// A compositio revision stores a JSON manifest for a composition type.
+func AsComposition(cr *v1alpha2.CompositionRevision) (*v1.Composition, error) {
+	comp := &v1.Composition{}
+	err := json.Unmarshal(cr.Spec.Composition.Raw, comp)
+	return comp, errors.Wrap(err, errParseCompositionFromManifest)
 }
 
-func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1beta1.CompositionRevisionList, error) {
-	rl := &v1beta1.CompositionRevisionList{}
+func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1alpha2.CompositionRevisionList, error) {
+	rl := &v1alpha2.CompositionRevisionList{}
 	ml := client.MatchingLabels{}
 
 	if cr.GetCompositionUpdatePolicy() != nil && *cr.GetCompositionUpdatePolicy() == xpv1.UpdateAutomatic &&
@@ -217,7 +219,7 @@ func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr 
 		ml = cr.GetCompositionRevisionSelector().MatchLabels
 	}
 
-	ml[v1beta1.LabelCompositionName] = comp.GetName()
+	ml[v1alpha2.LabelCompositionName] = comp.GetName()
 	if err := f.ca.List(ctx, rl, ml); err != nil {
 		return nil, errors.Wrap(err, errListCompositionRevisions)
 	}

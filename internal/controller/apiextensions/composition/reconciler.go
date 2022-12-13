@@ -39,7 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha2"
 )
 
 const (
@@ -50,6 +50,7 @@ const (
 const (
 	errGet             = "cannot get Composition"
 	errListRevs        = "cannot list CompositionRevisions"
+	errGenerateRev     = "cannot build new CompositionRevision"
 	errCreateRev       = "cannot create CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
 	errUpdateRevSpec   = "cannot update CompositionRevision spec"
@@ -73,7 +74,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Composition{}).
-		Owns(&v1beta1.CompositionRevision{}).
+		Owns(&v1alpha2.CompositionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
@@ -148,8 +149,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"spec-hash", currentHash,
 	)
 
-	rl := &v1beta1.CompositionRevisionList{}
-	if err := r.client.List(ctx, rl, client.MatchingLabels{v1beta1.LabelCompositionName: comp.GetName()}); err != nil {
+	rl := &v1alpha2.CompositionRevisionList{}
+	if err := r.client.List(ctx, rl, client.MatchingLabels{v1alpha2.LabelCompositionName: comp.GetName()}); err != nil {
 		log.Debug(errListRevs, "error", err)
 		r.record.Event(comp, event.Warning(reasonCreateRev, errors.Wrap(err, errListRevs)))
 		return reconcile.Result{}, errors.Wrap(err, errListRevs)
@@ -168,7 +169,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		// This revision does not match our current Composition.
-		if rev.GetLabels()[v1beta1.LabelCompositionHash] != currentHash[:63] {
+		if rev.GetLabels()[v1alpha2.LabelCompositionHash] != currentHash[:63] {
 			continue
 		}
 
@@ -195,7 +196,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1, currentHash)); err != nil {
+	rev, err := NewCompositionRevision(comp, latestRev+1, currentHash)
+	if err != nil {
+		log.Debug(errCreateRev, "error", err)
+		r.record.Event(comp, event.Warning(reasonCreateRev, err))
+		return reconcile.Result{}, errors.Wrap(err, errGenerateRev)
+	}
+
+	if err := r.client.Create(ctx, rev); err != nil {
 		log.Debug(errCreateRev, "error", err)
 		r.record.Event(comp, event.Warning(reasonCreateRev, err))
 		return reconcile.Result{}, errors.Wrap(err, errCreateRev)
