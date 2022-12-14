@@ -1,5 +1,6 @@
 ---
 title: Composition Revisions
+weight: 100
 ---
 
 This guide discusses the use of "Composition Revisions" to safely make and roll
