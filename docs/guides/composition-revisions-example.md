@@ -1,16 +1,16 @@
-# Composition Revisions in Action
+---
+title: Composition Revision Example
+weight: 101
+---
+This tutorial discusses how CompositionRevisions work and how they manage Composite Resource
+(XR) updates. This start with a `Composition` and `CompositeResourceDefinition` that defines a `MyVPC`
+resource.
 
-In this tutorial we will discuss how CompositionRevisions work and how we can utilize them to manage Composite Resource
-(XR) updates. We will start with a simple `Composition` and `CompositeResourceDefinition` that defines a `MyVPC`
-resource, and we will change its labels and spec fields to see how XRs are updated.
+This tutorial creates multiple XRs and modifies Composition to apply different Composition Revisions to the XRs.
 
-To cover the different scenarios, we will create XRs with different `compositionUpdatePolicy` and `matchLabels`
-configurations.
-
-## Tutorial
-1. Install an RC version of the Crossplane that includes relevant Composition Revision changes. Please note that, Crossplane
-   v1.11.0 and above should already include them:
-```console
+## Install Crossplane
+1. Install Crossplane v1.11.0 or later.
+```shell
 kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
 helm repo update
@@ -18,15 +18,17 @@ helm install crossplane --namespace crossplane-system crossplane-master/crosspla
 kubectl get pods -n crossplane-system
 ```
 Expected Output:
-```console
+```shell
 NAME                                       READY   STATUS    RESTARTS   AGE
 crossplane-7f75ddcc46-f4d2z                1/1     Running   0          9s
 crossplane-rbac-manager-78bd597746-sdv6w   1/1     Running   0          9s
 ```
-2. Apply the following Composition and XRD. Note that Composition's labels will be automatically propagated to the relevant
-   revision:
-```console
-echo 'apiVersion: apiextensions.crossplane.io/v1
+
+## Apply a Composition
+Apply the example Composition.
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   labels:
@@ -48,9 +50,13 @@ spec:
           enableDnsSupport: true
           enableDnsHostnames: true
     name: my-vcp
-    
----
-    
+```
+
+
+## Apply a Composite Resource Definition
+
+Apply the example XRD.
+```yaml
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
@@ -75,25 +81,43 @@ spec:
                 type: string 
                 description: ID of this VPC that other objects will use to refer to it. 
             required:
-            - id ' | kubectl apply -f -
+            - id
 ```
-Expected Output:
-```console
-composition.apiextensions.crossplane.io/myvpcs.aws.example.upbound.io created
-compositeresourcedefinition.apiextensions.crossplane.io/myvpcs.aws.example.upbound.io created
-```
-3. Verify that composition revision is created:
-```console
+
+## Verify the Composition revision
+Verify that Crossplane created the Composition revision
+```shell
 kubectl get compositionrevisions -o=custom-columns=NAME:.metadata.name,REVISION:.spec.revision,LABEL:.metadata.labels.channel
 ```
 Expected Output:
-```console
+```shell
 NAME                                    REVISION   LABEL
 myvpcs.aws.example.upbound.io-ad265bc   1          dev
 ```
-4. Create an XR with `compositionUpdatePolicy: Manual` and `compositionRevisionRef`:
-```console
-echo 'apiVersion: aws.example.upbound.io/v1alpha1
+
+The label `dev` is automatically created from the Composition.
+
+## Create Composite Resources
+
+### Default update policy
+Create an XR without a `compositionUpdatePolicy` defined. The update policy is `Automatic` by default:
+```yaml
+apiVersion: aws.example.upbound.io/v1alpha1
+kind: MyVPC
+metadata:
+  name: vpc-auto
+spec:
+  id: vpc-auto
+```
+Expected Output:
+```shell
+myvpc.aws.example.upbound.io/vpc-auto created
+``` 
+
+### Manual update policy
+Create an Composite Resource with `compositionUpdatePolicy: Manual` and `compositionRevisionRef`.
+```yaml
+apiVersion: aws.example.upbound.io/v1alpha1
 kind: MyVPC
 metadata:
   name: vpc-man
@@ -101,28 +125,19 @@ spec:
   id: vpc-man
   compositionUpdatePolicy: Manual
   compositionRevisionRef:
-    name: myvpcs.aws.example.upbound.io-ad265bc' | kubectl apply -f -
+    name: myvpcs.aws.example.upbound.io-ad265bc
 ```
+
 Expected Output:
-```console
+```shell
 myvpc.aws.example.upbound.io/vpc-man created
 ``` 
-5. Create an XR without `compositionUpdatePolicy` and selector; the update policy will be `Automatic` by default:
-```console
-echo 'apiVersion: aws.example.upbound.io/v1alpha1
-kind: MyVPC
-metadata:
-  name: vpc-auto
-spec:
-  id: vpc-auto' | kubectl apply -f -
-```
-Expected Output:
-```console
-myvpc.aws.example.upbound.io/vpc-auto created
-``` 
-6. Create an XR with the `channel: dev` selector:
-```console
-echo 'apiVersion: aws.example.upbound.io/v1alpha1
+
+
+### Using a selector
+Create an XR with a `compositionRevisionSelector` of `channel: dev`:
+```yaml
+apiVersion: aws.example.upbound.io/v1alpha1
 kind:  MyVPC
 metadata:
   name: vpc-dev
@@ -130,15 +145,16 @@ spec:
   id: vpc-dev
   compositionRevisionSelector:
     matchLabels:
-      channel: dev' | kubectl apply -f -
+      channel: dev
 ```
 Expected Output:
-```console
+```shell
 myvpc.aws.example.upbound.io/vpc-dev created
 ``` 
-7. Create an XR with the `channel: staging` selector:
-```console
-echo 'apiVersion: aws.example.upbound.io/v1alpha1
+
+Create an XR with a `compositionRevisionSelector` of `channel: staging`:
+```yaml
+apiVersion: aws.example.upbound.io/v1alpha1
 kind: MyVPC
 metadata:
   name: vpc-staging
@@ -146,58 +162,83 @@ spec:
   id: vpc-staging
   compositionRevisionSelector:
     matchLabels:
-      channel: staging' | kubectl apply -f -
+      channel: staging
 ```
+
 Expected Output:
-```console
+```shell
 myvpc.aws.example.upbound.io/vpc-staging created
 ``` 
-8. Verify that all the XRs except with the `channel: staging` selector are bound to the revision:1 and
-   there is no revision assigned for the XR with the `channel: staging`:
-```console
+
+## Verify the Composite Resources
+Verify the Composite Resource with the label `channel: staging` doesn't have a `REVISION`.  
+All other XRs have a `REVISION` matching the created Composition Revision.
+```shell
 kubectl get composite -o=custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels
 ```
 Expected Output:
-```console
+```shell
 NAME          SYNCED   REVISION                                POLICY      MATCHLABEL
 vpc-auto      True     myvpcs.aws.example.upbound.io-ad265bc   Automatic   <none>
 vpc-dev       True     myvpcs.aws.example.upbound.io-ad265bc   Automatic   map[channel:dev]
 vpc-man       True     myvpcs.aws.example.upbound.io-ad265bc   Manual      <none>
 vpc-staging   False    <none>                                  Automatic   map[channel:staging]
 ``` 
-9. Update the `Composition` label to mark it as `channel: staging`:
-```console
+
+{{< hint "note" >}}
+The `vpc-staging` XR label doesn't match any existing Composition Revisions.
+{{< /hint >}}
+
+## Create new Composition revisions
+
+### Update the Composition label
+Update the `Composition` label to `channel: staging`:
+```shell
 kubectl label composition myvpcs.aws.example.upbound.io channel=staging --overwrite
 ```
 Expected Output:
-```console
+```shell
 composition.apiextensions.crossplane.io/myvpcs.aws.example.upbound.io labeled
 ``` 
-10. Verify that a new revision is created:
-```console
+
+#### Verify the updated Composition revisions
+Verify that Crossplane creates a new Composition revision:
+```shell
 kubectl get compositionrevisions -o=custom-columns=NAME:.metadata.name,REVISION:.spec.revision,LABEL:.metadata.labels.channel
 ```
 Expected Output:
-```console
+```shell
 NAME                                    REVISION   LABEL
 myvpcs.aws.example.upbound.io-727b3c8   2          staging
 myvpcs.aws.example.upbound.io-ad265bc   1          dev
 ``` 
-11. Verify that `vpc-auto` and `vpc-staging` are assigned to the revision:2, and `vpc-man` and `vpc-dev` are still assigned to the revision:1:
-```console
+
+Crossplane assigns the Composite Resources `vpc-auto` and `vpc-staging` to Composite revision:2.  
+XRs `vpc-man` and `vpc-dev` are still assigned to the original revision:1:
+
+```shell
 kubectl get composite -o=custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels
 ```
 Expected Output:
-```console
+```shell
 NAME          SYNCED   REVISION                                POLICY      MATCHLABEL
 vpc-auto      True     myvpcs.aws.example.upbound.io-727b3c8   Automatic   <none>
 vpc-dev       True     myvpcs.aws.example.upbound.io-ad265bc   Automatic   map[channel:dev]
 vpc-man       True     myvpcs.aws.example.upbound.io-ad265bc   Manual      <none>
 vpc-staging   True     myvpcs.aws.example.upbound.io-727b3c8   Automatic   map[channel:staging]
 ``` 
-12. Apply the following changes to update the `Composition` spec and label:
-```console
-echo 'apiVersion: apiextensions.crossplane.io/v1
+
+{{< hint "note" >}}
+`vpc-auto` always use the latest Revision.  
+`vpc-staging` now matches the label applied to Revision revision:2.
+{{< /hint >}}
+
+### Enable DNS support in the Composition
+Update the Composition to disable DNS support in the VPC and change the label from `staging` back to `dev`.
+
+Apply the following changes to update the `Composition` spec and label:
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
   labels:
@@ -218,32 +259,44 @@ spec:
           cidrBlock: 192.168.0.0/16
           enableDnsSupport: false
           enableDnsHostnames: true
-    name: my-vcp' | kubectl apply -f -
+    name: my-vcp
 ```
+
 Expected Output:
-```console
+```shell
 composition.apiextensions.crossplane.io/myvpcs.aws.example.upbound.io configured
 ``` 
-13. Verify that a new revision is created:
-```console 
+
+#### Verify the updated Composition revisions
+Verify that Crossplane creates a new Composition revision:
+
+```shell 
 kubectl get compositionrevisions -o=custom-columns=NAME:.metadata.name,REVISION:.spec.revision,LABEL:.metadata.labels.channel
 ```
 Expected Output:
-```console
+```shell
 NAME                                    REVISION   LABEL
 myvpcs.aws.example.upbound.io-727b3c8   2          staging
 myvpcs.aws.example.upbound.io-ad265bc   1          dev
 myvpcs.aws.example.upbound.io-f81c553   3          dev
 ``` 
-14. Verify that `vpc-auto` and `vpc-dev` are assigned to revision:3, `vpc-staging` is referring to revision:2, and `vpc-man`is still referring to revision:1:
-```console
+
+Crossplane assigns the Composite Resources `vpc-auto` and `vpc-dev` to Composite revision:3.  
+`vpc-staging` is assigned to revision:2, and `vpc-man` is still assigned to the origina revision:1:
+
+```shell
 kubectl get composite -o=custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels
 ```
 Expected Output:
-```console
+```shell
 NAME          SYNCED   REVISION                                POLICY      MATCHLABEL
 vpc-auto      True     myvpcs.aws.example.upbound.io-f81c553   Automatic   <none>
 vpc-dev       True     myvpcs.aws.example.upbound.io-f81c553   Automatic   map[channel:dev]
 vpc-man       True     myvpcs.aws.example.upbound.io-ad265bc   Manual      <none>
 vpc-staging   True     myvpcs.aws.example.upbound.io-727b3c8   Automatic   map[channel:staging]
 ``` 
+
+{{< hint "note" >}}
+`vpc-dev` matches the updated label applied to Revision revision:3.
+`vpc-staging` matches the label applied to Revision revision:2.
+{{< /hint >}}
