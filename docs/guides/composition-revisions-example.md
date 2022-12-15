@@ -9,7 +9,7 @@ resource.
 This tutorial creates multiple XRs and modifies Composition to apply different Composition Revisions to the XRs.
 
 ## Install Crossplane
-1. Install Crossplane v1.11.0 or later.
+Install Crossplane v1.11.0 or later and wait until the Crossplane pods are running.
 ```shell
 kubectl create namespace crossplane-system
 helm repo add crossplane-master https://charts.crossplane.io/master/
@@ -87,11 +87,11 @@ spec:
 ## Verify the Composition revision
 Verify that Crossplane created the Composition revision
 ```shell
-kubectl get compositionrevisions -o=custom-columns=NAME:.metadata.name,REVISION:.spec.revision,LABEL:.metadata.labels.channel
+kubectl get compositionrevisions -o="custom-columns=NAME:.metadata.name,REVISION:.spec.revision,CHANNEL:.metadata.labels.channel"
 ```
 Expected Output:
 ```shell
-NAME                                    REVISION   LABEL
+NAME                                    REVISION   CHANNEL
 myvpcs.aws.example.upbound.io-ad265bc   1          dev
 ```
 
@@ -174,7 +174,7 @@ myvpc.aws.example.upbound.io/vpc-staging created
 Verify the Composite Resource with the label `channel: staging` doesn't have a `REVISION`.  
 All other XRs have a `REVISION` matching the created Composition Revision.
 ```shell
-kubectl get composite -o=custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels
+kubectl get composite -o="custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels"
 ```
 Expected Output:
 ```shell
@@ -204,11 +204,11 @@ composition.apiextensions.crossplane.io/myvpcs.aws.example.upbound.io labeled
 #### Verify the updated Composition revisions
 Verify that Crossplane creates a new Composition revision:
 ```shell
-kubectl get compositionrevisions -o=custom-columns=NAME:.metadata.name,REVISION:.spec.revision,LABEL:.metadata.labels.channel
+kubectl get compositionrevisions -o="custom-columns=NAME:.metadata.name,REVISION:.spec.revision,CHANNEL:.metadata.labels.channel"
 ```
 Expected Output:
 ```shell
-NAME                                    REVISION   LABEL
+NAME                                    REVISION   CHANNEL
 myvpcs.aws.example.upbound.io-727b3c8   2          staging
 myvpcs.aws.example.upbound.io-ad265bc   1          dev
 ``` 
@@ -217,7 +217,7 @@ Crossplane assigns the Composite Resources `vpc-auto` and `vpc-staging` to Compo
 XRs `vpc-man` and `vpc-dev` are still assigned to the original revision:1:
 
 ```shell
-kubectl get composite -o=custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels
+kubectl get composite -o="custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels"
 ```
 Expected Output:
 ```shell
@@ -233,7 +233,7 @@ vpc-staging   True     myvpcs.aws.example.upbound.io-727b3c8   Automatic   map[c
 `vpc-staging` now matches the label applied to Revision revision:2.
 {{< /hint >}}
 
-### Enable DNS support in the Composition
+### Update Composition Spec
 Update the Composition to disable DNS support in the VPC and change the label from `staging` back to `dev`.
 
 Apply the following changes to update the `Composition` spec and label:
@@ -270,12 +270,12 @@ composition.apiextensions.crossplane.io/myvpcs.aws.example.upbound.io configured
 #### Verify the updated Composition revisions
 Verify that Crossplane creates a new Composition revision:
 
-```shell 
-kubectl get compositionrevisions -o=custom-columns=NAME:.metadata.name,REVISION:.spec.revision,LABEL:.metadata.labels.channel
+```shell
+kubectl get compositionrevisions -o="custom-columns=NAME:.metadata.name,REVISION:.spec.revision,CHANNEL:.metadata.labels.channel"
 ```
 Expected Output:
 ```shell
-NAME                                    REVISION   LABEL
+NAME                                    REVISION   CHANNEL
 myvpcs.aws.example.upbound.io-727b3c8   2          staging
 myvpcs.aws.example.upbound.io-ad265bc   1          dev
 myvpcs.aws.example.upbound.io-f81c553   3          dev
@@ -285,7 +285,7 @@ Crossplane assigns the Composite Resources `vpc-auto` and `vpc-dev` to Composite
 `vpc-staging` is assigned to revision:2, and `vpc-man` is still assigned to the origina revision:1:
 
 ```shell
-kubectl get composite -o=custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels
+kubectl get composite -o="custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels"
 ```
 Expected Output:
 ```shell
