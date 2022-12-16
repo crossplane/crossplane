@@ -310,7 +310,7 @@ metadata:
 ```
 ````
 
-### Images
+# Images
 Crossplane supports standard [Markdown image
 syntax](https://www.markdownguide.org/basic-syntax/#images-1) but using the
 `img` shortcode is strongly recommended.
@@ -342,13 +342,13 @@ An example of using the `img` shortcode:
 Which generates this responsive image (change your browser size to see it change):
 {{<img src="../media/banner.png" alt="Crossplane Popsicle Truck" size="small" >}}
 
-### Links
+# Links
 Crossplane docs support standard [Markdown
 links](https://www.markdownguide.org/basic-syntax/#links) but Crossplane prefers link shortcodes
 for links between docs pages. Using shortcodes prevents incorrect link creation
 and notifies which links to change after moving a page.
 
-#### Between docs pages
+### Between docs pages
 For links between pages use a standard Markdown link in the form:
 
 `[Link text](link)`
@@ -368,7 +368,7 @@ The `ref` value is of the markdown file, including `.md` extension.
 
 If the `ref` value points to a page that doesn't exist, Hugo fails to start. 
 
-#### Linking to external sites
+### Linking to external sites
 Minimize linking to external sites. When linking to any page outside of
 `crossplane.io` use standard [markdown link
 syntax](https://www.markdownguide.org/basic-syntax/#links) without using the
@@ -379,7 +379,7 @@ For example,
 [Go to Upbound](http://upbound.io)
 ```
 
-### Tabs
+# Tabs
 Use tabs to present information about a single topic with multiple exclusive
 options. For example, creating a resource via command-line or GUI. 
 
@@ -416,7 +416,7 @@ A second example tab.
 Both `tab` and `tabs` require opening and closing tags. Unclosed tags causes
 Hugo to fail.
 
-### Hints and alert boxes
+# Hints and alert boxes
 Hint and alert boxes provide call-outs to important information to the reader. Crossplane docs support four different hint box styles.
 
 {{< hint "note" >}}
@@ -450,7 +450,7 @@ The `hint` shortcode requires opening and closing tags. Unclosed tags causes
 Hugo to fail.
 
 
-### Hide long outputs
+# Hide long outputs
 Some outputs may be verbose or only relevant for
 a small audience. Use the `expand` shortcode to hide blocks of text by default.
 
@@ -506,7 +506,7 @@ metadata:
 The `expand` shortcode requires opening and closing tags. Unclosed tags causes
 Hugo to fail.
 
-## Adding new content
+# Adding new content
 
 To create new content create a new markdown file in the appropriate location. 
 
@@ -531,7 +531,7 @@ weight: 610
 To hide a page from the left-hand navigation use `tocHidden: true` in the front
 matter of the page. The docs website skips pages with `tocHidden:true` when building the menu.
 
-## Docs website
+# Docs website
 The Crossplane document website is in a unique [website GitHub
 repository](https://github.com/crossplane/docs).
 
@@ -548,7 +548,7 @@ The `/utils/` directory is for JavaScript source code used in the website.
 The `/themes/geekboot/assets` folder contains all (S)CSS and compiled JavaScript
 for the website.
 
-### CSS
+## CSS
 Crossplane documentation uses [Bootstrap
 5.2](https://getbootstrap.com/docs/5.2/getting-started/introduction/).
 Unmodified Bootstrap SCSS files are in
@@ -561,7 +561,7 @@ Don't edit the original Bootstrap stylesheets. It makes the ability to
 upgrade to future Bootstrap versions difficult or impossible.
 {{< /hint >}}
 
-#### Color themes 
+### Color themes 
 Crossplane docs support a light and dark color theme that's applied via CSS
 variables.
 
@@ -580,7 +580,7 @@ When creating new styles rely on variables for any color function, even if both
 themes share the color.
 {{< /hint >}}
 
-#### SCSS compilation
+### SCSS compilation
 Hugo compiles the SCSS to CSS. Local development doesn't require SCSS installed.
 
 For local development (when using `hugo server`) Hugo compiles SCSS without
@@ -604,7 +604,7 @@ Optimizing CSS locally with PostCSS requires installing extra packages.
 * NPM packages defined in `/package.json` with `npm install`.
 
 
-### JavaScript
+## JavaScript
 A goal of the documentation website is to use as little JavaScript as possible. Unless
 the script provides a significant improvement in performance, capability or user
 experience. 
@@ -626,7 +626,7 @@ requires [Webpack](https://webpack.js.org/) to bundle and optimize the code.
   [Bootstrap's
   JavaScript](https://getbootstrap.com/docs/5.2/getting-started/javascript/).
   
-#### Bootstrap JavaScript
+### Bootstrap JavaScript builder
 The entire [Bootstrap JavaScript
 source](https://github.com/twbs/bootstrap/tree/main/js/src) is in
 `/utils/webpack/src/js/bootstrap`. 
