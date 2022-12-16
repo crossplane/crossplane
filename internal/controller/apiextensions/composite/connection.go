@@ -110,12 +110,7 @@ func NewSecretStoreConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) 
 }
 
 // FetchConnectionDetails of the supplied composed resource, if any.
-func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { // nolint:gocyclo
-	// NOTE(turkenh): Added linter exception for gocyclo similar to existing
-	// APIConnectionDetailsFetcher.FetchConnectionDetails method given most
-	// of the complexity coming from simply if checks and, I wanted to keep this
-	// as identical as possible to aforementioned method. This can be refactored
-	// with the removal of "WriteConnectionSecretRef" API.
+func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { //nolint:gocyclo // NOTE(turkenh): This can be refactored with the removal of "WriteConnectionSecretRef" API.
 
 	so := cd.(resource.ConnectionSecretOwner)
 	data, err := f.fetcher.FetchConnection(ctx, so)

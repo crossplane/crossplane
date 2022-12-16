@@ -1,11 +1,7 @@
 ---
 title: Release Process
-toc: true
 weight: 1003
-indent: true
 ---
-
-# Release Process
 
 This document is meant to be a complete end-to-end guide for how to release new
 versions of software for Crossplane and its related projects.
@@ -49,10 +45,7 @@ prescriptive detail.
 Feature freeze should be performed on all repos.  In order to start the feature
 freeze period, the following conditions should be met:
 
-* All expected features should be
-  ["complete"](https://github.com/crossplane/crossplane/blob/master/design/one-pager-definition-of-done.md)
-  and merged into main development branch. This includes user guides, examples,
-  API documentation, and test updates.
+
 * All issues in the
   [milestone](https://github.com/crossplane/crossplane/milestones) should be
   closed
@@ -171,8 +164,8 @@ For all repos with Helm charts:
 * [Helm chart repository](https://charts.crossplane.io/)
 
 For crossplane/crossplane:
-* [Docs website](https://crossplane.io/docs/latest)
-* [Configuration Packages](https://cloud.upbound.io/browse)
+* [Docs website](https://docs.crossplane.io)
+* [Configuration Packages](https://marketplace.upbound.io)
 
 ### Tag Next Pre-release
 

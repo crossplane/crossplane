@@ -52,6 +52,3 @@ type Provider struct {
 
 	Spec ProviderSpec `json:"spec"`
 }
-
-// Hub marks this type as the conversion hub.
-func (p *Provider) Hub() {}

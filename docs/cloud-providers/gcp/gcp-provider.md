@@ -1,4 +1,8 @@
-# Adding Google Cloud Platform (GCP) to Crossplane
+---
+title: Adding Google Cloud Platform (GCP) to Crossplane
+tocHidden: true
+---
+
 
 In this guide, we will walk through the steps necessary to configure your GCP
 account to be ready for integration with Crossplane. The general steps we will

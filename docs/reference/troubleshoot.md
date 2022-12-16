@@ -1,11 +1,7 @@
 ---
 title: Troubleshoot
-toc: true
 weight: 306
-indent: true
 ---
-
-# Troubleshooting
 
 * [Requested Resource Not Found]
 * [Resource Status and Conditions]
@@ -20,12 +16,13 @@ indent: true
 
 ## Requested Resource Not Found
 
-If you use the kubectl Crossplane plugin to install a `Provider` or `Configuration`
-(e.g. `kubectl crossplane install provider crossplane/provider-aws:master`) and
-get `the server could not find the requested resource` error, more often than
-not, that is an indicator that the kubectl Crossplane you're using is outdated.
-In other words some Crossplane API has been graduated from alpha to beta or stable
-and the old plugin is not aware of this change.
+If you use the kubectl Crossplane plugin to install a `Provider` or
+`Configuration` (e.g. `kubectl crossplane install provider
+xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0`) and get `the server
+could not find the requested resource` error, more often than not, that is an
+indicator that the kubectl Crossplane you're using is outdated. In other words
+some Crossplane API has been graduated from alpha to beta or stable and the old
+plugin is not aware of this change.
 
 You can follow the [install Crossplane CLI] instructions to upgrade the plugin.
 
@@ -117,7 +114,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.22.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0
   controllerConfigRef:
     name: debug-config
 ```
@@ -163,7 +160,7 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.22.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0
   controllerConfigRef:
     name: scale-config
 ```
@@ -257,11 +254,11 @@ When specifying the version constraint, you should strictly follow the
 the dependency package even it says the dependency is found. This may lead to an 
 incompatible dependency error during the installation.
 
-Below is an example where a Configuration package depends on a provider pulled 
-from `crossplane/provider-aws`. It defines `">=v0.18.2` as the version 
-constraint which means all versions after `v0.16.0` including all prerelease 
-versions, in the form of `-xyz` after the normal version string, will be 
-considered when Crossplane tries to find the best match.
+Below is an example where a Configuration package depends on a provider pulled
+from `xpkg.upbound.io/crossplane-contrib/provider-aws`. It defines `">=v0.18.2`
+as the version constraint which means all versions after `v0.16.0` including all
+prerelease versions, in the form of `-xyz` after the normal version string, will
+be considered when Crossplane tries to find the best match.
 
 ```yaml
 apiVersion: meta.pkg.crossplane.io/v1
@@ -274,14 +271,14 @@ spec:
   crossplane:
     version: ">=v1.4.0-0"
   dependsOn:
-    - provider: crossplane/provider-aws
+    - provider: xpkg.upbound.io/crossplane-contrib/provider-aws
       version: ">=v0.18.2"
 ```
 
 <!-- Named Links -->
 
 [Requested Resource Not Found]: #requested-resource-not-found
-[install Crossplane CLI]: ../getting-started/install-configure.md#install-crossplane-cli
+[install Crossplane CLI]: {{<ref "../getting-started/install-configure" >}}#install-crossplane-cli
 [Resource Status and Conditions]: #resource-status-and-conditions
 [Resource Events]: #resource-events
 [Crossplane Logs]: #crossplane-logs
@@ -290,6 +287,6 @@ spec:
 [Pausing Providers]: #pausing-providers
 [Deleting When a Resource Hangs]: #deleting-when-a-resource-hangs
 [Installing Crossplane Package]: #installing-crossplane-package
-[Crossplane package]: https://crossplane.io/docs/v1.3/concepts/packages.html
+[Crossplane package]: {{<ref "../concepts/packages" >}}
 [Handling Crossplane Package Dependency]: #handling-crossplane-package-dependency
 [semver spec]: https://github.com/Masterminds/semver#basic-comparisons

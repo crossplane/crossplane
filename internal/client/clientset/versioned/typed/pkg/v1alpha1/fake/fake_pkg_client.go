@@ -32,10 +32,6 @@ func (c *FakePkgV1alpha1) ControllerConfigs() v1alpha1.ControllerConfigInterface
 	return &FakeControllerConfigs{c}
 }
 
-func (c *FakePkgV1alpha1) Locks() v1alpha1.LockInterface {
-	return &FakeLocks{c}
-}
-
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakePkgV1alpha1) RESTClient() rest.Interface {

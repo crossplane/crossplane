@@ -1,11 +1,7 @@
 ---
 title: Related Projects
-toc: true
 weight: 1201
-indent: true
 ---
-
-# Related Projects
 
 While there are many projects that address similar issues, none of them
 encapsulate the full use case that Crossplane addresses. This list is not
@@ -79,7 +75,7 @@ plane.
 <!-- Named Links -->
 
 [Open Service Broker]: https://www.openservicebrokerapi.org/
-[Kubernetes Service Catalog]: https://kubernetes.io/docs/concepts/extend-kubernetes/service-catalog/
+[Kubernetes Service Catalog]: https://github.com/kubernetes-retired/service-catalog
 [GCP OSB]: https://cloud.google.com/kubernetes-engine/docs/concepts/google-cloud-platform-service-broker
 [GCP Config Connector]: https://github.com/GoogleCloudPlatform/k8s-config-connector
 [AWS Controllers for Kubernetes]: https://github.com/aws-controllers-k8s/community

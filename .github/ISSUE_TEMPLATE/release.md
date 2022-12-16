@@ -7,7 +7,7 @@ labels: release
 <!--
 Issue title should be in the following format:
 
-    Cut vX.Y.Z Release on DATE
+    Cut vX.Y.0 Release on DATE
 
 For example:
 
@@ -21,17 +21,16 @@ Please ensure all artifacts (PRs, workflow runs, Tweets, etc) are linked from
 this issue for posterity. Refer to this [prior release issue][release-1.7] for
 examples of each step.
 
-<!-- Uncomment the following block only if cutting a minor release. -->
-<!--
 - [ ] Prepare the release branch at the beginning of [Code Freeze]:
   - [ ] Created the release branch.
   - [ ] Created and merged an empty commit to the `master` branch.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the next release candidate tag.
--->
 - [ ] Updated all version information in the documentation on the relevant release branch.
+  - [ ] Update the [`version` front-matter](https://github.com/crossplane/crossplane/blob/master/docs/_index.md?plain=1#L8) in docs/_index.md
+  - [ ] Update the [`alias` front-matter](https://github.com/crossplane/crossplane/blob/master/docs/_index.md?plain=1#L6) in docs/_index.md
 - [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with the proper release version.
 - [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel..
-- [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [registry.upbound.io] for all getting started packages.
+- [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
   - [ ] `xp/getting-started-with-aws`
   - [ ] `xp/getting-started-with-with-with-vpc`
   - [ ] `xp/getting-started-with-azure`
@@ -42,20 +41,18 @@ examples of each step.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack
   - [ ] Twitter
-<!-- Uncomment the following block only if cutting a minor release. -->
-<!--
 - [ ] Updated the [releases table] in the `README.md` on `master`.
 - [ ] Updated the current release version in the [Crossplane docs website repo].
 - [ ] Updated the release branch reaching EOL with [docs removal directive].
 - [ ] Request @jbw976 to remove the EOL docs version from Google Search
--->
+
 
 <!-- Named Links -->
 [releases.crossplane.io]: https://releases.crossplane.io
-[registry.upbound.io]: https://cloud.upbound.io/browse
+[xpkg.upbound.io]: https://cloud.upbound.io/browse
 [new release]: https://github.com/crossplane/crossplane/releases/new
 [releases table]: https://github.com/crossplane/crossplane#releases
-[Crossplane docs website repo]: https://github.com/crossplane/crossplane.github.io
+[Crossplane docs website repo]: https://github.com/crossplane/docs
 [docs removal directive]: https://github.com/crossplane/crossplane/pull/3003
 [tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml

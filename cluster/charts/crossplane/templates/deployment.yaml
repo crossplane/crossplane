@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "crossplane.name" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "crossplane.name" . }}
     release: {{ .Release.Name }}
@@ -61,10 +62,24 @@ spec:
           securityContext:
             {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
           env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.memory
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          - name: POD_SERVICE_ACCOUNT
+            valueFrom:
+              fieldRef:
+                fieldPath: spec.serviceAccountName
           {{- if .Values.webhooks.enabled }}
           - name: "WEBHOOK_TLS_SECRET_NAME"
             value: webhook-tls-secret
@@ -103,6 +118,16 @@ spec:
         securityContext:
           {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
         env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.memory
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
@@ -139,6 +164,9 @@ spec:
         {{- if .Values.packageCache.pvc }}
         persistentVolumeClaim:
           claimName: {{ .Values.packageCache.pvc }}
+        {{- else if .Values.packageCache.configMap }}
+        configMap:
+          name: {{ .Values.packageCache.configMap }}
         {{- else }}
         emptyDir:
           medium: {{ .Values.packageCache.medium }}
@@ -168,7 +196,7 @@ spec:
       nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
       {{- end }}
       {{- if .Values.tolerations }}
-      tolerations: {{ toYaml .Values.tolerations | nindent 8 }}
+      tolerations: {{ toYaml .Values.tolerations | nindent 6 }}
       {{- end }}
       {{- if .Values.affinity }}
       affinity: {{ toYaml .Values.affinity | nindent 8 }}

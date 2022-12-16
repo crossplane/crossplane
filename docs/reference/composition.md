@@ -1,11 +1,8 @@
 ---
 title: Composition
-toc: true
 weight: 304
-indent: true
 ---
 
-# Overview
 
 This reference provides detailed examples of defining, configuring, and using
 Composite Resources in Crossplane. You can also refer to Crossplane's [API
@@ -40,6 +37,17 @@ spec:
     apiVersion: database.example.org/v1alpha1
     kind: PostgreSQLInstance
     name: my-db
+  # The compositeDeletePolicy specifies the propagation policy that will be used by Crossplane
+  # when deleting the Composite Resource that is associated with the Claim.  The default
+  # value is Background, which causes the Composite resource to be deleted using
+  # the kubernetes default propagation policy of Background, and all associated
+  # resources will be deleted simultaneously.  The other value for this field is Foreground,
+  # which will cause the Composite resource to be deleted using Foreground Cascading Deletion.
+  # Kubernetes will add a foregroundDeletion finalizer to all of the resources in the
+  # dependency graph, and they will be deleted starting with the edge or leaf nodes and
+  # working back towards the root Composite.  See https://kubernetes.io/docs/concepts/architecture/garbage-collection/#cascading-deletion
+  # for more information on cascading deletion.
+  compositeDeletePolicy: Background
   # The compositionRef specifies which Composition this XR will use to compose
   # resources when it is created, updated, or deleted. This can be omitted and
   # will be set automatically if the XRD has a default or enforced composition
@@ -376,6 +384,45 @@ spec:
       fromFieldPath: metadata.labels[some-important-label]
 ```
 
+### Pause Annotation
+There is an annotation named `crossplane.io/paused` that you can use on
+Composite Resources and Composite Resource Claims to temporarily pause
+reconciliations of their respective controllers on them. An example
+for a Composite Resource Claim is as follows:
+```yaml
+apiVersion: test.com/v1alpha1
+kind: MyResource
+metadata:
+  annotations:
+     crossplane.io/paused: true
+  namespace: upbound-system
+  name: my-resource
+spec:
+  parameters:
+    tagValue: demo-test
+  compositionRef:
+    name: example
+```
+where `MyResource` is a Composite Resource Claim kind.
+When a Composite Resource or a Claim has the `crossplane.io/paused` annotation
+with its value set to `true`, the Composite Resource controller or the Claim
+controller pauses reconciliations on the resource until
+the annotation is removed or its value set to something other than `true`.
+Before temporarily pausing reconciliations, an event with the type `Synced`,
+the status `False`, and the reason `ReconcilePaused` is emitted
+on the resource.
+Please also note that annotations on a Composite Resource Claim are propagated
+to the associated Composite Resource but when the
+`crossplane.io/paused: true` annotation is added to a Claim, because
+reconciliations on the Claim are now paused, this newly added annotation
+will not be propagated. However, whenever the annotation's value is set to a
+non-`true` value, reconciliations on the Claim will now resume, and thus the
+annotation will now be propagated to the associated Composite Resource
+with a non-`true` value. An implication of the described behavior is that
+pausing reconciliations on the Claim will not inherently pause reconciliations
+on the associated Composite Resource.
+
+
 ### Patch Types
 
 You can use the following types of patch in a `Composition`:
@@ -438,14 +485,14 @@ composed resource field.
 
 ```yaml
 # Patch from the XR's spec.parameters.location field and the
-# metadata.annotations[crossplane.io/claim-name] annotation to the composed
+# metadata.labels[crossplane.io/claim-name] label to the composed
 # resource's spec.forProvider.administratorLogin field.
 - type: CombineFromComposite
   combine:
     # The patch will only be applied when all variables have non-zero values.
     variables:
     - fromFieldPath: spec.parameters.location
-    - fromFieldPath: metadata.annotations[crossplane.io/claim-name]
+    - fromFieldPath: metadata.labels[crossplane.io/claim-name]
     strategy: string
     string:
       fmt: "%s-%s"
@@ -508,6 +555,25 @@ You can use the following types of transform on a value being patched:
     us-west: West US
     us-east: East US
     au-east: Australia East
+```
+
+`match`. A more complex version of `map` that can match different kinds of
+patterns. It should be used if more advanced pattern matchings than a simple
+string equality check are required.
+The result of the first matching pattern is used as the output of this
+transform.
+
+```yaml
+- type: match
+  match:
+    patterns:
+      - type: literal # Not needed. This is the default.
+        literal: us-west
+        result: West US
+      - type: regexp
+        regexp: '^af-.*'
+        result: Somewhere in Africa
+    fallbackValue: Unknown
 ```
 
 `math`. Transforms values using math. The input value must be an integer.
@@ -657,9 +723,9 @@ composed resource.
 
 ```yaml
 # Always sets the XR's 'user' connection detail to 'admin'.
-- type: FromFieldPath
+- type: FromValue
   name: user
-  fromValue: admin
+  value: admin
 ```
 
 ### Readiness Checks
@@ -690,7 +756,7 @@ field within that resource matches a specified integer.
 ```yaml
 # The composed resource will be considered ready when the 'state' status field
 # matches the integer 4.
-- type: MatchString
+- type: MatchInteger
   fieldPath: status.atProvider.state
   matchInteger: 4
 ```
@@ -802,8 +868,8 @@ resources, but it's not required.
 ### Mixing and Matching Providers
 
 Crossplane has providers for many things in addition to the big clouds. Take a
-look at [github.com/crossplane-contrib][crossplane-contrib] to find many of
-them. Keep in mind that you can mix and match managed resources from different
+look at the [Upbound Marketplace][upbound-marketplace] to find many of them.
+Keep in mind that you can mix and match managed resources from different
 providers within a `Composition` to create Composite Resources. For example you
 might use provider-aws and provider-sql to create an XR that provisions an
 `RDSInstance` then creates an SQL `Database` and `User`, or provider-gcp and
@@ -829,14 +895,14 @@ so:
 1. Use a `FromCompositeFieldPath` patch to patch from the 'intermediary' field
    you patched to in step 1 to a field on the destination composed resource.
 
-[api-docs]: ../api-docs/crossplane.md
-[xr-concepts]: ../concepts/composition.md
+[api-docs]: {{<ref "../api-docs/crossplane" >}}
+[xr-concepts]: {{<ref "../concepts/composition" >}}
 [crd-docs]: https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definitions/
 [raise an issue]: https://github.com/crossplane/crossplane/issues/new?assignees=&labels=enhancement&template=feature_request.md
 [issue-2524]: https://github.com/crossplane/crossplane/issues/2524
-[field-paths]:  https://github.com/kubernetes/community/blob/61f3d0/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
-[pkg/fmt]: https://golang.org/pkg/fmt/
-[trouble-ref]: troubleshoot.md
-[crossplane-contrib]: https://github.com/crossplane-contrib
+[field-paths]: https://github.com/kubernetes/community/blob/61f3d0/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
+[pkg/fmt]: https://pkg.go.dev/fmt
+[trouble-ref]: {{<ref "troubleshoot" >}}
+[upbound-marketplace]: https://marketplace.upbound.io
 [helm-and-gcp]: https://github.com/crossplane-contrib/provider-helm/blob/2dcbdd0/examples/in-composition/composition.yaml
 [issue-2024]: https://github.com/crossplane/crossplane/issues/2024

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package claim implements composite resource claims.
 package claim
 
 import (
@@ -56,6 +57,7 @@ const (
 	errGetClaim           = "cannot get composite resource claim"
 	errGetComposite       = "cannot get referenced composite resource"
 	errDeleteComposite    = "cannot delete referenced composite resource"
+	errDeleteUnbound      = "refusing to delete composite resource that is not bound to this claim"
 	errDeleteCDs          = "cannot delete connection details"
 	errRemoveFinalizer    = "cannot remove composite resource claim finalizer"
 	errAddFinalizer       = "cannot add composite resource claim finalizer"
@@ -75,6 +77,7 @@ const (
 	reasonCompositeConfigure event.Reason = "ConfigureCompositeResource"
 	reasonClaimConfigure     event.Reason = "ConfigureClaim"
 	reasonPropagate          event.Reason = "PropagateConnectionSecret"
+	reasonPaused             event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -317,9 +320,7 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 }
 
 // Reconcile a composite resource claim with a concrete composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
-	// NOTE(negz): This method is well over our cyclomatic complexity goal.
-	// Be wary of adding additional complexity.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Complexity is tough to avoid here.
 
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
@@ -342,6 +343,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"external-name", meta.GetExternalName(cm),
 	)
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(cm) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(cm, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		cm.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	}
+
 	cp := r.newComposite()
 	if ref := cm.GetResourceReference(); ref != nil {
 		record = record.WithAnnotations("composite-name", cm.GetResourceReference().Name)
@@ -351,14 +363,22 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errGetComposite, "error", err)
 			err = errors.Wrap(err, errGetComposite)
 			record.Event(cm, event.Warning(reasonBind, err))
-			return reconcile.Result{}, err
+			cm.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 	}
 
 	if meta.WasDeleted(cm) {
 		log = log.WithValues("deletion-timestamp", cm.GetDeletionTimestamp())
 
+		cm.SetConditions(xpv1.Deleting())
 		if meta.WasCreated(cp) {
+			if meta.WasDeleted(cp) {
+				if *cm.GetCompositeDeletePolicy() == xpv1.CompositeDeleteForeground {
+					log.Debug("Waiting for the Composite to finish deleting (foreground deletion)")
+					return reconcile.Result{Requeue: true}, nil
+				}
+			}
 			ref := cp.GetClaimReference()
 			want := meta.ReferenceTo(cm, cm.GetObjectKind().GroupVersionKind())
 			if !cmp.Equal(want, ref, cmpopts.IgnoreFields(corev1.ObjectReference{}, "UID")) {
@@ -368,19 +388,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				// can proceed (e.g. fixing the ref), and we'll
 				// be queued implicitly when the claim is
 				// edited.
-				err := errors.New("refusing to delete composite resource that is not bound to this claim")
+				err := errors.New(errDeleteUnbound)
 				log.Debug(errDeleteComposite, "error", err)
 				record.Event(cm, event.Warning(reasonDelete, err))
-				return reconcile.Result{Requeue: false}, nil
+				cm.SetConditions(xpv1.ReconcileError(err))
+				return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
 
-			if err := r.client.Delete(ctx, cp); resource.IgnoreNotFound(err) != nil {
+			do := &client.DeleteOptions{}
+			if *cm.GetCompositeDeletePolicy() == xpv1.CompositeDeleteForeground {
+				client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
+			}
+			if err := r.client.Delete(ctx, cp, do); resource.IgnoreNotFound(err) != nil {
 				log.Debug(errDeleteComposite, "error", err)
 				err = errors.Wrap(err, errDeleteComposite)
 				record.Event(cm, event.Warning(reasonDelete, err))
-				return reconcile.Result{}, err
+				cm.SetConditions(xpv1.ReconcileError(err))
+				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
-
+			if *cm.GetCompositeDeletePolicy() == xpv1.CompositeDeleteForeground {
+				log.Debug("Requeue to wait for the Composite to finish deleting (foreground deletion)")
+				return reconcile.Result{Requeue: true}, nil
+			}
 		}
 
 		// Claims do not publish connection details but may propagate XR
@@ -390,7 +419,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errDeleteCDs, "error", err)
 			err = errors.Wrap(err, errDeleteCDs)
 			record.Event(cm, event.Warning(reasonDelete, err))
-			return reconcile.Result{}, err
+			cm.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
@@ -400,25 +430,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)
 			record.Event(cm, event.Warning(reasonDelete, err))
-			return reconcile.Result{}, err
+			cm.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource claim")
-		return reconcile.Result{Requeue: false}, nil
+		cm.SetConditions(xpv1.ReconcileSuccess())
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	if err := r.claim.AddFinalizer(ctx, cm); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
 		record.Event(cm, event.Warning(reasonBind, err))
-		return reconcile.Result{}, err
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	if err := r.composite.Configure(ctx, cm, cp); err != nil {
 		log.Debug(errConfigureComposite, "error", err)
 		err = errors.Wrap(err, errConfigureComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
-		return reconcile.Result{}, err
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	// We'll know our composite resource's name at this point because it was
@@ -437,14 +471,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errBindComposite, "error", err)
 		err = errors.Wrap(err, errBindComposite)
 		record.Event(cm, event.Warning(reasonBind, err))
-		return reconcile.Result{}, err
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	if err := r.client.Apply(ctx, cp); err != nil {
 		log.Debug(errApplyComposite, "error", err)
 		err = errors.Wrap(err, errApplyComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
-		return reconcile.Result{}, err
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
 	log.Debug("Successfully applied composite resource")
@@ -454,8 +490,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errConfigureClaim, "error", err)
 		err = errors.Wrap(err, errConfigureClaim)
 		record.Event(cm, event.Warning(reasonClaimConfigure, err))
-		return reconcile.Result{}, err
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
+
+	cm.SetConditions(xpv1.ReconcileSuccess())
 
 	if !resource.IsConditionTrue(cp.GetCondition(xpv1.TypeReady)) {
 		log.Debug("Composite resource is not yet ready")
@@ -475,7 +514,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errPropagateCDs, "error", err)
 		err = errors.Wrap(err, errPropagateCDs)
 		record.Event(cm, event.Warning(reasonPropagate, err))
-		return reconcile.Result{}, err
+		cm.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 	if propagated {
 		cm.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})

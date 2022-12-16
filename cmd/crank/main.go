@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package main implements Crossplane's crank CLI - aka kubectl crossplane.
 package main
 
 import (
@@ -33,20 +34,20 @@ type versionFlag string
 type verboseFlag bool
 
 // Decode overrides the default string decoder to be a no-op.
-func (v versionFlag) Decode(ctx *kong.DecodeContext) error { return nil } // nolint:unparam
+func (v versionFlag) Decode(ctx *kong.DecodeContext) error { return nil }
 
 // IsBool indicates that this string flag should be treated as a boolean value.
 func (v versionFlag) IsBool() bool { return true }
 
 // BeforeApply indicates that we want to execute the logic before running any
 // commands.
-func (v versionFlag) BeforeApply(app *kong.Kong) error { // nolint:unparam
+func (v versionFlag) BeforeApply(app *kong.Kong) error { //nolint:unparam // BeforeApply requires this signature.
 	fmt.Fprintln(app.Stdout, version.New().GetVersionString())
 	app.Exit(0)
 	return nil
 }
 
-func (v verboseFlag) BeforeApply(ctx *kong.Context) error { // nolint:unparam
+func (v verboseFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // BeforeApply requires this signature.
 	logger := logging.NewLogrLogger(zap.New(zap.UseDevMode(true)))
 	ctx.BindTo(logger, (*logging.Logger)(nil))
 	return nil

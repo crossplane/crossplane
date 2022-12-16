@@ -52,10 +52,7 @@ type PackageInstaller struct {
 }
 
 // Run makes sure all specified packages exist.
-// NOTE(hasheddan): this function is over our cyclomatic complexity goal, but
-// only runs at installation time and is performing fairly straightforward
-// operations.
-func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo
+func (pi *PackageInstaller) Run(ctx context.Context, kube client.Client) error { //nolint:gocyclo // TODO(negz): Could any of this be broken out?
 	pkgs := make([]client.Object, len(pi.providers)+len(pi.configurations))
 	// NOTE(hasheddan): we build maps of existing Provider and Configuration
 	// sources to the package names such that we can update the version when a

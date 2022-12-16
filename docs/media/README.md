@@ -1,3 +1,6 @@
+---
+tocHidden: true 
+---
 # Crossplane Documentation Media
 
 The sources of the images in this file are:

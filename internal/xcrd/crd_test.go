@@ -170,6 +170,11 @@ func TestForCompositeResource(t *testing.T) {
 				},
 				AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
 					{
+						Name:     "SYNCED",
+						Type:     "string",
+						JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+					},
+					{
 						Name:     "READY",
 						Type:     "string",
 						JSONPath: ".status.conditions[?(@.type=='Ready')].status",
@@ -242,7 +247,19 @@ func TestForCompositeResource(t *testing.T) {
 										Properties: map[string]extv1.JSONSchemaProps{
 											"name": {Type: "string"},
 										},
-										Description: "Alpha: This field may be deprecated or changed without notice.",
+									},
+									"compositionRevisionSelector": {
+										Type:     "object",
+										Required: []string{"matchLabels"},
+										Properties: map[string]extv1.JSONSchemaProps{
+											"matchLabels": {
+												Type: "object",
+												AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+													Allows: true,
+													Schema: &extv1.JSONSchemaProps{Type: "string"},
+												},
+											},
+										},
 									},
 									"compositionUpdatePolicy": {
 										Type: "string",
@@ -250,8 +267,7 @@ func TestForCompositeResource(t *testing.T) {
 											{Raw: []byte(`"Automatic"`)},
 											{Raw: []byte(`"Manual"`)},
 										},
-										Default:     &extv1.JSON{Raw: []byte(`"Automatic"`)},
-										Description: "Alpha: This field may be deprecated or changed without notice.",
+										Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 									},
 									"claimRef": {
 										Type:     "object",
@@ -583,6 +599,11 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					},
 					AdditionalPrinterColumns: []extv1.CustomResourceColumnDefinition{
 						{
+							Name:     "SYNCED",
+							Type:     "string",
+							JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+						},
+						{
 							Name:     "READY",
 							Type:     "string",
 							JSONPath: ".status.conditions[?(@.type=='Ready')].status",
@@ -627,7 +648,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 												{Raw: []byte(`"5.7"`)},
 											},
 										},
-
+										"compositeDeletePolicy": {
+											Type:    "string",
+											Default: &extv1.JSON{Raw: []byte(`"Background"`)},
+											Enum: []extv1.JSON{{Raw: []byte(`"Background"`)},
+												{Raw: []byte(`"Foreground"`)}},
+										},
 										// From CompositeResourceClaimSpecProps()
 										"compositionRef": {
 											Type:     "object",
@@ -654,6 +680,19 @@ func TestForCompositeResourceClaim(t *testing.T) {
 											Required: []string{"name"},
 											Properties: map[string]extv1.JSONSchemaProps{
 												"name": {Type: "string"},
+											},
+										},
+										"compositionRevisionSelector": {
+											Type:     "object",
+											Required: []string{"matchLabels"},
+											Properties: map[string]extv1.JSONSchemaProps{
+												"matchLabels": {
+													Type: "object",
+													AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+														Allows: true,
+														Schema: &extv1.JSONSchemaProps{Type: "string"},
+													},
+												},
 											},
 										},
 										"compositionUpdatePolicy": {

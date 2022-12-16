@@ -29,10 +29,13 @@ NPROCS ?= 1
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
+GO_REQUIRED_VERSION = 1.19
+
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
+GOLANGCILINT_VERSION = 1.49.0
 -include build/makelib/golang.mk
 
 # ====================================================================================
@@ -65,8 +68,8 @@ OSBASEIMAGE = gcr.io/distroless/static:nonroot
 # Setup Docs
 
 SOURCE_DOCS_DIR = docs
-DEST_DOCS_DIR = docs
-DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/crossplane.github.io.git
+DEST_DOCS_DIR = content
+DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/docs.git
 -include build/makelib/docs.mk
 
 # ====================================================================================
@@ -94,13 +97,16 @@ crds.clean:
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate.run: gen-kustomize-crds gen-install-doc
+generate.run: gen-kustomize-crds gen-install-doc gen-chart-license
+
+gen-chart-license:
+	@cp -f LICENSE cluster/charts/crossplane/LICENSE
 
 generate.done: crds.clean
 
 gen-install-doc:
 	@$(INFO) Generating install documentation from Helm chart
-	@head -7 docs/reference/install.md | cat - cluster/charts/crossplane/README.md > reference-install.tmp
+	@head -4 docs/reference/install.md | cat - cluster/charts/crossplane/README.md > reference-install.tmp
 	@mv reference-install.tmp docs/reference/install.md
 	@$(OK) Successfully generated install documentation
 
@@ -108,8 +114,8 @@ gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
 	@rm cluster/kustomization.yaml
 	@echo "# This kustomization can be used to remotely install all Crossplane CRDs" >> cluster/kustomization.yaml
-	@echo "# by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master" >> cluster/kustomization.yaml 
-	@echo "resources:" >> cluster/kustomization.yaml 
+	@echo "# by running kubectl apply -k https://github.com/crossplane/crossplane//cluster?ref=master" >> cluster/kustomization.yaml
+	@echo "resources:" >> cluster/kustomization.yaml
 	@find $(CRD_DIR) -type f -name '*.yaml' | sort | \
 		while read filename ;\
 		do echo "- $${filename#*/}" >> cluster/kustomization.yaml \

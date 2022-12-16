@@ -1,11 +1,8 @@
 ---
 title: Vault Credential Injection
-toc: true
 weight: 230
-indent: true
 ---
 
-# Using Vault for Provider Credentials
 
 > This guide is adapted from the [Vault on Minikube] and [Vault Kubernetes
 > Sidecar] guides.
@@ -95,14 +92,8 @@ The next steps will be executed in your local environment.
 ```console
 exit
 ```
-
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+{{< tabs >}}
+{{<tab "GCP" >}}
 
 ## Create GCP Service Account
 
@@ -185,8 +176,8 @@ ahead and clean it up.
 rm tmp/creds.json
 ```
 
-</div>
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "AWS" >}}
 
 ## Create AWS IAM User
 
@@ -240,8 +231,8 @@ injecting it into the `provider-aws` controller `Pod`.
 vault kv put secret/provider-creds/aws-default access_key="$ACCESS_KEY_ID" secret_key="$AWS_SECRET_ACCESS_KEY"
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 ## Create a Vault Policy for Reading Provider Credentials
 
@@ -282,14 +273,8 @@ The next steps will be executed in your local environment.
 exit
 ```
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-2" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-2" data-toggle="tab">GCP</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade" id="gcp-tab-2" markdown="1">
-
+{{< tabs >}}
+{{< tab "GCP" >}}
 ## Install provider-gcp
 
 You are now ready to install `provider-gcp`. Crossplane provides a
@@ -302,7 +287,6 @@ injected into the container filesystem by assuming role `crossplane-providers`.
 There is also so template formatting added to make sure the secret data is
 presented in a form that `provider-gcp` is expecting.
 
-{% raw  %}
 ```console
 echo "apiVersion: pkg.crossplane.io/v1alpha1
 kind: ControllerConfig
@@ -324,11 +308,10 @@ kind: Provider
 metadata:
   name: provider-gcp
 spec:
-  package: crossplane/provider-gcp:v0.16.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-gcp:v0.22.0
   controllerConfigRef:
     name: vault-config" | kubectl apply -f -
 ```
-{% endraw %}
 
 ## Configure provider-gcp
 
@@ -393,8 +376,8 @@ command:
 kubectl get cloudsqlinstance -w
 ```
 
-</div>
-<div class="tab-pane fade in active" id="aws-tab-2" markdown="1">
+{{< /tab >}}
+{{< tab "AWS" >}}
 
 ## Install provider-aws
 
@@ -408,7 +391,6 @@ injected into the container filesystem by assuming role `crossplane-providers`.
 There is also some template formatting added to make sure the secret data is
 presented in a form that `provider-aws` is expecting.
 
-{% raw  %}
 ```console
 echo "apiVersion: pkg.crossplane.io/v1alpha1
 kind: ControllerConfig
@@ -434,11 +416,10 @@ kind: Provider
 metadata:
   name: provider-aws
 spec:
-  package: crossplane/provider-aws:v0.29.0
+  package: xpkg.upbound.io/crossplane-contrib/provider-aws:v0.33.0
   controllerConfigRef:
     name: aws-vault-config" | kubectl apply -f -
 ```
-{% endraw %}
 
 ## Configure provider-aws
 
@@ -499,8 +480,8 @@ command:
 kubectl get bucket -w
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 <!-- named links -->
 
@@ -508,8 +489,8 @@ kubectl get bucket -w
 [Vault Kubernetes Sidecar]: https://learn.hashicorp.com/tutorials/vault/kubernetes-sidecar
 [Vault]: https://www.vaultproject.io/
 [Vault Kubernetes Sidecar]: https://www.vaultproject.io/docs/platform/k8s/injector
-[provider-gcp]: https://github.com/crossplane-contrib/provider-gcp
-[provider-aws]: https://github.com/crossplane-contrib/provider-aws
+[provider-gcp]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-gcp
+[provider-aws]: https://marketplace.upbound.io/providers/crossplane-contrib/provider-aws
 [AWS]: https://www.vaultproject.io/docs/secrets/aws
 [Azure]: https://www.vaultproject.io/docs/secrets/azure
 [GCP]: https://www.vaultproject.io/docs/secrets/gcp 

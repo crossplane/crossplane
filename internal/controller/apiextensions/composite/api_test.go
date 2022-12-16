@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -36,7 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -228,40 +228,42 @@ func TestFetchRevision(t *testing.T) {
 	}
 
 	// We don't own this revision.
-	rev3 := &v1alpha1.CompositionRevision{
+	rev3 := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-jfdm2",
 		},
 	}
 
 	// The latest revision.
-	rev2 := &v1alpha1.CompositionRevision{
+	rev2 := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-dl2nd",
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: comp.Spec.Hash(),
+				v1beta1.LabelCompositionHash: comp.Hash(),
 			},
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 		},
-		Spec: v1alpha1.CompositionRevisionSpec{Revision: 2},
+		Spec: v1beta1.CompositionRevisionSpec{Revision: 2},
 	}
 
 	// An older revision
-	rev1 := &v1alpha1.CompositionRevision{
+	rev1 := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-mdk12",
 			Labels: map[string]string{
-				v1alpha1.LabelCompositionSpecHash: "I'm different!",
+				v1beta1.LabelCompositionHash: "I'm different!",
 			},
 			OwnerReferences: []metav1.OwnerReference{{
-				UID:        comp.GetUID(),
-				Controller: &ctrl,
+				UID:                comp.GetUID(),
+				Controller:         &ctrl,
+				BlockOwnerDeletion: &ctrl,
 			}},
 		},
-		Spec: v1alpha1.CompositionRevisionSpec{Revision: 1},
+		Spec: v1beta1.CompositionRevisionSpec{Revision: 1},
 	}
 
 	type args struct {
@@ -291,7 +293,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				comp: AsComposition(&v1alpha1.CompositionRevision{}),
+				comp: AsComposition(&v1beta1.CompositionRevision{}),
 				err:  errors.Wrap(errBoom, errGetCompositionRevision),
 			},
 		},
@@ -299,7 +301,7 @@ func TestFetchRevision(t *testing.T) {
 			reason: "When we're using the manual update policy and a revision reference is set we should return that revision as a composition.",
 			client: resource.ClientApplicator{Client: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-					*obj.(*v1alpha1.CompositionRevision) = *rev3
+					*obj.(*v1beta1.CompositionRevision) = *rev3
 					return nil
 				}),
 			}},
@@ -339,7 +341,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errListCompositionRevisions),
+				err: errors.Wrap(errors.Wrap(errBoom, errListCompositionRevisions), errFetchCompositionRevision),
 			},
 		},
 		"NoCompositionRevisionsError": {
@@ -366,8 +368,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
-							Items: []v1alpha1.CompositionRevision{
+						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
+							Items: []v1beta1.CompositionRevision{
 								// We should ignore this revision because it does not have
 								// our composition above as its controller reference.
 								*rev3,
@@ -411,8 +413,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
-							Items: []v1alpha1.CompositionRevision{
+						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
+							Items: []v1beta1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
 								*rev2,
@@ -429,8 +431,8 @@ func TestFetchRevision(t *testing.T) {
 						},
 						CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
 							Ref: &corev1.ObjectReference{
-								APIVersion: v1alpha1.SchemeGroupVersion.String(),
-								Kind:       v1alpha1.CompositionRevisionKind,
+								APIVersion: v1beta1.SchemeGroupVersion.String(),
+								Kind:       v1beta1.CompositionRevisionKind,
 								Name:       rev2.GetName(),
 							},
 						},
@@ -465,8 +467,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
-							Items: []v1alpha1.CompositionRevision{
+						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
+							Items: []v1beta1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
 								*rev2,
@@ -486,8 +488,8 @@ func TestFetchRevision(t *testing.T) {
 						},
 						CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
 							Ref: &corev1.ObjectReference{
-								APIVersion: v1alpha1.SchemeGroupVersion.String(),
-								Kind:       v1alpha1.CompositionRevisionKind,
+								APIVersion: v1beta1.SchemeGroupVersion.String(),
+								Kind:       v1beta1.CompositionRevisionKind,
 								Name:       rev2.GetName(),
 							},
 						},
@@ -506,8 +508,8 @@ func TestFetchRevision(t *testing.T) {
 					// We reference the outdated revision.
 					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
 						Ref: &corev1.ObjectReference{
-							APIVersion: v1alpha1.SchemeGroupVersion.String(),
-							Kind:       v1alpha1.CompositionRevisionKind,
+							APIVersion: v1beta1.SchemeGroupVersion.String(),
+							Kind:       v1beta1.CompositionRevisionKind,
 							Name:       rev1.GetName(),
 						},
 					},
@@ -526,8 +528,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
-							Items: []v1alpha1.CompositionRevision{
+						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
+							Items: []v1beta1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
 								*rev2,

@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package revision implements the Crossplane Package Revision controllers.
 package revision
 
 import (
 	"context"
 	"io"
+	"sort"
 	"strings"
 	"time"
 
@@ -226,7 +228,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
-	fetcher, err := xpkg.NewK8sFetcher(clientset, o.Namespace, o.FetcherOptions...)
+	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}
@@ -237,7 +239,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 		WithHooks(NewProviderHooks(resource.ClientApplicator{
 			Client:     mgr.GetClient(),
 			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
-		}, o.Namespace)),
+		}, o.Namespace, o.ServiceAccount)),
 		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
 		WithNewPackageRevisionFn(nr),
 		WithParser(parser.New(metaScheme, objScheme)),
@@ -276,7 +278,7 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	if err != nil {
 		return errors.New("cannot build object scheme for package parser")
 	}
-	f, err := xpkg.NewK8sFetcher(cs, o.Namespace, o.FetcherOptions...)
+	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
 		return errors.Wrap(err, "cannot build fetcher for package parser")
 	}
@@ -325,7 +327,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 }
 
 // Reconcile package revision.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { // nolint:gocyclo
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are often very complex.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -453,7 +455,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		pipeR, pipeW := io.Pipe()
 		rc = xpkg.TeeReadCloser(imgrc, pipeW)
 		go func() {
-			defer pipeR.Close() //nolint:errcheck
+			defer pipeR.Close() //nolint:errcheck // Not much we can do if this fails.
 			if err := r.cache.Store(pr.GetName(), pipeR); err != nil {
 				_ = pipeR.CloseWithError(err)
 				cacheWrite <- err
@@ -581,6 +583,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Update object list in package revision status with objects for which
 	// ownership or control has been established.
+	// NOTE(hasheddan): the collection of resource references is
+	// non-deterministic due to concurrent establishment, so we perform a stable
+	// sort to avoid constant status changes.
+	sort.SliceStable(refs, func(i, j int) bool {
+		return string(refs[i].UID) < string(refs[j].UID)
+	})
 	pr.SetObjects(refs)
 
 	if err := r.hook.Post(ctx, pkgMeta, pr); err != nil {

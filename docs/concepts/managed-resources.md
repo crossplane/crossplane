@@ -1,13 +1,7 @@
 ---
 title: Managed Resources
-toc: true
 weight: 102
-indent: true
 ---
-
-# Managed Resources
-
-## Overview
 
 A Managed Resource (MR) is Crossplane's representation of a resource in an
 external system - most commonly a cloud provider. Managed Resources are
@@ -31,14 +25,8 @@ Composite Resources or XRs - not used directly. See the
 Crossplane API conventions extend the Kubernetes API conventions for the schema
 of Crossplane managed resources. Following is an example of a managed resource:
 
-<ul class="nav nav-tabs">
-<li class="active"><a href="#aws-tab-1" data-toggle="tab">AWS</a></li>
-<li><a href="#gcp-tab-1" data-toggle="tab">GCP</a></li>
-<li><a href="#azure-tab-1" data-toggle="tab">Azure</a></li>
-</ul>
-<br>
-<div class="tab-content">
-<div class="tab-pane fade in active" id="aws-tab-1" markdown="1">
+{{< tabs >}}
+{{< tab "AWS" >}}
 
 The AWS provider supports provisioning an [RDS][rds] instance via the `RDSInstance`
 managed resource it adds to Crossplane.
@@ -87,8 +75,8 @@ You can then delete the `RDSInstance`:
 kubectl delete rdsinstance rdspostgresql
 ```
 
-</div>
-<div class="tab-pane fade" id="gcp-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "GCP" >}}
 
 The GCP provider supports provisioning a [CloudSQL][cloudsql] instance with the
 `CloudSQLInstance` managed resource it adds to Crossplane.
@@ -136,8 +124,8 @@ You can then delete the `CloudSQLInstance`:
 kubectl delete cloudsqlinstance cloudsqlpostgresql
 ```
 
-</div>
-<div class="tab-pane fade" id="azure-tab-1" markdown="1">
+{{< /tab >}}
+{{< tab "Azure" >}}
 
 The Azure provider supports provisioning an [Azure Database for PostgreSQL]
 instance with the `PostgreSQLServer` managed resource it adds to Crossplane.
@@ -205,8 +193,8 @@ kubectl delete postgresqlserver sqlserverpostgresql
 kubectl delete resourcegroup sqlserverpostgresql-rg
 ```
 
-</div>
-</div>
+{{< /tab >}}
+{{< /tabs >}}
 
 In Kubernetes, `spec` top field represents the desired state of the user.
 Crossplane adheres to that and has its own conventions about how the fields
@@ -315,6 +303,25 @@ never deletes the external resource in the provider.
 > Kubernetes does not yet support immutable fields for custom resources. This
 > means Crossplane will allow immutable fields to be changed, but will not
 > actually make the desired change. This is tracked in [this issue][issue-727].
+
+#### Pausing Reconciliations
+If a managed resource being reconciled by the [managed reconciler], has the
+`crossplane.io/paused` annotation with its value set to `true` as in the
+following example, then further reconciliations are paused on that resource
+after emitting an event with the type `Synced`, the status `False`,
+and the reason `ReconcilePaused`:
+```yaml
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: VPC
+metadata:
+  name: paused-vpc
+  annotations:
+    crossplane.io/paused: "true"
+...
+```
+Reconciliations on the managed resource will resume once the 
+`crossplane.io/paused` annotation is removed or its value is set
+to anything other than `true`.
 
 ### External Name
 
@@ -457,14 +464,39 @@ fields are there and those are enough to import a resource. The tool you're
 using needs to store `annotations` and `spec` fields, which most tools do
 including Velero.
 
-[term-xrm]: terminology.md#crossplane-resource-model
+## Reference Policies
+
+We have two types of policies for reference fields: Resolve and Resolution.
+
+Resolve specifies when this reference should be resolved. The default is
+‘IfNotPresent’, which will attempt to resolve the reference only when the
+corresponding field is not present. Use ‘Always’ to resolve the reference on
+every reconcile.
+
+Resolution specifies whether resolution of this reference is required. The
+default is ‘Required’, which means the reconcile will fail if the reference
+cannot be resolved. ‘Optional’ means this reference will be a no-op if it cannot
+be resolved.
+
+Example usage:
+
+```yaml
+subnetIdRefs:
+  - name: example
+    policy:
+      resolve: Always
+      resolution: Required
+```
+
+[term-xrm]: {{<ref "terminology" >}}#crossplane-resource-model
 [rds]: https://aws.amazon.com/rds/
 [cloudsql]: https://cloud.google.com/sql
-[composition]: composition.md
-[api-versioning]: https://kubernetes.io/docs/reference/using-api/api-overview/#api-versioning
+[composition]: {{<ref "composition" >}}
+[api-versioning]: https://kubernetes.io/docs/reference/using-api/#api-versioning#api-versioning
 [velero]: https://velero.io/
-[api-reference]: ../api-docs/overview.md
-[provider]: providers.md
+[api-reference]: {{<ref "../api-docs" >}}
+[provider]: {{<ref "providers" >}}
 [issue-727]: https://github.com/crossplane/crossplane/issues/727
 [issue-1143]: https://github.com/crossplane/crossplane/issues/1143
 [managed-api-patterns]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-managed-resource-api-design.md
+[managed reconciler]: https://github.com/crossplane/crossplane-runtime/blob/84e629b9589852df1322ff1eae4c6e7639cf6e99/pkg/reconciler/managed/reconciler.go#L637

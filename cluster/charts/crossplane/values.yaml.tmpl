@@ -8,7 +8,7 @@ image:
   pullPolicy: IfNotPresent
 
 nodeSelector: {}
-tolerations: {}
+tolerations: []
 affinity: {}
 
 # -- Custom labels to add into metadata
@@ -30,8 +30,7 @@ provider:
 configuration:
   packages: []
 
-imagePullSecrets:
-- dockerhub
+imagePullSecrets: {}
 
 registryCaBundleConfig: {}
 
@@ -46,7 +45,7 @@ rbacManager:
   leaderElection: true
   args: {}
   nodeSelector: {}
-  tolerations: {}
+  tolerations: []
   affinity: {}
 
 priorityClassName: ""
@@ -69,6 +68,7 @@ packageCache:
   medium: ""
   sizeLimit: 5Mi
   pvc: ""
+  configMap: ""
 
 resourcesRBACManager:
   limits:

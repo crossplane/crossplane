@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package composite implements Crossplane composite resources.
 package composite
 
 import (
@@ -75,6 +76,7 @@ const (
 	reasonPublish event.Reason = "PublishConnectionSecret"
 	reasonInit    event.Reason = "InitializeCompositeResource"
 	reasonDelete  event.Reason = "DeleteCompositeResource"
+	reasonPaused  event.Reason = "ReconciliationPaused"
 )
 
 // ControllerName returns the recommended name for controllers that use this
@@ -380,11 +382,7 @@ type composedRenderState struct {
 }
 
 // Reconcile a composite resource.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
-	// NOTE(negz): Like most Reconcile methods, this one is over our cyclomatic
-	// complexity goal. Be wary when adding branches, and look for functionality
-	// that could be reasonably moved into an injected dependency.
-
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -403,39 +401,56 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"name", cr.GetName(),
 	)
 
+	// Check the pause annotation and return if it has the value "true"
+	// after logging, publishing an event and updating the SYNC status condition
+	if meta.IsPaused(cr) {
+		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
+		r.record.Event(cr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		cr.SetConditions(xpv1.ReconcilePaused())
+		// If the pause annotation is removed, we will have a chance to reconcile again and resume
+		// and if status update fails, we will reconcile again to retry to update the status
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
 	if meta.WasDeleted(cr) {
 		log = log.WithValues("deletion-timestamp", cr.GetDeletionTimestamp())
 
+		cr.SetConditions(xpv1.Deleting())
 		if err := r.composite.UnpublishConnection(ctx, cr, nil); err != nil {
 			log.Debug(errUnpublish, "error", err)
 			err = errors.Wrap(err, errUnpublish)
 			r.record.Event(cr, event.Warning(reasonDelete, err))
-			return reconcile.Result{}, err
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		if err := r.composite.RemoveFinalizer(ctx, cr); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)
 			r.record.Event(cr, event.Warning(reasonDelete, err))
-			return reconcile.Result{}, err
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
-		return reconcile.Result{Requeue: false}, nil
+		cr.SetConditions(xpv1.ReconcileSuccess())
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.composite.AddFinalizer(ctx, cr); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(cr, event.Warning(reasonInit, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.composite.SelectComposition(ctx, cr); err != nil {
 		log.Debug(errSelectComp, "error", err)
 		err = errors.Wrap(err, errSelectComp)
 		r.record.Event(cr, event.Warning(reasonResolve, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	r.record.Event(cr, event.Normal(reasonResolve, "Successfully selected composition"))
 
@@ -446,7 +461,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// TODO(negz): Composition validation should be handled by a validation
@@ -455,23 +471,26 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errValidate, "error", err)
 		err = errors.Wrap(err, errValidate)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if err := r.composite.Configure(ctx, cr, comp); err != nil {
 		log.Debug(errConfigure, "error", err)
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// Inline PatchSets from Composition Spec before composing resources.
-	ct, err := comp.Spec.ComposedTemplates()
+	ct, err := ComposedTemplates(comp.Spec)
 	if err != nil {
 		log.Debug(errInline, "error", err)
 		err = errors.Wrap(err, errInline)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	tas, err := r.composition.AssociateTemplates(ctx, cr, ct)
@@ -479,7 +498,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errAssociate, "error", err)
 		err = errors.Wrap(err, errAssociate)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// We optimistically render all composed resources that we are able to
@@ -514,7 +534,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errUpdate, "error", err)
 		err = errors.Wrap(err, errUpdate)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	// We apply all of our composed resources before we observe them and
@@ -531,7 +552,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errApply, "error", err)
 			err = errors.Wrap(err, errApply)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{}, err
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 	}
 
@@ -550,7 +572,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errRenderCR, "error", err)
 			err = errors.Wrap(err, errRenderCR)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{}, err
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		c, err := r.composed.FetchConnectionDetails(ctx, cd.resource, tpl)
@@ -558,7 +581,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errFetchSecret, "error", err)
 			err = errors.Wrap(err, errFetchSecret)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{}, err
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		for key, val := range c {
@@ -570,7 +594,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			log.Debug(errReadiness, "error", err)
 			err = errors.Wrap(err, errReadiness)
 			r.record.Event(cr, event.Warning(reasonCompose, err))
-			return reconcile.Result{}, err
+			cr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 		}
 
 		if rdy {
@@ -589,7 +614,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errUpdate, "error", err)
 		err = errors.Wrap(err, errUpdate)
 		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	if updated.GetResourceVersion() != cr.GetResourceVersion() {
@@ -602,7 +628,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// remaining reconcile logic will proceed when no new spec
 		// changes are persisted.
 		log.Debug("Composite resource spec or metadata was patched - terminating reconcile early")
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
 	r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
@@ -612,13 +638,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errPublish, "error", err)
 		err = errors.Wrap(err, errPublish)
 		r.record.Event(cr, event.Warning(reasonPublish, err))
-		return reconcile.Result{}, err
+		cr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	if published {
 		cr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 		log.Debug("Successfully published connection details")
 		r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
+
+	cr.SetConditions(xpv1.ReconcileSuccess())
 
 	// TODO(muvaf):
 	// * Report which resources are not ready.

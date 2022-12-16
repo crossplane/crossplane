@@ -35,6 +35,3 @@ type Configuration struct {
 
 	Spec ConfigurationSpec `json:"spec"`
 }
-
-// Hub marks this type as the conversion hub.
-func (c *Configuration) Hub() {}

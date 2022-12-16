@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ template "crossplane.name" . }}-rbac-manager
+  namespace: {{ .Release.Namespace }}
   labels:
     app: {{ template "crossplane.name" . }}-rbac-manager
     release: {{ .Release.Name }}
@@ -45,6 +46,17 @@ spec:
           {{- toYaml .Values.resourcesRBACManager | nindent 12 }}
         securityContext:
           {{- toYaml .Values.securityContextRBACManager | nindent 12 }}
+        env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}-init
+                resource: limits.memory
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
@@ -69,6 +81,16 @@ spec:
         securityContext:
           {{- toYaml .Values.securityContextRBACManager | nindent 12 }}
         env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.memory
           - name: LEADER_ELECTION
             value: "{{ .Values.rbacManager.leaderElection }}"
         {{- range $key, $value := .Values.extraEnvVarsRBACManager }}
@@ -79,7 +101,7 @@ spec:
       nodeSelector: {{ toYaml .Values.rbacManager.nodeSelector | nindent 8 }}
       {{- end }}
       {{- if .Values.rbacManager.tolerations }}
-      tolerations: {{ toYaml .Values.rbacManager.tolerations | nindent 8 }}
+      tolerations: {{ toYaml .Values.rbacManager.tolerations | nindent 6 }}
       {{- end }}
       {{- if .Values.rbacManager.affinity }}
       affinity: {{ toYaml .Values.rbacManager.affinity | nindent 8 }}

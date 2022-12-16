@@ -27,10 +27,6 @@ linters-settings:
     # report about shadowed variables
     check-shadowing: false
 
-  revive:
-    # confidence for issues, default is 0.8
-    confidence: 0.8
-
   gofmt:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
@@ -102,13 +98,17 @@ linters-settings:
       rangeValCopy:
         sizeThreshold: 32
 
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+
+
 linters:
   enable:
     - megacheck
     - govet
     - gocyclo
     - gocritic
-    - interfacer
     - goconst
     - goimports
     - gofmt  # We enable this as well as goimports for its simplify mode.
@@ -117,6 +117,16 @@ linters:
     - unconvert
     - misspell
     - nakedret
+    - nolintlint
+  
+  disable:
+    # These linters are all deprecated as of golangci-lint v1.49.0. We disable
+    # them explicitly to avoid the linter logging deprecation warnings.
+    - deadcode
+    - varcheck
+    - scopelint
+    - structcheck
+    - interfacer
 
   presets:
     - bugs

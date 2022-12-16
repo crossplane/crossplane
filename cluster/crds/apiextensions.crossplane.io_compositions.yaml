@@ -192,9 +192,63 @@ spec:
                                   type: object
                                 map:
                                   additionalProperties:
-                                    type: string
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: Map uses the input as a key in the
                                     given map and returns the value.
+                                  type: object
+                                match:
+                                  description: Match is a more complex version of
+                                    Map that matches a list of patterns.
+                                  properties:
+                                    fallbackValue:
+                                      description: The fallback value that should
+                                        be returned by the transform if now pattern
+                                        matches.
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    patterns:
+                                      description: The patterns that should be tested
+                                        against the input string. Patterns are tested
+                                        in order. The value of the first match is
+                                        used as result of this transform.
+                                      items:
+                                        description: MatchTransformPattern is a transform
+                                          that returns the value that matches a pattern.
+                                        properties:
+                                          literal:
+                                            description: Literal exactly matches the
+                                              input string (case sensitive). Is required
+                                              if `type` is `literal`.
+                                            type: string
+                                          regexp:
+                                            description: Regexp to match against the
+                                              input string. Is required if `type`
+                                              is `regexp`.
+                                            type: string
+                                          result:
+                                            description: The value that is used as
+                                              result of the transform if the pattern
+                                              matches.
+                                            x-kubernetes-preserve-unknown-fields: true
+                                          type:
+                                            default: literal
+                                            description: "Type specifies how the pattern
+                                              matches the input. \n * `literal` -
+                                              the pattern value has to exactly match
+                                              (case sensitive) the input string. This
+                                              is the default. \n * `regexp` - the
+                                              pattern treated as a regular expression
+                                              against which the input string is tested.
+                                              Crossplane will throw an error if the
+                                              key is not a valid regexp."
+                                            enum:
+                                            - literal
+                                            - regexp
+                                            type: string
+                                        required:
+                                        - result
+                                        - type
+                                        type: object
+                                      type: array
                                   type: object
                                 math:
                                   description: Math is used to transform the input
@@ -261,6 +315,7 @@ spec:
                                   description: Type of the transform to be run.
                                   enum:
                                   - map
+                                  - match
                                   - math
                                   - string
                                   - convert
@@ -499,9 +554,63 @@ spec:
                                   type: object
                                 map:
                                   additionalProperties:
-                                    type: string
+                                    x-kubernetes-preserve-unknown-fields: true
                                   description: Map uses the input as a key in the
                                     given map and returns the value.
+                                  type: object
+                                match:
+                                  description: Match is a more complex version of
+                                    Map that matches a list of patterns.
+                                  properties:
+                                    fallbackValue:
+                                      description: The fallback value that should
+                                        be returned by the transform if now pattern
+                                        matches.
+                                      x-kubernetes-preserve-unknown-fields: true
+                                    patterns:
+                                      description: The patterns that should be tested
+                                        against the input string. Patterns are tested
+                                        in order. The value of the first match is
+                                        used as result of this transform.
+                                      items:
+                                        description: MatchTransformPattern is a transform
+                                          that returns the value that matches a pattern.
+                                        properties:
+                                          literal:
+                                            description: Literal exactly matches the
+                                              input string (case sensitive). Is required
+                                              if `type` is `literal`.
+                                            type: string
+                                          regexp:
+                                            description: Regexp to match against the
+                                              input string. Is required if `type`
+                                              is `regexp`.
+                                            type: string
+                                          result:
+                                            description: The value that is used as
+                                              result of the transform if the pattern
+                                              matches.
+                                            x-kubernetes-preserve-unknown-fields: true
+                                          type:
+                                            default: literal
+                                            description: "Type specifies how the pattern
+                                              matches the input. \n * `literal` -
+                                              the pattern value has to exactly match
+                                              (case sensitive) the input string. This
+                                              is the default. \n * `regexp` - the
+                                              pattern treated as a regular expression
+                                              against which the input string is tested.
+                                              Crossplane will throw an error if the
+                                              key is not a valid regexp."
+                                            enum:
+                                            - literal
+                                            - regexp
+                                            type: string
+                                        required:
+                                        - result
+                                        - type
+                                        type: object
+                                      type: array
                                   type: object
                                 math:
                                   description: Math is used to transform the input
@@ -568,6 +677,7 @@ spec:
                                   description: Type of the transform to be run.
                                   enum:
                                   - map
+                                  - match
                                   - math
                                   - string
                                   - convert

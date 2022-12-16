@@ -1,11 +1,7 @@
 ---
 title: xpkg Specification
-toc: true
 weight: 305
-indent: true
 ---
-
-# Overview
 
 Crossplane supports two types of [packages]: Providers and Configurations. These
 packages are distributed as generic [OCI images], which contain [YAML] content
@@ -186,7 +182,7 @@ annotations by third-party consumers of Crossplane packages:
 - `meta.crossplane.io/source`: The URL at which the package's source can be
   found.
 - `meta.crossplane.io/license`: The license under which the package's source is
-  released.
+  released. This should be a valid [SPDX License Identifier].
 - `meta.crossplane.io/description`: A one sentence description of the package.
 - `meta.crossplane.io/readme`: A longer description, documentation, etc.
 
@@ -201,7 +197,7 @@ unmodified.
 
 <!-- Named Links -->
 
-[packages]: ../concepts/packages.md
+[packages]: {{<ref "../concepts/packages" >}}
 [OCI images]: https://github.com/opencontainers/image-spec
 [OCI image specification]: https://github.com/opencontainers/image-spec/blob/main/spec.md
 [YAML]: https://yaml.org/spec/1.2.2/
@@ -212,3 +208,4 @@ unmodified.
 [index]: https://github.com/opencontainers/image-spec/blob/main/image-index.md
 [annotation]: https://github.com/opencontainers/image-spec/blob/main/annotations.md
 [applying changesets]: https://github.com/opencontainers/image-spec/blob/main/layer.md#applying-changesets
+[SPDX License Identifier]: https://spdx.org/licenses/

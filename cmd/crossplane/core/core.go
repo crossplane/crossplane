@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package core implements Crossplane's core controller manager.
 package core
 
 import (
@@ -37,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
+	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -49,7 +51,8 @@ type Command struct {
 // KongVars represent the kong variables associated with the CLI parser
 // required for the Registry default variable interpolation.
 var KongVars = kong.Vars{
-	"default_registry": name.DefaultRegistry,
+	"default_registry":   name.DefaultRegistry,
+	"default_user_agent": transport.DefaultUserAgent,
 }
 
 // Run is the no-op method required for kong call tree
@@ -61,23 +64,25 @@ func (c *Command) Run() error {
 
 type startCommand struct {
 	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	ServiceAccount       string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
 	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
 	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
 	Registry             string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 	CABundlePath         string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
 	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
 	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
+	UserAgent            string `help:"The User-Agent header that will be set on all package requests." default:"${default_user_agent}" env:"USER_AGENT"`
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
-	EnableCompositionRevisions bool `group:"Alpha Features:" help:"Enable support for CompositionRevisions."`
+	EnableCompositionRevisions bool `group:"Beta Features:" help:"Enable support for CompositionRevisions." default:"true"`
 	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for ExternalSecretStores."`
 }
 
 // Run core Crossplane controllers.
-func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo // Only slightly over (11).
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
@@ -106,8 +111,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 
 	feats := &feature.Flags{}
 	if c.EnableCompositionRevisions {
-		feats.Enable(features.EnableAlphaCompositionRevisions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionRevisions)
+		feats.Enable(features.EnableBetaCompositionRevisions)
+		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionRevisions)
 	}
 	if c.EnableExternalSecretStores {
 		feats.Enable(features.EnableAlphaExternalSecretStores)
@@ -130,8 +135,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Options:              o,
 		Cache:                xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
 		Namespace:            c.Namespace,
+		ServiceAccount:       c.ServiceAccount,
 		DefaultRegistry:      c.Registry,
 		Features:             feats,
+		FetcherOptions:       []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		WebhookTLSSecretName: c.WebhookTLSSecretName,
 	}
 
@@ -140,7 +147,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err != nil {
 			return errors.Wrap(err, "Cannot parse CA bundle")
 		}
-		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithCustomCA(rootCAs)}
+		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {

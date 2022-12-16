@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package composition creates composition revisions.
 package composition
 
 import (
@@ -38,7 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 const (
@@ -51,6 +52,7 @@ const (
 	errListRevs        = "cannot list CompositionRevisions"
 	errCreateRev       = "cannot create CompositionRevision"
 	errUpdateRevStatus = "cannot update CompositionRevision status"
+	errUpdateRevSpec   = "cannot update CompositionRevision spec"
 )
 
 // Event reasons.
@@ -71,7 +73,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Composition{}).
-		Owns(&v1alpha1.CompositionRevision{}).
+		Owns(&v1beta1.CompositionRevision{}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
@@ -119,9 +121,7 @@ type Reconciler struct {
 }
 
 // Reconcile a Composition.
-func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo
-	// NOTE(negz): This method is a little over our complexity goal. Be wary
-	// of making it more complex.
+func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Only slightly over (12).
 	log := r.log.WithValues("request", req)
 	log.Debug("Reconciling")
 
@@ -139,7 +139,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	currentHash := comp.Spec.Hash()
+	currentHash := comp.Hash()
 
 	log = log.WithValues(
 		"uid", comp.GetUID(),
@@ -148,42 +148,44 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"spec-hash", currentHash,
 	)
 
-	rl := &v1alpha1.CompositionRevisionList{}
-	if err := r.client.List(ctx, rl, client.MatchingLabels{v1alpha1.LabelCompositionName: comp.GetName()}); err != nil {
+	rl := &v1beta1.CompositionRevisionList{}
+	if err := r.client.List(ctx, rl, client.MatchingLabels{v1beta1.LabelCompositionName: comp.GetName()}); err != nil {
 		log.Debug(errListRevs, "error", err)
 		r.record.Event(comp, event.Warning(reasonCreateRev, errors.Wrap(err, errListRevs)))
 		return reconcile.Result{}, errors.Wrap(err, errListRevs)
 	}
 
 	var latestRev, existingRev int64
+
+	if lr := v1.LatestRevision(comp, rl.Items); lr != nil {
+		latestRev = lr.Spec.Revision
+	}
+
 	for i := range rl.Items {
 		rev := &rl.Items[i]
 		if !metav1.IsControlledBy(rev, comp) {
 			continue
 		}
 
-		if rev.Spec.Revision > latestRev {
-			latestRev = rev.Spec.Revision
-		}
-
-		want := v1alpha1.CompositionSpecDiffers()
-		if rev.GetLabels()[v1alpha1.LabelCompositionSpecHash] == currentHash {
-			existingRev = rev.Spec.Revision
-			want = v1alpha1.CompositionSpecMatches()
-		}
-
-		// No need to update this revision's status; it already has the
-		// appropriate 'Current' condition.
-		if got := rev.Status.GetCondition(v1alpha1.TypeCurrent); got.Status == want.Status {
+		// This revision does not match our current Composition.
+		if rev.GetLabels()[v1beta1.LabelCompositionHash] != currentHash[:63] {
 			continue
 		}
 
-		// Toggle the 'Current' condition of this revision.
-		rev.Status.SetConditions(want)
-		if err := r.client.Status().Update(ctx, rev); err != nil {
-			log.Debug(errUpdateRevStatus, "error", err)
+		// This revision matches our current Composition. We don't need a new one.
+		existingRev = rev.Spec.Revision
+
+		// This revision has the highest revision number - it doesn't need updating.
+		if rev.Spec.Revision == latestRev {
+			continue
+		}
+
+		// This revision does not have the highest revision number. Update it so that it does.
+		rev.Spec.Revision = latestRev + 1
+		if err := r.client.Update(ctx, rev); err != nil {
+			log.Debug(errUpdateRevSpec, "error", err)
 			r.record.Event(comp, event.Warning(reasonUpdateRev, err))
-			return reconcile.Result{}, errors.Wrap(err, errUpdateRevStatus)
+			return reconcile.Result{}, errors.Wrap(err, errUpdateRevSpec)
 		}
 	}
 

@@ -27,7 +27,7 @@ const (
 
 // PropagateSpecProps is the list of XRC spec properties to propagate
 // when translating an XRC into an XR and vice-versa.
-var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionRevisionRef", "compositionUpdatePolicy"}
+var PropagateSpecProps = []string{"compositionRef", "compositionSelector", "compositionUpdatePolicy", "compositionRevisionSelector"}
 
 // TODO(negz): Add descriptions to schema fields.
 
@@ -92,7 +92,19 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 			Properties: map[string]extv1.JSONSchemaProps{
 				"name": {Type: "string"},
 			},
-			Description: "Alpha: This field may be deprecated or changed without notice.",
+		},
+		"compositionRevisionSelector": {
+			Type:     "object",
+			Required: []string{"matchLabels"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"matchLabels": {
+					Type: "object",
+					AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+						Allows: true,
+						Schema: &extv1.JSONSchemaProps{Type: "string"},
+					},
+				},
+			},
 		},
 		"compositionUpdatePolicy": {
 			Type: "string",
@@ -100,8 +112,7 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Automatic"`)},
 				{Raw: []byte(`"Manual"`)},
 			},
-			Default:     &extv1.JSON{Raw: []byte(`"Automatic"`)},
-			Description: "Alpha: This field may be deprecated or changed without notice.",
+			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
 		"claimRef": {
 			Type:     "object",
@@ -208,6 +219,19 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 				"name": {Type: "string"},
 			},
 		},
+		"compositionRevisionSelector": {
+			Type:     "object",
+			Required: []string{"matchLabels"},
+			Properties: map[string]extv1.JSONSchemaProps{
+				"matchLabels": {
+					Type: "object",
+					AdditionalProperties: &extv1.JSONSchemaPropsOrBool{
+						Allows: true,
+						Schema: &extv1.JSONSchemaProps{Type: "string"},
+					},
+				},
+			},
+		},
 		"compositionUpdatePolicy": {
 			Type: "string",
 			Enum: []extv1.JSON{
@@ -216,6 +240,13 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 			},
 			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
+		"compositeDeletePolicy": {
+			Type: "string",
+			Enum: []extv1.JSON{
+				{Raw: []byte(`"Background"`)},
+				{Raw: []byte(`"Foreground"`)},
+			},
+			Default: &extv1.JSON{Raw: []byte(`"Background"`)}},
 		"resourceRef": {
 			Type:     "object",
 			Required: []string{"apiVersion", "kind", "name"},
@@ -309,6 +340,11 @@ func CompositeResourceStatusProps() map[string]extv1.JSONSchemaProps {
 func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 	return []extv1.CustomResourceColumnDefinition{
 		{
+			Name:     "SYNCED",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+		},
+		{
 			Name:     "READY",
 			Type:     "string",
 			JSONPath: ".status.conditions[?(@.type=='Ready')].status",
@@ -330,6 +366,11 @@ func CompositeResourcePrinterColumns() []extv1.CustomResourceColumnDefinition {
 // columns that should exist in all generated composite resource claim CRDs.
 func CompositeResourceClaimPrinterColumns() []extv1.CustomResourceColumnDefinition {
 	return []extv1.CustomResourceColumnDefinition{
+		{
+			Name:     "SYNCED",
+			Type:     "string",
+			JSONPath: ".status.conditions[?(@.type=='Synced')].status",
+		},
 		{
 			Name:     "READY",
 			Type:     "string",
