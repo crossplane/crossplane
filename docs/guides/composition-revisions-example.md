@@ -3,10 +3,9 @@ title: Composition Revision Example
 weight: 101
 ---
 This tutorial discusses how CompositionRevisions work and how they manage Composite Resource
-(XR) updates. This start with a `Composition` and `CompositeResourceDefinition` that defines a `MyVPC`
-resource.
-
-This tutorial creates multiple XRs and modifies Composition to apply different Composition Revisions to the XRs.
+(XR) updates. This starts with a `Composition` and `CompositeResourceDefinition` (XRD) that defines a `MyVPC`
+resource and continues with creating multiple XRs to observe different upgrade paths. Crossplane will
+assign different CompositionRevisions to the created composite resources each time the composition is updated. 
 
 ## Install Crossplane
 Install Crossplane v1.11.0 or later and wait until the Crossplane pods are running.
@@ -24,7 +23,7 @@ crossplane-7f75ddcc46-f4d2z                1/1     Running   0          9s
 crossplane-rbac-manager-78bd597746-sdv6w   1/1     Running   0          9s
 ```
 
-## Apply a Composition
+## Deploy Composition and CompositeResourceDefinition Examples
 Apply the example Composition.
 
 ```yaml
@@ -51,9 +50,6 @@ spec:
           enableDnsHostnames: true
     name: my-vcp
 ```
-
-
-## Apply a Composite Resource Definition
 
 Apply the example XRD.
 ```yaml
@@ -98,6 +94,7 @@ myvpcs.aws.example.upbound.io-ad265bc   1          dev
 The label `dev` is automatically created from the Composition.
 
 ## Create Composite Resources
+There are four composite resources in this tutorial to cover different update policies and composition selection options.
 
 ### Default update policy
 Create an XR without a `compositionUpdatePolicy` defined. The update policy is `Automatic` by default:
@@ -115,7 +112,7 @@ myvpc.aws.example.upbound.io/vpc-auto created
 ``` 
 
 ### Manual update policy
-Create an Composite Resource with `compositionUpdatePolicy: Manual` and `compositionRevisionRef`.
+Create a Composite Resource with `compositionUpdatePolicy: Manual` and `compositionRevisionRef`.
 ```yaml
 apiVersion: aws.example.upbound.io/v1alpha1
 kind: MyVPC
@@ -281,8 +278,13 @@ myvpcs.aws.example.upbound.io-ad265bc   1          dev
 myvpcs.aws.example.upbound.io-f81c553   3          dev
 ``` 
 
-Crossplane assigns the Composite Resources `vpc-auto` and `vpc-dev` to Composite revision:3.  
-`vpc-staging` is assigned to revision:2, and `vpc-man` is still assigned to the origina revision:1:
+{{< hint "note" >}}
+Changing the label and the spec values simultaneously is critical for deploying new changes to the `dev` channel.
+{{< /hint >}}
+
+## Verify the Composite Resources
+Verify Crossplane assigns the Composite Resources `vpc-auto` and `vpc-dev` to Composite revision:3.  
+`vpc-staging` is assigned to revision:2, and `vpc-man` is still assigned to the original revision:1:
 
 ```shell
 kubectl get composite -o="custom-columns=NAME:.metadata.name,SYNCED:.status.conditions[0].status,REVISION:.spec.compositionRevisionRef.name,POLICY:.spec.compositionUpdatePolicy,MATCHLABEL:.spec.compositionRevisionSelector.matchLabels"
