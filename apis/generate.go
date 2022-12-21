@@ -53,10 +53,27 @@ limitations under the License.
 //go:generate cp -r ../tmp-clientgen/github.com/crossplane/crossplane/internal/client ../internal/client
 //go:generate rm -rf ../tmp-clientgen
 
+// Generate gRPC types and stubs.
+//
+// We use buf rather than the traditional protoc because it's pure go and can
+// thus be invoked using go run from a pinned dependency. If we used protoc we'd
+// need to install it via the Makefile, and there are not currently statically
+// compiled binaries available for download (the release binaries for Linux are
+// dynamically linked). See buf.gen.yaml for buf's configuration.
+//
+// We go install the required plugins because they need to be in $PATH for buf
+// (or protoc) to invoke them.
+
+//go:generate go install google.golang.org/protobuf/cmd/protoc-gen-go google.golang.org/grpc/cmd/protoc-gen-go-grpc
+//go:generate go run github.com/bufbuild/buf/cmd/buf generate
+
 package apis
 
 import (
+	_ "github.com/bufbuild/buf/cmd/buf"                 //nolint:typecheck
 	_ "github.com/jmattheis/goverter/cmd/goverter"      //nolint:typecheck
+	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"   //nolint:typecheck
+	_ "google.golang.org/protobuf/cmd/protoc-gen-go"    //nolint:typecheck
 	_ "k8s.io/code-generator"                           //nolint:typecheck
 	_ "sigs.k8s.io/controller-tools/cmd/controller-gen" //nolint:typecheck
 )
