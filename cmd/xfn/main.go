@@ -26,6 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/cmd/xfn/run"
 	"github.com/crossplane/crossplane/cmd/xfn/spark"
+	"github.com/crossplane/crossplane/cmd/xfn/start"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
@@ -37,7 +38,7 @@ var cli struct {
 
 	Version versionFlag `short:"v" help:"Print version and quit."`
 
-	// Start start.Command `cmd:"" help:"Start Composition Function runner." default:"1"`
+	Start start.Command `cmd:"" help:"Start listening on gRPC for Composition Function runs." default:"1"`
 	Run   run.Command   `cmd:"" help:"Run a Composition Function."`
 	Spark spark.Command `cmd:"" help:"xfn executes Spark inside a user namespace to run a Composition Function. You shouldn't run it directly." hidden:""`
 }
@@ -63,7 +64,7 @@ func main() {
 	zl := zap.New().WithName("xfn")
 
 	ctx := kong.Parse(&cli,
-		kong.Name("crossplane"),
+		kong.Name("xfn"),
 		kong.Description("Crossplane Composition Functions."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
 		kong.UsageOnError(),

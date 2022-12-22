@@ -19,7 +19,6 @@ package run
 
 import (
 	"context"
-	"io"
 	"os"
 	"time"
 
@@ -33,12 +32,8 @@ import (
 
 // Error strings
 const (
-	errCreateRunner = "cannot create container runner"
-	errReadFIO      = "cannot read FunctionIO"
-	errUnmarshalFIO = "cannot unmarshal FunctionIO YAML"
-	errMarshalFIO   = "cannot marshal FunctionIO YAML"
-	errWriteFIO     = "cannot write FunctionIO YAML to stdout"
-	errRunFunction  = "cannot run function"
+	errWriteFIO    = "cannot write FunctionIO YAML to stdout"
+	errRunFunction = "cannot run function"
 )
 
 // Command runs a Composition function.
@@ -48,19 +43,12 @@ type Command struct {
 	MapRootUID int           `help:"UID that will map to 0 in the function's user namespace. The following 65336 UIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 	MapRootGID int           `help:"GID that will map to 0 in the function's user namespace. The following 65336 GIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 
-	Image          string   `arg:"" help:"OCI image to run."`
-	FunctionIOFile *os.File `arg:"" help:"YAML encoded FunctionIO to pass to the function."`
+	Image      string `arg:"" help:"OCI image to run."`
+	FunctionIO []byte `arg:"" help:"YAML encoded FunctionIO to pass to the function." type:"filecontent"`
 }
 
 // Run a Composition container function.
 func (c *Command) Run() error {
-	defer c.FunctionIOFile.Close() //nolint:errcheck,gosec // This file is only open for reading.
-
-	yb, err := io.ReadAll(c.FunctionIOFile)
-	if err != nil {
-		return errors.Wrap(err, errReadFIO)
-	}
-
 	// If we don't have CAP_SETUID or CAP_SETGID, we'll only be able to map our
 	// own UID and GID to root inside the user namespace.
 	rootUID := os.Getuid()
@@ -74,7 +62,7 @@ func (c *Command) Run() error {
 	f := xfn.NewContainerRunner(xfn.SetUID(setuid), xfn.MapToRoot(rootUID, rootGID), xfn.WithCacheDir(c.CacheDir))
 	rsp, err := f.RunFunction(context.Background(), &v1alpha1.RunFunctionRequest{
 		Image: c.Image,
-		Input: yb,
+		Input: c.FunctionIO,
 		RunFunctionConfig: &v1alpha1.RunFunctionConfig{
 			Timeout: durationpb.New(c.Timeout),
 		},

@@ -92,6 +92,7 @@ func (r *ContainerRunner) ListenAndServe(network, address string) error {
 		return errors.Wrap(err, errListen)
 	}
 
+	// TODO(negz): Limit concurrent function runs?
 	srv := grpc.NewServer()
 	v1alpha1.RegisterContainerizedFunctionRunnerServiceServer(srv, r)
 	return errors.Wrap(srv.Serve(lis), errServe)
