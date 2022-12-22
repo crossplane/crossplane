@@ -19,7 +19,9 @@ limitations under the License.
 package spark
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,8 +29,11 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	"github.com/crossplane/crossplane/internal/oci"
 	"github.com/crossplane/crossplane/internal/oci/store"
 	"github.com/crossplane/crossplane/internal/oci/store/overlay"
@@ -37,34 +42,54 @@ import (
 
 // Error strings.
 const (
+	errReadRequest      = "cannot read request from stdin"
+	errUnmarshalRequest = "cannot unmarshal request data from stdin"
+	errMarshalResponse  = "cannot marshal response data to stdout"
+	errWriteResponse    = "cannot write response data to stdout"
 	errBadReference     = "OCI tag is not a valid reference"
 	errMkRuntimeRootdir = "cannot make OCI runtime root directory"
-	errRuntime          = "cannot invoke OCI runtime"
+	errRuntime          = "OCI runtime error"
 	errFetchFn          = "cannot fetch OCI image from registry"
 	errBundleFn         = "cannot create OCI bundle"
-	errDeleteBundle     = "cannot delete OCI bundle"
+	errCleanupBundle    = "cannot cleanup OCI bundle"
 )
 
 // The path within the cache dir that the OCI runtime should use for its
 // '--root' cache.
 const ociRuntimeRoot = "runtime"
 
+// The time after which the OCI runtime will be killed if none is specified in
+// the RunFunctionRequest.
+const defaultTimeout = 25 * time.Second
+
 // Command runs a containerized Composition Function.
 type Command struct {
-	CacheDir string        `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
-	Config   string        `help:"OCI config file, relative to root of the bundle." default:"config.json"`
-	Runtime  string        `help:"OCI runtime binary to invoke." default:"crun"`
-	Timeout  time.Duration `help:"Maximum time for which the function may run before being killed." default:"25s"`
-
-	Image string `arg:"" help:"Function OCI image to run."`
+	CacheDir string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
+	Runtime  string `help:"OCI runtime binary to invoke." default:"crun"`
 }
 
-// Run a Composition Function inside an unprivileged user namespace.
-func (c *Command) Run() error {
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
+// Run a Composition Function inside an unprivileged user namespace. Reads a
+// protocol buffer serialized RunFunctionRequest from stdin, and writes a
+// protocol buffer serialized RunFunctionResponse to stdout.
+func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of this out into functions.
+	pb, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		return errors.Wrap(err, errReadRequest)
+	}
+
+	req := &v1alpha1.RunFunctionRequest{}
+	if err := proto.Unmarshal(pb, req); err != nil {
+		return errors.Wrap(err, errUnmarshalRequest)
+	}
+
+	t := req.GetRunFunctionConfig().GetTimeout().AsDuration()
+	if t == 0 {
+		t = defaultTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), t)
 	defer cancel()
 
-	ref, err := name.ParseReference(c.Image)
+	ref, err := name.ParseReference(req.GetImage())
 	if err != nil {
 		return errors.Wrap(err, errBadReference)
 	}
@@ -107,20 +132,28 @@ func (c *Command) Run() error {
 		return errors.Wrap(err, errMkRuntimeRootdir)
 	}
 
-	// TODO(negz): Consider using the OCI runtimes lifecycle management commands
+	// TODO(negz): Consider using the OCI runtime's lifecycle management commands
 	// (i.e create, start, and delete) rather than run. This would allow spark
 	// to return without sitting in-between xfn and crun.
 
 	//nolint:gosec // Executing with user-supplied input is intentional.
 	cmd := exec.CommandContext(ctx, c.Runtime, "--root="+root, "run", "--bundle="+b.Path(), runID)
-	cmd.Stdin = os.Stdin
-	cmd.Stderr = os.Stderr
-	cmd.Stdout = os.Stdout
+	cmd.Stdin = bytes.NewReader(req.GetInput())
 
-	if err := cmd.Run(); err != nil {
+	out, err := cmd.Output()
+	if err != nil {
 		_ = b.Cleanup()
 		return errors.Wrap(err, errRuntime)
 	}
+	if err := b.Cleanup(); err != nil {
+		return errors.Wrap(err, errCleanupBundle)
+	}
 
-	return errors.Wrap(b.Cleanup(), errDeleteBundle)
+	rsp := &v1alpha1.RunFunctionResponse{Output: out}
+	pb, err = proto.Marshal(rsp)
+	if err != nil {
+		return errors.Wrap(err, errMarshalResponse)
+	}
+	_, err = os.Stdout.Write(pb)
+	return errors.Wrap(err, errWriteResponse)
 }

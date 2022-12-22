@@ -18,32 +18,18 @@ package xfn
 
 import (
 	"io"
+	"net"
+
+	"google.golang.org/grpc"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 )
 
 // Error strings.
 const (
-	errCreateCacheDir = "cannot create cache directory"
-	errChownCacheDir  = "cannot chown cache directory"
-	errInvalidInput   = "invalid function input"
-	errInvalidOutput  = "invalid function output"
-	errBadReference   = "OCI tag is not a valid reference"
-	errHeadImg        = "cannot fetch OCI image descriptor"
-	errExecFn         = "cannot execute function"
-	errFetchFn        = "cannot fetch function from registry"
-	errLookupFn       = "cannot lookup function in store"
-	errWriteFn        = "cannot write function to store"
-	errDeleteBundle   = "cannot delete OCI bundle"
-	errChownFd        = "cannot chown file descriptor"
-
-	errCreateStdioPipes = "cannot create stdio pipes"
-	errCreateStdinPipe  = "cannot create stdin pipe"
-	errCreateStdoutPipe = "cannot create stdout pipe"
-	errCreateStderrPipe = "cannot create stderr pipe"
-	errStartFunction    = "cannot start function container"
-	errWriteFunctionIO  = "cannot write FunctionIO to container stdin"
-	errCloseStdin       = "cannot close stdin pipe"
-	errReadStdout       = "cannot read from stdout pipe"
-	errReadStderr       = "cannot read from stderr pipe"
+	errListen = "cannot listen for gRPC connections"
+	errServe  = "cannot serve gRPC API"
 )
 
 const defaultCacheDir = "/xfn"
@@ -51,7 +37,8 @@ const defaultCacheDir = "/xfn"
 // An ContainerRunner runs an XRM function packaged as an OCI image by
 // extracting it and running it as a 'rootless' container.
 type ContainerRunner struct {
-	image   string
+	v1alpha1.UnimplementedContainerizedFunctionRunnerServiceServer
+
 	rootUID int
 	rootGID int
 	setuid  bool // Specifically, CAP_SETUID and CAP_SETGID.
@@ -89,13 +76,25 @@ func WithCacheDir(d string) ContainerRunnerOption {
 
 // NewContainerRunner returns a new Runner that runs functions as rootless
 // containers.
-func NewContainerRunner(image string, o ...ContainerRunnerOption) *ContainerRunner {
-	r := &ContainerRunner{image: image, cache: defaultCacheDir}
+func NewContainerRunner(o ...ContainerRunnerOption) *ContainerRunner {
+	r := &ContainerRunner{cache: defaultCacheDir}
 	for _, fn := range o {
 		fn(r)
 	}
 
 	return r
+}
+
+// ListenAndServe gRPC connections at the supplied address.
+func (r *ContainerRunner) ListenAndServe(network, address string) error {
+	lis, err := net.Listen(network, address)
+	if err != nil {
+		return errors.Wrap(err, errListen)
+	}
+
+	srv := grpc.NewServer()
+	v1alpha1.RegisterContainerizedFunctionRunnerServiceServer(srv, r)
+	return errors.Wrap(srv.Serve(lis), errServe)
 }
 
 // Stdio can be used to read and write a command's standard I/O.

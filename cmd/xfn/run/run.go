@@ -23,11 +23,11 @@ import (
 	"os"
 	"time"
 
-	"sigs.k8s.io/yaml"
+	"google.golang.org/protobuf/types/known/durationpb"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	fnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
@@ -38,8 +38,7 @@ const (
 	errUnmarshalFIO = "cannot unmarshal FunctionIO YAML"
 	errMarshalFIO   = "cannot marshal FunctionIO YAML"
 	errWriteFIO     = "cannot write FunctionIO YAML to stdout"
-
-	errFnFailed = "function failed"
+	errRunFunction  = "cannot run function"
 )
 
 // Command runs a Composition function.
@@ -49,13 +48,18 @@ type Command struct {
 	MapRootUID int           `help:"UID that will map to 0 in the function's user namespace. The following 65336 UIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 	MapRootGID int           `help:"GID that will map to 0 in the function's user namespace. The following 65336 GIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 
-	Image      string   `arg:"" help:"OCI image to run."`
-	FunctionIO *os.File `arg:"" help:"YAML encoded FunctionIO to pass to the function."`
+	Image          string   `arg:"" help:"OCI image to run."`
+	FunctionIOFile *os.File `arg:"" help:"YAML encoded FunctionIO to pass to the function."`
 }
 
 // Run a Composition container function.
 func (c *Command) Run() error {
-	defer c.FunctionIO.Close() //nolint:errcheck,gosec // This file is only open for reading.
+	defer c.FunctionIOFile.Close() //nolint:errcheck,gosec // This file is only open for reading.
+
+	yb, err := io.ReadAll(c.FunctionIOFile)
+	if err != nil {
+		return errors.Wrap(err, errReadFIO)
+	}
 
 	// If we don't have CAP_SETUID or CAP_SETGID, we'll only be able to map our
 	// own UID and GID to root inside the user namespace.
@@ -67,34 +71,18 @@ func (c *Command) Run() error {
 		rootGID = c.MapRootGID
 	}
 
-	f := xfn.NewContainerRunner(c.Image,
-		xfn.SetUID(setuid),
-		xfn.MapToRoot(rootUID, rootGID),
-		xfn.WithCacheDir(c.CacheDir))
-
-	ctx, cancel := context.WithTimeout(context.Background(), c.Timeout)
-	defer cancel()
-
-	yb, err := io.ReadAll(c.FunctionIO)
+	f := xfn.NewContainerRunner(xfn.SetUID(setuid), xfn.MapToRoot(rootUID, rootGID), xfn.WithCacheDir(c.CacheDir))
+	rsp, err := f.RunFunction(context.Background(), &v1alpha1.RunFunctionRequest{
+		Image: c.Image,
+		Input: yb,
+		RunFunctionConfig: &v1alpha1.RunFunctionConfig{
+			Timeout: durationpb.New(c.Timeout),
+		},
+	})
 	if err != nil {
-		return errors.Wrap(err, errReadFIO)
+		return errors.Wrap(err, errRunFunction)
 	}
 
-	in := &fnv1alpha1.FunctionIO{}
-	if err := yaml.Unmarshal(yb, in); err != nil {
-		return errors.Wrap(err, errUnmarshalFIO)
-	}
-
-	out, err := f.Run(ctx, in)
-	if err != nil {
-		return errors.Wrap(err, errFnFailed)
-	}
-
-	yb, err = yaml.Marshal(out)
-	if err != nil {
-		return errors.Wrap(err, errMarshalFIO)
-	}
-
-	_, err = os.Stdout.Write(yb)
+	_, err = os.Stdout.Write(rsp.GetOutput())
 	return errors.Wrap(err, errWriteFIO)
 }

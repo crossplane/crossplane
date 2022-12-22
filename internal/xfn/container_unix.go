@@ -29,6 +29,14 @@ import (
 // Darwin can build and test the code, even though it's only really useful for
 // Linux systems.
 
+// Error strings.
+const (
+	errCreateStdinPipe  = "cannot create stdin pipe"
+	errCreateStdoutPipe = "cannot create stdout pipe"
+	errCreateStderrPipe = "cannot create stderr pipe"
+	errChownFd          = "cannot chown file descriptor"
+)
+
 // StdioPipes creates and returns pipes that will be connected to the supplied
 // command's stdio when it starts. It calls fchown(2) to ensure all pipes are
 // owned by the supplied user and group ID; this ensures that the command can

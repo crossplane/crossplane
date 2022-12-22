@@ -34,7 +34,7 @@ func HasCapSetUID() bool { return false }
 // HasCapSetGID returns false on non-Linux.
 func HasCapSetGID() bool { return false }
 
-// Run returns an error on non-Linux.
-func (r *ContainerRunner) Run(_ context.Context, _ *fnv1alpha1.FunctionIO) (*fnv1alpha1.FunctionIO, error) {
+// RunFunction returns an error on non-Linux.
+func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunctionRequest) (*v1alpha1.RunFunctionResponse, error) {
 	return nil, errors.New(errLinuxOnly)
 }

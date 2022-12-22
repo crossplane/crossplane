@@ -26,13 +26,12 @@ import (
 	"os/exec"
 	"syscall"
 
+	"google.golang.org/protobuf/proto"
 	"kernel.org/pub/linux/libs/security/libcap/cap"
-	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
-	fnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 )
 
 // NOTE(negz): Technically _all_ of the containerized Composition Functions
@@ -41,6 +40,18 @@ import (
 // running them to ensure that code compiles and passes tests during
 // development. Avoid adding code to this file unless it actually needs Linux to
 // run.
+
+// Error strings.
+const (
+	errCreateStdioPipes  = "cannot create stdio pipes"
+	errStartSpark        = "cannot start " + spark
+	errCloseStdin        = "cannot close stdin pipe"
+	errReadStdout        = "cannot read from stdout pipe"
+	errReadStderr        = "cannot read from stderr pipe"
+	errMarshalRequest    = "cannot marshal RunFunctionRequest for " + spark
+	errWriteRequest      = "cannot write RunFunctionRequest to " + spark + " stdin"
+	errUnmarshalResponse = "cannot unmarshal RunFunctionRequest from " + spark + " stdout"
+)
 
 // The subcommand of xfn to invoke - i.e. "xfn spark <source> <bundle>"
 const spark = "spark"
@@ -59,16 +70,10 @@ func HasCapSetGID() bool {
 	return setgid
 }
 
-// Run a function as a rootless OCI container. Functions that return non-zero,
-// or that cannot be executed in the first place (e.g. because they cannot be
-// fetched from the registry) will return an error.
-func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.FunctionIO) (*fnv1alpha1.FunctionIO, error) {
-	// Parse the input early, before we potentially pull and write the image.
-	y, err := yaml.Marshal(in)
-	if err != nil {
-		return nil, errors.Wrap(err, errInvalidInput)
-	}
-
+// RunFunction runs a function as a rootless OCI container. Functions that
+// return non-zero, or that cannot be executed in the first place (e.g. because
+// they cannot be fetched from the registry) will return an error.
+func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunctionRequest) (*v1alpha1.RunFunctionResponse, error) {
 	/*
 		We want to create an overlayfs with the cached rootfs as the lower layer
 		and the bundle's rootfs as the upper layer, if possible. Kernel 5.11 and
@@ -82,7 +87,7 @@ func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.FunctionIO) (*
 		then executes an OCI runtime which creates further namespaces in order
 		to actually execute the function.
 	*/
-	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache, r.image) //nolint:gosec // We're intentionally executing with variable input.
+	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache) //nolint:gosec // We're intentionally executing with variable input.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:  syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: r.rootUID, Size: 1}},
@@ -127,11 +132,15 @@ func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.FunctionIO) (*
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, errors.Wrap(err, errStartFunction)
+		return nil, errors.Wrap(err, errStartSpark)
 	}
 
-	if _, err := stdio.Stdin.Write(y); err != nil {
-		return nil, errors.Wrap(err, errWriteFunctionIO)
+	b, err := proto.Marshal(req)
+	if err != nil {
+		return nil, errors.Wrap(err, errMarshalRequest)
+	}
+	if _, err := stdio.Stdin.Write(b); err != nil {
+		return nil, errors.Wrap(err, errWriteRequest)
 	}
 
 	// Closing the write end of the stdio pipe will cause the read end to return
@@ -150,7 +159,7 @@ func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.FunctionIO) (*
 
 	stderr, err := io.ReadAll(stdio.Stderr)
 	if err != nil {
-		return nil, errors.Wrap(err, errReadStdout)
+		return nil, errors.Wrap(err, errReadStderr)
 	}
 
 	if err := cmd.Wait(); err != nil {
@@ -158,6 +167,6 @@ func (r *ContainerRunner) Run(ctx context.Context, in *fnv1alpha1.FunctionIO) (*
 		return nil, errors.Errorf("%w: %s", err, bytes.TrimSuffix(stderr, []byte("\n")))
 	}
 
-	out := &v1alpha1.FunctionIO{}
-	return out, errors.Wrap(yaml.Unmarshal(stdout, out), errInvalidOutput)
+	rsp := &v1alpha1.RunFunctionResponse{}
+	return rsp, errors.Wrap(proto.Unmarshal(stdout, rsp), errUnmarshalResponse)
 }
