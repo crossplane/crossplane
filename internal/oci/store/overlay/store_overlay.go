@@ -27,6 +27,7 @@ import (
 	ociv1 "github.com/google/go-containerregistry/pkg/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	"github.com/crossplane/crossplane/internal/oci/layer"
 	"github.com/crossplane/crossplane/internal/oci/spec"
@@ -233,7 +234,11 @@ func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, paren
 	path := filepath.Join(s.root, d.Hex)
 	_, err = os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
-		// Doesn't exist - cache it.
+		// Doesn't exist - cache it. It's possible multiple callers may hit this
+		// branch at once. This will result in multiple calls to l.Uncompressed,
+		// thus pulling the layer multiple times to multiple different temporary
+		// dirs. We ignore EEXIST errors from os.Rename, so callers that lose
+		// the race should return the path cached by the successful caller.
 
 		// This call to Uncompressed is what actually pulls the layer.
 		tarball, err := l.Uncompressed()
@@ -260,7 +265,9 @@ func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, paren
 			return "", errors.Wrap(err, errApplyLayer)
 		}
 
-		if err := os.Rename(lw.ResultPath(), path); err != nil {
+		// If newpath exists now (when it didn't above) we must have lost a race
+		// with another caller to cache this layer.
+		if err := os.Rename(lw.ResultPath(), path); resource.Ignore(os.IsExist, err) != nil {
 			_ = lw.Cleanup()
 			return "", errors.Wrap(err, errMvWorkdir)
 		}

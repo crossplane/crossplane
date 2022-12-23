@@ -201,7 +201,12 @@ func (c *CachingLayerOpener) Open(l ociv1.Layer) (io.ReadCloser, error) {
 	// Note terr, not err, to avoid shadowing in the ErrNotExist block.
 	tb, terr := os.Open(filepath.Join(c.root, d.Hex))
 	if errors.Is(terr, os.ErrNotExist) {
-		// Doesn't exist - cache it.
+		// Doesn't exist - cache it. It's possible multiple callers may hit this
+		// branch at once. This will result in multiple calls to l.Uncompressed,
+		// thus pulling the layer multiple times to multiple different temporary
+		// files. Calls to os.Rename should succeed if newpath is a regular file
+		// that exists, so whoever finishes last will successfully move their
+		// cached layer into place.
 
 		// This call to Uncompressed is what actually pulls the layer.
 		u, err := l.Uncompressed()
