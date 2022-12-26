@@ -35,6 +35,10 @@ type CompositionSpec struct {
 	// +optional
 	PatchSets []PatchSet `json:"patchSets,omitempty"`
 
+	// Environment configures the environment in which resources are rendered.
+	// +optional
+	Environment *EnvironmentConfiguration `json:"environment,omitempty"`
+
 	// Resources is the list of resource templates that will be used when a
 	// composite resource referring to this composition is created.
 	Resources []ComposedTemplate `json:"resources"`

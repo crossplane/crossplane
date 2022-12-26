@@ -1,0 +1,8 @@
+---
+apiVersion: example.crossplane.io/v1alpha1
+kind: EnvironmentSample
+metadata:
+  name: environment-test
+  namespace: default
+spec:
+  vpcName: my-vpc

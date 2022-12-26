@@ -29,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -40,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 )
 
 const (
@@ -50,23 +52,26 @@ const (
 
 // Error strings
 const (
-	errGet             = "cannot get composite resource"
-	errUpdate          = "cannot update composite resource"
-	errUpdateStatus    = "cannot update composite resource status"
-	errAddFinalizer    = "cannot add composite resource finalizer"
-	errRemoveFinalizer = "cannot remove composite resource finalizer"
-	errSelectComp      = "cannot select Composition"
-	errFetchComp       = "cannot fetch Composition"
-	errConfigure       = "cannot configure composite resource"
-	errPublish         = "cannot publish connection details"
-	errUnpublish       = "cannot unpublish connection details"
-	errRenderCD        = "cannot render composed resource"
-	errRenderCR        = "cannot render composite resource"
-	errValidate        = "refusing to use invalid Composition"
-	errInline          = "cannot inline Composition patch sets"
-	errAssociate       = "cannot associate composed resources with Composition resource templates"
+	errGet               = "cannot get composite resource"
+	errUpdate            = "cannot update composite resource"
+	errUpdateStatus      = "cannot update composite resource status"
+	errAddFinalizer      = "cannot add composite resource finalizer"
+	errRemoveFinalizer   = "cannot remove composite resource finalizer"
+	errSelectComp        = "cannot select Composition"
+	errFetchComp         = "cannot fetch Composition"
+	errConfigure         = "cannot configure composite resource"
+	errPublish           = "cannot publish connection details"
+	errUnpublish         = "cannot unpublish connection details"
+	errRenderCD          = "cannot render composed resource"
+	errRenderCR          = "cannot render composite resource"
+	errValidate          = "refusing to use invalid Composition"
+	errInline            = "cannot inline Composition patch sets"
+	errAssociate         = "cannot associate composed resources with Composition resource templates"
+	errFetchEnvironment  = "cannot fetch environment"
+	errSelectEnvironment = "cannot select environment"
 
-	errFmtRender = "cannot render composed resource from resource template at index %d"
+	errFmtPatchEnvironment = "cannot apply environment patch at index %d"
+	errFmtRender           = "cannot render composed resource from resource template at index %d"
 )
 
 // Event reasons.
@@ -118,6 +123,34 @@ func (fn CompositionFetcherFn) Fetch(ctx context.Context, cr resource.Composite)
 	return fn(ctx, cr)
 }
 
+// EnvironmentSelector selects environment references for a composition environment.
+type EnvironmentSelector interface {
+	SelectEnvironment(ctx context.Context, cr resource.Composite, comp *v1.Composition) error
+}
+
+// A EnvironmentSelectorFn selects a composition reference.
+type EnvironmentSelectorFn func(ctx context.Context, cr resource.Composite, comp *v1.Composition) error
+
+// SelectEnvironment for the supplied composite resource.
+func (fn EnvironmentSelectorFn) SelectEnvironment(ctx context.Context, cr resource.Composite, comp *v1.Composition) error {
+	return fn(ctx, cr, comp)
+}
+
+// An EnvironmentFetcher fetches an appropriate environment for the supplied
+// composite resource.
+type EnvironmentFetcher interface {
+	Fetch(ctx context.Context, cr resource.Composite) (*env.Environment, error)
+}
+
+// An EnvironmentFetcherFn fetches an appropriate environment for the supplied
+// composite resource.
+type EnvironmentFetcherFn func(ctx context.Context, cr resource.Composite) (*env.Environment, error)
+
+// Fetch an appropriate environment for the supplied Composite resource.
+func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*env.Environment, error) {
+	return fn(ctx, cr)
+}
+
 // A Configurator configures a composite resource using its composition.
 type Configurator interface {
 	Configure(ctx context.Context, cr resource.Composite, cp *v1.Composition) error
@@ -133,16 +166,16 @@ func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, c
 
 // A Renderer is used to render a composed resource.
 type Renderer interface {
-	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
+	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
 }
 
 // A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
+type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
 
 // Render the supplied composed resource using the supplied composite resource
 // and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-	return fn(ctx, cp, cd, t)
+func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+	return fn(ctx, cp, cd, t, env)
 }
 
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
@@ -268,6 +301,22 @@ func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	}
 }
 
+// WithEnvironmentSelector specifies how the environment to be used should be
+// selected.
+func WithEnvironmentSelector(s EnvironmentSelector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.EnvironmentSelector = s
+	}
+}
+
+// WithEnvironmentFetcher specifies how the environment to be used should be
+// fetched.
+func WithEnvironmentFetcher(f EnvironmentFetcher) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.environment.EnvironmentFetcher = f
+	}
+}
+
 // WithConfigurator specifies how the Reconciler should configure
 // composite resources using their composition.
 func WithConfigurator(c Configurator) ReconcilerOption {
@@ -291,15 +340,28 @@ func WithCompositeRenderer(rd Renderer) ReconcilerOption {
 	}
 }
 
+// WithOptions lets the Reconciler know which options to pass to new composite
+// resource claim controllers.
+func WithOptions(o controller.Options) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.options = o
+	}
+}
+
 type composition struct {
 	CompositionFetcher
 	CompositionValidator
 	CompositionTemplateAssociator
 }
 
+type environment struct {
+	EnvironmentFetcher
+}
+
 type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
+	EnvironmentSelector
 	Configurator
 	Renderer
 	managed.ConnectionPublisher
@@ -331,9 +393,14 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			CompositionTemplateAssociator: NewGarbageCollectingAssociator(kube),
 		},
 
+		environment: environment{
+			EnvironmentFetcher: env.NewNilEnvironmentFetcher(),
+		},
+
 		composite: compositeResource{
 			Finalizer:           resource.NewAPIFinalizer(kube, finalizer),
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
+			EnvironmentSelector: env.NewNoopEnvironmentSelector(),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 			Renderer:            RendererFn(RenderComposite),
@@ -362,6 +429,8 @@ type Reconciler struct {
 	client       resource.ClientApplicator
 	newComposite func() resource.Composite
 
+	environment environment
+
 	composition composition
 	composite   compositeResource
 	composed    composedResource
@@ -370,6 +439,8 @@ type Reconciler struct {
 	record event.Recorder
 
 	pollInterval time.Duration
+
+	options controller.Options
 }
 
 // composedRenderState is a wrapper around a composed resource that tracks whether
@@ -453,7 +524,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 	r.record.Event(cr, event.Normal(reasonResolve, "Successfully selected composition"))
-
 	// Note that this 'Composition' will be derived from a
 	// CompositionRevision if the relevant feature flag is enabled.
 	comp, err := r.composition.Fetch(ctx, cr)
@@ -463,6 +533,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		cr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	// Prepare the environment.
+	// Note that environments are optional, so env can be nil.
+	if err := r.composite.SelectEnvironment(ctx, cr, comp); err != nil {
+		log.Debug(errSelectEnvironment, "error", err)
+		err = errors.Wrap(err, errSelectEnvironment)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{}, err
+	}
+
+	env, err := r.environment.Fetch(ctx, cr)
+	if err != nil {
+		log.Debug(errFetchEnvironment, "error", err)
+		err = errors.Wrap(err, errFetchEnvironment)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{}, err
 	}
 
 	// TODO(negz): Composition validation should be handled by a validation
@@ -502,6 +589,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
+	// If we have an environment, run all environment patches before composing
+	// resources.
+	if env != nil && comp.Spec.Environment != nil {
+		for i, p := range comp.Spec.Environment.Patches {
+			if err := ApplyEnvironmentPatch(p, cr, env); err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, errFmtPatchEnvironment, i)
+			}
+		}
+	}
+
 	// We optimistically render all composed resources that we are able to
 	// with the expectation that any that we fail to render will
 	// subsequently have their error corrected by manual intervention or
@@ -511,7 +608,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, ta := range tas {
 		cd := composed.New(composed.FromReference(ta.Reference))
 		rendered := true
-		if err := r.composed.Render(ctx, cr, cd, ta.Template); err != nil {
+		if err := r.composed.Render(ctx, cr, cd, ta.Template, env); err != nil {
 			log.Debug(errRenderCD, "error", err, "index", i)
 			r.record.Event(cr, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRender, i)))
 			rendered = false
@@ -568,7 +665,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			continue
 		}
 
-		if err := r.composite.Render(ctx, cr, cd.resource, tpl); err != nil {
+		if err := r.composite.Render(ctx, cr, cd.resource, tpl, env); err != nil {
 			log.Debug(errRenderCR, "error", err)
 			err = errors.Wrap(err, errRenderCR)
 			r.record.Event(cr, event.Warning(reasonCompose, err))

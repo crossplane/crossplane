@@ -185,6 +185,10 @@ It is also possible to patch the (in-memory) environment itself using
           toFieldPath: tmp.namespacedName
 ```
 
+The described feature will be hidden behind a flag
+(--enable-environment-configs) and disabled by default while it is in alpha
+phase.
+
 **Advantages:**
 
 * Centralized solution that can be used with any provider.

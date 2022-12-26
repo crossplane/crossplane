@@ -291,6 +291,69 @@ func TestPatchApply(t *testing.T) {
 				err: errNotFound("wat"),
 			},
 		},
+		"ValidFromEnvironmentFieldPathPatch": {
+			reason: "Should correctly apply a FromEnvironmentFieldPathPatch with valid settings",
+			args: args{
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromEnvironmentFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		"MissingFromEnvironmentRequiredFieldPath": {
+			reason: "A FromFieldPath patch should return an error when a required fromFieldPath doesn't exist",
+			args: args{
+				patch: v1.Patch{
+					Type:          v1.PatchTypeFromEnvironmentFieldPath,
+					FromFieldPath: pointer.StringPtr("wat"),
+					Policy: &v1.PatchPolicy{
+						FromFieldPath: func() *v1.FromFieldPathPolicy {
+							s := v1.FromFieldPathPolicyRequired
+							return &s
+						}(),
+					},
+					ToFieldPath: pointer.StringPtr("wat"),
+				},
+				cp: &fake.Composite{
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{Name: "cd"},
+				},
+			},
+			want: want{
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+					},
+				},
+				err: errNotFound("wat"),
+			},
+		},
 		"MergeOptionsKeepMapValues": {
 			reason: "Setting mergeOptions.keepMapValues = true adds new map values to existing ones",
 			args: args{
@@ -533,6 +596,49 @@ func TestPatchApply(t *testing.T) {
 				},
 			},
 		},
+		"ValidToEnvironmentFieldPathPatch": {
+			reason: "Should correctly apply a ToEnvironmentFieldPath patch with valid settings",
+			args: args{
+				patch: v1.Patch{
+					Type:          v1.PatchTypeToEnvironmentFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: nil,
+			},
+		},
 		"MissingCombineFromCompositeConfig": {
 			reason: "Should return an error if Combine config is not passed",
 			args: args{
@@ -578,6 +684,53 @@ func TestPatchApply(t *testing.T) {
 						}},
 				},
 				err: errors.Errorf(errFmtRequiredField, "Combine", v1.PatchTypeCombineFromComposite),
+			},
+		},
+		"MissingCombineFromEnvironmentConfig": {
+			reason: "Should return an error if Combine config is not passed",
+			args: args{
+				patch: v1.Patch{
+					Type:        v1.PatchTypeCombineFromEnvironment,
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: errors.Errorf(errFmtRequiredField, "Combine", v1.PatchTypeCombineFromEnvironment),
 			},
 		},
 		"MissingCombineStrategyFromCompositeConfig": {
@@ -806,6 +959,62 @@ func TestPatchApply(t *testing.T) {
 			args: args{
 				patch: v1.Patch{
 					Type: v1.PatchTypeCombineToComposite,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
+							{FromFieldPath: "objectMeta.labels.source1"},
+							{FromFieldPath: "objectMeta.labels.source2"},
+						},
+						Strategy: v1.CombineStrategyString,
+						String:   &v1.StringCombine{Format: "%s-%s"},
+					},
+					ToFieldPath: pointer.StringPtr("objectMeta.labels.destination"),
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test":        "blah",
+							"destination": "foo-bar",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"source1": "foo",
+							"source2": "bar",
+						}},
+				},
+				err: nil,
+			},
+		},
+		"ValidCombineToEnvironment": {
+			reason: "Should correctly apply a CombineToEnvironment patch with valid settings",
+			args: args{
+				patch: v1.Patch{
+					Type: v1.PatchTypeCombineToEnvironment,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
 							{FromFieldPath: "objectMeta.labels.source1"},
