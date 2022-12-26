@@ -37,21 +37,21 @@ import (
 // Error strings
 const (
 	errMkContainerStore  = "cannot make container store directory"
-	errMkImageStore      = "cannot make image cache directory"
-	errMkLayerStore      = "cannot make layer cache directory"
+	errMkLayerStore      = "cannot make layer store directory"
 	errReadConfigFile    = "cannot read image config file"
 	errGetLayers         = "cannot get image layers"
 	errResolveLayer      = "cannot resolve layer to suitable overlayfs lower directory"
-	errMkOverlayDirTmpfs = "cannot make overlay tmpfs dir"
+	errCreateRootFS      = "cannot create OCI rootfs"
+	errCreateRuntimeSpec = "cannot create OCI runtime spec"
 	errGetDigest         = "cannot get digest"
-	errStatLayer         = "cannot determine whether layer exists in store"
+	errMkAlgoDir         = "cannot create store directory"
 	errFetchLayer        = "cannot fetch and decompress layer"
 	errMkWorkdir         = "cannot create temporary work directory"
-	errMvWorkdir         = "cannot move temporary work directory"
-	errCleanupWorkdir    = "cannot cleanup temporary work directory"
 	errApplyLayer        = "cannot apply (extract) uncompressed tarball layer"
-	errCreateRuntimeSpec = "cannot create OCI runtime spec"
-	errCreateRootFS      = "cannot create OCI rootfs"
+	errMvWorkdir         = "cannot move temporary work directory"
+	errStatLayer         = "cannot determine whether layer exists in store"
+	errCleanupWorkdir    = "cannot cleanup temporary work directory"
+	errMkOverlayDirTmpfs = "cannot make overlay tmpfs dir"
 )
 
 // Common overlayfs directories.
@@ -82,11 +82,6 @@ func Supported(cacheRoot string) bool {
 		return false
 	}
 	return true
-}
-
-// An ImageConfigReader reads OCI image configuration files.
-type ImageConfigReader interface {
-	ReadConfigFile(i ociv1.Image) (*ociv1.ConfigFile, error)
 }
 
 // An LayerResolver resolves the supplied layer to a path suitable for use as an
@@ -128,7 +123,6 @@ func (fn RuntimeSpecCreatorFn) Create(b store.Bundle, cfg *ociv1.ConfigFile) err
 // finished running.
 type CachingBundler struct {
 	root  string
-	image ImageConfigReader
 	layer LayerResolver
 	spec  RuntimeSpecCreator
 }
@@ -137,22 +131,13 @@ type CachingBundler struct {
 // overlays on their image's layers, which are stored as extracted, overlay
 // compatible directories of files.
 func NewCachingBundler(root string) (*CachingBundler, error) {
-	if err := os.MkdirAll(filepath.Join(root, store.DirContainers), 0700); err != nil {
-		return nil, errors.Wrap(err, errMkContainerStore)
-	}
-
-	i, err := store.NewCachingImageConfigReader(filepath.Join(root, store.DirImages))
-	if err != nil {
-		return nil, errors.Wrap(err, errMkImageStore)
-	}
-	l, err := NewCachingLayerResolver(filepath.Join(root, store.DirLayers))
+	l, err := NewCachingLayerResolver(filepath.Join(root, store.DirOverlays))
 	if err != nil {
 		return nil, errors.Wrap(err, errMkLayerStore)
 	}
 
 	s := &CachingBundler{
 		root:  filepath.Join(root, store.DirContainers),
-		image: i,
 		layer: l,
 		spec:  RuntimeSpecCreatorFn(spec.Create),
 	}
@@ -162,7 +147,7 @@ func NewCachingBundler(root string) (*CachingBundler, error) {
 // Bundle returns an OCI bundle ready for use by an OCI runtime. The supplied
 // image will be fetched and cached in the store if it does not already exist.
 func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string) (store.Bundle, error) {
-	cfg, err := c.image.ReadConfigFile(i)
+	cfg, err := i.ConfigFile()
 	if err != nil {
 		return nil, errors.Wrap(err, errReadConfigFile)
 	}
@@ -226,21 +211,22 @@ func NewCachingLayerResolver(root string) (*CachingLayerResolver, error) {
 // cached as an overlayfs compatible directory of whiles, with any OCI whiteouts
 // converted to overlayfs whiteouts.
 func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, parents ...ociv1.Layer) (string, error) {
-	d, err := l.Digest()
+	d, err := l.DiffID() // The uncompressed layer digest.
 	if err != nil {
 		return "", errors.Wrap(err, errGetDigest)
 	}
 
-	path := filepath.Join(s.root, d.Hex)
+	path := filepath.Join(s.root, d.Algorithm, d.Hex)
 	_, err = os.Stat(path)
 	if errors.Is(err, os.ErrNotExist) {
 		// Doesn't exist - cache it. It's possible multiple callers may hit this
-		// branch at once. This will result in multiple calls to l.Uncompressed,
-		// thus pulling the layer multiple times to multiple different temporary
-		// dirs. We ignore EEXIST errors from os.Rename, so callers that lose
-		// the race should return the path cached by the successful caller.
+		// branch at once. This will result in multiple extractions to different
+		// temporary dirs. We ignore EEXIST errors from os.Rename, so callers
+		// that lose the race should return the path cached by the successful
+		// caller.
 
-		// This call to Uncompressed is what actually pulls the layer.
+		// This call to Uncompressed is what actually pulls a remote layer. In
+		// most cases we'll be using an image backed by our local image store.
 		tarball, err := l.Uncompressed()
 		if err != nil {
 			return "", errors.Wrap(err, errFetchLayer)
@@ -248,14 +234,14 @@ func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, paren
 
 		parentPaths := make([]string, len(parents))
 		for i := range parents {
-			d, err := parents[i].Digest()
+			d, err := parents[i].DiffID()
 			if err != nil {
 				return "", errors.Wrap(err, errGetDigest)
 			}
-			parentPaths[i] = filepath.Join(s.root, d.Hex)
+			parentPaths[i] = filepath.Join(s.root, d.Algorithm, d.Hex)
 		}
 
-		lw, err := NewLayerWorkdir(s.root, d.Hex, parentPaths)
+		lw, err := NewLayerWorkdir(filepath.Join(s.root, d.Algorithm), d.Hex, parentPaths)
 		if err != nil {
 			return "", errors.Wrap(err, errMkWorkdir)
 		}
@@ -383,7 +369,10 @@ type LayerWorkdir struct {
 // NewLayerWorkdir returns a temporary directory used to produce an overlayfs
 // layer from an OCI layer.
 func NewLayerWorkdir(dir, digest string, parentLayerPaths []string) (LayerWorkdir, error) {
-	tmp, err := os.MkdirTemp(dir, fmt.Sprintf("wrk-%s-", digest))
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return LayerWorkdir{}, errors.Wrap(err, "cannot create temp dir")
+	}
+	tmp, err := os.MkdirTemp(dir, fmt.Sprintf("%s-", digest))
 	if err != nil {
 		return LayerWorkdir{}, errors.Wrap(err, "cannot create temp dir")
 	}

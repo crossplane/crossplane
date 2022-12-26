@@ -36,31 +36,24 @@ import (
 type MockImage struct {
 	ociv1.Image
 
-	MockDigest func() (ociv1.Hash, error)
-	MockLayers func() ([]ociv1.Layer, error)
+	MockDigest     func() (ociv1.Hash, error)
+	MockConfigFile func() (*ociv1.ConfigFile, error)
+	MockLayers     func() ([]ociv1.Layer, error)
 }
 
-func (i *MockImage) Digest() (ociv1.Hash, error)    { return i.MockDigest() }
-func (i *MockImage) Layers() ([]ociv1.Layer, error) { return i.MockLayers() }
+func (i *MockImage) Digest() (ociv1.Hash, error)            { return i.MockDigest() }
+func (i *MockImage) ConfigFile() (*ociv1.ConfigFile, error) { return i.MockConfigFile() }
+func (i *MockImage) Layers() ([]ociv1.Layer, error)         { return i.MockLayers() }
 
 type MockLayer struct {
 	ociv1.Layer
 
-	MockDigest       func() (ociv1.Hash, error)
+	MockDiffID       func() (ociv1.Hash, error)
 	MockUncompressed func() (io.ReadCloser, error)
 }
 
-func (l *MockLayer) Digest() (ociv1.Hash, error)          { return l.MockDigest() }
+func (l *MockLayer) DiffID() (ociv1.Hash, error)          { return l.MockDiffID() }
 func (l *MockLayer) Uncompressed() (io.ReadCloser, error) { return l.MockUncompressed() }
-
-type MockImageConfigReader struct {
-	cfg *ociv1.ConfigFile
-	err error
-}
-
-func (r *MockImageConfigReader) ReadConfigFile(_ ociv1.Image) (*ociv1.ConfigFile, error) {
-	return r.cfg, r.err
-}
 
 type MockLayerResolver struct {
 	path string
@@ -91,7 +84,6 @@ func TestBundle(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type params struct {
-		image ImageConfigReader
 		layer LayerResolver
 		spec  RuntimeSpecCreator
 	}
@@ -113,8 +105,11 @@ func TestBundle(t *testing.T) {
 	}{
 		"ReadConfigFileError": {
 			reason: "We should return any error encountered reading the image's config file.",
-			params: params{
-				image: &MockImageConfigReader{err: errBoom},
+			params: params{},
+			args: args{
+				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return nil, errBoom },
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errReadConfigFile),
@@ -122,12 +117,11 @@ func TestBundle(t *testing.T) {
 		},
 		"GetLayersError": {
 			reason: "We should return any error encountered reading the image's layers.",
-			params: params{
-				image: &MockImageConfigReader{},
-			},
+			params: params{},
 			args: args{
 				i: &MockImage{
-					MockLayers: func() ([]ociv1.Layer, error) { return nil, errBoom },
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return nil, nil },
+					MockLayers:     func() ([]ociv1.Layer, error) { return nil, errBoom },
 				},
 			},
 			want: want{
@@ -137,11 +131,11 @@ func TestBundle(t *testing.T) {
 		"ResolveLayerError": {
 			reason: "We should return any error encountered opening an image's layers.",
 			params: params{
-				image: &MockImageConfigReader{},
 				layer: &MockLayerResolver{err: errBoom},
 			},
 			args: args{
 				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return nil, nil },
 					MockLayers: func() ([]ociv1.Layer, error) {
 						return []ociv1.Layer{&MockLayer{}}, nil
 					},
@@ -163,7 +157,6 @@ func TestBundle(t *testing.T) {
 
 			c := &CachingBundler{
 				root:  tmp,
-				image: tc.params.image,
 				layer: tc.params.layer,
 				spec:  tc.params.spec,
 			}

@@ -36,24 +36,24 @@ import (
 // Mount the tmpfs mount.
 func (m TmpFSMount) Mount() error {
 	var flags uintptr
-	return errors.Wrap(unix.Mount("tmpfs", m.Mountpoint, "tmpfs", flags, ""), "cannot mount tmpfs")
+	return errors.Wrapf(unix.Mount("tmpfs", m.Mountpoint, "tmpfs", flags, ""), "cannot mount tmpfs at %q", m.Mountpoint)
 }
 
 // Unmount the tmpfs mount.
 func (m TmpFSMount) Unmount() error {
 	var flags int
-	return errors.Wrap(unix.Unmount(m.Mountpoint, flags), "cannot unmount tmpfs")
+	return errors.Wrapf(unix.Unmount(m.Mountpoint, flags), "cannot unmount tmpfs at %q", m.Mountpoint)
 }
 
 // Mount the overlay mount.
 func (m OverlayMount) Mount() error {
 	var flags uintptr
 	data := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", strings.Join(m.Lower, ":"), m.Upper, m.Work)
-	return errors.Wrap(unix.Mount("overlay", m.Mountpoint, "overlay", flags, data), "cannot mount overlayfs")
+	return errors.Wrapf(unix.Mount("overlay", m.Mountpoint, "overlay", flags, data), "cannot mount overlayfs at %q", m.Mountpoint)
 }
 
 // Unmount the overlay mount.
 func (m OverlayMount) Unmount() error {
 	var flags int
-	return errors.Wrap(unix.Unmount(m.Mountpoint, flags), "cannot unmount overlayfs")
+	return errors.Wrapf(unix.Unmount(m.Mountpoint, flags), "cannot unmount overlayfs at %q", m.Mountpoint)
 }

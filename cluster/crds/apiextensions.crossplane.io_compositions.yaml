@@ -486,7 +486,7 @@ spec:
                           description: Runner configuration for the Composition Function.
                           properties:
                             endpoint:
-                              default: unix:///@crossplane/fn/default.sock
+                              default: unix-abstract://@crossplane/fn/default.sock
                               description: Endpoint specifies how and where Crossplane
                                 should reach the runner it uses to invoke containerized
                                 Composition Functions.

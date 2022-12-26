@@ -44,14 +44,16 @@ import (
 const (
 	errReadRequest      = "cannot read request from stdin"
 	errUnmarshalRequest = "cannot unmarshal request data from stdin"
+	errNewBundleStore   = "cannot create OCI runtime bundle store"
+	errNewDigestStore   = "cannot create OCI image digest store"
+	errParseRef         = "cannot parse OCI image reference"
+	errPull             = "cannot pull OCI image"
+	errBundleFn         = "cannot create OCI runtime bundle"
+	errMkRuntimeRootdir = "cannot make OCI runtime cache"
+	errRuntime          = "OCI runtime error"
+	errCleanupBundle    = "cannot cleanup OCI runtime bundle"
 	errMarshalResponse  = "cannot marshal response data to stdout"
 	errWriteResponse    = "cannot write response data to stdout"
-	errBadReference     = "OCI tag is not a valid reference"
-	errMkRuntimeRootdir = "cannot make OCI runtime root directory"
-	errRuntime          = "OCI runtime error"
-	errFetchFn          = "cannot fetch OCI image from registry"
-	errBundleFn         = "cannot create OCI bundle"
-	errCleanupBundle    = "cannot cleanup OCI bundle"
 )
 
 // The path within the cache dir that the OCI runtime should use for its
@@ -71,7 +73,7 @@ type Command struct {
 // Run a Composition Function inside an unprivileged user namespace. Reads a
 // protocol buffer serialized RunFunctionRequest from stdin, and writes a
 // protocol buffer serialized RunFunctionResponse to stdout.
-func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of this out into functions.
+func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of this out into functions, add tests.
 	pb, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return errors.Wrap(err, errReadRequest)
@@ -89,38 +91,39 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 	ctx, cancel := context.WithTimeout(context.Background(), t)
 	defer cancel()
 
-	ref, err := name.ParseReference(req.GetImage())
-	if err != nil {
-		return errors.Wrap(err, errBadReference)
-	}
-
-	r := &oci.BasicFetcher{}
 	runID := uuid.NewString()
 
-	// We prefer to use an overlayfs based store where possible. Both stores use
-	// approximately the same amount of disk to store images, but the overlay
-	// store uses less space (and disk I/O) when creating a filesystem for a
-	// container. This is because the overlay store can create a container
-	// filesystem by creating an overlay atop its image layers, while the
-	// uncompressed store must extract said layers to create a new filesystem.
-	var s store.Bundler
-	s, err = uncompressed.NewCachingBundler(c.CacheDir)
+	// We prefer to use an overlayfs bundler where possible. It roughly doubles
+	// the disk space per image because it caches layers as overlay compatible
+	// directories in addition to the CachingImagePuller's cache of uncompressed
+	// layer tarballs. The advantage is faster start times for containers with
+	// cached image, because it creates an overlay rootfs. The uncompressed
+	// bundler on the other hand must untar all of a containers layers to create
+	// a new rootfs each time it runs a container.
+	var s store.Bundler = uncompressed.NewBundler(c.CacheDir)
 	if overlay.Supported(c.CacheDir) {
 		s, err = overlay.NewCachingBundler(c.CacheDir)
 	}
 	if err != nil {
-		return errors.Wrap(err, "cannot setup overlay store")
+		return errors.Wrap(err, errNewBundleStore)
 	}
 
-	// TODO(negz): Is it worth using r.Head to determine whether the image is
-	// already in the store? This would be cheaper than using r.Fetch, but
-	// r.Fetch is only grabbing the manifest (not the layers) and is thus
-	// presumably not super expensive.
-	// TODO(negz): Respect the ImagePullPolicy.
-	img, ferr := r.Fetch(ctx, ref)
-	if ferr != nil {
-		return errors.Wrap(ferr, errFetchFn)
+	h, err := store.NewDigest(c.CacheDir)
+	if err != nil {
+		return errors.Wrap(err, errNewDigestStore)
 	}
+
+	r, err := name.ParseReference(req.GetImage())
+	if err != nil {
+		return errors.Wrap(err, errParseRef)
+	}
+
+	p := oci.NewCachingPuller(h, store.NewImage(c.CacheDir), &oci.RemoteClient{})
+	img, err := p.Image(ctx, r, req.GetImagePullConfig())
+	if err != nil {
+		return errors.Wrap(err, errPull)
+	}
+
 	b, err := s.Bundle(ctx, img, runID)
 	if err != nil {
 		return errors.Wrap(err, errBundleFn)

@@ -36,10 +36,17 @@ const (
 	errRunFunction = "cannot run function"
 )
 
+var policy map[string]v1alpha1.ImagePullPolicy = map[string]v1alpha1.ImagePullPolicy{
+	"Always":       v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
+	"Never":        v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
+	"IfNotPresent": v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT,
+}
+
 // Command runs a Composition function.
 type Command struct {
 	CacheDir   string        `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
 	Timeout    time.Duration `help:"Maximum time for which the function may run before being killed." default:"30s"`
+	PullPolicy string        `help:"Whether the image may be pulled from a remote registry." enum:"Always,Never,IfNotPresent" default:"IfNotPresent"`
 	MapRootUID int           `help:"UID that will map to 0 in the function's user namespace. The following 65336 UIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 	MapRootGID int           `help:"GID that will map to 0 in the function's user namespace. The following 65336 GIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 
@@ -63,6 +70,9 @@ func (c *Command) Run() error {
 	rsp, err := f.RunFunction(context.Background(), &v1alpha1.RunFunctionRequest{
 		Image: c.Image,
 		Input: c.FunctionIO,
+		ImagePullConfig: &v1alpha1.ImagePullConfig{
+			PullPolicy: policy[c.PullPolicy],
+		},
 		RunFunctionConfig: &v1alpha1.RunFunctionConfig{
 			Timeout: durationpb.New(c.Timeout),
 		},

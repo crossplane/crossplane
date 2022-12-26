@@ -19,11 +19,19 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
+	"github.com/google/go-containerregistry/pkg/name"
 	ociv1 "github.com/google/go-containerregistry/pkg/v1"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/partial"
+	"github.com/google/go-containerregistry/pkg/v1/types"
+	"github.com/google/go-containerregistry/pkg/v1/validate"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
@@ -32,8 +40,9 @@ import (
 // Shorter is better, to avoid passing too much data to the mount syscall when
 // creating an overlay mount with many layers as lower directories.
 const (
-	DirLayers     = "l"
+	DirDigests    = "d"
 	DirImages     = "i"
+	DirOverlays   = "o"
 	DirContainers = "c"
 )
 
@@ -46,16 +55,27 @@ const (
 
 // Error strings
 const (
-	errMkImageStore     = "cannot make image cache directory"
+	errMkDigestStore    = "cannot make digest store"
+	errReadDigest       = "cannot read digest"
+	errParseDigest      = "cannot parse digest"
+	errStoreDigest      = "cannot store digest"
+	errPartial          = "cannot complete partial implementation" // This should never happen.
+	errInvalidImage     = "stored image is invalid"
 	errGetDigest        = "cannot get digest"
-	errMkWorkdir        = "cannot create temporary work directory"
-	errMvWorkdir        = "cannot move temporary work directory"
-	errGetRawConfigFile = "cannot get raw image config file"
-	errWriteConfigFile  = "cannot write image config file"
-	errGetConfigFile    = "cannot get image config file"
+	errMkAlgoDir        = "cannot create store directory"
+	errGetRawConfigFile = "cannot get image config file"
+	errMkTmpfile        = "cannot create temporary layer file"
+	errReadLayer        = "cannot read layer"
+	errMvTmpfile        = "cannot move temporary layer file"
 	errOpenConfigFile   = "cannot open image config file"
-	errParseConfigFile  = "cannot parse image config file"
-	errCloseConfigFile  = "cannot close image config file"
+	errWriteLayers      = "cannot write image layers"
+	errInvalidLayer     = "stored layer is invalid"
+	errWriteConfigFile  = "cannot write image config file"
+	errGetLayers        = "cannot get image layers"
+	errWriteLayer       = "cannot write layer"
+	errOpenLayer        = "cannot open layer"
+	errStatLayer        = "cannot stat layer"
+	errCheckExistence   = "cannot determine whether layer exists"
 )
 
 // A Bundler prepares OCI runtime bundles for use by an OCI runtime.
@@ -83,60 +103,243 @@ func SpecPath(b Bundle) string {
 	return filepath.Join(b.Path(), FileSpec)
 }
 
-// A CachingImageConfigReader reads an image's ConfigFile. The file is cached
-// upon first read, and read from cache on subsequent calls.
-type CachingImageConfigReader struct {
+// A Digest store is used to map OCI references to digests. Each mapping is a
+// file. The filename is the SHA256 hash of the reference, and the content is
+// the digest in algo:hex format.
+type Digest struct{ root string }
+
+// NewDigest returns a store used to map OCI references to digests.
+func NewDigest(root string) (*Digest, error) {
+	// We only use sha256 hashes. The sha256 subdirectory is for symmetry with
+	// the other stores, which at least hypothetically support other hashes.
+	path := filepath.Join(root, DirDigests, "sha256")
+	err := os.MkdirAll(path, 0700)
+	return &Digest{root: path}, errors.Wrap(err, errMkDigestStore)
+}
+
+// Hash returns the stored hash for the supplied reference.
+func (d *Digest) Hash(r name.Reference) (ociv1.Hash, error) {
+	b, err := os.ReadFile(d.path(r))
+	if err != nil {
+		return ociv1.Hash{}, errors.Wrap(err, errReadDigest)
+	}
+	h, err := ociv1.NewHash(string(b))
+	return h, errors.Wrap(err, errParseDigest)
+}
+
+// WriteHash maps the supplied reference to the supplied hash.
+func (d *Digest) WriteHash(r name.Reference, h ociv1.Hash) error {
+	return errors.Wrap(os.WriteFile(d.path(r), []byte(h.String()), 0600), errStoreDigest)
+}
+
+func (d *Digest) path(r name.Reference) string {
+	return filepath.Join(d.root, fmt.Sprintf("%x", sha256.Sum256([]byte(r.String()))))
+}
+
+// An Image store is used to store OCI images and their layers.
+type Image struct{ root string }
+
+// NewImage returns a store used to store OCI images and their layers.
+func NewImage(root string) *Image {
+	return &Image{root: filepath.Join(root, DirImages)}
+}
+
+// Image returns the stored image with the supplied hash, if any.
+func (i *Image) Image(h ociv1.Hash) (ociv1.Image, error) {
+	uncompressed := image{root: i.root, h: h}
+
+	// NOTE(negz): At the time of writing UncompressedToImage doesn't actually
+	// return an error.
+	oi, err := partial.UncompressedToImage(uncompressed)
+	if err != nil {
+		return nil, errors.Wrap(err, errPartial)
+	}
+
+	return oi, errors.Wrap(validate.Image(oi, validate.Fast), errInvalidImage)
+}
+
+// WriteImage writes the supplied image to the store.
+func (i *Image) WriteImage(img ociv1.Image) error {
+	d, err := img.Digest()
+	if err != nil {
+		return errors.Wrap(err, errGetDigest)
+	}
+
+	if _, err = i.Image(d); err == nil {
+		// Image already exists in the store.
+		return nil
+	}
+
+	path := filepath.Join(i.root, d.Algorithm, d.Hex)
+
+	if err := os.MkdirAll(filepath.Join(i.root, d.Algorithm), 0700); err != nil {
+		return errors.Wrap(err, errMkAlgoDir)
+	}
+
+	raw, err := img.RawConfigFile()
+	if err != nil {
+		return errors.Wrap(err, errGetRawConfigFile)
+	}
+
+	// CreateTemp creates a file with permission mode 0600.
+	tmp, err := os.CreateTemp(filepath.Join(i.root, d.Algorithm), fmt.Sprintf("%s-", d.Hex))
+	if err != nil {
+		return errors.Wrap(err, errMkTmpfile)
+	}
+
+	if err := os.WriteFile(tmp.Name(), raw, 0600); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errors.Wrap(err, errWriteConfigFile)
+	}
+
+	// TODO(negz): Ignore os.ErrExist? We might get one here if two callers race
+	// to cache the same image.
+	if err := os.Rename(tmp.Name(), path); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errors.Wrap(err, errMvTmpfile)
+	}
+
+	layers, err := img.Layers()
+	if err != nil {
+		return errors.Wrap(err, errGetLayers)
+	}
+
+	g := &errgroup.Group{}
+	for _, l := range layers {
+		l := l // Pin loop var.
+		g.Go(func() error {
+			return i.WriteLayer(l)
+		})
+	}
+
+	return errors.Wrap(g.Wait(), errWriteLayers)
+}
+
+// Layer returns the stored layer with the supplied hash, if any.
+func (i *Image) Layer(h ociv1.Hash) (ociv1.Layer, error) {
+	uncompressed := layer{root: i.root, h: h}
+
+	// NOTE(negz): At the time of writing UncompressedToLayer doesn't actually
+	// return an error.
+	ol, err := partial.UncompressedToLayer(uncompressed)
+	if err != nil {
+		return nil, errors.Wrap(err, errPartial)
+	}
+
+	return ol, errors.Wrap(validate.Layer(ol, validate.Fast), errInvalidLayer)
+}
+
+// WriteLayer writes the supplied layer to the store.
+func (i *Image) WriteLayer(l ociv1.Layer) error {
+	d, err := l.DiffID() // The digest of the uncompressed layer.
+	if err != nil {
+		return errors.Wrap(err, errGetDigest)
+	}
+
+	if _, err := i.Layer(d); err == nil {
+		// Layer already exists in the store.
+		return nil
+	}
+
+	if err := os.MkdirAll(filepath.Join(i.root, d.Algorithm), 0700); err != nil {
+		return errors.Wrap(err, errMkAlgoDir)
+	}
+
+	// CreateTemp creates a file with permission mode 0600.
+	tmp, err := os.CreateTemp(filepath.Join(i.root, d.Algorithm), fmt.Sprintf("%s-", d.Hex))
+	if err != nil {
+		return errors.Wrap(err, errMkTmpfile)
+	}
+
+	// This call to Uncompressed is what actually pulls the layer.
+	u, err := l.Uncompressed()
+	if err != nil {
+		_ = os.Remove(tmp.Name())
+		return errors.Wrap(err, errReadLayer)
+	}
+
+	if _, err := copyChunks(tmp, u, 1024*1024); err != nil { // Copy 1MB chunks.
+		_ = os.Remove(tmp.Name())
+		return errors.Wrap(err, errWriteLayer)
+	}
+
+	// TODO(negz): Ignore os.ErrExist? We might get one here if two callers race
+	// to cache the same layer.
+	if err := os.Rename(tmp.Name(), filepath.Join(i.root, d.Algorithm, d.Hex)); err != nil {
+		_ = os.Remove(tmp.Name())
+		return errors.Wrap(err, errMvTmpfile)
+	}
+
+	return nil
+}
+
+// image implements partial.UncompressedImage.
+type image struct {
 	root string
+	h    ociv1.Hash
 }
 
-// NewCachingImageConfigReader returns an ImageConfigReader that caches config
-// files upon first read, and reads them from cache on subsequent calls.
-func NewCachingImageConfigReader(root string) (*CachingImageConfigReader, error) {
-	return &CachingImageConfigReader{root: root}, os.MkdirAll(root, 0700)
+func (i image) RawConfigFile() ([]byte, error) {
+	b, err := os.ReadFile(filepath.Join(i.root, i.h.Algorithm, i.h.Hex))
+	return b, errors.Wrap(err, errOpenConfigFile)
 }
 
-// ReadConfigFile of the supplied OCI image.
-func (c *CachingImageConfigReader) ReadConfigFile(i ociv1.Image) (*ociv1.ConfigFile, error) {
-	d, err := i.Digest()
+func (i image) MediaType() (types.MediaType, error) {
+	return types.OCIManifestSchema1, nil
+}
+
+func (i image) LayerByDiffID(h ociv1.Hash) (partial.UncompressedLayer, error) {
+	return layer{root: i.root, h: h}, nil
+}
+
+// layer implements partial.UncompressedLayer.
+type layer struct {
+	root string
+	h    ociv1.Hash
+}
+
+func (l layer) DiffID() (v1.Hash, error) {
+	return l.h, nil
+}
+
+func (l layer) Uncompressed() (io.ReadCloser, error) {
+	f, err := os.Open(filepath.Join(l.root, l.h.Algorithm, l.h.Hex))
+	return f, errors.Wrap(err, errOpenLayer)
+}
+
+func (l layer) MediaType() (types.MediaType, error) {
+	return types.OCIUncompressedLayer, nil
+}
+
+// Exists satisfies partial.Exists, which is used to validate the image when
+// validate.Image or validate.Layer is run with the validate.Fast option.
+func (l layer) Exists() (bool, error) {
+	_, err := os.Stat(filepath.Join(l.root, l.h.Algorithm, l.h.Hex))
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
 	if err != nil {
-		return nil, errors.Wrap(err, errGetDigest)
+		return false, errors.Wrap(err, errStatLayer)
 	}
+	return true, nil
+}
 
-	// Note ferr, not err, to avoid shadowing in the ErrNotExist block.
-	f, ferr := os.Open(filepath.Join(c.root, d.Hex, FileConfig))
-	if errors.Is(ferr, os.ErrNotExist) {
-		tmp, err := os.MkdirTemp(c.root, fmt.Sprintf("xfn-wrk-%q-", d.Hex))
+// copyChunks pleases gosec per https://github.com/securego/gosec/pull/433.
+// Like Copy it reads from src until EOF, it does not treat an EOF from Read as
+// an error to be reported.
+//
+// NOTE(negz): This rule confused me at first because io.Copy appears to use a
+// buffer, but in fact it bypasses it if src/dst is an io.WriterTo/ReaderFrom.
+func copyChunks(dst io.Writer, src io.Reader, chunkSize int64) (int64, error) {
+	var written int64
+	for {
+		w, err := io.CopyN(dst, src, chunkSize)
+		written += w
+		if errors.Is(err, io.EOF) {
+			return written, nil
+		}
 		if err != nil {
-			return nil, errors.Wrap(err, errMkWorkdir)
+			return written, err
 		}
-		defer os.RemoveAll(tmp) //nolint:errcheck // Not much we can do if this fails.
-
-		raw, err := i.RawConfigFile()
-		if err != nil {
-			return nil, errors.Wrap(err, errGetRawConfigFile)
-		}
-
-		if err := os.WriteFile(filepath.Join(tmp, FileConfig), raw, 0600); err != nil {
-			return nil, errors.Wrap(err, errWriteConfigFile)
-		}
-
-		if err := os.Rename(tmp, filepath.Join(c.root, d.Hex)); err != nil {
-			return nil, errors.Wrap(err, errMvWorkdir)
-		}
-
-		// It would be slightly cheaper to avoid reading the file when we have
-		// it cached, but this provides a little validation that we actually
-		// cached something we'll be able to read next time.
-		f, ferr = os.Open(filepath.Join(c.root, d.Hex, FileConfig))
 	}
-	if ferr != nil {
-		return nil, errors.Wrap(err, errOpenConfigFile)
-	}
-
-	cfg, err := ociv1.ParseConfigFile(f)
-	if err != nil {
-		_ = f.Close()
-		return nil, errors.Wrap(err, errParseConfigFile)
-	}
-	return cfg, errors.Wrap(f.Close(), errCloseConfigFile)
 }

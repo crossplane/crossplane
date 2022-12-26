@@ -409,7 +409,7 @@ func New(o ...Option) (*runtime.Spec, error) {
 		},
 		Root: &runtime.Root{
 			Path:     store.DirRootFS,
-			Readonly: true,
+			Readonly: true, // TODO(negz): Make this configurable?
 		},
 		Hostname: "xfn",
 		Mounts: []runtime.Mount{

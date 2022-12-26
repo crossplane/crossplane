@@ -20,7 +20,6 @@ import (
 	"context"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -37,12 +36,14 @@ import (
 type MockImage struct {
 	ociv1.Image
 
-	MockDigest func() (ociv1.Hash, error)
-	MockLayers func() ([]ociv1.Layer, error)
+	MockDigest     func() (ociv1.Hash, error)
+	MockConfigFile func() (*ociv1.ConfigFile, error)
+	MockLayers     func() ([]ociv1.Layer, error)
 }
 
-func (i *MockImage) Digest() (ociv1.Hash, error)    { return i.MockDigest() }
-func (i *MockImage) Layers() ([]ociv1.Layer, error) { return i.MockLayers() }
+func (i *MockImage) Digest() (ociv1.Hash, error)            { return i.MockDigest() }
+func (i *MockImage) ConfigFile() (*ociv1.ConfigFile, error) { return i.MockConfigFile() }
+func (i *MockImage) Layers() ([]ociv1.Layer, error)         { return i.MockLayers() }
 
 type MockLayer struct {
 	ociv1.Layer
@@ -53,22 +54,6 @@ type MockLayer struct {
 
 func (l *MockLayer) Digest() (ociv1.Hash, error)          { return l.MockDigest() }
 func (l *MockLayer) Uncompressed() (io.ReadCloser, error) { return l.MockUncompressed() }
-
-type MockImageConfigReader struct {
-	cfg *ociv1.ConfigFile
-	err error
-}
-
-func (r *MockImageConfigReader) ReadConfigFile(_ ociv1.Image) (*ociv1.ConfigFile, error) {
-	return r.cfg, r.err
-}
-
-type MockLayerOpener struct {
-	l   io.ReadCloser
-	err error
-}
-
-func (r *MockLayerOpener) Open(_ ociv1.Layer) (io.ReadCloser, error) { return r.l, r.err }
 
 type MockTarballApplicator struct{ err error }
 
@@ -90,8 +75,6 @@ func TestBundle(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type params struct {
-		image   ImageConfigReader
-		layer   LayerOpener
 		tarball TarballApplicator
 		spec    RuntimeSpecCreator
 	}
@@ -113,8 +96,11 @@ func TestBundle(t *testing.T) {
 	}{
 		"ReadConfigFileError": {
 			reason: "We should return any error encountered reading the image's config file.",
-			params: params{
-				image: &MockImageConfigReader{err: errBoom},
+			params: params{},
+			args: args{
+				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return nil, errBoom },
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errReadConfigFile),
@@ -122,28 +108,27 @@ func TestBundle(t *testing.T) {
 		},
 		"GetLayersError": {
 			reason: "We should return any error encountered reading the image's layers.",
-			params: params{
-				image: &MockImageConfigReader{},
-			},
+			params: params{},
 			args: args{
 				i: &MockImage{
-					MockLayers: func() ([]ociv1.Layer, error) { return nil, errBoom },
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return &ociv1.ConfigFile{}, nil },
+					MockLayers:     func() ([]ociv1.Layer, error) { return nil, errBoom },
 				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetLayers),
 			},
 		},
-		"OpenLayerError": {
-			reason: "We should return any error encountered opening an image's layers.",
-			params: params{
-				image: &MockImageConfigReader{},
-				layer: &MockLayerOpener{err: errBoom},
-			},
+		"UncompressedLayerError": {
+			reason: "We should return any error encountered opening an image's uncompressed layers.",
+			params: params{},
 			args: args{
 				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return &ociv1.ConfigFile{}, nil },
 					MockLayers: func() ([]ociv1.Layer, error) {
-						return []ociv1.Layer{&MockLayer{}}, nil
+						return []ociv1.Layer{&MockLayer{
+							MockUncompressed: func() (io.ReadCloser, error) { return nil, errBoom },
+						}}, nil
 					},
 				},
 			},
@@ -154,14 +139,15 @@ func TestBundle(t *testing.T) {
 		"ApplyLayerTarballError": {
 			reason: "We should return any error encountered applying an image's layer tarball.",
 			params: params{
-				image:   &MockImageConfigReader{},
-				layer:   &MockLayerOpener{l: &MockCloser{}},
 				tarball: &MockTarballApplicator{err: errBoom},
 			},
 			args: args{
 				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return &ociv1.ConfigFile{}, nil },
 					MockLayers: func() ([]ociv1.Layer, error) {
-						return []ociv1.Layer{&MockLayer{}}, nil
+						return []ociv1.Layer{&MockLayer{
+							MockUncompressed: func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader("")), nil },
+						}}, nil
 					},
 				},
 			},
@@ -172,14 +158,15 @@ func TestBundle(t *testing.T) {
 		"CloseLayerError": {
 			reason: "We should return any error encountered closing an image's layer tarball.",
 			params: params{
-				image:   &MockImageConfigReader{},
-				layer:   &MockLayerOpener{l: &MockCloser{err: errBoom}},
 				tarball: &MockTarballApplicator{},
 			},
 			args: args{
 				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return &ociv1.ConfigFile{}, nil },
 					MockLayers: func() ([]ociv1.Layer, error) {
-						return []ociv1.Layer{&MockLayer{}}, nil
+						return []ociv1.Layer{&MockLayer{
+							MockUncompressed: func() (io.ReadCloser, error) { return &MockCloser{err: errBoom}, nil },
+						}}, nil
 					},
 				},
 			},
@@ -190,15 +177,16 @@ func TestBundle(t *testing.T) {
 		"CreateRuntimeSpecError": {
 			reason: "We should return any error encountered creating the bundle's OCI runtime spec.",
 			params: params{
-				image:   &MockImageConfigReader{},
-				layer:   &MockLayerOpener{l: io.NopCloser(nil)},
 				tarball: &MockTarballApplicator{},
 				spec:    &MockRuntimeSpecCreator{err: errBoom},
 			},
 			args: args{
 				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return &ociv1.ConfigFile{}, nil },
 					MockLayers: func() ([]ociv1.Layer, error) {
-						return []ociv1.Layer{&MockLayer{}}, nil
+						return []ociv1.Layer{&MockLayer{
+							MockUncompressed: func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader("")), nil },
+						}}, nil
 					},
 				},
 			},
@@ -209,15 +197,16 @@ func TestBundle(t *testing.T) {
 		"SuccessfulBundle": {
 			reason: "We should create and return an OCI bundle.",
 			params: params{
-				image:   &MockImageConfigReader{},
-				layer:   &MockLayerOpener{l: io.NopCloser(nil)},
 				tarball: &MockTarballApplicator{},
 				spec:    &MockRuntimeSpecCreator{},
 			},
 			args: args{
 				i: &MockImage{
+					MockConfigFile: func() (*ociv1.ConfigFile, error) { return &ociv1.ConfigFile{}, nil },
 					MockLayers: func() ([]ociv1.Layer, error) {
-						return []ociv1.Layer{&MockLayer{}}, nil
+						return []ociv1.Layer{&MockLayer{
+							MockUncompressed: func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader("")), nil },
+						}}, nil
 					},
 				},
 			},
@@ -237,10 +226,8 @@ func TestBundle(t *testing.T) {
 			}
 			defer os.RemoveAll(tmp)
 
-			c := &CachingBundler{
+			c := &Bundler{
 				root:    tmp,
-				image:   tc.params.image,
-				layer:   tc.params.layer,
 				tarball: tc.params.tarball,
 				spec:    tc.params.spec,
 			}
@@ -252,110 +239,6 @@ func TestBundle(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nBundle(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestOpen(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type args struct {
-		l ociv1.Layer
-	}
-	type want struct {
-		// It's not trivial (possible?) to compare two io.Readers of different
-		// types using cmp - doing so requires potentially modifying the reader,
-		// by reading it, which violates the requirement that a Comparer be
-		// 'pure'. Instead we just read it in the test body and compare bytes.
-		bytes []byte
-		err   error
-	}
-
-	cases := map[string]struct {
-		reason string
-		files  map[string][]byte
-		args   args
-		want   want
-	}{
-		"DigestError": {
-			reason: "We should return an error if we can't get the layer's digest.",
-			args: args{
-				l: &MockLayer{
-					MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{}, errBoom },
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetDigest),
-			},
-		},
-		"SuccessfulCacheRead": {
-			reason: "We should return our cached file if it exists.",
-			files: map[string][]byte{
-				"cool": []byte("tarball"),
-			},
-			args: args{
-				l: &MockLayer{
-					MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{Hex: "cool"}, nil },
-				},
-			},
-			want: want{
-				bytes: []byte("tarball"),
-			},
-		},
-		"UncompressedError": {
-			reason: "We should return an error if we can't open the layer's uncompressed tarball.",
-			args: args{
-				l: &MockLayer{
-					MockDigest:       func() (ociv1.Hash, error) { return ociv1.Hash{Hex: "cool"}, nil },
-					MockUncompressed: func() (io.ReadCloser, error) { return nil, errBoom },
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errFetchLayer),
-			},
-		},
-		"SuccessfulCacheWrite": {
-			reason: "We should write a cached file if it doesn't exist, then return it.",
-			args: args{
-				l: &MockLayer{
-					MockDigest:       func() (ociv1.Hash, error) { return ociv1.Hash{Hex: "cool"}, nil },
-					MockUncompressed: func() (io.ReadCloser, error) { return io.NopCloser(strings.NewReader("tarball")), nil },
-				},
-			},
-			want: want{
-				bytes: []byte("tarball"),
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			tmp, err := os.MkdirTemp(os.TempDir(), strings.ReplaceAll(t.Name(), string(os.PathSeparator), "_"))
-			if err != nil {
-				t.Fatal(err.Error())
-			}
-			defer os.RemoveAll(tmp)
-
-			for name, data := range tc.files {
-				path := filepath.Join(tmp, name)
-				_ = os.MkdirAll(filepath.Dir(path), 0700)
-				_ = os.WriteFile(path, data, 0600)
-			}
-
-			c := &CachingLayerOpener{root: tmp}
-			tb, err := c.Open(tc.args.l)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nOpen(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-
-			if err == nil {
-				got, _ := io.ReadAll(tb)
-				if diff := cmp.Diff(tc.want.bytes, got); diff != "" {
-					t.Errorf("\n%s\nOpen(...): -want, +got:\n%s", tc.reason, diff)
-				}
-				tb.Close()
 			}
 		})
 	}
