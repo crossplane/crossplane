@@ -725,6 +725,154 @@ func TestClaimConfigure(t *testing.T) {
 				},
 			},
 		},
+		"ConfigureNewStatusField": {
+			reason: "Status of claim should be overwritten by the composite",
+			args: args{
+				client: test.NewMockClient(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]any{
+								"previousCoolness": 23,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]any{
+								"resourceRefs": "ref",
+								"claimRef":     "ref",
+							},
+							"status": map[string]any{
+								"previousCoolness":  28,
+								"observeGeneration": 1,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]any{
+								"previousCoolness":  28,
+								"observeGeneration": 1,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"ConfigureStatusFromEmtyStatusFieldFromCompositeResource": {
+			reason: "An empty status field of claim should be removed by the composite. ",
+			args: args{
+				client: test.NewMockClient(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]any{
+								"previousCoolness": 23,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+							},
+							"spec": map[string]any{
+								"resourceRefs": "ref",
+								"claimRef":     "ref",
+							},
+							"status": map[string]any{
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+							},
+							"status": map[string]any{
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 		"UpdatePolicyManual": {
 			reason: "CompositionRevision of composite should be overwritten by the claim",
 			args: args{
