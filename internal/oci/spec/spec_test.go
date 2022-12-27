@@ -17,7 +17,6 @@ limitations under the License.
 package spec
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -28,10 +27,10 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	ociv1 "github.com/google/go-containerregistry/pkg/v1"
 	runtime "github.com/opencontainers/runtime-spec/specs-go"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-	"github.com/crossplane/crossplane/internal/oci/store"
 )
 
 type TestBundle struct{ path string }
@@ -39,10 +38,11 @@ type TestBundle struct{ path string }
 func (b TestBundle) Path() string   { return b.path }
 func (b TestBundle) Cleanup() error { return os.RemoveAll(b.path) }
 
-func TestCreate(t *testing.T) {
+func TestNew(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type args struct {
-		b   store.Bundle
-		cfg *ociv1.ConfigFile
+		o []Option
 	}
 	type want struct {
 		s   *runtime.Spec
@@ -53,54 +53,27 @@ func TestCreate(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"UnparseablePasswdFiles": {
-			reason: "We should return an error if the supplied Bundle contains unparseable /etc/passwd or group files.",
+		"InvalidOption": {
+			reason: "We should return an error if the supplied option is invalid.",
 			args: args{
-				b: func() TestBundle {
-					tmp, _ := os.MkdirTemp(os.TempDir(), t.Name())
-					b := TestBundle{path: tmp}
-
-					_ = os.MkdirAll(filepath.Join(store.RootFSPath(b), "etc"), 0700)
-					_ = os.WriteFile(filepath.Join(store.RootFSPath(b), "etc", "passwd"), []byte("wat"), 0600)
-					_ = os.WriteFile(filepath.Join(store.RootFSPath(b), "etc", "group"), []byte("wat"), 0600)
-					return b
-				}(),
-				cfg: &ociv1.ConfigFile{},
+				o: []Option{func(s *runtime.Spec) error { return errBoom }},
 			},
 			want: want{
-				s:   &runtime.Spec{},
-				err: errors.Wrap(errors.Wrap(errors.New("record on line 1: wrong number of fields"), errParsePasswd), errParsePasswdFiles),
-			},
-		},
-		"InvalidImageConfig": {
-			reason: "We should return an error if the supplied ImageConfig is invalid.",
-			args: args{
-				b: func() TestBundle {
-					tmp, _ := os.MkdirTemp(os.TempDir(), t.Name())
-					b := TestBundle{path: tmp}
-					return b
-				}(),
-				cfg: &ociv1.ConfigFile{},
-			},
-			want: want{
-				s:   &runtime.Spec{},
-				err: errors.Wrap(errors.Wrap(errors.New(errNoCmd), errApplySpecOption), errNewSpec),
+				err: errors.Wrap(errBoom, errApplySpecOption),
 			},
 		},
 		"Minimal": {
-			reason: "It should be possible to create a minimal runtime spec for a bundle with no /etc/passwd, no /etc/group and a minimal ImageConfig.",
+			reason: "It should be possible to apply an option to a new spec.",
 			args: args{
-				b: func() TestBundle {
-					tmp, _ := os.MkdirTemp(os.TempDir(), t.Name())
-					b := TestBundle{path: tmp}
-					return b
-				}(),
-				cfg: &ociv1.ConfigFile{Config: ociv1.Config{Entrypoint: []string{"/bin/false"}}},
+				o: []Option{func(s *runtime.Spec) error {
+					s.Annotations = map[string]string{"cool": "very"}
+					return nil
+				}},
 			},
 			want: want{
 				s: func() *runtime.Spec {
 					s, _ := New()
-					s.Process.Args = []string{"/bin/false"}
+					s.Annotations = map[string]string{"cool": "very"}
 					return s
 				}(),
 			},
@@ -109,19 +82,318 @@ func TestCreate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			defer tc.args.b.Cleanup()
-
-			err := Create(tc.args.b, tc.args.cfg)
-
-			got := &runtime.Spec{}
-			data, _ := os.ReadFile(store.SpecPath(tc.args.b))
-			_ = json.Unmarshal(data, got)
-
+			got, err := New(tc.args.o...)
 			if diff := cmp.Diff(tc.want.s, got); diff != "" {
 				t.Errorf("\n%s\nCreate(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nCreate(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWithCPULimit(t *testing.T) {
+	var shares uint64 = 512
+	var quota int64 = 50000
+
+	type args struct {
+		limit string
+	}
+	type want struct {
+		s   *runtime.Spec
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		s      *runtime.Spec
+		args   args
+		want   want
+	}{
+		"ParseLimitError": {
+			reason: "We should return any error encountered while parsing the CPU limit.",
+			s:      &runtime.Spec{},
+			args: args{
+				limit: "",
+			},
+			want: want{
+				s:   &runtime.Spec{},
+				err: errors.Wrap(resource.ErrFormatWrong, errParseCPULimit),
+			},
+		},
+		"SuccessMilliCPUs": {
+			reason: "We should set shares and quota according to the supplied milliCPUs.",
+			s:      &runtime.Spec{},
+			args: args{
+				limit: "500m",
+			},
+			want: want{
+				s: &runtime.Spec{
+					Linux: &runtime.Linux{
+						Resources: &runtime.LinuxResources{
+							CPU: &runtime.LinuxCPU{
+								Shares: &shares,
+								Quota:  &quota,
+							},
+						},
+					},
+				},
+			},
+		},
+		"SuccessCores": {
+			reason: "We should set shares and quota according to the supplied cores.",
+			s:      &runtime.Spec{},
+			args: args{
+				limit: "0.5",
+			},
+			want: want{
+				s: &runtime.Spec{
+					Linux: &runtime.Linux{
+						Resources: &runtime.LinuxResources{
+							CPU: &runtime.LinuxCPU{
+								Shares: &shares,
+								Quota:  &quota,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := WithCPULimit(tc.args.limit)(tc.s)
+
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nWithCPULimit(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWithCPULimit(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWithMemoryLimit(t *testing.T) {
+	var limit int64 = 512 * 1024 * 1024
+
+	type args struct {
+		limit string
+	}
+	type want struct {
+		s   *runtime.Spec
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		s      *runtime.Spec
+		args   args
+		want   want
+	}{
+		"ParseLimitError": {
+			reason: "We should return any error encountered while parsing the memory limit.",
+			s:      &runtime.Spec{},
+			args: args{
+				limit: "",
+			},
+			want: want{
+				s:   &runtime.Spec{},
+				err: errors.Wrap(resource.ErrFormatWrong, errParseMemoryLimit),
+			},
+		},
+		"Success": {
+			reason: "We should set the supplied memory limit.",
+			s:      &runtime.Spec{},
+			args: args{
+				limit: "512Mi",
+			},
+			want: want{
+				s: &runtime.Spec{
+					Linux: &runtime.Linux{
+						Resources: &runtime.LinuxResources{
+							Memory: &runtime.LinuxMemory{
+								Limit: &limit,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := WithMemoryLimit(tc.args.limit)(tc.s)
+
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nWithMemoryLimit(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWithMemoryLimit(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWithHostNetwork(t *testing.T) {
+	type want struct {
+		s   *runtime.Spec
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		s      *runtime.Spec
+		want   want
+	}{
+		"RemoveNetworkNamespace": {
+			reason: "We should remote the network namespace if it exists.",
+			s: &runtime.Spec{
+				Linux: &runtime.Linux{
+					Namespaces: []runtime.LinuxNamespace{
+						{Type: runtime.CgroupNamespace},
+						{Type: runtime.NetworkNamespace},
+					},
+				},
+			},
+			want: want{
+				s: &runtime.Spec{
+					Mounts: []runtime.Mount{{
+						Type:        "bind",
+						Destination: "/etc/resolv.conf",
+						Source:      "/etc/resolv.conf",
+						Options:     []string{"rbind", "ro"},
+					}},
+					Linux: &runtime.Linux{
+						Namespaces: []runtime.LinuxNamespace{
+							{Type: runtime.CgroupNamespace},
+						},
+					},
+				},
+			},
+		},
+		"EmptySpec": {
+			reason: "We should handle an empty spec without issue.",
+			s:      &runtime.Spec{},
+			want: want{
+				s: &runtime.Spec{
+					Mounts: []runtime.Mount{{
+						Type:        "bind",
+						Destination: "/etc/resolv.conf",
+						Source:      "/etc/resolv.conf",
+						Options:     []string{"rbind", "ro"},
+					}},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := WithHostNetwork()(tc.s)
+
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nWithHostNetwork(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWithHostNetwork(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWithImageConfig(t *testing.T) {
+	type args struct {
+		cfg    *ociv1.ConfigFile
+		passwd string
+		group  string
+	}
+	type want struct {
+		s   *runtime.Spec
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		s      *runtime.Spec
+		args   args
+		want   want
+	}{
+		"NoCommand": {
+			reason: "We should return an error if the supplied image config has no entrypoint and no cmd.",
+			s:      &runtime.Spec{},
+			args: args{
+				cfg: &ociv1.ConfigFile{},
+			},
+			want: want{
+				s:   &runtime.Spec{},
+				err: errors.New(errNoCmd),
+			},
+		},
+		"UnresolvableUser": {
+			reason: "We should return an error if there is no passwd data and a string username.",
+			s:      &runtime.Spec{},
+			args: args{
+				cfg: &ociv1.ConfigFile{
+					Config: ociv1.Config{
+						Entrypoint: []string{"/bin/sh"},
+						User:       "negz",
+					},
+				},
+			},
+			want: want{
+				s: &runtime.Spec{
+					Process: &runtime.Process{
+						Args: []string{"/bin/sh"},
+					},
+				},
+				err: errors.Wrap(errors.Errorf(errFmtNonExistentUser, "negz"), errResolveUser),
+			},
+		},
+		"Success": {
+			reason: "We should build a runtime config from the supplied image config.",
+			s:      &runtime.Spec{},
+			args: args{
+				cfg: &ociv1.ConfigFile{
+					Config: ociv1.Config{
+						Hostname:   "coolhost",
+						Entrypoint: []string{"/bin/sh"},
+						Cmd:        []string{"cool"},
+						Env:        []string{"COOL=very"},
+						WorkingDir: "/",
+						User:       "1000:100",
+					},
+				},
+			},
+			want: want{
+				s: &runtime.Spec{
+					Process: &runtime.Process{
+						Args: []string{"/bin/sh", "cool"},
+						Env:  []string{"COOL=very"},
+						Cwd:  "/",
+						User: runtime.User{
+							UID: 1000,
+							GID: 100,
+						},
+					},
+					Hostname: "coolhost",
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := WithImageConfig(tc.args.cfg, tc.args.passwd, tc.args.group)(tc.s)
+
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nWithImageConfig(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWithImageConfig(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
@@ -296,25 +568,23 @@ users:x:100:primary,doesnotexist
 		want   want
 	}{
 		"NoPasswdFile": {
-			reason: "We should return an error if the passwd file doesn't exist.",
+			reason: "We should not return an error if the passwd file doesn't exist.",
 			args: args{
 				passwd: filepath.Join(tmp, "nonexist"),
 				group:  filepath.Join(tmp, "group"),
 			},
 			want: want{
-				p:   Passwd{},
-				err: errors.Wrap(errors.Errorf("open %s: no such file or directory", filepath.Join(tmp, "nonexist")), errOpenPasswdFile),
+				p: Passwd{},
 			},
 		},
 		"NoGroupFile": {
-			reason: "We should return an error if the group file doesn't exist.",
+			reason: "We should not return an error if the group file doesn't exist.",
 			args: args{
 				passwd: filepath.Join(tmp, "passwd"),
 				group:  filepath.Join(tmp, "nonexist"),
 			},
 			want: want{
-				p:   Passwd{},
-				err: errors.Wrap(errors.Errorf("open %s: no such file or directory", filepath.Join(tmp, "nonexist")), errOpenGroupFile),
+				p: Passwd{},
 			},
 		},
 		"Success": {
@@ -374,11 +644,13 @@ func TestWithUser(t *testing.T) {
 	// right place; see TestWithUserOnly and TestWithUserAndGroup.
 	cases := map[string]struct {
 		reason string
+		s      *runtime.Spec
 		args   args
 		want   want
 	}{
 		"TooManyColons": {
 			reason: "We should return an error if the supplied user string contains more than one colon separator.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "user:group:wat",
 			},
@@ -389,6 +661,7 @@ func TestWithUser(t *testing.T) {
 		},
 		"UIDOnly": {
 			reason: "We should handle a user string that is a UID without error.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "1000",
 			},
@@ -402,6 +675,7 @@ func TestWithUser(t *testing.T) {
 		},
 		"UIDAndGID": {
 			reason: "We should handle a user string that is a UID and GID without error.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "1000:100",
 			},
@@ -418,10 +692,9 @@ func TestWithUser(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := &runtime.Spec{}
-			err := WithUser(tc.args.user, tc.args.p)(got)
+			err := WithUser(tc.args.user, tc.args.p)(tc.s)
 
-			if diff := cmp.Diff(tc.want.s, got, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nWithUser(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -443,11 +716,13 @@ func TestWithUserOnly(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
+		s      *runtime.Spec
 		args   args
 		want   want
 	}{
 		"UIDOnly": {
 			reason: "We should handle a user string that is a UID without error.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "1000",
 			},
@@ -461,6 +736,7 @@ func TestWithUserOnly(t *testing.T) {
 		},
 		"ResolveUIDGroups": {
 			reason: "We should 'resolve' a UID's groups per the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "1000",
 				p: Passwd{
@@ -484,6 +760,7 @@ func TestWithUserOnly(t *testing.T) {
 		},
 		"NonExistentUser": {
 			reason: "We should return an error if the supplied username doesn't exist in the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "doesnotexist",
 				p:    Passwd{},
@@ -495,6 +772,7 @@ func TestWithUserOnly(t *testing.T) {
 		},
 		"ResolveUserToUID": {
 			reason: "We should 'resolve' a username to a UID per the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "negz",
 				p: Passwd{
@@ -515,10 +793,9 @@ func TestWithUserOnly(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := &runtime.Spec{}
-			err := WithUserOnly(tc.args.user, tc.args.p)(got)
+			err := WithUserOnly(tc.args.user, tc.args.p)(tc.s)
 
-			if diff := cmp.Diff(tc.want.s, got, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nWithUserOnly(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
@@ -541,11 +818,13 @@ func TestWithUserAndGroup(t *testing.T) {
 
 	cases := map[string]struct {
 		reason string
+		s      *runtime.Spec
 		args   args
 		want   want
 	}{
 		"UIDAndGID": {
 			reason: "We should handle a UID and GID without error.",
+			s:      &runtime.Spec{},
 			args: args{
 				user:  "1000",
 				group: "100",
@@ -561,6 +840,7 @@ func TestWithUserAndGroup(t *testing.T) {
 		},
 		"ResolveAdditionalGIDs": {
 			reason: "We should resolve any additional GIDs in the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user:  "1000",
 				group: "100",
@@ -585,6 +865,7 @@ func TestWithUserAndGroup(t *testing.T) {
 		},
 		"NonExistentUser": {
 			reason: "We should return an error if the supplied username doesn't exist in the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user: "doesnotexist",
 				p:    Passwd{},
@@ -596,6 +877,7 @@ func TestWithUserAndGroup(t *testing.T) {
 		},
 		"NonExistentGroup": {
 			reason: "We should return an error if the supplied group doesn't exist in the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user:  "exists",
 				group: "doesnotexist",
@@ -610,6 +892,7 @@ func TestWithUserAndGroup(t *testing.T) {
 		},
 		"ResolveUserAndGroupToUIDAndGID": {
 			reason: "We should 'resolve' a username to a UID and a groupname to a GID per the supplied Passwd data.",
+			s:      &runtime.Spec{},
 			args: args{
 				user:  "negz",
 				group: "users",
@@ -635,40 +918,14 @@ func TestWithUserAndGroup(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := &runtime.Spec{}
-			err := WithUserAndGroup(tc.args.user, tc.args.group, tc.args.p)(got)
+			err := WithUserAndGroup(tc.args.user, tc.args.group, tc.args.p)(tc.s)
 
-			if diff := cmp.Diff(tc.want.s, got, cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.s, tc.s, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nWithUserAndGroup(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nWithUserAndGroup(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
-	}
-}
-
-// TODO(negz): We could have a generic TestRuntimeSpecOption if we end up with a
-// bunch of options with no inputs and a fixed output.
-func TestWithHostNetwork(t *testing.T) {
-	want := &runtime.Spec{
-		Mounts: []runtime.Mount{{
-			Type:        "bind",
-			Destination: "/etc/resolv.conf",
-			Source:      "/etc/resolv.conf",
-			Options:     []string{"rbind", "ro"},
-		}},
-		Linux: &runtime.Linux{
-			Namespaces: []runtime.LinuxNamespace{{Type: runtime.NetworkNamespace}},
-		},
-	}
-
-	got := &runtime.Spec{}
-	if err := WithHostNetwork()(got); err != nil {
-		t.Errorf("WithHostNetwork(...): got error:\n%s", err)
-	}
-
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("\nWithUser(...): -want, +got:\n%s", diff)
 	}
 }

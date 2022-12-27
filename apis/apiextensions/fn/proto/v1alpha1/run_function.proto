@@ -80,7 +80,12 @@ message ResourceConfig {
 // ResourceLimits configures the maximum compute resources that will be
 // available to a Composition Function container.
 message ResourceLimits {
+	// CPU, in cores. (500m = .5 cores)
+  // Specified in Kubernetes-style resource.Quantity form.
   string memory = 1;
+
+	// Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+  // Specified in Kubernetes-style resource.Quantity form.
   string cpu = 2;
 }
 

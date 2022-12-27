@@ -29,12 +29,14 @@ import (
 
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/uuid"
+	runtime "github.com/opencontainers/runtime-spec/specs-go"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	"github.com/crossplane/crossplane/internal/oci"
+	"github.com/crossplane/crossplane/internal/oci/spec"
 	"github.com/crossplane/crossplane/internal/oci/store"
 	"github.com/crossplane/crossplane/internal/oci/store/overlay"
 	"github.com/crossplane/crossplane/internal/oci/store/uncompressed"
@@ -54,6 +56,9 @@ const (
 	errCleanupBundle    = "cannot cleanup OCI runtime bundle"
 	errMarshalResponse  = "cannot marshal response data to stdout"
 	errWriteResponse    = "cannot write response data to stdout"
+	errCPULimit         = "cannot limit container CPU"
+	errMemoryLimit      = "cannot limit container memory"
+	errHostNetwork      = "cannot configure container to run in host network namespace"
 )
 
 // The path within the cache dir that the OCI runtime should use for its
@@ -119,12 +124,12 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 	}
 
 	p := oci.NewCachingPuller(h, store.NewImage(c.CacheDir), &oci.RemoteClient{})
-	img, err := p.Image(ctx, r, req.GetImagePullConfig())
+	img, err := p.Image(ctx, r, FromImagePullConfig(req.GetImagePullConfig()))
 	if err != nil {
 		return errors.Wrap(err, errPull)
 	}
 
-	b, err := s.Bundle(ctx, img, runID)
+	b, err := s.Bundle(ctx, img, runID, FromRunFunctionConfig(req.GetRunFunctionConfig()))
 	if err != nil {
 		return errors.Wrap(err, errBundleFn)
 	}
@@ -159,4 +164,54 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 	}
 	_, err = os.Stdout.Write(pb)
 	return errors.Wrap(err, errWriteResponse)
+}
+
+// FromImagePullConfig configures an image client with options derived from the
+// supplied ImagePullConfig.
+func FromImagePullConfig(cfg *v1alpha1.ImagePullConfig) oci.ImageClientOption {
+	return func(o *oci.ImageClientOptions) {
+		switch cfg.GetPullPolicy() {
+		case v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS:
+			oci.WithPullPolicy(oci.ImagePullPolicyAlways)(o)
+		case v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER:
+			oci.WithPullPolicy(oci.ImagePullPolicyNever)(o)
+		case v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT, v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_UNSPECIFIED:
+			oci.WithPullPolicy(oci.ImagePullPolicyIfNotPresent)(o)
+		}
+		if a := cfg.GetAuth(); a != nil {
+			oci.WithPullAuth(&oci.ImagePullAuth{
+				Username:      a.GetUsername(),
+				Password:      a.GetPassword(),
+				Auth:          a.GetAuth(),
+				IdentityToken: a.GetIdentityToken(),
+				RegistryToken: a.GetRegistryToken(),
+			})(o)
+		}
+	}
+}
+
+// FromRunFunctionConfig extends a runtime spec with configuration derived from
+// the supplied RunFunctionConfig.
+func FromRunFunctionConfig(cfg *v1alpha1.RunFunctionConfig) spec.Option {
+	return func(s *runtime.Spec) error {
+		if l := cfg.GetResources().GetLimits().GetCpu(); l != "" {
+			if err := spec.WithCPULimit(l)(s); err != nil {
+				return errors.Wrap(err, errCPULimit)
+			}
+		}
+
+		if l := cfg.GetResources().GetLimits().GetMemory(); l != "" {
+			if err := spec.WithMemoryLimit(l)(s); err != nil {
+				return errors.Wrap(err, errMemoryLimit)
+			}
+		}
+
+		if cfg.GetNetwork().GetPolicy() == v1alpha1.NetworkPolicy_NETWORK_POLICY_ACCESSIBLE {
+			if err := spec.WithHostNetwork()(s); err != nil {
+				return errors.Wrap(err, errHostNetwork)
+			}
+		}
+
+		return nil
+	}
 }

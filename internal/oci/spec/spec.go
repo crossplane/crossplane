@@ -21,25 +21,25 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"io"
-	"io/fs"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
 	ociv1 "github.com/google/go-containerregistry/pkg/v1"
 	runtime "github.com/opencontainers/runtime-spec/specs-go"
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane/internal/oci/store"
 )
 
 const (
-	errApplySpecOption  = "cannot apply OCI runtime spec option"
-	errCreateFile       = "cannot create file"
+	errApplySpecOption  = "cannot apply spec option"
+	errNew              = "cannot create new spec"
+	errMarshal          = "cannot marshal spec to JSON"
 	errWriteFile        = "cannot write file"
-	errCloseFile        = "cannot write file"
-	errNoCmd            = "function OCI image must specify entrypoint and/or cmd"
+	errParseCPULimit    = "cannot parse CPU limit"
+	errParseMemoryLimit = "cannot parse memory limit"
+	errNoCmd            = "OCI image must specify entrypoint and/or cmd"
 	errParsePasswd      = "cannot parse passwd file data"
 	errParseGroup       = "cannot parse group file data"
 	errResolveUser      = "cannot resolve user specified by OCI image config"
@@ -47,8 +47,6 @@ const (
 	errNonIntegerGID    = "cannot parse non-integer GID"
 	errOpenPasswdFile   = "cannot open passwd file"
 	errOpenGroupFile    = "cannot open group file"
-	errNewSpec          = "cannot create new OCI runtime spec"
-	errWriteSpec        = "cannot write OCI runtime spec"
 	errParsePasswdFiles = "cannot parse container's /etc/passwd and/or /etc/group files"
 
 	errFmtTooManyColons    = "cannot parse user %q (too many colon separators)"
@@ -59,21 +57,251 @@ const (
 // An Option specifies optional OCI runtime configuration.
 type Option func(s *runtime.Spec) error
 
+// New produces a new OCI runtime spec (i.e. config.json).
+func New(o ...Option) (*runtime.Spec, error) {
+	// NOTE(negz): Most of this is what `crun spec --rootless` produces.
+	spec := &runtime.Spec{
+		Version: runtime.Version,
+		Process: &runtime.Process{
+			User: runtime.User{UID: 0, GID: 0},
+			Env:  []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
+			Cwd:  "/",
+			Capabilities: &runtime.LinuxCapabilities{
+				Bounding: []string{
+					"CAP_AUDIT_WRITE",
+					"CAP_KILL",
+					"CAP_NET_BIND_SERVICE",
+				},
+				Effective: []string{
+					"CAP_AUDIT_WRITE",
+					"CAP_KILL",
+					"CAP_NET_BIND_SERVICE",
+				},
+				Permitted: []string{
+					"CAP_AUDIT_WRITE",
+					"CAP_KILL",
+					"CAP_NET_BIND_SERVICE",
+				},
+				Ambient: []string{
+					"CAP_AUDIT_WRITE",
+					"CAP_KILL",
+					"CAP_NET_BIND_SERVICE",
+				},
+			},
+			Rlimits: []runtime.POSIXRlimit{
+				{
+					Type: "RLIMIT_NOFILE",
+					Hard: 1024,
+					Soft: 1024,
+				},
+			},
+		},
+		Hostname: "xfn",
+		Mounts: []runtime.Mount{
+			{
+				Type:        "bind",
+				Destination: "/proc",
+				Source:      "/proc",
+				Options:     []string{"nosuid", "noexec", "nodev", "rbind"},
+			},
+			{
+				Type:        "tmpfs",
+				Destination: "/dev",
+				Source:      "tmpfs",
+				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			},
+			{
+				Type:        "sysfs",
+				Destination: "/sys",
+				Source:      "sysfs",
+				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
+			},
+
+			{
+				Destination: "/dev/pts",
+				Type:        "devpts",
+				Source:      "devpts",
+				Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
+			},
+			{
+				Destination: "/dev/mqueue",
+				Type:        "mqueue",
+				Source:      "mqueue",
+				Options:     []string{"nosuid", "noexec", "nodev"},
+			},
+			{
+				Destination: "/sys/fs/cgroup",
+				Type:        "cgroup",
+				Source:      "cgroup",
+				Options:     []string{"rprivate", "nosuid", "noexec", "nodev", "relatime", "ro"},
+			},
+		},
+		// TODO(negz): Do we need a seccomp policy? Our host probably has one.
+		Linux: &runtime.Linux{
+			Resources: &runtime.LinuxResources{
+				Devices: []runtime.LinuxDeviceCgroup{
+					{
+						Allow:  false,
+						Access: "rwm",
+					},
+				},
+				Pids: &runtime.LinuxPids{
+					Limit: 32768,
+				},
+			},
+			Namespaces: []runtime.LinuxNamespace{
+				{Type: runtime.PIDNamespace},
+				{Type: runtime.IPCNamespace},
+				{Type: runtime.UTSNamespace},
+				{Type: runtime.MountNamespace},
+				{Type: runtime.CgroupNamespace},
+				{Type: runtime.NetworkNamespace},
+			},
+			MaskedPaths: []string{
+				"/proc/acpi",
+				"/proc/kcore",
+				"/proc/keys",
+				"/proc/latency_stats",
+				"/proc/timer_list",
+				"/proc/timer_stats",
+				"/proc/sched_debug",
+				"/proc/scsi",
+				"/sys/firmware",
+				"/sys/fs/selinux",
+				"/sys/dev/block",
+			},
+			ReadonlyPaths: []string{
+				"/proc/asound",
+				"/proc/bus",
+				"/proc/fs",
+				"/proc/irq",
+				"/proc/sys",
+				"/proc/sysrq-trigger",
+			},
+		},
+	}
+
+	for _, fn := range o {
+		if err := fn(spec); err != nil {
+			return nil, errors.Wrap(err, errApplySpecOption)
+		}
+	}
+
+	return spec, nil
+}
+
+// Write an OCI runtime spec to the supplied path.
+func Write(path string, o ...Option) error {
+	s, err := New(o...)
+	if err != nil {
+		return errors.Wrap(err, errNew)
+	}
+	b, err := json.Marshal(s)
+	if err != nil {
+		return errors.Wrap(err, errMarshal)
+	}
+	return errors.Wrap(os.WriteFile(path, b, 0600), errWriteFile)
+}
+
+// WithRootFS configures a container's rootfs.
+func WithRootFS(path string, readonly bool) Option {
+	return func(s *runtime.Spec) error {
+		s.Root = &runtime.Root{
+			Path:     path,
+			Readonly: readonly,
+		}
+		return nil
+	}
+}
+
+// TODO(negz): Does it make sense to convert Kubernetes-style resource
+// quantities into cgroup limits here, or should our gRPC API accept cgroup
+// style limits like the CRI API does?
+
+// WithCPULimit limits the container's CPU usage per the supplied
+// Kubernetes-style limit string (e.g. 0.5 or 500m for half a core).
+func WithCPULimit(limit string) Option {
+	return func(s *runtime.Spec) error {
+		q, err := resource.ParseQuantity(limit)
+		if err != nil {
+			return errors.Wrap(err, errParseCPULimit)
+		}
+		shares := milliCPUToShares(q.MilliValue())
+		quota := milliCPUToQuota(q.MilliValue(), quotaPeriod)
+
+		if s.Linux == nil {
+			s.Linux = &runtime.Linux{}
+		}
+		if s.Linux.Resources == nil {
+			s.Linux.Resources = &runtime.LinuxResources{}
+		}
+		s.Linux.Resources.CPU = &runtime.LinuxCPU{
+			Shares: &shares,
+			Quota:  &quota,
+		}
+		return nil
+	}
+}
+
+// WithMemoryLimit limits the container's memory usage per the supplied
+// Kubernetes-style limit string (e.g. 512Mi).
+func WithMemoryLimit(limit string) Option {
+	return func(s *runtime.Spec) error {
+		q, err := resource.ParseQuantity(limit)
+		if err != nil {
+			return errors.Wrap(err, errParseMemoryLimit)
+		}
+		limit := q.Value()
+
+		if s.Linux == nil {
+			s.Linux = &runtime.Linux{}
+		}
+		if s.Linux.Resources == nil {
+			s.Linux.Resources = &runtime.LinuxResources{}
+		}
+		s.Linux.Resources.Memory = &runtime.LinuxMemory{
+			Limit: &limit,
+		}
+		return nil
+	}
+}
+
+// WithHostNetwork configures the container to share the host's (i.e. xfn
+// container's) network namespace.
+func WithHostNetwork() Option {
+	return func(s *runtime.Spec) error {
+		s.Mounts = append(s.Mounts, runtime.Mount{
+			Type:        "bind",
+			Destination: "/etc/resolv.conf",
+			Source:      "/etc/resolv.conf",
+			Options:     []string{"rbind", "ro"},
+		})
+		if s.Linux == nil {
+			return nil
+		}
+
+		// We share the host's network by removing any network namespaces.
+		filtered := make([]runtime.LinuxNamespace, 0, len(s.Linux.Namespaces))
+		for _, ns := range s.Linux.Namespaces {
+			if ns.Type == runtime.NetworkNamespace {
+				continue
+			}
+			filtered = append(filtered, ns)
+		}
+		s.Linux.Namespaces = filtered
+		return nil
+	}
+}
+
 // WithImageConfig extends a Spec with configuration derived from an OCI image
-// config file. If the image config specifies a user it will be resolved against
-// the supplied Passwd data.
-func WithImageConfig(cfg *ociv1.ConfigFile, p Passwd) Option {
+// config file. If the image config specifies a user it will be resolved using
+// the supplied passwd and group files.
+func WithImageConfig(cfg *ociv1.ConfigFile, passwd, group string) Option {
 	// TODO(negz): Break these up into smaller options? e.g. FooFromImageConfig?
 	return func(s *runtime.Spec) error {
 		if cfg.Config.Hostname != "" {
 			s.Hostname = cfg.Config.Hostname
 		}
-
-		if s.Process == nil {
-			s.Process = &runtime.Process{}
-		}
-
-		s.Process.Env = append(s.Process.Env, cfg.Config.Env...)
 
 		args := make([]string, 0, len(cfg.Config.Entrypoint)+len(cfg.Config.Cmd))
 		args = append(args, cfg.Config.Entrypoint...)
@@ -82,13 +310,23 @@ func WithImageConfig(cfg *ociv1.ConfigFile, p Passwd) Option {
 			return errors.New(errNoCmd)
 		}
 
+		if s.Process == nil {
+			s.Process = &runtime.Process{}
+		}
+
 		s.Process.Args = args
+		s.Process.Env = append(s.Process.Env, cfg.Config.Env...)
 
 		if cfg.Config.WorkingDir != "" {
 			s.Process.Cwd = cfg.Config.WorkingDir
 		}
 
 		if cfg.Config.User != "" {
+			p, err := ParsePasswdFiles(passwd, group)
+			if err != nil {
+				return errors.Wrap(err, errParsePasswdFiles)
+			}
+
 			if err := WithUser(cfg.Config.User, p)(s); err != nil {
 				return errors.Wrap(err, errResolveUser)
 			}
@@ -133,15 +371,22 @@ type Groups struct {
 	AdditionalGIDs []uint32
 }
 
-// ParsePasswdFiles parses the passwd and group files at the supplied paths.
+// ParsePasswdFiles parses the passwd and group files at the supplied paths. If
+// either path does not exist it returns empty Passwd data.
 func ParsePasswdFiles(passwd, group string) (Passwd, error) {
 	p, err := os.Open(passwd) //nolint:gosec // We intentionally take a variable here.
+	if errors.Is(err, os.ErrNotExist) {
+		return Passwd{}, nil
+	}
 	if err != nil {
 		return Passwd{}, errors.Wrap(err, errOpenPasswdFile)
 	}
 	defer p.Close() //nolint:errcheck,gosec // Only open for reading.
 
 	g, err := os.Open(group) //nolint:gosec // We intentionally take a variable here.
+	if errors.Is(err, os.ErrNotExist) {
+		return Passwd{}, nil
+	}
 	if err != nil {
 		return Passwd{}, errors.Wrap(err, errOpenGroupFile)
 	}
@@ -348,194 +593,4 @@ func WithUserAndGroup(user, group string, p Passwd) Option {
 		}
 		return nil
 	}
-}
-
-// WithHostNetwork configures the container to share the host's (i.e. xfn
-// container's) network namespace.
-func WithHostNetwork() Option {
-	return func(s *runtime.Spec) error {
-		s.Mounts = append(s.Mounts, runtime.Mount{
-			Type:        "bind",
-			Destination: "/etc/resolv.conf",
-			Source:      "/etc/resolv.conf",
-			Options:     []string{"rbind", "ro"},
-		})
-		if s.Linux == nil {
-			s.Linux = &runtime.Linux{}
-		}
-		s.Linux.Namespaces = append(s.Linux.Namespaces, runtime.LinuxNamespace{Type: runtime.NetworkNamespace})
-		return nil
-	}
-}
-
-// New produces a new OCI runtime spec (i.e. config.json).
-func New(o ...Option) (*runtime.Spec, error) {
-	// NOTE(negz): Most of this is what `crun spec --rootless` produces.
-	spec := &runtime.Spec{
-		Version: runtime.Version,
-		Process: &runtime.Process{
-			User: runtime.User{UID: 0, GID: 0},
-			Env:  []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"},
-			Cwd:  "/",
-			Capabilities: &runtime.LinuxCapabilities{
-				Bounding: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Effective: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Permitted: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-				Ambient: []string{
-					"CAP_AUDIT_WRITE",
-					"CAP_KILL",
-					"CAP_NET_BIND_SERVICE",
-				},
-			},
-			Rlimits: []runtime.POSIXRlimit{
-				{
-					Type: "RLIMIT_NOFILE",
-					Hard: 1024,
-					Soft: 1024,
-				},
-			},
-		},
-		Root: &runtime.Root{
-			Path:     store.DirRootFS,
-			Readonly: true, // TODO(negz): Make this configurable?
-		},
-		Hostname: "xfn",
-		Mounts: []runtime.Mount{
-			{
-				Type:        "bind",
-				Destination: "/proc",
-				Source:      "/proc",
-				Options:     []string{"nosuid", "noexec", "nodev", "rbind"},
-			},
-			{
-				Type:        "tmpfs",
-				Destination: "/dev",
-				Source:      "tmpfs",
-				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
-			},
-			{
-				Type:        "sysfs",
-				Destination: "/sys",
-				Source:      "sysfs",
-				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
-			},
-
-			{
-				Destination: "/dev/pts",
-				Type:        "devpts",
-				Source:      "devpts",
-				Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620"},
-			},
-			{
-				Destination: "/dev/mqueue",
-				Type:        "mqueue",
-				Source:      "mqueue",
-				Options:     []string{"nosuid", "noexec", "nodev"},
-			},
-			{
-				Destination: "/sys/fs/cgroup",
-				Type:        "cgroup",
-				Source:      "cgroup",
-				Options:     []string{"rprivate", "nosuid", "noexec", "nodev", "relatime", "ro"},
-			},
-		},
-		// TODO(negz): Do we need a seccomp policy? Our host probably has one.
-		Linux: &runtime.Linux{
-			Resources: &runtime.LinuxResources{
-				Devices: []runtime.LinuxDeviceCgroup{
-					{
-						Allow:  false,
-						Access: "rwm",
-					},
-				},
-				Pids: &runtime.LinuxPids{
-					Limit: 32768,
-				},
-			},
-			Namespaces: []runtime.LinuxNamespace{
-				{Type: runtime.PIDNamespace},
-				{Type: runtime.IPCNamespace},
-				{Type: runtime.UTSNamespace},
-				{Type: runtime.MountNamespace},
-				{Type: runtime.CgroupNamespace},
-				{Type: runtime.NetworkNamespace},
-			},
-			MaskedPaths: []string{
-				"/proc/acpi",
-				"/proc/kcore",
-				"/proc/keys",
-				"/proc/latency_stats",
-				"/proc/timer_list",
-				"/proc/timer_stats",
-				"/proc/sched_debug",
-				"/proc/scsi",
-				"/sys/firmware",
-				"/sys/fs/selinux",
-				"/sys/dev/block",
-			},
-			ReadonlyPaths: []string{
-				"/proc/asound",
-				"/proc/bus",
-				"/proc/fs",
-				"/proc/irq",
-				"/proc/sys",
-				"/proc/sysrq-trigger",
-			},
-		},
-	}
-
-	for _, fn := range o {
-		if err := fn(spec); err != nil {
-			return nil, errors.Wrap(err, errApplySpecOption)
-		}
-	}
-
-	return spec, nil
-}
-
-// TODO(negz): This should take user-supplied config too (i.e. from a gRPC call)
-
-// Create the OCI runtime spec for the supplied bundle. This spec is derived
-// from the supplied OCI image config file, potentially supplemented with data
-// located within the bundle's rootfs (such as the /etc/passwd file).
-func Create(b store.Bundle, cfg *ociv1.ConfigFile) error {
-	rootfs := store.RootFSPath(b)
-	p, err := ParsePasswdFiles(filepath.Join(rootfs, "etc", "passwd"), filepath.Join(rootfs, "etc", "group"))
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return errors.Wrap(err, errParsePasswdFiles)
-	}
-
-	s, err := New(WithImageConfig(cfg, p))
-	if err != nil {
-		return errors.Wrap(err, errNewSpec)
-	}
-
-	return errors.Wrap(Write(store.SpecPath(b), s), errWriteSpec)
-}
-
-// Write the supplied OCI runtime spec to a file at the supplied path.
-func Write(path string, cfg *runtime.Spec) error {
-	rcf, err := os.Create(path) //nolint:gosec // Creating a path supplied as a variable is intentional.
-	if err != nil {
-		return errors.Wrap(err, errCreateFile)
-	}
-
-	if err := json.NewEncoder(rcf).Encode(cfg); err != nil {
-		_ = rcf.Close()
-		return errors.Wrap(err, errWriteFile)
-	}
-
-	return errors.Wrap(rcf.Close(), errCloseFile)
 }

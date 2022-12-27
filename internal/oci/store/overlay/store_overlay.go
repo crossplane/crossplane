@@ -42,7 +42,7 @@ const (
 	errGetLayers         = "cannot get image layers"
 	errResolveLayer      = "cannot resolve layer to suitable overlayfs lower directory"
 	errCreateRootFS      = "cannot create OCI rootfs"
-	errCreateRuntimeSpec = "cannot create OCI runtime spec"
+	errWriteRuntimeSpec  = "cannot write OCI runtime spec"
 	errGetDigest         = "cannot get digest"
 	errMkAlgoDir         = "cannot create store directory"
 	errFetchLayer        = "cannot fetch and decompress layer"
@@ -100,20 +100,17 @@ type TarballApplicator interface {
 	Apply(ctx context.Context, tb io.Reader, root string) error
 }
 
-// A RuntimeSpecCreator creates (and writes) an OCI runtime spec for the
-// supplied bundle.
-type RuntimeSpecCreator interface {
-	// Create and write an OCI runtime spec for the supplied bundle, deriving
-	// configuration from the supplied OCI image config file as appropriate.
-	Create(b store.Bundle, cfg *ociv1.ConfigFile) error
+// A RuntimeSpecWriter writes an OCI runtime spec to the supplied path.
+type RuntimeSpecWriter interface {
+	// Write and write an OCI runtime spec to the supplied path.
+	Write(path string, o ...spec.Option) error
 }
 
-// A RuntimeSpecCreatorFn allows a function to satisfy RuntimeSpecCreator.
-type RuntimeSpecCreatorFn func(b store.Bundle, cfg *ociv1.ConfigFile) error
+// A RuntimeSpecWriterFn allows a function to satisfy RuntimeSpecCreator.
+type RuntimeSpecWriterFn func(path string, o ...spec.Option) error
 
-// Create and write an OCI runtime spec for the supplied bundle, deriving
-// configuration from the supplied OCI image config file as appropriate.
-func (fn RuntimeSpecCreatorFn) Create(b store.Bundle, cfg *ociv1.ConfigFile) error { return fn(b, cfg) }
+// Write an OCI runtime spec to the supplied path.
+func (fn RuntimeSpecWriterFn) Write(path string, o ...spec.Option) error { return fn(path, o...) }
 
 // An CachingBundler stores OCI containers, images, and layers. When asked to
 // bundle a container for a new image the CachingBundler will extract and cache
@@ -124,7 +121,7 @@ func (fn RuntimeSpecCreatorFn) Create(b store.Bundle, cfg *ociv1.ConfigFile) err
 type CachingBundler struct {
 	root  string
 	layer LayerResolver
-	spec  RuntimeSpecCreator
+	spec  RuntimeSpecWriter
 }
 
 // NewCachingBundler returns a bundler that creates container filesystems as
@@ -139,14 +136,14 @@ func NewCachingBundler(root string) (*CachingBundler, error) {
 	s := &CachingBundler{
 		root:  filepath.Join(root, store.DirContainers),
 		layer: l,
-		spec:  RuntimeSpecCreatorFn(spec.Create),
+		spec:  RuntimeSpecWriterFn(spec.Write),
 	}
 	return s, nil
 }
 
 // Bundle returns an OCI bundle ready for use by an OCI runtime. The supplied
 // image will be fetched and cached in the store if it does not already exist.
-func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string) (store.Bundle, error) {
+func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string, o ...spec.Option) (store.Bundle, error) {
 	cfg, err := i.ConfigFile()
 	if err != nil {
 		return nil, errors.Wrap(err, errReadConfigFile)
@@ -166,23 +163,26 @@ func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string) (
 		lowerPaths[i] = p
 	}
 
+	path := filepath.Join(c.root, id)
+
 	// TODO(negz): Ideally this would be mockable. It's not really creating
 	// _all_ of the bundle; just its rootfs. We could perhaps refactor it to
 	// c.rootfs.Create(b, lowerPaths), but we'd need to register the mounts to
 	// be unmounted when the bundle was cleaned up.
-	b, err := CreateBundle(filepath.Join(c.root, id), lowerPaths)
+	b, err := CreateBundle(path, lowerPaths)
 	if err != nil {
 		return nil, errors.Wrap(err, errCreateRootFS)
 	}
 
-	// Create an OCI runtime config file from our cached OCI image config file.
-	// We do this every time we run the function because in future it's likely
-	// that we'll want to derive the OCI runtime config file from both the OCI
-	// image config file and user supplied input (i.e. from the functions array
-	// of a Composition).
-	if err := c.spec.Create(b, cfg); err != nil {
+	// Inject config derived from the image first, so that any options passed in
+	// by the caller will override it.
+	rootfs := filepath.Join(path, store.DirRootFS)
+	p, g := filepath.Join(rootfs, "etc", "passwd"), filepath.Join(rootfs, "etc", "group")
+	opts := append([]spec.Option{spec.WithImageConfig(cfg, p, g), spec.WithRootFS(store.DirRootFS, true)}, o...)
+
+	if err = c.spec.Write(filepath.Join(path, store.FileSpec), opts...); err != nil {
 		_ = b.Cleanup()
-		return nil, errors.Wrap(err, errCreateRuntimeSpec)
+		return nil, errors.Wrap(err, errWriteRuntimeSpec)
 	}
 
 	return b, nil

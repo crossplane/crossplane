@@ -34,14 +34,14 @@ import (
 
 // Error strings
 const (
-	errReadConfigFile    = "cannot read image config file"
-	errGetLayers         = "cannot get image layers"
-	errMkRootFS          = "cannot make rootfs directory"
-	errOpenLayer         = "cannot open layer tarball"
-	errApplyLayer        = "cannot extract layer tarball"
-	errCloseLayer        = "cannot close layer tarball"
-	errCreateRuntimeSpec = "cannot create OCI runtime spec"
-	errCleanupBundle     = "cannot cleanup OCI runtime bundle"
+	errReadConfigFile   = "cannot read image config file"
+	errGetLayers        = "cannot get image layers"
+	errMkRootFS         = "cannot make rootfs directory"
+	errOpenLayer        = "cannot open layer tarball"
+	errApplyLayer       = "cannot extract layer tarball"
+	errCloseLayer       = "cannot close layer tarball"
+	errWriteRuntimeSpec = "cannot write OCI runtime spec"
+	errCleanupBundle    = "cannot cleanup OCI runtime bundle"
 )
 
 // A TarballApplicator applies (i.e. extracts) an OCI layer tarball.
@@ -53,20 +53,17 @@ type TarballApplicator interface {
 	Apply(ctx context.Context, tb io.Reader, root string) error
 }
 
-// A RuntimeSpecCreator creates (and writes) an OCI runtime spec for the
-// supplied bundle.
-type RuntimeSpecCreator interface {
-	// Create and write an OCI runtime spec for the supplied bundle, deriving
-	// configuration from the supplied OCI image config file as appropriate.
-	Create(b store.Bundle, cfg *ociv1.ConfigFile) error
+// A RuntimeSpecWriter writes an OCI runtime spec to the supplied path.
+type RuntimeSpecWriter interface {
+	// Write and write an OCI runtime spec to the supplied path.
+	Write(path string, o ...spec.Option) error
 }
 
-// A RuntimeSpecCreatorFn allows a function to satisfy RuntimeSpecCreator.
-type RuntimeSpecCreatorFn func(b store.Bundle, cfg *ociv1.ConfigFile) error
+// A RuntimeSpecWriterFn allows a function to satisfy RuntimeSpecCreator.
+type RuntimeSpecWriterFn func(path string, o ...spec.Option) error
 
-// Create and write an OCI runtime spec for the supplied bundle, deriving
-// configuration from the supplied OCI image config file as appropriate.
-func (fn RuntimeSpecCreatorFn) Create(b store.Bundle, cfg *ociv1.ConfigFile) error { return fn(b, cfg) }
+// Write an OCI runtime spec to the supplied path.
+func (fn RuntimeSpecWriterFn) Write(path string, o ...spec.Option) error { return fn(path, o...) }
 
 // A Bundler prepares OCI runtime bundles for use by an OCI runtime. It creates
 // the bundle's rootfs by extracting the supplied image's uncompressed layer
@@ -74,7 +71,7 @@ func (fn RuntimeSpecCreatorFn) Create(b store.Bundle, cfg *ociv1.ConfigFile) err
 type Bundler struct {
 	root    string
 	tarball TarballApplicator
-	spec    RuntimeSpecCreator
+	spec    RuntimeSpecWriter
 }
 
 // NewBundler returns a an OCI runtime bundler that creates a bundle's rootfs by
@@ -83,13 +80,13 @@ func NewBundler(root string) *Bundler {
 	s := &Bundler{
 		root:    filepath.Join(root, store.DirContainers),
 		tarball: layer.NewStackingExtractor(layer.NewWhiteoutHandler(layer.NewExtractHandler())),
-		spec:    RuntimeSpecCreatorFn(spec.Create),
+		spec:    RuntimeSpecWriterFn(spec.Write),
 	}
 	return s
 }
 
 // Bundle returns an OCI bundle ready for use by an OCI runtime.
-func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string) (store.Bundle, error) {
+func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string, o ...spec.Option) (store.Bundle, error) {
 	cfg, err := i.ConfigFile()
 	if err != nil {
 		return nil, errors.Wrap(err, errReadConfigFile)
@@ -101,7 +98,8 @@ func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string) (store.B
 	}
 
 	path := filepath.Join(c.root, id)
-	if err := os.MkdirAll(filepath.Join(path, store.DirRootFS), 0700); err != nil {
+	rootfs := filepath.Join(path, store.DirRootFS)
+	if err := os.MkdirAll(rootfs, 0700); err != nil {
 		return nil, errors.Wrap(err, errMkRootFS)
 	}
 	b := Bundle{path: path}
@@ -112,7 +110,7 @@ func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string) (store.B
 			_ = b.Cleanup()
 			return nil, errors.Wrap(err, errOpenLayer)
 		}
-		if err := c.tarball.Apply(ctx, tb, filepath.Join(path, store.DirRootFS)); err != nil {
+		if err := c.tarball.Apply(ctx, tb, rootfs); err != nil {
 			_ = tb.Close()
 			_ = b.Cleanup()
 			return nil, errors.Wrap(err, errApplyLayer)
@@ -123,14 +121,14 @@ func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string) (store.B
 		}
 	}
 
-	// Create an OCI runtime config file from the OCI image config file. We do
-	// this every time we run the function because in future it's likely that
-	// we'll want to derive the OCI runtime config file from both the OCI image
-	// config file and user supplied input (i.e. from the functions array of a
-	// Composition).
-	if err := c.spec.Create(b, cfg); err != nil {
+	// Inject config derived from the image first, so that any options passed in
+	// by the caller will override it.
+	p, g := filepath.Join(rootfs, "etc", "passwd"), filepath.Join(rootfs, "etc", "group")
+	opts := append([]spec.Option{spec.WithImageConfig(cfg, p, g), spec.WithRootFS(store.DirRootFS, true)}, o...)
+
+	if err = c.spec.Write(filepath.Join(path, store.FileSpec), opts...); err != nil {
 		_ = b.Cleanup()
-		return nil, errors.Wrap(err, errCreateRuntimeSpec)
+		return nil, errors.Wrap(err, errWriteRuntimeSpec)
 	}
 
 	return b, nil

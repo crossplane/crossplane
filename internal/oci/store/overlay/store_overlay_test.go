@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	"github.com/crossplane/crossplane/internal/oci/spec"
 	"github.com/crossplane/crossplane/internal/oci/store"
 )
 
@@ -68,9 +69,9 @@ type MockTarballApplicator struct{ err error }
 
 func (a *MockTarballApplicator) Apply(_ context.Context, _ io.Reader, _ string) error { return a.err }
 
-type MockRuntimeSpecCreator struct{ err error }
+type MockRuntimeSpecWriter struct{ err error }
 
-func (c *MockRuntimeSpecCreator) Create(_ store.Bundle, _ *ociv1.ConfigFile) error { return c.err }
+func (c *MockRuntimeSpecWriter) Write(_ string, _ ...spec.Option) error { return c.err }
 
 type MockCloser struct {
 	io.Reader
@@ -85,12 +86,13 @@ func TestBundle(t *testing.T) {
 
 	type params struct {
 		layer LayerResolver
-		spec  RuntimeSpecCreator
+		spec  RuntimeSpecWriter
 	}
 	type args struct {
 		ctx context.Context
 		i   ociv1.Image
 		id  string
+		o   []spec.Option
 	}
 	type want struct {
 		b   store.Bundle
@@ -161,7 +163,7 @@ func TestBundle(t *testing.T) {
 				spec:  tc.params.spec,
 			}
 
-			got, err := c.Bundle(tc.args.ctx, tc.args.i, tc.args.id)
+			got, err := c.Bundle(tc.args.ctx, tc.args.i, tc.args.id, tc.args.o...)
 
 			if diff := cmp.Diff(tc.want.b, got, cmpopts.IgnoreUnexported(Bundle{})); diff != "" {
 				t.Errorf("\n%s\nBundle(...): -want, +got:\n%s", tc.reason, diff)

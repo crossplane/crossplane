@@ -25,51 +25,102 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 )
 
 // Error strings.
 const (
+	errPullNever      = "refusing to pull from remote with image pull policy " + string(ImagePullPolicyNever)
 	errNewDigestStore = "cannot create new image digest store"
 	errPullImage      = "cannot pull image from remote"
 	errStoreImage     = "cannot cache image"
 	errImageDigest    = "cannot get image digest"
 	errStoreDigest    = "cannot cache image digest"
 	errLoadImage      = "cannot load image from cache"
-	errLoadHash       = "cannot load image digest from cache"
+	errLoadHash       = "cannot load image digest"
 )
 
-// A RemoteClient fetches OCI image manifests.
-type RemoteClient struct{}
+// An ImagePullPolicy dictates when an image may be pulled from a remote.
+type ImagePullPolicy string
 
-// Image fetches an image manifest. The returned image lazily pulls its layers.
-func (i *RemoteClient) Image(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
-	opts := []remote.Option{remote.WithContext(ctx)}
-	if cfg.GetAuth() != nil {
-		opts = append(opts, remote.WithAuth(&remoteAuth{cfg.GetAuth()}))
-	}
+// Image pull policies
+const (
+	// ImagePullPolicyIfNotPresent only pulls from a remote if the image is not
+	// in the local cache. It is equivalent to ImagePullPolicyNever with a
+	// fall-back to ImagePullPolicyAlways.
+	ImagePullPolicyIfNotPresent ImagePullPolicy = "IfNotPresent"
 
-	return remote.Image(ref, opts...)
+	// ImagePullPolicyAlways always pulls at least the image manifest from the
+	// remote. Layers are pulled if they are not in cache.
+	ImagePullPolicyAlways ImagePullPolicy = "Always"
+
+	// ImagePullPolicyNever never pulls anything from the remote. It resolves
+	// OCI references to digests (i.e. SHAs) using a local cache of known
+	// mappings.
+	ImagePullPolicyNever ImagePullPolicy = "Never"
+)
+
+// ImagePullAuth configures authentication to a remote registry.
+type ImagePullAuth struct {
+	Username string
+	Password string
+	Auth     string
+
+	// IdentityToken is used to authenticate the user and get
+	// an access token for the registry.
+	IdentityToken string
+
+	// RegistryToken is a bearer token to be sent to a registry.
+	RegistryToken string
 }
 
-type remoteAuth struct{ *v1alpha1.ImagePullAuth }
-
-func (a *remoteAuth) Authorization() (*authn.AuthConfig, error) {
-	c := &authn.AuthConfig{
+// Authorization builds a go-containerregistry compatible AuthConfig.
+func (a ImagePullAuth) Authorization() (*authn.AuthConfig, error) {
+	return &authn.AuthConfig{
 		Username:      a.Username,
 		Password:      a.Password,
 		Auth:          a.Auth,
 		IdentityToken: a.IdentityToken,
 		RegistryToken: a.RegistryToken,
+	}, nil
+}
+
+// ImageClientOptions configure an ImageClient.
+type ImageClientOptions struct {
+	pull ImagePullPolicy
+	auth *ImagePullAuth
+}
+
+func parse(o ...ImageClientOption) ImageClientOptions {
+	opt := &ImageClientOptions{
+		pull: ImagePullPolicyIfNotPresent, // The default.
 	}
-	return c, nil
+	for _, fn := range o {
+		fn(opt)
+	}
+	return *opt
+}
+
+// An ImageClientOption configures an ImageClient.
+type ImageClientOption func(c *ImageClientOptions)
+
+// WithPullPolicy specifies whether a client may pull from a remote.
+func WithPullPolicy(p ImagePullPolicy) ImageClientOption {
+	return func(c *ImageClientOptions) {
+		c.pull = p
+	}
+}
+
+// WithPullAuth specifies how a client should authenticate to a remote.
+func WithPullAuth(a *ImagePullAuth) ImageClientOption {
+	return func(c *ImageClientOptions) {
+		c.auth = a
+	}
 }
 
 // An ImageClient is an OCI registry client.
 type ImageClient interface {
 	// Image pulls an OCI image.
-	Image(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error)
+	Image(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error)
 }
 
 // An ImageCache caches OCI images.
@@ -82,6 +133,21 @@ type ImageCache interface {
 type HashCache interface {
 	Hash(r name.Reference) (ociv1.Hash, error)
 	WriteHash(r name.Reference, h ociv1.Hash) error
+}
+
+// A RemoteClient fetches OCI image manifests.
+type RemoteClient struct{}
+
+// Image fetches an image manifest. The returned image lazily pulls its layers.
+func (i *RemoteClient) Image(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
+	opts := parse(o...)
+	if opts.auth != nil {
+		return remote.Image(ref, remote.WithContext(ctx), remote.WithAuth(opts.auth))
+	}
+	if opts.pull == ImagePullPolicyNever {
+		return nil, errors.New(errPullNever)
+	}
+	return remote.Image(ref, remote.WithContext(ctx))
 }
 
 // A CachingPuller pulls OCI images. Images are pulled either from a local cache
@@ -101,23 +167,36 @@ func NewCachingPuller(h HashCache, i ImageCache, r ImageClient) *CachingPuller {
 // Image pulls the supplied image and all of its layers. The supplied config
 // determines where the image may be pulled from - i.e. the local store or a
 // remote. Images that are pulled from a remote are cached in the local store.
-func (f *CachingPuller) Image(ctx context.Context, r name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
-	switch cfg.GetPullPolicy() {
-	case v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER:
+func (f *CachingPuller) Image(ctx context.Context, r name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
+	opts := parse(o...)
+
+	switch opts.pull {
+	case ImagePullPolicyNever:
 		return f.never(r)
-	case v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS:
-		return f.always(ctx, r, cfg)
-	case v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT, v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_UNSPECIFIED:
+	case ImagePullPolicyAlways:
+		return f.always(ctx, r, o...)
+	case ImagePullPolicyIfNotPresent:
+		fallthrough
+	default:
 		img, err := f.never(r)
 		if err == nil {
 			return img, nil
 		}
-		return f.always(ctx, r, cfg)
+		return f.always(ctx, r)
 	}
-	return nil, nil
 }
 func (f *CachingPuller) never(r name.Reference) (ociv1.Image, error) {
-	h, err := f.mapping.Hash(r)
+	var h ociv1.Hash
+	var err error
+
+	// Avoid a cache lookup if the digest was specified explicitly.
+	switch d := r.(type) {
+	case name.Digest:
+		h, err = ociv1.NewHash(d.DigestStr())
+	default:
+		h, err = f.mapping.Hash(r)
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, errLoadHash)
 	}
@@ -126,9 +205,9 @@ func (f *CachingPuller) never(r name.Reference) (ociv1.Image, error) {
 	return i, errors.Wrap(err, errLoadImage)
 }
 
-func (f *CachingPuller) always(ctx context.Context, r name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+func (f *CachingPuller) always(ctx context.Context, r name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 	// This will only pull the image's manifest and config, not layers.
-	img, err := f.remote.Image(ctx, r, cfg)
+	img, err := f.remote.Image(ctx, r, o...)
 	if err != nil {
 		return nil, errors.Wrap(err, errPullImage)
 	}

@@ -34,6 +34,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane/internal/oci/spec"
 )
 
 // Store directories.
@@ -81,7 +82,7 @@ const (
 // A Bundler prepares OCI runtime bundles for use by an OCI runtime.
 type Bundler interface {
 	// Bundle returns an OCI bundle ready for use by an OCI runtime.
-	Bundle(ctx context.Context, i ociv1.Image, id string) (Bundle, error)
+	Bundle(ctx context.Context, i ociv1.Image, id string, o ...spec.Option) (Bundle, error)
 }
 
 // A Bundle for use by an OCI runtime.
@@ -91,16 +92,6 @@ type Bundle interface {
 
 	// Cleanup the OCI bundle after the container has finished running.
 	Cleanup() error
-}
-
-// RootFSPath returns the path to the supplied bundle's rootfs.
-func RootFSPath(b Bundle) string {
-	return filepath.Join(b.Path(), DirRootFS)
-}
-
-// SpecPath returns the path to the supplied Bundle's OCI runtime spec.
-func SpecPath(b Bundle) string {
-	return filepath.Join(b.Path(), FileSpec)
 }
 
 // A Digest store is used to map OCI references to digests. Each mapping is a

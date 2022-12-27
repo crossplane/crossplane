@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	"github.com/crossplane/crossplane/internal/oci/spec"
 	"github.com/crossplane/crossplane/internal/oci/store"
 )
 
@@ -59,9 +60,9 @@ type MockTarballApplicator struct{ err error }
 
 func (a *MockTarballApplicator) Apply(_ context.Context, _ io.Reader, _ string) error { return a.err }
 
-type MockRuntimeSpecCreator struct{ err error }
+type MockRuntimeSpecWriter struct{ err error }
 
-func (c *MockRuntimeSpecCreator) Create(_ store.Bundle, _ *ociv1.ConfigFile) error { return c.err }
+func (c *MockRuntimeSpecWriter) Write(_ string, _ ...spec.Option) error { return c.err }
 
 type MockCloser struct {
 	io.Reader
@@ -76,12 +77,13 @@ func TestBundle(t *testing.T) {
 
 	type params struct {
 		tarball TarballApplicator
-		spec    RuntimeSpecCreator
+		spec    RuntimeSpecWriter
 	}
 	type args struct {
 		ctx context.Context
 		i   ociv1.Image
 		id  string
+		o   []spec.Option
 	}
 	type want struct {
 		b   store.Bundle
@@ -174,11 +176,11 @@ func TestBundle(t *testing.T) {
 				err: errors.Wrap(errBoom, errCloseLayer),
 			},
 		},
-		"CreateRuntimeSpecError": {
+		"WriteRuntimeSpecError": {
 			reason: "We should return any error encountered creating the bundle's OCI runtime spec.",
 			params: params{
 				tarball: &MockTarballApplicator{},
-				spec:    &MockRuntimeSpecCreator{err: errBoom},
+				spec:    &MockRuntimeSpecWriter{err: errBoom},
 			},
 			args: args{
 				i: &MockImage{
@@ -191,14 +193,14 @@ func TestBundle(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errCreateRuntimeSpec),
+				err: errors.Wrap(errBoom, errWriteRuntimeSpec),
 			},
 		},
 		"SuccessfulBundle": {
 			reason: "We should create and return an OCI bundle.",
 			params: params{
 				tarball: &MockTarballApplicator{},
-				spec:    &MockRuntimeSpecCreator{},
+				spec:    &MockRuntimeSpecWriter{},
 			},
 			args: args{
 				i: &MockImage{
@@ -232,7 +234,7 @@ func TestBundle(t *testing.T) {
 				spec:    tc.params.spec,
 			}
 
-			got, err := c.Bundle(tc.args.ctx, tc.args.i, tc.args.id)
+			got, err := c.Bundle(tc.args.ctx, tc.args.i, tc.args.id, tc.args.o...)
 
 			if diff := cmp.Diff(tc.want.b, got, cmpopts.IgnoreUnexported(Bundle{})); diff != "" {
 				t.Errorf("\n%s\nBundle(...): -want, +got:\n%s", tc.reason, diff)

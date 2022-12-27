@@ -26,8 +26,6 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 )
 
 type MockImage struct {
@@ -39,11 +37,11 @@ type MockImage struct {
 func (i *MockImage) Digest() (ociv1.Hash, error) { return i.MockDigest() }
 
 type MockImageClient struct {
-	MockImage func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error)
+	MockImage func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error)
 }
 
-func (c *MockImageClient) Image(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
-	return c.MockImage(ctx, ref, cfg)
+func (c *MockImageClient) Image(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
+	return c.MockImage(ctx, ref, o...)
 }
 
 type MockImageCache struct {
@@ -79,7 +77,7 @@ func TestImage(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		r   name.Reference
-		cfg *v1alpha1.ImagePullConfig
+		o   []ImageClientOption
 	}
 	type want struct {
 		i   ociv1.Image
@@ -102,9 +100,7 @@ func TestImage(t *testing.T) {
 				&MockImageClient{},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyNever)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errLoadHash),
@@ -122,9 +118,7 @@ func TestImage(t *testing.T) {
 				&MockImageClient{},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyNever)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errLoadImage),
@@ -142,9 +136,29 @@ func TestImage(t *testing.T) {
 				&MockImageClient{},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyNever)},
+			},
+			want: want{
+				i: coolImage,
+			},
+		},
+		"NeverPullSuccessExplicit": {
+			reason: "We should return our image from cache without looking up its digest if the digest was specified explicitly.",
+			p: NewCachingPuller(
+				&MockHashCache{},
+				&MockImageCache{
+					MockImage: func(h ociv1.Hash) (ociv1.Image, error) {
+						if h.Hex != "c34045c1a1db8d1b3fca8a692198466952daae07eaf6104b4c87ed3b55b6af1b" {
+							return nil, errors.New("unexpected hash")
+						}
+						return coolImage, nil
+					},
 				},
+				&MockImageClient{},
+			),
+			args: args{
+				r: name.MustParseReference("example.org/coolimage@sha256:c34045c1a1db8d1b3fca8a692198466952daae07eaf6104b4c87ed3b55b6af1b"),
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyNever)},
 			},
 			want: want{
 				i: coolImage,
@@ -156,15 +170,13 @@ func TestImage(t *testing.T) {
 				&MockHashCache{},
 				&MockImageCache{},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return nil, errBoom
 					},
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errPullImage),
@@ -178,15 +190,13 @@ func TestImage(t *testing.T) {
 					MockWriteImage: func(img ociv1.Image) error { return errBoom },
 				},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return nil, nil
 					},
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errStoreImage),
@@ -200,7 +210,7 @@ func TestImage(t *testing.T) {
 					MockWriteImage: func(img ociv1.Image) error { return nil },
 				},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return &MockImage{
 							MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{}, errBoom },
 						}, nil
@@ -208,9 +218,7 @@ func TestImage(t *testing.T) {
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errImageDigest),
@@ -226,7 +234,7 @@ func TestImage(t *testing.T) {
 					MockWriteImage: func(img ociv1.Image) error { return nil },
 				},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return &MockImage{
 							MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{}, nil },
 						}, nil
@@ -234,9 +242,7 @@ func TestImage(t *testing.T) {
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errStoreDigest),
@@ -253,7 +259,7 @@ func TestImage(t *testing.T) {
 					MockImage:      func(h ociv1.Hash) (ociv1.Image, error) { return nil, errBoom },
 				},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return &MockImage{
 							MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{}, nil },
 						}, nil
@@ -261,9 +267,7 @@ func TestImage(t *testing.T) {
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errLoadImage),
@@ -280,7 +284,7 @@ func TestImage(t *testing.T) {
 					MockImage:      func(h ociv1.Hash) (ociv1.Image, error) { return &MockImage{}, nil },
 				},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return &MockImage{
 							MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{}, nil },
 						}, nil
@@ -288,9 +292,7 @@ func TestImage(t *testing.T) {
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
 			},
 			want: want{
 				i: &MockImage{},
@@ -307,15 +309,13 @@ func TestImage(t *testing.T) {
 				},
 				&MockImageClient{
 					// If we get here it indicates we called always.
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return nil, errors.New("this error should not be returned")
 					},
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyIfNotPresent)},
 			},
 			want: want{
 				i: &MockImage{},
@@ -332,15 +332,13 @@ func TestImage(t *testing.T) {
 				},
 				&MockImageCache{},
 				&MockImageClient{
-					MockImage: func(ctx context.Context, ref name.Reference, cfg *v1alpha1.ImagePullConfig) (ociv1.Image, error) {
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 						return nil, errBoom
 					},
 				},
 			),
 			args: args{
-				cfg: &v1alpha1.ImagePullConfig{
-					PullPolicy: v1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT,
-				},
+				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyIfNotPresent)},
 			},
 			want: want{
 				// This indicates we fell back to always.
@@ -352,7 +350,7 @@ func TestImage(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 
-			i, err := tc.p.Image(tc.args.ctx, tc.args.r, tc.args.cfg)
+			i, err := tc.p.Image(tc.args.ctx, tc.args.r, tc.args.o...)
 			if diff := cmp.Diff(tc.want.i, i); diff != "" {
 				t.Errorf("\n%s\nImage(...): -want, +got:\n%s", tc.reason, diff)
 			}

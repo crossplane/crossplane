@@ -387,8 +387,12 @@ type ResourceLimits struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
+	// CPU, in cores. (500m = .5 cores)
+	// Specified in Kubernetes-style resource.Quantity form.
 	Memory string `protobuf:"bytes,1,opt,name=memory,proto3" json:"memory,omitempty"`
-	Cpu    string `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`
+	// Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+	// Specified in Kubernetes-style resource.Quantity form.
+	Cpu string `protobuf:"bytes,2,opt,name=cpu,proto3" json:"cpu,omitempty"`
 }
 
 func (x *ResourceLimits) Reset() {
