@@ -318,6 +318,31 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 	}
 }
 
+// CompositeResourceClaimStatusProps is a partial OpenAPIV3Schema for the status
+// fields that Crossplane expects to be present for all defined or published
+// infrastructure resources.
+func CompositeResourceClaimStatusProps() map[string]extv1.JSONSchemaProps {
+	return map[string]extv1.JSONSchemaProps{
+		"conditions": {
+			Description: "Conditions of the resource.",
+			Type:        "array",
+			Items: &extv1.JSONSchemaPropsOrArray{
+				Schema: &extv1.JSONSchemaProps{
+					Type:     "object",
+					Required: []string{"lastTransitionTime", "reason", "status", "type"},
+					Properties: map[string]extv1.JSONSchemaProps{
+						"lastTransitionTime": {Type: "string", Format: "date-time"},
+						"message":            {Type: "string"},
+						"reason":             {Type: "string"},
+						"status":             {Type: "string"},
+						"type":               {Type: "string"},
+					},
+				},
+			},
+		},
+	}
+}
+
 // CompositeResourceStatusProps is a partial OpenAPIV3Schema for the status
 // fields that Crossplane expects to be present for all defined or published
 // infrastructure resources.
