@@ -586,6 +586,11 @@ func (in *PatchPolicy) DeepCopyInto(out *PatchPolicy) {
 		*out = new(FromFieldPathPolicy)
 		**out = **in
 	}
+	if in.ToFieldPath != nil {
+		in, out := &in.ToFieldPath, &out.ToFieldPath
+		*out = new(ToFieldPathPolicy)
+		**out = **in
+	}
 	if in.MergeOptions != nil {
 		in, out := &in.MergeOptions, &out.MergeOptions
 		*out = new(v1.MergeOptions)

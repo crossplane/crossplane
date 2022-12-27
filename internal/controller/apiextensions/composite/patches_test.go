@@ -549,6 +549,59 @@ func TestPatchApply(t *testing.T) {
 				err: nil,
 			},
 		},
+		"RemoveToCompositeFieldPathPatch": {
+			reason: "Should correctly apply(remoe) a ToCompositeFieldPath patch with valid settings",
+			args: args{
+				patch: v1.Patch{
+					Type:          v1.PatchTypeToCompositeFieldPath,
+					FromFieldPath: pointer.StringPtr("objectMeta.labels.Remove"),
+					ToFieldPath:   pointer.StringPtr("objectMeta.labels.Remove"),
+					Policy: &v1.PatchPolicy{
+						ToFieldPath: func() *v1.ToFieldPathPolicy {
+							s := v1.ToFieldPathPolicyRemove
+							return &s
+						}(),
+					},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test":   "blah",
+							"Remove": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cp",
+						Labels: map[string]string{
+							"Test": "blah",
+						},
+					},
+					ConnectionDetailsLastPublishedTimer: lpt,
+				},
+				cd: &fake.Composed{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "cd",
+						Labels: map[string]string{
+							"Test": "blah",
+						}},
+				},
+				err: nil,
+			},
+		},
 		"ValidToCompositeFieldPathPatchWithWildcards": {
 			reason: "When passed a wildcarded path, adds a field to each element of an array",
 			args: args{
@@ -1098,6 +1151,7 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 	}
 	required := v1.FromFieldPathPolicyRequired
 	optional := v1.FromFieldPathPolicyOptional
+	remove := v1.ToFieldPathPolicyRemove
 	type args struct {
 		err error
 		p   *v1.PatchPolicy
@@ -1145,6 +1199,16 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 			},
 			want: true,
 		},
+		"PatchPolicyToRemove": {
+			reason: "Should return no-op if field not found and remove patch policy explicitly specified.",
+			args: args{
+				p: &v1.PatchPolicy{
+					ToFieldPath: &remove,
+				},
+				err: errNotFound(),
+			},
+			want: true,
+		},
 		"RequiredNotFound": {
 			reason: "Should return error if field not found and required patch policy explicitly specified.",
 			args: args{
@@ -1162,6 +1226,95 @@ func TestOptionalFieldPathNotFound(t *testing.T) {
 			got := IsOptionalFieldPathNotFound(tc.args.err, tc.args.p)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("IsOptionalFieldPathNotFound(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRemoveToFieldPathNotFound(t *testing.T) {
+	errBoom := errors.New("boom")
+	errNotFound := func() error {
+		p := &fieldpath.Paved{}
+		_, err := p.GetValue("boom")
+		return err
+	}
+	required := v1.FromFieldPathPolicyRequired
+	optional := v1.FromFieldPathPolicyOptional
+	remove := v1.ToFieldPathPolicyRemove
+	type args struct {
+		err error
+		p   *v1.PatchPolicy
+	}
+
+	cases := map[string]struct {
+		reason string
+		args
+		want bool
+	}{
+		"NotAnError": {
+			reason: "Should perform patch if no error finding field.",
+			args:   args{},
+			want:   false,
+		},
+		"NotFieldNotFoundError": {
+			reason: "Should return error if something other than field not found.",
+			args: args{
+				err: errBoom,
+			},
+			want: false,
+		},
+		"DefaultOptionalNoPolicy": {
+			reason: "Should return no-op if field not found and no patch policy specified.",
+			args: args{
+				err: errNotFound(),
+			},
+			want: false,
+		},
+		"DefaultOptionalNoPathPolicy": {
+			reason: "Should return no-op if field not found and empty patch policy specified.",
+			args: args{
+				p:   &v1.PatchPolicy{},
+				err: errNotFound(),
+			},
+			want: false,
+		},
+		"OptionalNotFound": {
+			reason: "Should return no-op if field not found and optional patch policy explicitly specified.",
+			args: args{
+				p: &v1.PatchPolicy{
+					FromFieldPath: &optional,
+				},
+				err: errNotFound(),
+			},
+			want: false,
+		},
+		"RemoveNotFound": {
+			reason: "Should return no-op if field not found and remove patch policy explicitly specified.",
+			args: args{
+				p: &v1.PatchPolicy{
+					ToFieldPath: &remove,
+				},
+				err: errNotFound(),
+			},
+			want: true,
+		},
+		"RequiredNotFound": {
+			reason: "Should return error if field not found and required patch policy explicitly specified.",
+			args: args{
+				p: &v1.PatchPolicy{
+					FromFieldPath: &required,
+				},
+				err: errNotFound(),
+			},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := IsRemoveToFieldPathNotFound(tc.args.err, tc.args.p)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("IsRemoveToFieldPathNotFound(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

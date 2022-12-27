@@ -216,6 +216,12 @@ spec:
                                     in a merged map should be preserved
                                   type: boolean
                               type: object
+                            toFieldPath:
+                              description: A ToFieldPathPolicy determines how to patch
+                                to a field path.
+                              enum:
+                              - Remove
+                              type: string
                           type: object
                         toFieldPath:
                           description: ToFieldPath is the path of the field on the
@@ -498,6 +504,12 @@ spec:
                                       in a merged map should be preserved
                                     type: boolean
                                 type: object
+                              toFieldPath:
+                                description: A ToFieldPathPolicy determines how to
+                                  patch to a field path.
+                                enum:
+                                - Remove
+                                type: string
                             type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the
@@ -864,6 +876,12 @@ spec:
                                       in a merged map should be preserved
                                     type: boolean
                                 type: object
+                              toFieldPath:
+                                description: A ToFieldPathPolicy determines how to
+                                  patch to a field path.
+                                enum:
+                                - Remove
+                                type: string
                             type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the
@@ -1347,6 +1365,12 @@ spec:
                                     in a merged map should be preserved
                                   type: boolean
                               type: object
+                            toFieldPath:
+                              description: A ToFieldPathPolicy determines how to patch
+                                to a field path.
+                              enum:
+                              - Remove
+                              type: string
                           type: object
                         toFieldPath:
                           description: ToFieldPath is the path of the field on the
@@ -1629,6 +1653,12 @@ spec:
                                       in a merged map should be preserved
                                     type: boolean
                                 type: object
+                              toFieldPath:
+                                description: A ToFieldPathPolicy determines how to
+                                  patch to a field path.
+                                enum:
+                                - Remove
+                                type: string
                             type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the
@@ -1995,6 +2025,12 @@ spec:
                                       in a merged map should be preserved
                                     type: boolean
                                 type: object
+                              toFieldPath:
+                                description: A ToFieldPathPolicy determines how to
+                                  patch to a field path.
+                                enum:
+                                - Remove
+                                type: string
                             type: object
                           toFieldPath:
                             description: ToFieldPath is the path of the field on the

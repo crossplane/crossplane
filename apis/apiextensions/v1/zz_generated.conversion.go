@@ -339,6 +339,12 @@ func (c *GeneratedRevisionSpecConverter) v1PatchPolicyToV1beta1PatchPolicy(sourc
 		pV1beta1FromFieldPathPolicy = &v1beta1FromFieldPathPolicy
 	}
 	v1beta1PatchPolicy.FromFieldPath = pV1beta1FromFieldPathPolicy
+	var pV1beta1ToFieldPathPolicy *v1beta1.ToFieldPathPolicy
+	if source.ToFieldPath != nil {
+		v1beta1ToFieldPathPolicy := v1beta1.ToFieldPathPolicy(*source.ToFieldPath)
+		pV1beta1ToFieldPathPolicy = &v1beta1ToFieldPathPolicy
+	}
+	v1beta1PatchPolicy.ToFieldPath = pV1beta1ToFieldPathPolicy
 	var pV1MergeOptions *v11.MergeOptions
 	if source.MergeOptions != nil {
 		v1MergeOptions := c.v1MergeOptionsToV1MergeOptions(*source.MergeOptions)
@@ -734,6 +740,12 @@ func (c *GeneratedRevisionSpecConverter) v1beta1PatchPolicyToV1PatchPolicy(sourc
 		pV1FromFieldPathPolicy = &v1FromFieldPathPolicy
 	}
 	v1PatchPolicy.FromFieldPath = pV1FromFieldPathPolicy
+	var pV1ToFieldPathPolicy *ToFieldPathPolicy
+	if source.ToFieldPath != nil {
+		v1ToFieldPathPolicy := ToFieldPathPolicy(*source.ToFieldPath)
+		pV1ToFieldPathPolicy = &v1ToFieldPathPolicy
+	}
+	v1PatchPolicy.ToFieldPath = pV1ToFieldPathPolicy
 	var pV1MergeOptions *v11.MergeOptions
 	if source.MergeOptions != nil {
 		v1MergeOptions := c.v1MergeOptionsToV1MergeOptions(*source.MergeOptions)

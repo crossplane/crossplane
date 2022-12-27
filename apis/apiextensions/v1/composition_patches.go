@@ -45,6 +45,14 @@ const (
 	FromFieldPathPolicyRequired FromFieldPathPolicy = "Required"
 )
 
+// A ToFieldPathPolicy determines how to patch to a field path.
+type ToFieldPathPolicy string
+
+// ToFieldPath patch policies.
+const (
+	ToFieldPathPolicyRemove ToFieldPathPolicy = "Remove"
+)
+
 // A PatchPolicy configures the specifics of patching behaviour.
 type PatchPolicy struct {
 	// FromFieldPath specifies how to patch from a field path. The default is
@@ -54,7 +62,11 @@ type PatchPolicy struct {
 	// +kubebuilder:validation:Enum=Optional;Required
 	// +optional
 	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
-	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
+
+	// +kubebuilder:validation:Enum=Remove
+	// +optional
+	ToFieldPath  *ToFieldPathPolicy `json:"toFieldPath,omitempty"`
+	MergeOptions *xpv1.MergeOptions `json:"mergeOptions,omitempty"`
 }
 
 // Patch objects are applied between composite and composed resources. Their
