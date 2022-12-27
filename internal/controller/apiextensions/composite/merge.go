@@ -99,3 +99,18 @@ func patchFieldValueToObject(fieldPath string, value any, to runtime.Object, mo 
 
 	return runtime.DefaultUnstructuredConverter.FromUnstructured(paved.UnstructuredContent(), to)
 }
+
+// removeToFieldValueToObject removes the given fieldPath to the "to" object
+// returning any errors as they occur.
+func removeToFieldValueToObject(fieldPath string, to runtime.Object) error {
+	paved, err := fieldpath.PaveObject(to)
+	if err != nil {
+		return err
+	}
+
+	if err := paved.DeleteField(fieldPath); err != nil {
+		return err
+	}
+
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(paved.UnstructuredContent(), to)
+}
