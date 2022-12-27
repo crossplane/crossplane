@@ -18,6 +18,12 @@ func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source v1beta1.Composi
 		v1PatchSetList[i] = c.v1beta1PatchSetToV1PatchSet(source.PatchSets[i])
 	}
 	v1CompositionSpec.PatchSets = v1PatchSetList
+	var pV1EnvironmentConfiguration *EnvironmentConfiguration
+	if source.Environment != nil {
+		v1EnvironmentConfiguration := c.v1beta1EnvironmentConfigurationToV1EnvironmentConfiguration(*source.Environment)
+		pV1EnvironmentConfiguration = &v1EnvironmentConfiguration
+	}
+	v1CompositionSpec.Environment = pV1EnvironmentConfiguration
 	v1ComposedTemplateList := make([]ComposedTemplate, len(source.Resources))
 	for j := 0; j < len(source.Resources); j++ {
 		v1ComposedTemplateList[j] = c.v1beta1ComposedTemplateToV1ComposedTemplate(source.Resources[j])
@@ -45,6 +51,12 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 		v1beta1PatchSetList[i] = c.v1PatchSetToV1beta1PatchSet(source.PatchSets[i])
 	}
 	v1beta1CompositionRevisionSpec.PatchSets = v1beta1PatchSetList
+	var pV1beta1EnvironmentConfiguration *v1beta1.EnvironmentConfiguration
+	if source.Environment != nil {
+		v1beta1EnvironmentConfiguration := c.v1EnvironmentConfigurationToV1beta1EnvironmentConfiguration(*source.Environment)
+		pV1beta1EnvironmentConfiguration = &v1beta1EnvironmentConfiguration
+	}
+	v1beta1CompositionRevisionSpec.Environment = pV1beta1EnvironmentConfiguration
 	v1beta1ComposedTemplateList := make([]v1beta1.ComposedTemplate, len(source.Resources))
 	for j := 0; j < len(source.Resources); j++ {
 		v1beta1ComposedTemplateList[j] = c.v1ComposedTemplateToV1beta1ComposedTemplate(source.Resources[j])
@@ -149,6 +161,103 @@ func (c *GeneratedRevisionSpecConverter) v1ConvertTransformToV1beta1ConvertTrans
 	var v1beta1ConvertTransform v1beta1.ConvertTransform
 	v1beta1ConvertTransform.ToType = source.ToType
 	return v1beta1ConvertTransform
+}
+func (c *GeneratedRevisionSpecConverter) v1EnvironmentConfigurationToV1beta1EnvironmentConfiguration(source EnvironmentConfiguration) v1beta1.EnvironmentConfiguration {
+	var v1beta1EnvironmentConfiguration v1beta1.EnvironmentConfiguration
+	v1beta1EnvironmentSourceList := make([]v1beta1.EnvironmentSource, len(source.EnvironmentConfigs))
+	for i := 0; i < len(source.EnvironmentConfigs); i++ {
+		v1beta1EnvironmentSourceList[i] = c.v1EnvironmentSourceToV1beta1EnvironmentSource(source.EnvironmentConfigs[i])
+	}
+	v1beta1EnvironmentConfiguration.EnvironmentConfigs = v1beta1EnvironmentSourceList
+	v1beta1EnvironmentPatchList := make([]v1beta1.EnvironmentPatch, len(source.Patches))
+	for j := 0; j < len(source.Patches); j++ {
+		v1beta1EnvironmentPatchList[j] = c.v1EnvironmentPatchToV1beta1EnvironmentPatch(source.Patches[j])
+	}
+	v1beta1EnvironmentConfiguration.Patches = v1beta1EnvironmentPatchList
+	return v1beta1EnvironmentConfiguration
+}
+func (c *GeneratedRevisionSpecConverter) v1EnvironmentPatchToV1beta1EnvironmentPatch(source EnvironmentPatch) v1beta1.EnvironmentPatch {
+	var v1beta1EnvironmentPatch v1beta1.EnvironmentPatch
+	v1beta1EnvironmentPatch.Type = v1beta1.PatchType(source.Type)
+	var pString *string
+	if source.FromFieldPath != nil {
+		xstring := *source.FromFieldPath
+		pString = &xstring
+	}
+	v1beta1EnvironmentPatch.FromFieldPath = pString
+	var pV1beta1Combine *v1beta1.Combine
+	if source.Combine != nil {
+		v1beta1Combine := c.v1CombineToV1beta1Combine(*source.Combine)
+		pV1beta1Combine = &v1beta1Combine
+	}
+	v1beta1EnvironmentPatch.Combine = pV1beta1Combine
+	var pString2 *string
+	if source.ToFieldPath != nil {
+		xstring2 := *source.ToFieldPath
+		pString2 = &xstring2
+	}
+	v1beta1EnvironmentPatch.ToFieldPath = pString2
+	v1beta1TransformList := make([]v1beta1.Transform, len(source.Transforms))
+	for i := 0; i < len(source.Transforms); i++ {
+		v1beta1TransformList[i] = c.v1TransformToV1beta1Transform(source.Transforms[i])
+	}
+	v1beta1EnvironmentPatch.Transforms = v1beta1TransformList
+	var pV1beta1PatchPolicy *v1beta1.PatchPolicy
+	if source.Policy != nil {
+		v1beta1PatchPolicy := c.v1PatchPolicyToV1beta1PatchPolicy(*source.Policy)
+		pV1beta1PatchPolicy = &v1beta1PatchPolicy
+	}
+	v1beta1EnvironmentPatch.Policy = pV1beta1PatchPolicy
+	return v1beta1EnvironmentPatch
+}
+func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceReferenceToV1beta1EnvironmentSourceReference(source EnvironmentSourceReference) v1beta1.EnvironmentSourceReference {
+	var v1beta1EnvironmentSourceReference v1beta1.EnvironmentSourceReference
+	v1beta1EnvironmentSourceReference.Name = source.Name
+	return v1beta1EnvironmentSourceReference
+}
+func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceSelectorLabelMatcherToV1beta1EnvironmentSourceSelectorLabelMatcher(source EnvironmentSourceSelectorLabelMatcher) v1beta1.EnvironmentSourceSelectorLabelMatcher {
+	var v1beta1EnvironmentSourceSelectorLabelMatcher v1beta1.EnvironmentSourceSelectorLabelMatcher
+	v1beta1EnvironmentSourceSelectorLabelMatcher.Type = v1beta1.EnvironmentSourceSelectorLabelMatcherType(source.Type)
+	v1beta1EnvironmentSourceSelectorLabelMatcher.Key = source.Key
+	var pString *string
+	if source.ValueFromFieldPath != nil {
+		xstring := *source.ValueFromFieldPath
+		pString = &xstring
+	}
+	v1beta1EnvironmentSourceSelectorLabelMatcher.ValueFromFieldPath = pString
+	var pString2 *string
+	if source.Value != nil {
+		xstring2 := *source.Value
+		pString2 = &xstring2
+	}
+	v1beta1EnvironmentSourceSelectorLabelMatcher.Value = pString2
+	return v1beta1EnvironmentSourceSelectorLabelMatcher
+}
+func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceSelectorToV1beta1EnvironmentSourceSelector(source EnvironmentSourceSelector) v1beta1.EnvironmentSourceSelector {
+	var v1beta1EnvironmentSourceSelector v1beta1.EnvironmentSourceSelector
+	v1beta1EnvironmentSourceSelectorLabelMatcherList := make([]v1beta1.EnvironmentSourceSelectorLabelMatcher, len(source.MatchLabels))
+	for i := 0; i < len(source.MatchLabels); i++ {
+		v1beta1EnvironmentSourceSelectorLabelMatcherList[i] = c.v1EnvironmentSourceSelectorLabelMatcherToV1beta1EnvironmentSourceSelectorLabelMatcher(source.MatchLabels[i])
+	}
+	v1beta1EnvironmentSourceSelector.MatchLabels = v1beta1EnvironmentSourceSelectorLabelMatcherList
+	return v1beta1EnvironmentSourceSelector
+}
+func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceToV1beta1EnvironmentSource(source EnvironmentSource) v1beta1.EnvironmentSource {
+	var v1beta1EnvironmentSource v1beta1.EnvironmentSource
+	v1beta1EnvironmentSource.Type = v1beta1.EnvironmentSourceType(source.Type)
+	var pV1beta1EnvironmentSourceReference *v1beta1.EnvironmentSourceReference
+	if source.Ref != nil {
+		v1beta1EnvironmentSourceReference := c.v1EnvironmentSourceReferenceToV1beta1EnvironmentSourceReference(*source.Ref)
+		pV1beta1EnvironmentSourceReference = &v1beta1EnvironmentSourceReference
+	}
+	v1beta1EnvironmentSource.Ref = pV1beta1EnvironmentSourceReference
+	var pV1beta1EnvironmentSourceSelector *v1beta1.EnvironmentSourceSelector
+	if source.Selector != nil {
+		v1beta1EnvironmentSourceSelector := c.v1EnvironmentSourceSelectorToV1beta1EnvironmentSourceSelector(*source.Selector)
+		pV1beta1EnvironmentSourceSelector = &v1beta1EnvironmentSourceSelector
+	}
+	v1beta1EnvironmentSource.Selector = pV1beta1EnvironmentSourceSelector
+	return v1beta1EnvironmentSource
 }
 func (c *GeneratedRevisionSpecConverter) v1JSONToV1JSON(source v1.JSON) v1.JSON {
 	var v1JSON v1.JSON
@@ -472,6 +581,103 @@ func (c *GeneratedRevisionSpecConverter) v1beta1ConvertTransformToV1ConvertTrans
 	var v1ConvertTransform ConvertTransform
 	v1ConvertTransform.ToType = source.ToType
 	return v1ConvertTransform
+}
+func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentConfigurationToV1EnvironmentConfiguration(source v1beta1.EnvironmentConfiguration) EnvironmentConfiguration {
+	var v1EnvironmentConfiguration EnvironmentConfiguration
+	v1EnvironmentSourceList := make([]EnvironmentSource, len(source.EnvironmentConfigs))
+	for i := 0; i < len(source.EnvironmentConfigs); i++ {
+		v1EnvironmentSourceList[i] = c.v1beta1EnvironmentSourceToV1EnvironmentSource(source.EnvironmentConfigs[i])
+	}
+	v1EnvironmentConfiguration.EnvironmentConfigs = v1EnvironmentSourceList
+	v1EnvironmentPatchList := make([]EnvironmentPatch, len(source.Patches))
+	for j := 0; j < len(source.Patches); j++ {
+		v1EnvironmentPatchList[j] = c.v1beta1EnvironmentPatchToV1EnvironmentPatch(source.Patches[j])
+	}
+	v1EnvironmentConfiguration.Patches = v1EnvironmentPatchList
+	return v1EnvironmentConfiguration
+}
+func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentPatchToV1EnvironmentPatch(source v1beta1.EnvironmentPatch) EnvironmentPatch {
+	var v1EnvironmentPatch EnvironmentPatch
+	v1EnvironmentPatch.Type = PatchType(source.Type)
+	var pString *string
+	if source.FromFieldPath != nil {
+		xstring := *source.FromFieldPath
+		pString = &xstring
+	}
+	v1EnvironmentPatch.FromFieldPath = pString
+	var pV1Combine *Combine
+	if source.Combine != nil {
+		v1Combine := c.v1beta1CombineToV1Combine(*source.Combine)
+		pV1Combine = &v1Combine
+	}
+	v1EnvironmentPatch.Combine = pV1Combine
+	var pString2 *string
+	if source.ToFieldPath != nil {
+		xstring2 := *source.ToFieldPath
+		pString2 = &xstring2
+	}
+	v1EnvironmentPatch.ToFieldPath = pString2
+	v1TransformList := make([]Transform, len(source.Transforms))
+	for i := 0; i < len(source.Transforms); i++ {
+		v1TransformList[i] = c.v1beta1TransformToV1Transform(source.Transforms[i])
+	}
+	v1EnvironmentPatch.Transforms = v1TransformList
+	var pV1PatchPolicy *PatchPolicy
+	if source.Policy != nil {
+		v1PatchPolicy := c.v1beta1PatchPolicyToV1PatchPolicy(*source.Policy)
+		pV1PatchPolicy = &v1PatchPolicy
+	}
+	v1EnvironmentPatch.Policy = pV1PatchPolicy
+	return v1EnvironmentPatch
+}
+func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentSourceReferenceToV1EnvironmentSourceReference(source v1beta1.EnvironmentSourceReference) EnvironmentSourceReference {
+	var v1EnvironmentSourceReference EnvironmentSourceReference
+	v1EnvironmentSourceReference.Name = source.Name
+	return v1EnvironmentSourceReference
+}
+func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentSourceSelectorLabelMatcherToV1EnvironmentSourceSelectorLabelMatcher(source v1beta1.EnvironmentSourceSelectorLabelMatcher) EnvironmentSourceSelectorLabelMatcher {
+	var v1EnvironmentSourceSelectorLabelMatcher EnvironmentSourceSelectorLabelMatcher
+	v1EnvironmentSourceSelectorLabelMatcher.Type = EnvironmentSourceSelectorLabelMatcherType(source.Type)
+	v1EnvironmentSourceSelectorLabelMatcher.Key = source.Key
+	var pString *string
+	if source.ValueFromFieldPath != nil {
+		xstring := *source.ValueFromFieldPath
+		pString = &xstring
+	}
+	v1EnvironmentSourceSelectorLabelMatcher.ValueFromFieldPath = pString
+	var pString2 *string
+	if source.Value != nil {
+		xstring2 := *source.Value
+		pString2 = &xstring2
+	}
+	v1EnvironmentSourceSelectorLabelMatcher.Value = pString2
+	return v1EnvironmentSourceSelectorLabelMatcher
+}
+func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentSourceSelectorToV1EnvironmentSourceSelector(source v1beta1.EnvironmentSourceSelector) EnvironmentSourceSelector {
+	var v1EnvironmentSourceSelector EnvironmentSourceSelector
+	v1EnvironmentSourceSelectorLabelMatcherList := make([]EnvironmentSourceSelectorLabelMatcher, len(source.MatchLabels))
+	for i := 0; i < len(source.MatchLabels); i++ {
+		v1EnvironmentSourceSelectorLabelMatcherList[i] = c.v1beta1EnvironmentSourceSelectorLabelMatcherToV1EnvironmentSourceSelectorLabelMatcher(source.MatchLabels[i])
+	}
+	v1EnvironmentSourceSelector.MatchLabels = v1EnvironmentSourceSelectorLabelMatcherList
+	return v1EnvironmentSourceSelector
+}
+func (c *GeneratedRevisionSpecConverter) v1beta1EnvironmentSourceToV1EnvironmentSource(source v1beta1.EnvironmentSource) EnvironmentSource {
+	var v1EnvironmentSource EnvironmentSource
+	v1EnvironmentSource.Type = EnvironmentSourceType(source.Type)
+	var pV1EnvironmentSourceReference *EnvironmentSourceReference
+	if source.Ref != nil {
+		v1EnvironmentSourceReference := c.v1beta1EnvironmentSourceReferenceToV1EnvironmentSourceReference(*source.Ref)
+		pV1EnvironmentSourceReference = &v1EnvironmentSourceReference
+	}
+	v1EnvironmentSource.Ref = pV1EnvironmentSourceReference
+	var pV1EnvironmentSourceSelector *EnvironmentSourceSelector
+	if source.Selector != nil {
+		v1EnvironmentSourceSelector := c.v1beta1EnvironmentSourceSelectorToV1EnvironmentSourceSelector(*source.Selector)
+		pV1EnvironmentSourceSelector = &v1EnvironmentSourceSelector
+	}
+	v1EnvironmentSource.Selector = pV1EnvironmentSourceSelector
+	return v1EnvironmentSource
 }
 func (c *GeneratedRevisionSpecConverter) v1beta1MapTransformToV1MapTransform(source v1beta1.MapTransform) MapTransform {
 	var v1MapTransform MapTransform

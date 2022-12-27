@@ -46,8 +46,14 @@ var (
 	CompositionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionRevisionKind}.String()
 	CompositionRevisionKindAPIVersion   = CompositionRevisionKind + "." + SchemeGroupVersion.String()
 	CompositionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionRevisionKind)
+
+	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
+	EnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: EnvironmentConfigKind}.String()
+	EnvironmentConfigKindAPIVersion   = EnvironmentConfigKind + "." + SchemeGroupVersion.String()
+	EnvironmentConfigGroupVersionKind = SchemeGroupVersion.WithKind(EnvironmentConfigKind)
 )
 
 func init() {
 	SchemeBuilder.Register(&CompositionRevision{}, &CompositionRevisionList{})
+	SchemeBuilder.Register(&EnvironmentConfig{}, &EnvironmentConfigList{})
 }

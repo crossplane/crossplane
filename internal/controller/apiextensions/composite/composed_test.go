@@ -293,7 +293,7 @@ func TestRender(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			r := NewAPIDryRunRenderer(tc.client)
-			err := r.Render(tc.args.ctx, tc.args.cp, tc.args.cd, tc.args.t)
+			err := r.Render(tc.args.ctx, tc.args.cp, tc.args.cd, tc.args.t, nil)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}

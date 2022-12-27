@@ -62,6 +62,27 @@ spec:
       environment: production
       region: us-east
       provider: gcp
+  # The environment is an in-memory object that can be patched from / to during
+  # rendering.
+  # The environment is composed by merging the 'data' of all EnvironmentConfigs
+  # referenced below. It is disposed after every reconcile.
+  # NOTE: EnvironmentConfigs are an alpha feature and need to be enabled with
+  #       the '--enable-environment-configs' flag on startup.
+  environment:
+    # EnvironmentConfigs is a list of object references that is made up of
+    # name references and label selectors
+    environmentConfigs:
+      - type: Reference # this is the default
+        ref:
+          name: example-environment
+      - type: Selector
+        selector:
+          - key: stage
+            type: FromCompositeFieldPath # this is the default
+            valueFromFieldPath: spec.parameters.stage
+          - key: provider
+            type: Value
+            value: "gcp"
   # The resourceRefs array contains references to all of the resources of which
   # this XR is composed. Despite being in spec this field isn't intended to be
   # configured by humans - Crossplane will take care of keeping it updated.
@@ -478,6 +499,35 @@ resources:
   toFieldPath: spec.forProvider.firewallRules[*].CIDRBlock
 ```
 
+`FromEnvironmentFieldPath`. This type patches from a field within the in-memory
+environment to a field within the composed resource. It's commonly used to
+expose a composed resource spec field as an XR spec field.
+Note that EnvironmentConfigs are an alpha feature and need to be enabled with 
+the `--enable-environment-configs` flag on startup.
+
+```yaml
+# Patch from the environment's tier.name field to the composed resource's
+# spec.forProvider.settings.tier field.
+- type: FromEnvironmentFieldPath
+  fromFieldPath: tier.name
+  toF/ieldPath: spec.forProvider.settings.tier
+```
+
+`ToEnvironmentFieldPath`. This type patches from a composed field to the
+in-memory environment. Note that, unlike `ToCompositeFieldPath` patches, this
+is executed before the composed resource is applied on the cluster which means
+that the `status` is not available.
+Note that EnvironmentConfigs are an alpha feature and need to be enabled with 
+the `--enable-environment-configs` flag on startup.
+
+```yaml
+# Patch from the environment's tier.name field to the composed resource's
+# spec.forProvider.settings.tier field.
+- type: ToEnvironmentFieldPath
+  fromFieldPath: spec.forProvider.settings.tier
+  toFieldPath: tier.name
+```
+
 Note that the field to be patched requires some initial value to be set.
 
 `CombineFromComposite`. Combines multiple fields from the XR to produce one
@@ -504,6 +554,26 @@ composed resource field.
     fromFieldPath: Required
 ```
 
+`CombineFromEnvironment`. Combines multiple fields from the in-memory
+environment to produce one composed resource field.
+Note that EnvironmentConfigs are an alpha feature and need to be enabled with 
+the `--enable-environment-configs` flag on startup.
+
+```yaml
+# Patch from the environments's location field and region to the composed
+# resource's spec.forProvider.administratorLogin field.
+- type: CombineFromEnvironment
+  combine:
+    # The patch will only be applied when all variables have non-zero values.
+    variables:
+    - fromFieldPath: location
+    - fromFieldPath: region
+    strategy: string
+    string:
+      fmt: "%s-%s"
+  toFieldPath: spec.forProvider.administratorLogin
+```
+
 At the time of writing only the `string` combine strategy is supported. It uses
 [Go string formatting][pkg/fmt] to combine values, so if the XR's location was
 `us-west` and its claim name was `db` the composed resource's administratorLogin
@@ -526,6 +596,26 @@ would be set to `us-west-db`.
     string:
       fmt: "mysql://%s@%s:3306/my-database-name"
   toFieldPath: status.adminDSN
+```
+
+`CombineToEnvironment` is the inverse of `CombineFromEnvironment`.
+Note that EnvironmentConfigs are an alpha feature and need to be enabled with 
+the `--enable-environment-configs` flag on startup.
+
+```yaml
+# Patch from the composed resource's spec.parameters.administratorLogin and
+# spec.forProvider.domainName fields back to the environment's adminDSN field.
+- type: CombineToEnvironment
+  combine:
+    variables:
+      - fromFieldPath: spec.parameters.administratorLogin
+      - fromFieldPath: spec.forProvider.domainName
+    strategy: string
+    # Here, our administratorLogin parameter and fullyQualifiedDomainName
+    # status are formatted to a single output string representing a DSN.
+    string:
+      fmt: "mysql://%s@%s:3306/my-database-name"
+  toFieldPath: adminDSN
 ```
 
 `PatchSet`. References a named set of patches defined in the `spec.patchSets`

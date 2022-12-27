@@ -48,6 +48,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -419,6 +420,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if r.options.Features.Enabled(features.EnableBetaCompositionRevisions) {
 		a := resource.ClientApplicator{Client: r.client, Applicator: resource.NewAPIPatchingApplicator(r.client)}
 		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
+	}
+
+	// We only want to enable Composition environment support if the relevant
+	// feature flag is enabled. Otherwise we will default to noop selector and
+	// fetcher that will always return nil. All environment features are
+	// subsequently skipped if the environment is nil.
+	if r.options.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
+		o = append(
+			o,
+			composite.WithEnvironmentSelector(environment.NewAPIEnvironmentSelector(r.client)),
+			composite.WithEnvironmentFetcher(environment.NewAPIEnvironmentFetcher(r.client)),
+		)
 	}
 
 	// We only want to enable ExternalSecretStore support if the relevant

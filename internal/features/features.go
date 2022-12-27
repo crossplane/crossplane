@@ -26,7 +26,10 @@ const (
 	// https://github.com/crossplane/crossplane/blob/ecd9d5/design/one-pager-composition-revisions.md
 	// https://github.com/crossplane/crossplane/issues/3415
 	EnableBetaCompositionRevisions feature.Flag = "EnableBetaCompositionRevisions"
-
+	// EnableAlphaEnvironmentConfigs enables alpha support for composition
+	// environments. See the below design for more details.
+	// https://github.com/crossplane/crossplane/blob/c4bcbe/design/one-pager-composition-environment.md
+	EnableAlphaEnvironmentConfigs feature.Flag = "EnableAlphaEnvironmentConfigs"
 	// EnableAlphaExternalSecretStores enables alpha support for
 	// External Secret Stores. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/390ddd/design/design-doc-external-secret-stores.md
