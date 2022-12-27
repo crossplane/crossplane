@@ -168,6 +168,9 @@ func ApplyFromFieldPathPatch(p v1.Patch, from, to runtime.Object) error {
 	}
 
 	in, err := fieldpath.Pave(fromMap).GetValue(*p.FromFieldPath)
+	if IsRemoveToFieldPathNotFound(err, p.Policy) {
+		return removeToFieldValueToObject(*p.ToFieldPath, to)
+	}
 	if IsOptionalFieldPathNotFound(err, p.Policy) {
 		return nil
 	}
@@ -269,6 +272,22 @@ func IsOptionalFieldPathNotFound(err error, p *v1.PatchPolicy) bool {
 	case p.FromFieldPath == nil:
 		fallthrough
 	case *p.FromFieldPath == v1.FromFieldPathPolicyOptional:
+		return fieldpath.IsNotFound(err)
+	default:
+		return false
+	}
+}
+
+// IsRemoveToFieldPathNotFound returns true if the supplied error indicates a
+// tofield path was not found, and the supplied policy indicates a patch from that
+// field path was remove.
+func IsRemoveToFieldPathNotFound(err error, p *v1.PatchPolicy) bool {
+	switch {
+	case p == nil:
+		fallthrough
+	case p.ToFieldPath == nil:
+		return false
+	case *p.ToFieldPath == v1.ToFieldPathPolicyRemove:
 		return fieldpath.IsNotFound(err)
 	default:
 		return false
