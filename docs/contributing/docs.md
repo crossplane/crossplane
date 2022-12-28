@@ -2,7 +2,7 @@
 title: "Crossplane Documentation"
 weight: 2000
 ---
-## Code of conduct
+# Code of conduct
 Crossplane follows the [CNCF Code of
 Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
@@ -19,11 +19,11 @@ Taken directly from the code:
 >personal appearance, body size, race, ethnicity, age, religion, or nationality.
 <!-- vale on -->
 
-### Reporting violations
+## Reporting violations
 To report violations contact the Crossplane maintainers at `info@crossplane.io`
 or the CNCF at `conduct@cncf.io`.
 
-## Docs source 
+# Docs source 
 Crossplane documentation lives in two repositories:
 
 * Crossplane documentation source is in the [Crossplane
@@ -47,7 +47,7 @@ the Crossplane organization.
 Open an [issue](https://github.com/crossplane/crossplane/issues)
 to report a problem or request documentation content.
 
-## Contributing
+### Contributing
 
 Documentation content contributions are always welcome.
 
@@ -55,20 +55,22 @@ The Crossplane documentation source is in the [Crossplane
 repository](https://github.com/crossplane/crossplane) `/docs` directory. 
 
 
-### Local development
+## Local development
 Build the Crossplane documentation site locally for development and
 testing. 
 
-#### Clone the Crossplane repository
-Clone the [crossplane
+### Clone the Crossplane repository
+Clone the [Crossplane
 repository](https://github.com/crossplane/crossplane) with
 
 ```command
 git clone https://github.com/crossplane/crossplane.git
 ```
 
-#### Install Make
-
+<!-- vale off -->
+<!-- ignore Make -->
+### Install Make
+<!-- vale on -->
 {{< tabs >}}
 
 {{< tab "MacOS" >}}
@@ -87,12 +89,12 @@ website](https://www.gnu.org/software/make/).
 {{< /tab >}}
 
 {{<tab "Windows" >}}
-Currently the Crossplane build system does not support Windows.
+The Crossplane build system doesn't support Windows.
 {{< /tab >}}
 
 {{< /tabs >}}
 
-#### Build the Crossplane documentation
+### Build the Crossplane documentation
 From the `crossplane` folder run
 
 ```command
@@ -115,7 +117,7 @@ To contribute to a specific release submit a pull-request to the
 `release-<version>` or `master` branch.
 
 The next Crossplane release uses `master` as the starting documentation.
-## Style guidelines
+# Writing style guidelines
 The official Crossplane documentation style guide is still under construction.
 Guiding principals for the documentation include:
 <!-- vale off -->
@@ -130,7 +132,7 @@ Guiding principals for the documentation include:
 * Don't use [cliches](https://www.topcreativewritingcourses.com/blog/common-cliches-in-writing-and-how-to-avoid-them).
 * Use contractions for phrases like "do not", "cannot", "is not" and related terms.
 * Don't use Latin terms (i.e., e.g., etc.).
-* Don't use [gerund](https://owl.purdue.edu/owl/general_writing/mechanics/gerunds_participles_and_infinitives/index.html) headings (-ing words).
+* Avoid [gerund](https://owl.purdue.edu/owl/general_writing/mechanics/gerunds_participles_and_infinitives/index.html) headings (-ing words).
 * Try and limit sentences to 25 words or fewer.
 * [Be descriptive in link text](https://usability.yale.edu/web-accessibility/articles/links#link-text). Don't use "click here" or "read more".
 <!-- vale on -->
@@ -142,9 +144,12 @@ definitions](https://github.com/upbound/vale) for style guidelines.
 Beyond Vale, Crossplane recommends [Grammarly](https://www.grammarly.com/) and [Hemingway
 Editor](https://hemingwayapp.com/) to improve writing quality.
 
-### Code examples
+The Crossplane maintainers recommend the [Google developer documentation style guide](https://developers.google.com/style) 
+to help answer questions on proper styling. 
 
-#### Fenced code blocks
+# Code style guidelines
+
+## Use fenced code blocks
 Use Markdown [fenced code
 blocks](https://www.markdownguide.org/extended-syntax/#fenced-code-blocks) with
 three backticks (` ``` `) for
@@ -160,8 +165,8 @@ Only use a single backtick (`` ` ``) for commands used in a sentence.
 
 For example, the command `kubectl apply` is inside a sentence. 
 
-#### Syntax highlighting
-Hugo attempts to determine the language and apply proper highlighting, but it's
+## Use language hints for proper highlighting
+Hugo attempts to determine the language and apply proper styling, but it's
 not always optimized for readability. 
 
 For example, this YAML output isn't automatically detected.
@@ -184,9 +189,11 @@ metadata:
 
 Find a [full list of supported languages](https://github.com/alecthomas/chroma/#supported-languages) in the Chroma documentation.
 
+{{< hint "important" >}}
 The language definition should optimize for display and not technical correctness.
+{{< /hint >}}
 
-For example, this uses the `shell` highlighter.
+For example, this uses the `shell` language hint.
 
 ```shell
 cat test.yaml
@@ -196,7 +203,7 @@ metadata:
   name: aProvider
 ```
 
-Using the `yaml` highlighter provides improved readability. 
+Using the `yaml` language hint provides improved readability. 
 ```yaml
 cat test.yaml
 apiVersion: pkg.crossplane.io/v1
@@ -204,11 +211,106 @@ kind: Provider
 metadata:
   name: aProvider
 ```
-## Docs site styling features
-The Crossplane documentation supports multiple styling features to improve
-readability.
 
-### Images
+## Code line highlighting
+Crossplane docs provide two methods of code highlighting: static and dynamic highlighting.
+
+### Static line highlighting
+Static highlighting is an "always on" highlight of a line in a code box.
+```yaml {hl_lines="1-3"}
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+
+Apply a `{hl_lines=<line number>}` to a code fence.
+````yaml
+```yaml {hl_lines=1}
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+````
+
+To highlight continuous blocks use a range in quotes `{hl_lines="1-4"}`.
+For multiple lines, including blocks, create an array of values in square brackets. `{hl_lines=[1,2,"4-6"]}`.
+
+More information on static highlighting is available in the [Hugo syntax highlighting documentation](https://gohugo.io/content-management/syntax-highlighting/).
+
+### Dynamic line highlighting
+Dynamic highlighting only highlights a specific line when a read hovers over a specific word outside of the code block.
+This highlighting style is useful to draw attention to a line of code when explaining a command or argument.
+
+For example hover over the word {{<hover label="example1" line="2" >}}kind{{</hover>}} to highlight a line in the YAML file. 
+```yaml {label=example1}
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+
+First, apply the {{<hover label="example" line="1" >}}{label=name}{{</hover >}} to the code fence.
+
+
+{{<hint "tip">}}
+Don't use quotes around the `label` name.
+{{< /hint >}}
+
+
+````yaml {label=example}
+```yaml {label=example}
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+````
+
+Next, use the `hover` shortcode around the word that triggers the highlighting. Provide the matching `label` name and `line` number to highlight
+
+```html
+{{</* hover label="example" line="2" */>}}commmand{{</* /hover */>}}
+```
+
+{{<hint "note" >}}
+Hovering triggers a highlight to any code block with the label. Duplicate labels highlight all matching code boxes.
+{{< /hint >}} 
+
+## Customize code box copy button
+Code boxes automatically have a "copy to clipboard" button that copies the entire contents of the code box. 
+
+Customize the lines the button copies with a `{copy-lines="<start line>-<end line>"}` label on the code block.
+
+For example, to copy lines from 2 to 5 inclusive and not copy the code fence in this example:
+
+````yaml {copy-lines="2-5"}
+```yaml {copy-lines="2-5"}
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+````
+
+Copying a single line is also supported without using the ending line number. For example to copy only line 3 use `{copy-lines="3"}`.
+
+{{<hint "important" >}}
+The line number range must be in quotations.
+{{< /hint >}}
+
+Combining copying and highlighting in a single comma-seperated annotation. 
+````yaml {copy-lines="2-5", hl_lines="2-3"}
+```yaml {copy-lines="2-5", hl_lines="2-3"}
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: aProvider
+```
+````
+
+# Images
 Crossplane supports standard [Markdown image
 syntax](https://www.markdownguide.org/basic-syntax/#images-1) but using the
 `img` shortcode is strongly recommended.
@@ -240,13 +342,13 @@ An example of using the `img` shortcode:
 Which generates this responsive image (change your browser size to see it change):
 {{<img src="../media/banner.png" alt="Crossplane Popsicle Truck" size="small" >}}
 
-### Links
+# Links
 Crossplane docs support standard [Markdown
 links](https://www.markdownguide.org/basic-syntax/#links) but Crossplane prefers link shortcodes
 for links between docs pages. Using shortcodes prevents incorrect link creation
 and notifies which links to change after moving a page.
 
-#### Between docs pages
+### Between docs pages
 For links between pages use a standard Markdown link in the form:
 
 `[Link text](link)`
@@ -266,7 +368,7 @@ The `ref` value is of the markdown file, including `.md` extension.
 
 If the `ref` value points to a page that doesn't exist, Hugo fails to start. 
 
-#### Linking to external sites
+### Linking to external sites
 Minimize linking to external sites. When linking to any page outside of
 `crossplane.io` use standard [markdown link
 syntax](https://www.markdownguide.org/basic-syntax/#links) without using the
@@ -277,7 +379,7 @@ For example,
 [Go to Upbound](http://upbound.io)
 ```
 
-### Tabs
+# Tabs
 Use tabs to present information about a single topic with multiple exclusive
 options. For example, creating a resource via command-line or GUI. 
 
@@ -314,7 +416,7 @@ A second example tab.
 Both `tab` and `tabs` require opening and closing tags. Unclosed tags causes
 Hugo to fail.
 
-### Hints and alert boxes
+# Hints and alert boxes
 Hint and alert boxes provide call-outs to important information to the reader. Crossplane docs support four different hint box styles.
 
 {{< hint "note" >}}
@@ -348,7 +450,7 @@ The `hint` shortcode requires opening and closing tags. Unclosed tags causes
 Hugo to fail.
 
 
-### Hide long outputs
+# Hide long outputs
 Some outputs may be verbose or only relevant for
 a small audience. Use the `expand` shortcode to hide blocks of text by default.
 
@@ -404,7 +506,7 @@ metadata:
 The `expand` shortcode requires opening and closing tags. Unclosed tags causes
 Hugo to fail.
 
-## Adding new content
+# Adding new content
 
 To create new content create a new markdown file in the appropriate location. 
 
@@ -429,7 +531,7 @@ weight: 610
 To hide a page from the left-hand navigation use `tocHidden: true` in the front
 matter of the page. The docs website skips pages with `tocHidden:true` when building the menu.
 
-## Docs website
+# Docs website
 The Crossplane document website is in a unique [website GitHub
 repository](https://github.com/crossplane/docs).
 
@@ -446,7 +548,7 @@ The `/utils/` directory is for JavaScript source code used in the website.
 The `/themes/geekboot/assets` folder contains all (S)CSS and compiled JavaScript
 for the website.
 
-### CSS
+## CSS
 Crossplane documentation uses [Bootstrap
 5.2](https://getbootstrap.com/docs/5.2/getting-started/introduction/).
 Unmodified Bootstrap SCSS files are in
@@ -459,12 +561,15 @@ Don't edit the original Bootstrap stylesheets. It makes the ability to
 upgrade to future Bootstrap versions difficult or impossible.
 {{< /hint >}}
 
-#### Color themes 
+### Color themes 
 Crossplane docs support a light and dark color theme that's applied via CSS
 variables.
 
+<!-- vale off -->
+<!-- allowing passive voice to isolate the file path -->
 Universal and default variables are defined in
 `/themes/geekboot/assets/scss/_variables.scss`.
+<!-- vale on -->
 
 Provide theme specific color overrides in
 `/themes/geekboot/assets/scss/light-mode.scss` or
@@ -475,7 +580,7 @@ When creating new styles rely on variables for any color function, even if both
 themes share the color.
 {{< /hint >}}
 
-#### SCSS compilation
+### SCSS compilation
 Hugo compiles the SCSS to CSS. Local development doesn't require SCSS installed.
 
 For local development (when using `hugo server`) Hugo compiles SCSS without
@@ -499,7 +604,7 @@ Optimizing CSS locally with PostCSS requires installing extra packages.
 * NPM packages defined in `/package.json` with `npm install`.
 
 
-### JavaScript
+## JavaScript
 A goal of the documentation website is to use as little JavaScript as possible. Unless
 the script provides a significant improvement in performance, capability or user
 experience. 
@@ -521,8 +626,8 @@ requires [Webpack](https://webpack.js.org/) to bundle and optimize the code.
   [Bootstrap's
   JavaScript](https://getbootstrap.com/docs/5.2/getting-started/javascript/).
   
-#### Bootstrap JavaScript
-The entire [Bootstap JavaScript
+### Bootstrap JavaScript builder
+The entire [Bootstrap JavaScript
 source](https://github.com/twbs/bootstrap/tree/main/js/src) is in
 `/utils/webpack/src/js/bootstrap`. 
 
@@ -531,7 +636,7 @@ Adding a new Bootstrap feature requires importing it in `globalScripts.js`.
 By importing only the necessary Bootstrap JavaScript features, reduces the
 bundle size.
 ## Annotated website tree
-Expand the tab below to see an annotated `tree` output of the website repo.
+Expand the tab below to see an annotated `tree` output of the website repository.
 
 {{<expand >}}
 ```shell
@@ -561,8 +666,10 @@ Expand the tab below to see an annotated `tree` output of the website repo.
     └── webpack                 # Files managed or related to webpack
         └── src
             └── js
-                └── bootstrap/  # Original Bootstrap JavaScript
-                └── colorMode.js  # Color theme switcher
-                └── tabDeepAnchor.js # Enable anchors inside tabs
+                └── bootstrap/          # Original Bootstrap JavaScript
+                └── colorMode.js        # Color theme switcher
+                └── customClipboard.js  # Defines where to put a clipboard icon and what to copy
+                └── hoverHighlight.js   # Enables hover to highlight
+                └── tabDeepAnchor.js    # Enable anchors inside tabs
 ```
 {{</expand>}}
