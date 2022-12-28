@@ -42,8 +42,6 @@ import (
 
 // Error strings
 const (
-	errMixed       = "cannot mix named and anonymous resource templates"
-	errDuplicate   = "resource template names must be unique within their Composition"
 	errGetComposed = "cannot get composed resource"
 	errGCComposed  = "cannot garbage collect composed resource"
 	errApply       = "cannot apply composed resource"
@@ -77,78 +75,6 @@ func SetCompositionResourceName(o metav1.Object, name string) {
 // reconcile a composed resource from its annotations.
 func GetCompositionResourceName(o metav1.Object) string {
 	return o.GetAnnotations()[AnnotationKeyCompositionResourceName]
-}
-
-// A CompositionValidator validates the supplied Composition.
-type CompositionValidator interface {
-	Validate(comp *v1.Composition) error
-}
-
-// A CompositionValidatorFn validates the supplied Composition.
-type CompositionValidatorFn func(comp *v1.Composition) error
-
-// Validate the supplied Composition.
-func (fn CompositionValidatorFn) Validate(comp *v1.Composition) error {
-	return fn(comp)
-}
-
-// A ValidationChain runs multiple validations.
-type ValidationChain []CompositionValidator
-
-// Validate the supplied Composition.
-func (vs ValidationChain) Validate(comp *v1.Composition) error {
-	for _, v := range vs {
-		if err := v.Validate(comp); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// RejectMixedTemplates validates that the supplied Composition does not attempt
-// to mix named and anonymous templates. If some but not all templates are named
-// it's safest to refuse to operate. We don't have enough information to use the
-// named composer, but using the anonymous composer may be surprising. There's a
-// risk that someone added a new anonymous template to a Composition that
-// otherwise uses named templates. If they added the new template to the
-// beginning or middle of the resources array using the anonymous composer would
-// be destructive, because it assumes template N always corresponds to existing
-// template N.
-func RejectMixedTemplates(comp *v1.Composition) error {
-	named := 0
-	for _, tmpl := range comp.Spec.Resources {
-		if tmpl.Name != nil {
-			named++
-		}
-	}
-
-	// We're using only anonymous templates.
-	if named == 0 {
-		return nil
-	}
-
-	// We're using only named templates.
-	if named == len(comp.Spec.Resources) {
-		return nil
-	}
-
-	return errors.New(errMixed)
-}
-
-// RejectDuplicateNames validates that all template names are unique within the
-// supplied Composition.
-func RejectDuplicateNames(comp *v1.Composition) error {
-	seen := map[string]bool{}
-	for _, tmpl := range comp.Spec.Resources {
-		if tmpl.Name == nil {
-			continue
-		}
-		if seen[*tmpl.Name] {
-			return errors.New(errDuplicate)
-		}
-		seen[*tmpl.Name] = true
-	}
-	return nil
 }
 
 // A TemplateAssociation associates a composed resource template with a composed
