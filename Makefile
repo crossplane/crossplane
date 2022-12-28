@@ -65,12 +65,6 @@ OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
-# Setup Docs
-
-DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/docs.git
--include build/makelib/docs.mk
-
-# ====================================================================================
 # Targets
 
 # run `make help` to see the targets and options
