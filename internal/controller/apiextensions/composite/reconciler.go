@@ -535,23 +535,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
 	}
 
-	// Prepare the environment.
-	// Note that environments are optional, so env can be nil.
-	if err := r.composite.SelectEnvironment(ctx, cr, comp); err != nil {
-		log.Debug(errSelectEnvironment, "error", err)
-		err = errors.Wrap(err, errSelectEnvironment)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
-	}
-
-	env, err := r.environment.Fetch(ctx, cr)
-	if err != nil {
-		log.Debug(errFetchEnvironment, "error", err)
-		err = errors.Wrap(err, errFetchEnvironment)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		return reconcile.Result{}, err
-	}
-
 	// TODO(negz): Composition validation should be handled by a validation
 	// webhook, not by this controller.
 	if err := r.composition.Validate(comp); err != nil {
@@ -568,6 +551,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(cr, event.Warning(reasonCompose, err))
 		cr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	}
+
+	// Prepare the environment.
+	// Note that environments are optional, so env can be nil.
+	if err := r.composite.SelectEnvironment(ctx, cr, comp); err != nil {
+		log.Debug(errSelectEnvironment, "error", err)
+		err = errors.Wrap(err, errSelectEnvironment)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{}, err
+	}
+
+	env, err := r.environment.Fetch(ctx, cr)
+	if err != nil {
+		log.Debug(errFetchEnvironment, "error", err)
+		err = errors.Wrap(err, errFetchEnvironment)
+		r.record.Event(cr, event.Warning(reasonCompose, err))
+		return reconcile.Result{}, err
 	}
 
 	// Inline PatchSets from Composition Spec before composing resources.

@@ -410,7 +410,7 @@ func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, 
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }
 
-// NewAPINamingConfigurator returns a Configurator that sets the root name prefixKu
+// NewAPINamingConfigurator returns a Configurator that sets the root name prefix
 // to its own name if it is not already set.
 func NewAPINamingConfigurator(c client.Client) *APINamingConfigurator {
 	return &APINamingConfigurator{client: c}

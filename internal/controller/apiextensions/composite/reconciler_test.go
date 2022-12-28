@@ -1138,6 +1138,8 @@ func TestReconcile(t *testing.T) {
 						c := &v1.Composition{Spec: v1.CompositionSpec{}}
 						return c, nil
 					})),
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error { return nil })),
 					WithEnvironmentSelector(EnvironmentSelectorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return errBoom
 					})),
@@ -1166,6 +1168,8 @@ func TestReconcile(t *testing.T) {
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
 						return nil
 					})),
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error { return nil })),
 					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
 						c := &v1.Composition{Spec: v1.CompositionSpec{}}
 						return c, nil
