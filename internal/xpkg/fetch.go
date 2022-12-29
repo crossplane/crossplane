@@ -18,14 +18,19 @@ package xpkg
 
 import (
 	"context"
-	"crypto"
+	//"crypto"
 	"crypto/tls"
 	"crypto/x509"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+	"fmt"
 
+	soci "github.com/crossplane/crossplane/internal/oci"
+
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -33,11 +38,11 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/sigstore/cosign/pkg/cosign"
-	ociremote "github.com/sigstore/cosign/pkg/oci/remote"
-	sigs "github.com/sigstore/cosign/pkg/signature"
 )
 
 func init() {
@@ -51,7 +56,7 @@ func init() {
 
 // Fetcher fetches package images.
 type Fetcher interface {
-	Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error)
+	Fetch(ctx context.Context, ref name.Reference, vp string, vs []string, secrets ...string) (v1.Image, error)
 	Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error)
 	Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error)
 }
@@ -63,7 +68,7 @@ type K8sFetcher struct {
 	serviceAccount string
 	transport      http.RoundTripper
 	userAgent      string
-	validationPem  string
+  validatePackages bool
 }
 
 // FetcherOpt can be used to add optional parameters to NewK8sFetcher
@@ -136,11 +141,10 @@ func WithServiceAccount(sa string) FetcherOpt {
 	}
 }
 
-// WithValidationPem is a FetcherOpt that sets the Validation Pem for
-// validating package signatures.
-func WithValidationPem(vp string) FetcherOpt {
+// WithValidatePackages is a FetcherOpt that enables package validation.
+func WithValidatePackages(vp bool) FetcherOpt {
 	return func(k *K8sFetcher) error {
-		k.validationPem = vp
+		k.validatePackages = vp
 		return nil
 	}
 }
@@ -162,7 +166,7 @@ func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher
 }
 
 // Fetch fetches a package image.
-func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
+func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, vp string, vs []string, secrets ...string) (v1.Image, error) {
 	auth, err := k8schain.New(ctx, i.client, k8schain.Options{
 		Namespace:          i.namespace,
 		ServiceAccountName: i.serviceAccount,
@@ -171,32 +175,90 @@ func (i *K8sFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...s
 	if err != nil {
 		return nil, err
 	}
-	if len(i.validationPem) != 0 {
-		opts := []remote.Option{
-			remote.WithAuthFromKeychain(auth),
-			remote.WithContext(ctx),
-		}
-		pk, err := sigs.LoadPublicKeyRaw([]byte(i.validationPem), crypto.SHA256)
-		if err != nil {
-			return nil, err
-		}
-		co := &cosign.CheckOpts{
-			ClaimVerifier:      cosign.SimpleClaimVerifier,
-			RegistryClientOpts: []ociremote.Option{ociremote.WithRemoteOptions(opts...)},
-			SigVerifier:        pk,
-		}
-		//Verify Image
-		vs, _, err := cosign.VerifyImageSignatures(ctx, ref, co)
-		if err != nil {
-			return nil, err
-		}
+	err = i.verifyOCISourceSignature(ctx, auth, ref, vp, vs)
+	if err != nil {
+    return nil, err
 	}
+
 	return remote.Image(ref,
 		remote.WithAuthFromKeychain(auth),
 		remote.WithTransport(i.transport),
 		remote.WithContext(ctx),
 		remote.WithUserAgent(i.userAgent),
 	)
+}
+
+// verifyOCISourceSignature verifies the authenticity of the given image reference url. First, it tries to keyful approach
+// by looking at whether the given secret exists. Then, if it does not exist, it pushes a keyless approach for verification.
+func (i *K8sFetcher) verifyOCISourceSignature(ctx context.Context, keychain authn.Keychain, ref name.Reference, vp string, vs []string) error {
+	// Verify the image
+	if i.validatePackages {
+		switch vp {
+		case "cosign":
+			authnKeychain := soci.WithAuthnKeychain(keychain)
+
+			if len(vs) > 0 {
+				//TODO(JesseSanford): verify the following copypasta is appropriate:
+				// https://github.com/google/go-containerregistry/blob/9e939fbf5b5903da81f258b74ef509488569d411/pkg/authn/kubernetes/keychain.go#L80-L91
+				var validationSecrets []corev1.Secret
+				for _, name := range vs {
+					secret, err := i.client.CoreV1().Secrets(i.namespace).Get(ctx, name, metav1.GetOptions{})
+					if k8serrors.IsNotFound(err) {
+						//logs.Warn.Printf("secret %s/%s not found; ignoring", opt.Namespace, name)
+						continue
+					} else if err != nil {
+						return err
+					}
+					validationSecrets = append(validationSecrets, *secret)
+				}
+
+				verified := false
+				for _, pubSecret := range validationSecrets {
+					for k, data := range pubSecret.Data {
+						// search for public keys in the secret
+						if strings.HasSuffix(k, ".pub") {
+							verifier, err := soci.New(soci.WithPublicKey(data), authnKeychain)
+							if err != nil {
+								return err
+							}
+
+							signatures, _, err := verifier.VerifyImageSignatures(ctx, ref)
+							if err != nil {
+								continue
+							}
+
+							if signatures != nil {
+								verified = true
+								break
+							}
+						}
+					}
+				}
+
+				if !verified {
+					return fmt.Errorf("no matching signatures were found for the image %s", ref)
+				}
+
+				return nil
+			} else {
+				verifier, err := soci.New(authnKeychain)
+				if err != nil {
+					return err
+				}
+
+				signatures, _, err := verifier.VerifyImageSignatures(ctx, ref)
+				if err != nil {
+					return err
+				}
+
+				if len(signatures) > 0 {
+					return nil
+				}
+			}
+			return nil
+		}
+	}
+	return nil
 }
 
 // Head fetches a package descriptor.
@@ -257,7 +319,7 @@ func NewNopFetcher() *NopFetcher {
 }
 
 // Fetch fetches an empty image and does not return error.
-func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
+func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, vp string, vs []string, secrets ...string) (v1.Image, error) {
 	return empty.Image, nil
 }
 

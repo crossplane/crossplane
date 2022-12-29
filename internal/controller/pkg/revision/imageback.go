@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -91,8 +92,10 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 	if err != nil {
 		return nil, errors.Wrap(err, errBadReference)
 	}
+  vp := n.pr.GetValidationProvider()
+  vs := n.pr.GetValidationSecrets()
 	// Fetch image from registry.
-	img, err := i.fetcher.Fetch(ctx, ref, v1.RefNames(n.pr.GetPackagePullSecrets())...)
+	img, err := i.fetcher.Fetch(ctx, ref, vp, v1.RefNames(vs), v1.RefNames(n.pr.GetPackagePullSecrets())...)
 	if err != nil {
 		return nil, errors.Wrap(err, errFetchPackage)
 	}
@@ -158,7 +161,7 @@ func (i *ImageBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io
 // options.
 // NOTE(hasheddan): see usage in ImageBackend Init() for reasoning.
 type nestedBackend struct {
-	pr v1.PackageRevision
+	pr v1alpha1.PackageRevision
 }
 
 // Init is a nop because nestedBackend does not actually meant to act as a
@@ -168,7 +171,7 @@ func (n *nestedBackend) Init(ctx context.Context, bo ...parser.BackendOption) (i
 }
 
 // PackageRevision sets the package revision for ImageBackend.
-func PackageRevision(pr v1.PackageRevision) parser.BackendOption {
+func PackageRevision(pr v1alpha1.PackageRevision) parser.BackendOption {
 	return func(p parser.Backend) {
 		i, ok := p.(*nestedBackend)
 		if !ok {

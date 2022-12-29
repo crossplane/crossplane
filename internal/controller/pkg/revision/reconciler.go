@@ -45,7 +45,7 @@ import (
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/dag"
@@ -117,7 +117,7 @@ func WithCache(c xpkg.PackageCache) ReconcilerOption {
 }
 
 // WithNewPackageRevisionFn determines the type of package being reconciled.
-func WithNewPackageRevisionFn(f func() v1.PackageRevision) ReconcilerOption {
+func WithNewPackageRevisionFn(f func() v1alpha1.PackageRevision) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.newPackageRevision = f
 	}
@@ -216,13 +216,13 @@ type Reconciler struct {
 	log       logging.Logger
 	record    event.Recorder
 
-	newPackageRevision func() v1.PackageRevision
+	newPackageRevision func() v1alpha1.PackageRevision
 }
 
 // SetupProviderRevision adds a controller that reconciles ProviderRevisions.
 func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ProviderRevisionGroupKind)
-	nr := func() v1.PackageRevision { return &v1.ProviderRevision{} }
+	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ProviderRevision{} }
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -272,7 +272,7 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 // SetupConfigurationRevision adds a controller that reconciles ConfigurationRevisions.
 func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	name := "packages/" + strings.ToLower(v1.ConfigurationRevisionGroupKind)
-	nr := func() v1.PackageRevision { return &v1.ConfigurationRevision{} }
+	nr := func() v1alpha1.PackageRevision { return &v1alpha1.ConfigurationRevision{} }
 
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
@@ -579,7 +579,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
+	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1alpha1.PackageRevisionActive)
 	if err != nil {
 		pr.SetConditions(v1.Unhealthy())
 		_ = r.client.Status().Update(ctx, pr)

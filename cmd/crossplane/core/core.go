@@ -69,7 +69,7 @@ type startCommand struct {
 	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
 	Registry             string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 	CABundlePath         string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
-	ValidationPem        string `help:"Private key in PEM format to be used for package signature validation." env:"VALIDATION_PEM"`
+	ValidatePackages     bool   `help:"Perform signature validation on crossplane packages before allowing them to be installed." env:"VALIDATE_PACKAGES"`
 	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
 	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
 	UserAgent            string `help:"The User-Agent header that will be set on all package requests." default:"${default_user_agent}" env:"USER_AGENT"`
@@ -156,8 +156,8 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		po.FetcherOptions = append(po.FetcherOptions, xpkg.WithCustomCA(rootCAs))
 	}
 
-	if c.ValidationPem != "" {
-		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithValidationPem(c.ValidationPem)}
+	if c.ValidatePackages {
+		po.FetcherOptions = []xpkg.FetcherOpt{xpkg.WithValidatePackages(c.ValidatePackages)}
 	}
 
 	if err := pkg.Setup(mgr, po); err != nil {

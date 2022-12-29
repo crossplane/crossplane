@@ -28,7 +28,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	//v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/dag"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -47,8 +48,8 @@ const (
 
 // DependencyManager is a lock on packages.
 type DependencyManager interface {
-	Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error)
-	RemoveSelf(ctx context.Context, pr v1.PackageRevision) error
+	Resolve(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) (found, installed, invalid int, err error)
+	RemoveSelf(ctx context.Context, pr v1alpha1.PackageRevision) error
 }
 
 // PackageDependencyManager is a resolver for packages.
@@ -68,9 +69,9 @@ func NewPackageDependencyManager(c client.Client, nd dag.NewDAGFn, t v1beta1.Pac
 }
 
 // Resolve resolves package dependencies.
-func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity?
+func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) (found, installed, invalid int, err error) { //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity?
 	// If we are inactive, all we want to do is remove self.
-	if pr.GetDesiredState() == v1.PackageRevisionInactive {
+	if pr.GetDesiredState() == v1alpha1.PackageRevisionInactive {
 		return found, installed, invalid, m.RemoveSelf(ctx, pr)
 	}
 
@@ -212,7 +213,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 }
 
 // RemoveSelf removes a package from the lock.
-func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRevision) error {
+func (m *PackageDependencyManager) RemoveSelf(ctx context.Context, pr v1alpha1.PackageRevision) error {
 	// Get the lock.
 	lock := &v1beta1.Lock{}
 	err := m.client.Get(ctx, types.NamespacedName{Name: lockName}, lock)

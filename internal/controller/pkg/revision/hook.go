@@ -28,8 +28,8 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+//	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -50,10 +50,10 @@ const (
 // A Hooks performs operations before and after a revision establishes objects.
 type Hooks interface {
 	// Pre performs operations meant to happen before establishing objects.
-	Pre(context.Context, runtime.Object, v1.PackageRevision) error
+	Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error
 
 	// Post performs operations meant to happen after establishing objects.
-	Post(context.Context, runtime.Object, v1.PackageRevision) error
+	Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error
 }
 
 // ProviderHooks performs operations for a provider package that requires a
@@ -75,14 +75,14 @@ func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccoun
 
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New(errNotProvider)
 	}
 
-	provRev, ok := pr.(*v1.ProviderRevision)
+	provRev, ok := pr.(*v1alpha1.ProviderRevision)
 	if !ok {
 		return errors.New(errNotProviderRevision)
 	}
@@ -92,7 +92,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	// TODO(hasheddan): update any status fields relevant to package revisions.
 
 	// Do not clean up SA and controller if revision is not inactive.
-	if pr.GetDesiredState() != v1.PackageRevisionInactive {
+	if pr.GetDesiredState() != v1alpha1.PackageRevisionInactive {
 		return nil
 	}
 
@@ -113,13 +113,13 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 // Post creates a packaged provider controller and service account if the
 // revision is active.
-func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // Only slightly over (12).
+func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error { //nolint:gocyclo // Only slightly over (12).
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
 		return errors.New("not a provider package")
 	}
-	if pr.GetDesiredState() != v1.PackageRevisionActive {
+	if pr.GetDesiredState() != v1alpha1.PackageRevisionActive {
 		return nil
 	}
 	cc, err := h.getControllerConfig(ctx, pr)
@@ -142,7 +142,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 			return errors.Wrap(err, errApplyProviderService)
 		}
 	}
-	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
+	pr.SetControllerReference(v1alpha1.ControllerReference{Name: d.GetName()})
 
 	for _, c := range d.Status.Conditions {
 		if c.Type == appsv1.DeploymentAvailable {
@@ -166,7 +166,7 @@ func (h *ProviderHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObj
 	return sa.ImagePullSecrets, nil
 }
 
-func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+func (h *ProviderHooks) getControllerConfig(ctx context.Context, pr v1alpha1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
 	if pr.GetControllerConfigRef() == nil {
 		return nil, nil
 	}
@@ -185,12 +185,12 @@ func NewConfigurationHooks() *ConfigurationHooks {
 }
 
 // Pre sets status fields based on the configuration package.
-func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1alpha1.PackageRevision) error {
 	return nil
 }
 
 // Post is a no op for configuration packages.
-func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
 }
 
@@ -203,11 +203,11 @@ func NewNopHooks() *NopHooks {
 }
 
 // Pre does nothing and returns nil.
-func (h *NopHooks) Pre(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *NopHooks) Pre(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
 }
 
 // Post does nothing and returns nil.
-func (h *NopHooks) Post(context.Context, runtime.Object, v1.PackageRevision) error {
+func (h *NopHooks) Post(context.Context, runtime.Object, v1alpha1.PackageRevision) error {
 	return nil
 }

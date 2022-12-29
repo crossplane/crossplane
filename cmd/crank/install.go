@@ -36,7 +36,8 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	typedclient "github.com/crossplane/crossplane/internal/client/clientset/versioned/typed/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/xpkg"
 
@@ -83,13 +84,16 @@ type installConfigCmd struct {
 	RevisionHistoryLimit int64         `short:"r" help:"Revision history limit."`
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+  // TODO(JesseSanford): Figure out how to use PackageValidationProvider const here
+  ValidationProvider   string        `arg:"" optional:"" help:"Validation provider to be used. Currently only 'cosign' is supported." default:"cosign"`
+	ValidationSecrets    []string      `help:"List of secrets to be use to validate packages."`
 }
 
 // Run runs the Configuration install cmd.
 func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
-	rap := v1.AutomaticActivation
+	rap := v1alpha1.AutomaticActivation
 	if c.ManualActivation {
-		rap = v1.ManualActivation
+		rap = v1alpha1.ManualActivation
 	}
 	pkgName := c.Name
 	if pkgName == "" {
@@ -107,16 +111,24 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 			Name: s,
 		}
 	}
-	cr := &v1.Configuration{
+	validationSecrets := make([]corev1.LocalObjectReference, len(c.ValidationSecrets))
+	for i, s := range c.ValidationSecrets {
+		validationSecrets[i] = corev1.LocalObjectReference{
+			Name: s,
+		}
+	}
+	cr := &v1alpha1.Configuration{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pkgName,
 		},
-		Spec: v1.ConfigurationSpec{
-			PackageSpec: v1.PackageSpec{
+		Spec: v1alpha1.ConfigurationSpec{
+			PackageSpec: v1alpha1.PackageSpec{
 				Package:                  c.Package,
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 				PackagePullSecrets:       packagePullSecrets,
+				ValidationProvider:       c.ValidationProvider,
+				ValidationSecrets:        validationSecrets,
 			},
 		},
 	}
@@ -176,13 +188,16 @@ type installProviderCmd struct {
 	ManualActivation     bool          `short:"m" help:"Enable manual revision activation policy."`
 	Config               string        `help:"Specify a ControllerConfig for this Provider."`
 	PackagePullSecrets   []string      `help:"List of secrets used to pull package."`
+	// TODO(JesseSanford): Figure out how to use PackageValidationProvider const here
+	ValidationProvider   string        `arg:"" optional:"" help:"Validation provider to be used. Currently only 'cosign' is supported." default:"cosign"`
+	ValidationSecrets    []string      `help:"List of secrets to be use to validate packages."`
 }
 
 // Run runs the Provider install cmd.
 func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
-	rap := v1.AutomaticActivation
+	rap := v1alpha1.AutomaticActivation
 	if c.ManualActivation {
-		rap = v1.ManualActivation
+		rap = v1alpha1.ManualActivation
 	}
 	pkgName := c.Name
 	if pkgName == "" {
@@ -200,21 +215,29 @@ func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 			Name: s,
 		}
 	}
-	cr := &v1.Provider{
+	validationSecrets := make([]corev1.LocalObjectReference, len(c.ValidationSecrets))
+	for i, s := range c.ValidationSecrets {
+		validationSecrets[i] = corev1.LocalObjectReference{
+			Name: s,
+		}
+	}
+	cr := &v1alpha1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: pkgName,
 		},
-		Spec: v1.ProviderSpec{
-			PackageSpec: v1.PackageSpec{
+		Spec: v1alpha1.ProviderSpec{
+			PackageSpec: v1alpha1.PackageSpec{
 				Package:                  c.Package,
 				RevisionActivationPolicy: &rap,
 				RevisionHistoryLimit:     &c.RevisionHistoryLimit,
 				PackagePullSecrets:       packagePullSecrets,
+				ValidationProvider:       c.ValidationProvider,
+				ValidationSecrets:        validationSecrets,
 			},
 		},
 	}
 	if c.Config != "" {
-		cr.Spec.ControllerConfigReference = &v1.ControllerConfigReference{
+		cr.Spec.ControllerConfigReference = &v1alpha1.ControllerConfigReference{
 			Name: c.Config,
 		}
 	}

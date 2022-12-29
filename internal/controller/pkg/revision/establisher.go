@@ -38,6 +38,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
 
 const (
@@ -58,7 +59,7 @@ const (
 // API server by checking that control or ownership can be established for all
 // resources and then establishing it.
 type Establisher interface {
-	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+	Establish(ctx context.Context, objects []runtime.Object, parent v1alpha1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
 }
 
 // NewNopEstablisher returns a new NopEstablisher.
@@ -70,7 +71,7 @@ func NewNopEstablisher() *NopEstablisher {
 type NopEstablisher struct{}
 
 // Establish does nothing.
-func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
+func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1alpha1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
 	return nil, nil
 }
 
@@ -100,7 +101,7 @@ type currentDesired struct {
 
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
-func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1alpha1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
 	err := e.addLabels(objs, parent)
 	if err != nil {
 		return nil, err
@@ -137,7 +138,7 @@ func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevis
 	return nil
 }
 
-func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
+func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1alpha1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
 	var webhookTLSCert []byte
 	if parent.GetWebhookTLSSecretName() != nil {
 		s := &corev1.Secret{}
