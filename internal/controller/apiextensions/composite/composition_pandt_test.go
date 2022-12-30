@@ -40,8 +40,388 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
+
+func TestCompose(t *testing.T) {
+	errBoom := errors.New("boom")
+	conn := managed.ConnectionDetails{"a": []byte("b")}
+
+	type params struct {
+		kube client.Client
+		o    []PatchAndTransformComposerOption
+	}
+	type args struct {
+		ctx  context.Context
+		cr   resource.Composite
+		comp *v1.Composition
+		env  *env.Environment
+	}
+	type want struct {
+		res CompositionResult
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"ComposedTemplatesError": {
+			reason: "We should return any error encountered while inlining a composition's patchsets.",
+			args: args{
+				comp: &v1.Composition{
+					Spec: v1.CompositionSpec{
+						Resources: []v1.ComposedTemplate{{
+							Patches: []v1.Patch{{
+								// This reference to a non-existent patchset
+								// triggers the error.
+								Type:         v1.PatchTypePatchSet,
+								PatchSetName: pointer.StringPtr("nonexistent-patchset"),
+							}},
+						}},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Errorf(errFmtUndefinedPatchSet, "nonexistent-patchset"), errInline),
+			},
+		},
+		"AssociateTemplatesError": {
+			reason: "We should return any error encountered while associating Composition templates with composed resources.",
+			params: params{
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			args: args{
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errAssociate),
+			},
+		},
+		// TODO(negz): Test handling of ApplyEnvironmentPatch errors.
+		"RenderComposedError": {
+			reason: "We should include any error encountered while rendering a composed resource in the returned result, not as the returned error.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply uses Get and Patch.
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return errBoom
+					})),
+					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{{
+						Name:        "cool-resource",
+						RenderError: errBoom,
+						Resource:    composed.New(composed.FromReference(corev1.ObjectReference{})),
+					}},
+					ConnectionDetails: managed.ConnectionDetails{},
+				},
+			},
+		},
+		"UpdateCompositeError": {
+			reason: "We should return any error encountered while updating our composite resource with references.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(errBoom),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdate),
+			},
+		},
+		"ApplyComposedError": {
+			reason: "We should return any error encountered while applying a composed resource.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply calls Get.
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApply),
+			},
+		},
+		"CompositeRenderError": {
+			reason: "We should return any error encountered while rendering the Composite.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply calls Get and Patch
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return errBoom
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errRenderCR),
+			},
+		},
+		"FetchConnectionDetailsError": {
+			reason: "We should return any error encountered while fetching a composed resource's connection details.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply calls Get and Patch
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errFetchDetails),
+			},
+		},
+
+		"CheckReadinessError": {
+			reason: "We should return any error encountered while checking whether a composed resource is ready.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply calls Get and Patch
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
+						return false, errBoom
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errReadiness),
+			},
+		},
+		"CompositeApplyError": {
+			reason: "We should return any error encountered while applying the Composite.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply calls Get and Patch. We won't hit this for any
+					// composed resources because none we returned by the
+					// TemplateAssociator below.
+					MockGet:   test.NewMockGetFn(errBoom),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						return nil, nil
+					})),
+					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errUpdate),
+			},
+		},
+		"Success": {
+			reason: "We should return the resources we composed, and our derived connection details.",
+			params: params{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+
+					// Apply uses Get and Patch.
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+				},
+				o: []PatchAndTransformComposerOption{
+					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
+						tas := []TemplateAssociation{{
+							Template: v1.ComposedTemplate{
+								Name: pointer.String("cool-resource"),
+							},
+						}}
+						return tas, nil
+					})),
+					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+						return nil
+					})),
+					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
+						return conn, nil
+					})),
+					WithComposedReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
+						return true, nil
+					})),
+				},
+			},
+			args: args{
+				cr:   &fake.Composite{},
+				comp: &v1.Composition{},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{{
+						Name:              "cool-resource",
+						Resource:          composed.New(composed.FromReference(corev1.ObjectReference{})),
+						ConnectionDetails: conn,
+						Ready:             true,
+					}},
+					ConnectionDetails: conn,
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+
+			c := NewPatchAndTransformComposer(tc.params.kube, tc.params.o...)
+			res, err := c.Compose(tc.args.ctx, tc.args.cr, tc.args.comp, tc.args.env)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+			// We need to EquateErrors here for RenderErrors.
+			if diff := cmp.Diff(tc.want.res, res, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestRender(t *testing.T) {
 	ctrl := true

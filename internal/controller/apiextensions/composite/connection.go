@@ -115,7 +115,7 @@ func (f *SecretStoreConnectionDetailsFetcher) FetchConnectionDetails(ctx context
 	so := cd.(resource.ConnectionSecretOwner)
 	data, err := f.fetcher.FetchConnection(ctx, so)
 	if err != nil {
-		return nil, errors.Wrap(err, errFetchSecret)
+		return nil, errors.Wrap(err, errFetchDetails)
 	}
 
 	conn := managed.ConnectionDetails{}

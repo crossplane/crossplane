@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -33,6 +34,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -42,16 +44,18 @@ import (
 
 // Error strings
 const (
-	errGetComposed = "cannot get composed resource"
-	errGCComposed  = "cannot garbage collect composed resource"
-	errApply       = "cannot apply composed resource"
-	errFetchSecret = "cannot fetch connection secret"
-	errReadiness   = "cannot check whether composed resource is ready"
-	errUnmarshal   = "cannot unmarshal base template"
-	errGetSecret   = "cannot get connection secret of composed resource"
-	errNamePrefix  = "name prefix is not found in labels"
-	errKindChanged = "cannot change the kind of an existing composed resource"
-	errName        = "cannot use dry-run create to name composed resource"
+	errGetComposed  = "cannot get composed resource"
+	errGCComposed   = "cannot garbage collect composed resource"
+	errApply        = "cannot apply composed resource"
+	errFetchDetails = "cannot fetch connection details"
+	errReadiness    = "cannot check whether composed resource is ready"
+	errUnmarshal    = "cannot unmarshal base template"
+	errGetSecret    = "cannot get connection secret of composed resource"
+	errNamePrefix   = "name prefix is not found in labels"
+	errKindChanged  = "cannot change the kind of an existing composed resource"
+	errName         = "cannot use dry-run create to name composed resource"
+	errInline       = "cannot inline Composition patch sets"
+	errRenderCR     = "cannot render composite resource"
 
 	errFmtPatch          = "cannot apply the patch at index %d"
 	errFmtConnDetailKey  = "connection detail of type %q key is not set"
@@ -64,6 +68,231 @@ const (
 const (
 	AnnotationKeyCompositionResourceName = "crossplane.io/composition-resource-name"
 )
+
+// TODO(negz): Move P&T Composition logic into its own package?
+
+// A PatchAndTransformComposerOption is used to configure a PatchAndTransformComposer.
+type PatchAndTransformComposerOption func(*PatchAndTransformComposer)
+
+// WithTemplateAssociator configures how a PatchAndTransformComposer associates
+// templates with extant composed resources.
+func WithTemplateAssociator(a CompositionTemplateAssociator) PatchAndTransformComposerOption {
+	return func(c *PatchAndTransformComposer) {
+		c.composition = a
+	}
+}
+
+// WithCompositeRenderer configures how a PatchAndTransformComposer renders the
+// composite resource.
+func WithCompositeRenderer(r Renderer) PatchAndTransformComposerOption {
+	return func(c *PatchAndTransformComposer) {
+		c.composite = r
+	}
+}
+
+// WithComposedRenderer configures how a PatchAndTransformComposer renders
+// composed resources.
+func WithComposedRenderer(r Renderer) PatchAndTransformComposerOption {
+	return func(c *PatchAndTransformComposer) {
+		c.composed.Renderer = r
+	}
+}
+
+// WithComposedReadinessChecker configures how a PatchAndTransformComposer
+// checks composed resource readiness.
+func WithComposedReadinessChecker(r ReadinessChecker) PatchAndTransformComposerOption {
+	return func(c *PatchAndTransformComposer) {
+		c.composed.ReadinessChecker = r
+	}
+}
+
+// WithComposedConnectionDetailsFetcher configures how a
+// PatchAndTransformComposed fetches composed resource connection details.
+func WithComposedConnectionDetailsFetcher(f ConnectionDetailsFetcher) PatchAndTransformComposerOption {
+	return func(c *PatchAndTransformComposer) {
+		c.composed.ConnectionDetailsFetcher = f
+	}
+}
+
+// A PatchAndTransformComposer composes resources using a Composition's
+// 'resources' array, which consist of 'base' resources along with a series of
+// patches and transforms.
+type PatchAndTransformComposer struct {
+	client resource.ClientApplicator
+
+	composite   Renderer
+	composition CompositionTemplateAssociator
+	composed    composedResource
+}
+
+// NewPatchAndTransformComposer returns a Composer that composes resources using
+// a Composition's bases, patches, and transforms.
+func NewPatchAndTransformComposer(kube client.Client, o ...PatchAndTransformComposerOption) *PatchAndTransformComposer {
+	// TODO(negz): Can we avoid double-wrapping if the supplied client is
+	// already wrapped? Or just do away with unstructured.NewClient completely?
+	kube = unstructured.NewClient(kube)
+
+	c := &PatchAndTransformComposer{
+		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+
+		composite:   RendererFn(RenderComposite),
+		composition: NewGarbageCollectingAssociator(kube),
+		composed: composedResource{
+			Renderer:                 NewAPIDryRunRenderer(kube),
+			ReadinessChecker:         ReadinessCheckerFn(IsReady),
+			ConnectionDetailsFetcher: NewAPIConnectionDetailsFetcher(kube),
+		},
+	}
+
+	for _, fn := range o {
+		fn(c)
+	}
+
+	return c
+}
+
+// Compose resources using the bases, patches, and transforms specified by the
+// supplied Composition.
+func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Composite, comp *v1.Composition, env *env.Environment) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
+	// Inline PatchSets from Composition Spec before composing resources.
+	ct, err := ComposedTemplates(comp.Spec)
+	if err != nil {
+		return CompositionResult{}, errors.Wrap(err, errInline)
+	}
+
+	tas, err := c.composition.AssociateTemplates(ctx, cr, ct)
+	if err != nil {
+		return CompositionResult{}, errors.Wrap(err, errAssociate)
+	}
+
+	// If we have an environment, run all environment patches before composing
+	// resources.
+	if env != nil && comp.Spec.Environment != nil {
+		for i, p := range comp.Spec.Environment.Patches {
+			if err := ApplyEnvironmentPatch(p, cr, env); err != nil {
+				return CompositionResult{}, errors.Wrapf(err, errFmtPatchEnvironment, i)
+			}
+		}
+	}
+
+	// We optimistically render all composed resources that we are able to with
+	// the expectation that any that we fail to render will subsequently have
+	// their error corrected by manual intervention or propagation of a required
+	// input. Errors are recorded, but not considered fatal to the composition
+	// process.
+	refs := make([]corev1.ObjectReference, len(tas))
+	cds := make([]pandtState, len(tas))
+	for i, ta := range tas {
+		cd := composed.New(composed.FromReference(ta.Reference))
+		err := c.composed.Render(ctx, cr, cd, ta.Template, env)
+
+		cds[i] = pandtState{
+			template:       ta.Template,
+			resource:       cd,
+			renderError:    err,
+			appliedPatches: filterPatches(ta.Template.Patches, patchTypesFromXR()...),
+		}
+		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
+	}
+
+	// We persist references to our composed resources before we create
+	// them. This way we can render composed resources with
+	// non-deterministic names, and also potentially recover from any errors
+	// we encounter while applying composed resources without leaking them.
+	cr.SetResourceReferences(refs)
+	if err := c.client.Update(ctx, cr); err != nil {
+		return CompositionResult{}, errors.Wrap(err, errUpdate)
+	}
+
+	// We apply all of our composed resources before we observe them and
+	// update the composite resource accordingly in the loop below. This
+	// ensures that issues observing and processing one composed resource
+	// won't block the application of another.
+	for _, cd := range cds {
+		// If we were unable to render the composed resource we should not try
+		// and apply it.
+		if cd.renderError != nil {
+			continue
+		}
+		if err := c.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
+			return CompositionResult{}, errors.Wrap(err, errApply)
+		}
+	}
+
+	conn := managed.ConnectionDetails{}
+
+	for i := range cds {
+		// If we were unable to render the composed resource we should not try
+		// to observe it.
+		if cds[i].renderError != nil {
+			continue
+		}
+
+		if err := c.composite.Render(ctx, cr, cds[i].resource, cds[i].template, env); err != nil {
+			return CompositionResult{}, errors.Wrap(err, errRenderCR)
+		}
+
+		cds[i].conn, err = c.composed.FetchConnectionDetails(ctx, cds[i].resource, cds[i].template)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errFetchDetails)
+		}
+
+		for key, val := range cds[i].conn {
+			conn[key] = val
+		}
+
+		cds[i].ready, err = c.composed.IsReady(ctx, cds[i].resource, cds[i].template)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errReadiness)
+		}
+	}
+
+	// Call Apply so that we do not just replace fields on existing XR but
+	// merge fields for which a merge configuration has been specified. For
+	// fields for which a merge configuration does not exist, the behavior
+	// will be a replace from copy. We pass a deepcopy because the Apply
+	// method doesn't update status, but calling Apply resets any pending
+	// status changes.
+	//
+	// Unless this Apply is a no-op it will cause the XR's resource version to
+	// be incremented. Our original copy of the XR (cr) will still have the old
+	// resource version, so subsequent attempts to update it or its status will
+	// be rejected by the API server. This will trigger an immediate requeue,
+	// and we'll proceed to update the status as soon as there are no changes to
+	// be made to the spec.
+	copy := cr.DeepCopyObject().(client.Object)
+	if err := c.client.Apply(ctx, copy, mergeOptions(filterToXRPatches(tas))...); err != nil {
+		return CompositionResult{}, errors.Wrap(err, errUpdate)
+	}
+
+	out := make([]ComposedResource, len(cds))
+	for i := range cds {
+		out[i] = cds[i].AsComposedResource()
+	}
+
+	return CompositionResult{ConnectionDetails: conn, Composed: out}, nil
+}
+
+// pandtState tracks the state of Patch and Transform Composition for a
+// particular composed resource.
+type pandtState struct {
+	template       v1.ComposedTemplate
+	resource       resource.Composed
+	appliedPatches []v1.Patch
+	renderError    error
+	conn           managed.ConnectionDetails
+	ready          bool
+}
+
+func (s pandtState) AsComposedResource() ComposedResource {
+	return ComposedResource{
+		Name:              pointer.StringDeref(s.template.Name, ""),
+		Resource:          s.resource,
+		ConnectionDetails: s.conn,
+		RenderError:       s.renderError,
+		Ready:             s.ready,
+	}
+}
 
 // SetCompositionResourceName sets the name of the composition template used to
 // reconcile a composed resource as an annotation.

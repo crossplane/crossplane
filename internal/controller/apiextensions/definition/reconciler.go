@@ -451,7 +451,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			composite.NewAPIConnectionDetailsFetcher(r.client),
 			composite.NewSecretStoreConnectionDetailsFetcher(connection.NewDetailsManager(r.client, v1alpha1.StoreConfigGroupVersionKind)),
 		}
-		o = append(o, composite.WithConnectionDetailsFetcher(fc))
+		o = append(o, composite.WithComposer(composite.NewPatchAndTransformComposer(r.client, composite.WithComposedConnectionDetailsFetcher(fc))))
 
 		cc := composite.NewConfiguratorChain(
 			composite.NewAPINamingConfigurator(r.client),
