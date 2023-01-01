@@ -53,10 +53,9 @@ func TestCompose(t *testing.T) {
 		o    []PatchAndTransformComposerOption
 	}
 	type args struct {
-		ctx  context.Context
-		cr   resource.Composite
-		comp *v1.Composition
-		env  *env.Environment
+		ctx context.Context
+		xr  resource.Composite
+		req CompositionRequest
 	}
 	type want struct {
 		res CompositionResult
@@ -72,16 +71,18 @@ func TestCompose(t *testing.T) {
 		"ComposedTemplatesError": {
 			reason: "We should return any error encountered while inlining a composition's patchsets.",
 			args: args{
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
-						Resources: []v1.ComposedTemplate{{
-							Patches: []v1.Patch{{
-								// This reference to a non-existent patchset
-								// triggers the error.
-								Type:         v1.PatchTypePatchSet,
-								PatchSetName: pointer.StringPtr("nonexistent-patchset"),
+				req: CompositionRequest{
+					Composition: &v1.Composition{
+						Spec: v1.CompositionSpec{
+							Resources: []v1.ComposedTemplate{{
+								Patches: []v1.Patch{{
+									// This reference to a non-existent patchset
+									// triggers the error.
+									Type:         v1.PatchTypePatchSet,
+									PatchSetName: pointer.StringPtr("nonexistent-patchset"),
+								}},
 							}},
-						}},
+						},
 					},
 				},
 			},
@@ -99,7 +100,9 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				comp: &v1.Composition{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errAssociate),
@@ -137,8 +140,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				res: CompositionResult{
@@ -172,8 +177,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errUpdate),
@@ -203,8 +210,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApply),
@@ -238,8 +247,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errRenderCR),
@@ -276,8 +287,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errFetchDetails),
@@ -318,8 +331,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errReadiness),
@@ -347,8 +362,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errUpdate),
@@ -388,8 +405,10 @@ func TestCompose(t *testing.T) {
 				},
 			},
 			args: args{
-				cr:   &fake.Composite{},
-				comp: &v1.Composition{},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Composition: &v1.Composition{},
+				},
 			},
 			want: want{
 				res: CompositionResult{
@@ -409,7 +428,7 @@ func TestCompose(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			c := NewPatchAndTransformComposer(tc.params.kube, tc.params.o...)
-			res, err := c.Compose(tc.args.ctx, tc.args.cr, tc.args.comp, tc.args.env)
+			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)

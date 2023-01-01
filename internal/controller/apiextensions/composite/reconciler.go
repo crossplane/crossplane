@@ -199,6 +199,13 @@ func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, 
 	return fn(ctx, cd, t)
 }
 
+// A CompositionRequest is a request to compose resources.
+// It should be treated as immutable.
+type CompositionRequest struct {
+	Composition *v1.Composition
+	Environment *env.Environment
+}
+
 // A CompositionResult is the result of the composition process.
 type CompositionResult struct {
 	Composed          []ComposedResource
@@ -215,17 +222,17 @@ type ComposedResource struct {
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
-// supplied composite resource, composition, and environment.
+// supplied composite resource and composition request.
 type Composer interface {
-	Compose(ctx context.Context, cr resource.Composite, comp *v1.Composition, env *env.Environment) (CompositionResult, error)
+	Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error)
 }
 
 // A ComposerFn composes resources.
-type ComposerFn func(ctx context.Context, cr resource.Composite, comp *v1.Composition, env *env.Environment) (CompositionResult, error)
+type ComposerFn func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error)
 
 // Compose resources.
-func (fn ComposerFn) Compose(ctx context.Context, cr resource.Composite, comp *v1.Composition, env *env.Environment) (CompositionResult, error) {
-	return fn(ctx, cr, comp, env)
+func (fn ComposerFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+	return fn(ctx, xr, req)
 }
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -446,138 +453,138 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	cr := r.newComposite()
-	if err := r.client.Get(ctx, req.NamespacedName, cr); err != nil {
+	xr := r.newComposite()
+	if err := r.client.Get(ctx, req.NamespacedName, xr); err != nil {
 		log.Debug(errGet, "error", err)
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGet)
 	}
 
 	log = log.WithValues(
-		"uid", cr.GetUID(),
-		"version", cr.GetResourceVersion(),
-		"name", cr.GetName(),
+		"uid", xr.GetUID(),
+		"version", xr.GetResourceVersion(),
+		"name", xr.GetName(),
 	)
 
 	// Check the pause annotation and return if it has the value "true"
 	// after logging, publishing an event and updating the SYNC status condition
-	if meta.IsPaused(cr) {
+	if meta.IsPaused(xr) {
 		log.Debug("Reconciliation is paused via the pause annotation", "annotation", meta.AnnotationKeyReconciliationPaused, "value", "true")
-		r.record.Event(cr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
-		cr.SetConditions(xpv1.ReconcilePaused())
+		r.record.Event(xr, event.Normal(reasonPaused, "Reconciliation is paused via the pause annotation"))
+		xr.SetConditions(xpv1.ReconcilePaused())
 		// If the pause annotation is removed, we will have a chance to reconcile again and resume
 		// and if status update fails, we will reconcile again to retry to update the status
-		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if meta.WasDeleted(cr) {
-		log = log.WithValues("deletion-timestamp", cr.GetDeletionTimestamp())
+	if meta.WasDeleted(xr) {
+		log = log.WithValues("deletion-timestamp", xr.GetDeletionTimestamp())
 
-		cr.SetConditions(xpv1.Deleting())
-		if err := r.composite.UnpublishConnection(ctx, cr, nil); err != nil {
+		xr.SetConditions(xpv1.Deleting())
+		if err := r.composite.UnpublishConnection(ctx, xr, nil); err != nil {
 			log.Debug(errUnpublish, "error", err)
 			err = errors.Wrap(err, errUnpublish)
-			r.record.Event(cr, event.Warning(reasonDelete, err))
-			cr.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+			r.record.Event(xr, event.Warning(reasonDelete, err))
+			xr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 		}
 
-		if err := r.composite.RemoveFinalizer(ctx, cr); err != nil {
+		if err := r.composite.RemoveFinalizer(ctx, xr); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)
-			r.record.Event(cr, event.Warning(reasonDelete, err))
-			cr.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+			r.record.Event(xr, event.Warning(reasonDelete, err))
+			xr.SetConditions(xpv1.ReconcileError(err))
+			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 		}
 
 		log.Debug("Successfully deleted composite resource")
-		cr.SetConditions(xpv1.ReconcileSuccess())
-		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		xr.SetConditions(xpv1.ReconcileSuccess())
+		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if err := r.composite.AddFinalizer(ctx, cr); err != nil {
+	if err := r.composite.AddFinalizer(ctx, xr); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
-		r.record.Event(cr, event.Warning(reasonInit, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonInit, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if err := r.composite.SelectComposition(ctx, cr); err != nil {
+	if err := r.composite.SelectComposition(ctx, xr); err != nil {
 		log.Debug(errSelectComp, "error", err)
 		err = errors.Wrap(err, errSelectComp)
-		r.record.Event(cr, event.Warning(reasonResolve, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonResolve, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
-	r.record.Event(cr, event.Normal(reasonResolve, "Successfully selected composition"))
+	r.record.Event(xr, event.Normal(reasonResolve, "Successfully selected composition"))
 
 	// Note that this 'Composition' will be derived from a
 	// CompositionRevision if the relevant feature flag is enabled.
-	comp, err := r.composition.Fetch(ctx, cr)
+	cp, err := r.composition.Fetch(ctx, xr)
 	if err != nil {
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonCompose, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	// TODO(negz): Composition validation should be handled by a validation
 	// webhook, not by this controller.
-	if err := r.composition.Validate(comp); err != nil {
+	if err := r.composition.Validate(cp); err != nil {
 		log.Debug(errValidate, "error", err)
 		err = errors.Wrap(err, errValidate)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonCompose, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if err := r.composite.Configure(ctx, cr, comp); err != nil {
+	if err := r.composite.Configure(ctx, xr, cp); err != nil {
 		log.Debug(errConfigure, "error", err)
 		err = errors.Wrap(err, errConfigure)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonCompose, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	// Prepare the environment.
 	// Note that environments are optional, so env can be nil.
-	if err := r.composite.SelectEnvironment(ctx, cr, comp); err != nil {
+	if err := r.composite.SelectEnvironment(ctx, xr, cp); err != nil {
 		log.Debug(errSelectEnvironment, "error", err)
 		err = errors.Wrap(err, errSelectEnvironment)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
+		r.record.Event(xr, event.Warning(reasonCompose, err))
 		return reconcile.Result{}, err
 	}
 
-	env, err := r.environment.Fetch(ctx, cr)
+	env, err := r.environment.Fetch(ctx, xr)
 	if err != nil {
 		log.Debug(errFetchEnvironment, "error", err)
 		err = errors.Wrap(err, errFetchEnvironment)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
+		r.record.Event(xr, event.Warning(reasonCompose, err))
 		return reconcile.Result{}, err
 	}
 
-	res, err := r.resource.Compose(ctx, cr, comp, env)
+	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Composition: cp, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
 		err = errors.Wrap(err, errCompose)
-		r.record.Event(cr, event.Warning(reasonCompose, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonCompose, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	published, err := r.composite.PublishConnection(ctx, cr, res.ConnectionDetails)
+	published, err := r.composite.PublishConnection(ctx, xr, res.ConnectionDetails)
 	if err != nil {
 		log.Debug(errPublish, "error", err)
 		err = errors.Wrap(err, errPublish)
-		r.record.Event(cr, event.Warning(reasonPublish, err))
-		cr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		r.record.Event(xr, event.Warning(reasonPublish, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 	if published {
-		cr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
+		xr.SetConnectionDetailsLastPublishedTime(&metav1.Time{Time: time.Now()})
 		log.Debug("Successfully published connection details")
-		r.record.Event(cr, event.Normal(reasonPublish, "Successfully published connection details"))
+		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
 	ready, errs := 0, 0
@@ -592,14 +599,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		if cd.RenderError != nil {
 			log.Debug(errRenderCD, "id", id, "error", err)
 			err := errors.Wrapf(cd.RenderError, errFmtRender, id)
-			r.record.Event(cr, event.Warning(reasonCompose, err))
+			r.record.Event(xr, event.Warning(reasonCompose, err))
 			errs++
 			continue
 		}
 
 		if !cd.Ready {
 			log.Debug("Composed resource is not yet ready", "id", id)
-			r.record.Event(cr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet ready", id)))
+			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet ready", id)))
 			continue
 		}
 
@@ -607,25 +614,25 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	if errs == 0 {
-		r.record.Event(cr, event.Normal(reasonCompose, "Successfully composed resources"))
+		r.record.Event(xr, event.Normal(reasonCompose, "Successfully composed resources"))
 	}
 
-	cr.SetConditions(xpv1.ReconcileSuccess())
+	xr.SetConditions(xpv1.ReconcileSuccess())
 
 	// TODO(muvaf): If a resource becomes Unavailable at some point, should we
 	// still report it as Creating?
 	if ready != len(res.Composed) {
 		// We want to requeue to wait for our composed resources to
 		// become ready, since we can't watch them.
-		cr.SetConditions(xpv1.Creating())
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+		xr.SetConditions(xpv1.Creating())
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
 	// We requeue after our poll interval because we can't watch composed
 	// resources - we can't know what type of resources we might compose
 	// when this controller is started.
-	cr.SetConditions(xpv1.Available())
-	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, cr), errUpdateStatus)
+	xr.SetConditions(xpv1.Available())
+	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 }
 
 // filterToXRPatches selects patches defined in composed templates,

@@ -153,23 +153,23 @@ func NewPatchAndTransformComposer(kube client.Client, o ...PatchAndTransformComp
 
 // Compose resources using the bases, patches, and transforms specified by the
 // supplied Composition.
-func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Composite, comp *v1.Composition, env *env.Environment) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
+func (c *PatchAndTransformComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets from Composition Spec before composing resources.
-	ct, err := ComposedTemplates(comp.Spec)
+	ct, err := ComposedTemplates(req.Composition.Spec)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errInline)
 	}
 
-	tas, err := c.composition.AssociateTemplates(ctx, cr, ct)
+	tas, err := c.composition.AssociateTemplates(ctx, xr, ct)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errAssociate)
 	}
 
 	// If we have an environment, run all environment patches before composing
 	// resources.
-	if env != nil && comp.Spec.Environment != nil {
-		for i, p := range comp.Spec.Environment.Patches {
-			if err := ApplyEnvironmentPatch(p, cr, env); err != nil {
+	if req.Environment != nil && req.Composition.Spec.Environment != nil {
+		for i, p := range req.Composition.Spec.Environment.Patches {
+			if err := ApplyEnvironmentPatch(p, xr, req.Environment); err != nil {
 				return CompositionResult{}, errors.Wrapf(err, errFmtPatchEnvironment, i)
 			}
 		}
@@ -184,7 +184,7 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Com
 	cds := make([]pandtState, len(tas))
 	for i, ta := range tas {
 		cd := composed.New(composed.FromReference(ta.Reference))
-		err := c.composed.Render(ctx, cr, cd, ta.Template, env)
+		err := c.composed.Render(ctx, xr, cd, ta.Template, req.Environment)
 
 		cds[i] = pandtState{
 			template:       ta.Template,
@@ -199,8 +199,8 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Com
 	// them. This way we can render composed resources with
 	// non-deterministic names, and also potentially recover from any errors
 	// we encounter while applying composed resources without leaking them.
-	cr.SetResourceReferences(refs)
-	if err := c.client.Update(ctx, cr); err != nil {
+	xr.SetResourceReferences(refs)
+	if err := c.client.Update(ctx, xr); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
@@ -214,7 +214,7 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Com
 		if cd.renderError != nil {
 			continue
 		}
-		if err := c.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.MustBeControllableBy(cr.GetUID()))...); err != nil {
+		if err := c.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.MustBeControllableBy(xr.GetUID()))...); err != nil {
 			return CompositionResult{}, errors.Wrap(err, errApply)
 		}
 	}
@@ -228,7 +228,7 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Com
 			continue
 		}
 
-		if err := c.composite.Render(ctx, cr, cds[i].resource, cds[i].template, env); err != nil {
+		if err := c.composite.Render(ctx, xr, cds[i].resource, cds[i].template, req.Environment); err != nil {
 			return CompositionResult{}, errors.Wrap(err, errRenderCR)
 		}
 
@@ -260,7 +260,7 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, cr resource.Com
 	// be rejected by the API server. This will trigger an immediate requeue,
 	// and we'll proceed to update the status as soon as there are no changes to
 	// be made to the spec.
-	copy := cr.DeepCopyObject().(client.Object)
+	copy := xr.DeepCopyObject().(client.Object)
 	if err := c.client.Apply(ctx, copy, mergeOptions(filterToXRPatches(tas))...); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
