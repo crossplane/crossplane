@@ -85,6 +85,8 @@ const (
 
 	errRemoveLock  = "cannot remove package revision from Lock"
 	errResolveDeps = "cannot resolve package dependencies"
+
+	errConfResourceObject = "cannot convert to resource.Object"
 )
 
 // Event reasons.
@@ -570,7 +572,24 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
+	objects := pkg.GetObjects()
+	commonLabels := pr.GetCommonLabels()
+	for _, obj := range objects {
+		// convert to resource.Object to be able to access metadata
+		d, ok := obj.(resource.Object)
+		if !ok {
+			return reconcile.Result{}, errors.New(errConfResourceObject)
+		}
+		labels := d.GetLabels()
+		if labels != nil {
+			for key, value := range commonLabels {
+				labels[key] = value
+			}
+		} else {
+			d.SetLabels(commonLabels)
+		}
+	}
+	refs, err := r.objects.Establish(ctx, objects, pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
 		pr.SetConditions(v1.Unhealthy())
 		_ = r.client.Status().Update(ctx, pr)

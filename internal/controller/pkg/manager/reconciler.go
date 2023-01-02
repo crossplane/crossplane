@@ -20,6 +20,7 @@ package manager
 import (
 	"context"
 	"math"
+	"reflect"
 	"strings"
 	"time"
 
@@ -367,6 +368,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
 	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
+	pr.SetCommonLabels(p.GetCommonLabels())
 
 	// If current revision is not active and we have an automatic or
 	// undefined activation policy, always activate.
@@ -382,6 +384,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		err = errors.Wrap(err, errApplyPackageRevision)
 		r.record.Event(p, event.Warning(reasonInstall, err))
 		return reconcile.Result{}, err
+	}
+
+	// Handle changes in labels
+	same := reflect.DeepEqual(pr.GetCommonLabels(), p.GetCommonLabels())
+	if !same {
+		pr.SetCommonLabels(p.GetCommonLabels())
+		if err := r.client.Update(ctx, pr); err != nil {
+			log.Debug(errApplyPackageRevision, "error", err)
+			err = errors.Wrap(err, errApplyPackageRevision)
+			r.record.Event(p, event.Warning(reasonInstall, err))
+			return reconcile.Result{}, err
+		}
 	}
 
 	p.SetConditions(v1.Active())

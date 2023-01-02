@@ -62,6 +62,13 @@ type PackageSpec struct {
 	// +optional
 	// +kubebuilder:default=false
 	SkipDependencyResolution *bool `json:"skipDependencyResolution,omitempty"`
+
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects. May match selectors of replication controllers
+	// and services.
+	// More info: http://kubernetes.io/docs/user-guide/labels
+	// +optional
+	CommonLabels map[string]string `json:"commonLabels,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.
