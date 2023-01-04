@@ -652,12 +652,13 @@ func filterToXRPatches(tas []TemplateAssociation) []v1.Patch {
 // filterPatches selects patches whose type belong to the list onlyTypes
 func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
 	filtered := make([]v1.Patch, 0, len(pas))
+	include := make(map[v1.PatchType]bool)
+	for _, t := range onlyTypes {
+		include[t] = true
+	}
 	for _, p := range pas {
-		for _, t := range onlyTypes {
-			if t == p.Type {
-				filtered = append(filtered, p)
-				break
-			}
+		if include[p.Type] {
+			filtered = append(filtered, p)
 		}
 	}
 	return filtered
