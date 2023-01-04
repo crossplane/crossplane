@@ -156,6 +156,10 @@ const (
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
 type ReadinessCheck struct {
+	// TODO(negz): Optional fields should be nil in the next version of this
+	// API. How would we know if we actually wanted to match the empty string,
+	// or 0?
+
 	// Type indicates the type of probe you'd like to use.
 	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
 	Type ReadinessCheckType `json:"type"`
@@ -178,7 +182,6 @@ type ConnectionDetailType string
 
 // ConnectionDetailType types.
 const (
-	ConnectionDetailTypeUnknown                 ConnectionDetailType = "Unknown"
 	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey"
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
 	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
@@ -196,27 +199,29 @@ type ConnectionDetail struct {
 	// Type sets the connection detail fetching behaviour to be used. Each
 	// connection detail type may require its own fields to be set on the
 	// ConnectionDetail object. If the type is omitted Crossplane will attempt
-	// to infer it based on which other fields were specified.
+	// to infer it based on which other fields were specified. If multiple
+	// fields are specified the order of precedence is:
+	// 1. FromValue
+	// 2. FromConnectionSecretKey
+	// 3. FromFieldPath
 	// +optional
 	// +kubebuilder:validation:Enum=FromConnectionSecretKey;FromFieldPath;FromValue
 	Type *ConnectionDetailType `json:"type,omitempty"`
 
 	// FromConnectionSecretKey is the key that will be used to fetch the value
-	// from the given target resource's secret.
+	// from the composed resource's connection secret.
 	// +optional
 	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
 
 	// FromFieldPath is the path of the field on the composed resource whose
 	// value to be used as input. Name must be specified if the type is
-	// FromFieldPath is specified.
+	// FromFieldPath.
 	// +optional
 	FromFieldPath *string `json:"fromFieldPath,omitempty"`
 
-	// Value that will be propagated to the connection secret of the composition
-	// instance. Typically you should use FromConnectionSecretKey instead, but
-	// an explicit value may be set to inject a fixed, non-sensitive connection
-	// secret values, for example a well-known port. Supercedes
-	// FromConnectionSecretKey when set.
+	// Value that will be propagated to the connection secret of the composite
+	// resource. May be set to inject a fixed, non-sensitive connection secret
+	// value, for example a well-known port.
 	// +optional
 	Value *string `json:"value,omitempty"`
 }
@@ -280,10 +285,10 @@ type ContainerFunction struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"packagePullSecrets,omitempty"`
 
-	// Deadline after which the Composition Function will be killed.
+	// Timeout after which the Composition Function will be killed.
 	// +optional
 	// +kubebuilder:default="20s"
-	Deadline *metav1.Duration `json:"timeout,omitempty"`
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// Network configuration for the Composition Function.
 	// +optional
@@ -309,12 +314,12 @@ const (
 	// ContainerFunctionNetworkPolicyIsolated specifies that the Composition
 	// Function will not have network access; i.e. invoked inside an isolated
 	// network namespace.
-	ContainerFunctionNetworkPolicyIsolated = "Isolated"
+	ContainerFunctionNetworkPolicyIsolated ContainerFunctionNetworkPolicy = "Isolated"
 
 	// ContainerFunctionNetworkPolicyRunner specifies that the Composition
 	// Function will have the same network access as its runner, i.e. share its
 	// runner's network namespace.
-	ContainerFunctionNetworkPolicyRunner = "Runner"
+	ContainerFunctionNetworkPolicyRunner ContainerFunctionNetworkPolicy = "Runner"
 )
 
 // ContainerFunctionNetwork represents configuration for a Composition Function.

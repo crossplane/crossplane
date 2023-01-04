@@ -494,7 +494,7 @@ spec:
                           type: object
                         timeout:
                           default: 20s
-                          description: Deadline after which the Composition Function
+                          description: Timeout after which the Composition Function
                             will be killed.
                           type: string
                       required:
@@ -855,14 +855,13 @@ spec:
                         properties:
                           fromConnectionSecretKey:
                             description: FromConnectionSecretKey is the key that will
-                              be used to fetch the value from the given target resource's
-                              secret.
+                              be used to fetch the value from the composed resource's
+                              connection secret.
                             type: string
                           fromFieldPath:
                             description: FromFieldPath is the path of the field on
                               the composed resource whose value to be used as input.
-                              Name must be specified if the type is FromFieldPath
-                              is specified.
+                              Name must be specified if the type is FromFieldPath.
                             type: string
                           name:
                             description: Name of the connection secret key that will
@@ -871,11 +870,13 @@ spec:
                               key name.
                             type: string
                           type:
-                            description: Type sets the connection detail fetching
+                            description: 'Type sets the connection detail fetching
                               behaviour to be used. Each connection detail type may
                               require its own fields to be set on the ConnectionDetail
                               object. If the type is omitted Crossplane will attempt
                               to infer it based on which other fields were specified.
+                              If multiple fields are specified the order of precedence
+                              is: 1. FromValue 2. FromConnectionSecretKey 3. FromFieldPath'
                             enum:
                             - FromConnectionSecretKey
                             - FromFieldPath
@@ -883,11 +884,9 @@ spec:
                             type: string
                           value:
                             description: Value that will be propagated to the connection
-                              secret of the composition instance. Typically you should
-                              use FromConnectionSecretKey instead, but an explicit
-                              value may be set to inject a fixed, non-sensitive connection
-                              secret values, for example a well-known port. Supercedes
-                              FromConnectionSecretKey when set.
+                              secret of the composite resource. May be set to inject
+                              a fixed, non-sensitive connection secret value, for
+                              example a well-known port.
                             type: string
                         type: object
                       type: array

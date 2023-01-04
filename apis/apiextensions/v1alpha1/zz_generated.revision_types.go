@@ -806,10 +806,10 @@ type ContainerFunction struct {
 	// +optional
 	ImagePullSecrets []corev1.LocalObjectReference `json:"packagePullSecrets,omitempty"`
 
-	// Deadline after which the Composition Function will be killed.
+	// Timeout after which the Composition Function will be killed.
 	// +optional
 	// +kubebuilder:default="20s"
-	Deadline *metav1.Duration `json:"timeout,omitempty"`
+	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
 	// Network configuration for the Composition Function.
 	// +optional

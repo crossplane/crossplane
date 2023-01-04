@@ -494,7 +494,7 @@ spec:
                           type: object
                         timeout:
                           default: 20s
-                          description: Deadline after which the Composition Function
+                          description: Timeout after which the Composition Function
                             will be killed.
                           type: string
                       required:
@@ -1745,7 +1745,7 @@ spec:
                           type: object
                         timeout:
                           default: 20s
-                          description: Deadline after which the Composition Function
+                          description: Timeout after which the Composition Function
                             will be killed.
                           type: string
                       required:

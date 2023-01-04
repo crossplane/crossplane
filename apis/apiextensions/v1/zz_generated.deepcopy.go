@@ -474,8 +474,8 @@ func (in *ContainerFunction) DeepCopyInto(out *ContainerFunction) {
 		*out = make([]corev1.LocalObjectReference, len(*in))
 		copy(*out, *in)
 	}
-	if in.Deadline != nil {
-		in, out := &in.Deadline, &out.Deadline
+	if in.Timeout != nil {
+		in, out := &in.Timeout, &out.Timeout
 		*out = new(metav1.Duration)
 		**out = **in
 	}

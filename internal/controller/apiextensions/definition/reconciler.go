@@ -456,6 +456,10 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 			composite.WithEnvironmentFetcher(environment.NewAPIEnvironmentFetcher(c)))
 	}
 
+	// If external secret stores aren't enabled we just fetch connection details
+	// from Kubernetes secrets.
+	var fetcher managed.ConnectionDetailsFetcher = composite.NewSecretConnectionDetailsFetcher(c)
+
 	// We only want to enable ExternalSecretStore support if the relevant
 	// feature flag is enabled. Otherwise, we start the XR reconcilers with
 	// their default ConnectionPublisher and ConnectionDetailsFetcher.
@@ -468,9 +472,11 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind), d.GetConnectionSecretKeys()),
 		}
 
-		fc := composite.ConnectionDetailsFetcherChain{
-			composite.NewAPIConnectionDetailsFetcher(c),
-			composite.NewSecretStoreConnectionDetailsFetcher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind)),
+		// If external secret stores are enabled we need to support fetching
+		// connection details from both secrets and external stores.
+		fetcher = composite.ConnectionDetailsFetcherChain{
+			composite.NewSecretConnectionDetailsFetcher(c),
+			connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind),
 		}
 
 		cc := composite.NewConfiguratorChain(
@@ -482,7 +488,31 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 		o = append(o,
 			composite.WithConnectionPublishers(pc...),
 			composite.WithConfigurator(cc),
-			composite.WithComposer(composite.NewPatchAndTransformComposer(c, composite.WithComposedConnectionDetailsFetcher(fc))))
+			composite.WithComposer(composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))))
+	}
+
+	// If Composition Functions are enabled we want to try to use the
+	// PTFComposer. This Composer supports using P&T Composition alone,
+	// Functions alone, or mixing both. It does not support anonymous resource
+	// templates - resource templates with a nil name - because it needs the
+	// name to match entries in the resource templates array to entries in the
+	// FunctionIO used by the templates array. We therefore 'fall back' to the
+	// PTComposer if we encounter a Composition with anonymous templates.
+	// Composition validation ensures that a Composition that uses functions
+	// must have named resources templates.
+	if f.Enabled(features.EnableAlphaCompositionFunctions) {
+		fb := composite.NewFallBackComposer(
+			composite.NewPTFComposer(c,
+				composite.WithComposedResourceGetter(composite.NewExistingComposedResourceGetter(c, fetcher)),
+				composite.WithCompositeConnectionDetailsFetcher(fetcher),
+			),
+			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),
+			composite.FallBackForAnonymousTemplates(c),
+		)
+
+		// Note that if external secret stores are enabled this will supercede
+		// the WithComposer option specified in that block.
+		o = append(o, composite.WithComposer(fb))
 	}
 
 	return o

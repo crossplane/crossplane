@@ -78,8 +78,10 @@ type startCommand struct {
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
 
 	EnableCompositionRevisions bool `group:"Beta Features:" help:"Enable support for CompositionRevisions." default:"true"`
+
 	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
-	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for ExternalSecretStores."`
+	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableCompositionFunctions bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
 }
 
 // Run core Crossplane controllers.
@@ -122,6 +124,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableExternalSecretStores {
 		feats.Enable(features.EnableAlphaExternalSecretStores)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
+	}
+	if c.EnableCompositionFunctions {
+		feats.Enable(features.EnableAlphaCompositionFunctions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionFunctions)
 	}
 
 	o := controller.Options{

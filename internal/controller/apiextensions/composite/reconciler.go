@@ -177,28 +177,6 @@ func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resou
 	return fn(ctx, cp, cd, t, env)
 }
 
-// A ConnectionDetailsFetcherFn fetches the connection details of the supplied
-// composed resource, if any.
-type ConnectionDetailsFetcherFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error)
-
-// FetchConnectionDetails calls the FetchConnectionDetailsFn.
-func (f ConnectionDetailsFetcherFn) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-	return f(ctx, cd, t)
-}
-
-// A ReadinessChecker checks whether a composed resource is ready or not.
-type ReadinessChecker interface {
-	IsReady(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error)
-}
-
-// A ReadinessCheckerFn checks whether a composed resource is ready or not.
-type ReadinessCheckerFn func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error)
-
-// IsReady reports whether a composed resource is ready or not.
-func (fn ReadinessCheckerFn) IsReady(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-	return fn(ctx, cd, t)
-}
-
 // A CompositionRequest is a request to compose resources.
 // It should be treated as immutable.
 type CompositionRequest struct {
@@ -210,15 +188,6 @@ type CompositionRequest struct {
 type CompositionResult struct {
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
-}
-
-// A ComposedResource is an output of the composition process.
-type ComposedResource struct {
-	Name              string
-	Resource          resource.Composed
-	ConnectionDetails managed.ConnectionDetails
-	RenderError       error
-	Ready             bool
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
@@ -369,12 +338,6 @@ type compositeResource struct {
 	managed.ConnectionPublisher
 }
 
-type composedResource struct {
-	Renderer
-	ConnectionDetailsFetcher
-	ReadinessChecker
-}
-
 // NewReconciler returns a new Reconciler of composite resources.
 func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...ReconcilerOption) *Reconciler {
 	nc := func() resource.Composite {
@@ -389,10 +352,10 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		composition: composition{
 			CompositionFetcher: NewAPICompositionFetcher(kube),
 			CompositionValidator: ValidationChain{
-				CompositionValidatorFn(RejectAnonymousTemplatesWithFunctions),
-				CompositionValidatorFn(RejectFunctionsWithoutRequiredConfig),
 				CompositionValidatorFn(RejectMixedTemplates),
 				CompositionValidatorFn(RejectDuplicateNames),
+				CompositionValidatorFn(RejectAnonymousTemplatesWithFunctions),
+				CompositionValidatorFn(RejectFunctionsWithoutRequiredConfig),
 			},
 		},
 
@@ -412,7 +375,7 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 		},
 
-		resource: NewPatchAndTransformComposer(kube),
+		resource: NewPTComposer(kube),
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
@@ -566,6 +529,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// TODO(negz): Pass this method a copy of xr, to make very clear that
+	// anything it does won't be reflected in the state of xr?
 	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Composition: cp, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
@@ -593,7 +558,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
-		id := cd.Name
+		id := cd.ResourceName
 		if id == "" {
 			id = strconv.Itoa(i)
 		}
@@ -635,31 +600,4 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-}
-
-// filterToXRPatches selects patches defined in composed templates,
-// whose type is one of the XR-targeting patches
-// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite)
-func filterToXRPatches(tas []TemplateAssociation) []v1.Patch {
-	filtered := make([]v1.Patch, 0, len(tas))
-	for _, ta := range tas {
-		filtered = append(filtered, filterPatches(ta.Template.Patches,
-			patchTypesToXR()...)...)
-	}
-	return filtered
-}
-
-// filterPatches selects patches whose type belong to the list onlyTypes
-func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
-	filtered := make([]v1.Patch, 0, len(pas))
-	include := make(map[v1.PatchType]bool)
-	for _, t := range onlyTypes {
-		include[t] = true
-	}
-	for _, p := range pas {
-		if include[p.Type] {
-			filtered = append(filtered, p)
-		}
-	}
-	return filtered
 }

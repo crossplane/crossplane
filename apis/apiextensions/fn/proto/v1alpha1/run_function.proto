@@ -60,8 +60,8 @@ enum NetworkPolicy {
   // Run the container without network access. The default.
   NETWORK_POLICY_ISOLATED = 1;
 
-  // Allow the container to access the network.
-  NETWORK_POLICY_ACCESSIBLE = 2;
+  // Allow the container to access the same network as the function runner.
+  NETWORK_POLICY_RUNNER = 2;
 }
 
 // NetworkConfig configures whether and how a Composition Function container may

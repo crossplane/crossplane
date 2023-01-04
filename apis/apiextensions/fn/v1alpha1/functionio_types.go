@@ -47,21 +47,9 @@ type FunctionIO struct {
 	// particular function may have been mutated by previous functions in the
 	// pipeline. Functions may mutate any part of the desired state they are
 	// concerned with, and must pass through any part of the desired state that
-	// they are not concerned with. Functions may omit desired state that they
-	// are unconcerned with as long as they don't need to pass it through. For
-	// example if desired.composite is unset when the function is called it does
-	// not need to set it. If desired.composite is set the function may mutate
-	// it and must return it.
+	// they are not concerned with.
 	// +optional
 	Desired Desired `json:"desired,omitempty"`
-
-	// Items is a list of Crossplane resources - either XRs or MRs.
-	//
-	// A function will read this field in the input FunctionIO and populate
-	// this field in the output FunctionIO.
-	// +kubebuilder:validation:EmbeddedResource
-	// +kubebuilder:pruning:PreserveUnknownFields
-	Items []runtime.RawExtension `json:"items"`
 
 	// Results is an optional list that can be used by function to emit results
 	// for observability and debugging purposes.
@@ -124,8 +112,7 @@ type DesiredComposite struct {
 
 	// Resource reflects the desired XR. Functions may update the metadata,
 	// spec, and status of an XR.
-	// +optional
-	Resource *runtime.RawExtension `json:"resource,omitempty"`
+	Resource runtime.RawExtension `json:"resource"`
 
 	// ConnectionDetails reflects the desired connection details of the XR.
 	// +optional
@@ -141,12 +128,11 @@ type DesiredResource struct {
 
 	// Resource reflects the desired composed resource. Functions may update the
 	// metadata and spec of a composed resource. Updates to status will be
-	// discarded. Functions may request that a composed resource be deleted by
-	// setting this field to null.
-	// +optional
-	Resource *runtime.RawExtension `json:"resource"`
+	// discarded.
+	Resource runtime.RawExtension `json:"resource"`
 
-	// ConnectionDetails reflects the desired connection details of the XR.
+	// ConnectionDetails reflects _XR_ connection details that should be derived
+	// from this composed resource.
 	// +optional
 	ConnectionDetails []DerivedConnectionDetail `json:"connectionDetails,omitempty"`
 

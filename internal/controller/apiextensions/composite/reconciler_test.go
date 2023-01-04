@@ -799,7 +799,7 @@ func TestFilterToXRPatches(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, filterToXRPatches(tc.args.tas)); diff != "" {
+			if diff := cmp.Diff(tc.want, toXRPatchesFromTAs(tc.args.tas)); diff != "" {
 				t.Errorf("\nfilterToXRPatches(...): -want, +got:\n%s", diff)
 			}
 		})

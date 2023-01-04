@@ -206,7 +206,7 @@ func FromRunFunctionConfig(cfg *v1alpha1.RunFunctionConfig) spec.Option {
 			}
 		}
 
-		if cfg.GetNetwork().GetPolicy() == v1alpha1.NetworkPolicy_NETWORK_POLICY_ACCESSIBLE {
+		if cfg.GetNetwork().GetPolicy() == v1alpha1.NetworkPolicy_NETWORK_POLICY_RUNNER {
 			if err := spec.WithHostNetwork()(s); err != nil {
 				return errors.Wrap(err, errHostNetwork)
 			}

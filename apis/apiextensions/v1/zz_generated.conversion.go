@@ -222,11 +222,11 @@ func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1beta1ContainerFu
 	}
 	v1beta1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1Duration *v11.Duration
-	if source.Deadline != nil {
-		v1Duration := c.v1DurationToV1Duration(*source.Deadline)
+	if source.Timeout != nil {
+		v1Duration := c.v1DurationToV1Duration(*source.Timeout)
 		pV1Duration = &v1Duration
 	}
-	v1beta1ContainerFunction.Deadline = pV1Duration
+	v1beta1ContainerFunction.Timeout = pV1Duration
 	var pV1beta1ContainerFunctionNetwork *v1beta1.ContainerFunctionNetwork
 	if source.Network != nil {
 		v1beta1ContainerFunctionNetwork := c.v1ContainerFunctionNetworkToV1beta1ContainerFunctionNetwork(*source.Network)
@@ -746,11 +746,11 @@ func (c *GeneratedRevisionSpecConverter) v1beta1ContainerFunctionToV1ContainerFu
 	}
 	v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1Duration *v11.Duration
-	if source.Deadline != nil {
-		v1Duration := c.v1DurationToV1Duration(*source.Deadline)
+	if source.Timeout != nil {
+		v1Duration := c.v1DurationToV1Duration(*source.Timeout)
 		pV1Duration = &v1Duration
 	}
-	v1ContainerFunction.Deadline = pV1Duration
+	v1ContainerFunction.Timeout = pV1Duration
 	var pV1ContainerFunctionNetwork *ContainerFunctionNetwork
 	if source.Network != nil {
 		v1ContainerFunctionNetwork := c.v1beta1ContainerFunctionNetworkToV1ContainerFunctionNetwork(*source.Network)

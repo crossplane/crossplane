@@ -41,7 +41,7 @@ type Command struct {
 	CacheDir        string        `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
 	Timeout         time.Duration `help:"Maximum time for which the function may run before being killed." default:"30s"`
 	ImagePullPolicy string        `help:"Whether the image may be pulled from a remote registry." enum:"Always,Never,IfNotPresent" default:"IfNotPresent"`
-	NetworkPolicy   string        `help:"Whether the function may access the network." enum:"Accessible,Isolated" default:"Isolated"`
+	NetworkPolicy   string        `help:"Whether the function may access the network." enum:"Runner,Isolated" default:"Isolated"`
 	MapRootUID      int           `help:"UID that will map to 0 in the function's user namespace. The following 65336 UIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 	MapRootGID      int           `help:"GID that will map to 0 in the function's user namespace. The following 65336 GIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 
@@ -98,8 +98,8 @@ func pullPolicy(p string) v1alpha1.ImagePullPolicy {
 
 func networkPolicy(p string) v1alpha1.NetworkPolicy {
 	switch p {
-	case "Accessible":
-		return v1alpha1.NetworkPolicy_NETWORK_POLICY_ACCESSIBLE
+	case "Runner":
+		return v1alpha1.NetworkPolicy_NETWORK_POLICY_RUNNER
 	case "Isolated":
 		fallthrough
 	default:

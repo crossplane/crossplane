@@ -16,7 +16,29 @@ limitations under the License.
 
 package composite
 
-import v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+import (
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+)
+
+// Annotation keys.
+const (
+	AnnotationKeyCompositionResourceName = "crossplane.io/composition-resource-name"
+)
+
+// SetCompositionResourceName sets the name of the composition template used to
+// reconcile a composed resource as an annotation.
+func SetCompositionResourceName(o metav1.Object, name string) {
+	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: name})
+}
+
+// GetCompositionResourceName gets the name of the composition template used to
+// reconcile a composed resource from its annotations.
+func GetCompositionResourceName(o metav1.Object) string {
+	return o.GetAnnotations()[AnnotationKeyCompositionResourceName]
+}
 
 // Returns types of patches that are from a composed resource _to_ a composite resource.
 func patchTypesToXR() []v1.PatchType {

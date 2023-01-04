@@ -22,15 +22,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -44,18 +41,19 @@ import (
 
 // Error strings
 const (
-	errGetComposed  = "cannot get composed resource"
-	errGCComposed   = "cannot garbage collect composed resource"
-	errApply        = "cannot apply composed resource"
-	errFetchDetails = "cannot fetch connection details"
-	errReadiness    = "cannot check whether composed resource is ready"
-	errUnmarshal    = "cannot unmarshal base template"
-	errGetSecret    = "cannot get connection secret of composed resource"
-	errNamePrefix   = "name prefix is not found in labels"
-	errKindChanged  = "cannot change the kind of an existing composed resource"
-	errName         = "cannot use dry-run create to name composed resource"
-	errInline       = "cannot inline Composition patch sets"
-	errRenderCR     = "cannot render composite resource"
+	errGetComposed    = "cannot get composed resource"
+	errGCComposed     = "cannot garbage collect composed resource"
+	errApply          = "cannot apply composed resource"
+	errFetchDetails   = "cannot fetch connection details"
+	errExtractDetails = "cannot extract composite resource connection details from composed resource"
+	errReadiness      = "cannot check whether composed resource is ready"
+	errUnmarshal      = "cannot unmarshal base template"
+	errGetSecret      = "cannot get connection secret of composed resource"
+	errNamePrefix     = "name prefix is not found in labels"
+	errKindChanged    = "cannot change the kind of an existing composed resource"
+	errName           = "cannot use dry-run create to name composed resource"
+	errInline         = "cannot inline Composition patch sets"
+	errRenderCR       = "cannot render composite resource"
 
 	errFmtPatch          = "cannot apply the patch at index %d"
 	errFmtConnDetailKey  = "connection detail of type %q key is not set"
@@ -64,60 +62,72 @@ const (
 	errSetControllerRef  = "cannot set controller reference"
 )
 
-// Annotation keys.
-const (
-	AnnotationKeyCompositionResourceName = "crossplane.io/composition-resource-name"
-)
-
 // TODO(negz): Move P&T Composition logic into its own package?
 
-// A PatchAndTransformComposerOption is used to configure a PatchAndTransformComposer.
-type PatchAndTransformComposerOption func(*PatchAndTransformComposer)
+// A PTComposerOption is used to configure a PTComposer.
+type PTComposerOption func(*PTComposer)
 
 // WithTemplateAssociator configures how a PatchAndTransformComposer associates
 // templates with extant composed resources.
-func WithTemplateAssociator(a CompositionTemplateAssociator) PatchAndTransformComposerOption {
-	return func(c *PatchAndTransformComposer) {
+func WithTemplateAssociator(a CompositionTemplateAssociator) PTComposerOption {
+	return func(c *PTComposer) {
 		c.composition = a
 	}
 }
 
 // WithCompositeRenderer configures how a PatchAndTransformComposer renders the
 // composite resource.
-func WithCompositeRenderer(r Renderer) PatchAndTransformComposerOption {
-	return func(c *PatchAndTransformComposer) {
+func WithCompositeRenderer(r Renderer) PTComposerOption {
+	return func(c *PTComposer) {
 		c.composite = r
 	}
 }
 
 // WithComposedRenderer configures how a PatchAndTransformComposer renders
 // composed resources.
-func WithComposedRenderer(r Renderer) PatchAndTransformComposerOption {
-	return func(c *PatchAndTransformComposer) {
+func WithComposedRenderer(r Renderer) PTComposerOption {
+	return func(c *PTComposer) {
 		c.composed.Renderer = r
 	}
 }
 
 // WithComposedReadinessChecker configures how a PatchAndTransformComposer
 // checks composed resource readiness.
-func WithComposedReadinessChecker(r ReadinessChecker) PatchAndTransformComposerOption {
-	return func(c *PatchAndTransformComposer) {
+func WithComposedReadinessChecker(r ReadinessChecker) PTComposerOption {
+	return func(c *PTComposer) {
 		c.composed.ReadinessChecker = r
 	}
 }
 
 // WithComposedConnectionDetailsFetcher configures how a
-// PatchAndTransformComposed fetches composed resource connection details.
-func WithComposedConnectionDetailsFetcher(f ConnectionDetailsFetcher) PatchAndTransformComposerOption {
-	return func(c *PatchAndTransformComposer) {
+// PatchAndTransformComposer fetches composed resource connection details.
+func WithComposedConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) PTComposerOption {
+	return func(c *PTComposer) {
 		c.composed.ConnectionDetailsFetcher = f
 	}
 }
 
-// A PatchAndTransformComposer composes resources using a Composition's
-// 'resources' array, which consist of 'base' resources along with a series of
-// patches and transforms.
-type PatchAndTransformComposer struct {
+// WithComposedConnectionDetailsExtractor configures how a
+// PatchAndTransformComposer extracts XR connection details from a composed
+// resource.
+func WithComposedConnectionDetailsExtractor(e ConnectionDetailsExtractor) PTComposerOption {
+	return func(c *PTComposer) {
+		c.composed.ConnectionDetailsExtractor = e
+	}
+}
+
+type composedResource struct {
+	Renderer
+	managed.ConnectionDetailsFetcher
+	ConnectionDetailsExtractor
+	ReadinessChecker
+}
+
+// A PTComposer composes resources using Patch and Transform (P&T) Composition.
+// It uses a Composition's 'resources' array, which consist of 'base' resources
+// along with a series of patches and transforms. It does not support Functions
+// - any entries in the functions array are ignored.
+type PTComposer struct {
 	client resource.ClientApplicator
 
 	composite   Renderer
@@ -125,22 +135,28 @@ type PatchAndTransformComposer struct {
 	composed    composedResource
 }
 
-// NewPatchAndTransformComposer returns a Composer that composes resources using
-// a Composition's bases, patches, and transforms.
-func NewPatchAndTransformComposer(kube client.Client, o ...PatchAndTransformComposerOption) *PatchAndTransformComposer {
+// NewPTComposer returns a Composer that composes resources using Patch and
+// Transform (P&T) Composition - a Composition's bases, patches, and transforms.
+func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	// TODO(negz): Can we avoid double-wrapping if the supplied client is
 	// already wrapped? Or just do away with unstructured.NewClient completely?
 	kube = unstructured.NewClient(kube)
 
-	c := &PatchAndTransformComposer{
+	c := &PTComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
+		// TODO(negz): Once Composition Functions are GA this Composer will only
+		// need to handle legacy Compositions that use anonymous templates. This
+		// means we will be able to delete the GarbageCollectingAssociator and
+		// just use AssociateByOrder. Compositions with named templates will be
+		// handled by the PTFComposer.
 		composite:   RendererFn(RenderComposite),
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
-			Renderer:                 NewAPIDryRunRenderer(kube),
-			ReadinessChecker:         ReadinessCheckerFn(IsReady),
-			ConnectionDetailsFetcher: NewAPIConnectionDetailsFetcher(kube),
+			Renderer:                   NewAPIDryRunRenderer(kube),
+			ReadinessChecker:           ReadinessCheckerFn(IsReady),
+			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
+			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
 		},
 	}
 
@@ -153,7 +169,7 @@ func NewPatchAndTransformComposer(kube client.Client, o ...PatchAndTransformComp
 
 // Compose resources using the bases, patches, and transforms specified by the
 // supplied Composition.
-func (c *PatchAndTransformComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
+func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets from Composition Spec before composing resources.
 	ct, err := ComposedTemplates(req.Composition.Spec)
 	if err != nil {
@@ -181,18 +197,20 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, xr resource.Com
 	// input. Errors are recorded, but not considered fatal to the composition
 	// process.
 	refs := make([]corev1.ObjectReference, len(tas))
-	cds := make([]pandtState, len(tas))
-	for i, ta := range tas {
-		cd := composed.New(composed.FromReference(ta.Reference))
-		err := c.composed.Render(ctx, xr, cd, ta.Template, req.Environment)
+	cds := make([]ComposedResourceState, len(tas))
+	for i := range tas {
+		ta := tas[i]
 
-		cds[i] = pandtState{
-			template:       ta.Template,
-			resource:       cd,
-			renderError:    err,
-			appliedPatches: filterPatches(ta.Template.Patches, patchTypesFromXR()...),
+		r := composed.New(composed.FromReference(ta.Reference))
+		cds[i] = ComposedResourceState{
+			ComposedResource: ComposedResource{
+				ResourceName: pointer.StringDeref(ta.Template.Name, ""),
+				RenderError:  c.composed.Render(ctx, xr, r, ta.Template, req.Environment),
+			},
+			Template: &ta.Template,
+			Resource: r,
 		}
-		refs[i] = *meta.ReferenceTo(cd, cd.GetObjectKind().GroupVersionKind())
+		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
 	}
 
 	// We persist references to our composed resources before we create
@@ -204,44 +222,49 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, xr resource.Com
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	// We apply all of our composed resources before we observe them and
-	// update the composite resource accordingly in the loop below. This
-	// ensures that issues observing and processing one composed resource
-	// won't block the application of another.
+	// We apply all of our composed resources before we observe them and update
+	// in the loop below. This ensures that issues observing and processing one
+	// composed resource won't block the application of another.
 	for _, cd := range cds {
 		// If we were unable to render the composed resource we should not try
 		// and apply it.
-		if cd.renderError != nil {
+		if cd.RenderError != nil {
 			continue
 		}
-		if err := c.client.Apply(ctx, cd.resource, append(mergeOptions(cd.appliedPatches), resource.MustBeControllableBy(xr.GetUID()))...); err != nil {
+		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID())}
+		o = append(o, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
+		if err := c.client.Apply(ctx, cd.Resource, o...); err != nil {
 			return CompositionResult{}, errors.Wrap(err, errApply)
 		}
 	}
 
 	conn := managed.ConnectionDetails{}
-
 	for i := range cds {
 		// If we were unable to render the composed resource we should not try
 		// to observe it.
-		if cds[i].renderError != nil {
+		if cds[i].RenderError != nil {
 			continue
 		}
 
-		if err := c.composite.Render(ctx, xr, cds[i].resource, cds[i].template, req.Environment); err != nil {
+		if err := c.composite.Render(ctx, xr, cds[i].Resource, *cds[i].Template, req.Environment); err != nil {
 			return CompositionResult{}, errors.Wrap(err, errRenderCR)
 		}
 
-		cds[i].conn, err = c.composed.FetchConnectionDetails(ctx, cds[i].resource, cds[i].template)
+		cds[i].ConnectionDetails, err = c.composed.FetchConnection(ctx, cds[i].Resource)
 		if err != nil {
 			return CompositionResult{}, errors.Wrap(err, errFetchDetails)
 		}
 
-		for key, val := range cds[i].conn {
+		e, err := c.composed.ExtractConnection(cds[i].Resource, cds[i].ConnectionDetails, ExtractConfigsFromTemplate(cds[i].Template)...)
+		if err != nil {
+			return CompositionResult{}, errors.Wrap(err, errExtractDetails)
+		}
+
+		for key, val := range e {
 			conn[key] = val
 		}
 
-		cds[i].ready, err = c.composed.IsReady(ctx, cds[i].resource, cds[i].template)
+		cds[i].Ready, err = c.composed.IsReady(ctx, cds[i].Resource, ReadinessChecksFromTemplate(cds[i].Template)...)
 		if err != nil {
 			return CompositionResult{}, errors.Wrap(err, errReadiness)
 		}
@@ -261,49 +284,43 @@ func (c *PatchAndTransformComposer) Compose(ctx context.Context, xr resource.Com
 	// and we'll proceed to update the status as soon as there are no changes to
 	// be made to the spec.
 	copy := xr.DeepCopyObject().(client.Object)
-	if err := c.client.Apply(ctx, copy, mergeOptions(filterToXRPatches(tas))...); err != nil {
+	if err := c.client.Apply(ctx, copy, mergeOptions(toXRPatchesFromTAs(tas))...); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
 	out := make([]ComposedResource, len(cds))
 	for i := range cds {
-		out[i] = cds[i].AsComposedResource()
+		out[i] = cds[i].ComposedResource
 	}
 
 	return CompositionResult{ConnectionDetails: conn, Composed: out}, nil
 }
 
-// pandtState tracks the state of Patch and Transform Composition for a
-// particular composed resource.
-type pandtState struct {
-	template       v1.ComposedTemplate
-	resource       resource.Composed
-	appliedPatches []v1.Patch
-	renderError    error
-	conn           managed.ConnectionDetails
-	ready          bool
-}
-
-func (s pandtState) AsComposedResource() ComposedResource {
-	return ComposedResource{
-		Name:              pointer.StringDeref(s.template.Name, ""),
-		Resource:          s.resource,
-		ConnectionDetails: s.conn,
-		RenderError:       s.renderError,
-		Ready:             s.ready,
+// toXRPatchesFromTAs selects patches defined in composed templates,
+// whose type is one of the XR-targeting patches
+// (e.g. v1.PatchTypeToCompositeFieldPath or v1.PatchTypeCombineToComposite)
+func toXRPatchesFromTAs(tas []TemplateAssociation) []v1.Patch {
+	filtered := make([]v1.Patch, 0, len(tas))
+	for _, ta := range tas {
+		filtered = append(filtered, filterPatches(ta.Template.Patches,
+			patchTypesToXR()...)...)
 	}
+	return filtered
 }
 
-// SetCompositionResourceName sets the name of the composition template used to
-// reconcile a composed resource as an annotation.
-func SetCompositionResourceName(o metav1.Object, name string) {
-	meta.AddAnnotations(o, map[string]string{AnnotationKeyCompositionResourceName: name})
-}
-
-// GetCompositionResourceName gets the name of the composition template used to
-// reconcile a composed resource from its annotations.
-func GetCompositionResourceName(o metav1.Object) string {
-	return o.GetAnnotations()[AnnotationKeyCompositionResourceName]
+// filterPatches selects patches whose type belong to the list onlyTypes
+func filterPatches(pas []v1.Patch, onlyTypes ...v1.PatchType) []v1.Patch {
+	filtered := make([]v1.Patch, 0, len(pas))
+	include := make(map[v1.PatchType]bool)
+	for _, t := range onlyTypes {
+		include[t] = true
+	}
+	for _, p := range pas {
+		if include[p.Type] {
+			filtered = append(filtered, p)
+		}
+	}
+	return filtered
 }
 
 // A TemplateAssociation associates a composed resource template with a composed
@@ -420,6 +437,9 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			tas[i].Reference = ref
 			continue
 		}
+
+		// TODO(negz): Below should be || not &&. If the controller ref is nil
+		// we don't control the resource and shouldn't delete it.
 
 		// We want to garbage collect this resource, but we don't control it.
 		if c := metav1.GetControllerOf(cd); c != nil && c.UID != cr.GetUID() {
@@ -552,172 +572,4 @@ func RenderComposite(_ context.Context, cp resource.Composite, cd resource.Compo
 	}
 
 	return nil
-}
-
-// An APIConnectionDetailsFetcher may use the API server to read connection
-// details from a Secret.
-type APIConnectionDetailsFetcher struct {
-	client client.Client
-}
-
-// NewAPIConnectionDetailsFetcher returns a ConnectionDetailsFetcher that may
-// use the API server to read connection details from a Secret.
-func NewAPIConnectionDetailsFetcher(c client.Client) *APIConnectionDetailsFetcher {
-	return &APIConnectionDetailsFetcher{client: c}
-}
-
-// FetchConnectionDetails of the supplied composed resource, if any.
-func (cdf *APIConnectionDetailsFetcher) FetchConnectionDetails(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) { //nolint:gocyclo // Relatively simple; complexity is mostly a switch.
-	data := map[string][]byte{}
-	if sref := cd.GetWriteConnectionSecretToReference(); sref != nil {
-		// It's possible that the composed resource does want to write a
-		// connection secret but has not yet. We presume this isn't an issue and
-		// that we'll propagate any connection details during a future
-		// iteration.
-		s := &corev1.Secret{}
-		nn := types.NamespacedName{Namespace: sref.Namespace, Name: sref.Name}
-		if err := cdf.client.Get(ctx, nn, s); client.IgnoreNotFound(err) != nil {
-			return nil, errors.Wrap(err, errGetSecret)
-		}
-		data = s.Data
-	}
-
-	conn := managed.ConnectionDetails{}
-
-	for _, d := range t.ConnectionDetails {
-		switch tp := connectionDetailType(d); tp {
-		case v1.ConnectionDetailTypeFromValue:
-			// Name, Value must be set if value type
-			switch {
-			case d.Name == nil:
-				return nil, errors.Errorf(errFmtConnDetailKey, tp)
-			case d.Value == nil:
-				return nil, errors.Errorf(errFmtConnDetailVal, tp)
-			default:
-				conn[*d.Name] = []byte(*d.Value)
-			}
-		case v1.ConnectionDetailTypeFromConnectionSecretKey:
-			if d.FromConnectionSecretKey == nil {
-				return nil, errors.Errorf(errFmtConnDetailKey, tp)
-			}
-			if data[*d.FromConnectionSecretKey] == nil {
-				// We don't consider this an error because it's possible the
-				// key will still be written at some point in the future.
-				continue
-			}
-			key := *d.FromConnectionSecretKey
-			if d.Name != nil {
-				key = *d.Name
-			}
-			if key != "" {
-				conn[key] = data[*d.FromConnectionSecretKey]
-			}
-		case v1.ConnectionDetailTypeFromFieldPath:
-			switch {
-			case d.Name == nil:
-				return nil, errors.Errorf(errFmtConnDetailKey, tp)
-			case d.FromFieldPath == nil:
-				return nil, errors.Errorf(errFmtConnDetailPath, tp)
-			default:
-				_ = extractFieldPathValue(cd, d, conn)
-			}
-		case v1.ConnectionDetailTypeUnknown:
-			// We weren't able to determine the type of this connection detail.
-		}
-	}
-
-	if len(conn) == 0 {
-		return nil, nil
-	}
-
-	return conn, nil
-}
-
-// Originally there was no 'type' determinator field so Crossplane would infer
-// the type. We maintain this behaviour for backward compatibility when no type
-// is set.
-func connectionDetailType(d v1.ConnectionDetail) v1.ConnectionDetailType {
-	switch {
-	case d.Type != nil:
-		return *d.Type
-	case d.Name != nil && d.Value != nil:
-		return v1.ConnectionDetailTypeFromValue
-	case d.FromConnectionSecretKey != nil:
-		return v1.ConnectionDetailTypeFromConnectionSecretKey
-	case d.FromFieldPath != nil:
-		return v1.ConnectionDetailTypeFromFieldPath
-	default:
-		return v1.ConnectionDetailTypeUnknown
-	}
-}
-
-func extractFieldPathValue(from runtime.Object, detail v1.ConnectionDetail, conn managed.ConnectionDetails) error {
-	fromMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(from)
-	if err != nil {
-		return err
-	}
-
-	str, err := fieldpath.Pave(fromMap).GetString(*detail.FromFieldPath)
-	if err == nil {
-		conn[*detail.Name] = []byte(str)
-		return nil
-	}
-
-	in, err := fieldpath.Pave(fromMap).GetValue(*detail.FromFieldPath)
-	if err != nil {
-		return err
-	}
-
-	buffer, err := json.Marshal(in)
-	if err != nil {
-		return err
-	}
-	conn[*detail.Name] = buffer
-	return nil
-}
-
-// IsReady returns whether the composed resource is ready.
-func IsReady(_ context.Context, cd resource.Composed, t v1.ComposedTemplate) (bool, error) { //nolint:gocyclo // Complexity is mostly due to the switch.
-	if len(t.ReadinessChecks) == 0 {
-		return resource.IsConditionTrue(cd.GetCondition(xpv1.TypeReady)), nil
-	}
-	// TODO(muvaf): We can probably get rid of resource.Composed interface and fake.Composed
-	// structs and use *composed.Unstructured everywhere including tests.
-	u, ok := cd.(*composed.Unstructured)
-	if !ok {
-		return false, errors.New("composed resource has to be Unstructured type")
-	}
-	paved := fieldpath.Pave(u.UnstructuredContent())
-
-	for i, check := range t.ReadinessChecks {
-		var ready bool
-		switch check.Type {
-		case v1.ReadinessCheckTypeNone:
-			return true, nil
-		case v1.ReadinessCheckTypeNonEmpty:
-			_, err := paved.GetValue(check.FieldPath)
-			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
-				return false, err
-			}
-			ready = !fieldpath.IsNotFound(err)
-		case v1.ReadinessCheckTypeMatchString:
-			val, err := paved.GetString(check.FieldPath)
-			if resource.Ignore(fieldpath.IsNotFound, err) != nil {
-				return false, err
-			}
-			ready = !fieldpath.IsNotFound(err) && val == check.MatchString
-		case v1.ReadinessCheckTypeMatchInteger:
-			val, err := paved.GetInteger(check.FieldPath)
-			if err != nil {
-				return false, err
-			}
-			ready = !fieldpath.IsNotFound(err) && val == check.MatchInteger
-		default:
-			return false, errors.Errorf("readiness check at index %d: an unknown type is chosen", i)
-		}
-		if !ready {
-			return false, nil
-		}
-	}
-	return true, nil
 }
