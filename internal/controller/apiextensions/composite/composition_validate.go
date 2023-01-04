@@ -23,8 +23,12 @@ import (
 
 // Error strings
 const (
-	errMixed     = "cannot mix named and anonymous resource templates"
-	errDuplicate = "resource template names must be unique within their Composition"
+	errMixed                    = "cannot mix named and anonymous resource templates - ensure all resource templates are named"
+	errDuplicate                = "resource template names must be unique within their Composition"
+	errFnsRequireNames          = "cannot use functions with anonymous resource templates - ensure all resource templates are named"
+	errFnMissingContainerConfig = "functions of type: Container must specify container configuration"
+
+	errFmtUnknownFnType = "unknown function type %q"
 )
 
 // A CompositionValidator validates the supplied Composition.
@@ -95,6 +99,46 @@ func RejectDuplicateNames(comp *v1.Composition) error {
 			return errors.New(errDuplicate)
 		}
 		seen[*tmpl.Name] = true
+	}
+	return nil
+}
+
+// RejectAnonymousTemplatesWithFunctions validates that all templates are named
+// when Composition Functions are in use. This is necessary for the
+// FunctionComposer to be able to associate entries in the spec.resources array
+// with entries in a FunctionIO's observed and desired arrays.
+func RejectAnonymousTemplatesWithFunctions(comp *v1.Composition) error {
+	if len(comp.Spec.Functions) == 0 {
+		// Composition Functions do not appear to be in use.
+		return nil
+	}
+
+	for _, tmpl := range comp.Spec.Resources {
+		if tmpl.Name == nil {
+			return errors.New(errFnsRequireNames)
+		}
+	}
+
+	return nil
+}
+
+// TODO(negz): Ideally we'd apply the below pattern everywhere in our APIs, i.e.
+// patches, transforms, etc. Currently each patch type (for example) ensures it
+// has the required configuration at call time.
+
+// RejectFunctionsWithoutRequiredConfig rejects Composition Functions missing
+// the configuration for their type - for example a function of type: Container
+// must include a container configuration.
+func RejectFunctionsWithoutRequiredConfig(comp *v1.Composition) error {
+	for _, fn := range comp.Spec.Functions {
+		switch fn.Type {
+		case v1.FunctionTypeContainer:
+			if fn.Container == nil {
+				return errors.New(errFnMissingContainerConfig)
+			}
+		default:
+			return errors.Errorf(errFmtUnknownFnType, fn.Type)
+		}
 	}
 	return nil
 }

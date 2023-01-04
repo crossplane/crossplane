@@ -217,7 +217,7 @@ type ComposedResource struct {
 	Name              string
 	Resource          resource.Composed
 	ConnectionDetails managed.ConnectionDetails
-	RenderError       error // TODO(negz): Is this name relevant to all Composer implementations?
+	RenderError       error
 	Ready             bool
 }
 
@@ -389,6 +389,8 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		composition: composition{
 			CompositionFetcher: NewAPICompositionFetcher(kube),
 			CompositionValidator: ValidationChain{
+				CompositionValidatorFn(RejectAnonymousTemplatesWithFunctions),
+				CompositionValidatorFn(RejectFunctionsWithoutRequiredConfig),
 				CompositionValidatorFn(RejectMixedTemplates),
 				CompositionValidatorFn(RejectDuplicateNames),
 			},

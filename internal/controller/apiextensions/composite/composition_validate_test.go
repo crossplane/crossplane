@@ -151,3 +151,122 @@ func TestRejectDuplicateNames(t *testing.T) {
 		})
 	}
 }
+
+func TestRejectAnonymousTemplatesWithFunctions(t *testing.T) {
+	cases := map[string]struct {
+		comp *v1.Composition
+		want error
+	}{
+		"AnonymousAndCompFnsNotInUse": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Anonymous
+						},
+						{
+							// Anonymous
+						},
+					},
+					// Functions array is empty.
+				},
+			},
+			want: nil,
+		},
+		"AnonymousAndCompFnsInUse": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							// Anonymous
+						},
+						{
+							// Anonymous
+						},
+					},
+					Functions: []v1.Function{{
+						Name: "cool-fn",
+					}},
+				},
+			},
+			want: errors.New(errFnsRequireNames),
+		},
+		"NamedAndCompFnsInUse": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Resources: []v1.ComposedTemplate{
+						{
+							Name: pointer.StringPtr("cool"),
+						},
+						{
+							Name: pointer.StringPtr("cooler"),
+						},
+					},
+					Functions: []v1.Function{{
+						Name: "cool-fn",
+					}},
+				},
+			},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RejectAnonymousTemplatesWithFunctions(tc.comp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nRejectAnonymousTemplatesWithFunctions(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestRejectFunctionsWithoutRequiredConfig(t *testing.T) {
+	cases := map[string]struct {
+		comp *v1.Composition
+		want error
+	}{
+		"UnknownType": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Functions: []v1.Function{{
+						Type: "wat",
+					}},
+				},
+			},
+			want: errors.Errorf(errFmtUnknownFnType, "wat"),
+		},
+		"MissingContainerConfig": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Functions: []v1.Function{{
+						Type: v1.FunctionTypeContainer,
+					}},
+				},
+			},
+			want: errors.New(errFnMissingContainerConfig),
+		},
+		"HasContainerConfig": {
+			comp: &v1.Composition{
+				Spec: v1.CompositionSpec{
+					Functions: []v1.Function{{
+						Type: v1.FunctionTypeContainer,
+						Container: &v1.ContainerFunction{
+							Image: "example.org/coolimg",
+						},
+					}},
+				},
+			},
+			want: nil,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := RejectFunctionsWithoutRequiredConfig(tc.comp)
+			if diff := cmp.Diff(tc.want, got, test.EquateErrors()); diff != "" {
+				t.Errorf("\nRejectFunctionsWithoutRequiredConfig(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
