@@ -90,6 +90,9 @@ type Package interface {
 
 	GetSkipDependencyResolution() *bool
 	SetSkipDependencyResolution(*bool)
+
+	GetCommonLabels() map[string]string
+	SetCommonLabels(l map[string]string)
 }
 
 // GetCondition of this Provider.
@@ -202,6 +205,16 @@ func (p *Provider) SetCurrentIdentifier(s string) {
 	p.Status.CurrentIdentifier = s
 }
 
+// GetCommonLabels of this Provider.
+func (p *Provider) GetCommonLabels() map[string]string {
+	return p.Spec.CommonLabels
+}
+
+// SetCommonLabels of this Provider.
+func (p *Provider) SetCommonLabels(l map[string]string) {
+	p.Spec.CommonLabels = l
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -310,6 +323,16 @@ func (p *Configuration) SetCurrentIdentifier(s string) {
 	p.Status.CurrentIdentifier = s
 }
 
+// GetCommonLabels of this Configuration.
+func (p *Configuration) GetCommonLabels() map[string]string {
+	return p.Spec.CommonLabels
+}
+
+// SetCommonLabels of this Configuration.
+func (p *Configuration) SetCommonLabels(l map[string]string) {
+	p.Spec.CommonLabels = l
+}
+
 var _ PackageRevision = &ProviderRevision{}
 var _ PackageRevision = &ConfigurationRevision{}
 
@@ -354,6 +377,9 @@ type PackageRevision interface {
 
 	GetWebhookTLSSecretName() *string
 	SetWebhookTLSSecretName(n *string)
+
+	GetCommonLabels() map[string]string
+	SetCommonLabels(l map[string]string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -488,6 +514,16 @@ func (p *ProviderRevision) SetWebhookTLSSecretName(b *string) {
 	p.Spec.WebhookTLSSecretName = b
 }
 
+// GetCommonLabels of this ProviderRevision.
+func (p *ProviderRevision) GetCommonLabels() map[string]string {
+	return p.Spec.CommonLabels
+}
+
+// SetCommonLabels of this ProviderRevision.
+func (p *ProviderRevision) SetCommonLabels(l map[string]string) {
+	p.Spec.CommonLabels = l
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -618,6 +654,16 @@ func (p *ConfigurationRevision) GetWebhookTLSSecretName() *string {
 // SetWebhookTLSSecretName of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetWebhookTLSSecretName(b *string) {
 	p.Spec.WebhookTLSSecretName = b
+}
+
+// GetCommonLabels of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
+	return p.Spec.CommonLabels
+}
+
+// SetCommonLabels of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
+	p.Spec.CommonLabels = l
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}

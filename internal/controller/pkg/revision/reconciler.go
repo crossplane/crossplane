@@ -85,6 +85,8 @@ const (
 
 	errRemoveLock  = "cannot remove package revision from Lock"
 	errResolveDeps = "cannot resolve package dependencies"
+
+	errConfResourceObject = "cannot convert to resource.Object"
 )
 
 // Event reasons.

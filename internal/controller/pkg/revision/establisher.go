@@ -101,6 +101,10 @@ type currentDesired struct {
 // Establish checks that control or ownership of resources can be established by
 // parent, then establishes it.
 func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error) {
+	err := e.addLabels(objs, parent)
+	if err != nil {
+		return nil, err
+	}
 	allObjs, err := e.validate(ctx, objs, parent, control)
 	if err != nil {
 		return nil, err
@@ -111,6 +115,26 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		return nil, err
 	}
 	return resourceRefs, nil
+}
+
+func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevision) error {
+	commonLabels := parent.GetCommonLabels()
+	for _, obj := range objs {
+		// convert to resource.Object to be able to access metadata
+		d, ok := obj.(resource.Object)
+		if !ok {
+			return errors.New(errConfResourceObject)
+		}
+		labels := d.GetLabels()
+		if labels != nil {
+			for key, value := range commonLabels {
+				labels[key] = value
+			}
+		} else {
+			d.SetLabels(commonLabels)
+		}
+	}
+	return nil
 }
 
 func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, parent v1.PackageRevision, control bool) ([]currentDesired, error) { //nolint:gocyclo // TODO(negz): Refactor this to break up complexity.
