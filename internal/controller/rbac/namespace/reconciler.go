@@ -44,7 +44,7 @@ import (
 const (
 	timeout = 2 * time.Minute
 
-	errGetNamespace = "cannot get CompositeResourceDefinition"
+	errGetNamespace = "cannot get Namespace"
 	errApplyRole    = "cannot apply Roles"
 	errListRoles    = "cannot list ClusterRoles"
 )
