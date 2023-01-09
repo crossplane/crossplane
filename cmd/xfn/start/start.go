@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	"github.com/crossplane/crossplane/internal/xfn"
 )
@@ -36,12 +37,12 @@ type Command struct {
 	CacheDir   string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
 	MapRootUID int    `help:"UID that will map to 0 in the function's user namespace. The following 65336 UIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 	MapRootGID int    `help:"GID that will map to 0 in the function's user namespace. The following 65336 GIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
-	Network    string `help:"Network on which to listen for gRPC connections." default:"unix-abstract"`
+	Network    string `help:"Network on which to listen for gRPC connections." default:"unix"`
 	Address    string `help:"Address at which to listen for gRPC connections." default:"@crossplane/fn/default.sock"`
 }
 
 // Run a Composition Function gRPC API.
-func (c *Command) Run() error {
+func (c *Command) Run(log logging.Logger) error {
 	// If we don't have CAP_SETUID or CAP_SETGID, we'll only be able to map our
 	// own UID and GID to root inside the user namespace.
 	rootUID := os.Getuid()
@@ -52,8 +53,10 @@ func (c *Command) Run() error {
 		rootGID = c.MapRootGID
 	}
 
-	// TODO(negz): Plumb a logger down into the runner? Spark does most of the
-	// heavy lifting, and we can't easily log from it.
-	f := xfn.NewContainerRunner(xfn.SetUID(setuid), xfn.MapToRoot(rootUID, rootGID), xfn.WithCacheDir(c.CacheDir))
+	f := xfn.NewContainerRunner(
+		xfn.SetUID(setuid),
+		xfn.MapToRoot(rootUID, rootGID),
+		xfn.WithCacheDir(c.CacheDir),
+		xfn.WithLogger(log))
 	return errors.Wrap(f.ListenAndServe(c.Network, c.Address), errListenAndServe)
 }

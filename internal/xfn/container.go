@@ -23,6 +23,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 )
 
@@ -38,6 +39,8 @@ const defaultCacheDir = "/xfn"
 // extracting it and running it as a 'rootless' container.
 type ContainerRunner struct {
 	v1alpha1.UnimplementedContainerizedFunctionRunnerServiceServer
+
+	log logging.Logger
 
 	rootUID int
 	rootGID int
@@ -74,10 +77,18 @@ func WithCacheDir(d string) ContainerRunnerOption {
 	}
 }
 
+// WithLogger configures which logger the container runner should use. Logging
+// is disabled by default.
+func WithLogger(l logging.Logger) ContainerRunnerOption {
+	return func(cr *ContainerRunner) {
+		cr.log = l
+	}
+}
+
 // NewContainerRunner returns a new Runner that runs functions as rootless
 // containers.
 func NewContainerRunner(o ...ContainerRunnerOption) *ContainerRunner {
-	r := &ContainerRunner{cache: defaultCacheDir}
+	r := &ContainerRunner{cache: defaultCacheDir, log: logging.NewNopLogger()}
 	for _, fn := range o {
 		fn(r)
 	}
@@ -87,6 +98,7 @@ func NewContainerRunner(o ...ContainerRunnerOption) *ContainerRunner {
 
 // ListenAndServe gRPC connections at the supplied address.
 func (r *ContainerRunner) ListenAndServe(network, address string) error {
+	r.log.Debug("Listening", "network", network, "address", address)
 	lis, err := net.Listen(network, address)
 	if err != nil {
 		return errors.Wrap(err, errListen)

@@ -159,6 +159,42 @@ spec:
           - mountPath: /webhook/tls
             name: webhook-tls-secret
           {{- end }}
+      {{- if .Values.xfn.enabled }}
+      - image: {{ .Values.xfn.image.repository }}:{{ .Values.xfn.image.tag }}
+        args:
+        - start
+        {{- range $arg := .Values.xfn.args }}
+        - {{ $arg }}
+        {{- end }}
+        imagePullPolicy: {{ .Values.xfn.image.pullPolicy }}
+        name: {{ .Chart.Name }}-xfn
+        resources:
+          {{- toYaml .Values.xfn.resources | nindent 12 }}
+        securityContext:
+          {{- toYaml .Values.xfn.securityContext | nindent 12 }}
+        env:
+          - name: GOMAXPROCS
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.cpu
+          - name: GOMEMLIMIT
+            valueFrom:
+              resourceFieldRef:
+                containerName: {{ .Chart.Name }}
+                resource: limits.memory
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+        {{- range $key, $value := .Values.xfn.extraEnvVars }}
+          - name: {{ $key | replace "." "_" }}
+            value: {{ $value | quote }}
+        {{- end }}
+        volumeMounts:
+          - mountPath: /xfn
+            name: xfn-cache
+      {{- end }}
       volumes:
       - name: package-cache
         {{- if .Values.packageCache.pvc }}
@@ -172,6 +208,17 @@ spec:
           medium: {{ .Values.packageCache.medium }}
           sizeLimit: {{ .Values.packageCache.sizeLimit }}
         {{- end }}
+      {{- if .Values.xfn.enabled }}
+      - name: xfn-cache
+        {{- if .Values.xfn.cache.pvc }}
+        persistentVolumeClaim:
+          claimName: {{ .Values.xfn.cache.pvc }}
+        {{- else }}
+        emptyDir:
+          medium: {{ .Values.xfn.cache.medium }}
+          sizeLimit: {{ .Values.xfn.cache.sizeLimit }}
+        {{- end }}
+      {{- end }}
       {{- if .Values.registryCaBundleConfig.name }}
       - name: ca-certs
         configMap:

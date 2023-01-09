@@ -46,7 +46,7 @@ var cli struct {
 // BeforeApply binds the dev mode logger to the kong context when debugFlag is
 // passed.
 func (d debugFlag) BeforeApply(ctx *kong.Context) error { //nolint:unparam // BeforeApply requires this signature.
-	zl := zap.New(zap.UseDevMode(true)).WithName("crossplane")
+	zl := zap.New(zap.UseDevMode(true)).WithName("xfn")
 	// BindTo uses reflect.TypeOf to get reflection type of used interface
 	// A *logging.Logger value here is used to find the reflection type here.
 	// Please refer: https://golang.org/pkg/reflect/#TypeOf

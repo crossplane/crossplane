@@ -74,6 +74,8 @@ func HasCapSetGID() bool {
 // return non-zero, or that cannot be executed in the first place (e.g. because
 // they cannot be fetched from the registry) will return an error.
 func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunctionRequest) (*v1alpha1.RunFunctionResponse, error) {
+	r.log.Debug("Running function", "image", req.Image)
+
 	/*
 		We want to create an overlayfs with the cached rootfs as the lower layer
 		and the bundle's rootfs as the upper layer, if possible. Kernel 5.11 and
