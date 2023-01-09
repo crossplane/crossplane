@@ -23,7 +23,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	fnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 )
 
 const errLinuxOnly = "containerized functions are only supported on Linux"
