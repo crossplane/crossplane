@@ -49,6 +49,16 @@ type ControllerConfigSpec struct {
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
 	// ServiceAccountName is the name of the ServiceAccount to use to run this pod.
 	// More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+	// If specified, a ServiceAccount named this ServiceAccountName will be used for
+	// the spec.serviceAccountName field in Pods to be created and for the subjects.name field
+	// in a ClusterRoleBinding to be created.
+	// If there is no ServiceAccount named this ServiceAccountName, a new ServiceAccount
+	// will be created.
+	// If there is a pre-existing ServiceAccount named this ServiceAccountName, the ServiceAccount
+	// will be used. The annotations in the ControllerConfig will be copied to the ServiceAccount
+	// and pre-existing annotations will be kept.
+	// Regardless of whether there is a ServiceAccount created by Crossplane or is in place already,
+	// the ServiceAccount will be deleted once the Provider and ControllerConfig are deleted.
 	// +optional
 	ServiceAccountName *string `json:"serviceAccountName,omitempty"`
 	// NodeName is a request to schedule this pod onto a specific node. If it is non-empty,
