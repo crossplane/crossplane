@@ -510,7 +510,7 @@ the `--enable-environment-configs` flag on startup.
 # spec.forProvider.settings.tier field.
 - type: FromEnvironmentFieldPath
   fromFieldPath: tier.name
-  toF/ieldPath: spec.forProvider.settings.tier
+  toFieldPath: spec.forProvider.settings.tier
 ```
 
 `ToEnvironmentFieldPath`. This type patches from a composed field to the
