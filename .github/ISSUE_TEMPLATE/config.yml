@@ -1,0 +1,7 @@
+contact_links:
+- name: Support Request
+  url: https://github.com/crossplane/crossplane/discussions
+  about: Ask the Crossplane community for support.
+- name: Documentation Issues
+  url: https://github.com/crossplane/docs/issues
+  about: Report a documentation bug, or suggest an improvement.
