@@ -65,14 +65,6 @@ OSBASEIMAGE = gcr.io/distroless/static:nonroot
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
-# Setup Docs
-
-SOURCE_DOCS_DIR = docs
-DEST_DOCS_DIR = content
-DOCS_GIT_REPO = https://$(DOCS_GIT_USR):$(DOCS_GIT_PSW)@github.com/crossplane/docs.git
--include build/makelib/docs.mk
-
-# ====================================================================================
 # Targets
 
 # run `make help` to see the targets and options
@@ -97,18 +89,12 @@ crds.clean:
 	@find $(CRD_DIR) -name '*.yaml.sed' -delete || $(FAIL)
 	@$(OK) cleaned generated CRDs
 
-generate.run: gen-kustomize-crds gen-install-doc gen-chart-license
+generate.run: gen-kustomize-crds gen-chart-license
 
 gen-chart-license:
 	@cp -f LICENSE cluster/charts/crossplane/LICENSE
 
 generate.done: crds.clean
-
-gen-install-doc:
-	@$(INFO) Generating install documentation from Helm chart
-	@head -4 docs/reference/install.md | cat - cluster/charts/crossplane/README.md > reference-install.tmp
-	@mv reference-install.tmp docs/reference/install.md
-	@$(OK) Successfully generated install documentation
 
 gen-kustomize-crds:
 	@$(INFO) Adding all CRDs to Kustomize file for local development
@@ -182,7 +168,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug
 
-.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds gen-install-doc e2e-tests-compile
+.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile
 
 # ====================================================================================
 # Special Targets

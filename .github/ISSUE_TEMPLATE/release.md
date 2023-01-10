@@ -25,9 +25,7 @@ examples of each step.
   - [ ] Created the release branch.
   - [ ] Created and merged an empty commit to the `master` branch.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the next release candidate tag.
-- [ ] Updated all version information in the documentation on the relevant release branch.
-  - [ ] Update the [`version` front-matter](https://github.com/crossplane/crossplane/blob/master/docs/_index.md?plain=1#L8) in docs/_index.md
-  - [ ] Update the [`alias` front-matter](https://github.com/crossplane/crossplane/blob/master/docs/_index.md?plain=1#L6) in docs/_index.md
+- [ ] Open a [docs release issue].
 - [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with the proper release version.
 - [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel..
 - [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
@@ -48,6 +46,7 @@ examples of each step.
 
 
 <!-- Named Links -->
+[docs release issue]: https://github.com/crossplane/docs/issues/new?assignees=&labels=release&template=new_release.md&title=Release+Crossplane+version...+
 [releases.crossplane.io]: https://releases.crossplane.io
 [xpkg.upbound.io]: https://cloud.upbound.io/browse
 [new release]: https://github.com/crossplane/crossplane/releases/new
