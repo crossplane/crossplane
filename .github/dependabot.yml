@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Keep go modules up to date
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+  # Keep github actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+  # Keep docker image up to date
+  - package-ecosystem: "docker"
+    directory: "/cluster/images/crossplane"
+    schedule:
+      interval: "daily"
