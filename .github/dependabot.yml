@@ -3,15 +3,75 @@ updates:
   # Keep go modules up to date
   - package-ecosystem: "gomod"
     directory: "/"
+    target-branch: "master"
     schedule:
       interval: "daily"
   # Keep github actions up to date
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "master"
     schedule:
       interval: "daily"
   # Keep docker image up to date
   - package-ecosystem: "docker"
     directory: "/cluster/images/crossplane"
+    target-branch: "master"
+    schedule:
+      interval: "daily"
+
+  # Keep go modules up to date
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "release-1.8"
+    schedule:
+      interval: "daily"
+  # Keep github actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "release-1.8"
+    schedule:
+      interval: "daily"
+  # Keep docker image up to date
+  - package-ecosystem: "docker"
+    directory: "/cluster/images/crossplane"
+    target-branch: "release-1.8"
+    schedule:
+      interval: "daily"
+
+  # Keep go modules up to date
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "release-1.9"
+    schedule:
+      interval: "daily"
+  # Keep github actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "release-1.9"
+    schedule:
+      interval: "daily"
+  # Keep docker image up to date
+  - package-ecosystem: "docker"
+    directory: "/cluster/images/crossplane"
+    target-branch: "release-1.9"
+    schedule:
+      interval: "daily"
+
+  # Keep go modules up to date
+  - package-ecosystem: "gomod"
+    directory: "/"
+    target-branch: "release-1.10"
+    schedule:
+      interval: "daily"
+  # Keep github actions up to date
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "release-1.10"
+    schedule:
+      interval: "daily"
+  # Keep docker image up to date
+  - package-ecosystem: "docker"
+    directory: "/cluster/images/crossplane"
+    target-branch: "release-1.10"
     schedule:
       interval: "daily"
