@@ -25,15 +25,16 @@ follows:
   - You have existing infrastructures managed by Terraform, and you want to
   migrate them gradually to Crossplane.
   - You have a legacy infrastructure that you want to migrate to Crossplane,
-  but you want to test the managed resources before taking ownership of the
-  underlying resources.
-  - For an existing resource, you don’t want to give some initial configuration
-  that might override the actual configuration. You want to late-initialize all
-  fields, including the ones that would be required otherwise.
+  but you want to experiment the managed resources before taking ownership of
+  the underlying resources.
+  - For an existing resource, you don’t want to provide full configuration
+  spec that might override the actual configuration. You want to late-initialize
+  all fields, including the ones that would be required otherwise.
 - Only observing some fields after the initial creation
   - You want to create an EKS Node Group with a scaling configuration where you
-  configured an initial desired size. After the creation, you want to ignore
-  changes in the size which is now being controlled by the cluster autoscaler.
+  configured an initial desired size. After the creation, you want to only
+  observe changes in the size which is now being controlled by the cluster
+  autoscaler.
 
 Currently, Crossplane does not have a built-in way of observing resources
 without taking ownership of them. There are two workarounds used by the
@@ -55,12 +56,16 @@ ecosystem without giving full ownership.
 in Crossplane.
 - Enable seamless integration of existing cloud resources with the Crossplane
 ecosystem.
-- Allow users to fetch data from existing resources without giving full
-ownership.
 
 ### Non-goals
 
 - Partially managing a resource by observing a subset of fields.
+
+This may seem similar to the concept of observing resources, but there is a
+fundamental difference. In this scenario, we want to use certain parameters
+during the creation of the resource, whereas observing resources is intended to
+be a completely read-only operation that should never make any changes to the
+external system, including during the creation process.
 
 ## Proposal
 
@@ -165,20 +170,20 @@ exists with deletion:
 | Delete | ObserveCreateUpdate | Yes | Yes | Yes | Conflict (No) |
 | Orphan | ObserveOnly | Yes | No | No | No |
 
-For conflicting cases, we will decide based on the non-default configuration and
-not delete the external resource. This way, we will also err on the side of
-caution by leaving the actual resource. However, this comes at the cost of some
-possible confusion for users focusing on only one of the policies.
+For conflicting cases, we will decide based on the non-default configuration
+which means "not deleting the external resource" for all 3 conflicting cases.
+This way, we will also err on the side of caution by leaving the actual resource
+untouched, avoiding any accidental deletion or modification.
 
-Another solution could be simply throwing an error and preventing reconciliation
-during conflict. This would be more explicit but would require some manual
-actions and degraded UX for the usage of the feature, for example:
-
-- Creating an ObserveOnly resource will require both setting `managementPolicy`
-to `ObserveOnly` and `deletionPolicy` to `Orphan` .
-- If there are existing resources with `deletionPolicy: Orphan` when the feature
-is enabled, they will start failing to reconcile until their
-`managementPolicy`’s updated to `ObserveCreateUpdate`.
+> Another solution could be simply throwing an error and preventing
+> reconciliation during conflict. This would be more explicit but would require
+> some manual actions and degraded UX for the usage of the feature, for example:
+> 
+> - Creating an ObserveOnly resource will require both setting `managementPolicy`
+> to `ObserveOnly` and `deletionPolicy` to `Orphan` .
+> - If there are existing resources with `deletionPolicy: Orphan` when the feature
+> is enabled, they will start failing to reconcile until their
+> `managementPolicy`’s updated to `ObserveCreateUpdate`.
 
 #### Schema Changes
 
