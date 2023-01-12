@@ -36,6 +36,7 @@ examples of each step.
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel.
 - [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes.
 - [ ] Update the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release
+- [ ] Update the `baseBranches` list in renovate's configuration file, `.github/renovate.json5`, with the new release branch, removing the old unsupported release one.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack
   - [ ] Twitter
