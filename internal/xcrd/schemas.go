@@ -340,6 +340,12 @@ func CompositeResourceClaimStatusProps() map[string]extv1.JSONSchemaProps {
 				},
 			},
 		},
+		"connectionDetails": {
+			Type: "object",
+			Properties: map[string]extv1.JSONSchemaProps{
+				"lastPublishedTime": {Type: "string", Format: "date-time"},
+			},
+		},
 	}
 }
 
