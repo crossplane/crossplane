@@ -1506,6 +1506,11 @@ spec:
                   the ServiceAccount will be deleted once the Provider and ControllerConfig
                   are deleted.'
                 type: string
+              targetNamespace:
+                description: TargetNamespace specifies the namespace where the controller
+                  will be deployed This field is optional, and if omitted, it will
+                  default to the parent Crossplane namespace
+                type: string
               tolerations:
                 description: If specified, the pod's tolerations.
                 items:

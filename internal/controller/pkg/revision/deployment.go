@@ -55,7 +55,7 @@ const (
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) {
 
 	// if TargetNamespace is specified, we use it
-	if cc.Spec.TargetNamespace != nil {
+	if cc != nil && cc.Spec.TargetNamespace != nil {
 		namespace = *cc.Spec.TargetNamespace
 	}
 
