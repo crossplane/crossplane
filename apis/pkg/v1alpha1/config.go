@@ -29,6 +29,10 @@ type ControllerConfigSpec struct {
 	// +optional
 	Metadata *PodObjectMeta `json:"metadata,omitempty"`
 
+	// TargetNamespace specifies the namespace where the controller will be deployed
+	// This field is optional, and if omitted, it will default to the parent Crossplane namespace
+	// +optional
+	TargetNamespace *string `json:"targetNamespace,omitempty"`
 	// Number of desired pods. This is a pointer to distinguish between explicit
 	// zero and not specified. Defaults to 1.
 	// Note: If more than 1 replica is set and leader election is not enabled then
