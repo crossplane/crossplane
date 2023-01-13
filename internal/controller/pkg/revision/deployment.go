@@ -53,6 +53,12 @@ const (
 
 //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) {
+
+	// if TargetNamespace is specified, we use it
+	if cc.Spec.TargetNamespace != nil {
+		namespace = *cc.Spec.TargetNamespace
+	}
+
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
