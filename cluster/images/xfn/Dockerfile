@@ -1,18 +1,16 @@
-# TODO(negz): This is dumb. Don't build crun every time we build Crossplane.
-FROM nixos/nix:2.12.0 AS crun-build
-
-ARG CRUN_VERSION=1.7.2
-
-RUN git clone --branch ${CRUN_VERSION} --recursive https://github.com/containers/crun
-WORKDIR crun
-RUN nix --extra-experimental-features nix-command build -f nix --arg enableSystemd false
-
-FROM gcr.io/distroless/static@sha256:d2b0ec3141031720cf5eedef3493b8e129bc91935a43b50562fbe5429878d96b
+# This is debian:bookworm-slim (i.e. Debian 12, testing), which has crun v1.5.
+FROM debian@sha256:9b8b22f153dc2099e609f56ec3790e5952f89d3e187e42686c0b95ad1f378d01
 
 ARG TARGETOS
 ARG TARGETARCH
 
-COPY --from=crun-build /crun/result/bin/crun /usr/local/bin/
+# TODO(negz): Find a better way to get an OCI runtime? Ideally we'd grab a
+# static build of crun (or runc) that we could drop into a distroless image. We
+# slightly prefer crun for its nascent WASM and KVM capabilities, but they only
+# offer static builds for amd64 and arm64 and building our own takes a long
+# time.
+RUN apt-get update && apt-get install -y ca-certificates crun && rm -rf /var/lib/apt/lists/*
+
 ADD bin/${TARGETOS}\_${TARGETARCH}/xfn /usr/local/bin/
 
 # We run xfn as root in order to grant it CAP_SETUID and CAP_SETGID, which are
