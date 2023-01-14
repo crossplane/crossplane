@@ -26,7 +26,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
+	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 

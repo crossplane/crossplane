@@ -51,9 +51,9 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
+	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
-	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -199,7 +199,7 @@ func TestPTFCompose(t *testing.T) {
 					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
 						return nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o v1alpha1.Observed, d v1alpha1.Desired) error {
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
 						return errBoom
 					})),
 				},
@@ -224,7 +224,7 @@ func TestPTFCompose(t *testing.T) {
 					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
 						return nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o v1alpha1.Observed, d v1alpha1.Desired) error {
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
 						return nil
 					})),
 					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
@@ -256,7 +256,7 @@ func TestPTFCompose(t *testing.T) {
 					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
 						return nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o v1alpha1.Observed, d v1alpha1.Desired) error {
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
 						return nil
 					})),
 					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
@@ -305,7 +305,7 @@ func TestPTFCompose(t *testing.T) {
 					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
 						return nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o v1alpha1.Observed, d v1alpha1.Desired) error {
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
 						return nil
 					})),
 					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
@@ -338,7 +338,7 @@ func TestPTFCompose(t *testing.T) {
 					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
 						return nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o v1alpha1.Observed, d v1alpha1.Desired) error {
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
 						return nil
 					})),
 					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
@@ -382,7 +382,7 @@ func TestPTFCompose(t *testing.T) {
 					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
 						return nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o v1alpha1.Observed, d v1alpha1.Desired) error {
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
 						return nil
 					})),
 					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
