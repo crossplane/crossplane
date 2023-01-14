@@ -55,7 +55,7 @@ const (
 	errBuildFunctionIODesired   = "cannot build initial FunctionIO desired state"
 	errMarshalXR                = "cannot marshal composite resource"
 	errMarshalCD                = "cannot marshal composed resource"
-	errPatchAndTransform        = "cannot patch and transform resources"
+	errPatchAndTransform        = "cannot patch and transform"
 	errRunFunctionPipeline      = "cannot run Composition Function pipeline"
 	errDeleteUndesiredCDs       = "cannot delete undesired composed resources"
 	errApplyXR                  = "cannot apply composite resource"
@@ -72,7 +72,7 @@ const (
 
 	errFmtApplyCD                  = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails = "cannot fetch connection details for composed resource %q (a %s named %s)"
-	errFmtRenderXR                 = "cannot render (patch and transform) composite resource from composed resource %q (a %s named %s)"
+	errFmtRenderXR                 = "cannot render composite resource from composed resource %q (a %s named %s)"
 	errFmtRunFn                    = "cannot run function %q"
 	errFmtUnsupportedFnType        = "unsupported function type %q"
 	errFmtParseDesiredCD           = "cannot parse desired composed resource %q from FunctionIO"
