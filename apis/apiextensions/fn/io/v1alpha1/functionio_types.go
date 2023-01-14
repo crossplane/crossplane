@@ -52,7 +52,9 @@ type FunctionIO struct {
 	Desired Desired `json:"desired,omitempty"`
 
 	// Results is an optional list that can be used by function to emit results
-	// for observability and debugging purposes.
+	// for observability and debugging purposes. Functions may mutate any
+	// results that they are concerned with, and must pass through any results
+	// that that are not concerned with.
 	// +optional
 	Results []Result `json:"results,omitempty"`
 }
@@ -228,17 +230,23 @@ type DesiredReadinessCheck struct {
 // Result is an optional list that can be used by function to emit results for
 // observability and debugging purposes.
 type Result struct {
-	//  Message is a human readable message.
-	Message string `json:"message"`
-
-	// Severity is the severity of a result:
+	// Severity is the severity of a result.
 	//
-	//   "error": indicates an error result.
-	//   "warning": indicates a warning result.
-	//   "info": indicates an informational result.
-	// +optional
-	// +kubebuilder:validation:Enum=Error;Warning;Info
-	Severity *Severity `json:"severity,omitempty"`
+	// Fatal results are fatal; subsequent Composition Functions may run, but
+	// the Composition Function pipeline run will be considered a failure and
+	// the first error will be returned.
+	//
+	// Warning results are non-fatal; the entire Composition will run to
+	// completion but warning events and debug logs associated with the
+	// composite resource will be emitted.
+	//
+	// Normal results are emitted as normal events and debug logs associated
+	// with the composite resource.
+	// +kubebuilder:validation:Enum=Fatal;Warning;Normal
+	Severity Severity `json:"severity,omitempty"`
+
+	// Message is a human readable message.
+	Message string `json:"message"`
 }
 
 // Severity is the severity of a result.
@@ -246,7 +254,7 @@ type Severity string
 
 // Result severities.
 const (
-	SeverityError   string = "Error"
-	SeverityWarning string = "Warning"
-	SeverityInfo    string = "Info"
+	SeverityFatal   Severity = "Fatal"
+	SeverityWarning Severity = "Warning"
+	SeverityNormal  Severity = "Normal"
 )

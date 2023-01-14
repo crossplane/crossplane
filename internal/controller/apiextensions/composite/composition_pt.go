@@ -18,6 +18,7 @@ package composite
 
 import (
 	"context"
+	"strconv"
 
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -28,6 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -41,25 +43,26 @@ import (
 
 // Error strings
 const (
-	errGetComposed    = "cannot get composed resource"
-	errGCComposed     = "cannot garbage collect composed resource"
-	errApply          = "cannot apply composed resource"
-	errFetchDetails   = "cannot fetch connection details"
-	errExtractDetails = "cannot extract composite resource connection details from composed resource"
-	errReadiness      = "cannot check whether composed resource is ready"
-	errUnmarshal      = "cannot unmarshal base template"
-	errGetSecret      = "cannot get connection secret of composed resource"
-	errNamePrefix     = "name prefix is not found in labels"
-	errKindChanged    = "cannot change the kind of an existing composed resource"
-	errName           = "cannot use dry-run create to name composed resource"
-	errInline         = "cannot inline Composition patch sets"
-	errRenderCR       = "cannot render composite resource"
+	errGetComposed      = "cannot get composed resource"
+	errGCComposed       = "cannot garbage collect composed resource"
+	errApply            = "cannot apply composed resource"
+	errFetchDetails     = "cannot fetch connection details"
+	errExtractDetails   = "cannot extract composite resource connection details from composed resource"
+	errReadiness        = "cannot check whether composed resource is ready"
+	errUnmarshal        = "cannot unmarshal base template"
+	errGetSecret        = "cannot get connection secret of composed resource"
+	errNamePrefix       = "name prefix is not found in labels"
+	errKindChanged      = "cannot change the kind of an existing composed resource"
+	errName             = "cannot use dry-run create to name composed resource"
+	errInline           = "cannot inline Composition patch sets"
+	errRenderCR         = "cannot render composite resource"
+	errSetControllerRef = "cannot set controller reference"
 
+	errFmtResourceName   = "composed resource %q"
 	errFmtPatch          = "cannot apply the patch at index %d"
 	errFmtConnDetailKey  = "connection detail of type %q key is not set"
 	errFmtConnDetailVal  = "connection detail of type %q value is not set"
 	errFmtConnDetailPath = "connection detail of type %q fromFieldPath is not set"
-	errSetControllerRef  = "cannot set controller reference"
 )
 
 // TODO(negz): Move P&T Composition logic into its own package?
@@ -191,6 +194,8 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 	}
 
+	events := make([]event.Event, 0)
+
 	// We optimistically render all composed resources that we are able to with
 	// the expectation that any that we fail to render will subsequently have
 	// their error corrected by manual intervention or propagation of a required
@@ -201,14 +206,20 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	for i := range tas {
 		ta := tas[i]
 
+		// If this resource is anonymous its "name" is just its index.
+		name := pointer.StringDeref(ta.Template.Name, strconv.Itoa(i))
 		r := composed.New(composed.FromReference(ta.Reference))
+
+		rerr := c.composed.Render(ctx, xr, r, ta.Template, req.Environment)
+		if rerr != nil {
+			events = append(events, event.Warning(reasonCompose, errors.Wrapf(rerr, errFmtResourceName, name)))
+		}
+
 		cds[i] = ComposedResourceState{
-			ComposedResource: ComposedResource{
-				ResourceName: pointer.StringDeref(ta.Template.Name, ""),
-				RenderError:  c.composed.Render(ctx, xr, r, ta.Template, req.Environment),
-			},
-			Template: &ta.Template,
-			Resource: r,
+			ComposedResource: ComposedResource{ResourceName: name},
+			Rendered:         rerr == nil,
+			Template:         &ta.Template,
+			Resource:         r,
 		}
 		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
 	}
@@ -228,7 +239,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	for _, cd := range cds {
 		// If we were unable to render the composed resource we should not try
 		// and apply it.
-		if cd.RenderError != nil {
+		if !cd.Rendered {
 			continue
 		}
 		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID())}
@@ -242,7 +253,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	for i := range cds {
 		// If we were unable to render the composed resource we should not try
 		// to observe it.
-		if cds[i].RenderError != nil {
+		if !cds[i].Rendered {
 			continue
 		}
 
@@ -293,7 +304,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		out[i] = cds[i].ComposedResource
 	}
 
-	return CompositionResult{ConnectionDetails: conn, Composed: out}, nil
+	return CompositionResult{ConnectionDetails: conn, Composed: out, Events: events}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,

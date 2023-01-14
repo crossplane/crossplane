@@ -31,11 +31,6 @@ type ComposedResource struct {
 	// array, and/or a FunctionIO's observed/desired resources array.
 	ResourceName string
 
-	// RenderError encountered while rendering the composed resource. Render
-	// errors are often temporary, e.g. because rendering depends on information
-	// that is not yet available.
-	RenderError error
-
 	// Ready indicates whether this composed resource is ready - i.e. whether
 	// all of its readiness checks passed.
 	Ready bool
@@ -52,6 +47,7 @@ type ComposedResourceState struct {
 	Desired  *iov1alpha1.DesiredResource
 
 	// The state of the composed resource.
+	Rendered          bool
 	Resource          resource.Composed
 	ConnectionDetails managed.ConnectionDetails
 }
@@ -83,12 +79,12 @@ func MergeComposedResourceStates(old, new ComposedResourceState) ComposedResourc
 	if new.Desired != nil {
 		out.Desired = new.Desired
 	}
-	if new.RenderError != nil {
-		out.RenderError = new.RenderError
+	// TODO(negz): Should Rendered and Ready be *bool so we can differentiate
+	// between false and unset? In practice we currently only ever transition
+	// _to_ these states.
+	if new.Rendered {
+		out.Rendered = new.Rendered
 	}
-
-	// TODO(negz): Should Ready be *bool so we can differentiate between false
-	// and unset? In practice we currently only ever transition _to_ ready.
 	if new.Ready {
 		out.Ready = new.Ready
 	}

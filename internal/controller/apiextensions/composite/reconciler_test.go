@@ -33,6 +33,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -432,8 +433,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"ComposedResourcesNotRendered": {
-			reason: "We should requeue if any of our composed resources were not able to be rendered.",
+		"CompositionWarnings": {
+			reason: "We should not requeue if our Composer returned warning events.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -441,7 +442,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: test.NewMockGetFn(nil),
 						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
 							cr.SetCompositionReference(&corev1.ObjectReference{})
-							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating())
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
 						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
@@ -461,9 +462,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
 						return CompositionResult{
-							Composed: []ComposedResource{{
-								RenderError: errBoom,
-							}},
+							Events: []event.Event{event.Warning("Warning", errBoom)},
 						}, nil
 					})),
 					WithConnectionPublishers(managed.ConnectionPublisherFns{
@@ -474,7 +473,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				r: reconcile.Result{Requeue: true},
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
 			},
 		},
 		"ComposedResourcesNotReady": {

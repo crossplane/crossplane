@@ -17,7 +17,6 @@ package composite
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"google.golang.org/grpc"
@@ -34,6 +33,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -68,10 +68,11 @@ const (
 	errRunFnContainer           = "cannot run container"
 	errCloseRunner              = "cannot close connection to container runner"
 	errUnmarshalFnIO            = "cannot unmarshal output FunctionIO"
+	errFatalResult              = "fatal function pipeline result"
 
 	errFmtApplyCD                  = "cannot apply composed resource %q"
 	errFmtFetchCDConnectionDetails = "cannot fetch connection details for composed resource %q (a %s named %s)"
-	errFmtRenderXR                 = "cannot render (patch and transform) composite resource from composed resource %q (%s)"
+	errFmtRenderXR                 = "cannot render (patch and transform) composite resource from composed resource %q (a %s named %s)"
 	errFmtRunFn                    = "cannot run function %q"
 	errFmtUnsupportedFnType        = "unsupported function type %q"
 	errFmtParseDesiredCD           = "cannot parse desired composed resource %q from FunctionIO"
@@ -264,6 +265,7 @@ type PTFCompositionState struct {
 	Composite         resource.Composite
 	ConnectionDetails managed.ConnectionDetails
 	ComposedResources ComposedResourceStates
+	Events            []event.Event
 }
 
 // Compose resources using both either the Patch & Transform style resources
@@ -283,6 +285,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		Composite:         xr,
 		ConnectionDetails: xc,
 		ComposedResources: cds,
+		Events:            make([]event.Event, 0),
 	}
 
 	// Build observed state to be passed to our Composition Function pipeline.
@@ -345,7 +348,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		// Don't try to apply this resource if we didn't render it successfully.
 		// Note that this doesn't mean this resource won't exist; it might have
 		// been created previously.
-		if cd.RenderError != nil {
+		if !cd.Rendered {
 			continue
 		}
 
@@ -370,7 +373,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		out = append(out, cd.ComposedResource)
 	}
 
-	return CompositionResult{ConnectionDetails: state.ConnectionDetails, Composed: out}, nil
+	return CompositionResult{ConnectionDetails: state.ConnectionDetails, Composed: out, Events: state.Events}, nil
 }
 
 func allPatches(cds ComposedResourceStates) []v1.Patch {
@@ -535,13 +538,11 @@ func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req Co
 		t := ct[i]
 
 		var r resource.Composed = composed.New()
-		var details = ""
 
 		// Templates must be named. This is a requirement to use Composition
 		// Functions and thus this Composer implementation.
 		if cd, exists := s.ComposedResources[*t.Name]; exists {
 			r = cd.Resource
-			details = fmt.Sprintf("a %s named %s", r.GetObjectKind().GroupVersionKind().Kind, r.GetName())
 
 			// Typically we'll patch from composed resource status to the XR so
 			// we only want to render (i.e. patch) the XR from composed
@@ -549,27 +550,20 @@ func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req Co
 			if err := pt.composite.Render(ctx, s.Composite, r, t, req.Environment); err != nil {
 				// TODO(negz): Why is it that an error rendering CD->XR is
 				// terminal, but an error rendering XR->CD is not?
-				return errors.Wrapf(err, errFmtRenderXR, *t.Name, details)
+				return errors.Wrapf(err, errFmtRenderXR, *t.Name, r.GetObjectKind().GroupVersionKind().Kind, r.GetName())
 			}
 		}
 
 		rerr := pt.composed.Render(ctx, s.Composite, r, t, req.Environment)
-
-		// Wrap the error with some details if we can. We don't include the
-		// template name here because the Reconciler that calls us should (it
-		// has to account for the PTComposer too, where there may not be a named
-		// template).
-		if details != "" {
-			rerr = errors.Wrap(rerr, details)
+		if rerr != nil {
+			s.Events = append(s.Events, event.Warning(reasonCompose, errors.Wrapf(rerr, errFmtResourceName, *t.Name)))
 		}
 
 		s.ComposedResources.Merge(ComposedResourceState{
-			ComposedResource: ComposedResource{
-				ResourceName: *t.Name,
-				RenderError:  rerr,
-			},
-			Resource: r,
-			Template: &t,
+			ComposedResource: ComposedResource{ResourceName: *t.Name},
+			Rendered:         rerr == nil,
+			Resource:         r,
+			Template:         &t,
 		})
 	}
 	return nil
@@ -633,20 +627,39 @@ func NewFunctionPipeline(c ContainerFunctionRunner) *FunctionPipeline {
 }
 
 // RunFunctionPipeline runs a pipeline of Composition Functions.
-func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
+func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error { //nolint:gocyclo // Currently only at 12.
+	r := make([]iov1alpha1.Result, 0)
 	for _, fn := range req.Composition.Spec.Functions {
 		switch fn.Type {
 		case v1.FunctionTypeContainer:
-			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{Config: fn.Config, Observed: o, Desired: d}, fn.Container)
+			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{Config: fn.Config, Observed: o, Desired: d, Results: r}, fn.Container)
 			if err != nil {
 				return errors.Wrapf(err, errFmtRunFn, fn.Name)
 			}
-			// We require each function to pass through any desired state from
-			// previous functions in the pipeline that they're unconcerned with, as
-			// well as their own desired state.
+			// We require each function to pass through any results and desired
+			//
+			// Debug results are ignored by Crossplane; use them to debug functions.
+			// state from previous functions in the pipeline that they're
+			// unconcerned with, as well as their own results and desired state.
+			// We pass all functions the same observed state, since it should
+			// represent the state before the function pipeline started.
 			d = fnio.Desired
+			r = fnio.Results
 		default:
 			return errors.Wrapf(errors.Errorf(errFmtUnsupportedFnType, fn.Type), errFmtRunFn, fn.Name)
+		}
+	}
+
+	// Results of error severity stop the Composition process. Results of
+	// severity normal or warning are emitted as events.
+	for _, rs := range r {
+		switch rs.Severity {
+		case iov1alpha1.SeverityFatal:
+			return errors.Wrap(errors.New(rs.Message), errFatalResult)
+		case iov1alpha1.SeverityWarning:
+			s.Events = append(s.Events, event.Warning(reasonCompose, errors.New(rs.Message)))
+		case iov1alpha1.SeverityNormal:
+			s.Events = append(s.Events, event.Normal(reasonCompose, rs.Message))
 		}
 	}
 
@@ -858,7 +871,7 @@ func UpdateResourceRefs(s *PTFCompositionState) {
 		// Don't record references to resources that don't exist and that failed
 		// to render. We won't apply (i.e. create) these resources this time
 		// around, so there's no need to create dangling references to them.
-		if !meta.WasCreated(cd.Resource) && cd.RenderError != nil {
+		if !meta.WasCreated(cd.Resource) && !cd.Rendered {
 			continue
 		}
 		ref := meta.ReferenceTo(cd.Resource, cd.Resource.GetObjectKind().GroupVersionKind())

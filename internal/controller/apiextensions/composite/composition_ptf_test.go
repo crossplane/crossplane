@@ -43,6 +43,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -296,6 +297,7 @@ func TestPTFCompose(t *testing.T) {
 								ComposedResource: ComposedResource{
 									ResourceName: "cool-resource",
 								},
+								Rendered: true,
 								Resource: &fake.Composed{},
 								Template: &v1.ComposedTemplate{},
 							},
@@ -418,8 +420,7 @@ func TestPTFCompose(t *testing.T) {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need to EquateErrors here for RenderErrors.
-			if diff := cmp.Diff(tc.want.res, res, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -646,8 +647,7 @@ func TestGetComposedResources(t *testing.T) {
 				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need EquateErrors for RenderErrors.
-			if diff := cmp.Diff(tc.want.cds, cds, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.cds, cds, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -758,8 +758,7 @@ func TestFunctionIOObserved(t *testing.T) {
 				t.Errorf("\n%s\nFunctionIOObserved(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need EquateErrors for RenderErrors.
-			if diff := cmp.Diff(tc.want.o, o, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.o, o, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nFunctionIOObserved(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -863,7 +862,7 @@ func TestPatchAndTransform(t *testing.T) {
 						},
 					},
 				},
-				err: errors.Wrapf(errBoom, errFmtRenderXR, "cool-resource", "a Broken named cool-resource-42"),
+				err: errors.Wrapf(errBoom, errFmtRenderXR, "cool-resource", "Broken", "cool-resource-42"),
 			},
 		},
 		"ComposedRenderError": {
@@ -910,8 +909,8 @@ func TestPatchAndTransform(t *testing.T) {
 						"cool-resource": ComposedResourceState{
 							ComposedResource: ComposedResource{
 								ResourceName: "cool-resource",
-								RenderError:  errors.Wrap(errBoom, "a Broken named cool-resource-42"),
 							},
+							Rendered: false,
 							Resource: func() *composed.Unstructured {
 								r := composed.New()
 								r.SetKind("Broken")
@@ -922,6 +921,9 @@ func TestPatchAndTransform(t *testing.T) {
 								Name: pointer.String("cool-resource"),
 							},
 						},
+					},
+					Events: []event.Event{
+						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtResourceName, "cool-resource")),
 					},
 				},
 			},
@@ -938,8 +940,7 @@ func TestPatchAndTransform(t *testing.T) {
 				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need EquateErrors for RenderErrors.
-			if diff := cmp.Diff(tc.want.s, tc.args.s, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -1045,8 +1046,7 @@ func TestFunctionIODesired(t *testing.T) {
 				t.Errorf("\n%s\nFunctionIODesired(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need EquateErrors for RenderErrors.
-			if diff := cmp.Diff(tc.want.o, o, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.o, o, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nFunctionIODesired(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -1122,6 +1122,38 @@ func TestRunFunctionPipeline(t *testing.T) {
 			},
 			want: want{
 				err: errors.Wrapf(errBoom, errFmtRunFn, "cool-fn"),
+			},
+		},
+		"ResultError": {
+			reason: "We should return the first result of Error severity.",
+			params: params{
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+					return &iov1alpha1.FunctionIO{
+						Results: []iov1alpha1.Result{
+							{
+								Severity: iov1alpha1.SeverityFatal,
+								Message:  errBoom.Error(),
+							},
+						},
+					}, nil
+				}),
+			},
+			args: args{
+				req: CompositionRequest{
+					Composition: &v1.Composition{
+						Spec: v1.CompositionSpec{
+							Functions: []v1.Function{
+								{
+									Name: "cool-fn",
+									Type: v1.FunctionTypeContainer,
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errFatalResult),
 			},
 		},
 		"ParseCompositeError": {
@@ -1236,6 +1268,16 @@ func TestRunFunctionPipeline(t *testing.T) {
 								},
 							},
 						},
+						Results: []iov1alpha1.Result{
+							{
+								Severity: iov1alpha1.SeverityWarning,
+								Message:  "oh no",
+							},
+							{
+								Severity: iov1alpha1.SeverityNormal,
+								Message:  "good stuff",
+							},
+						},
 					}, nil
 				}),
 			},
@@ -1282,6 +1324,10 @@ func TestRunFunctionPipeline(t *testing.T) {
 							return cd
 						}(),
 					},
+					Events: []event.Event{
+						event.Warning(reasonCompose, errors.New("oh no")),
+						event.Normal(reasonCompose, "good stuff"),
+					},
 				},
 			},
 		},
@@ -1297,8 +1343,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 				t.Errorf("\n%s\nRunFunctionPipeline(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need EquateErrors for RenderErrors.
-			if diff := cmp.Diff(tc.want.s, tc.args.s, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
+			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nRunFunctionPipeline(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
@@ -1913,8 +1958,6 @@ func TestDeleteComposedResources(t *testing.T) {
 }
 
 func TestUpdateResourceRefs(t *testing.T) {
-	errBoom := errors.New("boom")
-
 	type args struct {
 		s *PTFCompositionState
 	}
@@ -1935,9 +1978,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 					Composite: &fake.Composite{},
 					ComposedResources: ComposedResourceStates{
 						"never-created": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								RenderError: errBoom,
-							},
+							Rendered: false,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-42",
@@ -1956,9 +1997,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 					},
 					ComposedResources: ComposedResourceStates{
 						"never-created": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								RenderError: errBoom,
-							},
+							Rendered: false,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-42",
@@ -1976,6 +2015,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 					Composite: &fake.Composite{},
 					ComposedResources: ComposedResourceStates{
 						"never-created-c": ComposedResourceState{
+							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-c-42",
@@ -1983,6 +2023,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-b": ComposedResourceState{
+							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-b-42",
@@ -1990,6 +2031,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-a": ComposedResourceState{
+							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-a-42",
@@ -2012,6 +2054,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 					},
 					ComposedResources: ComposedResourceStates{
 						"never-created-c": ComposedResourceState{
+							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-c-42",
@@ -2019,6 +2062,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-b": ComposedResourceState{
+							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-b-42",
@@ -2026,6 +2070,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-a": ComposedResourceState{
+							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-a-42",
@@ -2043,8 +2088,7 @@ func TestUpdateResourceRefs(t *testing.T) {
 
 			UpdateResourceRefs(tc.args.s)
 
-			// We need to EquateErrors here for RenderErrors.
-			if diff := cmp.Diff(tc.want.s, tc.args.s, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.s, tc.args.s); diff != "" {
 				t.Errorf("\n%s\nUpdateResourceRefs(...): -want, +got:\n%s", tc.reason, diff)
 			}
 

@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -32,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -108,7 +110,7 @@ func TestPTCompose(t *testing.T) {
 		},
 		// TODO(negz): Test handling of ApplyEnvironmentPatch errors.
 		"RenderComposedError": {
-			reason: "We should include any error encountered while rendering a composed resource in the returned result, not as the returned error.",
+			reason: "We should include any error encountered while rendering a composed resource as a warning, not as the returned error.",
 			params: params{
 				kube: &test.MockClient{
 					MockUpdate: test.NewMockUpdateFn(nil),
@@ -147,9 +149,11 @@ func TestPTCompose(t *testing.T) {
 				res: CompositionResult{
 					Composed: []ComposedResource{{
 						ResourceName: "cool-resource",
-						RenderError:  errBoom,
 					}},
 					ConnectionDetails: managed.ConnectionDetails{},
+					Events: []event.Event{
+						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtResourceName, "cool-resource")),
+					},
 				},
 			},
 		},
@@ -477,8 +481,7 @@ func TestPTCompose(t *testing.T) {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need to EquateErrors here for RenderErrors.
-			if diff := cmp.Diff(tc.want.res, res, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})

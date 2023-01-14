@@ -70,7 +70,6 @@ const (
 	errRenderCD          = "cannot render composed resource"
 
 	errFmtPatchEnvironment = "cannot apply environment patch at index %d"
-	errFmtRender           = "cannot render composed resource %q"
 )
 
 // Event reasons.
@@ -188,6 +187,7 @@ type CompositionRequest struct {
 type CompositionResult struct {
 	Composed          []ComposedResource
 	ConnectionDetails managed.ConnectionDetails
+	Events            []event.Event
 }
 
 // A Composer composes (i.e. creates, updates, or deletes) resources given the
@@ -554,21 +554,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonPublish, "Successfully published connection details"))
 	}
 
-	ready, errs := 0, 0
+	warnings := 0
+	for _, e := range res.Events {
+		if e.Type == event.TypeWarning {
+			warnings++
+		}
+		log.Debug(e.Message)
+		r.record.Event(xr, e)
+	}
+
+	if warnings == 0 {
+		// We don't consider warnings severe enough to prevent the XR from being
+		// considered synced (i.e. severe enough to return a ReconcileError) but
+		// they are severe enough that we probably shouldn't say we successfully
+		// composed resources.
+		r.record.Event(xr, event.Normal(reasonCompose, "Successfully composed resources"))
+	}
+
+	ready := 0
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
 		id := cd.ResourceName
 		if id == "" {
 			id = strconv.Itoa(i)
-		}
-
-		if cd.RenderError != nil {
-			log.Debug(errRenderCD, "id", id, "error", err)
-			err := errors.Wrapf(cd.RenderError, errFmtRender, id)
-			r.record.Event(xr, event.Warning(reasonCompose, err))
-			errs++
-			continue
 		}
 
 		if !cd.Ready {
@@ -578,10 +587,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		ready++
-	}
-
-	if errs == 0 {
-		r.record.Event(xr, event.Normal(reasonCompose, "Successfully composed resources"))
 	}
 
 	xr.SetConditions(xpv1.ReconcileSuccess())
