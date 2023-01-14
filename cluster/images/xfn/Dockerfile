@@ -1,19 +1,18 @@
-# TODO(negz): Download crun via the Makefile instead?
-FROM curlimages/curl@sha256:cfdeba7f88bb85f6c87f2ec9135115b523a1c24943976a61fbf59c4f2eafd78e AS curl
+# TODO(negz): This is dumb. Don't build crun every time we build Crossplane.
+FROM nixos/nix:2.12.0 AS crun-build
 
-ARG CRUN_VERSION=1.6
-ARG TARGETOS
-ARG TARGETARCH
+ARG CRUN_VERSION=1.7.2
 
-RUN curl -fSSL -o /tmp/crun https://github.com/containers/crun/releases/download/${CRUN_VERSION}/crun-${CRUN_VERSION}-${TARGETOS}-${TARGETARCH}-disable-systemd
-RUN chmod +x /tmp/crun
+RUN git clone --branch ${CRUN_VERSION} --recursive https://github.com/containers/crun
+WORKDIR crun
+RUN nix --extra-experimental-features nix-command build -f nix --arg enableSystemd false
 
 FROM gcr.io/distroless/static@sha256:d2b0ec3141031720cf5eedef3493b8e129bc91935a43b50562fbe5429878d96b
 
 ARG TARGETOS
 ARG TARGETARCH
 
-COPY --from=curl /tmp/crun /usr/local/bin/
+COPY --from=crun-build /crun/result/bin/crun /usr/local/bin/
 ADD bin/${TARGETOS}\_${TARGETARCH}/xfn /usr/local/bin/
 
 # We run xfn as root in order to grant it CAP_SETUID and CAP_SETGID, which are
