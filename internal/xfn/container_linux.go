@@ -53,6 +53,13 @@ const (
 	errUnmarshalResponse = "cannot unmarshal RunFunctionRequest from " + spark + " stdout"
 )
 
+// How many UIDs and GIDs to map from the parent to the child user namespace, if
+// possible. Doing so requires CAP_SETUID and CAP_SETGID.
+const (
+	UserNamespaceUIDs = 65536
+	UserNamespaceGIDs = 65536
+)
+
 // The subcommand of xfn to invoke - i.e. "xfn spark <source> <bundle>"
 const spark = "spark"
 
