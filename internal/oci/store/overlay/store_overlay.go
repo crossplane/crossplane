@@ -41,17 +41,21 @@ const (
 	errReadConfigFile    = "cannot read image config file"
 	errGetLayers         = "cannot get image layers"
 	errResolveLayer      = "cannot resolve layer to suitable overlayfs lower directory"
-	errCreateRootFS      = "cannot create OCI rootfs"
+	errBootstrapBundle   = "cannot bootstrap bundle rootfs"
 	errWriteRuntimeSpec  = "cannot write OCI runtime spec"
 	errGetDigest         = "cannot get digest"
 	errMkAlgoDir         = "cannot create store directory"
 	errFetchLayer        = "cannot fetch and decompress layer"
-	errMkWorkdir         = "cannot create temporary work directory"
+	errMkWorkdir         = "cannot create work directory to extract layer"
 	errApplyLayer        = "cannot apply (extract) uncompressed tarball layer"
 	errMvWorkdir         = "cannot move temporary work directory"
 	errStatLayer         = "cannot determine whether layer exists in store"
 	errCleanupWorkdir    = "cannot cleanup temporary work directory"
 	errMkOverlayDirTmpfs = "cannot make overlay tmpfs dir"
+	errMkdirTemp         = "cannot make temporary dir"
+	errMountOverlayfs    = "cannot mount overlayfs"
+
+	errFmtMkOverlayDir = "cannot make overlayfs %q dir"
 )
 
 // Common overlayfs directories.
@@ -100,6 +104,20 @@ type TarballApplicator interface {
 	Apply(ctx context.Context, tb io.Reader, root string) error
 }
 
+// A BundleBootstrapper bootstraps a bundle by creating and mounting its rootfs.
+type BundleBootstrapper interface {
+	Bootstrap(path string, parentLayerPaths []string) (Bundle, error)
+}
+
+// A BundleBootstrapperFn bootstraps a bundle by creating and mounting its
+// rootfs.
+type BundleBootstrapperFn func(path string, parentLayerPaths []string) (Bundle, error)
+
+// Bootstrap a bundle by creating and mounting its rootfs.
+func (fn BundleBootstrapperFn) Bootstrap(path string, parentLayerPaths []string) (Bundle, error) {
+	return fn(path, parentLayerPaths)
+}
+
 // A RuntimeSpecWriter writes an OCI runtime spec to the supplied path.
 type RuntimeSpecWriter interface {
 	// Write and write an OCI runtime spec to the supplied path.
@@ -119,9 +137,10 @@ func (fn RuntimeSpecWriterFn) Write(path string, o ...spec.Option) error { retur
 // overlay is stored in memory on a tmpfs, and discarded once the container has
 // finished running.
 type CachingBundler struct {
-	root  string
-	layer LayerResolver
-	spec  RuntimeSpecWriter
+	root   string
+	layer  LayerResolver
+	bundle BundleBootstrapper
+	spec   RuntimeSpecWriter
 }
 
 // NewCachingBundler returns a bundler that creates container filesystems as
@@ -134,9 +153,10 @@ func NewCachingBundler(root string) (*CachingBundler, error) {
 	}
 
 	s := &CachingBundler{
-		root:  filepath.Join(root, store.DirContainers),
-		layer: l,
-		spec:  RuntimeSpecWriterFn(spec.Write),
+		root:   filepath.Join(root, store.DirContainers),
+		layer:  l,
+		bundle: BundleBootstrapperFn(BootstrapBundle),
+		spec:   RuntimeSpecWriterFn(spec.Write),
 	}
 	return s, nil
 }
@@ -165,13 +185,9 @@ func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string, o
 
 	path := filepath.Join(c.root, id)
 
-	// TODO(negz): Ideally this would be mockable. It's not really creating
-	// _all_ of the bundle; just its rootfs. We could perhaps refactor it to
-	// c.rootfs.Create(b, lowerPaths), but we'd need to register the mounts to
-	// be unmounted when the bundle was cleaned up.
-	b, err := CreateBundle(path, lowerPaths)
+	b, err := c.bundle.Bootstrap(path, lowerPaths)
 	if err != nil {
-		return nil, errors.Wrap(err, errCreateRootFS)
+		return nil, errors.Wrap(err, errBootstrapBundle)
 	}
 
 	// Inject config derived from the image first, so that any options passed in
@@ -194,6 +210,7 @@ func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string, o
 type CachingLayerResolver struct {
 	root    string
 	tarball TarballApplicator
+	wdopts  []NewLayerWorkdirOption
 }
 
 // NewCachingLayerResolver returns a LayerResolver that extracts layers upon
@@ -218,49 +235,50 @@ func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, paren
 
 	path := filepath.Join(s.root, d.Algorithm, d.Hex)
 	_, err = os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		// Doesn't exist - cache it. It's possible multiple callers may hit this
-		// branch at once. This will result in multiple extractions to different
-		// temporary dirs. We ignore EEXIST errors from os.Rename, so callers
-		// that lose the race should return the path cached by the successful
-		// caller.
-
-		// This call to Uncompressed is what actually pulls a remote layer. In
-		// most cases we'll be using an image backed by our local image store.
-		tarball, err := l.Uncompressed()
-		if err != nil {
-			return "", errors.Wrap(err, errFetchLayer)
-		}
-
-		parentPaths := make([]string, len(parents))
-		for i := range parents {
-			d, err := parents[i].DiffID()
-			if err != nil {
-				return "", errors.Wrap(err, errGetDigest)
-			}
-			parentPaths[i] = filepath.Join(s.root, d.Algorithm, d.Hex)
-		}
-
-		lw, err := NewLayerWorkdir(filepath.Join(s.root, d.Algorithm), d.Hex, parentPaths)
-		if err != nil {
-			return "", errors.Wrap(err, errMkWorkdir)
-		}
-
-		if err := s.tarball.Apply(ctx, tarball, lw.ApplyPath()); err != nil {
-			_ = lw.Cleanup()
-			return "", errors.Wrap(err, errApplyLayer)
-		}
-
-		// If newpath exists now (when it didn't above) we must have lost a race
-		// with another caller to cache this layer.
-		if err := os.Rename(lw.ResultPath(), path); resource.Ignore(os.IsExist, err) != nil {
-			_ = lw.Cleanup()
-			return "", errors.Wrap(err, errMvWorkdir)
-		}
-
-		return path, errors.Wrap(lw.Cleanup(), errCleanupWorkdir)
+	if !errors.Is(err, os.ErrNotExist) {
+		return path, errors.Wrap(err, errStatLayer)
 	}
-	return path, errors.Wrap(err, errStatLayer)
+
+	// Doesn't exist - cache it. It's possible multiple callers may hit this
+	// branch at once. This will result in multiple extractions to different
+	// temporary dirs. We ignore EEXIST errors from os.Rename, so callers
+	// that lose the race should return the path cached by the successful
+	// caller.
+
+	// This call to Uncompressed is what actually pulls a remote layer. In
+	// most cases we'll be using an image backed by our local image store.
+	tarball, err := l.Uncompressed()
+	if err != nil {
+		return "", errors.Wrap(err, errFetchLayer)
+	}
+
+	parentPaths := make([]string, len(parents))
+	for i := range parents {
+		d, err := parents[i].DiffID()
+		if err != nil {
+			return "", errors.Wrap(err, errGetDigest)
+		}
+		parentPaths[i] = filepath.Join(s.root, d.Algorithm, d.Hex)
+	}
+
+	lw, err := NewLayerWorkdir(filepath.Join(s.root, d.Algorithm), d.Hex, parentPaths, s.wdopts...)
+	if err != nil {
+		return "", errors.Wrap(err, errMkWorkdir)
+	}
+
+	if err := s.tarball.Apply(ctx, tarball, lw.ApplyPath()); err != nil {
+		_ = lw.Cleanup()
+		return "", errors.Wrap(err, errApplyLayer)
+	}
+
+	// If newpath exists now (when it didn't above) we must have lost a race
+	// with another caller to cache this layer.
+	if err := os.Rename(lw.ResultPath(), path); resource.Ignore(os.IsExist, err) != nil {
+		_ = lw.Cleanup()
+		return "", errors.Wrap(err, errMvWorkdir)
+	}
+
+	return path, errors.Wrap(lw.Cleanup(), errCleanupWorkdir)
 }
 
 // An Bundle is an OCI runtime bundle. Its root filesystem is a temporary
@@ -270,10 +288,10 @@ type Bundle struct {
 	mounts []Mount
 }
 
-// CreateBundle creates and returns an OCI runtime bundle with a root
+// BootstrapBundle creates and returns an OCI runtime bundle with a root
 // filesystem backed by a temporary (tmpfs) overlay atop the supplied lower
 // layer paths.
-func CreateBundle(path string, parentLayerPaths []string) (Bundle, error) {
+func BootstrapBundle(path string, parentLayerPaths []string) (Bundle, error) {
 	if err := os.MkdirAll(path, 0700); err != nil {
 		return Bundle{}, errors.Wrap(err, "cannot create bundle dir")
 	}
@@ -361,49 +379,78 @@ type OverlayMount struct { //nolint:revive // overlay.OverlayMount makes sense g
 // (complete with overlay whiteout files) for either subsequent layers from the
 // OCI image, or the final container root filesystem layer.
 type LayerWorkdir struct {
-	OverlayMount
+	overlay Mount
 
 	path string
 }
 
+// NewOverlayMountFn creates an overlay mount.
+type NewOverlayMountFn func(path string, parentLayerPaths []string) Mount
+
+// WorkDirOptions configure how a new layer workdir is created.
+type WorkDirOptions struct {
+	NewOverlayMount NewOverlayMountFn
+}
+
+// NewLayerWorkdirOption configures how a new layer workdir is created.
+type NewLayerWorkdirOption func(*WorkDirOptions)
+
+// WithNewOverlayMountFn configures how a new layer workdir creates an overlay
+// mount.
+func WithNewOverlayMountFn(fn NewOverlayMountFn) NewLayerWorkdirOption {
+	return func(wdo *WorkDirOptions) {
+		wdo.NewOverlayMount = fn
+	}
+}
+
+// DefaultNewOverlayMount is the default OverlayMount created by NewLayerWorkdir.
+func DefaultNewOverlayMount(path string, parentLayerPaths []string) Mount {
+	om := OverlayMount{
+		Lower:      []string{filepath.Join(path, overlayDirLower)},
+		Upper:      filepath.Join(path, overlayDirUpper),
+		Work:       filepath.Join(path, overlayDirWork),
+		Mountpoint: filepath.Join(path, overlayDirMerged),
+	}
+
+	if len(parentLayerPaths) != 0 {
+		om.Lower = parentLayerPaths
+	}
+	return om
+}
+
 // NewLayerWorkdir returns a temporary directory used to produce an overlayfs
 // layer from an OCI layer.
-func NewLayerWorkdir(dir, digest string, parentLayerPaths []string) (LayerWorkdir, error) {
+func NewLayerWorkdir(dir, digest string, parentLayerPaths []string, o ...NewLayerWorkdirOption) (LayerWorkdir, error) {
+	opts := &WorkDirOptions{
+		NewOverlayMount: DefaultNewOverlayMount,
+	}
+
+	for _, fn := range o {
+		fn(opts)
+	}
+
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		return LayerWorkdir{}, errors.Wrap(err, "cannot create temp dir")
+		return LayerWorkdir{}, errors.Wrap(err, errMkdirTemp)
 	}
 	tmp, err := os.MkdirTemp(dir, fmt.Sprintf("%s-", digest))
 	if err != nil {
-		return LayerWorkdir{}, errors.Wrap(err, "cannot create temp dir")
+		return LayerWorkdir{}, errors.Wrap(err, errMkdirTemp)
 	}
 
 	for _, d := range []string{overlayDirMerged, overlayDirUpper, overlayDirLower, overlayDirWork} {
 		if err := os.Mkdir(filepath.Join(tmp, d), 0700); err != nil {
 			_ = os.RemoveAll(tmp)
-			return LayerWorkdir{}, errors.Wrapf(err, "cannot create %s dir", d)
+			return LayerWorkdir{}, errors.Wrapf(err, errFmtMkOverlayDir, d)
 		}
 	}
 
-	w := LayerWorkdir{
-		OverlayMount: OverlayMount{
-			Lower:      []string{filepath.Join(tmp, overlayDirLower)},
-			Upper:      filepath.Join(tmp, overlayDirUpper),
-			Work:       filepath.Join(tmp, overlayDirWork),
-			Mountpoint: filepath.Join(tmp, overlayDirMerged),
-		},
-		path: tmp,
-	}
-
-	if len(parentLayerPaths) != 0 {
-		w.Lower = parentLayerPaths
-	}
-
-	if err := w.Mount(); err != nil {
+	om := opts.NewOverlayMount(tmp, parentLayerPaths)
+	if err := om.Mount(); err != nil {
 		_ = os.RemoveAll(tmp)
-		return LayerWorkdir{}, errors.Wrap(err, "cannot mount workdir overlayfs")
+		return LayerWorkdir{}, errors.Wrap(err, errMountOverlayfs)
 	}
 
-	return w, nil
+	return LayerWorkdir{overlay: om, path: tmp}, nil
 }
 
 // ApplyPath returns the path an OCI layer should be applied (i.e. extracted) to
@@ -419,7 +466,7 @@ func (d LayerWorkdir) ResultPath() string {
 
 // Cleanup the temporary directory.
 func (d LayerWorkdir) Cleanup() error {
-	if err := d.Unmount(); err != nil {
+	if err := d.overlay.Unmount(); err != nil {
 		return errors.Wrap(err, "cannot unmount workdir overlayfs")
 	}
 	return errors.Wrap(os.RemoveAll(d.path), "cannot remove workdir")
