@@ -14,9 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// TODO(negz): Add a make target such that `make lint` runs `buf lint`.
+
 syntax = "proto3";
 
 import "google/protobuf/duration.proto";
+
+package apiextensions.fn.proto.v1alpha1;
 
 option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1";
 
@@ -80,11 +84,11 @@ message ResourceConfig {
 // ResourceLimits configures the maximum compute resources that will be
 // available to a Composition Function container.
 message ResourceLimits {
-	// CPU, in cores. (500m = .5 cores)
+  // CPU, in cores. (500m = .5 cores)
   // Specified in Kubernetes-style resource.Quantity form.
   string memory = 1;
 
-	// Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
+  // Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
   // Specified in Kubernetes-style resource.Quantity form.
   string cpu = 2;
 }

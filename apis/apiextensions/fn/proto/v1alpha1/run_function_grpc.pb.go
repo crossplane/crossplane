@@ -32,7 +32,7 @@ func NewContainerizedFunctionRunnerServiceClient(cc grpc.ClientConnInterface) Co
 
 func (c *containerizedFunctionRunnerServiceClient) RunFunction(ctx context.Context, in *RunFunctionRequest, opts ...grpc.CallOption) (*RunFunctionResponse, error) {
 	out := new(RunFunctionResponse)
-	err := c.cc.Invoke(ctx, "/ContainerizedFunctionRunnerService/RunFunction", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/apiextensions.fn.proto.v1alpha1.ContainerizedFunctionRunnerService/RunFunction", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func _ContainerizedFunctionRunnerService_RunFunction_Handler(srv interface{}, ct
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/ContainerizedFunctionRunnerService/RunFunction",
+		FullMethod: "/apiextensions.fn.proto.v1alpha1.ContainerizedFunctionRunnerService/RunFunction",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ContainerizedFunctionRunnerServiceServer).RunFunction(ctx, req.(*RunFunctionRequest))
@@ -91,7 +91,7 @@ func _ContainerizedFunctionRunnerService_RunFunction_Handler(srv interface{}, ct
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ContainerizedFunctionRunnerService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "ContainerizedFunctionRunnerService",
+	ServiceName: "apiextensions.fn.proto.v1alpha1.ContainerizedFunctionRunnerService",
 	HandlerType: (*ContainerizedFunctionRunnerServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
