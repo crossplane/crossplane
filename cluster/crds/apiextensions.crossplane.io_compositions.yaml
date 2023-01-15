@@ -56,7 +56,9 @@ spec:
                 type: object
               environment:
                 description: Environment configures the environment in which resources
-                  are rendered.
+                  are rendered. THIS IS AN ALPHA FIELD. Do not use it in production.
+                  It is not honored unless the relevant Crossplane feature flag is
+                  enabled, and may be changed or removed without notice.
                 properties:
                   environmentConfigs:
                     description: "EnvironmentConfigs selects a list of `EnvironmentConfig`s.
@@ -394,11 +396,14 @@ spec:
                     type: array
                 type: object
               functions:
-                description: Functions is list of Composition Functions that will
+                description: "Functions is list of Composition Functions that will
                   be used when a composite resource referring to this composition
                   is created. At least one of resources and functions must be specified.
                   If both are specified the resources will be rendered first, then
-                  passed to the functions for further processing.
+                  passed to the functions for further processing. \n THIS IS AN ALPHA
+                  FIELD. Do not use it in production. It is not honored unless the
+                  relevant Crossplane feature flag is enabled, and may be changed
+                  or removed without notice."
                 items:
                   description: A Function represents a Composition Function.
                   properties:
@@ -817,10 +822,12 @@ spec:
               publishConnectionDetailsWithStoreConfigRef:
                 default:
                   name: default
-                description: PublishConnectionDetailsWithStoreConfig specifies the
+                description: "PublishConnectionDetailsWithStoreConfig specifies the
                   secret store config with which the connection details of composite
                   resources dynamically provisioned using this composition will be
-                  published.
+                  published. \n THIS IS AN ALPHA FIELD. Do not use it in production.
+                  It is not honored unless the relevant Crossplane feature flag is
+                  enabled, and may be changed or removed without notice."
                 properties:
                   name:
                     description: Name of the referenced StoreConfig.

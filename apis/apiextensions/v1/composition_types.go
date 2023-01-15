@@ -38,6 +38,9 @@ type CompositionSpec struct {
 	PatchSets []PatchSet `json:"patchSets,omitempty"`
 
 	// Environment configures the environment in which resources are rendered.
+	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
+	// unless the relevant Crossplane feature flag is enabled, and may be
+	// changed or removed without notice.
 	// +optional
 	Environment *EnvironmentConfiguration `json:"environment,omitempty"`
 
@@ -54,6 +57,10 @@ type CompositionSpec struct {
 	// of resources and functions must be specified. If both are specified the
 	// resources will be rendered first, then passed to the functions for
 	// further processing.
+	//
+	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
+	// unless the relevant Crossplane feature flag is enabled, and may be
+	// changed or removed without notice.
 	// +optional
 	Functions []Function `json:"functions,omitempty"`
 
@@ -71,6 +78,10 @@ type CompositionSpec struct {
 	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
 	// with which the connection details of composite resources dynamically
 	// provisioned using this composition will be published.
+	//
+	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
+	// unless the relevant Crossplane feature flag is enabled, and may be
+	// changed or removed without notice.
 	// +optional
 	// +kubebuilder:default={"name": "default"}
 	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
