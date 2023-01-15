@@ -38,7 +38,7 @@ var cli struct {
 
 	Version versionFlag `short:"v" help:"Print version and quit."`
 
-	Start start.Command `cmd:"" help:"Start listening on gRPC for Composition Function runs." default:"1"`
+	Start start.Command `cmd:"" help:"Start listening for Composition Function runs over gRPC." default:"1"`
 	Run   run.Command   `cmd:"" help:"Run a Composition Function."`
 	Spark spark.Command `cmd:"" help:"xfn executes Spark inside a user namespace to run a Composition Function. You shouldn't run it directly." hidden:""`
 }

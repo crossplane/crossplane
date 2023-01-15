@@ -45,6 +45,9 @@ type Command struct {
 	MapRootUID      int           `help:"UID that will map to 0 in the function's user namespace. The following 65336 UIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 	MapRootGID      int           `help:"GID that will map to 0 in the function's user namespace. The following 65336 GIDs must be available. Ignored if xfn does not have CAP_SETUID and CAP_SETGID." default:"100000"`
 
+	// TODO(negz): filecontent appears to take multiple args when it does not.
+	// Bump kong once https://github.com/alecthomas/kong/issues/346 is fixed.
+
 	Image      string `arg:"" help:"OCI image to run."`
 	FunctionIO []byte `arg:"" help:"YAML encoded FunctionIO to pass to the function." type:"filecontent"`
 }
