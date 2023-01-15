@@ -140,13 +140,12 @@ func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunc
 		return nil, errors.Wrap(err, errCreateStdioPipes)
 	}
 
-	if err := cmd.Start(); err != nil {
-		return nil, errors.Wrap(err, errStartSpark)
-	}
-
 	b, err := proto.Marshal(req)
 	if err != nil {
 		return nil, errors.Wrap(err, errMarshalRequest)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, errors.Wrap(err, errStartSpark)
 	}
 	if _, err := stdio.Stdin.Write(b); err != nil {
 		return nil, errors.Wrap(err, errWriteRequest)
