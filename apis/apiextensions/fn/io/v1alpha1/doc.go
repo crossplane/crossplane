@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1alpha1 contains meta types used to invoke XRM functions.
+// Package v1alpha1 contains meta types used to invoke Composition Functions.
 // +kubebuilder:object:generate=true
 // +groupName=fn.apiextensions.crossplane.io
 // +versionName=v1alpha1

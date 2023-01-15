@@ -35,7 +35,7 @@ const (
 
 const defaultCacheDir = "/xfn"
 
-// An ContainerRunner runs an XRM function packaged as an OCI image by
+// An ContainerRunner runs a Composition Function packaged as an OCI image by
 // extracting it and running it as a 'rootless' container.
 type ContainerRunner struct {
 	v1alpha1.UnimplementedContainerizedFunctionRunnerServiceServer
