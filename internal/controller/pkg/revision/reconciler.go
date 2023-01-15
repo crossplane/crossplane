@@ -33,6 +33,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -189,6 +190,12 @@ func WithVersioner(v version.Operations) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.versioner = v
 	}
+}
+
+// uniqueResourceIdentifier returns a unique identifier for a resource in a
+// package, consisting of the group, version, kind, and name.
+func uniqueResourceIdentifier(ref xpv1.TypedReference) string {
+	return strings.Join([]string{ref.GroupVersionKind().String(), ref.Name}, "/")
 }
 
 // Reconciler reconciles packages.
@@ -586,7 +593,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// non-deterministic due to concurrent establishment, so we perform a stable
 	// sort to avoid constant status changes.
 	sort.SliceStable(refs, func(i, j int) bool {
-		return string(refs[i].UID) < string(refs[j].UID)
+		return uniqueResourceIdentifier(refs[i]) > uniqueResourceIdentifier(refs[j])
 	})
 	pr.SetObjects(refs)
 
