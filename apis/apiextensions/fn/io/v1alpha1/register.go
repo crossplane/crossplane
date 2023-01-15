@@ -27,7 +27,7 @@ import (
 
 // Function type metadata.
 const (
-	Group   = "apiextensions.crossplane.io"
+	Group   = "fn.apiextensions.crossplane.io"
 	Version = "v1alpha1"
 )
 

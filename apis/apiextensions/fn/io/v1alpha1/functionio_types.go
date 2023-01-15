@@ -36,20 +36,17 @@ type FunctionIO struct {
 	Config *runtime.RawExtension `json:"config,omitempty"`
 
 	// Observed state prior to the invocation of a function pipeline. Functions
-	// must not mutate this state - any attempts to do so will be ignored.
-	// Functions need not return this state. State passed to each function is
-	// fresh as of the time the function pipeline was invoked, not as of the
-	// time each function was invoked.
-	// +optional
-	Observed Observed `json:"observed,omitempty"`
+	// must not mutate this state - any attempts to do so will be ignored. State
+	// passed to each function is fresh as of the time the function pipeline was
+	// invoked, not as of the time each function was invoked.
+	Observed Observed `json:"observed"`
 
 	// Desired state according to a function pipeline. The state passed to a
 	// particular function may have been mutated by previous functions in the
 	// pipeline. Functions may mutate any part of the desired state they are
 	// concerned with, and must pass through any part of the desired state that
 	// they are not concerned with.
-	// +optional
-	Desired Desired `json:"desired,omitempty"`
+	Desired Desired `json:"desired"`
 
 	// Results is an optional list that can be used by function to emit results
 	// for observability and debugging purposes. Functions may mutate any
@@ -74,10 +71,13 @@ type Observed struct {
 // An ObservedComposite resource.
 type ObservedComposite struct {
 	// Resource reflects the observed XR.
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Resource runtime.RawExtension `json:"resource"`
 
 	// ConnectionDetails reflects the observed connection details of the XR.
-	ConnectionDetails []ExplicitConnectionDetail `json:"connectionDetails"`
+	// +optional
+	ConnectionDetails []ExplicitConnectionDetail `json:"connectionDetails,omitempty"`
 }
 
 // An ObservedResource represents an observed composed resource.
@@ -88,6 +88,8 @@ type ObservedResource struct {
 	Name string `json:"name"`
 
 	// Resource reflects the observed composed resource.
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Resource runtime.RawExtension `json:"resource"`
 
 	// ConnectionDetails reflects the observed connection details of the
@@ -98,8 +100,7 @@ type ObservedResource struct {
 // Desired state of a function pipeline invocation.
 type Desired struct {
 	// Composite reflects the desired state of the XR this function reconciles.
-	// +optional
-	Composite DesiredComposite `json:"composite,omitempty"`
+	Composite DesiredComposite `json:"composite"`
 
 	// Resources reflect the desired state of composed resources, including
 	// those that do not yet exist.
@@ -111,6 +112,8 @@ type Desired struct {
 type DesiredComposite struct {
 	// Resource reflects the desired XR. Functions may update the metadata,
 	// spec, and status of an XR.
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Resource runtime.RawExtension `json:"resource"`
 
 	// ConnectionDetails reflects the desired connection details of the XR.
@@ -128,6 +131,8 @@ type DesiredResource struct {
 	// Resource reflects the desired composed resource. Functions may update the
 	// metadata and spec of a composed resource. Updates to status will be
 	// discarded.
+	// +kubebuilder:validation:EmbeddedResource
+	// +kubebuilder:pruning:PreserveUnknownFields
 	Resource runtime.RawExtension `json:"resource"`
 
 	// ConnectionDetails reflects _XR_ connection details that should be derived
@@ -240,7 +245,7 @@ type Result struct {
 	// Normal results are emitted as normal events and debug logs associated
 	// with the composite resource.
 	// +kubebuilder:validation:Enum=Fatal;Warning;Normal
-	Severity Severity `json:"severity,omitempty"`
+	Severity Severity `json:"severity"`
 
 	// Message is a human readable message.
 	Message string `json:"message"`
