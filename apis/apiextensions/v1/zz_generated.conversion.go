@@ -216,11 +216,6 @@ func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1beta1ContainerFu
 		pV1PullPolicy = &v1PullPolicy
 	}
 	v1beta1ContainerFunction.ImagePullPolicy = pV1PullPolicy
-	v1LocalObjectReferenceList := make([]v1.LocalObjectReference, len(source.ImagePullSecrets))
-	for i := 0; i < len(source.ImagePullSecrets); i++ {
-		v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference(source.ImagePullSecrets[i])
-	}
-	v1beta1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1Duration *v11.Duration
 	if source.Timeout != nil {
 		v1Duration := c.v1DurationToV1Duration(*source.Timeout)
@@ -380,11 +375,6 @@ func (c *GeneratedRevisionSpecConverter) v1JSONToV1JSON(source v12.JSON) v12.JSO
 	}
 	v1JSON.Raw = byteList
 	return v1JSON
-}
-func (c *GeneratedRevisionSpecConverter) v1LocalObjectReferenceToV1LocalObjectReference(source v1.LocalObjectReference) v1.LocalObjectReference {
-	var v1LocalObjectReference v1.LocalObjectReference
-	v1LocalObjectReference.Name = source.Name
-	return v1LocalObjectReference
 }
 func (c *GeneratedRevisionSpecConverter) v1MapTransformToV1beta1MapTransform(source MapTransform) v1beta1.MapTransform {
 	var v1beta1MapTransform v1beta1.MapTransform
@@ -740,11 +730,6 @@ func (c *GeneratedRevisionSpecConverter) v1beta1ContainerFunctionToV1ContainerFu
 		pV1PullPolicy = &v1PullPolicy
 	}
 	v1ContainerFunction.ImagePullPolicy = pV1PullPolicy
-	v1LocalObjectReferenceList := make([]v1.LocalObjectReference, len(source.ImagePullSecrets))
-	for i := 0; i < len(source.ImagePullSecrets); i++ {
-		v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference(source.ImagePullSecrets[i])
-	}
-	v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1Duration *v11.Duration
 	if source.Timeout != nil {
 		v1Duration := c.v1DurationToV1Duration(*source.Timeout)

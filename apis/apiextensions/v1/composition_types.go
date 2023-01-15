@@ -287,14 +287,8 @@ type ContainerFunction struct {
 	// ImagePullPolicy defines the pull policy for the function image.
 	// +optional
 	// +kubebuilder:default=IfNotPresent
-	ImagePullPolicy *corev1.PullPolicy `json:"packagePullPolicy,omitempty"`
-
-	// TODO(negz): Avoid using LocalObjectReference?
-
-	// ImagePullSecrets are named secrets in the same namespace that can be used
-	// to fetch packages from private registries.
-	// +optional
-	ImagePullSecrets []corev1.LocalObjectReference `json:"packagePullSecrets,omitempty"`
+	// +kubebuilder:validation:Enum="IfNotPresent";"Always";"Never"
+	ImagePullPolicy *corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
 	// Timeout after which the Composition Function will be killed.
 	// +optional
@@ -312,9 +306,6 @@ type ContainerFunction struct {
 	// Runner configuration for the Composition Function.
 	// +optional
 	Runner *ContainerFunctionRunner `json:"runner,omitempty"`
-
-	// TODO(negz): Should we support Env and EnvFrom? Presumably there's less
-	// reason to do so given it's possible to supply an arbitrary config object.
 }
 
 // A ContainerFunctionNetworkPolicy specifies the network policy under which
