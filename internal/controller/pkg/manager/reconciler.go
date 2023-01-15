@@ -43,11 +43,16 @@ import (
 
 const (
 	reconcileTimeout = 1 * time.Minute
+
+	// pullWait is the time after which the package manager will check for
+	// updated content for the given package reference. This behavior is only
+	// enabled when the packagePullPolicy is Always.
+	pullWait = 1 * time.Minute
 )
 
 func pullBasedRequeue(p *corev1.PullPolicy) reconcile.Result {
 	if p != nil && *p == corev1.PullAlways {
-		return reconcile.Result{Requeue: true}
+		return reconcile.Result{RequeueAfter: pullWait}
 	}
 	return reconcile.Result{Requeue: false}
 }
