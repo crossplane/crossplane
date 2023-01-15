@@ -374,12 +374,10 @@ type ContainerFunctionResourceLimits struct {
 // ContainerFunctionRunner represents runner configuration for a Composition
 // Function.
 type ContainerFunctionRunner struct {
-	// TODO(negz): url.Parse can't handle the @ in the below address.
-
 	// Endpoint specifies how and where Crossplane should reach the runner it
 	// uses to invoke containerized Composition Functions.
 	// +optional
-	// +kubebuilder:default="unix-abstract://@crossplane/fn/default.sock"
+	// +kubebuilder:default="unix-abstract:crossplane/fn/default.sock"
 	Endpoint *string `json:"endpoint,omitempty"`
 }
 

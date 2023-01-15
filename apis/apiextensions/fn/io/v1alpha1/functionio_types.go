@@ -109,9 +109,6 @@ type Desired struct {
 
 // A DesiredComposite resource.
 type DesiredComposite struct {
-	// TODO(negz): Presumably functions can't mutate _any_ XR field, e.g. its
-	// deletion timestamp, name, etc?
-
 	// Resource reflects the desired XR. Functions may update the metadata,
 	// spec, and status of an XR.
 	Resource runtime.RawExtension `json:"resource"`
