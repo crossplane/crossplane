@@ -592,10 +592,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Update object list in package revision status with objects for which
 	// ownership or control has been established.
-	// NOTE(hasheddan): the collection of resource references is
-	// non-deterministic due to concurrent establishment, so we perform a stable
-	// sort to avoid constant status changes.
-	sort.SliceStable(refs, func(i, j int) bool {
+	// NOTE(hasheddan): we avoid the overhead of performing a stable sort here
+	// as we are not concerned with preserving the existing ordering of the
+	// slice, but rather the existing references in the status of the package
+	// revision. We should also not have equivalent references in the slice, but
+	// a poorly formed, but still valid package could contain duplicates.
+	// However, in that case the references would be identical (including UUID),
+	// so unstable sort order would not cause a diff in the package revision
+	// status.
+	// See https://github.com/crossplane/crossplane/issues/3466 for tracking
+	// restricting duplicate resources in packages.
+	sort.Slice(refs, func(i, j int) bool {
 		return uniqueResourceIdentifier(refs[i]) > uniqueResourceIdentifier(refs[j])
 	})
 	pr.SetObjects(refs)
