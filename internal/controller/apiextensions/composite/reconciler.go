@@ -30,7 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -306,14 +305,6 @@ func WithConnectionPublishers(p ...managed.ConnectionPublisher) ReconcilerOption
 	}
 }
 
-// WithOptions lets the Reconciler know which options to pass to new composite
-// resource claim controllers.
-func WithOptions(o controller.Options) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.options = o
-	}
-}
-
 // WithComposer specifies how the Reconciler should compose resources.
 func WithComposer(c Composer) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -405,9 +396,6 @@ type Reconciler struct {
 	record event.Recorder
 
 	pollInterval time.Duration
-
-	// TODO(negz): Remove this? There don't seem to be any uses.
-	options controller.Options
 }
 
 // Reconcile a composite resource.
