@@ -473,7 +473,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Note that this 'Composition' will be derived from a
 	// CompositionRevision if the relevant feature flag is enabled.
-	cp, err := r.composition.Fetch(ctx, xr)
+	comp, err := r.composition.Fetch(ctx, xr)
 	if err != nil {
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
@@ -484,7 +484,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// TODO(negz): Composition validation should be handled by a validation
 	// webhook, not by this controller.
-	if err := r.composition.Validate(cp); err != nil {
+	if err := r.composition.Validate(comp); err != nil {
 		log.Debug(errValidate, "error", err)
 		err = errors.Wrap(err, errValidate)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -492,7 +492,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if err := r.composite.Configure(ctx, xr, cp); err != nil {
+	if err := r.composite.Configure(ctx, xr, comp); err != nil {
 		log.Debug(errConfigure, "error", err)
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -502,7 +502,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Prepare the environment.
 	// Note that environments are optional, so env can be nil.
-	if err := r.composite.SelectEnvironment(ctx, xr, cp); err != nil {
+	if err := r.composite.SelectEnvironment(ctx, xr, comp); err != nil {
 		log.Debug(errSelectEnvironment, "error", err)
 		err = errors.Wrap(err, errSelectEnvironment)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -519,7 +519,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// TODO(negz): Pass this method a copy of xr, to make very clear that
 	// anything it does won't be reflected in the state of xr?
-	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Composition: cp, Environment: env})
+	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Composition: comp, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
 		err = errors.Wrap(err, errCompose)
