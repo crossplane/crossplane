@@ -22,7 +22,7 @@ documentation].
 |   v1.8  | May 17, 2022 |    Jan 2023   |
 |   v1.9  | Jul 14, 2022 |    Apr 2023   |
 |   v1.10 | Oct 18, 2022 |    Jul 2023   |
-|   v1.11 | Jan 17, 2023 |    Oct 2023   |
+|   v1.11 | Jan 31, 2023 |    Oct 2023   |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
