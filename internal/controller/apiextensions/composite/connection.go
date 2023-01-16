@@ -135,20 +135,6 @@ func (p *SecretStoreConnectionPublisher) UnpublishConnection(ctx context.Context
 	return p.publisher.UnpublishConnection(ctx, o, c)
 }
 
-// SecretStoreConnectionDetailsFetcher is a ConnectionDetailsFetcher that
-// fetches connection details to the configured SecretStore.
-type SecretStoreConnectionDetailsFetcher struct {
-	fetcher managed.ConnectionDetailsFetcher
-}
-
-// NewSecretStoreConnectionDetailsFetcher returns a
-// SecretStoreConnectionDetailsFetcher
-func NewSecretStoreConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) *SecretStoreConnectionDetailsFetcher {
-	return &SecretStoreConnectionDetailsFetcher{
-		fetcher: f,
-	}
-}
-
 // NewSecretStoreConnectionDetailsConfigurator returns a Configurator that
 // configures a composite resource using its composition.
 func NewSecretStoreConnectionDetailsConfigurator(c client.Client) *SecretStoreConnectionDetailsConfigurator {
