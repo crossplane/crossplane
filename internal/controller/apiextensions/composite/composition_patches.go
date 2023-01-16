@@ -45,7 +45,7 @@ const (
 // ApplyEnvironmentPatch executes a patching operation between the cp and env objects.
 func ApplyEnvironmentPatch(p v1.EnvironmentPatch, cp, env runtime.Object) error {
 	// TODO(negz): Should this take composite.Resource and *env.Environment as
-	// arguments?
+	// arguments rather than generic runtime.Objects?
 
 	// To make thing easy, we are going to reuse the logic of a regular
 	// composition patch.

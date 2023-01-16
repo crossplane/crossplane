@@ -160,7 +160,7 @@ func (w *WhiteoutHandler) Handle(h *tar.Header, tr io.Reader, path string) error
 	// previous layer. Instead we track which files we've extracted from this
 	// layer and avoid whiting-out any file we've extracted. It's possible we'll
 	// see a whiteout out-of-order; i.e. we'll whiteout /foo, then later extract
-	// /foo from the same layer. This should be fine; we'll first delete it,
+	// /foo from the same layer. This should be fine; we'll delete it, then
 	// recreate it, resulting in the desired file in our overlayfs upper dir.
 	// https://github.com/opencontainers/image-spec/blob/v1.0/layer.md#whiteouts
 

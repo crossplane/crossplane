@@ -53,6 +53,7 @@ func (c *Command) Run(log logging.Logger) error {
 		rootGID = c.MapRootGID
 	}
 
+	// TODO(negz): Expose a healthz endpoint and otel metrics.
 	f := xfn.NewContainerRunner(
 		xfn.SetUID(setuid),
 		xfn.MapToRoot(rootUID, rootGID),

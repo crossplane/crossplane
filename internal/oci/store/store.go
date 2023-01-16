@@ -127,7 +127,12 @@ func (d *Digest) path(r name.Reference) string {
 	return filepath.Join(d.root, fmt.Sprintf("%x", sha256.Sum256([]byte(r.String()))))
 }
 
-// An Image store is used to store OCI images and their layers.
+// An Image store is used to store OCI images and their layers. It uses a
+// similar disk layout to the blobs directory of an OCI image layout, but may
+// contain blobs for more than one image. Layers are stored as uncompressed
+// tarballs in order to speed up extraction by the uncompressed Bundler, which
+// extracts a fresh root filesystem each time a container is run.
+// https://github.com/opencontainers/image-spec/blob/v1.0/image-layout.md
 type Image struct{ root string }
 
 // NewImage returns a store used to store OCI images and their layers.
@@ -146,6 +151,9 @@ func (i *Image) Image(h ociv1.Hash) (ociv1.Image, error) {
 		return nil, errors.Wrap(err, errPartial)
 	}
 
+	// This validates the image's manifest, config file, and layers. The
+	// manifest and config file are validated fairly extensively (i.e. their
+	// size, digest, etc must be correct). Layers are only validated to exist.
 	return oi, errors.Wrap(validate.Image(oi, validate.Fast), errInvalidImage)
 }
 
@@ -217,6 +225,7 @@ func (i *Image) Layer(h ociv1.Hash) (ociv1.Layer, error) {
 		return nil, errors.Wrap(err, errPartial)
 	}
 
+	// This just validates that the layer exists on disk.
 	return ol, errors.Wrap(validate.Layer(ol, validate.Fast), errInvalidLayer)
 }
 
@@ -264,7 +273,8 @@ func (i *Image) WriteLayer(l ociv1.Layer) error {
 	return nil
 }
 
-// image implements partial.UncompressedImage.
+// image implements partial.UncompressedImage per
+// https://pkg.go.dev/github.com/google/go-containerregistry/pkg/v1/partial
 type image struct {
 	root string
 	h    ociv1.Hash
@@ -283,7 +293,8 @@ func (i image) LayerByDiffID(h ociv1.Hash) (partial.UncompressedLayer, error) {
 	return layer{root: i.root, h: h}, nil
 }
 
-// layer implements partial.UncompressedLayer.
+// layer implements partial.UncompressedLayer per
+// https://pkg.go.dev/github.com/google/go-containerregistry/pkg/v1/partial
 type layer struct {
 	root string
 	h    ociv1.Hash

@@ -113,6 +113,8 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 		return errors.Wrap(err, errNewBundleStore)
 	}
 
+	// This store maps OCI references to their last known digests. We use it to
+	// resolve references when the imagePullPolicy is Never or IfNotPresent.
 	h, err := store.NewDigest(c.CacheDir)
 	if err != nil {
 		return errors.Wrap(err, errNewDigestStore)
@@ -123,12 +125,17 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 		return errors.Wrap(err, errParseRef)
 	}
 
+	// We cache every image we pull to the filesystem. Layers are cached as
+	// uncompressed tarballs. This allows them to be extracted quickly when
+	// using the uncompressed.Bundler, which extracts a new root filesystem for
+	// every container run.
 	p := oci.NewCachingPuller(h, store.NewImage(c.CacheDir), &oci.RemoteClient{})
 	img, err := p.Image(ctx, r, FromImagePullConfig(req.GetImagePullConfig()))
 	if err != nil {
 		return errors.Wrap(err, errPull)
 	}
 
+	// Create an OCI runtime bundle for this container run.
 	b, err := s.Bundle(ctx, img, runID, FromRunFunctionConfig(req.GetRunFunctionConfig()))
 	if err != nil {
 		return errors.Wrap(err, errBundleFn)
@@ -142,7 +149,9 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 
 	// TODO(negz): Consider using the OCI runtime's lifecycle management commands
 	// (i.e create, start, and delete) rather than run. This would allow spark
-	// to return without sitting in-between xfn and crun.
+	// to return without sitting in-between xfn and crun. It's also generally
+	// recommended; 'run' is more for testing. In practice though run seems to
+	// work just fine for our use case.
 
 	//nolint:gosec // Executing with user-supplied input is intentional.
 	cmd := exec.CommandContext(ctx, c.Runtime, "--root="+root, "run", "--bundle="+b.Path(), runID)

@@ -87,7 +87,8 @@ const DefaultTarget = "unix-abstract:crossplane/fn/default.sock"
 // A PTFComposer (i.e. Patch, Transform, and Function Composer) supports
 // composing resources using both Patch and Transform (P&T) logic and a pipeline
 // of Composition Functions. Callers may mix P&T with Composition Functions or
-// use only one or the other.
+// use only one or the other. It does not support anonymous, unnamed resource
+// templates and will panic if it encounters one.
 type PTFComposer struct {
 	client resource.ClientApplicator
 
@@ -290,7 +291,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 
 	// Build observed state to be passed to our Composition Function pipeline.
 	// Doing this before we patch and transform ensures we report the state we
-	// actually o before we made any mutations.
+	// actually observed before we made any mutations.
 	o, err := FunctionIOObserved(state)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildFunctionIOObserved)
@@ -303,23 +304,22 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 
 	// Build the initial desired state to be passed to our Composition Function
 	// pipeline. It's expected that each function in the pipeline will mutate
-	// this state. It includes any d state accumulated by the P&T logic.
+	// this state. It includes any desired state accumulated by the P&T logic.
 	d, err := FunctionIODesired(state)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildFunctionIODesired)
 	}
 
 	// Run Composition Functions, updating the composition state accordingly.
+	// Note that this will replace state.Composite with a new object that was
+	// unmarshalled from the function pipeline's desired state.
 	if err := c.composition.RunFunctionPipeline(ctx, req, state, o, d); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errRunFunctionPipeline)
 	}
 
 	// Garbage collect any resources that aren't part of our final desired
 	// state. We must do this before we update the XR's resource references to
-	// ensure that we don't forget and leak them if a delete fails. Note that
-	// we're iterating over the ComposedResourceStates as they existed before
-	// they were passed to and potentially mutated by the Composition Function
-	// pipeline.
+	// ensure that we don't forget and leak them if a delete fails.
 	if err := c.composite.DeleteComposedResources(ctx, state); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errDeleteUndesiredCDs)
 	}
@@ -327,15 +327,15 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	// Record references to all desired composed resources.
 	UpdateResourceRefs(state)
 
-	// Call Apply so that we do not just replace fields on existing XR but merge
-	// fields for which a merge configuration has been specified. For fields for
-	// which a merge configuration does not exist, the behavior will be a
-	// replace from copy. Keep in mind that we're operating on a copy of the XR
-	// that was passed to this method. This means that unless the Apply is a
-	// no-op the XR's meta.resourceVersion will be updated in the API server and
-	// subsequent attempts to apply/update the xr object that was passed to this
-	// method will fail due to its outdated resourceVersion. This should be
-	// okay; the caller should keep trying until this is a no-op.
+	// The supplied options ensure we merge rather than replace arrays and
+	// objects for which a merge configuration has been specified.
+	//
+	// Note that at this point state.Composite should be a new object - not the
+	// xr that was passed to this Compose method. If this call to Apply changes
+	// the XR in the API server (i.e. if it's not a no-op) the xr object that
+	// was passed to this method will have a stale meta.resourceVersion. This
+	// Subsequent attempts to update that object will therefore fail. This
+	// should be okay; the caller should keep trying until this is a no-op.
 	ao := mergeOptions(filterPatches(allPatches(state.ComposedResources), patchTypesToXR()...))
 	if err := c.client.Apply(ctx, state.Composite, ao...); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errApplyXR)
@@ -410,7 +410,7 @@ func (g *ExistingComposedResourceGetter) GetComposedResources(ctx context.Contex
 	for _, ref := range xr.GetResourceReferences() {
 		// The PTComposer writes references to resources that it didn't actually
 		// render or create. It has to create these placeholder refs because it
-		// supports anonymous (unnamed) resource templates; It needs to be able
+		// supports anonymous (unnamed) resource templates; it needs to be able
 		// associate entries a Composition's spec.resources array with entries
 		// in an XR's spec.resourceRefs array by their index. These references
 		// won't have a name - we won't be able to get them because they don't
@@ -548,14 +548,19 @@ func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req Co
 			// we only want to render (i.e. patch) the XR from composed
 			// resources that actually exist.
 			if err := pt.composite.Render(ctx, s.Composite, r, t, req.Environment); err != nil {
-				// TODO(negz): Why is it that an error rendering CD->XR is
-				// terminal, but an error rendering XR->CD is not?
+				// TODO(negz): Why is it that an error rendering composed->XR is
+				// terminal, but an error rendering XR->composed is not?
 				return errors.Wrapf(err, errFmtRenderXR, *t.Name, r.GetObjectKind().GroupVersionKind().Kind, r.GetName())
 			}
 		}
 
 		rerr := pt.composed.Render(ctx, s.Composite, r, t, req.Environment)
 		if rerr != nil {
+			// Failures to patch from XR->composed aren't terminal. It could be
+			// that other resources need to patch the XR in order for the fields
+			// this render wants to patch from to exist. Rather than returning
+			// this error we just set Rendered = false in our state and return
+			// a Warning event describing what happened.
 			s.Events = append(s.Events, event.Warning(reasonCompose, errors.Wrapf(rerr, errFmtResourceName, *t.Name)))
 		}
 
@@ -596,6 +601,13 @@ func FunctionIODesired(s *PTFCompositionState) (iov1alpha1.Desired, error) {
 		dcds = append(dcds, iov1alpha1.DesiredResource{
 			Name:     cd.ResourceName,
 			Resource: runtime.RawExtension{Raw: raw},
+
+			// TODO(negz): Should we include any connection details and
+			// readiness checks from the P&T templates here? Doing so would
+			// allow the composition function pipeline to alter them - i.e. to
+			// remove details/checks. Currently the two are additive - we take
+			// all the connection detail extraction configs and readiness checks
+			// from the P&T process then append any from the function process.
 		})
 	}
 
@@ -637,8 +649,6 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 				return errors.Wrapf(err, errFmtRunFn, fn.Name)
 			}
 			// We require each function to pass through any results and desired
-			//
-			// Debug results are ignored by Crossplane; use them to debug functions.
 			// state from previous functions in the pipeline that they're
 			// unconcerned with, as well as their own results and desired state.
 			// We pass all functions the same observed state, since it should
@@ -650,8 +660,8 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 		}
 	}
 
-	// Results of error severity stop the Composition process. Results of
-	// severity normal or warning are emitted as events.
+	// Results of fatal severity stop the Composition process. Normal or warning
+	// results are accumulated to be emitted as events by the Reconciler.
 	for _, rs := range r {
 		switch rs.Severity {
 		case iov1alpha1.SeverityFatal:
@@ -674,7 +684,6 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 		s.ConnectionDetails[cd.Name] = []byte(cd.Value)
 	}
 
-	// TODO(negz): Parse the Results array too. Can we map them to resources?
 	for _, dr := range d.Resources {
 		cd, err := ParseDesiredResource(dr, s.Composite)
 		if err != nil {
@@ -721,13 +730,17 @@ func RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.Contai
 		return nil, errors.Wrap(err, errCloseRunner)
 	}
 
-	// TODO(negz): Sanity check this FunctionIO. Does it contain at least a
-	// desired Composite resource?
+	// TODO(negz): Sanity check this FunctionIO to ensure the function returned
+	// a valid response. Does it contain at least a desired Composite resource?
 	out := &iov1alpha1.FunctionIO{}
 	return out, errors.Wrap(yaml.Unmarshal(rsp.Output, out), errUnmarshalFnIO)
 }
 
 // ParseDesiredResource parses a (composed) DesiredResource from a FunctionIO.
+// It adds some labels and annotations that are required for Crossplane to track
+// the composed resources, but otherwise tries to be relatively unopinionated.
+// It does not for example automatically generate a name for the composed
+// resource; the Composition Function must do so.
 func ParseDesiredResource(dr iov1alpha1.DesiredResource, owner resource.Object) (ComposedResourceState, error) {
 	u := &kunstructured.Unstructured{}
 	if err := json.Unmarshal(dr.Resource.Raw, u); err != nil {

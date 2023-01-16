@@ -66,7 +66,8 @@ func StdioPipes(cmd *exec.Cmd, uid, gid int) (*Stdio, error) {
 		if !ok {
 			return nil, errors.Errorf("stdio pipe (type: %T) missing required Fd() method", f)
 		}
-		// Fchown does not take an integer fd on Windows.
+		// We only build this file on unix because Fchown does not take an
+		// integer fd on Windows.
 		if err := syscall.Fchown(int(f.Fd()), uid, gid); err != nil {
 			return nil, errors.Wrap(err, errChownFd)
 		}

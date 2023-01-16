@@ -225,7 +225,7 @@ func NewCachingLayerResolver(root string) (*CachingLayerResolver, error) {
 
 // Resolve the supplied layer to a path suitable for use as an overlayfs lower
 // layer directory. The first time a layer is resolved it will be extracted and
-// cached as an overlayfs compatible directory of whiles, with any OCI whiteouts
+// cached as an overlayfs compatible directory of files, with any OCI whiteouts
 // converted to overlayfs whiteouts.
 func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, parents ...ociv1.Layer) (string, error) {
 	d, err := l.DiffID() // The uncompressed layer digest.
@@ -234,8 +234,10 @@ func (s *CachingLayerResolver) Resolve(ctx context.Context, l ociv1.Layer, paren
 	}
 
 	path := filepath.Join(s.root, d.Algorithm, d.Hex)
-	_, err = os.Stat(path)
-	if !errors.Is(err, os.ErrNotExist) {
+	if _, err = os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		// The path exists or we encountered an error other than ErrNotExist.
+		// Either way return the path and the wrapped error - errors.Wrap will
+		// return nil if the path exists.
 		return path, errors.Wrap(err, errStatLayer)
 	}
 
@@ -329,6 +331,7 @@ func BootstrapBundle(path string, parentLayerPaths []string) (Bundle, error) {
 		return Bundle{}, errors.Wrap(err, "cannot mount workdir overlayfs")
 	}
 
+	// We pass mounts in the order they should be unmounted.
 	return Bundle{path: path, mounts: []Mount{om, tm}}, nil
 }
 
@@ -380,8 +383,7 @@ type OverlayMount struct { //nolint:revive // overlay.OverlayMount makes sense g
 // OCI image, or the final container root filesystem layer.
 type LayerWorkdir struct {
 	overlay Mount
-
-	path string
+	path    string
 }
 
 // NewOverlayMountFn creates an overlay mount.

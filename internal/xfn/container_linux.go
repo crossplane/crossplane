@@ -91,10 +91,10 @@ func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunc
 		binary; the unix.Unshare syscall affects only one OS thread, and the Go
 		scheduler might move the goroutine to another.
 
-		Therefore we execute a small shim - xfn spark - in a new user and mount
-		namespace. spark sets up the overlayfs if the Kernel supports it. It
-		then executes an OCI runtime which creates further namespaces in order
-		to actually execute the function.
+		Therefore we execute a shim - xfn spark - in a new user and mount
+		namespace. spark fetches and caches the image, creates an OCI runtime
+		bundle, then then executes an OCI runtime in order to actually execute
+		the function.
 	*/
 	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache) //nolint:gosec // We're intentionally executing with variable input.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
@@ -171,7 +171,7 @@ func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunc
 	}
 
 	if err := cmd.Wait(); err != nil {
-		// TODO(negz): Handle stderr being too long.
+		// TODO(negz): Handle stderr being too long to be a useful error.
 		return nil, errors.Errorf("%w: %s", err, bytes.TrimSuffix(stderr, []byte("\n")))
 	}
 

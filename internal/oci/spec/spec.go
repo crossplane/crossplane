@@ -297,7 +297,6 @@ func WithHostNetwork() Option {
 // config file. If the image config specifies a user it will be resolved using
 // the supplied passwd and group files.
 func WithImageConfig(cfg *ociv1.ConfigFile, passwd, group string) Option {
-	// TODO(negz): Break these up into smaller options? e.g. FooFromImageConfig?
 	return func(s *runtime.Spec) error {
 		if cfg.Config.Hostname != "" {
 			s.Hostname = cfg.Config.Hostname

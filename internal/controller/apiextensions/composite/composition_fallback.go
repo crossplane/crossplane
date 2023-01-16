@@ -72,7 +72,13 @@ func (c *FallBackComposer) Compose(ctx context.Context, xr resource.Composite, r
 // FallBackForAnonymousTemplates returns a TriggerFn that triggers a fallback if
 // the supplied Composition uses anonymous templates, or the supplied XR
 // references composed resources that appear to have been created by an
-// anonymous template.
+// anonymous template. We use this to fall back from the PTFComposer to the
+// PTComposer when Composition Functions are enabled.
+//
+// The PTFComposer does not support anonymous templates; it requires named
+// resources to map from P&T resources to FunctionIO resources. A validator
+// ensures that its not possible to create a Composition that uses both
+// Composition Functions and anonymous resource templates.
 func FallBackForAnonymousTemplates(c client.Reader) TriggerFn {
 	return func(ctx context.Context, xr resource.Composite, req CompositionRequest) (bool, error) {
 		// Fall back if any templates are unnamed.
