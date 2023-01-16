@@ -316,13 +316,18 @@ spec:
                                   string.
                                 properties:
                                   convert:
-                                    description: Convert the type of conversion to
-                                      Upper/Lower case.
+                                    description: Optional conversion method to be
+                                      specified. `ToUpper` and `ToLower` change the
+                                      letter case of the input string. `ToBase64`
+                                      and `FromBase64` perform a base64 conversion
+                                      based on the input string. `ToJson` converts
+                                      any input value into its raw JSON representation.
                                     enum:
                                     - ToUpper
                                     - ToLower
                                     - ToBase64
                                     - FromBase64
+                                    - ToJson
                                     type: string
                                   fmt:
                                     description: Format the input using a Go format
