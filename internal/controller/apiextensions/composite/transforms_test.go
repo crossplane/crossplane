@@ -488,7 +488,12 @@ func TestStringResolve(t *testing.T) {
 	sFmt := "verycool%s"
 	iFmt := "the largest %d"
 
-	var upper, lower, tobase64, frombase64, wrongConvertType v1.StringConversionType = v1.StringConversionTypeToUpper, v1.StringConversionTypeToLower, v1.StringConversionTypeToBase64, v1.StringConversionTypeFromBase64, "Something"
+	upper := v1.StringConversionTypeToUpper
+	lower := v1.StringConversionTypeToLower
+	tobase64 := v1.StringConversionTypeToBase64
+	frombase64 := v1.StringConversionTypeFromBase64
+	toJSON := v1.StringConversionTypeToJSON
+	wrongConvertType := v1.StringConversionType("Something")
 
 	prefix := "https://"
 	suffix := "-test"
@@ -693,6 +698,31 @@ func TestStringResolve(t *testing.T) {
 			},
 			want: want{
 				err: errors.Errorf(errStringTransformTypeRegexpNoMatch, "my-([0-9]+)-string", 2),
+			},
+		},
+		"ConvertToJSONSuccess": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toJSON,
+				i: map[string]any{
+					"foo": "bar",
+				},
+			},
+			want: want{
+				o: "{\"foo\":\"bar\"}",
+			},
+		},
+		"ConvertToJSONFail": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toJSON,
+				i: map[string]any{
+					"foo": func() {},
+				},
+			},
+			want: want{
+				o:   "",
+				err: errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON),
 			},
 		},
 	}

@@ -727,6 +727,13 @@ Currently only `multiply` is supported.
      type: Convert
      convert: FromBase64
 
+# If the value of the 'from' field is not nil, the value of the 'to' field will be
+# set to raw JSON representation of the 'from' field.
+- type: string
+  string:
+     type: Convert
+     convert: ToJson
+
 # If the value of the 'from' field is https://crossplane.io, the value of the 'to' field will
 # be set to crossplane.io
 - type: string
