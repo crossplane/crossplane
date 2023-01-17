@@ -322,7 +322,7 @@ jobs:
           DOCS_GIT_PSW: ${{ secrets.UPBOUND_BOT_GITHUB_PSW }}
 
       - name: Promote Artifacts in S3, DockerHub
-        if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != ''
+        if: github.ref == 'refs/heads/master' && env.AWS_USR != '' && env.DOCKER_USR != '' && env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
         run: make -j2 promote
         env:
           BRANCH_NAME: master
