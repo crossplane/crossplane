@@ -36,11 +36,11 @@ jobs:
         with:
           channel: master
           version: current
-          command: build configuration -f docs/snippets/package/aws --name=getting-started-with-aws.xpkg
+          command: build configuration -f cluster/packages/aws --name=getting-started-with-aws.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
-          command: push configuration -f docs/snippets/package/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f cluster/packages/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
 
   getting-started-with-aws-with-vpc:
     runs-on: ubuntu-20.04
@@ -65,11 +65,11 @@ jobs:
         with:
           channel: master
           version: current
-          command: build configuration -f docs/snippets/package/aws-with-vpc --name=getting-started-with-aws-with-vpc.xpkg
+          command: build configuration -f cluster/packages/aws-with-vpc --name=getting-started-with-aws-with-vpc.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
-          command: push configuration -f docs/snippets/package/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f cluster/packages/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
 
   getting-started-with-gcp:
     runs-on: ubuntu-20.04
@@ -94,11 +94,11 @@ jobs:
         with:
           channel: master
           version: current
-          command: build configuration -f docs/snippets/package/gcp --name=getting-started-with-gcp.xpkg
+          command: build configuration -f cluster/packages/gcp --name=getting-started-with-gcp.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
-          command: push configuration -f docs/snippets/package/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f cluster/packages/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
 
   getting-started-with-azure:
     runs-on: ubuntu-20.04
@@ -123,8 +123,8 @@ jobs:
         with:
           channel: master
           version: current
-          command: build configuration -f docs/snippets/package/azure --name=getting-started-with-azure.xpkg
+          command: build configuration -f cluster/packages/azure --name=getting-started-with-azure.xpkg
       - name: Push
         uses: crossplane-contrib/xpkg-action@v0.2.0
         with:
-          command: push configuration -f docs/snippets/package/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
+          command: push configuration -f cluster/packages/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
