@@ -247,14 +247,6 @@ func WithCompositionFetcher(f CompositionFetcher) ReconcilerOption {
 	}
 }
 
-// WithCompositionValidator specifies how the Reconciler should validate
-// Compositions.
-func WithCompositionValidator(v CompositionValidator) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.composition.CompositionValidator = v
-	}
-}
-
 // WithCompositeFinalizer specifies how the composition to be used should be
 // selected.
 // WithCompositeFinalizer specifies which Finalizer should be used to finalize
@@ -314,7 +306,6 @@ func WithComposer(c Composer) ReconcilerOption {
 
 type composition struct {
 	CompositionFetcher
-	CompositionValidator
 }
 
 type environment struct {
@@ -342,12 +333,6 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 
 		composition: composition{
 			CompositionFetcher: NewAPICompositionFetcher(kube),
-			CompositionValidator: ValidationChain{
-				CompositionValidatorFn(RejectMixedTemplates),
-				CompositionValidatorFn(RejectDuplicateNames),
-				CompositionValidatorFn(RejectAnonymousTemplatesWithFunctions),
-				CompositionValidatorFn(RejectFunctionsWithoutRequiredConfig),
-			},
 		},
 
 		environment: environment{
@@ -477,16 +462,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
-		r.record.Event(xr, event.Warning(reasonCompose, err))
-		xr.SetConditions(xpv1.ReconcileError(err))
-		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
-	}
-
-	// TODO(negz): Composition validation should be handled by a validation
-	// webhook, not by this controller.
-	if err := r.composition.Validate(comp); err != nil {
-		log.Debug(errValidate, "error", err)
-		err = errors.Wrap(err, errValidate)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)

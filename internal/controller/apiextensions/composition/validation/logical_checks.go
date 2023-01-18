@@ -14,11 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package composite
+package validation
 
 import (
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	xprerrors "github.com/crossplane/crossplane-runtime/pkg/errors"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+)
+
+var (
+	defaultCompositionValidationChain = ValidationChain{
+		CompositionValidatorFn(RejectMixedTemplates),
+		CompositionValidatorFn(RejectDuplicateNames),
+		CompositionValidatorFn(RejectAnonymousTemplatesWithFunctions),
+		CompositionValidatorFn(RejectFunctionsWithoutRequiredConfig),
+	}
 )
 
 // Error strings
@@ -27,17 +38,26 @@ const (
 	errDuplicate                = "resource template names must be unique within their Composition"
 	errFnsRequireNames          = "cannot use functions with anonymous resource templates - ensure all resource templates are named"
 	errFnMissingContainerConfig = "functions of type: Container must specify container configuration"
+	errUnexpectedType           = "unexpected type"
 
 	errFmtUnknownFnType = "unknown function type %q"
 )
 
-// A CompositionValidator validates the supplied Composition.
-type CompositionValidator interface {
+// GetDefaultCompositionValidationChain returns the default validation chain.
+func GetDefaultCompositionValidationChain() ValidationChain {
+	return defaultCompositionValidationChain
+}
+
+// A CompositionValidatorInterface validates the supplied Composition.
+type CompositionValidatorInterface interface {
 	Validate(comp *v1.Composition) error
 }
 
 // A CompositionValidatorFn validates the supplied Composition.
 type CompositionValidatorFn func(comp *v1.Composition) error
+
+// GVKValidationMap is a map of GVK to a CustomResourceValidation.
+type GVKValidationMap map[schema.GroupVersionKind]apiextensions.CustomResourceValidation
 
 // Validate the supplied Composition.
 func (fn CompositionValidatorFn) Validate(comp *v1.Composition) error {
@@ -45,7 +65,7 @@ func (fn CompositionValidatorFn) Validate(comp *v1.Composition) error {
 }
 
 // A ValidationChain runs multiple validations.
-type ValidationChain []CompositionValidator
+type ValidationChain []CompositionValidatorInterface
 
 // Validate the supplied Composition.
 func (vs ValidationChain) Validate(comp *v1.Composition) error {
@@ -84,7 +104,7 @@ func RejectMixedTemplates(comp *v1.Composition) error {
 		return nil
 	}
 
-	return errors.New(errMixed)
+	return xprerrors.New(errMixed)
 }
 
 // RejectDuplicateNames validates that all template names are unique within the
@@ -96,7 +116,7 @@ func RejectDuplicateNames(comp *v1.Composition) error {
 			continue
 		}
 		if seen[*tmpl.Name] {
-			return errors.New(errDuplicate)
+			return xprerrors.New(errDuplicate)
 		}
 		seen[*tmpl.Name] = true
 	}
@@ -115,7 +135,7 @@ func RejectAnonymousTemplatesWithFunctions(comp *v1.Composition) error {
 
 	for _, tmpl := range comp.Spec.Resources {
 		if tmpl.Name == nil {
-			return errors.New(errFnsRequireNames)
+			return xprerrors.New(errFnsRequireNames)
 		}
 	}
 
@@ -134,10 +154,10 @@ func RejectFunctionsWithoutRequiredConfig(comp *v1.Composition) error {
 		switch fn.Type {
 		case v1.FunctionTypeContainer:
 			if fn.Container == nil {
-				return errors.New(errFnMissingContainerConfig)
+				return xprerrors.New(errFnMissingContainerConfig)
 			}
 		default:
-			return errors.Errorf(errFmtUnknownFnType, fn.Type)
+			return xprerrors.Errorf(errFmtUnknownFnType, fn.Type)
 		}
 	}
 	return nil

@@ -463,7 +463,7 @@ func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDe
 	// We only want to enable ExternalSecretStore support if the relevant
 	// feature flag is enabled. Otherwise, we start the XR reconcilers with
 	// their default ConnectionPublisher and ConnectionDetailsFetcher.
-	// We also add a new Configurator for ExternalSecretStore which basically
+	// We also add a new PureAPINamingConfigurator for ExternalSecretStore which basically
 	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
 	// the composite resource.
 	if co.Features.Enabled(features.EnableAlphaExternalSecretStores) {

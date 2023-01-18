@@ -413,20 +413,38 @@ func (c *APIConfigurator) Configure(ctx context.Context, cp resource.Composite, 
 // NewAPINamingConfigurator returns a Configurator that sets the root name prefixKu
 // to its own name if it is not already set.
 func NewAPINamingConfigurator(c client.Client) *APINamingConfigurator {
-	return &APINamingConfigurator{client: c}
+	return &APINamingConfigurator{client: c, configurator: NewPureAPINamingConfigurator()}
 }
 
 // An APINamingConfigurator sets the root name prefix to its own name if it is not
 // already set.
 type APINamingConfigurator struct {
-	client client.Client
+	client       client.Client
+	configurator Configurator
 }
 
 // Configure the supplied composite resource's root name prefix.
 func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1.Composition) error {
+	if err := c.configurator.Configure(ctx, cp, nil); err != nil {
+		return err
+	}
+	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
+}
+
+// NewPureAPINamingConfigurator returns a Configurator that sets the root name prefixKu
+// to its own name if it is not already set.
+func NewPureAPINamingConfigurator() *PureAPINamingConfigurator {
+	return &PureAPINamingConfigurator{}
+}
+
+// A PureAPINamingConfigurator configures the supplied composite resource's without performing any API call.
+type PureAPINamingConfigurator struct{}
+
+// Configure the supplied composite resource's root name prefix.
+func (c *PureAPINamingConfigurator) Configure(_ context.Context, cp resource.Composite, _ *v1.Composition) error {
 	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
 		return nil
 	}
 	meta.AddLabels(cp, map[string]string{xcrd.LabelKeyNamePrefixForComposed: cp.GetName()})
-	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
+	return nil
 }
