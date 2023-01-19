@@ -594,6 +594,13 @@ func FunctionIODesired(s *PTFCompositionState) (iov1alpha1.Desired, error) {
 
 	dcds := make([]iov1alpha1.DesiredResource, 0, len(s.ComposedResources))
 	for _, cd := range s.ComposedResources {
+		if cd.Template == nil {
+			// This composed resource isn't associated with a template. It must
+			// be an existing resource that isn't desired by P&T Composition.
+			// Perhaps it's only desired by the function pipeline, or was
+			// desired by P&T but now isn't.
+			continue
+		}
 		raw, err := json.Marshal(cd.Resource)
 		if err != nil {
 			return iov1alpha1.Desired{}, errors.Wrap(err, errMarshalCD)

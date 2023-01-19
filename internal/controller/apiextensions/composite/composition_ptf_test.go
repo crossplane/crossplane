@@ -985,6 +985,7 @@ func TestFunctionIODesired(t *testing.T) {
 					Composite: composite.New(),
 					ComposedResources: ComposedResourceStates{
 						"cool-resource": ComposedResourceState{
+							Template: &v1.ComposedTemplate{},
 							Resource: &composed.Unstructured{Unstructured: unmarshalable},
 						},
 					},
@@ -1007,6 +1008,7 @@ func TestFunctionIODesired(t *testing.T) {
 					ComposedResources: ComposedResourceStates{
 						"cool-resource": ComposedResourceState{
 							ComposedResource: ComposedResource{ResourceName: "cool-resource"},
+							Template:         &v1.ComposedTemplate{},
 							Resource: composed.New(composed.FromReference(corev1.ObjectReference{
 								APIVersion: "example.org/v2",
 								Kind:       "Composed",
