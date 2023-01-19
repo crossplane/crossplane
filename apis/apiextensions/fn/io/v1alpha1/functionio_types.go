@@ -161,7 +161,7 @@ type ConnectionDetailType string
 // ConnectionDetailType types.
 const (
 	ConnectionDetailTypeUnknown                 ConnectionDetailType = "Unknown"
-	ConnectionDetailTypeFromConnectionDetailKey ConnectionDetailType = "FromConnectionDetailKey"
+	ConnectionDetailTypeFromConnectionSecretKey ConnectionDetailType = "FromConnectionSecretKey"
 	ConnectionDetailTypeFromFieldPath           ConnectionDetailType = "FromFieldPath"
 	ConnectionDetailTypeFromValue               ConnectionDetailType = "FromValue"
 )
@@ -184,7 +184,7 @@ type DerivedConnectionDetail struct {
 	// FromConnectionDetailKey sets an XR connection detail to the value of the
 	// supplied connection detail of the composed resource.
 	// +optional
-	FromConnectionDetailKey *string `json:"fromConnectionDetailKey,omitempty"`
+	FromConnectionSecretKey *string `json:"fromConnectionSecretKey,omitempty"`
 
 	// FromFieldPath sets an XR connection detail to the value at the supplied
 	// fieldpath within the composed resource.

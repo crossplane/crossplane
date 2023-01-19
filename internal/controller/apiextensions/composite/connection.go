@@ -197,15 +197,15 @@ func ExtractConnectionDetails(cd resource.Composed, data managed.ConnectionDetai
 			}
 			out[cfg.Name] = []byte(*cfg.Value)
 		case ConnectionDetailTypeFromConnectionSecretKey:
-			if cfg.FromConnectionDetailKey == nil {
+			if cfg.FromConnectionSecretKey == nil {
 				return nil, errors.Errorf(errFmtConnDetailKey, tp)
 			}
-			if data[*cfg.FromConnectionDetailKey] == nil {
+			if data[*cfg.FromConnectionSecretKey] == nil {
 				// We don't consider this an error because it's possible the
 				// key will still be written at some point in the future.
 				continue
 			}
-			out[cfg.Name] = data[*cfg.FromConnectionDetailKey]
+			out[cfg.Name] = data[*cfg.FromConnectionSecretKey]
 		case ConnectionDetailTypeFromFieldPath:
 			if cfg.FromFieldPath == nil {
 				return nil, errors.Errorf(errFmtConnDetailPath, tp)
@@ -245,7 +245,7 @@ type ConnectionDetailExtractConfig struct {
 
 	// FromConnectionDetailKey is the key that will be used to fetch the value
 	// from the given target resource's connection details.
-	FromConnectionDetailKey *string
+	FromConnectionSecretKey *string
 
 	// FromFieldPath is the path of the field on the composed resource whose
 	// value to be used as input. Name must be specified if the type is
@@ -270,7 +270,7 @@ func ExtractConfigsFromTemplate(t *v1.ComposedTemplate) []ConnectionDetailExtrac
 		out[i] = ConnectionDetailExtractConfig{
 			Type:                    connectionDetailType(t.ConnectionDetails[i]),
 			Value:                   t.ConnectionDetails[i].Value,
-			FromConnectionDetailKey: t.ConnectionDetails[i].FromConnectionSecretKey,
+			FromConnectionSecretKey: t.ConnectionDetails[i].FromConnectionSecretKey,
 			FromFieldPath:           t.ConnectionDetails[i].FromFieldPath,
 		}
 
@@ -278,8 +278,8 @@ func ExtractConfigsFromTemplate(t *v1.ComposedTemplate) []ConnectionDetailExtrac
 			out[i].Name = *t.ConnectionDetails[i].Name
 		}
 
-		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionDetailKey != nil {
-			out[i].Name = *out[i].FromConnectionDetailKey
+		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionSecretKey != nil {
+			out[i].Name = *out[i].FromConnectionSecretKey
 		}
 	}
 	return out
@@ -296,7 +296,7 @@ func ExtractConfigsFromDesired(dr *iov1alpha1.DesiredResource) []ConnectionDetai
 		out[i] = ConnectionDetailExtractConfig{
 			Type:                    ConnectionDetailType(dr.ConnectionDetails[i].Type),
 			Value:                   dr.ConnectionDetails[i].Value,
-			FromConnectionDetailKey: dr.ConnectionDetails[i].FromConnectionDetailKey,
+			FromConnectionSecretKey: dr.ConnectionDetails[i].FromConnectionSecretKey,
 			FromFieldPath:           dr.ConnectionDetails[i].FromFieldPath,
 		}
 
@@ -304,8 +304,8 @@ func ExtractConfigsFromDesired(dr *iov1alpha1.DesiredResource) []ConnectionDetai
 			out[i].Name = *dr.ConnectionDetails[i].Name
 		}
 
-		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionDetailKey != nil {
-			out[i].Name = *out[i].FromConnectionDetailKey
+		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionSecretKey != nil {
+			out[i].Name = *out[i].FromConnectionSecretKey
 		}
 	}
 	return out

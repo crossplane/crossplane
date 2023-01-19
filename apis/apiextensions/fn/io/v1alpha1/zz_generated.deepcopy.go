@@ -33,8 +33,8 @@ func (in *DerivedConnectionDetail) DeepCopyInto(out *DerivedConnectionDetail) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.FromConnectionDetailKey != nil {
-		in, out := &in.FromConnectionDetailKey, &out.FromConnectionDetailKey
+	if in.FromConnectionSecretKey != nil {
+		in, out := &in.FromConnectionSecretKey, &out.FromConnectionSecretKey
 		*out = new(string)
 		**out = **in
 	}
