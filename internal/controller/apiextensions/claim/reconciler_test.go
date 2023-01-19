@@ -20,8 +20,10 @@ import (
 	"context"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -791,7 +793,7 @@ func TestReconcile(t *testing.T) {
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-			if diff := cmp.Diff(tc.want.claim, tc.args.claim, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.EquateApproxTime(30*time.Second)); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
