@@ -216,10 +216,10 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 
 		cds[i] = ComposedResourceState{
-			ComposedResource: ComposedResource{ResourceName: name},
-			Rendered:         rerr == nil,
-			Template:         &ta.Template,
-			Resource:         r,
+			ComposedResource:  ComposedResource{ResourceName: name},
+			TemplateRenderErr: rerr,
+			Template:          &ta.Template,
+			Resource:          r,
 		}
 		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
 	}
@@ -239,7 +239,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	for _, cd := range cds {
 		// If we were unable to render the composed resource we should not try
 		// and apply it.
-		if !cd.Rendered {
+		if cd.TemplateRenderErr != nil {
 			continue
 		}
 		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID())}
@@ -253,7 +253,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	for i := range cds {
 		// If we were unable to render the composed resource we should not try
 		// to observe it.
-		if !cds[i].Rendered {
+		if cds[i].TemplateRenderErr != nil {
 			continue
 		}
 

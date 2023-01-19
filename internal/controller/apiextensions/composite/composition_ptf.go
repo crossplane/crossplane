@@ -345,10 +345,14 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	// in the loop below. This ensures that issues observing and processing one
 	// composed resource won't block the application of another.
 	for _, cd := range state.ComposedResources {
-		// Don't try to apply this resource if we didn't render it successfully.
-		// Note that this doesn't mean this resource won't exist; it might have
-		// been created previously.
-		if !cd.Rendered {
+		// Don't try to apply this resource if we didn't render it successfully
+		// during Patch & Transform Composition. It's possible that cd.Resource
+		// is in a partially rendered state. This would be particularly bad if
+		// in that state it could be created successfully, but could not later
+		// be updated to its fully rendered desired state. Note that this
+		// doesn't mean this resource won't exist; it might have been created
+		// previously.
+		if cd.TemplateRenderErr != nil {
 			continue
 		}
 
@@ -565,10 +569,10 @@ func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req Co
 		}
 
 		s.ComposedResources.Merge(ComposedResourceState{
-			ComposedResource: ComposedResource{ResourceName: *t.Name},
-			Rendered:         rerr == nil,
-			Resource:         r,
-			Template:         &t,
+			ComposedResource:  ComposedResource{ResourceName: *t.Name},
+			Resource:          r,
+			Template:          &t,
+			TemplateRenderErr: rerr,
 		})
 	}
 	return nil
@@ -891,7 +895,7 @@ func UpdateResourceRefs(s *PTFCompositionState) {
 		// Don't record references to resources that don't exist and that failed
 		// to render. We won't apply (i.e. create) these resources this time
 		// around, so there's no need to create dangling references to them.
-		if !meta.WasCreated(cd.Resource) && !cd.Rendered {
+		if !meta.WasCreated(cd.Resource) && cd.TemplateRenderErr != nil {
 			continue
 		}
 		ref := meta.ReferenceTo(cd.Resource, cd.Resource.GetObjectKind().GroupVersionKind())

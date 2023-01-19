@@ -272,6 +272,62 @@ func TestPTFCompose(t *testing.T) {
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyXR),
 			},
 		},
+		"DoNotApplyFailedRenders": {
+			reason: "We should skip applying a composed resource if we failed to render its P&T template.",
+			params: params{
+				kube: &test.MockClient{
+					// We test through the ClientApplicator - Get is called by Apply.
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						// Only return an error if this is a composed resource.
+						if _, ok := obj.(*fake.Composed); ok {
+							// We don't want to return this - if we did it would
+							// imply we called Apply.
+							return errBoom
+						}
+						return nil
+					}),
+					// The ClientApplicator will call Update for the XR.
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+						cds := ComposedResourceStates{
+							"cool-resource": ComposedResourceState{
+								ComposedResource: ComposedResource{
+									ResourceName: "cool-resource",
+								},
+								Resource:          &fake.Composed{},
+								Template:          &v1.ComposedTemplate{},
+								TemplateRenderErr: errBoom,
+							},
+						}
+						return cds, nil
+					})),
+					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
+						return nil
+					})),
+					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
+						return nil
+					})),
+					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
+						return nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, s *PTFCompositionState) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+			},
+			want: want{
+				res: CompositionResult{Composed: []ComposedResource{{ResourceName: "cool-resource"}}},
+				err: nil,
+			},
+		},
 		"ApplyComposedError": {
 			reason: "We should return any error encountered while applying a composed resource.",
 			params: params{
@@ -297,7 +353,6 @@ func TestPTFCompose(t *testing.T) {
 								ComposedResource: ComposedResource{
 									ResourceName: "cool-resource",
 								},
-								Rendered: true,
 								Resource: &fake.Composed{},
 								Template: &v1.ComposedTemplate{},
 							},
@@ -910,7 +965,6 @@ func TestPatchAndTransform(t *testing.T) {
 							ComposedResource: ComposedResource{
 								ResourceName: "cool-resource",
 							},
-							Rendered: false,
 							Resource: func() *composed.Unstructured {
 								r := composed.New()
 								r.SetKind("Broken")
@@ -920,6 +974,7 @@ func TestPatchAndTransform(t *testing.T) {
 							Template: &v1.ComposedTemplate{
 								Name: pointer.String("cool-resource"),
 							},
+							TemplateRenderErr: errBoom,
 						},
 					},
 					Events: []event.Event{
@@ -940,7 +995,8 @@ func TestPatchAndTransform(t *testing.T) {
 				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty()); diff != "" {
+			// We need to EquateErrors here for the TemplateRenderError in state.
+			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty(), test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -1960,6 +2016,8 @@ func TestDeleteComposedResources(t *testing.T) {
 }
 
 func TestUpdateResourceRefs(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type args struct {
 		s *PTFCompositionState
 	}
@@ -1980,12 +2038,12 @@ func TestUpdateResourceRefs(t *testing.T) {
 					Composite: &fake.Composite{},
 					ComposedResources: ComposedResourceStates{
 						"never-created": ComposedResourceState{
-							Rendered: false,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-42",
 								},
 							},
+							TemplateRenderErr: errBoom,
 						},
 					},
 				},
@@ -1999,12 +2057,12 @@ func TestUpdateResourceRefs(t *testing.T) {
 					},
 					ComposedResources: ComposedResourceStates{
 						"never-created": ComposedResourceState{
-							Rendered: false,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-42",
 								},
 							},
+							TemplateRenderErr: errBoom,
 						},
 					},
 				},
@@ -2017,7 +2075,6 @@ func TestUpdateResourceRefs(t *testing.T) {
 					Composite: &fake.Composite{},
 					ComposedResources: ComposedResourceStates{
 						"never-created-c": ComposedResourceState{
-							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-c-42",
@@ -2025,7 +2082,6 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-b": ComposedResourceState{
-							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-b-42",
@@ -2033,7 +2089,6 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-a": ComposedResourceState{
-							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-a-42",
@@ -2056,7 +2111,6 @@ func TestUpdateResourceRefs(t *testing.T) {
 					},
 					ComposedResources: ComposedResourceStates{
 						"never-created-c": ComposedResourceState{
-							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-c-42",
@@ -2064,7 +2118,6 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-b": ComposedResourceState{
-							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-b-42",
@@ -2072,7 +2125,6 @@ func TestUpdateResourceRefs(t *testing.T) {
 							},
 						},
 						"never-created-a": ComposedResourceState{
-							Rendered: true,
 							Resource: &fake.Composed{
 								ObjectMeta: metav1.ObjectMeta{
 									Name: "never-created-a-42",
@@ -2090,7 +2142,8 @@ func TestUpdateResourceRefs(t *testing.T) {
 
 			UpdateResourceRefs(tc.args.s)
 
-			if diff := cmp.Diff(tc.want.s, tc.args.s); diff != "" {
+			// We need to EquateErrors here for the TemplateRenderError in state.
+			if diff := cmp.Diff(tc.want.s, tc.args.s, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nUpdateResourceRefs(...): -want, +got:\n%s", tc.reason, diff)
 			}
 

@@ -47,7 +47,7 @@ type ComposedResourceState struct {
 	Desired  *iov1alpha1.DesiredResource
 
 	// The state of the composed resource.
-	Rendered          bool
+	TemplateRenderErr error
 	Resource          resource.Composed
 	ConnectionDetails managed.ConnectionDetails
 }
@@ -79,16 +79,15 @@ func MergeComposedResourceStates(old, new ComposedResourceState) ComposedResourc
 	if new.Desired != nil {
 		out.Desired = new.Desired
 	}
-	// TODO(negz): Should Rendered and Ready be *bool so we can differentiate
-	// between false and unset? In practice we currently only ever transition
-	// _to_ these states.
-	if new.Rendered {
-		out.Rendered = new.Rendered
-	}
+	// TODO(negz): Should Ready be *bool so we can differentiate between false
+	// and unset? In practice we currently only ever transition _to_ these
+	// states.
 	if new.Ready {
 		out.Ready = new.Ready
 	}
-
+	if new.TemplateRenderErr != nil {
+		out.TemplateRenderErr = new.TemplateRenderErr
+	}
 	if out.ConnectionDetails == nil {
 		out.ConnectionDetails = make(managed.ConnectionDetails)
 	}
