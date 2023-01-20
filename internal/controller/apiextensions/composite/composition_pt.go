@@ -58,11 +58,8 @@ const (
 	errRenderCR         = "cannot render composite resource"
 	errSetControllerRef = "cannot set controller reference"
 
-	errFmtResourceName   = "composed resource %q"
-	errFmtPatch          = "cannot apply the patch at index %d"
-	errFmtConnDetailKey  = "connection detail of type %q key is not set"
-	errFmtConnDetailVal  = "connection detail of type %q value is not set"
-	errFmtConnDetailPath = "connection detail of type %q fromFieldPath is not set"
+	errFmtResourceName = "composed resource %q"
+	errFmtPatch        = "cannot apply the patch at index %d"
 )
 
 // TODO(negz): Move P&T Composition logic into its own package?

@@ -35,6 +35,15 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
+// Error strings.
+const (
+	errConnDetailName = "connection detail is missing name"
+
+	errFmtConnDetailKey  = "connection detail of type %q key is not set"
+	errFmtConnDetailVal  = "connection detail of type %q value is not set"
+	errFmtConnDetailPath = "connection detail of type %q fromFieldPath is not set"
+)
+
 // A ConnectionDetailsFetcherFn fetches the connection details of the supplied
 // resource, if any.
 type ConnectionDetailsFetcherFn func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error)
@@ -53,7 +62,7 @@ func (fc ConnectionDetailsFetcherChain) FetchConnection(ctx context.Context, o r
 	for _, p := range fc {
 		conn, err := p.FetchConnection(ctx, o)
 		if err != nil {
-			return all, err
+			return nil, err
 		}
 		for k, v := range conn {
 			all[k] = v
@@ -187,9 +196,12 @@ func (fn ConnectionDetailsExtractorFn) ExtractConnection(cd resource.Composed, c
 // ExtractConnectionDetails extracts XR connection details from the supplied
 // composed resource. If no ExtractConfigs are supplied no connection details
 // will be returned.
-func ExtractConnectionDetails(cd resource.Composed, data managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+func ExtractConnectionDetails(cd resource.Composed, data managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) { //nolint:gocyclo // TODO(negz): Break extraction out from validation, like we do with readiness.
 	out := map[string][]byte{}
 	for _, cfg := range cfg {
+		if cfg.Name == "" {
+			return nil, errors.Errorf(errConnDetailName)
+		}
 		switch tp := cfg.Type; tp {
 		case ConnectionDetailTypeFromValue:
 			if cfg.Value == nil {
@@ -276,6 +288,7 @@ func ExtractConfigsFromTemplate(t *v1.ComposedTemplate) []ConnectionDetailExtrac
 
 		if t.ConnectionDetails[i].Name != nil {
 			out[i].Name = *t.ConnectionDetails[i].Name
+			continue
 		}
 
 		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionSecretKey != nil {
@@ -302,6 +315,7 @@ func ExtractConfigsFromDesired(dr *iov1alpha1.DesiredResource) []ConnectionDetai
 
 		if dr.ConnectionDetails[i].Name != nil {
 			out[i].Name = *dr.ConnectionDetails[i].Name
+			continue
 		}
 
 		if out[i].Type == ConnectionDetailTypeFromConnectionSecretKey && out[i].FromConnectionSecretKey != nil {

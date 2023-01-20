@@ -24,7 +24,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -34,6 +36,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -42,7 +45,7 @@ var (
 	_ managed.ConnectionDetailsFetcher = ConnectionDetailsFetcherChain{}
 )
 
-func TestFetchConnection(t *testing.T) {
+func TestSecretConnectionDetailsFetcher(t *testing.T) {
 	errBoom := errors.New("boom")
 	sref := &xpv1.SecretReference{Name: "foo", Namespace: "bar"}
 	s := &corev1.Secret{
@@ -52,9 +55,12 @@ func TestFetchConnection(t *testing.T) {
 		},
 	}
 
-	type args struct {
+	type params struct {
 		kube client.Client
-		o    resource.ConnectionSecretOwner
+	}
+	type args struct {
+		ctx context.Context
+		o   resource.ConnectionSecretOwner
 	}
 	type want struct {
 		conn managed.ConnectionDetails
@@ -62,8 +68,9 @@ func TestFetchConnection(t *testing.T) {
 	}
 	cases := map[string]struct {
 		reason string
-		args
-		want
+		params params
+		args   args
+		want   want
 	}{
 		"DoesNotPublish": {
 			reason: "Should not fail if composed resource doesn't publish a connection secret",
@@ -73,8 +80,10 @@ func TestFetchConnection(t *testing.T) {
 		},
 		"SecretNotPublishedYet": {
 			reason: "Should not fail if composed resource has yet to publish the secret",
-			args: args{
+			params: params{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
+			},
+			args: args{
 				o: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
@@ -85,8 +94,10 @@ func TestFetchConnection(t *testing.T) {
 		},
 		"SecretGetFailed": {
 			reason: "Should fail if secret retrieval results in some error other than NotFound",
-			args: args{
+			params: params{
 				kube: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
+			},
+			args: args{
 				o: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
@@ -97,7 +108,7 @@ func TestFetchConnection(t *testing.T) {
 		},
 		"Success": {
 			reason: "Should fetch all connection details from the connection secret.",
-			args: args{
+			params: params{
 				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
 					if sobj, ok := obj.(*corev1.Secret); ok {
 						if key.Name == sref.Name && key.Namespace == sref.Namespace {
@@ -108,6 +119,8 @@ func TestFetchConnection(t *testing.T) {
 					t.Errorf("wrong secret is queried")
 					return errBoom
 				}},
+			},
+			args: args{
 				o: &fake.Composed{
 					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
 				},
@@ -122,8 +135,8 @@ func TestFetchConnection(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &SecretConnectionDetailsFetcher{client: tc.args.kube}
-			conn, err := c.FetchConnection(context.Background(), tc.args.o)
+			c := &SecretConnectionDetailsFetcher{client: tc.params.kube}
+			conn, err := c.FetchConnection(tc.args.ctx, tc.args.o)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nFetchConnection(...): -want, +got:\n%s", tc.reason, diff)
 			}
@@ -134,192 +147,155 @@ func TestFetchConnection(t *testing.T) {
 	}
 }
 
-/*
-func TestExtractConnectionDetails(t *testing.T) {
-	sref := &xpv1.SecretReference{Name: "foo", Namespace: "bar"}
-	s := &corev1.Secret{
-		Data: map[string][]byte{
-			"foo": []byte("a"),
-			"bar": []byte("b"),
-		},
-	}
+func TestConnectionDetailsFetcherChain(t *testing.T) {
+	errBoom := errors.New("boom")
 
 	type args struct {
-		kube client.Client
-		o    resource.ConnectionSecretOwner
-		cfg  []ExtractConfig
+		ctx context.Context
+		o   resource.ConnectionSecretOwner
 	}
 	type want struct {
 		conn managed.ConnectionDetails
 		err  error
 	}
+
 	cases := map[string]struct {
 		reason string
-		args
-		want
+		c      ConnectionDetailsFetcherChain
+		args   args
+		want   want
 	}{
-		"DoesNotPublish": {
-			reason: "Should not fail if composed resource doesn't publish a connection secret",
+		"EmptyChain": {
+			reason: "An empty chain should return empty connection details.",
+			c:      ConnectionDetailsFetcherChain{},
 			args: args{
 				o: &fake.Composed{},
 			},
+			want: want{
+				conn: managed.ConnectionDetails{},
+			},
 		},
-		"SecretNotPublishedYet": {
-			reason: "Should not fail if composed resource has yet to publish the secret",
+		"SingleFetcherChain": {
+			reason: "A chain of one fetcher should return only its connection details.",
+			c: ConnectionDetailsFetcherChain{
+				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					return managed.ConnectionDetails{"a": []byte("b")}, nil
+				}),
+			},
 			args: args{
-				kube: &test.MockClient{MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, ""))},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-				cfg: []ExtractConfig{
-					{
-						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-						Name:                    "bar",
-						FromConnectionDetailKey: pointer.StringPtr("bar"),
-					},
-					{
-						Type:  ConnectionDetailTypeFromValue,
-						Name:  "fixed",
-						Value: pointer.StringPtr("value"),
-					},
-				},
+				o: &fake.Composed{},
+			},
+			want: want{
+				conn: managed.ConnectionDetails{"a": []byte("b")},
+			},
+		},
+		"FetcherError": {
+			reason: "We should return errors from a chained fetcher.",
+			c: ConnectionDetailsFetcherChain{
+				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					return nil, errBoom
+				}),
+			},
+			args: args{
+				o: &fake.Composed{},
+			},
+			want: want{
+				err: errBoom,
+			},
+		},
+		"MultipleFetcherChain": {
+			reason: "A chain of multiple fetchers should return all of their connection details, with later fetchers winning if there are duplicates.",
+			c: ConnectionDetailsFetcherChain{
+				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					return managed.ConnectionDetails{
+						"a": []byte("a"),
+						"b": []byte("b"),
+						"c": []byte("c"),
+					}, nil
+				}),
+				ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+					return managed.ConnectionDetails{
+						"a": []byte("A"),
+					}, nil
+				}),
+			},
+			args: args{
+				o: &fake.Composed{},
 			},
 			want: want{
 				conn: managed.ConnectionDetails{
-					"fixed": []byte("value"),
+					"a": []byte("A"),
+					"b": []byte("b"),
+					"c": []byte("c"),
 				},
 			},
 		},
-		"SecretGetFailed": {
-			reason: "Should fail if secret retrieval results in some error other than NotFound",
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			conn, err := tc.c.FetchConnection(tc.args.ctx, tc.args.o)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nFetchConnection(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.conn, conn, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nFetchFetchConnection(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestExtractConnectionDetails(t *testing.T) {
+	// errBoom := errors.New("boom")
+
+	type args struct {
+		cd   resource.Composed
+		data managed.ConnectionDetails
+		cfg  []ConnectionDetailExtractConfig
+	}
+	type want struct {
+		conn managed.ConnectionDetails
+		err  error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"MissingNameError": {
+			reason: "We should return an error if a connection detail is missing a name.",
 			args: args{
-				kube: &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetSecret),
-			},
-		},
-		"FetchConfigSuccess": {
-			reason: "Should publish only the selected set of secret keys",
-			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-				cfg: []ExtractConfig{
+				cfg: []ConnectionDetailExtractConfig{
 					{
-						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-						Name:                    "bar",
-						FromConnectionDetailKey: pointer.StringPtr("bar"),
-					},
-					{
-						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-						Name:                    "none",
-						FromConnectionDetailKey: pointer.StringPtr("none"),
-					},
-					{
-						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-						Name:                    "convfoo",
-						FromConnectionDetailKey: pointer.StringPtr("foo"),
-					},
-					{
-						Type:  ConnectionDetailTypeFromValue,
-						Name:  "fixed",
-						Value: pointer.StringPtr("value"),
+						// A nameless connection detail.
 					},
 				},
 			},
 			want: want{
-				conn: managed.ConnectionDetails{
-					"convfoo": s.Data["foo"],
-					"bar":     s.Data["bar"],
-					"fixed":   []byte("value"),
-				},
+				err: errors.New(errConnDetailName),
 			},
 		},
-		"NoFetchConfigSuccess": {
-			reason: "Should publish all connection details from the connection secret if no FetchConfigs are supplied",
+		"MissingValueError": {
+			reason: "We should return an error if the fixed value is missing.",
 			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-			},
-			want: want{
-				conn: managed.ConnectionDetails{
-					"foo": s.Data["foo"],
-					"bar": s.Data["bar"],
-				},
-			},
-		},
-		"ConnectionDetailValueNotSet": {
-			reason: "Should error if Value type value is not set",
-			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-				cfg: []ExtractConfig{
+				cfg: []ConnectionDetailExtractConfig{
 					{
+						Name: "cool-detail",
 						Type: ConnectionDetailTypeFromValue,
-						Name: "missingvalue",
 					},
 				},
 			},
 			want: want{
-				err: errors.Errorf(errFmtConnDetailVal, v1.ConnectionDetailTypeFromValue),
+				err: errors.Errorf(errFmtConnDetailVal, ConnectionDetailTypeFromValue),
 			},
 		},
-		"ErrConnectionDetailFromConnectionSecretKeyNotSet": {
-			reason: "Should error if ConnectionDetailFromConnectionSecretKey type FromConnectionSecretKey is not set",
+		"MissingConnectionSecretKeyError": {
+			reason: "We should return an error if the connection secret key is missing.",
 			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-				cfg: []ExtractConfig{
+				cfg: []ConnectionDetailExtractConfig{
 					{
+						Name: "cool-detail",
 						Type: ConnectionDetailTypeFromConnectionSecretKey,
-						Name: "missing-key",
 					},
 				},
 			},
@@ -327,26 +303,13 @@ func TestExtractConnectionDetails(t *testing.T) {
 				err: errors.Errorf(errFmtConnDetailKey, v1.ConnectionDetailTypeFromConnectionSecretKey),
 			},
 		},
-		"ErrConnectionDetailFromFieldPathNotSet": {
-			reason: "Should error if ConnectionDetailFromFieldPath type FromFieldPath is not set",
+		"MissingFieldPathError": {
+			reason: "We should return an error if the field path is missing.",
 			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-				},
-				cfg: []ExtractConfig{
+				cfg: []ConnectionDetailExtractConfig{
 					{
+						Name: "cool-detail",
 						Type: ConnectionDetailTypeFromFieldPath,
-						Name: "missing-path",
 					},
 				},
 			},
@@ -354,59 +317,45 @@ func TestExtractConnectionDetails(t *testing.T) {
 				err: errors.Errorf(errFmtConnDetailPath, v1.ConnectionDetailTypeFromFieldPath),
 			},
 		},
-		"SuccessFieldPath": {
-			reason: "Should publish only the selected set of secret keys",
+		"FetchConfigSuccess": {
+			reason: "Should extract only the selected set of secret keys",
 			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
+				cd: &fake.Composed{
 					ObjectMeta: metav1.ObjectMeta{
-						Name: "test",
+						Name:       "test",
+						Generation: 4,
 					},
 				},
-				cfg: []ExtractConfig{
+				data: managed.ConnectionDetails{
+					"foo": []byte("a"),
+					"bar": []byte("b"),
+				},
+				cfg: []ConnectionDetailExtractConfig{
+					{
+						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+						Name:                    "bar",
+						FromConnectionSecretKey: pointer.StringPtr("bar"),
+					},
+					{
+						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+						Name:                    "none",
+						FromConnectionSecretKey: pointer.StringPtr("none"),
+					},
+					{
+						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+						Name:                    "convfoo",
+						FromConnectionSecretKey: pointer.StringPtr("foo"),
+					},
+					{
+						Type:  ConnectionDetailTypeFromValue,
+						Name:  "fixed",
+						Value: pointer.StringPtr("value"),
+					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "name",
 						FromFieldPath: pointer.StringPtr("objectMeta.name"),
 					},
-				},
-			},
-			want: want{
-				conn: managed.ConnectionDetails{
-					"name": []byte("test"),
-				},
-			},
-		},
-		"SuccessFieldPathMarshal": {
-			reason: "Should publish the secret keys as a JSON value",
-			args: args{
-				kube: &test.MockClient{MockGet: func(_ context.Context, key client.ObjectKey, obj client.Object) error {
-					if sobj, ok := obj.(*corev1.Secret); ok {
-						if key.Name == sref.Name && key.Namespace == sref.Namespace {
-							s.DeepCopyInto(sobj)
-							return nil
-						}
-					}
-					t.Errorf("wrong secret is queried")
-					return errBoom
-				}},
-				o: &fake.Composed{
-					ConnectionSecretWriterTo: fake.ConnectionSecretWriterTo{Ref: sref},
-					ObjectMeta: metav1.ObjectMeta{
-						Generation: 4,
-					},
-				},
-				cfg: []ExtractConfig{
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "generation",
@@ -416,6 +365,10 @@ func TestExtractConnectionDetails(t *testing.T) {
 			},
 			want: want{
 				conn: managed.ConnectionDetails{
+					"convfoo":    []byte("a"),
+					"bar":        []byte("b"),
+					"fixed":      []byte("value"),
+					"name":       []byte("test"),
 					"generation": []byte("4"),
 				},
 			},
@@ -423,18 +376,167 @@ func TestExtractConnectionDetails(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := &SecretConnectionDetailsFetcher{client: tc.args.kube}
-			conn, err := c.FetchConnectionDetails(context.Background(), tc.args.o, tc.args.cfg...)
+			conn, err := ExtractConnectionDetails(tc.args.cd, tc.args.data, tc.args.cfg...)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nExtractConnectionDetails(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.conn, conn, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nFetch(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nExtractConnectionDetails(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
-*/
+
+// TODO(negz): Implement me.
+
+func TestExtractConfigsFromTemplate(t *testing.T) {
+	tfk := v1.ConnectionDetailTypeFromConnectionSecretKey
+
+	type args struct {
+		t *v1.ComposedTemplate
+	}
+	type want struct {
+		cfgs []ConnectionDetailExtractConfig
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NilTemplate": {
+			reason: "A nil template should result in a nil slice of extract configs.",
+			args: args{
+				t: nil,
+			},
+			want: want{
+				cfgs: nil,
+			},
+		},
+		"ExplicitName": {
+			reason: "When a template's connection details have an explicit name, we should use it.",
+			args: args{
+				t: &v1.ComposedTemplate{
+					ConnectionDetails: []v1.ConnectionDetail{{
+						Name:                    pointer.String("cool-detail"),
+						Type:                    &tfk,
+						FromConnectionSecretKey: pointer.String("cool-key"),
+					}},
+				},
+			},
+			want: want{
+				cfgs: []ConnectionDetailExtractConfig{{
+					Name:                    "cool-detail",
+					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+					FromConnectionSecretKey: pointer.String("cool-key"),
+				}},
+			},
+		},
+		"InferredName": {
+			reason: "When a template's connection details does not have an explicit name and is of TypeFromConnectionSecretKey, we should infer the name from the connection secret key.",
+			args: args{
+				t: &v1.ComposedTemplate{
+					ConnectionDetails: []v1.ConnectionDetail{{
+						Type:                    &tfk,
+						FromConnectionSecretKey: pointer.String("cool-key"),
+					}},
+				},
+			},
+			want: want{
+				cfgs: []ConnectionDetailExtractConfig{{
+					Name:                    "cool-key",
+					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+					FromConnectionSecretKey: pointer.String("cool-key"),
+				}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			cfgs := ExtractConfigsFromTemplate(tc.args.t)
+
+			if diff := cmp.Diff(tc.want.cfgs, cfgs); diff != "" {
+				t.Errorf("\n%s\nExtractConfigsFromTemplate(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+		})
+	}
+}
+
+func TestExtractConfigsFromDesired(t *testing.T) {
+	type args struct {
+		d *iov1alpha1.DesiredResource
+	}
+	type want struct {
+		cfgs []ConnectionDetailExtractConfig
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"NilResource": {
+			reason: "A nil desired resource should result in a nil slice of extract configs.",
+			args: args{
+				d: nil,
+			},
+			want: want{
+				cfgs: nil,
+			},
+		},
+		"ExplicitName": {
+			reason: "When a template's connection details have an explicit name, we should use it.",
+			args: args{
+				d: &iov1alpha1.DesiredResource{
+					ConnectionDetails: []iov1alpha1.DerivedConnectionDetail{{
+						Name:                    pointer.String("cool-detail"),
+						Type:                    iov1alpha1.ConnectionDetailTypeFromConnectionSecretKey,
+						FromConnectionSecretKey: pointer.String("cool-key"),
+					}},
+				},
+			},
+			want: want{
+				cfgs: []ConnectionDetailExtractConfig{{
+					Name:                    "cool-detail",
+					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+					FromConnectionSecretKey: pointer.String("cool-key"),
+				}},
+			},
+		},
+		"InferredName": {
+			reason: "When a template's connection details does not have an explicit name and is of TypeFromConnectionSecretKey, we should infer the name from the connection secret key.",
+			args: args{
+
+				d: &iov1alpha1.DesiredResource{
+					ConnectionDetails: []iov1alpha1.DerivedConnectionDetail{{
+						Type:                    iov1alpha1.ConnectionDetailTypeFromConnectionSecretKey,
+						FromConnectionSecretKey: pointer.String("cool-key"),
+					}},
+				},
+			},
+			want: want{
+				cfgs: []ConnectionDetailExtractConfig{{
+					Name:                    "cool-key",
+					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
+					FromConnectionSecretKey: pointer.String("cool-key"),
+				}},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			cfgs := ExtractConfigsFromDesired(tc.args.d)
+
+			if diff := cmp.Diff(tc.want.cfgs, cfgs); diff != "" {
+				t.Errorf("\n%s\nExtractConfigsFromDesired(...): -want, +got:\n%s", tc.reason, diff)
+			}
+
+		})
+	}
+}
 
 func TestConnectionDetailType(t *testing.T) {
 	fromVal := v1.ConnectionDetailTypeFromValue
