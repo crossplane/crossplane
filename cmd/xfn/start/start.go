@@ -20,6 +20,7 @@ package start
 
 import (
 	"os"
+	"path/filepath"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -57,7 +58,7 @@ func (c *Command) Run(log logging.Logger) error {
 	f := xfn.NewContainerRunner(
 		xfn.SetUID(setuid),
 		xfn.MapToRoot(rootUID, rootGID),
-		xfn.WithCacheDir(c.CacheDir),
+		xfn.WithCacheDir(filepath.Clean(c.CacheDir)),
 		xfn.WithLogger(log))
 	return errors.Wrap(f.ListenAndServe(c.Network, c.Address), errListenAndServe)
 }
