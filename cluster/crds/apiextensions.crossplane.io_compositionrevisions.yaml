@@ -393,6 +393,115 @@ spec:
                       type: object
                     type: array
                 type: object
+              functions:
+                description: Functions is list of Composition Functions that will
+                  be used when a composite resource referring to this composition
+                  is created. At least one of resources and functions must be specified.
+                  If both are specified the resources will be rendered first, then
+                  passed to the functions for further processing.
+                items:
+                  description: A Function represents a Composition Function.
+                  properties:
+                    config:
+                      description: Config is an optional, arbitrary Kubernetes resource
+                        (i.e. a resource with an apiVersion and kind) that will be
+                        passed to the Composition Function as the 'config' block of
+                        its FunctionIO.
+                      type: object
+                      x-kubernetes-embedded-resource: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    container:
+                      description: Container configuration of this function.
+                      properties:
+                        image:
+                          description: Image specifies the OCI image in which the
+                            function is packaged. The image should include an entrypoint
+                            that reads a FunctionIO from stdin and emits it, optionally
+                            mutated, to stdout.
+                          type: string
+                        imagePullPolicy:
+                          default: IfNotPresent
+                          description: ImagePullPolicy defines the pull policy for
+                            the function image.
+                          enum:
+                          - IfNotPresent
+                          - Always
+                          - Never
+                          type: string
+                        network:
+                          description: Network configuration for the Composition Function.
+                          properties:
+                            policy:
+                              default: Isolated
+                              description: Policy specifies the network policy under
+                                which the Composition Function will run. Defaults
+                                to 'Isolated' - i.e. no network access. Specify 'Runner'
+                                to allow the function the same network access as its
+                                runner.
+                              enum:
+                              - Isolated
+                              - Runner
+                              type: string
+                          type: object
+                        resources:
+                          description: Resources that may be used by the Composition
+                            Function.
+                          properties:
+                            limits:
+                              description: Limits specify the maximum compute resources
+                                that may be used by the Composition Function.
+                              properties:
+                                cpu:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  default: 100m
+                                  description: CPU, in cores. (500m = .5 cores)
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                memory:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  default: 128Mi
+                                  description: Memory, in bytes. (500Gi = 500GiB =
+                                    500 * 1024 * 1024 * 1024)
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        runner:
+                          description: Runner configuration for the Composition Function.
+                          properties:
+                            endpoint:
+                              default: unix:///@crossplane/fn/default.sock
+                              description: Endpoint specifies how and where Crossplane
+                                should reach the runner it uses to invoke containerized
+                                Composition Functions.
+                              type: string
+                          type: object
+                        timeout:
+                          default: 20s
+                          description: Timeout after which the Composition Function
+                            will be killed.
+                          type: string
+                      required:
+                      - image
+                      type: object
+                    name:
+                      description: Name of this function. Must be unique within its
+                        Composition.
+                      type: string
+                    type:
+                      description: Type of this function.
+                      enum:
+                      - Container
+                      type: string
+                  required:
+                  - name
+                  - type
+                  type: object
+                type: array
               patchSets:
                 description: PatchSets define a named set of patches that may be included
                   by any resource in this Composition. PatchSets cannot themselves
@@ -1101,7 +1210,6 @@ spec:
                 type: string
             required:
             - compositeTypeRef
-            - resources
             - revision
             type: object
           status:
@@ -1524,6 +1632,115 @@ spec:
                       type: object
                     type: array
                 type: object
+              functions:
+                description: Functions is list of Composition Functions that will
+                  be used when a composite resource referring to this composition
+                  is created. At least one of resources and functions must be specified.
+                  If both are specified the resources will be rendered first, then
+                  passed to the functions for further processing.
+                items:
+                  description: A Function represents a Composition Function.
+                  properties:
+                    config:
+                      description: Config is an optional, arbitrary Kubernetes resource
+                        (i.e. a resource with an apiVersion and kind) that will be
+                        passed to the Composition Function as the 'config' block of
+                        its FunctionIO.
+                      type: object
+                      x-kubernetes-embedded-resource: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    container:
+                      description: Container configuration of this function.
+                      properties:
+                        image:
+                          description: Image specifies the OCI image in which the
+                            function is packaged. The image should include an entrypoint
+                            that reads a FunctionIO from stdin and emits it, optionally
+                            mutated, to stdout.
+                          type: string
+                        imagePullPolicy:
+                          default: IfNotPresent
+                          description: ImagePullPolicy defines the pull policy for
+                            the function image.
+                          enum:
+                          - IfNotPresent
+                          - Always
+                          - Never
+                          type: string
+                        network:
+                          description: Network configuration for the Composition Function.
+                          properties:
+                            policy:
+                              default: Isolated
+                              description: Policy specifies the network policy under
+                                which the Composition Function will run. Defaults
+                                to 'Isolated' - i.e. no network access. Specify 'Runner'
+                                to allow the function the same network access as its
+                                runner.
+                              enum:
+                              - Isolated
+                              - Runner
+                              type: string
+                          type: object
+                        resources:
+                          description: Resources that may be used by the Composition
+                            Function.
+                          properties:
+                            limits:
+                              description: Limits specify the maximum compute resources
+                                that may be used by the Composition Function.
+                              properties:
+                                cpu:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  default: 100m
+                                  description: CPU, in cores. (500m = .5 cores)
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                memory:
+                                  anyOf:
+                                  - type: integer
+                                  - type: string
+                                  default: 128Mi
+                                  description: Memory, in bytes. (500Gi = 500GiB =
+                                    500 * 1024 * 1024 * 1024)
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                          type: object
+                        runner:
+                          description: Runner configuration for the Composition Function.
+                          properties:
+                            endpoint:
+                              default: unix:///@crossplane/fn/default.sock
+                              description: Endpoint specifies how and where Crossplane
+                                should reach the runner it uses to invoke containerized
+                                Composition Functions.
+                              type: string
+                          type: object
+                        timeout:
+                          default: 20s
+                          description: Timeout after which the Composition Function
+                            will be killed.
+                          type: string
+                      required:
+                      - image
+                      type: object
+                    name:
+                      description: Name of this function. Must be unique within its
+                        Composition.
+                      type: string
+                    type:
+                      description: Type of this function.
+                      enum:
+                      - Container
+                      type: string
+                  required:
+                  - name
+                  - type
+                  type: object
+                type: array
               patchSets:
                 description: PatchSets define a named set of patches that may be included
                   by any resource in this Composition. PatchSets cannot themselves
@@ -2232,7 +2449,6 @@ spec:
                 type: string
             required:
             - compositeTypeRef
-            - resources
             - revision
             type: object
           status:

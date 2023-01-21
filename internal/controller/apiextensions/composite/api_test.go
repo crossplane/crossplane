@@ -40,8 +40,6 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-var errBoom = errors.New("boom")
-
 func TestPublishConnection(t *testing.T) {
 	errBoom := errors.New("boom")
 
@@ -154,6 +152,8 @@ func TestPublishConnection(t *testing.T) {
 }
 
 func TestFetchComposition(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type args struct {
 		ctx context.Context
 		cr  resource.Composite
@@ -216,6 +216,7 @@ func TestFetchComposition(t *testing.T) {
 }
 
 func TestFetchRevision(t *testing.T) {
+	errBoom := errors.New("boom")
 	manual := xpv1.UpdateManual
 	uid := types.UID("no-you-id")
 	ctrl := true
@@ -572,6 +573,8 @@ func TestFetchRevision(t *testing.T) {
 }
 
 func TestConfigure(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	cs := fake.ConnectionSecretWriterTo{Ref: &xpv1.SecretReference{
 		Name:      "foo",
 		Namespace: "bar",
@@ -677,6 +680,8 @@ func TestConfigure(t *testing.T) {
 }
 
 func TestSelectorResolver(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
 	tref := v1.TypeReference{APIVersion: a, Kind: k}
 	comp := &v1.Composition{
@@ -793,6 +798,7 @@ func TestSelectorResolver(t *testing.T) {
 }
 
 func TestAPIDefaultCompositionSelector(t *testing.T) {
+	errBoom := errors.New("boom")
 	a, k := schema.EmptyObjectKind.GroupVersionKind().ToAPIVersionAndKind()
 	tref := v1.TypeReference{APIVersion: a, Kind: k}
 	comp := &v1.Composition{

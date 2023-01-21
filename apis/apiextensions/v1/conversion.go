@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
@@ -27,7 +28,7 @@ import (
 //
 // goverter:converter
 // goverter:name GeneratedRevisionSpecConverter
-// goverter:extend ConvertRawExtension
+// goverter:extend ConvertRawExtension ConvertResourceQuantity
 // +k8s:deepcopy-gen=false
 type RevisionSpecConverter interface {
 	// goverter:ignore Revision
@@ -40,4 +41,11 @@ type RevisionSpecConverter interface {
 func ConvertRawExtension(in runtime.RawExtension) runtime.RawExtension {
 	out := in.DeepCopy()
 	return *out
+}
+
+// ConvertResourceQuantity 'converts' a Quantity by producing a deepcopy. This
+// is necessary because goverter can't convert a Quantity's unexported fields.
+func ConvertResourceQuantity(in *resource.Quantity) *resource.Quantity {
+	out := in.DeepCopy()
+	return &out
 }

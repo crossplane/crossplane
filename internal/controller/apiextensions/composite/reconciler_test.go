@@ -18,7 +18,6 @@ package composite
 
 import (
 	"context"
-	"io"
 	"testing"
 	"time"
 
@@ -28,15 +27,13 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -50,31 +47,19 @@ import (
 
 func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
-	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	cd := managed.ConnectionDetails{"a": []byte("b")}
 
 	type args struct {
-		mgr       manager.Manager
-		of        resource.CompositeKind
-		opts      []ReconcilerOption
-		composite *composite.Unstructured
+		mgr  manager.Manager
+		of   resource.CompositeKind
+		opts []ReconcilerOption
 	}
 	type want struct {
-		r         reconcile.Result
-		composite *composite.Unstructured
-		err       error
+		r   reconcile.Result
+		err error
 	}
 
 	now := metav1.Now()
-
-	type compositeModifier func(o resource.Composite)
-	withComposite := func(mods ...compositeModifier) *composite.Unstructured {
-		co := composite.New(composite.WithGroupVersionKind(schema.FromAPIVersionAndKind("", "")))
-		for _, m := range mods {
-			m(co)
-		}
-		return co
-	}
 
 	cases := map[string]struct {
 		reason string
@@ -86,10 +71,8 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
 					}),
 				},
 			},
@@ -102,10 +85,8 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(errBoom),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(errBoom),
 					}),
 				},
 			},
@@ -118,16 +99,14 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									now := metav1.Now()
-									o.SetDeletionTimestamp(&now)
-								}
-								return nil
-							}),
-						},
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetDeletionTimestamp(&now)
+						})),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(want resource.Composite) {
+							want.SetDeletionTimestamp(&now)
+							want.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errUnpublish)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithConnectionPublishers(managed.ConnectionPublisherFns{
@@ -138,10 +117,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetDeletionTimestamp(&now)
-					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errUnpublish)))
-				}),
 				r: reconcile.Result{Requeue: true},
 			},
 		},
@@ -150,16 +125,14 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									now := metav1.Now()
-									o.SetDeletionTimestamp(&now)
-								}
-								return nil
-							}),
-						},
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetDeletionTimestamp(&now)
+						})),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetDeletionTimestamp(&now)
+							cr.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error {
@@ -174,10 +147,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetDeletionTimestamp(&now)
-					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileError(errors.Wrap(errBoom, errRemoveFinalizer)))
-				}),
 				r: reconcile.Result{Requeue: true},
 			},
 		},
@@ -186,16 +155,14 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*composite.Unstructured); ok {
-									now := metav1.Now()
-									o.SetDeletionTimestamp(&now)
-								}
-								return nil
-							}),
-						},
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetDeletionTimestamp(&now)
+						})),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetDeletionTimestamp(&now)
+							cr.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
+						})),
 					}),
 					WithCompositeFinalizer(resource.FinalizerFns{
 						RemoveFinalizerFn: func(ctx context.Context, obj resource.Object) error {
@@ -210,10 +177,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetDeletionTimestamp(&now)
-					o.SetConditions(xpv1.Deleting(), xpv1.ReconcileSuccess())
-				}),
+				err: nil,
 			},
 		},
 		"AddFinalizerError": {
@@ -221,10 +185,11 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.FinalizerFns{
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error {
@@ -234,9 +199,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAddFinalizer)))
-				}),
 				r: reconcile.Result{Requeue: true},
 			},
 		},
@@ -245,10 +207,11 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSelectComp)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, _ resource.Composite) error {
@@ -257,9 +220,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSelectComp)))
-				}),
 				r: reconcile.Result{Requeue: true},
 			},
 		},
@@ -268,10 +228,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errFetchComp)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -284,10 +246,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errFetchComp)))
-				}),
 				r: reconcile.Result{Requeue: true},
 			},
 		},
@@ -296,10 +254,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errValidate)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -313,10 +273,6 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errValidate)))
-				}),
 				r: reconcile.Result{Requeue: true},
 			},
 		},
@@ -325,10 +281,12 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errConfigure)))
+						})),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -345,776 +303,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errConfigure)))
-				}),
 				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"ComposedTemplatesError": {
-			reason: "We should return any error encountered while inlining a composition's patchsets.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{
-								Patches: []v1.Patch{{
-									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.StringPtr("nonexistent-patchset"),
-								}},
-							}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errors.New("cannot find PatchSet by name nonexistent-patchset"), errInline)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"AssociateTemplatesError": {
-			reason: "We should return any error encountered while associating Composition templates with composed resources.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						return &v1.Composition{}, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithCompositionTemplateAssociator(CompositionTemplateAssociatorFn(func(context.Context, resource.Composite, []v1.ComposedTemplate) ([]TemplateAssociation, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errAssociate)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"UpdateCompositeError": {
-			reason: "We should return any error encountered while updating our composite resource with references.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:    test.NewMockGetFn(nil),
-							MockUpdate: test.NewMockUpdateFn(errBoom),
-						},
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateComposite)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"ApplyComposedError": {
-			reason: "We should return any error encountered while applying a composed resource.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:    test.NewMockGetFn(nil),
-							MockUpdate: test.NewMockUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return errBoom
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errApply)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"FetchConnectionDetailsError": {
-			reason: "We should return any error encountered while fetching a composed resource's connection details.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:    test.NewMockGetFn(nil),
-							MockUpdate: test.NewMockUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errFetchSecret)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"CheckReadinessError": {
-			reason: "We should return any error encountered while checking whether a composed resource is ready.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return false, errBoom
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errReadiness)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"CompositeRenderError": {
-			reason: "We should return any error encountered while rendering the Composite.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return false, nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return errBoom
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errRenderCR)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"CompositeUpdateError": {
-			reason: "We should return any error encountered while updating the Composite.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(errBoom),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, obj client.Object, ao ...resource.ApplyOption) error {
-							// annotation will be set by mock composite render
-							if obj.GetAnnotations()["composite-rendered"] == "true" {
-								return errBoom
-							}
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return true, nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						// use arbitrary annotation to track api-server requests
-						// made after composite render
-						cp.SetAnnotations(map[string]string{"composite-rendered": "true"})
-						return nil
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errUpdateComposite)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"CompositeUpdateEarlyExit": {
-			reason: "We should early exit to be immediately enqueued if the composite is updated by composed.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, obj client.Object, ao ...resource.ApplyOption) error {
-							// annotation will be set by mock composite render
-							if obj.GetAnnotations()["composite-rendered"] == "true" {
-								// Set composite resource version to indicate update was not a no-op.
-								obj.SetResourceVersion("1")
-							}
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						return true, nil
-					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						// use arbitrary annotation to track api-server requests
-						// made after composite render
-						cp.SetAnnotations(map[string]string{"composite-rendered": "true"})
-						return nil
-					})),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetAnnotations(map[string]string{"composite-rendered": "true"})
-				}),
-				r: reconcile.Result{Requeue: false},
-			},
-		},
-		"PublishConnectionDetailsError": {
-			reason: "We should return any error encountered while publishing connection details.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						return &v1.Composition{}, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithConnectionPublishers(managed.ConnectionPublisherFns{
-						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-							return false, errBoom
-						},
-					}),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPublish)))
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"ComposedResourcesNotReady": {
-			reason: "We should requeue if any of our composed resources are not yet ready.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is not ready.
-						return false, nil
-					})),
-					WithConnectionPublishers(managed.ConnectionPublisherFns{
-						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
-							return false, nil
-						},
-					}),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating())
-				}),
-				r: reconcile.Result{Requeue: true},
-			},
-		},
-		"ComposedResourcesReady": {
-			reason: "We should requeue after our poll interval if all of our composed resources are ready.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return cd, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is ready.
-						return true, nil
-					})),
-					WithConnectionPublishers(managed.ConnectionPublisherFns{
-						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
-							want := cd
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
-							}
-							return true, nil
-						},
-					}),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetResourceReferences([]corev1.ObjectReference{})
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
-					o.SetConnectionDetailsLastPublishedTime(&now)
-				}),
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
-			},
-		},
-		"ReconciliationPausedSuccessful": {
-			reason: `If a composite resource has the pause annotation with value "true", there should be no further requeue requests.`,
-			args: args{
-				mgr: &fake.Manager{},
-				composite: withComposite(func(o resource.Composite) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-				}),
-			},
-			want: want{
-				r: reconcile.Result{},
-				composite: withComposite(func(o resource.Composite) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-					o.SetConditions(xpv1.ReconcilePaused())
-				}),
-			},
-		},
-		"ReconciliationPausedError": {
-			reason: `If a composite resource has the pause annotation with value "true" and the status update due to reconciliation being paused fails, error should be reported causing an exponentially backed-off requeue.`,
-			args: args{
-				mgr: &fake.Manager{},
-				composite: withComposite(func(o resource.Composite) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-				}),
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
-						},
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errUpdateStatus),
-				composite: withComposite(func(o resource.Composite) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
-					o.SetConditions(xpv1.ReconcilePaused())
-				}),
-			},
-		},
-		"ReconciliationResumes": {
-			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
-			args: args{
-				mgr: &fake.Manager{},
-				composite: withComposite(func(o resource.Composite) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
-					o.SetConditions(xpv1.ReconcilePaused())
-				}),
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return cd, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is ready.
-						return true, nil
-					})),
-					WithConnectionPublishers(managed.ConnectionPublisherFns{
-						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
-							want := cd
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
-							}
-							return true, nil
-						},
-					}),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
-					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
-					o.SetConnectionDetailsLastPublishedTime(&now)
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetResourceReferences([]corev1.ObjectReference{})
-				}),
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
-			},
-		},
-		"ReconciliationResumesAfterAnnotationRemoval": {
-			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
-			args: args{
-				mgr: &fake.Manager{},
-				composite: withComposite(func(o resource.Composite) {
-					// no annotation atm
-					// (but reconciliations were already paused)
-					o.SetConditions(xpv1.ReconcilePaused())
-				}),
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						c := &v1.Composition{Spec: v1.CompositionSpec{
-							Resources: []v1.ComposedTemplate{{}},
-						}}
-						return c, nil
-					})),
-					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
-					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
-						return nil
-					})),
-					WithRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
-						return nil
-					})),
-					WithConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, _ resource.Composed, t v1.ComposedTemplate) (managed.ConnectionDetails, error) {
-						return cd, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, cd resource.Composed, t v1.ComposedTemplate) (ready bool, err error) {
-						// Our one resource is ready.
-						return true, nil
-					})),
-					WithConnectionPublishers(managed.ConnectionPublisherFns{
-						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
-							want := cd
-							if diff := cmp.Diff(want, got); diff != "" {
-								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
-							}
-							return true, nil
-						},
-					}),
-				},
-			},
-			want: want{
-				composite: withComposite(func(o resource.Composite) {
-					o.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
-					o.SetConnectionDetailsLastPublishedTime(&now)
-					o.SetCompositionReference(&corev1.ObjectReference{})
-					o.SetResourceReferences([]corev1.ObjectReference{})
-				}),
-				r: reconcile.Result{RequeueAfter: defaultPollInterval},
 			},
 		},
 		"SelectEnvironmentError": {
@@ -1122,15 +311,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
+					WithClient(&test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -1140,6 +323,8 @@ func TestReconcile(t *testing.T) {
 						c := &v1.Composition{Spec: v1.CompositionSpec{}}
 						return c, nil
 					})),
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error { return nil })),
 					WithEnvironmentSelector(EnvironmentSelectorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
 						return errBoom
 					})),
@@ -1154,15 +339,9 @@ func TestReconcile(t *testing.T) {
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:          test.NewMockGetFn(nil),
-							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
-						},
-						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
-							return nil
-						}),
+					WithClient(&test.MockClient{
+						MockGet:          test.NewMockGetFn(nil),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -1172,6 +351,8 @@ func TestReconcile(t *testing.T) {
 						c := &v1.Composition{Spec: v1.CompositionSpec{}}
 						return c, nil
 					})),
+					WithCompositionValidator(CompositionValidatorFn(func(comp *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error { return nil })),
 					WithEnvironmentFetcher(EnvironmentFetcherFn(func(ctx context.Context, cr resource.Composite) (*env.Environment, error) {
 						return nil, errBoom
 					})),
@@ -1181,58 +362,347 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errFetchEnvironment),
 			},
 		},
+		"ComposeResourcesError": {
+			reason: "We should return any error encountered while composing resources.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errCompose)))
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						return &v1.Composition{}, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, errBoom
+					})),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"PublishConnectionDetailsError": {
+			reason: "We should return any error encountered while publishing connection details.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errPublish)))
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						return &v1.Composition{}, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, nil
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, errBoom
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"CompositionWarnings": {
+			reason: "We should not requeue if our Composer returned warning events.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						c := &v1.Composition{Spec: v1.CompositionSpec{
+							Resources: []v1.ComposedTemplate{{}},
+						}}
+						return c, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{
+							Events: []event.Event{event.Warning("Warning", errBoom)},
+						}, nil
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, nil
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+			},
+		},
+		"ComposedResourcesNotReady": {
+			reason: "We should requeue if any of our composed resources are not yet ready.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Creating())
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						c := &v1.Composition{Spec: v1.CompositionSpec{
+							Resources: []v1.ComposedTemplate{{}},
+						}}
+						return c, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{
+							Composed: []ComposedResource{{
+								Ready: false,
+							}},
+						}, nil
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, c managed.ConnectionDetails) (published bool, err error) {
+							return false, nil
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+		"ComposedResourcesReady": {
+			reason: "We should requeue after our poll interval if all of our composed resources are ready.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: test.NewMockGetFn(nil),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
+							cr.SetConnectionDetailsLastPublishedTime(&now)
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						c := &v1.Composition{Spec: v1.CompositionSpec{
+							Resources: []v1.ComposedTemplate{{}},
+						}}
+						return c, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{ConnectionDetails: cd}, nil
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+							want := cd
+							if diff := cmp.Diff(want, got); diff != "" {
+								t.Errorf("PublishConnection(...): -want, +got:\n%s", diff)
+							}
+							return true, nil
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+			},
+		},
+		"ReconciliationPausedSuccessful": {
+			reason: `If a composite resource has the pause annotation with value "true", there should be no further requeue requests.`,
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+						})),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+							cr.SetConditions(xpv1.ReconcilePaused())
+						})),
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{},
+			},
+		},
+		"ReconciliationPausedError": {
+			reason: `If a composite resource has the pause annotation with value "true" and the status update due to reconciliation being paused fails, error should be reported causing an exponentially backed-off requeue.`,
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
+						})),
+						MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUpdateStatus),
+			},
+		},
+		"ReconciliationResumes": {
+			reason: `If a composite resource has the pause annotation with some value other than "true" and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
+							cr.SetConditions(xpv1.ReconcilePaused())
+						})),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: ""})
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
+							cr.SetConnectionDetailsLastPublishedTime(&now)
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						c := &v1.Composition{Spec: v1.CompositionSpec{
+							Resources: []v1.ComposedTemplate{{}},
+						}}
+						return c, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, nil
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+							return true, nil
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+			},
+		},
+		"ReconciliationResumesAfterAnnotationRemoval": {
+			reason: `If a composite resource has the pause annotation removed and the Synced=False/ReconcilePaused status condition, reconciliation should resume with requeueing.`,
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClient(&test.MockClient{
+						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
+							// no annotation atm
+							// (but reconciliations were already paused)
+							cr.SetConditions(xpv1.ReconcilePaused())
+						})),
+						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
+							cr.SetConditions(xpv1.ReconcileSuccess(), xpv1.Available())
+							cr.SetConnectionDetailsLastPublishedTime(&now)
+							cr.SetCompositionReference(&corev1.ObjectReference{})
+						})),
+					}),
+					WithCompositeFinalizer(resource.NewNopFinalizer()),
+					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
+						cr.SetCompositionReference(&corev1.ObjectReference{})
+						return nil
+					})),
+					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
+						c := &v1.Composition{Spec: v1.CompositionSpec{
+							Resources: []v1.ComposedTemplate{{}},
+						}}
+						return c, nil
+					})),
+					WithCompositionValidator(CompositionValidatorFn(func(_ *v1.Composition) error { return nil })),
+					WithConfigurator(ConfiguratorFn(func(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+						return nil
+					})),
+					WithComposer(ComposerFn(func(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+						return CompositionResult{}, nil
+					})),
+					WithConnectionPublishers(managed.ConnectionPublisherFns{
+						PublishConnectionFn: func(ctx context.Context, o resource.ConnectionSecretOwner, got managed.ConnectionDetails) (published bool, err error) {
+							return true, nil
+						},
+					}),
+				},
+			},
+			want: want{
+				r: reconcile.Result{RequeueAfter: defaultPollInterval},
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			// Create wrapper around the Get and Status().Update funcs of the
-			// client mock to preserver the composite data.
-			tc.args.opts = append(tc.args.opts, func(r *Reconciler) {
-				var customGet test.MockGetFn
-				var customStatusUpdate test.MockStatusUpdateFn
-				mockGet := func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-					if o, ok := obj.(*composite.Unstructured); ok && tc.args.composite != nil {
-						tc.args.composite.DeepCopyInto(&o.Unstructured)
-					}
-					if customGet != nil {
-						return customGet(ctx, key, obj)
-					}
-					return nil
-				}
-
-				mockStatusUpdate := func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-					if o, ok := obj.(*composite.Unstructured); ok {
-						if tc.args.composite != nil {
-							o.DeepCopyInto(&tc.args.composite.Unstructured)
-						} else {
-							tc.args.composite = o
-						}
-					}
-					if customStatusUpdate != nil {
-						return customStatusUpdate(ctx, obj, opts...)
-					}
-					return nil
-				}
-
-				if mockClient, ok := r.client.Client.(*test.MockClient); ok {
-					customGet = mockClient.MockGet
-					customStatusUpdate = mockClient.MockStatusUpdate
-					mockClient.MockGet = mockGet
-					mockClient.MockStatusUpdate = mockStatusUpdate
-				} else {
-					r.client.Client = &test.MockClient{
-						MockGet:          mockGet,
-						MockStatusUpdate: mockStatusUpdate,
-					}
-				}
-			})
-
-			r := NewReconciler(tc.args.mgr, tc.args.of, append(tc.args.opts, WithLogger(testLog))...)
+			r := NewReconciler(tc.args.mgr, tc.args.of, tc.args.opts...)
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-			if diff := cmp.Diff(tc.want.composite, tc.args.composite, cmpopts.EquateApproxTime(30*time.Second)); diff != "" {
-				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
-			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -1240,6 +710,40 @@ func TestReconcile(t *testing.T) {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
+	}
+}
+
+type CompositeModifier func(cr resource.Composite)
+
+func NewComposite(m ...CompositeModifier) *composite.Unstructured {
+	cr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{}))
+	for _, fn := range m {
+		fn(cr)
+	}
+	return cr
+}
+
+// A get function that supplies the input XR.
+func WithComposite(t *testing.T, cr *composite.Unstructured) func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+	return func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+		if o, ok := obj.(*composite.Unstructured); ok {
+			*o = *cr
+		}
+		return nil
+	}
+}
+
+// A status update function that ensures the supplied object is the XR we want.
+func WantComposite(t *testing.T, want resource.Composite) func(ctx context.Context, obj client.Object, _ ...client.UpdateOption) error {
+	return func(ctx context.Context, got client.Object, _ ...client.UpdateOption) error {
+		// Normally we use a custom Equal method on conditions to ignore the
+		// lastTransitionTime, but we may be using unstructured types here where
+		// the conditions are just a map[string]any.
+		diff := cmp.Diff(want, got, cmpopts.EquateApproxTime(3*time.Second))
+		if diff != "" {
+			t.Errorf("WantComposite(...): -want, +got: %s", diff)
+		}
+		return nil
 	}
 }
 
@@ -1294,7 +798,7 @@ func TestFilterToXRPatches(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			if diff := cmp.Diff(tc.want, filterToXRPatches(tc.args.tas)); diff != "" {
+			if diff := cmp.Diff(tc.want, toXRPatchesFromTAs(tc.args.tas)); diff != "" {
 				t.Errorf("\nfilterToXRPatches(...): -want, +got:\n%s", diff)
 			}
 		})

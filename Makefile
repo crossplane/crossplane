@@ -31,7 +31,7 @@ GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
 GO_REQUIRED_VERSION = 1.19
 
-GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
+GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank $(GO_PROJECT)/cmd/xfn
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
@@ -60,8 +60,7 @@ HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
 # all be in folders at the same level (no additional levels of nesting).
 
 REGISTRY_ORGS = docker.io/crossplane xpkg.upbound.io/crossplane
-IMAGES = crossplane
-OSBASEIMAGE = gcr.io/distroless/static:nonroot
+IMAGES = crossplane xfn
 -include build/makelib/imagelight.mk
 
 # ====================================================================================

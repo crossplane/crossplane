@@ -13,7 +13,11 @@ eval $(make --no-print-directory -C ${scriptdir}/../.. build.vars)
 # ensure the tools we need are installed
 make ${KIND} ${KUBECTL} ${HELM3}
 
+# The Composition Functions sidecar container.
+XFN_NAME=xfn
+
 BUILD_IMAGE="${BUILD_REGISTRY}/${PROJECT_NAME}-${TARGETARCH}"
+XFN_IMAGE="${BUILD_REGISTRY}/${XFN_NAME}-${TARGETARCH}"
 DEFAULT_NAMESPACE="crossplane-system"
 
 function copy_image_to_cluster() {
@@ -50,6 +54,7 @@ case "${1:-}" in
   update)
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${XFN_IMAGE} "${PROJECT_NAME}/${XFN_NAME}:${helm_tag}" "${KIND_NAME}"
     ;;
   restart)
     if check_context; then
@@ -64,6 +69,7 @@ case "${1:-}" in
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${XFN_IMAGE} "${PROJECT_NAME}/${XFN_NAME}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "installing helm package into \"$ns\" namespace"
@@ -74,6 +80,7 @@ case "${1:-}" in
     echo "copying image for helm"
     helm_tag="$(cat _output/version)"
     copy_image_to_cluster ${BUILD_IMAGE} "${PROJECT_NAME}/${PROJECT_NAME}:${helm_tag}" "${KIND_NAME}"
+    copy_image_to_cluster ${XFN_IMAGE} "${PROJECT_NAME}/${XFN_NAME}:${helm_tag}" "${KIND_NAME}"
 
     [ "$2" ] && ns=$2 || ns="${DEFAULT_NAMESPACE}"
     echo "upgrading helm package in \"$ns\" namespace"
