@@ -25,20 +25,20 @@ jobs:
         run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
           username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           channel: master
           version: current
           command: build configuration -f cluster/packages/aws --name=getting-started-with-aws.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           command: push configuration -f cluster/packages/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
 
@@ -54,20 +54,20 @@ jobs:
         run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
           username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           channel: master
           version: current
           command: build configuration -f cluster/packages/aws-with-vpc --name=getting-started-with-aws-with-vpc.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           command: push configuration -f cluster/packages/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
 
@@ -83,20 +83,20 @@ jobs:
         run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
           username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           channel: master
           version: current
           command: build configuration -f cluster/packages/gcp --name=getting-started-with-gcp.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           command: push configuration -f cluster/packages/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
 
@@ -112,19 +112,19 @@ jobs:
         run: echo "::set-output name=VERSION_TAG::$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )"
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
           username: ${{ secrets.UPBOUND_XP_ROBOT_USR }}
           password: ${{ secrets.UPBOUND_XP_ROBOT_PSW }}
       - name: Build
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           channel: master
           version: current
           command: build configuration -f cluster/packages/azure --name=getting-started-with-azure.xpkg
       - name: Push
-        uses: crossplane-contrib/xpkg-action@v0.2.0
+        uses: crossplane-contrib/xpkg-action@1696d9091687aad2895436cb5656faa956628b0f # v0.2.0
         with:
           command: push configuration -f cluster/packages/azure/getting-started-with-azure.xpkg registry.upbound.io/xp/getting-started-with-azure:${{ steps.tagger.outputs.VERSION_TAG }}
