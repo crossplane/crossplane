@@ -1,0 +1,138 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:base"
+  ],
+// The maximum number of PRs to be created in parallel
+  "prConcurrentLimit": 5,
+// The branches renovate should target
+// PLEASE UPDATE THIS WHEN RELEASING.
+  "baseBranches": ["master","release-1.8","release-1.9","release-1.10"],
+  "ignorePaths": ["design/**"],
+  "postUpdateOptions": ["gomodTidy"],
+// By default renovate will auto detect whether semantic commits have been used
+// in the recent history and comply with that, we explicitly disable it
+  "semanticCommits": "disabled",
+// All PRs should have a label
+  "labels": ["automated"],
+  "regexManagers": [
+    {
+// We want a PR to bump Go versions used through env variables in any Github
+// Actions, taking it from the official Github repository.
+      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
+      "matchStrings": [
+        "GO_VERSION: '(?<currentValue>.*?)'\\n"
+      ],
+      "datasourceTemplate": "golang-version",
+      "depNameTemplate": "golang"
+    }, {
+// We want a PR to bump golangci-lint versions used through env variables in
+// any Github Actions, taking it from the official Github repository tags.
+      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
+      "matchStrings": [
+        "GOLANGCI_VERSION: '(?<currentValue>.*?)'\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "golangci/golangci-lint"
+    }
+  ],
+// PackageRules disabled below should be enabled in case of vulnerabilities
+  "vulnerabilityAlerts": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+// We need to ignore k8s.io/client-go older versions as they switched to
+// semantic version and old tags are still available in the repo.
+      "matchDatasources": [
+        "go"
+      ],
+      "matchDepNames": [
+        "k8s.io/client-go"
+      ],
+      "allowedVersions": "<1.0"
+    }, {
+// We want a single PR for all the patches bumps of kubernetes related
+// dependencies, as most of the times these are all strictly related.
+      "matchDatasources": [
+        "go"
+      ],
+      "groupName": "kubernetes patches",
+      "matchUpdateTypes": [
+        "patch"
+      ],
+      "matchPackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ]
+    }, {
+// We want dedicated PRs for each minor and major bumps to kubernetes related
+// dependencies.
+      "matchDatasources": [
+        "go"
+      ],
+      "matchUpdateTypes": [
+        "major",
+        "minor"
+      ],
+      "matchPackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ]
+    }, {
+// We want dedicated PRs for each bump to non-kubernetes Go dependencies, but
+// only if there are known vulnerabilities in the current version.
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "enabled": false,
+      "excludePackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ],
+      "matchUpdateTypes": [
+        "major",
+      ],
+    }, {
+// We want a single PR for all minor and patch bumps to non-kubernetes Go
+// dependencies, but only if there are known vulnerabilities in the current
+// version.
+      "matchDatasources": [
+        "go"
+      ],
+      "matchPackagePatterns": [
+        "*"
+      ],
+      "enabled": false,
+      "excludePackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major go dependencies"
+    }, {
+// We want a single PR for all minor and patch bumps of Github Actions
+      "matchDepTypes": [
+        "action"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "all non-major github action",
+      "pinDigests": true
+    },{
+// We want dedicated PRs for each major bump to Github Actions
+      "matchDepTypes": [
+        "action"
+      ],
+      "pinDigests": true
+    }
+  ]
+}
