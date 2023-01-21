@@ -59,7 +59,8 @@
       ],
       "groupName": "kubernetes patches",
       "matchUpdateTypes": [
-        "patch"
+        "patch",
+        "digest"
       ],
       "matchPackagePrefixes": [
         "k8s.io",
@@ -113,7 +114,8 @@
       ],
       "matchUpdateTypes": [
         "minor",
-        "patch"
+        "patch",
+        "digest"
       ],
       "groupName": "all non-major go dependencies"
     }, {
