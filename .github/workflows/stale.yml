@@ -15,7 +15,7 @@ jobs:
   stale:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/stale@v5
+    - uses: actions/stale@99b6c709598e2b0d0841cd037aaf1ba07a4410bd # v5
       with:
         # This action uses ~2 operations per stale issue per run to determine
         # whether it's still stale. It also uses 2-3 operations to mark an issue

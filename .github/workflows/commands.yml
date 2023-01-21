@@ -11,7 +11,7 @@ jobs:
     steps:
     - name: Extract Command
       id: command
-      uses: xt0rted/slash-command-action@v1
+      uses: xt0rted/slash-command-action@865ee04a1dfc8aa2571513eee8e84b5377153511 # v1
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         command: backport
@@ -26,7 +26,7 @@ jobs:
         fetch-depth: 0
 
     - name: Open Backport PR
-      uses: zeebe-io/backport-action@v0.0.4
+      uses: zeebe-io/backport-action@6d30c3afa2146e1370dfaae83e99cdd1ee3bcba4 # v0.0.4
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_workspace: ${{ github.workspace }}
@@ -39,7 +39,7 @@ jobs:
     steps:
     - name: Extract Command
       id: command
-      uses: xt0rted/slash-command-action@v1
+      uses: xt0rted/slash-command-action@865ee04a1dfc8aa2571513eee8e84b5377153511 # v1
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         command: fresh
@@ -48,7 +48,7 @@ jobs:
         allow-edits: "false"
         permission-level: read
     - name: Handle Command
-      uses: actions-ecosystem/action-remove-labels@v1
+      uses: actions-ecosystem/action-remove-labels@2ce5d41b4b6aa8503e285553f75ed56e0a40bae0 # v1
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         labels: stale
