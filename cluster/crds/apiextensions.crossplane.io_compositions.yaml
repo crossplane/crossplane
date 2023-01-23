@@ -231,6 +231,16 @@ spec:
                                 description: Convert is used to cast the input into
                                   the given output type.
                                 properties:
+                                  format:
+                                    description: "The expected input format. \n *
+                                      `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
+                                      Only used during `string -> float64` conversions.
+                                      \n If this property is null, the default conversion
+                                      is applied."
+                                    enum:
+                                    - none
+                                    - quantity
+                                    type: string
                                   toType:
                                     description: ToType is the type of the output
                                       of this transform.
@@ -632,6 +642,16 @@ spec:
                                   description: Convert is used to cast the input into
                                     the given output type.
                                   properties:
+                                    format:
+                                      description: "The expected input format. \n
+                                        * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
+                                        Only used during `string -> float64` conversions.
+                                        \n If this property is null, the default conversion
+                                        is applied."
+                                      enum:
+                                      - none
+                                      - quantity
+                                      type: string
                                     toType:
                                       description: ToType is the type of the output
                                         of this transform.
@@ -1008,6 +1028,16 @@ spec:
                                   description: Convert is used to cast the input into
                                     the given output type.
                                   properties:
+                                    format:
+                                      description: "The expected input format. \n
+                                        * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
+                                        Only used during `string -> float64` conversions.
+                                        \n If this property is null, the default conversion
+                                        is applied."
+                                      enum:
+                                      - none
+                                      - quantity
+                                      type: string
                                     toType:
                                       description: ToType is the type of the output
                                         of this transform.

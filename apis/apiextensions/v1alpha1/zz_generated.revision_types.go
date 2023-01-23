@@ -693,12 +693,31 @@ const (
 	ConvertTransformTypeFloat64 = "float64"
 )
 
+// ConvertTransformFormat defines the expected format of an input value of a
+// conversion transform.
+type ConvertTransformFormat string
+
+// Possible ConvertTransformFormat values.
+const (
+	ConvertTransformFormatNone     ConvertTransformFormat = "none"
+	ConvertTransformFormatQuantity ConvertTransformFormat = "quantity"
+)
+
 // A ConvertTransform converts the input into a new object whose type is supplied.
 type ConvertTransform struct {
 	// ToType is the type of the output of this transform.
-	// +immutable
 	// +kubebuilder:validation:Enum=string;int;int64;bool;float64
 	ToType string `json:"toType"`
+
+	// The expected input format.
+	//
+	// * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
+	// Only used during `string -> float64` conversions.
+	//
+	// If this property is null, the default conversion is applied.
+	//
+	// +kubebuilder:validation:Enum=quantity
+	Format *ConvertTransformFormat `json:"format,omitempty"`
 }
 
 // A ConnectionDetailType is a type of connection detail.
