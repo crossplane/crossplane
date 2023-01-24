@@ -1,0 +1,63 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: environment-sample
+  labels:
+    provider: aws
+spec:
+  environment:
+    environmentConfigs:
+      - ref:
+          name: example-environment
+  compositeTypeRef:
+    apiVersion: example.crossplane.io/v1alpha1
+    kind: XEnvironmentSample
+  resources:
+    - name: vpc
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: VPC
+        spec:
+          forProvider:
+            cidrBlock: 172.16.0.0/16
+            tags:
+              - key: Name
+                value: # patched
+      patches:
+        - fromFieldPath: spec.vpcName
+          toFieldPath: spec.forProvider.tags[0].value
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: region
+          toFieldPath: spec.forProvider.region
+          policy:
+            fromFieldPath: Required
+        - type: ToEnvironmentFieldPath
+          fromFieldPath: spec.forProvider.cidrBlock
+          toFieldPath: cidrBlock
+    - name: subnet
+      base:
+        apiVersion: ec2.aws.crossplane.io/v1beta1
+        kind: Subnet
+        spec:
+          forProvider:
+            region: # patched
+            vpcIdSelector:
+               matchControllerRef: true
+            cidrBlock: # patched
+            tags:
+              - key: Name
+                value: # patched
+      patches:
+        - fromFieldPath: spec.vpcName
+          toFieldPath: spec.forProvider.tags[0].value
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: region
+          toFieldPath: spec.forProvider.region
+          policy:
+            fromFieldPath: Required
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: cidrBlock
+          toFieldPath: spec.forProvider.cidrBlock
+          policy:
+            fromFieldPath: Required

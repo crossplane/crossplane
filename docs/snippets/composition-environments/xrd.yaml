@@ -1,0 +1,30 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xenvironmentsamples.example.crossplane.io
+spec:
+  defaultCompositionRef:
+    name: environment-sample
+  group: example.crossplane.io
+  claimNames:
+    kind: EnvironmentSample
+    plural: environmentsamples
+  names:
+    kind: XEnvironmentSample
+    plural: xenvironmentsamples
+  versions:
+  - name: v1alpha1
+    served: true
+    referenceable: true
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              vpcName:
+                type: string
+            required:
+            - vpcName
