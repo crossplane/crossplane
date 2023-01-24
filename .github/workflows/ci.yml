@@ -165,6 +165,25 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@a34ca99b4610d924e04c68db79e503e1f79f9f02 # v2
 
+  trivy-scan-fs:
+    runs-on: ubuntu-20.04
+    needs: detect-noop
+    if: needs.detect-noop.outputs.noop != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
+        with:
+          submodules: true
+
+      - name: Run Trivy vulnerability scanner in fs mode
+        uses: aquasecurity/trivy-action@0.8.0
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          skip-dirs: design
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+
   unit-tests:
     runs-on: ubuntu-20.04
     needs: detect-noop
