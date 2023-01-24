@@ -358,14 +358,14 @@ jobs:
     steps:
       - name: Build Fuzzers
         id: build
-        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@723bdbc7a8ee1e95af24284583b25d41efc0bd41
+        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@700fd90d10cf656bd08a250c2ed19555a9cfc4ef
         with:
           oss-fuzz-project-name: "crossplane"
           dry-run: false
           language: go
 
       - name: Run Fuzzers
-        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@723bdbc7a8ee1e95af24284583b25d41efc0bd41
+        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@700fd90d10cf656bd08a250c2ed19555a9cfc4ef
         with:
           oss-fuzz-project-name: "crossplane"
           fuzz-seconds: 300
