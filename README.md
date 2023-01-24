@@ -65,7 +65,7 @@ Crossplane is under the Apache 2.0 license.
 [Twitter]: https://twitter.com/crossplane_io
 [Email]: mailto:info@crossplane.io
 [issue against Crossplane]: https://github.com/crossplane/crossplane/issues
-[contributing guide]: CONTRIBUTING.md
+[contributing guide]: contributing/README.md
 [community meeting time]: https://www.thetimezoneconverter.com/?t=10:00&tz=PT%20%28Pacific%20Time%29
 [Current agenda and past meeting notes]: https://docs.google.com/document/d/1q_sp2jLQsDEOX7Yug6TPOv7Fwrys6EwcF5Itxjkno7Y/edit?usp=sharing
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
