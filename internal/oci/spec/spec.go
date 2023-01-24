@@ -419,11 +419,11 @@ func ParsePasswd(passwd, group io.Reader) (Passwd, error) { //nolint:gocyclo // 
 		}
 
 		username := r[0]
-		uid, err := strconv.Atoi(r[2])
+		uid, err := strconv.ParseUint(r[2], 10, 32)
 		if err != nil {
 			return Passwd{}, errors.Wrap(err, errNonIntegerUID)
 		}
-		gid, err := strconv.Atoi(r[3])
+		gid, err := strconv.ParseUint(r[3], 10, 32)
 		if err != nil {
 			return Passwd{}, errors.Wrap(err, errNonIntegerGID)
 		}
@@ -449,7 +449,7 @@ func ParsePasswd(passwd, group io.Reader) (Passwd, error) { //nolint:gocyclo // 
 		}
 
 		groupname := r[0]
-		gid, err := strconv.Atoi(r[2])
+		gid, err := strconv.ParseUint(r[2], 10, 32)
 		if err != nil {
 			return Passwd{}, errors.Wrap(err, errNonIntegerGID)
 		}
@@ -465,7 +465,7 @@ func ParsePasswd(passwd, group io.Reader) (Passwd, error) { //nolint:gocyclo // 
 
 		for _, u := range strings.Split(users, ",") {
 			uid, ok := out.UID[Username(u)]
-			if !ok || gid == int(out.Groups[uid].PrimaryGID) {
+			if !ok || gid == uint64(out.Groups[uid].PrimaryGID) {
 				// Either this user doesn't exist, or they do and the group is
 				// their primary group. Either way we want to skip it.
 				continue
@@ -517,7 +517,7 @@ func WithUserOnly(user string, p Passwd) Option {
 		uid := UnknownUID
 
 		// If user is an integer we treat it as a UID.
-		if v, err := strconv.Atoi(user); err == nil {
+		if v, err := strconv.ParseUint(user, 10, 32); err == nil {
 			uid = UID(v)
 		}
 
@@ -559,10 +559,10 @@ func WithUserAndGroup(user, group string, p Passwd) Option {
 		uid, gid := UnknownUID, UnknownGID
 
 		// If user and/or group are integers we treat them as UID/GIDs.
-		if v, err := strconv.Atoi(user); err == nil {
+		if v, err := strconv.ParseUint(user, 10, 32); err == nil {
 			uid = UID(v)
 		}
-		if v, err := strconv.Atoi(group); err == nil {
+		if v, err := strconv.ParseUint(group, 10, 32); err == nil {
 			gid = GID(v)
 		}
 
