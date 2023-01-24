@@ -26,6 +26,15 @@
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
     }, {
+// We want a PR to bump golangci-lint versions used in the Makefile, taking it
+// from the official Github repository.
+       "fileMatch": ["^Makefile$"],
+      "matchStrings": [
+        "GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "golangci/golangci-lint"
+    }, {
 // We want a PR to bump golangci-lint versions used through env variables in
 // any Github Actions, taking it from the official Github repository tags.
       "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
