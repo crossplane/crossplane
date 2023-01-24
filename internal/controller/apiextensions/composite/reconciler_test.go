@@ -313,7 +313,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClient(&test.MockClient{
 						MockGet:          test.NewMockGetFn(nil),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -341,7 +341,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClient(&test.MockClient{
 						MockGet:          test.NewMockGetFn(nil),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 					}),
 					WithCompositeFinalizer(resource.NewNopFinalizer()),
 					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
@@ -596,7 +596,7 @@ func TestReconcile(t *testing.T) {
 						MockGet: WithComposite(t, NewComposite(func(cr resource.Composite) {
 							cr.SetAnnotations(map[string]string{meta.AnnotationKeyReconciliationPaused: "true"})
 						})),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 					}),
 				},
 			},
@@ -734,8 +734,8 @@ func WithComposite(t *testing.T, cr *composite.Unstructured) func(_ context.Cont
 }
 
 // A status update function that ensures the supplied object is the XR we want.
-func WantComposite(t *testing.T, want resource.Composite) func(ctx context.Context, obj client.Object, _ ...client.UpdateOption) error {
-	return func(ctx context.Context, got client.Object, _ ...client.UpdateOption) error {
+func WantComposite(t *testing.T, want resource.Composite) func(ctx context.Context, obj client.Object, _ ...client.SubResourceUpdateOption) error {
+	return func(ctx context.Context, got client.Object, _ ...client.SubResourceUpdateOption) error {
 		// Normally we use a custom Equal method on conditions to ignore the
 		// lastTransitionTime, but we may be using unstructured types here where
 		// the conditions are just a map[string]any.

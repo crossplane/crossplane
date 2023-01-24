@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.8.0
+    controller-gen.kubebuilder.io/version: v0.11.1
   creationTimestamp: null
   name: configurationrevisions.pkg.crossplane.io
 spec:
@@ -232,7 +232,8 @@ spec:
                       description: APIGroups is the name of the APIGroup that contains
                         the resources.  If multiple API groups are specified, any
                         action requested against one of the enumerated resources in
-                        any API group will be allowed.
+                        any API group will be allowed. "" represents the core API
+                        group and "*" represents all API groups.
                       items:
                         type: string
                       type: array
@@ -276,9 +277,3 @@ spec:
     storage: true
     subresources:
       status: {}
-status:
-  acceptedNames:
-    kind: ""
-    plural: ""
-  conditions: []
-  storedVersions: []

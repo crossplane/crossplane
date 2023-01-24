@@ -41,7 +41,7 @@ func TestRejectMixedTemplates(t *testing.T) {
 							// Unnamed.
 						},
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 					},
 				},
@@ -68,10 +68,10 @@ func TestRejectMixedTemplates(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cooler"),
+							Name: pointer.String("cooler"),
 						},
 					},
 				},
@@ -100,10 +100,10 @@ func TestRejectDuplicateNames(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cooler"),
+							Name: pointer.String("cooler"),
 						},
 					},
 				},
@@ -130,10 +130,10 @@ func TestRejectDuplicateNames(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 					},
 				},
@@ -196,10 +196,10 @@ func TestRejectAnonymousTemplatesWithFunctions(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cooler"),
+							Name: pointer.String("cooler"),
 						},
 					},
 					Functions: []v1.Function{{
