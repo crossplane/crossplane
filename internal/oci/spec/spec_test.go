@@ -465,7 +465,7 @@ users:x:100:primary,doesnotexist
 				group:  strings.NewReader(""),
 			},
 			want: want{
-				err: errors.Wrap(errors.New("strconv.Atoi: parsing \"uid\": invalid syntax"), errNonIntegerUID),
+				err: errors.Wrap(errors.New("strconv.ParseUint: parsing \"uid\": invalid syntax"), errNonIntegerUID),
 			},
 		},
 		"NonIntegerPasswdGID": {
@@ -475,7 +475,7 @@ users:x:100:primary,doesnotexist
 				group:  strings.NewReader(""),
 			},
 			want: want{
-				err: errors.Wrap(errors.New("strconv.Atoi: parsing \"gid\": invalid syntax"), errNonIntegerGID),
+				err: errors.Wrap(errors.New("strconv.ParseUint: parsing \"gid\": invalid syntax"), errNonIntegerGID),
 			},
 		},
 		"NonIntegerGroupGID": {
@@ -485,7 +485,7 @@ users:x:100:primary,doesnotexist
 				group:  strings.NewReader("groupname:password:gid:username"),
 			},
 			want: want{
-				err: errors.Wrap(errors.New("strconv.Atoi: parsing \"gid\": invalid syntax"), errNonIntegerGID),
+				err: errors.Wrap(errors.New("strconv.ParseUint: parsing \"gid\": invalid syntax"), errNonIntegerGID),
 			},
 		},
 		"Success": {
