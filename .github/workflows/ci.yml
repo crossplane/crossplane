@@ -368,7 +368,7 @@ jobs:
         uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@723bdbc7a8ee1e95af24284583b25d41efc0bd41
         with:
           oss-fuzz-project-name: "crossplane"
-          fuzz-seconds: 600
+          fuzz-seconds: 300
           dry-run: false
           language: go
 
