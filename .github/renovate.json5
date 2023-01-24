@@ -26,23 +26,17 @@
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
     }, {
-// We want a PR to bump golangci-lint versions used in the Makefile, taking it
-// from the official Github repository.
-       "fileMatch": ["^Makefile$"],
+// We want a PR to bump golangci-lint versions used through env variables in
+// any Github Actions or Makefile, taking it from the official Github
+// repository tags.
+      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$","^Makefile$"],
       "matchStrings": [
+        "GOLANGCI_VERSION: 'v(?<currentValue>.*?)'\\n",
         "GOLANGCILINT_VERSION = (?<currentValue>.*?)\\n"
       ],
       "datasourceTemplate": "github-tags",
-      "depNameTemplate": "golangci/golangci-lint"
-    }, {
-// We want a PR to bump golangci-lint versions used through env variables in
-// any Github Actions, taking it from the official Github repository tags.
-      "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
-      "matchStrings": [
-        "GOLANGCI_VERSION: '(?<currentValue>.*?)'\\n"
-      ],
-      "datasourceTemplate": "github-tags",
-      "depNameTemplate": "golangci/golangci-lint"
+      "depNameTemplate": "golangci/golangci-lint",
+      "extractVersionTemplate": "^v(?<version>.*)$"
     }
   ],
 // PackageRules disabled below should be enabled in case of vulnerabilities
