@@ -73,10 +73,18 @@ type MathTransform struct {
 	Multiply *int64 `json:"multiply,omitempty"`
 }
 
+type customError struct {
+    err string
+}
+
+func (e customError) Error() string {
+    return e.err
+}
+
 // Resolve runs the Math transform.
 func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 	if m.Multiply == nil {
-		return nil, fmt.Errorf("no multiplier provided for math transform")
+		return nil, customError{err:"no multiplier provided for math transform"}
 	}
 	switch i := input.(type) {
 	case int64:
@@ -84,7 +92,7 @@ func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
 	case int:
 		return float64(*m.Multiply) * float64(i), nil
 	default:
-		return nil, fmt.Errorf("input for math transform is not a number")
+		return nil, customError{err:"input for math transform is not a number"}
 	}
 }
 
