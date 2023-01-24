@@ -330,13 +330,24 @@ spec:
                                   string.
                                 properties:
                                   convert:
-                                    description: Convert the type of conversion to
-                                      Upper/Lower case.
+                                    description: Optional conversion method to be
+                                      specified. `ToUpper` and `ToLower` change the
+                                      letter case of the input string. `ToBase64`
+                                      and `FromBase64` perform a base64 conversion
+                                      based on the input string. `ToJson` converts
+                                      any input value into its raw JSON representation.
+                                      `ToSha1`, `ToSha256` and `ToSha512` generate
+                                      a hash value based on the input converted to
+                                      JSON.
                                     enum:
                                     - ToUpper
                                     - ToLower
                                     - ToBase64
                                     - FromBase64
+                                    - ToJson
+                                    - ToSha1
+                                    - ToSha256
+                                    - ToSha512
                                     type: string
                                   fmt:
                                     description: Format the input using a Go format
@@ -732,13 +743,24 @@ spec:
                                     a string.
                                   properties:
                                     convert:
-                                      description: Convert the type of conversion
-                                        to Upper/Lower case.
+                                      description: Optional conversion method to be
+                                        specified. `ToUpper` and `ToLower` change
+                                        the letter case of the input string. `ToBase64`
+                                        and `FromBase64` perform a base64 conversion
+                                        based on the input string. `ToJson` converts
+                                        any input value into its raw JSON representation.
+                                        `ToSha1`, `ToSha256` and `ToSha512` generate
+                                        a hash value based on the input converted
+                                        to JSON.
                                       enum:
                                       - ToUpper
                                       - ToLower
                                       - ToBase64
                                       - FromBase64
+                                      - ToJson
+                                      - ToSha1
+                                      - ToSha256
+                                      - ToSha512
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
@@ -1107,13 +1129,24 @@ spec:
                                     a string.
                                   properties:
                                     convert:
-                                      description: Convert the type of conversion
-                                        to Upper/Lower case.
+                                      description: Optional conversion method to be
+                                        specified. `ToUpper` and `ToLower` change
+                                        the letter case of the input string. `ToBase64`
+                                        and `FromBase64` perform a base64 conversion
+                                        based on the input string. `ToJson` converts
+                                        any input value into its raw JSON representation.
+                                        `ToSha1`, `ToSha256` and `ToSha512` generate
+                                        a hash value based on the input converted
+                                        to JSON.
                                       enum:
                                       - ToUpper
                                       - ToLower
                                       - ToBase64
                                       - FromBase64
+                                      - ToJson
+                                      - ToSha1
+                                      - ToSha256
+                                      - ToSha512
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
@@ -1596,13 +1629,24 @@ spec:
                                   string.
                                 properties:
                                   convert:
-                                    description: Convert the type of conversion to
-                                      Upper/Lower case.
+                                    description: Optional conversion method to be
+                                      specified. `ToUpper` and `ToLower` change the
+                                      letter case of the input string. `ToBase64`
+                                      and `FromBase64` perform a base64 conversion
+                                      based on the input string. `ToJson` converts
+                                      any input value into its raw JSON representation.
+                                      `ToSha1`, `ToSha256` and `ToSha512` generate
+                                      a hash value based on the input converted to
+                                      JSON.
                                     enum:
                                     - ToUpper
                                     - ToLower
                                     - ToBase64
                                     - FromBase64
+                                    - ToJson
+                                    - ToSha1
+                                    - ToSha256
+                                    - ToSha512
                                     type: string
                                   fmt:
                                     description: Format the input using a Go format
@@ -1998,13 +2042,24 @@ spec:
                                     a string.
                                   properties:
                                     convert:
-                                      description: Convert the type of conversion
-                                        to Upper/Lower case.
+                                      description: Optional conversion method to be
+                                        specified. `ToUpper` and `ToLower` change
+                                        the letter case of the input string. `ToBase64`
+                                        and `FromBase64` perform a base64 conversion
+                                        based on the input string. `ToJson` converts
+                                        any input value into its raw JSON representation.
+                                        `ToSha1`, `ToSha256` and `ToSha512` generate
+                                        a hash value based on the input converted
+                                        to JSON.
                                       enum:
                                       - ToUpper
                                       - ToLower
                                       - ToBase64
                                       - FromBase64
+                                      - ToJson
+                                      - ToSha1
+                                      - ToSha256
+                                      - ToSha512
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format
@@ -2373,13 +2428,24 @@ spec:
                                     a string.
                                   properties:
                                     convert:
-                                      description: Convert the type of conversion
-                                        to Upper/Lower case.
+                                      description: Optional conversion method to be
+                                        specified. `ToUpper` and `ToLower` change
+                                        the letter case of the input string. `ToBase64`
+                                        and `FromBase64` perform a base64 conversion
+                                        based on the input string. `ToJson` converts
+                                        any input value into its raw JSON representation.
+                                        `ToSha1`, `ToSha256` and `ToSha512` generate
+                                        a hash value based on the input converted
+                                        to JSON.
                                       enum:
                                       - ToUpper
                                       - ToLower
                                       - ToBase64
                                       - FromBase64
+                                      - ToJson
+                                      - ToSha1
+                                      - ToSha256
+                                      - ToSha512
                                       type: string
                                     fmt:
                                       description: Format the input using a Go format

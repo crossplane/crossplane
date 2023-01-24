@@ -171,6 +171,9 @@ const (
 	StringConversionTypeToJSON     StringConversionType = "ToJson"
 	StringConversionTypeToBase64   StringConversionType = "ToBase64"
 	StringConversionTypeFromBase64 StringConversionType = "FromBase64"
+	StringConversionTypeToSHA1     StringConversionType = "ToSha1"
+	StringConversionTypeToSHA256   StringConversionType = "ToSha256"
+	StringConversionTypeToSHA512   StringConversionType = "ToSha512"
 )
 
 // A StringTransform returns a string given the supplied input.
@@ -191,8 +194,10 @@ type StringTransform struct {
 	// `ToUpper` and `ToLower` change the letter case of the input string.
 	// `ToBase64` and `FromBase64` perform a base64 conversion based on the input string.
 	// `ToJson` converts any input value into its raw JSON representation.
+	// `ToSha1`, `ToSha256` and `ToSha512` generate a hash value based on the input
+	// converted to JSON.
 	// +optional
-	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64;ToJson
+	// +kubebuilder:validation:Enum=ToUpper;ToLower;ToBase64;FromBase64;ToJson;ToSha1;ToSha256;ToSha512
 	Convert *StringConversionType `json:"convert,omitempty"`
 
 	// Trim the prefix or suffix from the input
