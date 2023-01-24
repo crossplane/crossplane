@@ -131,6 +131,32 @@ jobs:
         with:
           submodules: true
 
+      - name: Setup Go
+        uses: actions/setup-go@6edd4406fa81c3da01a34fa6f6343087c207a568 # v3
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Find the Go Build Cache
+        id: go
+        run: echo "::set-output name=cache::$(make go.cachedir)"
+
+      - name: Cache the Go Build Cache
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
+        with:
+          path: ${{ steps.go.outputs.cache }}
+          key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-build-check-diff-
+
+      - name: Cache Go Dependencies
+        uses: actions/cache@58c146cc91c5b9e778e71775dfe9bf1442ad9a12 # v3
+        with:
+          path: .work/pkg
+          key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-pkg-
+
+      - name: Vendor Dependencies
+        run: make vendor vendor.check
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@a34ca99b4610d924e04c68db79e503e1f79f9f02 # v2
         with:
@@ -356,6 +382,8 @@ jobs:
     if: needs.detect-noop.outputs.noop != 'true'
 
     steps:
+      # TODO(negz): Can we make this use our Go build and dependency cache? It
+      # seems to build Crossplane inside of a Docker image.
       - name: Build Fuzzers
         id: build
         uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@700fd90d10cf656bd08a250c2ed19555a9cfc4ef
