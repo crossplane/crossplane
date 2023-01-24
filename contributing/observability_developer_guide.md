@@ -1,7 +1,4 @@
----
-title: Observability Developer Guide
-weight: 1002
----
+# Observability Developer Guide
 
 ## Introduction
 

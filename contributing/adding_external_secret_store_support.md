@@ -1,7 +1,4 @@
----
-title: Adding Secret Store Support
-weight: 1004
----
+# Adding Secret Store Support
 
 To add support for [External Secret Stores] in a provider, we need the following
 changes at a high level:
