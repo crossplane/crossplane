@@ -73,6 +73,21 @@ type MathTransform struct {
 	Multiply *int64 `json:"multiply,omitempty"`
 }
 
+// Resolve runs the Math transform.
+func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
+	if m.Multiply == nil {
+		return nil, errors.New(errMathNoMultiplier)
+	}
+	switch i := input.(type) {
+	case int64:
+		return float64(*m.Multiply) * float64(i), nil
+	case int:
+		return float64(*m.Multiply) * float64(i), nil
+	default:
+		return nil, errors.New(errMathInputNonNumber)
+	}
+}
+
 // MapTransform returns a value for the input from the given map.
 type MapTransform struct {
 	// TODO(negz): Are Pairs really optional if a MapTransform was specified?
