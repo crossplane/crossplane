@@ -16,11 +16,14 @@ it. This could be useful in several scenarios, which could be grouped as
 follows:
 
 - Referencing existing resources without managing them
-  - In your composition, you want to reference network resources like VPC and
-  subnets that are managed by another tool or team.
+  - In your managed resource, you want to reference network resources like VPC
+  and subnets that are managed by another tool or team. _For example, you want
+  to create and RDS instance in Crossplane, but you want it to use an existing
+  Subnet Group managed by Terraform._
 - Fetching data from existing resources
   - You need information about an existing VPC, such as its CIDR range and the
-  subnets it contains.
+  subnets it contains. Or, you need to know OIDC information of an existing
+  EKS cluster to configure IRSA permissions for your application.
 - Gradual migration of existing/legacy infrastructure to Crossplane
   - You have existing infrastructures managed by Terraform, and you want to
   migrate them gradually to Crossplane.
@@ -146,7 +149,7 @@ Right after the `Observe` method invocation, if `ObserveOnly`:
 
 Similar to all other new features being added to Crossplane, we will ship this
 new policy as an alpha feature that will be off by default and will be
-controlled by `--enable-alpha-management-policies` flag.
+controlled by `--enable-alpha-management-policies` flag in Providers.
 
 This will not prevent the field from appearing in the schema of the managed
 resources. However, we will ignore the `spec.managementPolicy` when the feature
@@ -222,6 +225,163 @@ age="cidrBlock is a required parameter"
         Status VPCStatus `json:"status,omitempty"`
  }
 ```
+
+#### Example Usages
+
+**Referencing an Existing Resource**
+
+The following example shows how to create a Subnet in an existing VPC using
+`ObserveOnly` policy.
+
+```yaml
+apiVersion: ec2.aws.crossplane.io/v1beta1
+kind: VPC
+metadata:
+  name: existing-vpc
+  annotations:
+    crossplane.io/external-name: vpc-0f8da654a40cb68cb
+spec:
+  managementPolicy: ObserveOnly
+  forProvider:
+    region: us-east-1
+---
+apiVersion: ec2.aws.crossplane.io/v1beta1
+kind: Subnet
+metadata:
+  name: sample-subnet1
+spec:
+  forProvider:
+    region: us-east-1
+    availabilityZone: us-east-1b
+    cidrBlock: 172.16.1.0/16
+    vpcIdRef:
+      name: existing-vpc
+    mapPublicIPOnLaunch: true
+```
+
+After the first reconciliation, we will have the following VPC resource as
+observed:
+
+```yaml
+apiVersion: ec2.aws.crossplane.io/v1beta1
+kind: VPC
+metadata:
+  annotations:
+    crossplane.io/external-name: vpc-0f8da654a40cb68cb
+  name: existing-vpc
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    cidrBlock: 172.16.0.0/16
+    enableDnsHostNames: false
+    enableDnsSupport: true
+    instanceTenancy: default
+    region: us-east-1
+    tags:
+    - key: managed-by
+      value: terraform
+  managementPolicy: ObserveOnly
+  providerConfigRef:
+    name: default
+status:
+  atProvider: {}
+  conditions:
+  - lastTransitionTime: "2023-01-26T14:30:19Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+```
+
+**Reading data from an external resource**
+
+Here, we would like to observe an existing EKS cluster in AWS, to get OIDC
+issuer URL for an existing EKS cluster, we will create the following
+`ObserveOnly` resource:
+
+```yaml
+apiVersion: eks.aws.crossplane.io/v1beta1
+kind: Cluster
+metadata:
+  name: existing-eks-cluster
+spec:
+  managementPolicy: ObserveOnly
+  forProvider:
+    region: us-west-2
+```
+
+The `ObserveOnly` policy will make sure that only the `Observe` method is called
+and no modifications are made to the external resource. After the resource is
+reconciled, we will have the following resource where the `spec.forProvider`
+late-initialized and `status.atProvider` populated.
+
+```yaml
+apiVersion: eks.aws.crossplane.io/v1beta1
+kind: Cluster
+metadata:
+  annotations:
+    crossplane.io/external-name: existing-eks-cluster
+  name: existing-eks-cluster
+spec:
+  deletionPolicy: Delete
+  forProvider:
+    logging:
+      clusterLogging:
+      - enabled: false
+        types:
+        - api
+        - audit
+        - authenticator
+        - controllerManager
+        - scheduler
+    region: us-west-2
+    resourcesVpcConfig:
+      endpointPrivateAccess: true
+      endpointPublicAccess: true
+      publicAccessCidrs:
+      - 0.0.0.0/0
+      securityGroupIds:
+      - sg-01a328726b00a8729
+      subnetIds:
+      - subnet-03bfe3917165fed12
+      - subnet-065318210004bc0f7
+      - subnet-098fe35ce8828fd7d
+      - subnet-06babff85d2d21cf2
+    roleArn: arn:aws:iam::123456789012:role/existing-eks-cluster
+    tags:
+      managed-by: terraform
+    version: "1.23"
+  managementPolicy: ObserveOnly
+  providerConfigRef:
+    name: default
+status:
+  atProvider:
+    arn: arn:aws:eks:us-west-2:123456789012:cluster/eks-cluster-argocd-7sz2t-nxp5n
+    certificateAuthorityData: REDACTED
+    createdAt: "2022-11-30T19:45:32Z"
+    endpoint: https://F8C1E7B9B2A56C73A8E95C123508ACDF.yl4.us-west-2.eks.amazonaws.com
+    identity:
+      oidc:
+        issuer: https://oidc.eks.us-west-2.amazonaws.com/id/F8C1E7B9B2A56C73A8E95C123508ACDF
+    outpostConfig: {}
+    platformVersion: eks.5
+    resourcesVpcConfig:
+      clusterSecurityGroupId: sg-08d05b318db73172b
+      vpcId: vpc-06eeba34a0b0d1d75
+    status: ACTIVE
+    version: "1.23"
+  conditions:
+  - lastTransitionTime: "2023-01-26T14:13:41Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-01-26T14:13:41Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+```
+
+We can now retrieve the OIDC issuer URL from the 
+`status.atProvider.identity.oidc.issuer`.
 
 ## Future Work
 
