@@ -11,7 +11,7 @@ jobs:
     steps:
     - name: Extract Command
       id: command
-      uses: xt0rted/slash-command-action@865ee04a1dfc8aa2571513eee8e84b5377153511 # v1
+      uses: xt0rted/slash-command-action@bf51f8f5f4ea3d58abc7eca58f77104182b23e88 # v2
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         command: backport
@@ -39,7 +39,7 @@ jobs:
     steps:
     - name: Extract Command
       id: command
-      uses: xt0rted/slash-command-action@865ee04a1dfc8aa2571513eee8e84b5377153511 # v1
+      uses: xt0rted/slash-command-action@bf51f8f5f4ea3d58abc7eca58f77104182b23e88 # v2
       with:
         repo-token: ${{ secrets.GITHUB_TOKEN }}
         command: fresh
