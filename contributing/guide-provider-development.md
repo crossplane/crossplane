@@ -29,7 +29,7 @@ Typical Crossplane managed infrastructure consists of two configuration
 resources and one controller. The GCP Provider's support for Google Cloud
 Memorystore illustrates this. First, the configuration resources:
 
-1. A [managed resource]. Managed resources are cluster scoped, high-fidelity
+1. A managed resource. Managed resources are cluster scoped, high-fidelity
    representations of a resource in an external system such as a cloud
    provider's API. Managed resources are _non-portable_ across external systems
    (i.e. cloud providers); they're tightly coupled to the implementation details
@@ -615,7 +615,6 @@ feedback you may have about the development process!
 [crossplane-runtime v0.9.0]: https://github.com/crossplane/crossplane-runtime/releases/tag/v0.9.0
 [TBS Episode 18]: https://www.youtube.com/watch?v=rvQ8N0u3rkE&t=7s
 [What Makes a Crossplane Infrastructure Resource]: #what-makes-a-crossplane-infrastructure-resource
-[managed resource]: {{<ref "../concepts/managed-resources" >}}
 [`CloudMemorystoreInstance`]: https://github.com/crossplane/provider-gcp/blob/85a6ed3c669a021f1d61be51b2cbe2714b0bc70b/apis/cache/v1beta1/cloudmemorystore_instance_types.go#L184
 [`ProviderConfig`]: https://github.com/crossplane/provider-gcp/blob/be5aaf6/apis/v1beta1/providerconfig_types.go#L39
 [watching the API server]: https://kubernetes.io/docs/reference/using-api/api-concepts/#efficient-detection-of-changes
