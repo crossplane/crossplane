@@ -41,14 +41,14 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Login to DockerHub
-        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}
           password: ${{ secrets.DOCKER_PSW }}
 
       - name: Login to Upbound
-        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2
         if: env.UPBOUND_MARKETPLACE_PUSH_ROBOT_USR != ''
         with:
           registry: xpkg.upbound.io
