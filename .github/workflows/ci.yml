@@ -386,14 +386,14 @@ jobs:
       # seems to build Crossplane inside of a Docker image.
       - name: Build Fuzzers
         id: build
-        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@700fd90d10cf656bd08a250c2ed19555a9cfc4ef
+        uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@fded1948e133f37b7777e48892c3d496b6974718
         with:
           oss-fuzz-project-name: "crossplane"
           dry-run: false
           language: go
 
       - name: Run Fuzzers
-        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@700fd90d10cf656bd08a250c2ed19555a9cfc4ef
+        uses: google/oss-fuzz/infra/cifuzz/actions/run_fuzzers@fded1948e133f37b7777e48892c3d496b6974718
         with:
           oss-fuzz-project-name: "crossplane"
           fuzz-seconds: 300
