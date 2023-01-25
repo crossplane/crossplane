@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@dc323e67f16fb5f7663d20ff7941f27f5809e9b6 # v2
         with:
           submodules: true
 
@@ -32,7 +32,7 @@ jobs:
         run: git fetch --prune --unshallow
 
       - name: Login to DockerHub
-        uses: docker/login-action@v1
+        uses: docker/login-action@dd4fa0671be5250ee6f50aedf4cb05514abda2c7 # v1
         if: env.DOCKER_USR != ''
         with:
           username: ${{ secrets.DOCKER_USR }}

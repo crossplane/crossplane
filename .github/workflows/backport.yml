@@ -22,12 +22,12 @@ jobs:
     if: github.event.pull_request.merged
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@dc323e67f16fb5f7663d20ff7941f27f5809e9b6 # v2
         with:
           fetch-depth: 0
 
       - name: Open Backport PR
-        uses: zeebe-io/backport-action@v0.0.4
+        uses: zeebe-io/backport-action@6d30c3afa2146e1370dfaae83e99cdd1ee3bcba4 # v0.0.4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           github_workspace: ${{ github.workspace }}
