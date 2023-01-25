@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"errors"
 	"encoding/json"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -71,6 +72,26 @@ type MathTransform struct {
 	// Multiply the value.
 	// +optional
 	Multiply *int64 `json:"multiply,omitempty"`
+}
+
+const (
+	errMathNoMultiplier   = "no multiplier provided for math transform"
+	errMathInputNonNumber = "input for math transform is not a number"
+)
+
+// Resolve runs the Math transform.
+func (m *MathTransform) Resolve(input interface{}) (interface{}, error) {
+	if m.Multiply == nil {
+		return nil, errors.New(errMathNoMultiplier)
+	}
+	switch i := input.(type) {
+	case int64:
+		return float64(*m.Multiply) * float64(i), nil
+	case int:
+		return float64(*m.Multiply) * float64(i), nil
+	default:
+		return nil, errors.New(errMathInputNonNumber)
+	}
 }
 
 // MapTransform returns a value for the input from the given map.
