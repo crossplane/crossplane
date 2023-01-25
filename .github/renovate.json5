@@ -138,6 +138,16 @@
         "action"
       ],
       "pinDigests": true
+    },{
+// We disable updates actions for oss-fuzz, as it's not using tags, we'll just
+// point to master branch
+      "matchDepTypes": [
+        "action"
+      ],
+      "matchDepNames": [
+        "google/oss-fuzz"
+      ],
+      "enabled": false
     }
   ]
 }
