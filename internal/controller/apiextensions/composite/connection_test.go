@@ -334,32 +334,32 @@ func TestExtractConnectionDetails(t *testing.T) {
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "bar",
-						FromConnectionSecretKey: pointer.StringPtr("bar"),
+						FromConnectionSecretKey: pointer.String("bar"),
 					},
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "none",
-						FromConnectionSecretKey: pointer.StringPtr("none"),
+						FromConnectionSecretKey: pointer.String("none"),
 					},
 					{
 						Type:                    ConnectionDetailTypeFromConnectionSecretKey,
 						Name:                    "convfoo",
-						FromConnectionSecretKey: pointer.StringPtr("foo"),
+						FromConnectionSecretKey: pointer.String("foo"),
 					},
 					{
 						Type:  ConnectionDetailTypeFromValue,
 						Name:  "fixed",
-						Value: pointer.StringPtr("value"),
+						Value: pointer.String("value"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "name",
-						FromFieldPath: pointer.StringPtr("objectMeta.name"),
+						FromFieldPath: pointer.String("objectMeta.name"),
 					},
 					{
 						Type:          ConnectionDetailTypeFromFieldPath,
 						Name:          "generation",
-						FromFieldPath: pointer.StringPtr("objectMeta.generation"),
+						FromFieldPath: pointer.String("objectMeta.generation"),
 					},
 				},
 			},

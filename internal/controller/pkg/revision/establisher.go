@@ -333,7 +333,7 @@ func (e *APIEstablisher) create(ctx context.Context, obj resource.Object, parent
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
 	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-		pkgRef.Controller = pointer.BoolPtr(false)
+		pkgRef.Controller = pointer.Bool(false)
 		refs = append(refs, pkgRef)
 	}
 	// Overwrite any owner references on the desired object.
@@ -346,7 +346,7 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 	// get deleted when the new revision doesn't include it in order not to lose
 	// user data, such as custom resources of an old CRD.
 	if pkgRef, ok := GetPackageOwnerReference(parent); ok {
-		pkgRef.Controller = pointer.BoolPtr(false)
+		pkgRef.Controller = pointer.Bool(false)
 		meta.AddOwnerReference(current, pkgRef)
 	}
 

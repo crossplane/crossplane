@@ -408,7 +408,7 @@ jobs:
         uses: google/oss-fuzz/infra/cifuzz/actions/build_fuzzers@master
         with:
           oss-fuzz-project-name: "crossplane"
-          dry-run: false
+          dry-run: true
           language: go
 
       - name: Run Fuzzers
@@ -416,7 +416,7 @@ jobs:
         with:
           oss-fuzz-project-name: "crossplane"
           fuzz-seconds: 300
-          dry-run: false
+          dry-run: true
           language: go
 
       - name: Upload Crash

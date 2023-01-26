@@ -262,7 +262,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
-							want := NewCompositionRevision(compDev, rev2.Spec.Revision+1, compDev.Hash())
+							want := NewCompositionRevision(compDev, rev2.Spec.Revision+1)
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("Create(): -want, +got:\n%s", diff)
@@ -300,7 +300,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
-							want := NewCompositionRevision(compStaging, rev3.Spec.Revision+1, compStaging.Hash())
+							want := NewCompositionRevision(compStaging, rev3.Spec.Revision+1)
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("Create(): -want, +got:\n%s", diff)
@@ -338,7 +338,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockCreate: test.NewMockCreateFn(nil, func(got client.Object) error {
-							want := NewCompositionRevision(compDevWithAnn, rev3.Spec.Revision+1, compDevWithAnn.Hash())
+							want := NewCompositionRevision(compDevWithAnn, rev3.Spec.Revision+1)
 
 							if diff := cmp.Diff(want, got); diff != "" {
 								t.Errorf("Create(): -want, +got:\n%s", diff)

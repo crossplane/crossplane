@@ -472,7 +472,7 @@ func TestClaimConfigure(t *testing.T) {
 			reason: "Should return an error if unable to update status",
 			args: args{
 				client: &test.MockClient{
-					MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 				},
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
@@ -507,7 +507,7 @@ func TestClaimConfigure(t *testing.T) {
 			reason: "Should return an error if unable to merge spec",
 			args: args{
 				client: &test.MockClient{
-					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{
@@ -543,7 +543,7 @@ func TestClaimConfigure(t *testing.T) {
 			args: args{
 				client: &test.MockClient{
 					MockUpdate:       test.NewMockUpdateFn(errBoom),
-					MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+					MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 				},
 				cm: &claim.Unstructured{
 					Unstructured: unstructured.Unstructured{

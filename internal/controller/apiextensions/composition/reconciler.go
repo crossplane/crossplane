@@ -195,7 +195,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1, currentHash)); err != nil {
+	if err := r.client.Create(ctx, NewCompositionRevision(comp, latestRev+1)); err != nil {
 		log.Debug(errCreateRev, "error", err)
 		r.record.Event(comp, event.Warning(reasonCreateRev, err))
 		return reconcile.Result{}, errors.Wrap(err, errCreateRev)

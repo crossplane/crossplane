@@ -332,10 +332,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.StringPtr("not-here-1"),
+									Provider: pointer.String("not-here-1"),
 								},
 								{
-									Provider: pointer.StringPtr("not-here-2"),
+									Provider: pointer.String("not-here-2"),
 								},
 							},
 						},
@@ -419,10 +419,10 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.StringPtr("not-here-1"),
+									Provider: pointer.String("not-here-1"),
 								},
 								{
-									Provider: pointer.StringPtr("not-here-2"),
+									Provider: pointer.String("not-here-2"),
 								},
 							},
 						},
@@ -515,11 +515,11 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.StringPtr("not-here-1"),
+									Provider: pointer.String("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: pointer.StringPtr("not-here-2"),
+									Provider: pointer.String("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},
@@ -617,11 +617,11 @@ func TestResolve(t *testing.T) {
 						MetaSpec: pkgmetav1.MetaSpec{
 							DependsOn: []pkgmetav1.Dependency{
 								{
-									Provider: pointer.StringPtr("not-here-1"),
+									Provider: pointer.String("not-here-1"),
 									Version:  ">=v0.1.0",
 								},
 								{
-									Provider: pointer.StringPtr("not-here-2"),
+									Provider: pointer.String("not-here-2"),
 									Version:  ">=v0.1.0",
 								},
 							},
