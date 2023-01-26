@@ -110,6 +110,7 @@ spec:
                         TODO: Add other useful fields. apiVersion, kind, uid?'
                       type: string
                   type: object
+                  x-kubernetes-map-type: atomic
                 type: array
               revision:
                 description: Revision number. Indicates when the revision will be
