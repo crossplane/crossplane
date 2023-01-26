@@ -28,15 +28,17 @@ import (
 )
 
 // NewCompositionRevision creates a new revision of the supplied Composition.
-func NewCompositionRevision(c *v1.Composition, revision int64, compSpecHash string) *v1beta1.CompositionRevision {
+func NewCompositionRevision(c *v1.Composition, revision int64) *v1beta1.CompositionRevision {
+	hash := c.Hash()
+
 	cr := &v1beta1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", c.GetName(), compSpecHash[0:7]),
+			Name: fmt.Sprintf("%s-%s", c.GetName(), hash[0:7]),
 			Labels: map[string]string{
 				v1beta1.LabelCompositionName: c.GetName(),
 				// We cannot have a label value longer than 63 chars
 				// https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/#syntax-and-character-set
-				v1beta1.LabelCompositionHash: compSpecHash[0:63],
+				v1beta1.LabelCompositionHash: hash[0:63],
 			},
 		},
 		Spec: NewCompositionRevisionSpec(c.Spec, revision),
