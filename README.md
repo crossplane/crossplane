@@ -49,6 +49,12 @@ with the broader community is encouraged to join.
 * [Past meeting recordings]
 * [Community Calendar][community calendar]
 
+## Adopters
+
+A list of publicly known users of the Crossplane project can be found in [ADOPTERS.md].  We
+encourage all users of Crossplane to add themselves to this list - we want to see the community's
+growing success!
+
 ## License
 
 Crossplane is under the Apache 2.0 license.
@@ -73,3 +79,4 @@ Crossplane is under the Apache 2.0 license.
 [cncf]: https://www.cncf.io/
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
+[ADOPTERS.md]: ADOPTERS.md
