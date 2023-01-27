@@ -18,10 +18,15 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
+    deprecated: true
+    deprecationWarning: This API is deprecated and is scheduled to be removed in a
+      future release.
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: ControllerConfig is the CRD type for a packaged controller configuration.
+        description: 'ControllerConfig is the CRD type for a packaged controller configuration.
+          Deprecated: This API is scheduled to be removed in a future release. See
+          https://github.com/crossplane/crossplane/issues/3601 for more information.'
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
