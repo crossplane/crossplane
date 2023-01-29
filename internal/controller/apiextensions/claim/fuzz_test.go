@@ -67,7 +67,6 @@ func FuzzPropagateConnection(f *testing.F) {
 			}),
 		}
 		api := &APIConnectionPropagator{client: c}
-		_ = api
 		_, _ = api.PropagateConnection(context.Background(), cm, cp)
 	})
 }
