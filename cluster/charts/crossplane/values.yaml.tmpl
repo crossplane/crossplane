@@ -17,8 +17,10 @@ customLabels: {}
 # -- Custom annotations to add to the Crossplane deployment and pod
 customAnnotations: {}
 
-# -- Custom annotations to add to the serviceaccount of Crossplane
 serviceAccount:
+  # -- Custom name to give to the serviceaccount of Crossplane, defaults to Release name. Does not create the serviceAccount if set
+  name: ""
+  # -- Custom annotations to add to the serviceaccount of Crossplane
   customAnnotations: {}
 
 leaderElection: true

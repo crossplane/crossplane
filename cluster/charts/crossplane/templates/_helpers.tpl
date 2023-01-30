@@ -30,3 +30,10 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{ toYaml .Values.customLabels }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create service account name.
+*/}}
+{{- define "crossplane.serviceAccountName" -}}
+{{- .Values.serviceAccount.name | default (include "crossplane.name" .) -}}
+{{- end -}}

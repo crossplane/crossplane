@@ -41,7 +41,7 @@ spec:
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
-      serviceAccountName: {{ template "crossplane.name" . }}
+      serviceAccountName: {{ template "crossplane.serviceAccountName" . }}
       initContainers:
         - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           args:
