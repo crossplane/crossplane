@@ -58,16 +58,20 @@ if [ "$skipcleanup" != true ]; then
     trap cleanup EXIT
 fi
 
-echo_step "creating k8s cluster using kind"
-"${KIND}" create cluster --name="${K8S_CLUSTER}"
+readonly DEFAULT_KIND_CONFIG="kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+"
+echo_step "creating k8s cluster using kind with the following config:"
+kind_config="${KIND_CONFIG:-$DEFAULT_KIND_CONFIG}"
+echo "${kind_config}"
+echo "${kind_config}" | "${KIND}" create cluster --name="${K8S_CLUSTER}" --config=-
 
 # tag crossplane image and load it to kind cluster
 docker tag "${BUILD_IMAGE}" "${CROSSPLANE_IMAGE}"
 "${KIND}" load docker-image "${CROSSPLANE_IMAGE}" --name="${K8S_CLUSTER}"
 
 echo_step "installing helm package(s) into \"${CROSSPLANE_NAMESPACE}\" namespace"
-"${KUBECTL}" create ns "${CROSSPLANE_NAMESPACE}"
-"${HELM3}" install "${PROJECT_NAME}" --namespace "${CROSSPLANE_NAMESPACE}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set replicas=2,rbacManager.replicas=2,image.pullPolicy=Never,imagePullSecrets=''
+"${HELM3}" install --create-namespace -n "${CROSSPLANE_NAMESPACE}" "${PROJECT_NAME}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set replicas=2,args={'-d'},rbacManager.replicas=2,rbacManager.args={'-d'},image.pullPolicy=Never,imagePullSecrets=''
 
 echo_step "waiting for deployment ${PROJECT_NAME} rollout to finish"
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" rollout status "deploy/${PROJECT_NAME}" --timeout=2m
@@ -131,6 +135,14 @@ for ((i = 1; i <= 5; i++)); do
         if $(echo "$pod_stat" | awk '{print $3}' | grep -ivq 'Running'); then
             echo_error "is not running"
             exit -1
+        else
+            echo_step_completed
+        fi
+
+        echo_info "check if has error in logs"
+        error_logs=$("${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" logs --all-containers=true --timestamps=true --tail=10 "${name}" | grep -w ERROR || true)
+        if ((${#error_logs} > 0)); then
+            echo_warn "${error_logs}"
         else
             echo_step_completed
         fi
