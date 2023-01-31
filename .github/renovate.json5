@@ -44,26 +44,15 @@
     "enabled": true
   },
   "packageRules": [
-// We don't want K8s dependencies updates which are not security related
-// for release branches
+// We don't want dependency updates which are not security related for
+// release branches, except for docker images
     {
-      "matchDatasources": [
-        "go"
-      ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ],
       matchBaseBranches: [ "/^release-.*/"],
       enabled: false,
     }, {
-// We don't want github actions updates which are not security related for
-// release branches
-      "matchDatasources": [
-        "action"
-      ],
+      "matchDatasources": ["docker"],
       matchBaseBranches: [ "/^release-.*/"],
-      enabled: false,
+      enabled: true,
     }, {
 // We need to ignore k8s.io/client-go older versions as they switched to
 // semantic version and old tags are still available in the repo.
