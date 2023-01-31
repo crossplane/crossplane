@@ -57,6 +57,14 @@
       matchBaseBranches: [ "/^release-.*/"],
       enabled: false,
     }, {
+// We don't want github actions updates which are not security related for
+// release branches
+      "matchDatasources": [
+        "action"
+      ],
+      matchBaseBranches: [ "/^release-.*/"],
+      enabled: false,
+    }, {
 // We need to ignore k8s.io/client-go older versions as they switched to
 // semantic version and old tags are still available in the repo.
       "matchDatasources": [
