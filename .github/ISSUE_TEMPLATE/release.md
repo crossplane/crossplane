@@ -18,46 +18,44 @@ Please assign the release manager to the issue.
 
 This issue can be closed when we have completed the following steps (in order).
 Please ensure all artifacts (PRs, workflow runs, Tweets, etc) are linked from
-this issue for posterity. Refer to this [prior release issue][release-1.7] for
-examples of each step.
+this issue for posterity. Refer to this [prior release issue][release-1.11.0] for
+examples of each step, assuming release vX.Y.0 is being cut.
 
-- [ ] Prepare the release branch at the beginning of [Code Freeze]:
+- [ ] Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
   - [ ] Created the release branch.
-  - [ ] Created and merged an empty commit to the `master` branch.
-  - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the next release candidate tag.
-- [ ] Open a [docs release issue].
-- [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with the proper release version.
-- [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel..
+  - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
+  - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
+- [ ] Opened a [docs release issue].
+- [ ] Run the [Tag workflow][tag-workflow] on the `release-X.Y` branch with the proper release version, `vX.Y.0`. Message suggested, but not required: `Release vX.Y.0`.
+- [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel, e.g. `build/release-X.Y/vX.Y.0/...` should contain all the relevant binaries.
 - [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
   - [ ] `xp/getting-started-with-aws`
-  - [ ] `xp/getting-started-with-with-with-vpc`
+  - [ ] `xp/getting-started-with-aws-with-vpc`
   - [ ] `xp/getting-started-with-azure`
   - [ ] `xp/getting-started-with-gcp`
-- [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel.
-- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes.
-- [ ] Update the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release
-- [ ] Update the `baseBranches` list in renovate's configuration file, `.github/renovate.json5`, with the new release branch, removing the old unsupported release one.
+- [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the `release-X.Y` branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel at `stable/vX.Y.0/...`.
+- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.<Y-1>.0`, so the first of the releases for the previous minor.
+- [ ] Checked that the [docs release issue] created previously has been completed.
+- [ ] Updated, in a single PR, the following on `master`:
+  - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
+  - [ ] The `baseBranches` list in `.github/renovate.json5`, removing the now old unsupported release and adding the new one.
+- [ ] Updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack
   - [ ] Twitter
-- [ ] Updated the [releases table] in the `README.md` on `master`.
-- [ ] Updated the current release version in the [Crossplane docs website repo].
-- [ ] Updated the release branch reaching EOL with [docs removal directive].
 - [ ] Request @jbw976 to remove the EOL docs version from Google Search
 
 
 <!-- Named Links -->
-[docs release issue]: https://github.com/crossplane/docs/issues/new?assignees=&labels=release&template=new_release.md&title=Release+Crossplane+version...+
-[releases.crossplane.io]: https://releases.crossplane.io
-[xpkg.upbound.io]: https://cloud.upbound.io/browse
-[new release]: https://github.com/crossplane/crossplane/releases/new
-[releases table]: https://github.com/crossplane/crossplane#releases
-[Crossplane docs website repo]: https://github.com/crossplane/docs
-[docs removal directive]: https://github.com/crossplane/crossplane/pull/3003
-[tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
+[Code Freeze]: https://docs.crossplane.io/knowledge-base/guides/release-cycle/#code-freeze
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
-[promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
 [crossplane-test-workflows]: https://github.com/crossplane/test/tree/master/.github/workflows
-[release-1.7]: https://github.com/crossplane/crossplane/issues/2977
-[Code Freeze]: https://crossplane.io/docs/master/reference/release-cycle.html#code-freeze
+[docs release issue]: https://github.com/crossplane/docs/issues/new?assignees=&labels=release&template=new_release.md&title=Release+Crossplane+version...+
+[new release]: https://github.com/crossplane/crossplane/releases/new
+[promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
+[release-1.11.0]: https://github.com/crossplane/crossplane/issues/3600
+[releases table]: https://github.com/crossplane/crossplane#releases
+[releases.crossplane.io]: https://releases.crossplane.io
+[tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
+[xpkg.upbound.io]: https://marketplace.upbound.io/configurations?query=getting-started
