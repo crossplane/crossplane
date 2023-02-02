@@ -28,7 +28,7 @@ require (
 )
 
 require (
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20210715213245-6c3934b029d8
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/bufbuild/buf v1.10.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/uuid v1.3.0
