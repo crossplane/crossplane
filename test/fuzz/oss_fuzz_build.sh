@@ -1,8 +1,12 @@
 #!/bin/bash -eu
 #
-# To run this locally you can run the following steps:
-# - $ git clone https://github.com/google/oss-fuzz --depth=1
-# - $ cd oss-fuzz/projects/crossplane
+# DO NOT DELETE: this script is used from oss-fuzz. You can find more details
+# in the official documentation:
+# https://google.github.io/oss-fuzz/getting-started/new-project-guide/go-lang/
+#
+# To run this locally you can go through the following steps: - $ git clone
+# https://github.com/google/oss-fuzz --depth=1 - $ cd
+# oss-fuzz/projects/crossplane
 # - modify Dockerfile to point to your branch with all the fuzzers being merged.
 # - modify build.sh to call the build script in Crossplanes repository
 # - $ python3 ../../infra/helper.py build_image crossplane
