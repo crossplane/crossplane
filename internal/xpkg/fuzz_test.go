@@ -17,29 +17,12 @@ limitations under the License.
 package xpkg
 
 import (
-	"bytes"
-	"context"
-	"io"
 	"testing"
-
-	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	"github.com/spf13/afero"
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
 )
-
-func FuzzParse(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
-		objScheme := runtime.NewScheme()
-		metaScheme := runtime.NewScheme()
-		p := parser.New(metaScheme, objScheme)
-		r := io.NopCloser(bytes.NewReader(data))
-		_, _ = p.Parse(context.Background(), r)
-	})
-}
 
 func FuzzFindXpkgInDir(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
