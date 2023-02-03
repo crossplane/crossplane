@@ -33,3 +33,4 @@ This list is sorted in the order that organizations were added to it.
 | [RunWhen](https://runwhen.com) | @stewartshea | Builds production and developer environments that power the RunWhen Social Reliability Platform.|
 | [Nethopper](https://nethopper.io) | @ddonahuex | Main IaC component in Nethopper's [Cloud Management Platform](https://www.nethopper.io/platform). Nethopper's Cloud Management Platform combines Crossplane with Continuous Delivery to allow DevOps to create, update, and destroy infrastructure in any cloud.|
 | [Renault](https://www.renaultgroup.com/) | @smileisak | Building Renault Kubernetes Platform resources using XRDs and compositions for an additional layer of abstraction to provide end-user services. |
+| [Gympass](https://gympass.com) | @caiofralmeida | Builds a self-service platform so engineers can be more productive in resource provisioning. |
