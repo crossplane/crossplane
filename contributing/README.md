@@ -85,6 +85,39 @@ the time to ensure your contributions are high quality and easy for our
 community to review and accept. Please don't hesitate to [reach out to
 us][Slack] if you have any questions about contributing!
 
+## Certificate of Origin
+
+By contributing to this project you agree to the Developer Certificate of Origin
+(DCO). This document was created by the Linux Kernel community and is a simple
+statement that you, as a contributor, have the legal right to make the
+contribution. See the [DCO](../DCO) file for details.
+
+Contributors sign-off that they adhere to these requirements by adding a
+Signed-off-by line to commit messages. For example:
+
+```
+This is my commit message
+
+Signed-off-by: Random J Developer <random@developer.example.org>
+```
+
+Git even has a -s command line option to append this automatically to your
+commit message:
+
+```
+$ git commit -s -m 'This is my commit message'
+```
+
+If you have already made a commit and forgot to include the sign-off, you can
+amend your last commit to add the sign-off with the following command, which can
+then be force pushed.
+
+```
+git commit --amend -s
+```
+
+We use a [DCO bot] to enforce the DCO on all commits in every pull request.
+
 ## Coding Style
 
 The Crossplane project prefers not to maintain its own style guide, but we do
@@ -518,3 +551,4 @@ make run
 [Dave Cheney's blog]: https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
 [`crossplane-runtime/pkg/errors`]: https://pkg.go.dev/github.com/crossplane/crossplane-runtime/pkg/errors
 [golangci-lint]: https://golangci-lint.run/
+[DCO bot]: https://probot.github.io/apps/dco/
