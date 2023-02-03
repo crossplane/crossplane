@@ -55,8 +55,8 @@ a PR your reviewer will expect you to detail how you've tested your work. For
 all but the smallest changes some manual testing is encouraged in addition to
 unit tests.
 
-All Crossplane documentation is under revision control; see the [docs] directory
-of this repository. Any change that introduces new behaviour or changes existing
+All Crossplane documentation is under revision control; see the [docs]
+repository. Any change that introduces new behaviour or changes existing
 behaviour must include updates to any relevant documentation. Please keep
 documentation changes in distinct commits.
 
@@ -539,13 +539,13 @@ make run
 [code of conduct]: https://github.com/cncf/foundation/blob/master/code-of-conduct.md
 [build submodule]: https://github.com/upbound/build/
 [`kind`]: https://kind.sigs.k8s.io/
-[Crossplane release cycle]: docs/reference/release-cycle.md
+[Crossplane release cycle]: https://docs.crossplane.io/knowledge-base/guides/release-cycle
 [good git commit hygiene]: https://www.futurelearn.com/info/blog/telling-stories-with-your-git-history
 [Developer Certificate of Origin]: https://github.com/apps/dco
 [code review comments]: https://github.com/golang/go/wiki/CodeReviewComments
 [test review comments]: https://github.com/golang/go/wiki/TestComments
 [crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
-[docs]: docs/
+[docs]: https://github.com/crossplane/docs
 [Effective Go]: https://golang.org/doc/effective_go
 [Observability Developer Guide]: docs/contributing/observability_developer_guide.md
 [Dave Cheney's blog]: https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
