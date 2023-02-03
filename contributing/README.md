@@ -547,7 +547,7 @@ make run
 [crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
 [docs]: https://github.com/crossplane/docs
 [Effective Go]: https://golang.org/doc/effective_go
-[Observability Developer Guide]: docs/contributing/observability_developer_guide.md
+[Observability Developer Guide]: guide-observability.md
 [Dave Cheney's blog]: https://dave.cheney.net/2014/10/17/functional-options-for-friendly-apis
 [`crossplane-runtime/pkg/errors`]: https://pkg.go.dev/github.com/crossplane/crossplane-runtime/pkg/errors
 [golangci-lint]: https://golangci-lint.run/
