@@ -64,6 +64,21 @@
       ],
       "allowedVersions": "<1.0"
     }, {
+// We don't want digest updates for kubernetes dependencies, as they are too
+// noisy
+      "matchDatasources": [
+        "go"
+      ],
+      "groupName": "kubernetes patches",
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "extends": ['schedule:monthly'],
+      "matchPackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ]
+    }, {
 // We want a single PR for all the patches bumps of kubernetes related
 // dependencies, as most of the times these are all strictly related.
       "matchDatasources": [
@@ -72,7 +87,6 @@
       "groupName": "kubernetes patches",
       "matchUpdateTypes": [
         "patch",
-        "digest"
       ],
       "matchPackagePrefixes": [
         "k8s.io",
