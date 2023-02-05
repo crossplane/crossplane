@@ -54,6 +54,10 @@
       matchBaseBranches: [ "/^release-.*/"],
       enabled: true,
     }, {
+      "matchDatasources": ["docker"],
+      "schedule": ["every 2 week on monday"],
+      enabled: true,
+    }, {
 // We need to ignore k8s.io/client-go older versions as they switched to
 // semantic version and old tags are still available in the repo.
       "matchDatasources": [
