@@ -38,6 +38,7 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 * Ezgi Demirel <ezgi@upbound.io> ([ezgidemirel](https://github.com/ezgidemirel))
 * Max Blatt ([MisterMX](https://github.com/MisterMX))
 * Philippe Scorsolini <philippe.scorsolini@upbound.io> ([phisco](https://github.com/phisco))
+* Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
 
 ## Emeritus maintainers
 
