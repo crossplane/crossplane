@@ -37,4 +37,4 @@ This list is sorted in the order that organizations were added to it.
 | [Deutsche Kreditbank AG](https://www.dkb.de/) | @haarchri | Developer Self-Service for DKB Standard Operating Platform, higher standardization, simplification of tech stack and continuous reconciliation|
 | [Akuity](https://akuity.io) | @wanghong230 | Control plane and infrastructure management solution for [Akuity Platform - Managed Argo CD](https://akuity.io/akuity-platform/). Crossplane manages some infrastructure part of dev, staging, and production environments. |
 | [Neux](https://neux.io) | @styk-tv | In production, running dynamic Crossplane control plane for auto-adjusting kafka/connect/telegraf payload transformations, filtering to/from sources/destinations. |
-
+| [Disashop](https://www.disashop.com/) | @edalonso | We manage our infrastructure in EKS for all dev, staging, and production environments and create compositions in order to deploy our transactional platform about digital products in kubernetes clusters.|
