@@ -35,3 +35,4 @@ This list is sorted in the order that organizations were added to it.
 | [Renault](https://www.renaultgroup.com/) | @smileisak | Building Renault Kubernetes Platform resources using XRDs and compositions for an additional layer of abstraction to provide end-user services. |
 | [Gympass](https://gympass.com) | @caiofralmeida | Builds a self-service platform so engineers can be more productive in resource provisioning. |
 | [Deutsche Kreditbank AG](https://www.dkb.de/) | @haarchri | Developer Self-Service for DKB Standard Operating Platform, higher standardization, simplification of tech stack and continuous reconciliation|
+| [Akuity](https://akuity.io) | @wanghong230 | Control plane and infrastructure management solution for [Akuity Platform - Managed Argo CD](https://akuity.io/akuity-platform/). Crossplane manages some infrastructure part of dev, staging, and production environments. |
