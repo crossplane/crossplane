@@ -59,10 +59,16 @@ resourcesCrossplane:
     memory: 256Mi
 
 securityContextCrossplane:
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
   runAsUser: 65532
   runAsGroup: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
 
 packageCache:
   medium: ""
@@ -79,10 +85,16 @@ resourcesRBACManager:
     memory: 256Mi
 
 securityContextRBACManager:
+  capabilities:
+    drop:
+    - ALL
+  runAsNonRoot: true
   runAsUser: 65532
   runAsGroup: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
+  seccompProfile:
+    type: RuntimeDefault
 
 metrics:
   enabled: false
@@ -91,9 +103,15 @@ extraEnvVarsCrossplane: {}
 
 extraEnvVarsRBACManager: {}
 
-podSecurityContextCrossplane: {}
+podSecurityContextCrossplane:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 
-podSecurityContextRBACManager: {}
+podSecurityContextRBACManager:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
 
 # The alpha xfn sidecar container that runs Composition Functions. Note you also
 # need to run Crossplane with --enable-composition-functions for it to call xfn.
