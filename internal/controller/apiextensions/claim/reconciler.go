@@ -183,8 +183,9 @@ type Reconciler struct {
 	composite crComposite
 	claim     crClaim
 
-	log    logging.Logger
-	record event.Recorder
+	log          logging.Logger
+	record       event.Recorder
+	pollInterval time.Duration
 }
 
 type crComposite struct {
@@ -285,6 +286,17 @@ func WithLogger(l logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
+	}
+}
+
+// WithPollInterval specifies how long the Reconciler should wait before queueing
+// a new reconciliation after a successful reconcile. The Reconciler requeues
+// after a specified duration when it is not actively waiting for an external
+// operation, but wishes to check whether resources it does not have a watch on
+// (i.e. composed resources) need to be reconciled.
+func WithPollInterval(after time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.pollInterval = after
 	}
 }
 

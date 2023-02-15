@@ -39,7 +39,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
@@ -403,7 +402,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			"desired-version", desired.APIVersion))
 	}
 
-	ro := CompositeReconcilerOptions(r.options.Features, d, r.client, r.log, r.record)
+	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
 	cr := composite.NewReconciler(r.mgr, resource.CompositeKind(d.GetCompositeGroupVersionKind()), ro...)
 	ko := r.options.ForControllerRuntime()
 	ko.Reconciler = ratelimiter.NewReconciler(composite.ControllerName(d.GetName()), cr, r.options.GlobalRateLimiter)
@@ -426,7 +425,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 // CompositeReconcilerOptions builds the options for a composite resource
 // reconciler. The options vary based on the supplied feature flags.
-func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinition, c client.Client, l logging.Logger, e event.Recorder) []composite.ReconcilerOption {
+func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDefinition, c client.Client, l logging.Logger, e event.Recorder) []composite.ReconcilerOption {
 	// The default set of reconciler options when no feature flags are enabled.
 	o := []composite.ReconcilerOption{
 		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys())),
@@ -437,11 +436,12 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 		)),
 		composite.WithLogger(l.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(e.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
+		composite.WithPollInterval(co.PollInterval),
 	}
 
 	// Build Compositions using a CompositionRevision when the composition
 	// revisions feature flag is enabled.
-	if f.Enabled(features.EnableBetaCompositionRevisions) {
+	if co.Features.Enabled(features.EnableBetaCompositionRevisions) {
 		a := resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)}
 		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
 	}
@@ -450,7 +450,7 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 	// feature flag is enabled. Otherwise we will default to noop selector and
 	// fetcher that will always return nil. All environment features are
 	// subsequently skipped if the environment is nil.
-	if f.Enabled(features.EnableAlphaEnvironmentConfigs) {
+	if co.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
 		o = append(o,
 			composite.WithEnvironmentSelector(environment.NewAPIEnvironmentSelector(c)),
 			composite.WithEnvironmentFetcher(environment.NewAPIEnvironmentFetcher(c)))
@@ -466,7 +466,7 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 	// We also add a new Configurator for ExternalSecretStore which basically
 	// reflects PublishConnectionDetailsWithStoreConfigRef in Composition to
 	// the composite resource.
-	if f.Enabled(features.EnableAlphaExternalSecretStores) {
+	if co.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := []managed.ConnectionPublisher{
 			composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys()),
 			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind), d.GetConnectionSecretKeys()),
@@ -500,7 +500,7 @@ func CompositeReconcilerOptions(f *feature.Flags, d *v1.CompositeResourceDefinit
 	// PTComposer if we encounter a Composition with anonymous templates.
 	// Composition validation ensures that a Composition that uses functions
 	// must have named resources templates.
-	if f.Enabled(features.EnableAlphaCompositionFunctions) {
+	if co.Features.Enabled(features.EnableAlphaCompositionFunctions) {
 		fb := composite.NewFallBackComposer(
 			composite.NewPTFComposer(c,
 				composite.WithComposedResourceGetter(composite.NewExistingComposedResourceGetter(c, fetcher)),
