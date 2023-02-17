@@ -95,7 +95,7 @@ contribution. See the [DCO](../DCO) file for details.
 Contributors sign-off that they adhere to these requirements by adding a
 Signed-off-by line to commit messages. For example:
 
-```
+```text
 This is my commit message
 
 Signed-off-by: Random J Developer <random@developer.example.org>
@@ -104,19 +104,119 @@ Signed-off-by: Random J Developer <random@developer.example.org>
 Git even has a -s command line option to append this automatically to your
 commit message:
 
-```
-$ git commit -s -m 'This is my commit message'
+```bash
+git commit -s -m 'This is my commit message'
 ```
 
 If you have already made a commit and forgot to include the sign-off, you can
 amend your last commit to add the sign-off with the following command, which can
 then be force pushed.
 
-```
+```bash
 git commit --amend -s
 ```
 
 We use a [DCO bot] to enforce the DCO on all commits in every pull request.
+
+## Code Review Process
+
+All Pull Requests (PR), whether written by a Crossplane maintainer or a
+community member, must go through code review.
+
+Not only do code reviews ensure that the code is correct, maintainable, and
+secure, but more importantly it allows us to use code reviews as an educational
+tool.
+
+With this in mind, all efforts around code reviews should be seen through the
+lens of educating the author and be accompanied by kind, detailed feedback
+that will help authors understand the context the reviewer is coming from.
+
+We encourage anyone in the community to conduct a code review on a PR.
+In most situations we prefer to have the following approvals before
+merging a PR:
+
+* At least one approval from [Reviewers]
+* At least one approval from [Maintainers]
+
+When opening a PR, GitHub will assign reviewers based on the project's
+code review settings and who gets assigned depends on what code the contributor
+changed, per [CODEOWNERS]. In most cases we expect that someone from
+[crossplane-reviewers] and a subject matter expert from
+[crossplane-maintainers] will be assigned.
+
+We encourage reviews from the community and [Reviewers] to take place before
+someone from the [Maintainers] group reviews a PR. This helps reduce the load
+on the project maintainers and ensures they can be more efficient in their
+reviews. In addition, reviewing PRs is a path to becoming a maintainer on the
+project.
+
+### Expectation of PR Authors
+
+While preparing your PR, be mindful of the instructions and requirements in the
+[contributing code](#contributing-code) section.
+
+Once your PR is ready for review please notify the assigned reviewers by
+mentioning them in a comment.
+
+After implementing review feedback, the PR author should notify the reviewer
+by mentioning them in a comment when the PR is ready for another
+review.
+
+If you are not getting a response within a reasonable timeframe, remembering
+that reviewers and maintainers offer their time free of charge and have other
+obligations, you can reach out to the `#crossplane-owners` channel in the
+Crossplane community [Slack] workspace.
+
+### Expectation of Reviewers
+
+If you are assigned as a reviewer on a PR and you are unable to commit to
+reviewing the PR within a reasonable timeframe, you are encouraged to
+communicate this and manage the PR author's expectation.
+
+All reviewers are encouraged to consider the following aspects and to provide
+guidance to the PR author before giving their approval:
+
+* Is the code functionally correct?
+* Are the changes well documented, and their intent explained sufficiently for
+current and future readers?
+* Is the code written according to the [Coding Style](#coding-style)?
+* Is the solution idiomatically aligned with existing Crossplane APIs?
+* Is the code sufficiently covered by tests?
+* Has the PR author signed the DCO?
+* Are all CI jobs passing?
+
+When providing feedback please consider the following guidelines:
+
+* It helps the recipient a lot to be able to understand the context and
+intention behind comments.
+* Aim to provide feedback in a conversational style, rather than terse
+instructions.
+* Clearly articulate if you are sharing an opinion or instruction that
+needs to be complied with (i.e. a contribution guide rule). Proactively clarify
+what needs to change for you to feel comfortable to approve a PR.
+* Default to asking questions when things are not how we would expect them to
+be. Suggesting rather than demanding changes.
+* Proactively provide context when asking people to change things. Refer to
+where rules are defined or existing precedent exists, where possible.
+* Allow the author to “win some battles”. Particularly if they’re pushing
+back on something that isn't crucial.
+
+Examples:
+
+* “What do you think about changing X? I think it would be an improvement
+because Y”.
+* "Do we need X at all in this scenario? My thinking is: ..."
+* "I like the direction this is going. I think adding X would be useful
+to Y.""
+* "Please would you make sure your commits are signed (see the DCO check) and
+update the PR description per the template (in particular detail how
+you've tested this change)."
+* "I'm not 100% sure I follow why this is needed - can you add a comment
+(to the code) explaining?"
+* "I might be wrong, but I think what you're actually trying to do here is X"
+
+Being specific with your intention and expectation can save hours of
+undercommunication and misunderstandings.
 
 ## Coding Style
 
@@ -544,7 +644,6 @@ make run
 [Developer Certificate of Origin]: https://github.com/apps/dco
 [code review comments]: https://github.com/golang/go/wiki/CodeReviewComments
 [test review comments]: https://github.com/golang/go/wiki/TestComments
-[crossplane-runtime]: https://github.com/crossplane/crossplane-runtime
 [docs]: https://github.com/crossplane/docs
 [Effective Go]: https://golang.org/doc/effective_go
 [Observability Developer Guide]: guide-observability.md
@@ -552,3 +651,8 @@ make run
 [`crossplane-runtime/pkg/errors`]: https://pkg.go.dev/github.com/crossplane/crossplane-runtime/pkg/errors
 [golangci-lint]: https://golangci-lint.run/
 [DCO bot]: https://probot.github.io/apps/dco/
+[crossplane-maintainers]: https://github.com/orgs/crossplane/teams/crossplane-maintainers/members
+[crossplane-reviewers]: https://github.com/orgs/crossplane/teams/crossplane-reviewers/members
+[CODEOWNERS]: ../CODEOWNERS
+[Reviewers]: ../OWNERS.md#reviewers
+[Maintainers]: ../OWNERS.md#maintainers
