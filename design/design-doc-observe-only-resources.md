@@ -18,7 +18,7 @@ follows:
 - Referencing existing resources without managing them
   - In your managed resource, you want to reference network resources like VPC
   and subnets that are managed by another tool or team. _For example, you want
-  to create and RDS instance in Crossplane, but you want it to use an existing
+  to create an RDS instance in Crossplane, but you want it to use an existing
   Subnet Group managed by Terraform._
 - Fetching data from existing resources
   - You need information about an existing VPC, such as its CIDR range and the
@@ -28,8 +28,8 @@ follows:
   - You have existing infrastructures managed by Terraform, and you want to
   migrate them gradually to Crossplane.
   - You have a legacy infrastructure that you want to migrate to Crossplane,
-  but you want to experiment the managed resources before taking ownership of
-  the underlying resources.
+  but you want to experiment with the managed resources before taking ownership
+  of the underlying resources.
   - For an existing resource, you don’t want to provide full configuration
   spec that might override the actual configuration. You want to late-initialize
   all fields, including the ones that would be required otherwise.
@@ -72,6 +72,17 @@ external system, including during the creation process.
 
 ## Proposal
 
+We will introduce a new `managementPolicy` field in the spec of Managed
+Resources with `ObserveOnly` as one of the options. Additionally, we will change
+the API of the Managed Resources to include all the fields in the
+`spec.forProvider` under the `status.atProvider` to represent the full state of
+the resource on the external system. This will enable a clear separation between
+the desired state and the observed state of the resource and when the
+`managementPolicy` is set to `ObserveOnly`, only `status.atProvider` will be
+updated with the latest observation of the resource.
+
+### Management Policy
+
 To support observing resources without taking ownership, we will introduce a new
 spec named `managementPolicy` to the Managed Resources. We will also deprecate
 the existing `deletionPolicy` in favor of the new spec since they will be
@@ -93,7 +104,7 @@ Please note while `ObserveCreateUpdate` may sound verbose, it accurately
 describes the actions that Crossplane will take on the external resource. This
 naming convention also focuses on what Crossplane will do, rather than what it
 won't do, making it more intuitive and extensible for future policy options,
-such as `ObserveDelete`.
+such as `ObserveDelete` or `ObserveCreateDelete`.
 
 As indicated above, `FullControl` and `ObserveCreateUpdate` policies will behave
 precisely the same as the deletion policies we have today, including keeping the
@@ -116,10 +127,59 @@ spec:
     region: us-east-1
 ```
 
+### API Changes - Full State under `status.atProvider`
+
+We will include all the fields in the `spec.forProvider` under the
+`status.atProvider` to represent the full state of the resource on the external
+system. In other words, the `status.atProvider` will be a superset of the
+`spec.forProvider` by including all the fields that are available in the API of
+the external resource.
+
+```yaml
+apiVersion: ec2.aws.crossplane.io/v1beta1
+kind: VPC
+metadata:
+  annotations:
+    crossplane.io/external-name: vpc-12345678
+  name: observe-vpc
+spec:
+  managementPolicy: ObserveOnly
+  forProvider:
+    region: us-east-1
+status:
+  atProvider:
+    cidrBlock: 172.16.0.0/16
+    enableDnsHostNames: false
+    enableDnsSupport: true
+    instanceTenancy: default
+    region: us-east-1
+    tags:
+      - key: managed-by
+        value: terraform
+  conditions:
+  - lastTransitionTime: "2023-01-26T14:30:19Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+```
+
+Please note, the `status.atProvider` will be populated with the full state of
+the resource no matter what the `managementPolicy` is. This will also help
+identify any drifts between the actual state and the desired state of the
+resource for policies other than `ObserveOnly`.
+
+**Late-initialization** of the `spec.forProvider` is an exceptional case that
+worth special consideration. We will not do late-initialization when the policy
+is `ObserveOnly`, since the primary purpose of it is getting existing defaults
+from the cloud provider and using them to represent the full desired state of
+the resource under `spec.forProvider` as Managed Resource being the source of
+truth. With `ObserveOnly` policy however, this is not the case, and it would be
+misleading if resource spec changes after the late-initialization.
+
 ### Implementation
 
 Crossplane providers already manage external resources by implementing the
-Crossplane runtime's ExternalClient interface, which includes the four methods
+Crossplane runtime's `ExternalClient` interface, which includes the four methods
 listed below.
 
 ```go
@@ -134,16 +194,24 @@ type ExternalClient interface {
 We will leverage the fact that we have an already implemented Observe method for
 all managed resources by calling only it when the Management Policy is set to
 `ObserveOnly`. This will require minor modifications in the Managed Reconciler
-code that will return early in the reconcile loop and prevent invocation of the
-other methods, namely, Create, Update and Delete. These modifications will
-implement the following logic at a high level:
+code (in the Crossplane Runtime) that will return early in the reconcile loop
+and prevent invocation of the other methods, namely, Create, Update and Delete.
+These modifications will implement the following logic at a high level:
 
 Right after the `Observe` method invocation, if `ObserveOnly`:
 
-- Return error if the resource does not exist
-- Publish connection details
-- Call `client.Update` if the resource was late initialized
-- Report success and return early
+- Return error if the resource does not exist.
+- Publish connection details.
+- Ignore late-initialization result and never call `client.Update` method to
+  update the resource spec.
+- Report success and return early.
+
+We will also need the following changes per resource:
+
+- Update the API schema to have all the fields under `spec.forProvider` under
+  `status.atProvider` as well.
+- Update the `Observe` method implementation to populate the `status.atProvider`
+  with the full state of the resource.
 
 #### Feature Gating
 
@@ -188,7 +256,7 @@ untouched, avoiding any accidental deletion or modification.
 > is enabled, they will start failing to reconcile until their
 > `managementPolicy`’s updated to `ObserveCreateUpdate`.
 
-#### Schema Changes
+#### Required Fields
 
 The proposed approach here involves utilizing the same CR, hence schema, for
 both managing and observing resources. The caveat here is that some fields are
@@ -272,19 +340,20 @@ metadata:
 spec:
   deletionPolicy: Delete
   forProvider:
+    region: us-east-1
+  managementPolicy: ObserveOnly
+  providerConfigRef:
+    name: default
+status:
+  atProvider:
     cidrBlock: 172.16.0.0/16
     enableDnsHostNames: false
     enableDnsSupport: true
     instanceTenancy: default
     region: us-east-1
     tags:
-    - key: managed-by
-      value: terraform
-  managementPolicy: ObserveOnly
-  providerConfigRef:
-    name: default
-status:
-  atProvider: {}
+      - key: managed-by
+        value: terraform
   conditions:
   - lastTransitionTime: "2023-01-26T14:30:19Z"
     reason: ReconcileSuccess
@@ -324,32 +393,7 @@ metadata:
 spec:
   deletionPolicy: Delete
   forProvider:
-    logging:
-      clusterLogging:
-      - enabled: false
-        types:
-        - api
-        - audit
-        - authenticator
-        - controllerManager
-        - scheduler
     region: us-west-2
-    resourcesVpcConfig:
-      endpointPrivateAccess: true
-      endpointPublicAccess: true
-      publicAccessCidrs:
-      - 0.0.0.0/0
-      securityGroupIds:
-      - sg-01a328726b00a8729
-      subnetIds:
-      - subnet-03bfe3917165fed12
-      - subnet-065318210004bc0f7
-      - subnet-098fe35ce8828fd7d
-      - subnet-06babff85d2d21cf2
-    roleArn: arn:aws:iam::123456789012:role/existing-eks-cluster
-    tags:
-      managed-by: terraform
-    version: "1.23"
   managementPolicy: ObserveOnly
   providerConfigRef:
     name: default
@@ -362,13 +406,37 @@ status:
     identity:
       oidc:
         issuer: https://oidc.eks.us-west-2.amazonaws.com/id/F8C1E7B9B2A56C73A8E95C123508ACDF
-    outpostConfig: {}
-    platformVersion: eks.5
+    logging:
+      clusterLogging:
+        - enabled: false
+          types:
+            - api
+            - audit
+            - authenticator
+            - controllerManager
+            - scheduler
+    region: us-west-2
     resourcesVpcConfig:
       clusterSecurityGroupId: sg-08d05b318db73172b
+      endpointPrivateAccess: true
+      endpointPublicAccess: true
+      publicAccessCidrs:
+        - 0.0.0.0/0
+      securityGroupIds:
+        - sg-01a328726b00a8729
+      subnetIds:
+        - subnet-03bfe3917165fed12
+        - subnet-065318210004bc0f7
+        - subnet-098fe35ce8828fd7d
+        - subnet-06babff85d2d21cf2
       vpcId: vpc-06eeba34a0b0d1d75
-    status: ACTIVE
+    roleArn: arn:aws:iam::123456789012:role/existing-eks-cluster
+    tags:
+      managed-by: terraform
     version: "1.23"
+    outpostConfig: {}
+    platformVersion: eks.5
+    status: ACTIVE
   conditions:
   - lastTransitionTime: "2023-01-26T14:13:41Z"
     reason: Available
