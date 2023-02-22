@@ -856,7 +856,7 @@ func TestPatchAndTransform(t *testing.T) {
 									// This reference to a non-existent patchset
 									// triggers the error.
 									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.StringPtr("nonexistent-patchset"),
+									PatchSetName: pointer.String("nonexistent-patchset"),
 								}},
 							}},
 						},

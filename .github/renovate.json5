@@ -7,7 +7,7 @@
   "prConcurrentLimit": 5,
 // The branches renovate should target
 // PLEASE UPDATE THIS WHEN RELEASING.
-  "baseBranches": ["master","release-1.9","release-1.10"],
+  "baseBranches": ["master","release-1.9","release-1.10","release-1.11"],
   "ignorePaths": ["design/**"],
   "postUpdateOptions": ["gomodTidy"],
 // By default renovate will auto detect whether semantic commits have been used
@@ -44,7 +44,20 @@
     "enabled": true
   },
   "packageRules": [
+// We don't want dependency updates which are not security related for
+// release branches, except for docker images
     {
+      matchBaseBranches: [ "/^release-.*/"],
+      enabled: false,
+    }, {
+      "matchDatasources": ["docker"],
+      matchBaseBranches: [ "/^release-.*/"],
+      enabled: true,
+    }, {
+      "matchDatasources": ["docker"],
+      "schedule": ["every 2 week on monday"],
+      enabled: true,
+    }, {
 // We need to ignore k8s.io/client-go older versions as they switched to
 // semantic version and old tags are still available in the repo.
       "matchDatasources": [
@@ -55,6 +68,21 @@
       ],
       "allowedVersions": "<1.0"
     }, {
+// We don't want digest updates for kubernetes dependencies, as they are too
+// noisy
+      "matchDatasources": [
+        "go"
+      ],
+      "groupName": "kubernetes patches",
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "extends": ['schedule:monthly'],
+      "matchPackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
+      ]
+    }, {
 // We want a single PR for all the patches bumps of kubernetes related
 // dependencies, as most of the times these are all strictly related.
       "matchDatasources": [
@@ -63,7 +91,6 @@
       "groupName": "kubernetes patches",
       "matchUpdateTypes": [
         "patch",
-        "digest"
       ],
       "matchPackagePrefixes": [
         "k8s.io",

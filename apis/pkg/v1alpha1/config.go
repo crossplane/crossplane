@@ -168,8 +168,11 @@ type PodObjectMeta struct {
 // +genclient:nonNamespaced
 
 // ControllerConfig is the CRD type for a packaged controller configuration.
+// Deprecated: This API is scheduled to be removed in a future release. See
+// https://github.com/crossplane/crossplane/issues/3601 for more information.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:deprecatedversion:warning="This API is deprecated and is scheduled to be removed in a future release."
 type ControllerConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

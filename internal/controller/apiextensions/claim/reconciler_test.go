@@ -102,7 +102,7 @@ func TestReconcile(t *testing.T) {
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(errBoom),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 					}),
 				},
@@ -422,7 +422,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 					}),
 					WithClaimFinalizer(resource.FinalizerFns{
@@ -478,7 +478,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -510,7 +510,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -548,7 +548,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -589,7 +589,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -643,7 +643,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 						},
 					}),
 				},
@@ -669,7 +669,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -713,7 +713,7 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -753,7 +753,7 @@ func TestReconcile(t *testing.T) {
 			if tc.args.claim != nil {
 				tc.args.opts = append(tc.args.opts, func(r *Reconciler) {
 					var customGet test.MockGetFn
-					var customStatusUpdate test.MockStatusUpdateFn
+					var customStatusUpdate test.MockSubResourceUpdateFn
 					mockGet := func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
 							tc.args.claim.DeepCopyInto(&o.Unstructured)
@@ -765,7 +765,7 @@ func TestReconcile(t *testing.T) {
 						return nil
 					}
 
-					mockStatusUpdate := func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+					mockStatusUpdate := func(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 						if o, ok := obj.(*claim.Unstructured); ok {
 							o.DeepCopyInto(&tc.args.claim.Unstructured)
 						}

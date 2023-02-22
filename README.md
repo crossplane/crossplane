@@ -19,10 +19,10 @@ documentation].
 
 | Release | Release Date |      EOL      |
 |:-------:|:------------:|:-------------:|
-|   v1.8  | May 17, 2022 |    Jan 2023   |
 |   v1.9  | Jul 14, 2022 |    Apr 2023   |
 |   v1.10 | Oct 18, 2022 |    Jul 2023   |
 |   v1.11 | Jan 31, 2023 |    Oct 2023   |
+|   v1.12 | Apr 25, 2023 |    Jan 2024   |
 
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
@@ -49,6 +49,12 @@ with the broader community is encouraged to join.
 * [Past meeting recordings]
 * [Community Calendar][community calendar]
 
+## Adopters
+
+A list of publicly known users of the Crossplane project can be found in [ADOPTERS.md].  We
+encourage all users of Crossplane to add themselves to this list - we want to see the community's
+growing success!
+
 ## License
 
 Crossplane is under the Apache 2.0 license.
@@ -58,7 +64,7 @@ Crossplane is under the Apache 2.0 license.
 <!-- Named links -->
 
 [Crossplane]: https://crossplane.io
-[release cycle documentation]: https://crossplane.io/docs/master/reference/release-cycle.html
+[release cycle documentation]: https://docs.crossplane.io/knowledge-base/guides/release-cycle
 [install]: https://crossplane.io/docs/latest
 [Slack]: https://slack.crossplane.io
 [developer mailing list]: https://groups.google.com/forum/#!forum/crossplane-dev
@@ -73,3 +79,4 @@ Crossplane is under the Apache 2.0 license.
 [cncf]: https://www.cncf.io/
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
+[ADOPTERS.md]: ADOPTERS.md

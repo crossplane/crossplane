@@ -37,7 +37,7 @@ func TestNewCompositionRevision(t *testing.T) {
 
 	var (
 		rev  int64 = 1
-		hash       = "1af1dfa857bf1d8814fe1af8983c18080019922e557f15a8a0d3db739d77aacb"
+		hash       = "775265aaf20123c08e3eee3fc546e69c8f0bbff595a6030600dcf90fe9dd9ef"
 	)
 
 	ctrl := true
@@ -65,7 +65,7 @@ func TestNewCompositionRevision(t *testing.T) {
 		},
 	}
 
-	got := NewCompositionRevision(comp, rev, hash)
+	got := NewCompositionRevision(comp, rev)
 	if diff := cmp.Diff(want, got, cmpopts.EquateEmpty()); diff != "" {
 		t.Errorf("NewCompositionRevision(): -want, +got:\n%s", diff)
 	}

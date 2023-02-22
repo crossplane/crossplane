@@ -183,6 +183,11 @@ issues:
       linters:
       - gosec
       - gas
+    
+    # Some k8s dependencies do not have JSON tags on all fields in structs.
+    - path: k8s.io/
+      linters:
+      - musttag
 
   # Independently from option `exclude` we use default exclude patterns,
   # it can be disabled by this option. To list all
