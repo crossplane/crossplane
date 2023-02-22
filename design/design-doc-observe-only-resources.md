@@ -294,7 +294,134 @@ age="cidrBlock is a required parameter"
  }
 ```
 
-#### Example Usages
+#### New Import Procedure
+
+The [import procedure][import existing managed resources] documented today has
+some limitations and caveats as follows:
+
+1. Users need to provide all the required fields in the spec of the resource
+   with correct values even though they are not used for importing the resource.
+   A wrong value for a required field will result a configuration update which
+   is not desired.
+2. Any typo in the external name annotation or some mistake in the identifying
+   arguments (e.g. `region`) will result creation of a new resource instead of
+   importing the existing one.
+
+While it is not directly related to this proposal, we will also address these
+issues by introducing a new import procedure that will be made available with
+the new `ObserveOnly` policy. The new procedure will be as follows:
+
+1. Create a new resource with `ObserveOnly` policy.
+   1. With external name annotation set to the external name of the resource to be imported.
+   2. Only provide the identifying arguments (e.g. `region`) in the spec of the
+      resource and skip all the other fields including the required ones ( which 
+      would no longer be required, see the previous section).
+2. Expect the existing resource to be observed successfully indicating that the
+   existing resource is found.
+3. Change the policy to `Full` and provide the required fields by copying them
+   from `status.atProvider` to give full control of the resource to Crossplane.
+
+**Example: I want to import an existing database instance in GCP and give full
+control of it to Crossplane.**
+
+1. Create the following resource with `ObserveOnly` policy:
+
+  ```yaml
+  apiVersion: sql.gcp.upbound.io/v1beta1
+  kind: DatabaseInstance
+  metadata:
+    annotations:
+      crossplane.io/external-name: existing-database-instance
+    name: existing-database-instance
+  spec:
+    managementPolicy: ObserveOnly
+    forProvider:
+      region: "us-central1"
+  ```
+
+2. Resource is found and observed successfully and `status.atProvider` is populated with
+   the values of the existing resource.
+
+  ```yaml
+  apiVersion: sql.gcp.upbound.io/v1beta1
+  kind: DatabaseInstance
+  metadata:
+    annotations:
+      crossplane.io/external-name: existing-database-instance
+    name: existing-database-instance
+  spec:
+    managementPolicy: ObserveOnly
+    forProvider:
+      region: us-central1
+  status:
+    atProvider:
+      connectionName: crossplane-playground:us-central1:existing-database-instance
+      databaseVersion: POSTGRES_14
+      deletionProtection: true
+      firstIpAddress: 35.184.74.79
+      id: existing-database-instance
+      publicIpAddress: 35.184.74.79
+      region: us-central1
+      <truncated-for-brevity>
+      settings:
+      - activationPolicy: ALWAYS
+        availabilityType: REGIONAL
+        diskSize: 100
+        <truncated-for-brevity>
+        pricingPlan: PER_USE
+        tier: db-custom-4-26624
+        version: 4
+    conditions:
+    - lastTransitionTime: "2023-02-22T07:16:51Z"
+      reason: Available
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2023-02-22T07:16:51Z"
+      reason: ReconcileSuccess
+      status: "True"
+      type: Synced
+  ```
+
+3. Change the policy to `Full` and move all required fields from the
+   `status.atProvider` to `spec.forProvider` to give full control of the
+    resource to Crossplane.
+
+```yaml
+apiVersion: sql.gcp.upbound.io/v1beta1
+kind: DatabaseInstance
+metadata:
+  annotations:
+    crossplane.io/external-name: hasan-test-o-o
+  creationTimestamp: "2023-02-22T07:14:56Z"
+  finalizers:
+  - finalizer.managedresource.crossplane.io
+  generation: 7
+  name: hasan-test-o-o
+  resourceVersion: "41275"
+  uid: c3f5a1c9-d720-415e-8dcf-a16e80db7e6e
+spec:
+  managementPolicy: Full
+  forProvider:
+    databaseVersion: POSTGRES_14
+    region: us-central1
+    settings:
+    - diskSize: 100
+      tier: db-custom-4-26624
+status:
+  atProvider:
+    <removed-for-brevity>
+  conditions:
+  - lastTransitionTime: "2023-02-22T07:16:51Z"
+    reason: Available
+    status: "True"
+    type: Ready
+  - lastTransitionTime: "2023-02-22T11:16:45Z"
+    reason: ReconcileSuccess
+    status: "True"
+    type: Synced
+```
+
+#### Observe Only Example Usages
 
 **Referencing an Existing Resource**
 
@@ -573,7 +700,7 @@ we would not be able to use the existing resource referencing mechanism, and we
 would lose the benefits of having a one-to-one relationship such as leveraging
 it as a migration path to Crossplane.
 
-[import existing managed resources]: https://docs.crossplane.io/v1.10/concepts/managed-resources/#importing-existing-resources
+[import existing managed resources]: https://docs.crossplane.io/v1.11/concepts/managed-resources/#importing-existing-resources
 [Common Expression Language (CEL)]: https://kubernetes.io/blog/2022/09/23/crd-validation-rules-beta/
 [CIDRBlock]: https://github.com/crossplane-contrib/provider-aws/blob/ff84c3884b18befa693d87d37c51954b7f18903f/apis/ec2/v1beta1/vpc_types.go#L82
 [Data Sources]: https://developer.hashicorp.com/terraform/language/data-sources
