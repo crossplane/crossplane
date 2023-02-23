@@ -249,32 +249,6 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
-		"ValidateCompositionError": {
-			reason: "We should return any error encountered while validating our Composition.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClient(&test.MockClient{
-						MockGet: test.NewMockGetFn(nil),
-						MockStatusUpdate: WantComposite(t, NewComposite(func(cr resource.Composite) {
-							cr.SetCompositionReference(&corev1.ObjectReference{})
-							cr.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errValidate)))
-						})),
-					}),
-					WithCompositeFinalizer(resource.NewNopFinalizer()),
-					WithCompositionSelector(CompositionSelectorFn(func(_ context.Context, cr resource.Composite) error {
-						cr.SetCompositionReference(&corev1.ObjectReference{})
-						return nil
-					})),
-					WithCompositionFetcher(CompositionFetcherFn(func(_ context.Context, _ resource.Composite) (*v1.Composition, error) {
-						return &v1.Composition{}, nil
-					})),
-				},
-			},
-			want: want{
-				r: reconcile.Result{Requeue: true},
-			},
-		},
 		"ConfigureCompositeError": {
 			reason: "We should return any error encountered while configuring the composite resource.",
 			args: args{

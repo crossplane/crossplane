@@ -73,8 +73,10 @@ func (p *PureValidator) RenderAndValidate(
 	compositeRes := composite2.New(composite2.WithGroupVersionKind(req.CompositeResGVK))
 	compositeRes.SetUID("validation-uid")
 	compositeRes.SetName("validation-name")
-	if err := p.PureAPINamingConfigurator.Configure(ctx, compositeRes, nil); err != nil {
+	if err, changed := p.PureAPINamingConfigurator.Configure(compositeRes); err != nil {
 		return err
+	} else if !changed {
+		return nil
 	}
 
 	composedResources := make([]runtime.Object, len(resources))

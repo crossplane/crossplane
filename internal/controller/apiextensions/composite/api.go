@@ -420,13 +420,15 @@ func NewAPINamingConfigurator(c client.Client) *APINamingConfigurator {
 // already set.
 type APINamingConfigurator struct {
 	client       client.Client
-	configurator Configurator
+	configurator *PureAPINamingConfigurator
 }
 
 // Configure the supplied composite resource's root name prefix.
 func (c *APINamingConfigurator) Configure(ctx context.Context, cp resource.Composite, _ *v1.Composition) error {
-	if err := c.configurator.Configure(ctx, cp, nil); err != nil {
+	if err, changed := c.configurator.Configure(cp); err != nil {
 		return err
+	} else if !changed {
+		return nil
 	}
 	return errors.Wrap(c.client.Update(ctx, cp), errUpdateComposite)
 }
@@ -441,10 +443,10 @@ func NewPureAPINamingConfigurator() *PureAPINamingConfigurator {
 type PureAPINamingConfigurator struct{}
 
 // Configure the supplied composite resource's root name prefix.
-func (c *PureAPINamingConfigurator) Configure(_ context.Context, cp resource.Composite, _ *v1.Composition) error {
+func (c *PureAPINamingConfigurator) Configure(cp resource.Composite) (err error, changed bool) {
 	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] != "" {
-		return nil
+		return nil, false
 	}
 	meta.AddLabels(cp, map[string]string{xcrd.LabelKeyNamePrefixForComposed: cp.GetName()})
-	return nil
+	return nil, true
 }
