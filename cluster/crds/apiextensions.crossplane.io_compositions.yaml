@@ -17,6 +17,12 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.compositeTypeRef.kind
+      name: XR-KIND
+      type: string
+    - jsonPath: .spec.compositeTypeRef.apiVersion
+      name: XR-APIVERSION
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
