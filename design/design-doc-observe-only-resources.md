@@ -94,19 +94,12 @@ This new policy will have the following values:
 - `FullControl`(Default): Crossplane will fully manage and control the external
 resource, including deletion when the CR is deleted
 (same as `deletionPolicy: Delete`).
-- `ObserveCreateUpdate`: Crossplane will observe and perform create and update
-operations on the external resource but will not make any deletions
-(same as `deletionPolicy: Orphan`).
+- `OrphanOnDelete`: Crossplane will orphan the external resource when the CR is
+deleted (same as `deletionPolicy: Orphan`).
 - `ObserveOnly`: Crossplane will only observe the external resource and will not
 make any changes or deletions.
 
-Please note while `ObserveCreateUpdate` may sound verbose, it accurately
-describes the actions that Crossplane will take on the external resource. This
-naming convention also focuses on what Crossplane will do, rather than what it
-won't do, making it more intuitive and extensible for future policy options,
-such as `ObserveDelete` or `ObserveCreateDelete`.
-
-As indicated above, `FullControl` and `ObserveCreateUpdate` policies will behave
+As indicated above, `FullControl` and `OrphanOnDelete` policies will behave
 precisely the same as the deletion policies we have today, including keeping the
 default behavior the same. We will introduce the new behavior with the
 `ObserveOnly` option, which would be pretty similar to what we have today to
@@ -235,10 +228,10 @@ exists with deletion:
 | Deletion Policy | Management Policy | Should Observe? | Should Create? | Should Update? | Should Delete? |
 | --- | --- | --- | --- | --- | --- |
 | Delete | Full | Yes | Yes | Yes | Yes |
-| Orphan | ObserveCreateUpdate | Yes | Yes | Yes | No |
+| Orphan | OrphanOnDelete | Yes | Yes | Yes | No |
 | Delete | ObserveOnly | Yes | No | No | Conflict (No) |
 | Orphan | Full | Yes | Yes | Yes | Conflict (No) |
-| Delete | ObserveCreateUpdate | Yes | Yes | Yes | Conflict (No) |
+| Delete | OrphanOnDelete | Yes | Yes | Yes | Conflict (No) |
 | Orphan | ObserveOnly | Yes | No | No | No |
 
 For conflicting cases, we will decide based on the non-default configuration
@@ -254,7 +247,7 @@ untouched, avoiding any accidental deletion or modification.
 > to `ObserveOnly` and `deletionPolicy` to `Orphan` .
 > - If there are existing resources with `deletionPolicy: Orphan` when the feature
 > is enabled, they will start failing to reconcile until their
-> `managementPolicy`’s updated to `ObserveCreateUpdate`.
+> `managementPolicy`’s updated to `OrphanOnDelete`.
 
 #### Required Fields
 
