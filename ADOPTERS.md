@@ -40,3 +40,4 @@ This list is sorted in the order that organizations were added to it.
 | [Disashop](https://www.disashop.com/) | @edalonso | We manage our infrastructure in EKS for all dev, staging, and production environments and create compositions in order to deploy our transactional platform about digital products in kubernetes clusters.|
 | [ConsenSys](https://consensys.net/) | @clementblaise | Main control plane for an internal developer platform |
 | [Wildlife Studios](https://wildlifestudios.com/) | @kasama | Component that powers an API used to manage infrastructure for a self-service platform for developers |
+| [Autodesk](https://autodesk.com/) | @jessesanford | IaC components and declarative API abstractions for our next generation Autodesk Unified Control Plane. |
