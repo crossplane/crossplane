@@ -3,12 +3,16 @@ module github.com/crossplane/crossplane
 go 1.19
 
 require (
+	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.7.2-0.20221130112736-919e70103f7a
+	github.com/bufbuild/buf v1.10.0
 	github.com/crossplane/crossplane-runtime v0.19.1
+	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.9.0
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220517194345-84eb52633e96
+	github.com/google/uuid v1.3.0
 	github.com/imdario/mergo v0.3.12
 	github.com/jmattheis/goverter v0.10.1
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
@@ -16,30 +20,21 @@ require (
 	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/afero v1.8.0
 	golang.org/x/sync v0.1.0
+	golang.org/x/sys v0.5.0
+	google.golang.org/grpc v1.50.1
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0
+	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
 	k8s.io/api v0.26.1
 	k8s.io/apiextensions-apiserver v0.26.1
 	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.26.1
 	k8s.io/code-generator v0.26.1
 	k8s.io/utils v0.0.0-20230202215443-34013725500c
+	kernel.org/pub/linux/libs/security/libcap/cap v1.2.66
 	sigs.k8s.io/controller-runtime v0.14.4
 	sigs.k8s.io/controller-tools v0.11.3
 	sigs.k8s.io/yaml v1.3.0
 )
-
-require (
-	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
-	github.com/bufbuild/buf v1.10.0
-	github.com/cyphar/filepath-securejoin v0.2.3
-	github.com/google/uuid v1.3.0
-	golang.org/x/sys v0.5.0
-	google.golang.org/grpc v1.50.1
-	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0
-	google.golang.org/protobuf v1.28.2-0.20220831092852-f930b1dc76e8
-	kernel.org/pub/linux/libs/security/libcap/cap v1.2.66
-)
-
-require github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 
 require (
 	cloud.google.com/go/compute v1.6.1 // indirect
@@ -91,6 +86,7 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.9.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
+	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
