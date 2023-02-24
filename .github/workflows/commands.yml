@@ -6,7 +6,7 @@ jobs:
   # NOTE(negz): See also backport.yml, which is the variant that triggers on PR
   # merge rather than on comment.
   backport:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: github.event.issue.pull_request && startsWith(github.event.comment.body, '/backport')
     steps:
     - name: Extract Command
@@ -33,7 +33,7 @@ jobs:
         version: v0.0.4
 
   fresh:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: startsWith(github.event.comment.body, '/fresh')
 
     steps:
