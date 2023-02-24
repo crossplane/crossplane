@@ -287,7 +287,7 @@ func TestPTFCompose(t *testing.T) {
 						return nil
 					}),
 					// The ClientApplicator will call Update for the XR.
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -341,7 +341,7 @@ func TestPTFCompose(t *testing.T) {
 						return nil
 					}),
 					// The ClientApplicator will call Update for the XR.
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -382,8 +382,8 @@ func TestPTFCompose(t *testing.T) {
 			params: params{
 				kube: &test.MockClient{
 					// These are both called by Apply.
-					MockGet:    test.NewMockGetFn(nil),
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -418,8 +418,8 @@ func TestPTFCompose(t *testing.T) {
 			params: params{
 				kube: &test.MockClient{
 					// These are both called by Apply.
-					MockGet:    test.NewMockGetFn(nil),
-					MockUpdate: test.NewMockUpdateFn(nil),
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
