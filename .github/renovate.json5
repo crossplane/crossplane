@@ -3,6 +3,9 @@
   "extends": [
     "config:base"
   ],
+// We only want renovate to rebase PRs when they have conflicts,
+// default "auto" mode is not required.
+  "rebaseWhen": "conflicted",
 // The maximum number of PRs to be created in parallel
   "prConcurrentLimit": 5,
 // The branches renovate should target
