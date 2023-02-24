@@ -22,12 +22,16 @@ import (
 	"errors"
 	"fmt"
 	xprerrors "github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	composite2 "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apiextensions-apiserver/pkg/apiserver/validation"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"strings"
 )
 
 // RenderValidator is responsible for validating a composition after having rendered it.
@@ -57,7 +61,6 @@ func (p *PureValidator) RenderAndValidate(
 	comp *v1.Composition,
 	req *CompositionRenderValidationRequest,
 ) error {
-
 	// dereference all patches first
 	resources, err := composite.ComposedTemplates(comp.Spec)
 	if err != nil {
@@ -79,6 +82,11 @@ func (p *PureValidator) RenderAndValidate(
 		return nil
 	}
 
+	// Set all required fields on the composite resource
+	if err := mockRequiredFields(compositeRes, req.CompositeResGVK, req.AvailableCRDs); err != nil {
+		return err
+	}
+
 	composedResources := make([]runtime.Object, len(resources))
 	var patchingErr error
 	// For each composed resource, validate its patches and then render it
@@ -91,7 +99,7 @@ func (p *PureValidator) RenderAndValidate(
 		}
 		composedGVK := cd.GetObjectKind().GroupVersionKind()
 		patchCtx := PatchValidationRequest{
-			GVKCRDValidation:          req.ManagedResourcesCRDs,
+			GVKCRDValidation:          req.AvailableCRDs,
 			CompositionValidationMode: req.ValidationMode,
 			ComposedGVK:               composedGVK,
 			CompositeGVK:              req.CompositeResGVK,
@@ -118,7 +126,7 @@ func (p *PureValidator) RenderAndValidate(
 	var renderError error
 	// RenderAndValidate Rendered Composed Resources from Composition
 	for _, renderedComposed := range composedResources {
-		crdV, ok := req.ManagedResourcesCRDs[renderedComposed.GetObjectKind().GroupVersionKind()]
+		crdV, ok := req.AvailableCRDs[renderedComposed.GetObjectKind().GroupVersionKind()]
 		if !ok {
 			if req.ValidationMode == v1.CompositionValidationModeStrict {
 				renderError = errors.Join(renderError, xprerrors.Errorf("No CRD validation found for rendered resource: %v", renderedComposed.GetObjectKind().GroupVersionKind()))
@@ -141,4 +149,68 @@ func (p *PureValidator) RenderAndValidate(
 		return renderError
 	}
 	return nil
+}
+
+func mockRequiredFields(res *composite2.Unstructured, gvk schema.GroupVersionKind, ds GVKValidationMap) error {
+	o, err := fieldpath.PaveObject(res)
+	if err != nil {
+		return err
+	}
+	v, ok := ds[gvk]
+	if !ok {
+		return nil
+	}
+	if v.OpenAPIV3Schema == nil {
+		return nil
+	}
+	err, changed := mockRequiredFieldsSchemaProps(v.OpenAPIV3Schema, o, "")
+	if err != nil || !changed {
+		return err
+	}
+	return runtime.DefaultUnstructuredConverter.FromUnstructured(o.UnstructuredContent(), res)
+
+}
+
+// mockRequiredFieldsSchemaPropos mock required fields for a given schema property
+func mockRequiredFieldsSchemaProps(prop *apiextensions.JSONSchemaProps, o *fieldpath.Paved, path string) (error, bool) {
+	if prop == nil {
+		return nil, false
+	}
+	switch prop.Type {
+	case "string":
+		if prop.Default == nil {
+			return o.SetString(path, "default"), true
+		}
+		v := *prop.Default
+		vs, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("default value for %s is not a string", path), false
+		}
+		return o.SetString(path, vs), true
+	case "integer":
+		if prop.Default == nil {
+			return o.SetNumber(path, 1), true
+		}
+		v := *prop.Default
+		vs, ok := v.(float64)
+		if !ok {
+			return fmt.Errorf("default value for %s is not an integer", path), false
+		}
+		return o.SetNumber(path, vs), true
+	case "object":
+		changed := false
+		for _, s := range prop.Required {
+			p := prop.Properties[s]
+			err, c := mockRequiredFieldsSchemaProps(&p, o, strings.TrimLeft(strings.Join([]string{path, s}, "."), "."))
+			if err != nil {
+				return err, false
+			}
+			changed = changed || c
+		}
+		return nil, changed
+	case "array":
+		return nil, false
+	default:
+	}
+	return nil, false
 }

@@ -80,9 +80,9 @@ type ClientValidator struct {
 // CompositionRenderValidationRequest should contain all the information needed to validate a Composition using a
 // RenderValidator.
 type CompositionRenderValidationRequest struct {
-	CompositeResGVK      schema.GroupVersionKind
-	ManagedResourcesCRDs GVKValidationMap
-	ValidationMode       v1.CompositionValidationMode
+	CompositeResGVK schema.GroupVersionKind
+	AvailableCRDs   GVKValidationMap
+	ValidationMode  v1.CompositionValidationMode
 }
 
 // SetupWithManager sets up the ClientValidator with the provided manager, setting up all the required indexes it requires.
@@ -146,9 +146,9 @@ func (c *ClientValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		ctx,
 		comp,
 		&CompositionRenderValidationRequest{
-			CompositeResGVK:      compositeResGVK,
-			ManagedResourcesCRDs: managedResourcesCRDs,
-			ValidationMode:       validationMode,
+			CompositeResGVK: compositeResGVK,
+			AvailableCRDs:   managedResourcesCRDs,
+			ValidationMode:  validationMode,
 		},
 	); err != nil {
 		return apierrors.NewBadRequest(errors.Join(errors.New("invalid composition"), err).Error())
