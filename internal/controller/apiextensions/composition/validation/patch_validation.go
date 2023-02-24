@@ -94,29 +94,50 @@ func ValidatePatch(patch v1.Patch, patchContext *PatchValidationRequest) (err er
 
 // ValidateFromCompositeFieldPathPatch validates the patch type FromCompositeFieldPath.
 func ValidateFromCompositeFieldPathPatch(patch v1.Patch, req *PatchValidationRequest) error {
+	if len(patch.Transforms) > 0 {
+		return nil
+	}
 	if patch.Type != v1.PatchTypeFromCompositeFieldPath {
 		return xprerrors.Errorf("invalid patch type: %v", patch.Type)
 	}
-	compositeValidation, ok := req.GVKCRDValidation[req.CompositeGVK]
-	if !ok && req.CompositionValidationMode == v1.CompositionValidationModeStrict {
+	compositeValidation, okCompositeValidation := req.GVKCRDValidation[req.CompositeGVK]
+	if !okCompositeValidation && req.CompositionValidationMode == v1.CompositionValidationModeStrict {
 		return xprerrors.Errorf("no validation found for composite resource: %v", req.CompositeGVK)
 	}
-	composedValidation, ok := req.GVKCRDValidation[req.ComposedGVK]
-	if !ok && req.CompositionValidationMode == v1.CompositionValidationModeStrict {
+	composedValidation, okComposedValidation := req.GVKCRDValidation[req.ComposedGVK]
+	if !okComposedValidation && req.CompositionValidationMode == v1.CompositionValidationModeStrict {
 		return xprerrors.Errorf("no validation found for composed resource: %v", req.ComposedGVK)
 	}
-	compositeFieldpathType, err := validateFieldPath(patch.FromFieldPath, compositeValidation.OpenAPIV3Schema)
-	if err != nil {
-		return xprerrors.Wrapf(err, "invalid fromFieldPath: %s", *patch.FromFieldPath)
+	if !okCompositeValidation && !okComposedValidation {
+		// not much we can check if we don't have schemas
+		return nil
 	}
-	composedFieldpathType, err := validateFieldPath(patch.ToFieldPath, composedValidation.OpenAPIV3Schema)
-	if err != nil {
-		return xprerrors.Wrapf(err, "invalid toFieldPath: %s", *patch.ToFieldPath)
+	var compositeFieldpathType, composedFieldpathType string
+	var requiredComposite, requiredComposed bool
+	var err error
+	if okCompositeValidation {
+		compositeFieldpathType, requiredComposite, err = validateFieldPath(patch.FromFieldPath, compositeValidation.OpenAPIV3Schema)
+		if err != nil {
+			return xprerrors.Wrapf(err, "invalid fromFieldPath: %s", *patch.FromFieldPath)
+		}
 	}
-	// TODO: transform can change the value type of the field path, so we should
-	// validate the type of the field path after the transform is applied.
-	if len(patch.Transforms) == 0 &&
-		compositeFieldpathType != "" && composedFieldpathType != "" && compositeFieldpathType != composedFieldpathType {
+	if okComposedValidation {
+		composedFieldpathType, requiredComposed, err = validateFieldPath(patch.ToFieldPath, composedValidation.OpenAPIV3Schema)
+		if err != nil {
+			return xprerrors.Wrapf(err, "invalid toFieldPath: %s", *patch.ToFieldPath)
+		}
+		// TODO: transform can change the value type of the field path, so we should
+		// validate the type of the field path after the transform is applied.
+	}
+	if !okCompositeValidation || !okComposedValidation {
+		fmt.Println("WARNING: skipping validation of patch because one or more schemas are missing")
+		// we can not compare types or requirements if we don't have both schemas
+		return nil
+	}
+	if requiredComposed && !requiredComposite {
+		return xprerrors.Errorf("field path is not required in composite resource '%s' but is required for composed resource '%s'", *patch.FromFieldPath, *patch.ToFieldPath)
+	}
+	if compositeFieldpathType != "" && composedFieldpathType != "" && compositeFieldpathType != composedFieldpathType {
 		return xprerrors.Errorf("field path types do not match: %s, %s", compositeFieldpathType, composedFieldpathType)
 	}
 	return nil
@@ -124,13 +145,13 @@ func ValidateFromCompositeFieldPathPatch(patch v1.Patch, req *PatchValidationReq
 
 // validateFieldPath validates that the given field path is valid for the given schema.
 // It returns the type of the field path if it is valid, or an error otherwise.
-func validateFieldPath(path *string, s *apiextensions.JSONSchemaProps) (fieldType string, err error) {
+func validateFieldPath(path *string, s *apiextensions.JSONSchemaProps) (fieldType string, required bool, err error) {
 	if path == nil {
-		return "", fmt.Errorf("no field path provided")
+		return "", false, fmt.Errorf("no field path provided")
 	}
 	segments, err := fieldpath.Parse(*path)
 	if err != nil {
-		return "", err
+		return "", false, err
 	}
 	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" {
 		segments = segments[1:]
@@ -139,22 +160,22 @@ func validateFieldPath(path *string, s *apiextensions.JSONSchemaProps) (fieldTyp
 	current := s
 	for _, segment := range segments {
 		var err error
-		current, err = validateFieldPathSegment(current, segment)
+		current, required, err = validateFieldPathSegment(current, segment)
 		if err != nil {
-			return "", err
+			return "", false, err
 		}
 		if current == nil {
-			return "", nil
+			return "", false, nil
 		}
 	}
-	return current.Type, nil
+	return current.Type, required, nil
 }
 
 // validateFieldPathSegment validates that the given field path segment is valid for the given schema.
 // It returns the schema of the field path segment if it is valid, or an error otherwise.
-func validateFieldPathSegment(current *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) {
+func validateFieldPathSegment(current *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, bool, error) {
 	if current == nil {
-		return nil, nil
+		return nil, false, nil
 	}
 	switch segment.Type {
 	case fieldpath.SegmentField:
@@ -163,35 +184,42 @@ func validateFieldPathSegment(current *apiextensions.JSONSchemaProps, segment fi
 			propType = "object"
 		}
 		if propType != "object" {
-			return nil, xprerrors.Errorf("trying to access field of not an object: %v", propType)
-		}
-		if pointer.BoolDeref(current.XPreserveUnknownFields, false) {
-			return nil, nil
+			return nil, false, xprerrors.Errorf("trying to access field of not an object: %v", propType)
 		}
 		prop, exists := current.Properties[segment.Field]
 		if !exists {
-			if current.AdditionalProperties != nil && current.AdditionalProperties.Allows {
-				return current.AdditionalProperties.Schema, nil
+			if pointer.BoolDeref(current.XPreserveUnknownFields, false) {
+				return nil, false, nil
 			}
-			return nil, xprerrors.Errorf("unable to find field: %s", segment.Field)
+			if current.AdditionalProperties != nil && current.AdditionalProperties.Allows {
+				return current.AdditionalProperties.Schema, false, nil
+			}
+			return nil, false, xprerrors.Errorf("unable to find field: %s", segment.Field)
 		}
-		return &prop, nil
+		var required bool
+		for _, req := range current.Required {
+			if req == segment.Field {
+				required = true
+				break
+			}
+		}
+		return &prop, required, nil
 	case fieldpath.SegmentIndex:
 		if current.Type != "array" {
-			return nil, xprerrors.Errorf("accessing by index a %s field", current.Type)
+			return nil, false, xprerrors.Errorf("accessing by index a %s field", current.Type)
 		}
 		if current.Items == nil {
-			return nil, xprerrors.New("no items found in array")
+			return nil, false, xprerrors.New("no items found in array")
 		}
 		if s := current.Items.Schema; s != nil {
-			return s, nil
+			return s, false, nil
 		}
 		schemas := current.Items.JSONSchemas
 		if len(schemas) < int(segment.Index) {
-			return nil, xprerrors.Errorf("")
+			return nil, false, xprerrors.Errorf("")
 		}
 
-		return current.Items.Schema, nil
+		return current.Items.Schema, false, nil
 	}
-	return nil, nil
+	return nil, false, nil
 }
