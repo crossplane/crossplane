@@ -26,6 +26,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+      - name: Free space check
+        run: df -h
+
       - name: Checkout
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
         with:
@@ -394,6 +397,9 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_USR }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_PSW }}
           AWS_DEFAULT_REGION: us-east-1
+
+      - name: Free space check
+        run: df -h
 
   fuzz-test:
     runs-on: ubuntu-22.04
