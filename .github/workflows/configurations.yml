@@ -12,7 +12,7 @@ env:
 
 jobs:
   getting-started-with-aws:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
@@ -43,7 +43,7 @@ jobs:
           command: push configuration -f cluster/packages/aws/getting-started-with-aws.xpkg registry.upbound.io/xp/getting-started-with-aws:${{ steps.tagger.outputs.VERSION_TAG }}
 
   getting-started-with-aws-with-vpc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
@@ -72,7 +72,7 @@ jobs:
           command: push configuration -f cluster/packages/aws-with-vpc/getting-started-with-aws-with-vpc.xpkg registry.upbound.io/xp/getting-started-with-aws-with-vpc:${{ steps.tagger.outputs.VERSION_TAG }}
 
   getting-started-with-gcp:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
@@ -101,7 +101,7 @@ jobs:
           command: push configuration -f cluster/packages/gcp/getting-started-with-gcp.xpkg registry.upbound.io/xp/getting-started-with-gcp:${{ steps.tagger.outputs.VERSION_TAG }}
 
   getting-started-with-azure:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3
