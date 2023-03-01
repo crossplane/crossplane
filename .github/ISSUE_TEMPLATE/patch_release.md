@@ -18,31 +18,31 @@ Please assign the release manager to the issue.
 
 This issue can be closed when we have completed the following steps (in order).
 Please ensure all artifacts (PRs, workflow runs, Tweets, etc) are linked from
-this issue for posterity. Refer to this [prior release issue][release-1.7] for
-examples of each step.
+this issue for posterity. Refer to this [prior release issue][release-1.11.1] for
+examples of each step, assuming vX.Y.Z is being cut.
 
-- [ ] Updated all version information in the documentation on the relevant release branch.
-- [ ] Run the [Tag workflow][tag-workflow] on the relevant release branch with the proper release version.
-- [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel..
+- [ ] Run the [Tag workflow][tag-workflow] on the `release-X.Y`branch with the proper release version, `vX.Y.Z`. Message suggested, but not required: `Release vX.Y.Z`.
+- [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel, e.g. `build/release-X.Y/vX.Y.Z/...` should contain all the relevant binaries.
 - [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
   - [ ] `xp/getting-started-with-aws`
-  - [ ] `xp/getting-started-with-with-with-vpc`
+  - [ ] `xp/getting-started-with-aws-with-vpc`
   - [ ] `xp/getting-started-with-azure`
   - [ ] `xp/getting-started-with-gcp`
-- [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel.
-- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes.
-- [ ] Update the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release
+- [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the `release-X.Y` branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel at `stable/vX.Y.Z/...`.
+- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.Y.<Z-1>`, so the previous patch release for the same minor.
+- [ ] Updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack
   - [ ] Twitter
 
 <!-- Named Links -->
-[releases.crossplane.io]: https://releases.crossplane.io
-[xpkg.upbound.io]: https://cloud.upbound.io/browse
-[new release]: https://github.com/crossplane/crossplane/releases/new
-[tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
-[promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
 [crossplane-test-workflows]: https://github.com/crossplane/test/tree/master/.github/workflows
-[release-1.7]: https://github.com/crossplane/crossplane/issues/2977
+[new release]: https://github.com/crossplane/crossplane/releases/new
+[promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
+[release-1.11.1]: https://github.com/crossplane/crossplane/issues/3796
+[releases table]: https://github.com/crossplane/crossplane#releases
+[releases.crossplane.io]: https://releases.crossplane.io
+[tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
+[xpkg.upbound.io]: https://marketplace.upbound.io/configurations?query=getting-started
