@@ -41,7 +41,8 @@ const (
 
 	valTrue = "true"
 
-	suffixStatus = "/status"
+	suffixStatus     = "/status"
+	suffixFinalizers = "/finalizers"
 
 	pluralEvents     = "events"
 	pluralConfigmaps = "configmaps"
@@ -53,6 +54,7 @@ var (
 	verbsEdit   = []string{rbacv1.VerbAll}
 	verbsView   = []string{"get", "list", "watch"}
 	verbsSystem = []string{"get", "list", "watch", "update", "patch", "create"}
+	verbsUpdate = []string{"update"}
 )
 
 // Extra rules that are granted to all provider pods.
@@ -104,6 +106,16 @@ func RenderClusterRoles(pr *v1.ProviderRevision, crds []extv1.CustomResourceDefi
 		})
 	}
 
+	// Provider pods may create Kubernetes secrets containing managed resource connection details.
+	// These secrets are controlled (in the owner reference sense) by the managed resource.
+	// Crossplane needs permission to set finalizers on managed resources in order to create secrets
+	// that block their deletion when the OwnerReferencesPermissionEnforcement admission controller is enabled.
+	ruleFinalizers := rbacv1.PolicyRule{
+		APIGroups: groups,
+		Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+		Verbs:     verbsUpdate,
+	}
+
 	edit := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: namePrefix + pr.GetName() + nameSuffixEdit,
@@ -137,7 +149,7 @@ func RenderClusterRoles(pr *v1.ProviderRevision, crds []extv1.CustomResourceDefi
 	// directly to the service account tha provider runs as.
 	system := &rbacv1.ClusterRole{
 		ObjectMeta: metav1.ObjectMeta{Name: SystemClusterRoleName(pr.GetName())},
-		Rules:      append(append(withVerbs(rules, verbsSystem), rulesSystemExtra...), pr.Status.PermissionRequests...),
+		Rules:      append(append(append(withVerbs(rules, verbsSystem), ruleFinalizers), rulesSystemExtra...), pr.Status.PermissionRequests...),
 	}
 
 	roles := []rbacv1.ClusterRole{*edit, *view, *system}

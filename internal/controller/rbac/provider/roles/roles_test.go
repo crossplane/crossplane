@@ -150,6 +150,11 @@ func TestRenderClusterRoles(t *testing.T) {
 							Resources: []string{pluralCRDC, pluralCRDC + suffixStatus},
 							Verbs:     verbsSystem,
 						},
+						{
+							APIGroups: []string{groupCRDA, groupCRDC},
+							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
 					}, rulesSystemExtra...),
 				},
 			},

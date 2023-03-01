@@ -74,6 +74,11 @@ func TestRenderClusterRoles(t *testing.T) {
 							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsEdit,
 						},
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR + suffixFinalizers},
+							Verbs:     verbsUpdate,
+						},
 					},
 				},
 				{
@@ -157,6 +162,11 @@ func TestRenderClusterRoles(t *testing.T) {
 							APIGroups: []string{group},
 							Resources: []string{pluralXR, pluralXR + suffixStatus},
 							Verbs:     verbsEdit,
+						},
+						{
+							APIGroups: []string{group},
+							Resources: []string{pluralXR + suffixFinalizers},
+							Verbs:     verbsUpdate,
 						},
 						{
 							APIGroups: []string{group},

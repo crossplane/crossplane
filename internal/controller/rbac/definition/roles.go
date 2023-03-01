@@ -48,13 +48,15 @@ const (
 
 	valTrue = "true"
 
-	suffixStatus = "/status"
+	suffixStatus     = "/status"
+	suffixFinalizers = "/finalizers"
 )
 
 var (
 	verbsEdit   = []string{rbacv1.VerbAll}
 	verbsView   = []string{"get", "list", "watch"}
 	verbsBrowse = []string{"get", "list", "watch"}
+	verbsUpdate = []string{"update"}
 )
 
 // RenderClusterRoles returns ClusterRoles for the supplied XRD.
@@ -74,6 +76,17 @@ func RenderClusterRoles(d *v1.CompositeResourceDefinition) []rbacv1.ClusterRole 
 					d.Spec.Names.Plural + suffixStatus,
 				},
 				Verbs: verbsEdit,
+			},
+			{
+				// Crossplane reconciles an XR by creating one or more composed resources.
+				// These composed resources are controlled (in the owner reference sense) by the XR.
+				// Crossplane needs permission to set finalizers on XRs in order to create resources
+				// that block their deletion when the OwnerReferencesPermissionEnforcement admission controller is enabled.
+				APIGroups: []string{d.Spec.Group},
+				Resources: []string{
+					d.Spec.Names.Plural + suffixFinalizers,
+				},
+				Verbs: verbsUpdate,
 			},
 		},
 	}

@@ -25,6 +25,18 @@ rules:
   - get
   - list
   - watch
+# The RBAC manager creates a series of RBAC roles for each namespace it sees.
+# These RBAC roles are controlled (in the owner reference sense) by the namespace.
+# The RBAC manager needs permission to set finalizers on Namespaces in order to
+# create resources that block their deletion when the
+# OwnerReferencesPermissionEnforcement admission controller is enabled.
+# See https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+- apiGroups:
+  - ""
+  resources:
+  - namespaces/finalizers
+  verbs:
+  - update
 - apiGroups:
   - apiextensions.crossplane.io
   resources:
@@ -33,6 +45,18 @@ rules:
   - get
   - list
   - watch
+# The RBAC manager creates a series of RBAC cluster roles for each XRD it sees.
+# These cluster roles are controlled (in the owner reference sense) by the XRD.
+# The RBAC manager needs permission to set finalizers on XRDs in order to
+# create resources that block their deletion when the 
+# OwnerReferencesPermissionEnforcement admission controller is enabled.
+# See https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+- apiGroups:
+  - apiextensions.crossplane.io
+  resources:
+  - compositeresourcedefinitions/finalizers
+  verbs:
+  - update
 - apiGroups:
   - pkg.crossplane.io
   resources:
@@ -41,6 +65,18 @@ rules:
   - get
   - list
   - watch
+# The RBAC manager creates a series of RBAC cluster roles for each ProviderRevision
+# it sees. These cluster roles are controlled (in the owner reference sense) by the
+# ProviderRevision. The RBAC manager needs permission to set finalizers on
+# ProviderRevisions in order to create resources that block their deletion when the 
+# OwnerReferencesPermissionEnforcement admission controller is enabled.
+# See https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#ownerreferencespermissionenforcement
+- apiGroups:
+  - pkg.crossplane.io
+  resources:
+  - providerrevisions/finalizers
+  verbs:
+  - update
 - apiGroups:
   - apiextensions.k8s.io
   resources:
