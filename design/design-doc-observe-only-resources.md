@@ -120,6 +120,10 @@ spec:
     region: us-east-1
 ```
 
+> Note: `spec.forProvider.region` is an identifier field and is required for
+> identifying the resource rather than stating the desired state. See the 
+> [identifier fields](#identifier-fields) section for more details.
+
 ### API Changes - Full State under `status.atProvider`
 
 We will include all the fields in the `spec.forProvider` under the
@@ -286,6 +290,14 @@ age="cidrBlock is a required parameter"
         Status VPCStatus `json:"status,omitempty"`
  }
 ```
+
+##### Identifier Fields
+
+Please note that certain fields are required as identifiers for external
+resources, such as the `region` in AWS VPC or database `instance` in GCP SQL
+Database. These fields are essential for locating the resource in the external
+system. Therefore, they will still be required for `ObserveOnly` resources to
+ensure they are always available.
 
 #### New Import Procedure
 
