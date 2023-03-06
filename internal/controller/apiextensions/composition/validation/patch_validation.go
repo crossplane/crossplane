@@ -216,10 +216,11 @@ func validateFieldPathSegment(current *apiextensions.JSONSchemaProps, segment fi
 		}
 		schemas := current.Items.JSONSchemas
 		if len(schemas) < int(segment.Index) {
-			return nil, false, xprerrors.Errorf("")
+			return nil, false, xprerrors.Errorf("no schemas ")
 		}
 
-		return current.Items.Schema, false, nil
+		// means there is no schema at all for this array
+		return nil, false, nil
 	}
 	return nil, false, nil
 }
