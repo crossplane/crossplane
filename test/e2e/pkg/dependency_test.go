@@ -118,7 +118,7 @@ func TestDependencies(t *testing.T) {
 					Spec: v1.ConfigurationSpec{
 						PackageSpec: v1.PackageSpec{
 							Package:                  configPackage,
-							SkipDependencyResolution: pointer.BoolPtr(true),
+							SkipDependencyResolution: pointer.Bool(true),
 						},
 					},
 				}

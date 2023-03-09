@@ -56,7 +56,7 @@ func TestRejectMixedTemplates(t *testing.T) {
 							// Unnamed.
 						},
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 					},
 				},
@@ -83,10 +83,10 @@ func TestRejectMixedTemplates(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cooler"),
+							Name: pointer.String("cooler"),
 						},
 					},
 				},
@@ -115,10 +115,10 @@ func TestRejectDuplicateNames(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cooler"),
+							Name: pointer.String("cooler"),
 						},
 					},
 				},
@@ -145,10 +145,10 @@ func TestRejectDuplicateNames(t *testing.T) {
 				Spec: v1.CompositionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 						{
-							Name: pointer.StringPtr("cool"),
+							Name: pointer.String("cool"),
 						},
 					},
 				},
@@ -585,13 +585,13 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						FromConnectionSecretKey: pointer.StringPtr("bar"),
+						FromConnectionSecretKey: pointer.String("bar"),
 						Type:                    &fromKey,
 					},
 					{
-						Name:  pointer.StringPtr("fixed"),
+						Name:  pointer.String("fixed"),
 						Type:  &fromVal,
-						Value: pointer.StringPtr("value"),
+						Value: pointer.String("value"),
 					},
 				}},
 			},
@@ -631,21 +631,21 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						FromConnectionSecretKey: pointer.StringPtr("bar"),
+						FromConnectionSecretKey: pointer.String("bar"),
 						Type:                    &fromKey,
 					},
 					{
-						FromConnectionSecretKey: pointer.StringPtr("none"),
+						FromConnectionSecretKey: pointer.String("none"),
 						Type:                    &fromKey,
 					},
 					{
-						Name:                    pointer.StringPtr("convfoo"),
-						FromConnectionSecretKey: pointer.StringPtr("foo"),
+						Name:                    pointer.String("convfoo"),
+						FromConnectionSecretKey: pointer.String("foo"),
 						Type:                    &fromKey,
 					},
 					{
-						Name:  pointer.StringPtr("fixed"),
-						Value: pointer.StringPtr("value"),
+						Name:  pointer.String("fixed"),
+						Value: pointer.String("value"),
 						Type:  &fromVal,
 					},
 				}},
@@ -676,7 +676,7 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Name: pointer.StringPtr("missingvalue"),
+						Name: pointer.String("missingvalue"),
 						Type: &fromVal,
 					},
 				}},
@@ -703,7 +703,7 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Value: pointer.StringPtr("missingname"),
+						Value: pointer.String("missingname"),
 						Type:  &fromVal,
 					},
 				}},
@@ -757,7 +757,7 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Type: &fromField,
-						Name: pointer.StringPtr("missingname"),
+						Name: pointer.String("missingname"),
 					},
 				}},
 			},
@@ -784,7 +784,7 @@ func TestFetch(t *testing.T) {
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
 						Type:          &fromField,
-						FromFieldPath: pointer.StringPtr("fieldpath"),
+						FromFieldPath: pointer.String("fieldpath"),
 					},
 				}},
 			},
@@ -813,8 +813,8 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Name:          pointer.StringPtr("name"),
-						FromFieldPath: pointer.StringPtr("objectMeta.name"),
+						Name:          pointer.String("name"),
+						FromFieldPath: pointer.String("objectMeta.name"),
 						Type:          &fromField,
 					},
 				}},
@@ -846,8 +846,8 @@ func TestFetch(t *testing.T) {
 				},
 				t: v1.ComposedTemplate{ConnectionDetails: []v1.ConnectionDetail{
 					{
-						Name:          pointer.StringPtr("generation"),
-						FromFieldPath: pointer.StringPtr("objectMeta.generation"),
+						Name:          pointer.String("generation"),
+						FromFieldPath: pointer.String("objectMeta.generation"),
 						Type:          &fromField,
 					},
 				}},

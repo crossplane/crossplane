@@ -146,7 +146,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -194,7 +194,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -242,7 +242,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -301,7 +301,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -362,7 +362,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -439,7 +439,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -498,7 +498,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -577,7 +577,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)
@@ -677,7 +677,7 @@ func TestReconcile(t *testing.T) {
 								*l = c
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.Configuration{}
 								want.SetName("test")
 								want.SetGroupVersionKind(v1.ConfigurationGroupVersionKind)

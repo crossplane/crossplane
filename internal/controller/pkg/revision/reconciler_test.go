@@ -254,7 +254,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDeletionTimestamp(&now)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDeletionTimestamp(&now)
@@ -367,7 +367,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -409,7 +409,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -457,7 +457,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -497,7 +497,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -538,7 +538,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -580,7 +580,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -623,7 +623,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -667,7 +667,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -711,7 +711,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -758,7 +758,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -820,7 +820,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -865,7 +865,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(errBoom),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
@@ -914,14 +914,14 @@ func TestReconcile(t *testing.T) {
 								pr := o.(*v1.ProviderRevision)
 								pr.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								pr.SetDesiredState(v1.PackageRevisionActive)
-								pr.SetSkipDependencyResolution(pointer.BoolPtr(false))
+								pr.SetSkipDependencyResolution(pointer.Bool(false))
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
-								want.SetSkipDependencyResolution(pointer.BoolPtr(false))
+								want.SetSkipDependencyResolution(pointer.Bool(false))
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
 								want.SetConditions(v1.UnknownHealth())
 
@@ -935,7 +935,7 @@ func TestReconcile(t *testing.T) {
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
 								want.SetAnnotations(map[string]string{"author": "crossplane"})
-								want.SetSkipDependencyResolution(pointer.BoolPtr(false))
+								want.SetSkipDependencyResolution(pointer.Bool(false))
 								if diff := cmp.Diff(want, o); diff != "" {
 									t.Errorf("-want, +got:\n%s", diff)
 								}
@@ -978,7 +978,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -1040,7 +1040,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -1104,7 +1104,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -1168,7 +1168,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetIgnoreCrossplaneConstraints(&trueVal)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -1234,7 +1234,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionActive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ProviderRevision{}
 								want.SetGroupVersionKind(v1.ProviderRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionActive)
@@ -1298,7 +1298,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionInactive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
@@ -1361,7 +1361,7 @@ func TestReconcile(t *testing.T) {
 								pr.SetDesiredState(v1.PackageRevisionInactive)
 								return nil
 							}),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(o client.Object) error {
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
 								want := &v1.ConfigurationRevision{}
 								want.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								want.SetDesiredState(v1.PackageRevisionInactive)
