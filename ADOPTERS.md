@@ -42,3 +42,4 @@ This list is sorted in the order that organizations were added to it.
 | [Wildlife Studios](https://wildlifestudios.com/) | @kasama | Component that powers an API used to manage infrastructure for a self-service platform for developers |
 | [Autodesk](https://autodesk.com/) | @jessesanford | IaC components and declarative API abstractions for our next generation Autodesk Unified Control Plane. |
 | [Millennium bcp](https://www.millenniumbcp.pt/) | @infbase | Self-service platform for end-to-end application (and dependant resources) lifecycle |
+| [Splash](https://splashthat.com/) | @adrienzieba | Manage our shared infrastructure in EKS and provide a self-service framework for engineers' application resource needs |
