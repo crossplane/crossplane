@@ -22,7 +22,7 @@ serviceAccount:
   customAnnotations: {}
 
 leaderElection: true
-args: {}
+args: []
 
 provider:
   packages: []
@@ -43,7 +43,7 @@ rbacManager:
   replicas: 1
   managementPolicy: All
   leaderElection: true
-  args: {}
+  args: []
   nodeSelector: {}
   tolerations: []
   affinity: {}
@@ -103,7 +103,7 @@ xfn:
     repository: crossplane/xfn
     tag: %%VERSION%%
     pullPolicy: IfNotPresent
-  args: {}
+  args: []
   extraEnvVars: {}
   securityContext:
     runAsUser: 65532
