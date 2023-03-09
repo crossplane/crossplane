@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.7.2-0.20221130112736-919e70103f7a
 	github.com/bufbuild/buf v1.10.0
-	github.com/crossplane/crossplane-runtime v0.19.1
+	github.com/crossplane/crossplane-runtime v0.19.2
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.9.0
