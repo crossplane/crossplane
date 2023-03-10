@@ -159,6 +159,9 @@ spec:
           - mountPath: /webhook/tls
             name: webhook-tls-secret
           {{- end }}
+          {{- if .Values.extraVolumeMountsCrossplane }}
+          {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
+          {{- end }}
       {{- if .Values.xfn.enabled }}
       - image: {{ .Values.xfn.image.repository }}:{{ .Values.xfn.image.tag }}
         args:
@@ -238,6 +241,9 @@ spec:
           # It's assumed that initializer generates this anyway, so it should be
           # fine.
           secretName: webhook-tls-secret
+      {{- end }}
+      {{- if .Values.extraVolumesCrossplane }}
+      {{- toYaml .Values.extraVolumesCrossplane | nindent 6 }}
       {{- end }}
       {{- if .Values.nodeSelector }}
       nodeSelector: {{ toYaml .Values.nodeSelector | nindent 8 }}
