@@ -239,7 +239,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1.Composition) = *comp
 							return nil
 						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
 							*obj.(*v1alpha1.CompositionRevisionList) = v1alpha1.CompositionRevisionList{
 								Items: []v1alpha1.CompositionRevision{
@@ -287,7 +287,7 @@ func TestReconcile(t *testing.T) {
 							*obj.(*v1.Composition) = *comp
 							return nil
 						}),
-						MockStatusUpdate: test.NewMockStatusUpdateFn(nil, func(obj client.Object) error {
+						MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(obj client.Object) error {
 							want := rev2.DeepCopy()
 							want.Status.SetConditions(v1alpha1.CompositionSpecDiffers())
 

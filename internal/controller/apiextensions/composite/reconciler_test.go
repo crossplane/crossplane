@@ -372,7 +372,7 @@ func TestReconcile(t *testing.T) {
 							Resources: []v1.ComposedTemplate{{
 								Patches: []v1.Patch{{
 									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.StringPtr("nonexistent-patchset"),
+									PatchSetName: pointer.String("nonexistent-patchset"),
 								}},
 							}},
 						}}
@@ -568,7 +568,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -618,7 +618,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -671,7 +671,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(errBoom),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, obj client.Object, ao ...resource.ApplyOption) error {
 							// annotation will be set by mock composite render
@@ -731,7 +731,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, obj client.Object, ao ...resource.ApplyOption) error {
 							// annotation will be set by mock composite render
@@ -792,7 +792,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -835,7 +835,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -891,7 +891,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -969,7 +969,7 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockStatusUpdate: test.NewMockStatusUpdateFn(errBoom),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(errBoom),
 						},
 					}),
 				},
@@ -995,7 +995,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -1062,7 +1062,7 @@ func TestReconcile(t *testing.T) {
 						Client: &test.MockClient{
 							MockGet:          test.NewMockGetFn(nil),
 							MockUpdate:       test.NewMockUpdateFn(nil),
-							MockStatusUpdate: test.NewMockStatusUpdateFn(nil),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil),
 						},
 						Applicator: resource.ApplyFn(func(c context.Context, r client.Object, ao ...resource.ApplyOption) error {
 							return nil
@@ -1122,7 +1122,7 @@ func TestReconcile(t *testing.T) {
 			// client mock to preserver the composite data.
 			tc.args.opts = append(tc.args.opts, func(r *Reconciler) {
 				var customGet test.MockGetFn
-				var customStatusUpdate test.MockStatusUpdateFn
+				var customStatusUpdate test.MockSubResourceUpdateFn
 				mockGet := func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 					if o, ok := obj.(*composite.Unstructured); ok && tc.args.composite != nil {
 						tc.args.composite.DeepCopyInto(&o.Unstructured)
@@ -1133,7 +1133,7 @@ func TestReconcile(t *testing.T) {
 					return nil
 				}
 
-				mockStatusUpdate := func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
+				mockStatusUpdate := func(ctx context.Context, obj client.Object, opts ...client.SubResourceUpdateOption) error {
 					if o, ok := obj.(*composite.Unstructured); ok {
 						if tc.args.composite != nil {
 							o.DeepCopyInto(&tc.args.composite.Unstructured)

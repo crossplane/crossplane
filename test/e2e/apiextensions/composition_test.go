@@ -81,7 +81,7 @@ func TestCompositeResourceGetsReady(t *testing.T) {
 					Spec: v1.ProviderSpec{
 						PackageSpec: v1.PackageSpec{
 							Package:                     "crossplane/provider-nop:main",
-							IgnoreCrossplaneConstraints: pointer.BoolPtr(true),
+							IgnoreCrossplaneConstraints: pointer.Bool(true),
 						},
 					},
 				}
@@ -203,7 +203,7 @@ func TestCompositeResourceGetsReady(t *testing.T) {
 
 						Resources: []extv1.ComposedTemplate{
 							{
-								Name: pointer.StringPtr("nopinstance1"),
+								Name: pointer.String("nopinstance1"),
 								Base: runtime.RawExtension{Raw: []byte(`{
 								"apiVersion": "nop.crossplane.io/v1alpha1",
 								"kind": "NopResource",
@@ -240,7 +240,7 @@ func TestCompositeResourceGetsReady(t *testing.T) {
 							}`)},
 							},
 							{
-								Name: pointer.StringPtr("nopinstance2"),
+								Name: pointer.String("nopinstance2"),
 								Base: runtime.RawExtension{Raw: []byte(`{
 									"apiVersion": "nop.crossplane.io/v1alpha1",
 									"kind": "NopResource",
@@ -399,7 +399,7 @@ func TestNopResourcesGetReady(t *testing.T) {
 					Spec: v1.ProviderSpec{
 						PackageSpec: v1.PackageSpec{
 							Package:                     "crossplane/provider-nop:main",
-							IgnoreCrossplaneConstraints: pointer.BoolPtr(true),
+							IgnoreCrossplaneConstraints: pointer.Bool(true),
 						},
 					},
 				}
@@ -521,7 +521,7 @@ func TestNopResourcesGetReady(t *testing.T) {
 
 						Resources: []extv1.ComposedTemplate{
 							{
-								Name: pointer.StringPtr("nopinstance1"),
+								Name: pointer.String("nopinstance1"),
 								Base: runtime.RawExtension{Raw: []byte(`{
 								"apiVersion": "nop.crossplane.io/v1alpha1",
 								"kind": "NopResource",
@@ -558,7 +558,7 @@ func TestNopResourcesGetReady(t *testing.T) {
 							}`)},
 							},
 							{
-								Name: pointer.StringPtr("nopinstance2"),
+								Name: pointer.String("nopinstance2"),
 								Base: runtime.RawExtension{Raw: []byte(`{
 									"apiVersion": "nop.crossplane.io/v1alpha1",
 									"kind": "NopResource",
