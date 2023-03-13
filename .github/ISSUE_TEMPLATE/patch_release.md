@@ -30,9 +30,9 @@ examples of each step, assuming vX.Y.Z is being cut.
   - [ ] `xp/getting-started-with-gcp`
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the `release-X.Y` branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel at `stable/vX.Y.Z/...`.
 - [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.Y.<Z-1>`, so the previous patch release for the same minor.
-- [ ] Updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
+- [ ] Only if cutting a patch for the latest supported release: updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
-  - [ ] Slack
+  - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
   - [ ] Twitter
 
 <!-- Named Links -->
