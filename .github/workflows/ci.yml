@@ -41,14 +41,14 @@ jobs:
         run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-check-diff-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -95,14 +95,14 @@ jobs:
         run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-lint-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-lint-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -141,14 +141,14 @@ jobs:
         run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-check-diff-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-check-diff-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -208,14 +208,14 @@ jobs:
         run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-unit-tests-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-unit-tests-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -268,14 +268,14 @@ jobs:
         run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-e2e-tests-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-e2e-tests-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
@@ -330,14 +330,14 @@ jobs:
         run: echo "::set-output name=cache::$(make go.cachedir)"
 
       - name: Cache the Go Build Cache
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: ${{ steps.go.outputs.cache }}
           key: ${{ runner.os }}-build-publish-artifacts-${{ hashFiles('**/go.sum') }}
           restore-keys: ${{ runner.os }}-build-publish-artifacts-
 
       - name: Cache Go Dependencies
-        uses: actions/cache@940f3d7cf195ba83374c77632d1e2cbb2f24ae68 # v3
+        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3
         with:
           path: .work/pkg
           key: ${{ runner.os }}-pkg-${{ hashFiles('**/go.sum') }}
