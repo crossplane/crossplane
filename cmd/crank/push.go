@@ -18,9 +18,12 @@ package main
 
 import (
 	"os"
+	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
+	v1 "github.com/google/go-containerregistry/pkg/v1"
+	"github.com/google/go-containerregistry/pkg/v1/mutate"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 	"github.com/spf13/afero"
@@ -75,6 +78,13 @@ func (c *pushCmd) Run(child *pushChild, logger logging.Logger) error {
 		logger.Debug("Failed to create image from package tarball", "error", err)
 		return err
 	}
+	createTime := v1.Time{Time: time.Now()}
+	img, err = mutate.CreatedAt(img, createTime)
+	if err != nil {
+		logger.Debug("Failed to mutate image with current timestamp", "error", err)
+		return err
+	}
+
 	if err := remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
 		logger.Debug("Failed to push created image to remote location", "error", err)
 		return err
