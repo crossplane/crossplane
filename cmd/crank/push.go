@@ -18,6 +18,7 @@ package main
 
 import (
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/go-containerregistry/pkg/authn"
@@ -78,11 +79,20 @@ func (c *pushCmd) Run(child *pushChild, logger logging.Logger) error {
 		logger.Debug("Failed to create image from package tarball", "error", err)
 		return err
 	}
-	createTime := v1.Time{Time: time.Now()}
-	img, err = mutate.CreatedAt(img, createTime)
-	if err != nil {
-		logger.Debug("Failed to mutate image with current timestamp", "error", err)
-		return err
+
+	sourceDateEpoch := os.Getenv("SOURCE_DATE_EPOCH")
+	if sourceDateEpoch != "" {
+		sourceDateEpoch, err := strconv.ParseInt(sourceDateEpoch, 10, 64)
+		if err != nil {
+			logger.Debug("Invalid SOURCE_DATE_EPOCH value", "error", err)
+			return err
+		}
+		buildTime := v1.Time{Time: time.Unix(sourceDateEpoch, 0)}
+		img, err = mutate.CreatedAt(img, buildTime)
+		if err != nil {
+			logger.Debug("Failed to mutate image with current timestamp", "error", err)
+			return err
+		}
 	}
 
 	if err := remote.Write(tag, img, remote.WithAuthFromKeychain(authn.DefaultKeychain)); err != nil {
