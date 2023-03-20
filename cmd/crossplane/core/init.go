@@ -69,11 +69,10 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		steps = append(steps,
 			initializer.NewWebhookCertificateGenerator(nn, c.Namespace,
 				log.WithValues("Step", "WebhookCertificateGenerator")),
-			// TODO(ezgidemirel): remove "cluster" prefix
-			initializer.NewCoreCRDs("cluster/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
+			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
 			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {
-		steps = append(steps, initializer.NewCoreCRDs("cluster/crds", s))
+		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
 	}
 
 	if c.ESSGenerateCerts {

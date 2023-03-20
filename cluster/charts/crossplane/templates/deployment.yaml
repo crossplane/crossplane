@@ -92,6 +92,10 @@ spec:
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
           {{- end }}
+          {{- if has "--enable-external-secret-stores" .Values.args }}
+          - name: "ESS_GENERATE_CERTS"
+            value: "true"
+          {{- end }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
@@ -144,6 +148,10 @@ spec:
           - name: "WEBHOOK_TLS_CERT_DIR"
             value: /webhook/tls
           {{- end }}
+          {{- if has "--enable-external-secret-stores" .Values.args }}
+          - name: "ESS_CLIENT_CERTS_SECRET_NAME"
+            value: ess-client-certs
+          {{- end }}
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
@@ -158,6 +166,10 @@ spec:
           {{- if .Values.webhooks.enabled }}
           - mountPath: /webhook/tls
             name: webhook-tls-secret
+          {{- end }}
+          {{- if has "--enable-external-secret-stores" .Values.args }}
+          - mountPath: /ess/tls
+            name: ess-client-certs
           {{- end }}
           {{- if .Values.extraVolumeMountsCrossplane }}
           {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
@@ -241,6 +253,11 @@ spec:
           # It's assumed that initializer generates this anyway, so it should be
           # fine.
           secretName: webhook-tls-secret
+      {{- end }}
+      {{- if has "--enable-external-secret-stores" .Values.args }}
+      - name: ess-client-certs
+        secret:
+          secretName: ess-client-certs
       {{- end }}
       {{- if .Values.extraVolumesCrossplane }}
       {{- toYaml .Values.extraVolumesCrossplane | nindent 6 }}
