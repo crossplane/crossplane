@@ -172,7 +172,7 @@ func ApplyFromFieldPathPatch(p v1.Patch, from, to runtime.Object) error {
 
 	in, err := fieldpath.Pave(fromMap).GetValue(*p.FromFieldPath)
 	if IsOptionalFieldPathNotFound(err, p.Policy) {
-		return nil
+		return removeToFieldValueToObject(*p.ToFieldPath, to)
 	}
 	if err != nil {
 		return err

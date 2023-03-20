@@ -164,6 +164,21 @@ func filter(in map[string]any, keys ...string) map[string]any {
 	return out
 }
 
+func remain(in map[string]any, keys ...string) map[string]any {
+	filter := map[string]bool{}
+	for _, k := range keys {
+		filter[k] = true
+	}
+
+	out := map[string]any{}
+	for k, v := range in {
+		if filter[k] {
+			out[k] = v
+		}
+	}
+	return out
+}
+
 // APIClaimConfigurator configures the supplied claims with fields
 // from the composite. This includes late-initializing spec values
 // and updating status fields in claim.
@@ -188,10 +203,7 @@ func (c *APIClaimConfigurator) Configure(ctx context.Context, cm resource.Compos
 		return nil
 	}
 
-	if err := merge(ucm.Object["status"], ucp.Object["status"],
-		// Status fields from composite overwrite non-empty fields in claim
-		withMergeOptions(mergo.WithOverride),
-		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)); err != nil {
+	if err := mergeStatus(ucm, ucp); err != nil {
 		return errors.Wrap(err, errMergeClaimStatus)
 	}
 
@@ -238,8 +250,9 @@ func (c *APIClaimConfigurator) Configure(ctx context.Context, cm resource.Compos
 }
 
 type mergeConfig struct {
-	mergeOptions []func(*mergo.Config)
-	srcfilter    []string
+	mergeOptions          []func(*mergo.Config)
+	srcfilter             []string
+	srcfilterOptionRemain bool
 }
 
 // withMergeOptions allows custom mergo.Config options
@@ -253,6 +266,15 @@ func withMergeOptions(opts ...func(*mergo.Config)) func(*mergeConfig) {
 func withSrcFilter(keys ...string) func(*mergeConfig) {
 	return func(config *mergeConfig) {
 		config.srcfilter = keys
+		config.srcfilterOptionRemain = false
+	}
+}
+
+// withSrcFilterReverse remain supplied keys from src map before merging
+func withSrcFilterRemain(keys ...string) func(*mergeConfig) {
+	return func(config *mergeConfig) {
+		config.srcfilter = keys
+		config.srcfilterOptionRemain = true
 	}
 }
 
@@ -281,5 +303,28 @@ func merge(dst, src any, opts ...func(*mergeConfig)) error {
 		return errors.New(errUnsupportedSrcObject)
 	}
 
+	if config.srcfilterOptionRemain {
+		return mergo.Merge(&dstMap, remain(srcMap, config.srcfilter...), config.mergeOptions...)
+	}
+
 	return mergo.Merge(&dstMap, filter(srcMap, config.srcfilter...), config.mergeOptions...)
+}
+
+func mergeStatus(dstClaim *claim.Unstructured, srcComposite *composite.Unstructured) error {
+	emptyClaim := claim.New()
+	emptyClaim.Object["status"] = make(map[string]any)
+
+	if err := merge(emptyClaim.Object["status"], dstClaim.Object["status"],
+		withMergeOptions(mergo.WithOverride),
+		withSrcFilterRemain(xcrd.GetPropFields(xcrd.CompositeResourceClaimStatusProps())...)); err != nil {
+		return errors.New(errUnsupportedDstObject)
+	}
+
+	if err := merge(emptyClaim.Object["status"], srcComposite.Object["status"],
+		withMergeOptions(mergo.WithOverride),
+		withSrcFilter(xcrd.GetPropFields(xcrd.CompositeResourceStatusProps())...)); err != nil {
+		return errors.New(errUnsupportedSrcObject)
+	}
+	dstClaim.Object["status"] = emptyClaim.Object["status"]
+	return nil
 }
