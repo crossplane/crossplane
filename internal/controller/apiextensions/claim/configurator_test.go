@@ -668,7 +668,7 @@ func TestClaimConfigure(t *testing.T) {
 							},
 							"status": map[string]any{
 								"previousCoolness": 23,
-								// ubabailableObjects and availableObjects are the same with unavailableReplicas and availaableReplicas
+								// unavailableObjects and availableObjects are the same with unavailableReplicas and availaableReplicas
 								// unavailableReplicas changes to availableReplicas when the pods are all ready.
 								"unavailableObjects": 1,
 								"conditions": []map[string]any{
