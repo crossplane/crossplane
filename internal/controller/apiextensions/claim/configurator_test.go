@@ -718,6 +718,7 @@ func TestClaimConfigure(t *testing.T) {
 							},
 							"status": map[string]any{
 								"previousCoolness": 28,
+								"availableObjects": 1,
 								"conditions": []map[string]any{
 									{
 										"type": "someCondition",
