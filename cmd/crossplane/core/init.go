@@ -41,6 +41,7 @@ type initCommand struct {
 	WebhookServiceName      string `help:"The name of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAME"`
 	WebhookServiceNamespace string `help:"The namespace of the Service object that the webhook service will be run." env:"WEBHOOK_SERVICE_NAMESPACE"`
 	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
+	ESSGenerateCerts        bool   `help:"Generate certificates for External Secret Stores" env:"ESS_GENERATE_CERTS"`
 }
 
 // Run starts the initialization process.
@@ -68,10 +69,17 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		steps = append(steps,
 			initializer.NewWebhookCertificateGenerator(nn, c.Namespace,
 				log.WithValues("Step", "WebhookCertificateGenerator")),
-			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
+			// TODO(ezgidemirel): remove "cluster" prefix
+			initializer.NewCoreCRDs("cluster/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
 			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {
-		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
+		steps = append(steps, initializer.NewCoreCRDs("cluster/crds", s))
+	}
+
+	if c.ESSGenerateCerts {
+		steps = append(steps,
+			initializer.NewESSCertificateGenerator(c.Namespace, initializer.ESSCertificateGeneratorWithLogger(log.WithValues("Step", "ESSCertificateGenerator"))),
+		)
 	}
 
 	steps = append(steps, initializer.NewLockObject(),

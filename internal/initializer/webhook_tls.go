@@ -17,43 +17,31 @@ limitations under the License.
 package initializer
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
-	"crypto/x509/pkix"
-	"encoding/pem"
 	"fmt"
 	"math/big"
 	"time"
-
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
 const (
 	errGetWebhookSecret    = "cannot get webhook tls secret"
 	errUpdateWebhookSecret = "cannot update webhook tls secret"
-	errGenerateCertificate = "cannot generate tls certificate"
 )
-
-// CertificateGenerator can return you TLS certificate valid for given domains.
-type CertificateGenerator interface {
-	Generate(domain ...string) (key []byte, crt []byte, err error)
-}
 
 // WebhookCertificateGeneratorOption is used to configure WebhookCertificateGenerator behavior.
 type WebhookCertificateGeneratorOption func(*WebhookCertificateGenerator)
 
-// WithCertificateGenerator sets the CertificateGenerator that
+// WithWebhookCertificateGenerator sets the CertificateGenerator that
 // WebhookCertificateGenerator uses.
-func WithCertificateGenerator(cg CertificateGenerator) WebhookCertificateGeneratorOption {
+func WithWebhookCertificateGenerator(cg CertificateGenerator) WebhookCertificateGeneratorOption {
 	return func(w *WebhookCertificateGenerator) {
 		w.certificate = cg
 	}
@@ -64,7 +52,7 @@ func NewWebhookCertificateGenerator(nn types.NamespacedName, svcNamespace string
 	w := &WebhookCertificateGenerator{
 		SecretRef:        nn,
 		ServiceNamespace: svcNamespace,
-		certificate:      NewRootCAGenerator(),
+		certificate:      NewCertGenerator(),
 		log:              log,
 	}
 	for _, f := range opts {
@@ -100,7 +88,19 @@ func (wt *WebhookCertificateGenerator) Run(ctx context.Context, kube client.Clie
 		return nil
 	}
 	wt.log.Info("Given tls secret is empty, generating a new tls certificate")
-	key, crt, err := wt.certificate.Generate(fmt.Sprintf("*.%s.svc", wt.ServiceNamespace))
+
+	key, crt, err := wt.certificate.Generate(&x509.Certificate{
+		SerialNumber:          big.NewInt(2022),
+		Subject:               pkixName,
+		Issuer:                pkixName,
+		DNSNames:              []string{fmt.Sprintf("*.%s.svc", wt.ServiceNamespace)},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().AddDate(10, 0, 0),
+		IsCA:                  true,
+		KeyUsage:              x509.KeyUsageCRLSign | x509.KeyUsageCertSign,
+		BasicConstraintsValid: true,
+	}, nil)
+
 	if err != nil {
 		return errors.Wrap(err, errGenerateCertificate)
 	}
@@ -111,67 +111,4 @@ func (wt *WebhookCertificateGenerator) Run(ctx context.Context, kube client.Clie
 	s.Data["tls.crt"] = crt
 
 	return errors.Wrap(kube.Update(ctx, s), errUpdateWebhookSecret)
-}
-
-// NewRootCAGenerator returns a new RootCAGenerator.
-func NewRootCAGenerator() *RootCAGenerator {
-	return &RootCAGenerator{}
-}
-
-// RootCAGenerator generates a root CA and key that can be used by client and
-// servers.
-type RootCAGenerator struct{}
-
-// Generate creates TLS Secret with 10 years expiration date that is valid
-// for the given domains.
-func (*RootCAGenerator) Generate(domains ...string) (key []byte, crt []byte, err error) {
-	ca := &x509.Certificate{
-		SerialNumber: big.NewInt(2022),
-		Subject: pkix.Name{
-			CommonName:   "Crossplane",
-			Organization: []string{"Crossplane"},
-			Country:      []string{"Earth"},
-			Province:     []string{"Earth"},
-			Locality:     []string{"Earth"},
-		},
-		Issuer: pkix.Name{
-			CommonName:   "Crossplane",
-			Organization: []string{"Crossplane"},
-			Country:      []string{"Earth"},
-			Province:     []string{"Earth"},
-			Locality:     []string{"Earth"},
-		},
-		DNSNames:              domains,
-		NotBefore:             time.Now(),
-		NotAfter:              time.Now().AddDate(10, 0, 0),
-		IsCA:                  true,
-		KeyUsage:              x509.KeyUsageCRLSign | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
-	}
-	// NOTE(muvaf): Why 2048 and not 4096? Mainly performance.
-	// See https://www.fastly.com/blog/key-size-for-tls
-	caPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "cannot generate private key")
-	}
-	caBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, &caPrivateKey.PublicKey, caPrivateKey)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "cannot create certificate with key")
-	}
-
-	caPEM := new(bytes.Buffer)
-	if err := pem.Encode(caPEM, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: caBytes,
-	}); err != nil {
-		return nil, nil, errors.Wrap(err, "cannot encode cert into PEM")
-	}
-	caPrivateKeyPEM := new(bytes.Buffer)
-	if err := pem.Encode(caPrivateKeyPEM, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(caPrivateKey),
-	}); err != nil {
-		return nil, nil, errors.Wrap(err, "cannot encode private key into PEM")
-	}
-	return caPrivateKeyPEM.Bytes(), caPEM.Bytes(), nil
 }
