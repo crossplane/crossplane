@@ -380,6 +380,9 @@ type PackageRevision interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetESSTLSSecretName() *string
+	SetESSTLSSecretName(s *string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -512,6 +515,16 @@ func (p *ProviderRevision) GetWebhookTLSSecretName() *string {
 // SetWebhookTLSSecretName of this ProviderRevision.
 func (p *ProviderRevision) SetWebhookTLSSecretName(b *string) {
 	p.Spec.WebhookTLSSecretName = b
+}
+
+// GetESSTLSSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetESSTLSSecretName() *string {
+	return p.Spec.ESSTLSSecretName
+}
+
+// SetESSTLSSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetESSTLSSecretName(s *string) {
+	p.Spec.ESSTLSSecretName = s
 }
 
 // GetCommonLabels of this ProviderRevision.
@@ -654,6 +667,16 @@ func (p *ConfigurationRevision) GetWebhookTLSSecretName() *string {
 // SetWebhookTLSSecretName of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetWebhookTLSSecretName(b *string) {
 	p.Spec.WebhookTLSSecretName = b
+}
+
+// GetESSTLSSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetESSTLSSecretName() *string {
+	return p.Spec.ESSTLSSecretName
+}
+
+// SetESSTLSSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetESSTLSSecretName(s *string) {
+	p.Spec.ESSTLSSecretName = s
 }
 
 // GetCommonLabels of this ConfigurationRevision.

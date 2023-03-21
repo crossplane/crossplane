@@ -151,6 +151,8 @@ spec:
           {{- if has "--enable-external-secret-stores" .Values.args }}
           - name: "ESS_CLIENT_CERTS_SECRET_NAME"
             value: ess-client-certs
+          - name: "ESS_TLS_CERTS_DIR"
+            value: /ess/tls
           {{- end }}
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}

@@ -40,6 +40,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
+	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -96,6 +97,14 @@ func WithWebhookTLSSecretName(n string) ReconcilerOption {
 	}
 }
 
+// WithESSTLSSecretName configures the name of the TLS certificate secret that
+// Reconciler will add to PackageRevisions it creates.
+func WithESSTLSSecretName(s *string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.essTLSSecretName = s
+	}
+}
+
 // WithNewPackageFn determines the type of package being reconciled.
 func WithNewPackageFn(f func() v1.Package) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -146,6 +155,7 @@ type Reconciler struct {
 	log                  logging.Logger
 	record               event.Recorder
 	webhookTLSSecretName *string
+	essTLSSecretName     *string
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -178,6 +188,10 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	}
 	if o.WebhookTLSSecretName != "" {
 		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
+	}
+	if o.ESSOptions != nil && o.ESSOptions.TLSConfig != nil {
+		s := initializer.ESSClientCertSecretName
+		opts = append(opts, WithESSTLSSecretName(&s))
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -373,6 +387,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetSkipDependencyResolution(p.GetSkipDependencyResolution())
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
 	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
+	pr.SetESSTLSSecretName(r.essTLSSecretName)
 	pr.SetCommonLabels(p.GetCommonLabels())
 
 	// If current revision is not active and we have an automatic or

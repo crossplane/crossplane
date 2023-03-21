@@ -27,15 +27,21 @@ const (
 )
 
 const (
-	essCACertSecretName     = "ess-ca-certs"
-	essClientCertSecretName = "ess-client-certs"
-	essServerCertSecretName = "ess-server-certs"
+	// ESSCACertSecretName is the name of the secret that will store CA certificates
+	ESSCACertSecretName = "ess-ca-certs"
+	// ESSClientCertSecretName is the name of the secret that will store client certificates
+	ESSClientCertSecretName = "ess-client-certs"
+	// ESSServerCertSecretName is the name of the secret that will store server certificates
+	ESSServerCertSecretName = "ess-server-certs"
 )
 
 const (
-	secretKeyCACert  = "ca.crt"
-	secretKeyTLSCert = "tls.crt"
-	secretKeyTLSKey  = "tls.key"
+	// SecretKeyCACert is the secret key of CA certificate
+	SecretKeyCACert = "ca.crt"
+	// SecretKeyTLSCert is the secret key of TLS certificate
+	SecretKeyTLSCert = "tls.crt"
+	// SecretKeyTLSKey is the secret key of TLS key
+	SecretKeyTLSKey = "tls.key"
 )
 
 // ESSCertificateGenerator is an initializer step that will find the given secret
@@ -50,6 +56,7 @@ type ESSCertificateGenerator struct {
 // ESSCertificateGeneratorOption is used to configure ESSCertificateGenerator behavior.
 type ESSCertificateGeneratorOption func(*ESSCertificateGenerator)
 
+// ESSCertificateGeneratorWithLogger returns an ESSCertificateGeneratorOption that configures logger
 func ESSCertificateGeneratorWithLogger(log logging.Logger) ESSCertificateGeneratorOption {
 	return func(g *ESSCertificateGenerator) {
 		g.log = log
@@ -79,8 +86,8 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	}
 
 	if err == nil {
-		kd := caSecret.Data[secretKeyTLSKey]
-		cd := caSecret.Data[secretKeyTLSCert]
+		kd := caSecret.Data[SecretKeyTLSKey]
+		cd := caSecret.Data[SecretKeyTLSCert]
 		if len(kd) != 0 && len(cd) != 0 {
 			e.log.Info("ESS CA secret is complete.")
 			return parseCertificateSigner(kd, cd)
@@ -107,8 +114,8 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	caSecret.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, caSecret, func() error {
 		caSecret.Data = map[string][]byte{
-			secretKeyTLSCert: caCrtByte,
-			secretKeyTLSKey:  caKeyByte,
+			SecretKeyTLSCert: caCrtByte,
+			SecretKeyTLSKey:  caKeyByte,
 		}
 		return nil
 	})
@@ -128,7 +135,7 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 	}
 
 	if err == nil {
-		if len(sec.Data[secretKeyCACert]) != 0 && len(sec.Data[secretKeyTLSKey]) != 0 && len(sec.Data[secretKeyTLSCert]) != 0 {
+		if len(sec.Data[SecretKeyCACert]) != 0 && len(sec.Data[SecretKeyTLSKey]) != 0 && len(sec.Data[SecretKeyTLSCert]) != 0 {
 			e.log.Info("ESS secret is complete.", "secret", nn.Name)
 			return nil
 		}
@@ -144,9 +151,9 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 	sec.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, sec, func() error {
 		sec.Data = map[string][]byte{
-			secretKeyTLSCert: certData,
-			secretKeyTLSKey:  keyData,
-			secretKeyCACert:  signer.certificatePEM,
+			SecretKeyTLSCert: certData,
+			SecretKeyTLSKey:  keyData,
+			SecretKeyCACert:  signer.certificatePEM,
 		}
 		return nil
 	})
@@ -157,7 +164,7 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 // Run generates the TLS certificate valid for ESS
 func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) error {
 	signer, err := e.loadOrGenerateCA(ctx, kube, types.NamespacedName{
-		Name:      essCACertSecretName,
+		Name:      ESSCACertSecretName,
 		Namespace: e.namespace,
 	})
 	if err != nil {
@@ -165,7 +172,7 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 	}
 
 	if err := e.ensureCertificateSecret(ctx, kube, types.NamespacedName{
-		Name:      essServerCertSecretName,
+		Name:      ESSServerCertSecretName,
 		Namespace: e.namespace,
 	}, &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
@@ -182,7 +189,7 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 	}
 
 	if err := e.ensureCertificateSecret(ctx, kube, types.NamespacedName{
-		Name:      essClientCertSecretName,
+		Name:      ESSClientCertSecretName,
 		Namespace: e.namespace,
 	}, &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),

@@ -15,6 +15,7 @@ const (
 	errGenerateCertificate = "cannot generate tls certificate"
 )
 
+// CertificateSigner is the parent's certificate and key that will be used to sign the certificate
 type CertificateSigner struct {
 	certificate    *x509.Certificate
 	key            *rsa.PrivateKey

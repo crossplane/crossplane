@@ -96,6 +96,11 @@ type PackageRevisionSpec struct {
 	// More info: http://kubernetes.io/docs/user-guide/labels
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+
+	// ESSTLSSecretName is the secret name of the TLS certificates that will be used
+	// by the provider for External Secret Stores.
+	// +optional
+	ESSTLSSecretName *string `json:"essTLSSecretName,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.
