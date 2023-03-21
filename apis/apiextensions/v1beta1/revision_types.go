@@ -134,7 +134,7 @@ type EnvironmentSourceSelectorLabelMatcher struct {
 // EnvironmentPatch is a patch for a Composition environment.
 type EnvironmentPatch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
-	// its' own fields to be set on the Patch object.
+	// its own fields to be set on the Patch object.
 	// +optional
 	// +kubebuilder:validation:Enum=FromCompositeFieldPath;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
 	// +kubebuilder:default=FromCompositeFieldPath
@@ -356,7 +356,7 @@ const (
 // the composed resource, applying any defined transformers.
 type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
-	// its' own fields to be set on the Patch object.
+	// its own fields to be set on the Patch object.
 	// +optional
 	// +immutable
 	// +kubebuilder:validation:Enum=FromCompositeFieldPath;FromEnvironmentFieldPath;PatchSet;ToCompositeFieldPath;ToEnvironmentFieldPath;CombineFromEnvironment;CombineFromComposite;CombineToComposite;CombineToEnvironment

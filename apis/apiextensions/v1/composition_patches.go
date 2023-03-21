@@ -63,7 +63,7 @@ type PatchPolicy struct {
 // the composed resource, applying any defined transformers.
 type Patch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
-	// its' own fields to be set on the Patch object.
+	// its own fields to be set on the Patch object.
 	// +optional
 	// +kubebuilder:validation:Enum=FromCompositeFieldPath;FromEnvironmentFieldPath;PatchSet;ToCompositeFieldPath;ToEnvironmentFieldPath;CombineFromEnvironment;CombineFromComposite;CombineToComposite;CombineToEnvironment
 	// +kubebuilder:default=FromCompositeFieldPath
