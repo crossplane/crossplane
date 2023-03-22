@@ -58,6 +58,6 @@ func (m *MockVersioner) GetSemVer() (*semver.Version, error) {
 }
 
 // InConstraints calls the underlying MockInConstraints.
-func (m *MockVersioner) InConstraints(c string) (bool, error) {
+func (m *MockVersioner) InConstraints(_ string) (bool, error) {
 	return m.MockInConstraints()
 }

@@ -194,6 +194,6 @@ func (v *ClusterRoleBackedValidator) ValidatePermissionRequests(ctx context.Cont
 
 // VerySecureValidator is a PermissionRequestsValidatorFn that rejects all
 // requested permissions.
-func VerySecureValidator(ctx context.Context, requests ...rbacv1.PolicyRule) ([]Rule, error) {
+func VerySecureValidator(_ context.Context, requests ...rbacv1.PolicyRule) ([]Rule, error) {
 	return Expand(requests...), nil
 }

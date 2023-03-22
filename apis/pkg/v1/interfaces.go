@@ -291,7 +291,7 @@ func (p *Configuration) GetControllerConfigRef() *ControllerConfigReference {
 }
 
 // SetControllerConfigRef of this Configuration.
-func (p *Configuration) SetControllerConfigRef(r *ControllerConfigReference) {}
+func (p *Configuration) SetControllerConfigRef(_ *ControllerConfigReference) {}
 
 // GetCurrentRevision of this Configuration.
 func (p *Configuration) GetCurrentRevision() string {

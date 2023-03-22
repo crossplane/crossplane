@@ -223,16 +223,16 @@ func NewNopFetcher() *NopFetcher {
 }
 
 // Fetch fetches an empty image and does not return error.
-func (n *NopFetcher) Fetch(ctx context.Context, ref name.Reference, secrets ...string) (v1.Image, error) {
+func (n *NopFetcher) Fetch(_ context.Context, _ name.Reference, _ ...string) (v1.Image, error) {
 	return empty.Image, nil
 }
 
 // Head returns a nil descriptor and does not return error.
-func (n *NopFetcher) Head(ctx context.Context, ref name.Reference, secrets ...string) (*v1.Descriptor, error) {
+func (n *NopFetcher) Head(_ context.Context, _ name.Reference, _ ...string) (*v1.Descriptor, error) {
 	return nil, nil
 }
 
 // Tags returns a nil slice and does not return error.
-func (n *NopFetcher) Tags(ctx context.Context, ref name.Reference, secrets ...string) ([]string, error) {
+func (n *NopFetcher) Tags(_ context.Context, _ name.Reference, _ ...string) ([]string, error) {
 	return nil, nil
 }

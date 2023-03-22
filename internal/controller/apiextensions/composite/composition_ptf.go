@@ -972,7 +972,7 @@ func NewConnectionDetailsObserver(e ConnectionDetailsExtractor) *ConnectionDetai
 }
 
 // ObserveComposedResources to extract XR connection details.
-func (o *ConnectionDetailsObserver) ObserveComposedResources(ctx context.Context, s *PTFCompositionState) error {
+func (o *ConnectionDetailsObserver) ObserveComposedResources(_ context.Context, s *PTFCompositionState) error {
 	for _, cd := range s.ComposedResources {
 		ecfgs := append(ExtractConfigsFromTemplate(cd.Template), ExtractConfigsFromDesired(cd.Desired)...)
 		e, err := o.details.ExtractConnection(cd.Resource, cd.ConnectionDetails, ecfgs...)

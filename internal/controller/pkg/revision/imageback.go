@@ -163,7 +163,7 @@ type nestedBackend struct {
 
 // Init is a nop because nestedBackend does not actually meant to act as a
 // parser backend.
-func (n *nestedBackend) Init(ctx context.Context, bo ...parser.BackendOption) (io.ReadCloser, error) {
+func (n *nestedBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.ReadCloser, error) {
 	return nil, nil
 }
 
