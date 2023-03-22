@@ -185,7 +185,7 @@ func NewConfigurationHooks() *ConfigurationHooks {
 }
 
 // Pre sets status fields based on the configuration package.
-func (h *ConfigurationHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ConfigurationHooks) Pre(_ context.Context, _ runtime.Object, _ v1.PackageRevision) error {
 	return nil
 }
 

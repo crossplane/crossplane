@@ -40,7 +40,7 @@ type MockComposer struct {
 	err error
 }
 
-func (c *MockComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+func (c *MockComposer) Compose(_ context.Context, _ resource.Composite, _ CompositionRequest) (CompositionResult, error) {
 	return c.res, c.err
 }
 

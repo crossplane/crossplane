@@ -238,7 +238,7 @@ func TestSort(t *testing.T) {
 	}
 }
 
-func TestDag(t *testing.T) {
+func TestDag(_ *testing.T) {
 	d := NewMapDag()
 	d.AddNode(&simpleNode{identifier: "hi"})
 }

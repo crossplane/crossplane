@@ -133,11 +133,11 @@ func NewMockRemoveSelfFn(err error) func() error {
 	return func() error { return err }
 }
 
-func (m *MockDependencyManager) Resolve(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) (int, int, int, error) {
+func (m *MockDependencyManager) Resolve(_ context.Context, _ runtime.Object, _ v1.PackageRevision) (int, int, int, error) {
 	return m.MockResolve()
 }
 
-func (m *MockDependencyManager) RemoveSelf(ctx context.Context, pr v1.PackageRevision) error {
+func (m *MockDependencyManager) RemoveSelf(_ context.Context, _ v1.PackageRevision) error {
 	return m.MockRemoveSelf()
 }
 

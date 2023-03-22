@@ -70,7 +70,7 @@ type installCmd struct {
 }
 
 // Run runs the install cmd.
-func (c *installCmd) Run(b *buildChild) error {
+func (c *installCmd) Run(_ *buildChild) error {
 	return nil
 }
 

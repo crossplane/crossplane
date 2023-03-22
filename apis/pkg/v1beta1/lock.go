@@ -81,7 +81,7 @@ func (l *LockPackage) Neighbors() []dag.Node {
 // AddNeighbors adds dependencies to a LockPackage. A LockPackage should always
 // have all dependencies declared before being added to the Lock, so we no-op
 // when adding a neighbor.
-func (l *LockPackage) AddNeighbors(nodes ...dag.Node) error {
+func (l *LockPackage) AddNeighbors(_ ...dag.Node) error {
 	return nil
 }
 

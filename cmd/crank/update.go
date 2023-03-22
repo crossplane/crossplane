@@ -29,7 +29,7 @@ type updateCmd struct {
 }
 
 // Run runs the update cmd.
-func (c *updateCmd) Run(b *buildChild) error {
+func (c *updateCmd) Run(_ *buildChild) error {
 	return nil
 }
 

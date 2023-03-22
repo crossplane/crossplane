@@ -225,8 +225,8 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 
 			// Make a copy of the desired object to be populated with existing
 			// object, if it exists.
-			copy := res.DeepCopyObject()
-			current, ok := copy.(client.Object)
+			resCopy := res.DeepCopyObject()
+			current, ok := resCopy.(client.Object)
 			if !ok {
 				return errors.New(errAssertClientObj)
 			}

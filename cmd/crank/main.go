@@ -34,7 +34,7 @@ type versionFlag string
 type verboseFlag bool
 
 // Decode overrides the default string decoder to be a no-op.
-func (v versionFlag) Decode(ctx *kong.DecodeContext) error { return nil }
+func (v versionFlag) Decode(_ *kong.DecodeContext) error { return nil }
 
 // IsBool indicates that this string flag should be treated as a boolean value.
 func (v versionFlag) IsBool() bool { return true }

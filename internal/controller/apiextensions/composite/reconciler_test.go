@@ -724,7 +724,7 @@ func NewComposite(m ...CompositeModifier) *composite.Unstructured {
 }
 
 // A get function that supplies the input XR.
-func WithComposite(t *testing.T, cr *composite.Unstructured) func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+func WithComposite(_ *testing.T, cr *composite.Unstructured) func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 	return func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
 		if o, ok := obj.(*composite.Unstructured); ok {
 			*o = *cr
