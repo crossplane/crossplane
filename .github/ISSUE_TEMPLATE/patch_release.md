@@ -33,13 +33,14 @@ examples of each step, assuming vX.Y.Z is being cut.
 - [ ] Only if cutting a patch for the latest supported release: updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
-  - [ ] Twitter
+  - [ ] Twitter: reach out to a Crossplane maintainer or steering committee member, see [OWNERS.md][owners].
 
 <!-- Named Links -->
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
 [crossplane-test-workflows]: https://github.com/crossplane/test/tree/master/.github/workflows
 [new release]: https://github.com/crossplane/crossplane/releases/new
+[owners]: https://github.com/crossplane/crossplane/blob/master/OWNERS.md
 [promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
 [release-1.11.1]: https://github.com/crossplane/crossplane/issues/3796
 [releases table]: https://github.com/crossplane/crossplane#releases
