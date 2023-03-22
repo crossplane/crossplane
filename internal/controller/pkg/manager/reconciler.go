@@ -40,7 +40,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/controller/pkg/controller"
-	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -190,8 +189,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
 	}
 	if o.ESSOptions != nil && o.ESSOptions.TLSConfig != nil {
-		s := initializer.ESSClientCertSecretName
-		opts = append(opts, WithESSTLSSecretName(&s))
+		opts = append(opts, WithESSTLSSecretName(o.ESSOptions.TLSSecretName))
 	}
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).

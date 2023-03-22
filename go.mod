@@ -7,7 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.7.2-0.20221130112736-919e70103f7a
 	github.com/bufbuild/buf v1.10.0
-	github.com/crossplane/crossplane-runtime v0.19.2
+	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230322150943-cf3c7a09628a
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.9.0
@@ -200,5 +200,3 @@ require (
 	sigs.k8s.io/json v0.0.0-20220713155537-f223a00ba0e2 // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 )
-
-replace github.com/crossplane/crossplane-runtime => github.com/ezgidemirel/crossplane-runtime v0.17.0-rc.0.0.20230321144608-740435b7d8d0

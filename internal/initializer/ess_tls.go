@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -29,10 +30,6 @@ const (
 const (
 	// ESSCACertSecretName is the name of the secret that will store CA certificates
 	ESSCACertSecretName = "ess-ca-certs"
-	// ESSClientCertSecretName is the name of the secret that will store client certificates
-	ESSClientCertSecretName = "ess-client-certs"
-	// ESSServerCertSecretName is the name of the secret that will store server certificates
-	ESSServerCertSecretName = "ess-server-certs"
 )
 
 const (
@@ -48,9 +45,11 @@ const (
 // and fill its tls.crt, tls.key and ca.crt fields to be used for External Secret
 // Store plugins
 type ESSCertificateGenerator struct {
-	namespace   string
-	certificate CertificateGenerator
-	log         logging.Logger
+	namespace        string
+	clientSecretName string
+	serverSecretName string
+	certificate      CertificateGenerator
+	log              logging.Logger
 }
 
 // ESSCertificateGeneratorOption is used to configure ESSCertificateGenerator behavior.
@@ -64,11 +63,13 @@ func ESSCertificateGeneratorWithLogger(log logging.Logger) ESSCertificateGenerat
 }
 
 // NewESSCertificateGenerator returns a new ESSCertificateGenerator.
-func NewESSCertificateGenerator(ns string, opts ...ESSCertificateGeneratorOption) *ESSCertificateGenerator {
+func NewESSCertificateGenerator(ns, clientSecret, serverSecret string, opts ...ESSCertificateGeneratorOption) *ESSCertificateGenerator {
 	e := &ESSCertificateGenerator{
-		namespace:   ns,
-		certificate: NewCertGenerator(),
-		log:         logging.NewNopLogger(),
+		namespace:        ns,
+		clientSecretName: clientSecret,
+		serverSecretName: serverSecret,
+		certificate:      NewCertGenerator(),
+		log:              logging.NewNopLogger(),
 	}
 
 	for _, f := range opts {
@@ -172,12 +173,12 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 	}
 
 	if err := e.ensureCertificateSecret(ctx, kube, types.NamespacedName{
-		Name:      ESSServerCertSecretName,
+		Name:      e.serverSecretName,
 		Namespace: e.namespace,
 	}, &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
-		DNSNames:              []string{"ess-server"},
+		DNSNames:              []string{fmt.Sprintf("*.%s", e.namespace)},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().AddDate(10, 0, 0),
 		IsCA:                  false,
@@ -188,8 +189,8 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 		return err
 	}
 
-	if err := e.ensureCertificateSecret(ctx, kube, types.NamespacedName{
-		Name:      ESSClientCertSecretName,
+	return e.ensureCertificateSecret(ctx, kube, types.NamespacedName{
+		Name:      e.clientSecretName,
 		Namespace: e.namespace,
 	}, &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
@@ -201,11 +202,7 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment | x509.KeyUsageDataEncipherment,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
-	}, signer); err != nil {
-		return err
-	}
-
-	return nil
+	}, signer)
 }
 
 func parseCertificateSigner(key, cert []byte) (*CertificateSigner, error) {

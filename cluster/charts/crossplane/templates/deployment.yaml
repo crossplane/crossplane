@@ -1,3 +1,4 @@
+{{- $externalSecretStoresEnabled := include "crossplane.externalSecretStoresEnabled" . | eq "true" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -92,9 +93,11 @@ spec:
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
           {{- end }}
-          {{- if has "--enable-external-secret-stores" .Values.args }}
-          - name: "ESS_GENERATE_CERTS"
-            value: "true"
+          {{- if $externalSecretStoresEnabled }}
+          - name: "ESS_TLS_CLIENT_SECRET_NAME"
+            value: ess-client-certs
+          - name: "ESS_TLS_SERVER_SECRET_NAME"
+            value: ess-server-certs
           {{- end }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
@@ -148,8 +151,8 @@ spec:
           - name: "WEBHOOK_TLS_CERT_DIR"
             value: /webhook/tls
           {{- end }}
-          {{- if has "--enable-external-secret-stores" .Values.args }}
-          - name: "ESS_CLIENT_CERTS_SECRET_NAME"
+          {{- if $externalSecretStoresEnabled }}
+          - name: "ESS_TLS_SECRET_NAME"
             value: ess-client-certs
           - name: "ESS_TLS_CERTS_DIR"
             value: /ess/tls
@@ -169,7 +172,7 @@ spec:
           - mountPath: /webhook/tls
             name: webhook-tls-secret
           {{- end }}
-          {{- if has "--enable-external-secret-stores" .Values.args }}
+          {{- if $externalSecretStoresEnabled }}
           - mountPath: /ess/tls
             name: ess-client-certs
           {{- end }}
@@ -256,7 +259,7 @@ spec:
           # fine.
           secretName: webhook-tls-secret
       {{- end }}
-      {{- if has "--enable-external-secret-stores" .Values.args }}
+      {{- if $externalSecretStoresEnabled }}
       - name: ess-client-certs
         secret:
           secretName: ess-client-certs

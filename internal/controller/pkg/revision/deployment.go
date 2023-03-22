@@ -181,7 +181,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			Name: essCertsVolumeName,
 			VolumeSource: corev1.VolumeSource{
 				Secret: &corev1.SecretVolumeSource{
-					SecretName: initializer.ESSClientCertSecretName,
+					SecretName: *revision.GetESSTLSSecretName(),
 					Items: []corev1.KeyToPath{
 						// These are known and validated keys in TLS secrets.
 						{Key: initializer.SecretKeyTLSCert, Path: initializer.SecretKeyTLSCert},

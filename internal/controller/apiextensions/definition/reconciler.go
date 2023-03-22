@@ -469,14 +469,15 @@ func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDe
 	if co.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		pc := []managed.ConnectionPublisher{
 			composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys()),
-			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind), d.GetConnectionSecretKeys()),
+			composite.NewSecretStoreConnectionPublisher(connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind,
+				connection.WithTLSConfig(co.ESSOptions.TLSConfig)), d.GetConnectionSecretKeys()),
 		}
 
 		// If external secret stores are enabled we need to support fetching
 		// connection details from both secrets and external stores.
 		fetcher = composite.ConnectionDetailsFetcherChain{
 			composite.NewSecretConnectionDetailsFetcher(c),
-			connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind),
+			connection.NewDetailsManager(c, v1alpha1.StoreConfigGroupVersionKind, connection.WithTLSConfig(co.ESSOptions.TLSConfig)),
 		}
 
 		cc := composite.NewConfiguratorChain(

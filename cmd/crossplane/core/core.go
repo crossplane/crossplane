@@ -18,6 +18,7 @@ limitations under the License.
 package core
 
 import (
+	"path/filepath"
 	"time"
 
 	"github.com/alecthomas/kong"
@@ -78,6 +79,7 @@ type startCommand struct {
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
 	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
+	ESSTLSSecretName string        `help:"The name of the TLS Secret that will be used by the client of External Secret Store plugins and providers." env:"ESS_TLS_SECRET_NAME"`
 	ESSTLSCertsDir   string        `help:"The path of the folder which will store TLS certificates to be used by core Crossplane, External Secret Store plugins and providers." env:"ESS_TLS_CERTS_DIR"`
 
 	EnableCompositionRevisions bool `group:"Beta Features:" help:"Enable support for CompositionRevisions." default:"true"`
@@ -124,10 +126,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		feats.Enable(features.EnableAlphaEnvironmentConfigs)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
 	}
-	if c.EnableExternalSecretStores {
-		feats.Enable(features.EnableAlphaExternalSecretStores)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
-	}
 	if c.EnableCompositionFunctions {
 		feats.Enable(features.EnableAlphaCompositionFunctions)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionFunctions)
@@ -145,14 +143,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		feats.Enable(features.EnableAlphaExternalSecretStores)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 
-		tlsConfig, err := certificates.LoadMTLSConfig(c.ESSTLSCertsDir, initializer.SecretKeyCACert,
-			initializer.SecretKeyTLSCert, initializer.SecretKeyTLSKey, false)
+		tlsConfig, err := certificates.LoadMTLSConfig(filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyCACert),
+			filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyTLSCert), filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyTLSKey), false)
 		if err != nil {
 			return errors.Wrap(err, "Cannot load TLS certificates")
 		}
 
 		o.ESSOptions = &controller.ESSOptions{
-			TLSConfig: tlsConfig,
+			TLSConfig:     tlsConfig,
+			TLSSecretName: &c.ESSTLSSecretName,
 		}
 	}
 
