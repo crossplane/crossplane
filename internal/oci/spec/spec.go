@@ -111,10 +111,10 @@ func New(o ...Option) (*runtime.Spec, error) {
 				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
 			},
 			{
-				Type:        "sysfs",
+				Type:        "bind",
 				Destination: "/sys",
-				Source:      "sysfs",
-				Options:     []string{"nosuid", "noexec", "nodev", "ro"},
+				Source:      "/sys",
+				Options:     []string{"rprivate", "nosuid", "noexec", "nodev", "ro", "rbind"},
 			},
 
 			{
