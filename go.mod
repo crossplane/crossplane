@@ -36,8 +36,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
-require github.com/gogo/googleapis v1.4.1 // indirect
-
 require (
 	cloud.google.com/go/compute v1.6.1 // indirect
 	github.com/Azure/azure-sdk-for-go v64.1.0+incompatible // indirect
@@ -102,6 +100,7 @@ require (
 	github.com/gobuffalo/flect v0.3.0 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect
 	github.com/gofrs/uuid v4.3.1+incompatible // indirect
+	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
