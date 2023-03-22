@@ -66,6 +66,8 @@ func (c *Command) Run() error {
 	}
 
 	f := xfn.NewContainerRunner(xfn.SetUID(setuid), xfn.MapToRoot(rootUID, rootGID), xfn.WithCacheDir(filepath.Clean(c.CacheDir)))
+	fmt.Printf("FunctionIO: %+v\n\n", c.FunctionIO)
+	
 	rsp, err := f.RunFunction(context.Background(), &v1alpha1.RunFunctionRequest{
 		Image: c.Image,
 		Input: c.FunctionIO,
