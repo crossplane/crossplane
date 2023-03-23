@@ -39,6 +39,7 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 * Max Blatt ([MisterMX](https://github.com/MisterMX))
 * Philippe Scorsolini <philippe.scorsolini@upbound.io> ([phisco](https://github.com/phisco))
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
+* Lovro Sviben <lovro.sviben@upbound.io> ([lsviben](https://github.com/lsviben))
 
 ## Emeritus maintainers
 
