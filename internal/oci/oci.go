@@ -96,25 +96,29 @@ func NewVerifier(opts ...Options) (*Verifier, error) {
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		rcerts, err := fulcio.GetRoots()
-		if err != nil {
-			return nil, fmt.Errorf("unable to get Fulcio root certs: %w", err)
-		}
-		checkOpts.RootCerts = rcerts
 
-		icerts, err := fulcio.GetIntermediates()
-		if err != nil {
-			return nil, fmt.Errorf("unable to get Fulcio intermediate certs: %w", err)
-		}
-		checkOpts.IntermediateCerts = icerts
-
-		rc, err := rekor.NewClient(coptions.DefaultRekorURL)
-		if err != nil {
-			return nil, fmt.Errorf("unable to create Rekor client: %w", err)
-		}
-		checkOpts.RekorClient = rc
+		return &Verifier{
+			opts: checkOpts,
+		}, nil
 	}
+
+	rcerts, err := fulcio.GetRoots()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get Fulcio root certs: %w", err)
+	}
+	checkOpts.RootCerts = rcerts
+
+	icerts, err := fulcio.GetIntermediates()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get Fulcio intermediate certs: %w", err)
+	}
+	checkOpts.IntermediateCerts = icerts
+
+	rc, err := rekor.NewClient(coptions.DefaultRekorURL)
+	if err != nil {
+		return nil, fmt.Errorf("unable to create Rekor client: %w", err)
+	}
+	checkOpts.RekorClient = rc
 
 	return &Verifier{
 		opts: checkOpts,
