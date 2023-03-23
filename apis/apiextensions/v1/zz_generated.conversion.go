@@ -244,7 +244,7 @@ func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1beta1ContainerFu
 }
 func (c *GeneratedRevisionSpecConverter) v1ConvertTransformToV1beta1ConvertTransform(source ConvertTransform) v1beta1.ConvertTransform {
 	var v1beta1ConvertTransform v1beta1.ConvertTransform
-	v1beta1ConvertTransform.ToType = source.ToType
+	v1beta1ConvertTransform.ToType = v1beta1.ConvertTransformType(source.ToType)
 	var pV1beta1ConvertTransformFormat *v1beta1.ConvertTransformFormat
 	if source.Format != nil {
 		v1beta1ConvertTransformFormat := v1beta1.ConvertTransformFormat(*source.Format)
@@ -764,7 +764,7 @@ func (c *GeneratedRevisionSpecConverter) v1beta1ContainerFunctionToV1ContainerFu
 }
 func (c *GeneratedRevisionSpecConverter) v1beta1ConvertTransformToV1ConvertTransform(source v1beta1.ConvertTransform) ConvertTransform {
 	var v1ConvertTransform ConvertTransform
-	v1ConvertTransform.ToType = source.ToType
+	v1ConvertTransform.ToType = TransformIOType(source.ToType)
 	var pV1ConvertTransformFormat *ConvertTransformFormat
 	if source.Format != nil {
 		v1ConvertTransformFormat := ConvertTransformFormat(*source.Format)

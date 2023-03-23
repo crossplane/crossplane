@@ -26,11 +26,9 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
-	"strconv"
 	"strings"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -42,16 +40,14 @@ const (
 	errMathNoMultiplier   = "no input is given"
 	errMathInputNonNumber = "input is required to be a number for math transformer"
 
-	errFmtRequiredField                = "%s is required by type %s"
-	errFmtConvertInputTypeNotSupported = "input type %s is not supported"
-	errFmtConversionPairNotSupported   = "conversion from %s to %s is not supported"
-	errFmtTransformAtIndex             = "transform at index %d returned error"
-	errFmtTypeNotSupported             = "transform type %s is not supported"
-	errFmtTransformConfigMissing       = "given transform type %s requires configuration"
-	errFmtTransformTypeFailed          = "%s transform could not resolve"
-	errFmtMapTypeNotSupported          = "type %s is not supported for map transform"
-	errFmtMapNotFound                  = "key %s is not found in map"
-	errFmtMapInvalidJSON               = "value for key %s is not valid JSON"
+	errFmtRequiredField          = "%s is required by type %s"
+	errFmtTransformAtIndex       = "transform at index %d returned error"
+	errFmtTypeNotSupported       = "transform type %s is not supported"
+	errFmtTransformConfigMissing = "given transform type %s requires configuration"
+	errFmtTransformTypeFailed    = "%s transform could not resolve"
+	errFmtMapTypeNotSupported    = "type %s is not supported for map transform"
+	errFmtMapNotFound            = "key %s is not found in map"
+	errFmtMapInvalidJSON         = "value for key %s is not valid JSON"
 
 	errFmtMatchPattern            = "cannot match pattern at index %d"
 	errFmtMatchParseResult        = "cannot parse result of pattern at index %d"
@@ -68,8 +64,8 @@ const (
 	errStringTransformTypeRegexpFailed  = "could not compile regexp"
 	errStringTransformTypeRegexpNoMatch = "regexp %q had no matches for group %d"
 	errStringConvertTypeFailed          = "type %s is not supported for string convert"
+	errFmtConvertInputTypeNotSupported  = "invalid input type %T"
 
-	errConvertFormatNotSupported     = "unsupported convert format %s"
 	errConvertFormatPairNotSupported = "conversion from %s to %s is not supported with format %s"
 
 	errDecodeString = "string is not valid base64"
@@ -79,7 +75,6 @@ const (
 
 // Resolve the supplied Transform.
 func Resolve(t v1.Transform, input any) (any, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
-
 	var out any
 	var err error
 
@@ -222,37 +217,34 @@ func unmarshalJSON(j extv1.JSON, output *any) error {
 }
 
 // ResolveString resolves a String transform.
-func ResolveString(t v1.StringTransform, input any) (any, error) {
+func ResolveString(t v1.StringTransform, input any) (string, error) {
 	switch t.Type {
 	case v1.StringTransformTypeFormat:
 		if t.Format == nil {
-			return nil, errors.Errorf(errStringTransformTypeFormat, string(t.Type))
+			return "", errors.Errorf(errStringTransformTypeFormat, string(t.Type))
 		}
 		return fmt.Sprintf(*t.Format, input), nil
 	case v1.StringTransformTypeConvert:
 		if t.Convert == nil {
-			return nil, errors.Errorf(errStringTransformTypeConvert, string(t.Type))
+			return "", errors.Errorf(errStringTransformTypeConvert, string(t.Type))
 		}
-		return stringConvertTransform(input, t.Convert)
-
+		return stringConvertTransform(t.Convert, input)
 	case v1.StringTransformTypeTrimPrefix, v1.StringTransformTypeTrimSuffix:
 		if t.Trim == nil {
-			return nil, errors.Errorf(errStringTransformTypeTrim, string(t.Type))
+			return "", errors.Errorf(errStringTransformTypeTrim, string(t.Type))
 		}
 		return stringTrimTransform(input, t.Type, *t.Trim), nil
 	case v1.StringTransformTypeRegexp:
 		if t.Regexp == nil {
-			return nil, errors.Errorf(errStringTransformTypeRegexp, string(t.Type))
+			return "", errors.Errorf(errStringTransformTypeRegexp, string(t.Type))
 		}
 		return stringRegexpTransform(input, *t.Regexp)
 	default:
-		return nil, errors.Errorf(errStringTransformTypeFailed, string(t.Type))
+		return "", errors.Errorf(errStringTransformTypeFailed, string(t.Type))
 	}
 }
 
-// TODO(negz): Flip args.
-
-func stringConvertTransform(input any, t *v1.StringConversionType) (any, error) {
+func stringConvertTransform(t *v1.StringConversionType, input any) (string, error) {
 	str := fmt.Sprintf("%v", input)
 	switch *t {
 	case v1.StringConversionTypeToUpper:
@@ -277,7 +269,7 @@ func stringConvertTransform(input any, t *v1.StringConversionType) (any, error) 
 		hash, err := stringGenerateHash(input, sha512.Sum512)
 		return hex.EncodeToString(hash[:]), errors.Wrap(err, errHash)
 	default:
-		return nil, errors.Errorf(errStringConvertTypeFailed, *t)
+		return "", errors.Errorf(errStringConvertTypeFailed, *t)
 	}
 }
 
@@ -301,10 +293,10 @@ func stringTrimTransform(input any, t v1.StringTransformType, trim string) strin
 	return str
 }
 
-func stringRegexpTransform(input any, r v1.StringTransformRegexp) (any, error) {
+func stringRegexpTransform(input any, r v1.StringTransformRegexp) (string, error) {
 	re, err := regexp.Compile(r.Match)
 	if err != nil {
-		return nil, errors.Wrap(err, errStringTransformTypeRegexpFailed)
+		return "", errors.Wrap(err, errStringTransformTypeRegexpFailed)
 	}
 
 	groups := re.FindStringSubmatch(fmt.Sprintf("%v", input))
@@ -312,107 +304,22 @@ func stringRegexpTransform(input any, r v1.StringTransformRegexp) (any, error) {
 	// Return the entire match (group zero) by default.
 	g := pointer.IntDeref(r.Group, 0)
 	if len(groups) == 0 || g >= len(groups) {
-		return nil, errors.Errorf(errStringTransformTypeRegexpNoMatch, r.Match, g)
+		return "", errors.Errorf(errStringTransformTypeRegexpNoMatch, r.Match, g)
 	}
 
 	return groups[g], nil
 }
 
-type conversionPair struct {
-	From   string
-	To     string
-	Format v1.ConvertTransformFormat
-}
-
-// The unparam linter is complaining that these functions always return a nil
-// error, but we need this to be the case given some other functions in the map
-// may return an error.
-var conversions = map[conversionPair]func(any) (any, error){
-	{From: v1.ConvertTransformTypeString, To: v1.ConvertTransformTypeInt64, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseInt(i.(string), 10, 64)
-	},
-	{From: v1.ConvertTransformTypeString, To: v1.ConvertTransformTypeBool, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseBool(i.(string))
-	},
-	{From: v1.ConvertTransformTypeString, To: v1.ConvertTransformTypeFloat64, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseFloat(i.(string), 64)
-	},
-	{From: v1.ConvertTransformTypeString, To: v1.ConvertTransformTypeFloat64, Format: v1.ConvertTransformFormatQuantity}: func(i any) (any, error) {
-		q, err := resource.ParseQuantity(i.(string))
-		if err != nil {
-			return nil, err
-		}
-		return q.AsApproximateFloat64(), nil
-	},
-	{From: v1.ConvertTransformTypeInt64, To: v1.ConvertTransformTypeString, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatInt(i.(int64), 10), nil
-	},
-	{From: v1.ConvertTransformTypeInt64, To: v1.ConvertTransformTypeBool, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return i.(int64) == 1, nil
-	},
-	{From: v1.ConvertTransformTypeInt64, To: v1.ConvertTransformTypeFloat64, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return float64(i.(int64)), nil
-	},
-
-	{From: v1.ConvertTransformTypeBool, To: v1.ConvertTransformTypeString, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatBool(i.(bool)), nil
-	},
-	{From: v1.ConvertTransformTypeBool, To: v1.ConvertTransformTypeInt64, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		if i.(bool) {
-			return int64(1), nil
-		}
-		return int64(0), nil
-	},
-	{From: v1.ConvertTransformTypeBool, To: v1.ConvertTransformTypeFloat64, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		if i.(bool) {
-			return float64(1), nil
-		}
-		return float64(0), nil
-	},
-	{From: v1.ConvertTransformTypeFloat64, To: v1.ConvertTransformTypeString, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
-	},
-	{From: v1.ConvertTransformTypeFloat64, To: v1.ConvertTransformTypeInt64, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return int64(i.(float64)), nil
-	},
-	{From: v1.ConvertTransformTypeFloat64, To: v1.ConvertTransformTypeBool, Format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return i.(float64) == float64(1), nil
-	},
-}
-
-// ResolveConvert resolves a Convert transform.
+// ResolveConvert resolves a Convert transform by looking up the appropriate
+// conversion function for the given input type and invoking it.
 func ResolveConvert(t v1.ConvertTransform, input any) (any, error) {
-	from := reflect.TypeOf(input).Kind().String()
-	if from == v1.ConvertTransformTypeInt {
-		from = v1.ConvertTransformTypeInt64
+	from := v1.TransformIOType(reflect.TypeOf(input).Kind().String())
+	if !from.IsValid() {
+		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, input)
 	}
-	to := t.ToType
-	if to == v1.ConvertTransformTypeInt {
-		to = v1.ConvertTransformTypeInt64
-	}
-
-	format := v1.ConvertTransformFormatNone
-	if t.Format != nil {
-		format = *t.Format
-	}
-	switch format {
-	case v1.ConvertTransformFormatNone, v1.ConvertTransformFormatQuantity:
-		break
-	default:
-		return nil, errors.Errorf(errConvertFormatNotSupported, string(format))
-	}
-
-	switch from {
-	case to:
-		return input, nil
-	case v1.ConvertTransformTypeString, v1.ConvertTransformTypeBool, v1.ConvertTransformTypeInt64, v1.ConvertTransformTypeFloat64:
-		break
-	default:
-		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf(input).Kind().String())
-	}
-	f, ok := conversions[conversionPair{From: from, To: to, Format: format}]
-	if !ok {
-		return nil, errors.Errorf(errConvertFormatPairNotSupported, reflect.TypeOf(input).Kind().String(), t.ToType, string(format))
+	f, err := t.GetConversionFunc(from)
+	if err != nil {
+		return nil, err
 	}
 	return f(input)
 }
