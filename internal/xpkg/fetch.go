@@ -335,7 +335,7 @@ func (n *NopFetcher) Fetch(_ context.Context, _ name.Reference, _ ...string) (v1
 }
 
 // FetchAndVerify fetches an empty image and does not return error.
-func (n *NopFetcher) FetchAndVerify(ctx context.Context, ref name.Reference, psvm string, psvs []string, secrets ...string) (v1.Image, error) {
+func (n *NopFetcher) FetchAndVerify(_ context.Context, _ name.Reference, _ string, _ []string, _ ...string) (v1.Image, error) {
 	return empty.Image, nil
 }
 

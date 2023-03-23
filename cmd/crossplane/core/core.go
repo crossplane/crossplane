@@ -79,9 +79,9 @@ type startCommand struct {
 
 	EnableCompositionRevisions bool `group:"Beta Features:" help:"Enable support for CompositionRevisions." default:"true"`
 
-	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
-	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableCompositionFunctions bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
+	EnableEnvironmentConfigs           bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
+	EnableExternalSecretStores         bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableCompositionFunctions         bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
 	EnablePackageSignatureVerification bool `group:"Alpha Features:" help:"Enables support for verification of package."`
 }
 

@@ -98,7 +98,7 @@ func (m *MockFetcher) Fetch(_ context.Context, _ name.Reference, _ ...string) (v
 }
 
 // FetchAndVerify calls the underlying MockFetchAndVerify.
-func (m *MockFetcher) FetchAndVerify(ctx context.Context, ref name.Reference, psvm string, psvs []string, secrets ...string) (v1.Image, error) {
+func (m *MockFetcher) FetchAndVerify(_ context.Context, _ name.Reference, _ string, _ []string, _ ...string) (v1.Image, error) {
 	return m.MockFetchAndVerify()
 }
 
