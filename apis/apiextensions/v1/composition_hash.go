@@ -24,7 +24,7 @@ import (
 )
 
 // Hash of the Composition.
-func (c Composition) Hash() string {
+func (c *Composition) Hash() string {
 	h := sha256.New()
 
 	// I believe marshaling errors should be impossible given we're

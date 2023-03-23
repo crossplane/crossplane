@@ -20,6 +20,8 @@ package core
 import (
 	"time"
 
+	"github.com/crossplane/crossplane/pkg/validation/apiextensions/v1/composition"
+
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/afero"
@@ -174,6 +176,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.
 		if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
+			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+		}
+		validator := composition.CustomValidator{}
+		if err := validator.SetupWithManager(mgr); err != nil {
+			return err
+		}
+		if err := (&apiextensionsv1.Composition{}).SetupWebhookWithManager(mgr, &validator); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
 		}
 	}

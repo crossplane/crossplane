@@ -17,6 +17,12 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+
+	"github.com/crossplane/crossplane/pkg/validation/errors"
+
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
@@ -34,6 +40,8 @@ const (
 	PatchTypeCombineFromComposite     PatchType = "CombineFromComposite"
 	PatchTypeCombineToComposite       PatchType = "CombineToComposite"
 	PatchTypeCombineToEnvironment     PatchType = "CombineToEnvironment"
+
+	PatchTypeDefault = PatchTypeFromCompositeFieldPath
 )
 
 // A FromFieldPathPolicy determines how to patch from a field path.
@@ -98,6 +106,59 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// GetFromFieldPath returns the FromFieldPath for this Patch, or an empty string if it is nil.
+func (p *Patch) GetFromFieldPath() string {
+	if p.FromFieldPath == nil {
+		return ""
+	}
+	return *p.FromFieldPath
+}
+
+// GetToFieldPath returns the ToFieldPath for this Patch, or an empty string if it is nil.
+func (p *Patch) GetToFieldPath() string {
+	if p.ToFieldPath == nil {
+		return ""
+	}
+	return *p.ToFieldPath
+}
+
+// GetType returns the patch type. If the type is not set, it returns the default type.
+func (p *Patch) GetType() PatchType {
+	if p.Type == "" {
+		return PatchTypeDefault
+	}
+	return p.Type
+}
+
+// Validate the Patch object.
+func (p *Patch) Validate() *field.Error {
+	switch p.GetType() {
+	case PatchTypeFromCompositeFieldPath, PatchTypeFromEnvironmentFieldPath, PatchTypeToCompositeFieldPath, PatchTypeToEnvironmentFieldPath:
+		if p.FromFieldPath == nil {
+			return field.Required(field.NewPath("fromFieldPath"), fmt.Sprintf("fromFieldPath must be set for patch type %s", p.Type))
+		}
+	case PatchTypePatchSet:
+		if p.PatchSetName == nil {
+			return field.Required(field.NewPath("patchSetName"), fmt.Sprintf("patchSetName must be set for patch type %s", p.Type))
+		}
+	case PatchTypeCombineFromEnvironment, PatchTypeCombineFromComposite, PatchTypeCombineToComposite, PatchTypeCombineToEnvironment:
+		if p.Combine == nil {
+			return field.Required(field.NewPath("combine"), fmt.Sprintf("combine must be set for patch type %s", p.Type))
+		}
+		if p.ToFieldPath == nil {
+			return field.Required(field.NewPath("toFieldPath"), fmt.Sprintf("toFieldPath must be set for patch type %s", p.Type))
+		}
+
+	}
+	for i, transform := range p.Transforms {
+		if err := transform.Validate(); err != nil {
+			return errors.WrapFieldError(err, field.NewPath("transforms").Index(i))
+		}
+	}
+
+	return nil
 }
 
 // A CombineVariable defines the source of a value that is combined with

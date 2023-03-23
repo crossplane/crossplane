@@ -22,6 +22,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -153,6 +158,50 @@ type ComposedTemplate struct {
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
+// GetBaseObject returns the base object of the composed template.
+// Uses the cached object if it is available, or parses the raw Base
+// otherwise. The returned object is a deep copy.
+func (ct *ComposedTemplate) GetBaseObject() (client.Object, error) {
+	if err := ct.initBaseObject(); err != nil {
+		return nil, err
+	}
+	if ct, ok := ct.Base.Object.(client.Object); ok {
+		return ct.DeepCopyObject().(client.Object), nil
+	}
+	return nil, errors.New("base object is not a client.Object")
+}
+
+// InitBaseObject parses the raw base and sets the base object.
+func (ct *ComposedTemplate) initBaseObject() error {
+	if ct.Base.Object != nil {
+		return nil
+	}
+	cd, err := composed.ParseToUnstructured(ct.Base.Raw)
+	if err != nil {
+		return errors.Wrap(err, "cannot parse base")
+	}
+	ct.Base.Object = cd
+	return nil
+}
+
+// GetName returns the name of the composed template or an empty string if it is nil.
+func (ct *ComposedTemplate) GetName() string {
+	if ct.Name != nil {
+		return *ct.Name
+	}
+	return ""
+}
+
+// GetObjectGVK returns the object GVK of the composed template.
+// Uses the cached object if it is available, or parses the raw Base
+// otherwise.
+func (ct *ComposedTemplate) GetObjectGVK() (schema.GroupVersionKind, error) {
+	if err := ct.initBaseObject(); err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	return ct.Base.Object.GetObjectKind().GroupVersionKind(), nil
+}
+
 // ReadinessCheckType is used for readiness check types.
 type ReadinessCheckType string
 
@@ -163,6 +212,16 @@ const (
 	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
 	ReadinessCheckTypeNone         ReadinessCheckType = "None"
 )
+
+// IsValid returns nil if the readiness check type is valid, or an error otherwise.
+func (t *ReadinessCheckType) IsValid() error {
+	switch *t {
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeNone:
+		return nil
+	default:
+		return errors.Errorf("invalid readiness check type %q", *t)
+	}
+}
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
@@ -186,6 +245,34 @@ type ReadinessCheck struct {
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	// +optional
 	MatchInteger int64 `json:"matchInteger,omitempty"`
+}
+
+// Validate checks if the readiness check is logically valid.
+func (r *ReadinessCheck) Validate() *field.Error {
+	if r.Type.IsValid() != nil {
+		return field.Invalid(field.NewPath("type"), string(r.Type), "invalid readiness check type")
+	}
+	switch r.Type {
+	case ReadinessCheckTypeNone:
+		return nil
+	// NOTE: ComposedTemplate doesn't use pointer values for optional
+	// strings, so today the empty string and 0 are equivalent to "unset".
+	case ReadinessCheckTypeMatchString:
+		if r.MatchString == "" {
+			return field.Required(field.NewPath("matchString"), "cannot be empty for type MatchString")
+		}
+	case ReadinessCheckTypeMatchInteger:
+		if r.MatchInteger == 0 {
+			return field.Required(field.NewPath("matchInteger"), "cannot be 0 for type MatchInteger")
+		}
+	case ReadinessCheckTypeNonEmpty:
+		// No validation needed.
+	}
+	if r.FieldPath == "" {
+		return field.Required(field.NewPath("fieldPath"), "cannot be empty")
+	}
+
+	return nil
 }
 
 // A ConnectionDetailType is a type of connection detail.
@@ -257,6 +344,17 @@ type Function struct {
 	// Container configuration of this function.
 	// +optional
 	Container *ContainerFunction `json:"container,omitempty"`
+}
+
+// Validate this Function.
+func (f *Function) Validate() *field.Error {
+	if f.Type == FunctionTypeContainer {
+		if f.Container == nil {
+			return field.Required(field.NewPath("container"), "cannot be empty for type Container")
+		}
+		return nil
+	}
+	return field.Required(field.NewPath("type"), "the only supported type is Container")
 }
 
 // A FunctionType is a type of Composition Function.
