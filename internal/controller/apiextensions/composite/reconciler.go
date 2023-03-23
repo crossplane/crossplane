@@ -406,6 +406,11 @@ type Reconciler struct {
 	pollInterval time.Duration
 }
 
+// GetClient returns the client used by this reconciler.
+func (r *Reconciler) GetClient() client.Client {
+	return r.client
+}
+
 // Reconcile a composite resource.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcile methods are often very complex. Be wary.
 	log := r.log.WithValues("request", req)

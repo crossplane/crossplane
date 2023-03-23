@@ -20,6 +20,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
@@ -36,6 +38,8 @@ type Validator struct {
 	logicalValidation     func(*v1.Composition) field.ErrorList
 	crdGetter             CRDGetter
 	shouldRenderResources func(*v1.Composition) bool
+
+	reconciler *composite.Reconciler
 }
 
 // CRDGetter is used to get all CRDs the Validator needs, either one by one or all at once.
@@ -137,9 +141,14 @@ func (v *Validator) Validate(
 		v.validatePatchesWithSchemas,
 		v.validateConnectionDetailsWithSchemas,
 		v.validateReadinessCheckWithSchemas,
-		// TODO(phisco): v.renderAndValidateResources,
 	} {
 		errs = append(errs, f(ctx, comp)...)
 	}
-	return errs
+
+	// we don't need to render resources if there are already errors
+	if len(errs) != 0 {
+		return errs
+	}
+
+	return v.renderAndValidateResources(ctx, comp)
 }

@@ -295,9 +295,8 @@ func TestClientValidator_ValidateCreate(t *testing.T) {
 				obj:          buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
 			},
 		}, {
-			name: "Should accept a Composition not defining a required field in a resource if validation mode is strict and all CRDs are found",
-			// TODO(phisco): this will be rejected once we start validating the rendered resources against the CRDs provided
-			wantErr: false,
+			name:    "Should reject a Composition not defining a required field in a resource if validation mode is strict and all CRDs are found",
+			wantErr: true,
 			args: args{
 				existingObjs: defaultCRDs(),
 				obj:          buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil),

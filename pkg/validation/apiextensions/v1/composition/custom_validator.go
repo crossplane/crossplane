@@ -25,8 +25,15 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	"github.com/crossplane/crossplane/apis"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	"github.com/crossplane/crossplane/pkg/validation"
 
 	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
@@ -113,10 +120,19 @@ func (c *CustomValidator) Validate(ctx context.Context, obj runtime.Object) ([]s
 	}
 
 	// from here on we should refactor the code to allow using it from linters/Lsp
+	scheme := runtime.NewScheme()
+	_ = extv1.AddToScheme(scheme)
+	_ = apis.AddToScheme(scheme)
+	fakeClient := validation.NewFakeClient(scheme)
 	v, err := NewValidator(
 		WithCRDGetterFromMap(gvkToCRDs),
 		// We disable logical Validation as this has already been done above
 		WithoutLogicalValidation(),
+		WithReconciler(composite.NewReconcilerFromClient(
+			fakeClient,
+			resource.CompositeKind(schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion, comp.Spec.CompositeTypeRef.Kind)),
+			// We disable validation as it's already run as first thing in this function
+			composite.WithCompositionValidator(func(in *v1.Composition) field.ErrorList { return nil }))),
 	)
 	if err != nil {
 		return warns, apierrors.NewInternalError(err)
