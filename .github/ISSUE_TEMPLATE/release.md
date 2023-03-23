@@ -41,8 +41,8 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] The `baseBranches` list in `.github/renovate.json5`, removing the now old unsupported release and adding the new one.
 - [ ] Updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
-  - [ ] Slack
-  - [ ] Twitter
+  - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
+  - [ ] Twitter: reach out to a Crossplane maintainer or steering committee member, see [OWNERS.md][owners].
 - [ ] Request @jbw976 to remove the EOL docs version from Google Search
 
 
@@ -53,6 +53,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [crossplane-test-workflows]: https://github.com/crossplane/test/tree/master/.github/workflows
 [docs release issue]: https://github.com/crossplane/docs/issues/new?assignees=&labels=release&template=new_release.md&title=Release+Crossplane+version...+
 [new release]: https://github.com/crossplane/crossplane/releases/new
+[owners]: https://github.com/crossplane/crossplane/blob/master/OWNERS.md
 [promote-workflow]: https://github.com/crossplane/crossplane/actions/workflows/promote.yml
 [release-1.11.0]: https://github.com/crossplane/crossplane/issues/3600
 [releases table]: https://github.com/crossplane/crossplane#releases
