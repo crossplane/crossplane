@@ -20,15 +20,15 @@ import (
 	"context"
 	"fmt"
 
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
-	xpschema "github.com/crossplane/crossplane/pkg/validation/schema"
-
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
+	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
+	xpschema "github.com/crossplane/crossplane/pkg/validation/schema"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
@@ -229,6 +229,11 @@ func validateTransformsIOTypes(transforms []v1.Transform, fromType, toType xpsch
 	return nil
 }
 
+// validateFieldPath validates the given fieldPath is valid for the given schema.
+// It returns the type of the fieldPath and whether it is required, or any error.
+// If the returned type is "", but without error, it means the fieldPath is accepted by the schema, but not defined in it.
+//
+//nolint:gocyclo // TODO(phisco): refactor this function
 func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) (fieldType xpschema.KnownJSONType, required bool, err error) {
 	if fieldPath == "" {
 		return "", false, nil
@@ -237,38 +242,49 @@ func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) 
 	if err != nil {
 		return "", false, err
 	}
-	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" {
+	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" &&
+		isMissingMetadataSchema(schema) {
 		segments = segments[1:]
 		schema = &metadataSchema
 	}
 	current := schema
+	if len(segments) > 0 {
+		required = true
+	}
 	for _, segment := range segments {
-		var err error
-		current, required, err = validateFieldPathSegment(current, segment)
+		currentSegment, segmentRequired, err := validateFieldPathSegment(current, segment)
 		if err != nil {
 			return "", false, err
 		}
-		if current == nil {
+		if currentSegment == nil {
 			return "", false, nil
 		}
+		current = currentSegment
+		required = required && segmentRequired
 	}
 
 	if !xpschema.IsKnownJSONType(current.Type) {
 		return "", false, fmt.Errorf("field path %q has an unsupported type %q", fieldPath, current.Type)
 	}
 	return xpschema.KnownJSONType(current.Type), required, nil
+}
 
+func isMissingMetadataSchema(schema *apiextensions.JSONSchemaProps) bool {
+	if schema == nil || schema.Properties == nil {
+		return true
+	}
+	m, defined := schema.Properties["metadata"]
+	if !defined || m.Properties == nil || len(m.Properties) == 0 {
+		return true
+	}
+	return false
 }
 
 // validateFieldPathSegment validates that the given field path segment is valid for the given schema.
 // It returns the schema for the segment, whether the segment is required, and an error if the segment is invalid.
 //
 //nolint:gocyclo // TODO(phisco): refactor this function, add test cases
-func validateFieldPathSegment(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (
-	current *apiextensions.JSONSchemaProps,
-	required bool,
-	err error,
-) {
+func validateFieldPathSegment(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (current *apiextensions.JSONSchemaProps, required bool, err error) {
 	if parent == nil {
 		return nil, false, nil
 	}
@@ -308,8 +324,13 @@ func validateFieldPathSegment(parent *apiextensions.JSONSchemaProps, segment fie
 		if parent.Items == nil {
 			return nil, false, errors.New("no items found in array")
 		}
+		// if there is a limit on max items and the index is above that, return an error
+		if parent.MaxItems != nil && *parent.MaxItems < int64(segment.Index) {
+			return nil, false, errors.Errorf("index is above the allowed size of the array: %d > %d", segment.Index, *parent.MaxItems)
+		}
 		if s := parent.Items.Schema; s != nil {
-			return s, false, nil
+			// return required if the array has a schema and a minimum size
+			return s, parent.MinItems != nil && *parent.MinItems > 0, nil
 		}
 		schemas := parent.Items.JSONSchemas
 		if len(schemas) < int(segment.Index) {

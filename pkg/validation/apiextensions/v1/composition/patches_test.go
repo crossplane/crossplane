@@ -17,12 +17,39 @@ limitations under the License.
 package composition
 
 import (
+	"encoding/json"
 	"testing"
+
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"github.com/crossplane/crossplane/pkg/validation/schema"
 
+	_ "embed"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
+
+var (
+	// got running `kubectl get crds -o json openidconnectproviders.iam.aws.crossplane.io  | jq '.spec.versions[0].schema.openAPIV3Schema |del(.. | .description?)'`
+	// from provider: xpkg.upbound.io/crossplane-contrib/provider-aws:v0.38.0
+	//go:embed fixtures/complex_schema_openidconnectproviders_v1beta1.json
+	complexSchemaOpenIDConnectProvidersV1beta1      []byte
+	complexSchemaOpenIDConnectProvidersV1beta1Props = toJSONSchemaProps(complexSchemaOpenIDConnectProvidersV1beta1)
+)
+
+func toJSONSchemaProps(in []byte) *apiextensions.JSONSchemaProps {
+	p := extv1.JSONSchemaProps{}
+	err := json.Unmarshal(in, &p)
+	if err != nil {
+		panic(err)
+	}
+	out := apiextensions.JSONSchemaProps{}
+	if err := extv1.Convert_v1_JSONSchemaProps_To_apiextensions_JSONSchemaProps(&p, &out, nil); err != nil {
+		panic(err)
+	}
+	return &out
+}
 
 func Test_validateTransforms(t *testing.T) {
 	type args struct {
@@ -156,6 +183,214 @@ func Test_validateTransforms(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := validateTransformsIOTypes(tt.args.transforms, tt.args.fromType, tt.args.toType); (err != nil) != tt.wantErr {
 				t.Errorf("validateTransformsIOTypes() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_validateFieldPath(t *testing.T) {
+	type args struct {
+		schema    *apiextensions.JSONSchemaProps
+		fieldPath string
+	}
+	tests := []struct {
+		name          string
+		args          args
+		wantFieldType schema.KnownJSONType
+		wantRequired  bool
+		wantErr       bool
+	}{
+		{
+			name:          "Should validate a valid field path",
+			wantFieldType: "string",
+			wantRequired:  false,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.foo",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {Type: "string"}}}}}}}},
+		},
+		{
+			name:          "Should validate a valid field path with a field required the whole chain",
+			wantFieldType: "string",
+			wantRequired:  true,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.foo",
+				schema: &apiextensions.JSONSchemaProps{
+					Required: []string{"spec"},
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Required: []string{"forProvider"},
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Required: []string{"foo"},
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {Type: "string"}}}}}}}},
+		},
+		{
+			name:          "Should not return that a field is required if it is not the whole chain",
+			wantFieldType: "string",
+			wantRequired:  false,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.foo",
+				schema: &apiextensions.JSONSchemaProps{
+					Required: []string{"spec"},
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Required: []string{"forProvider"},
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {Type: "string"}}}}}}}},
+		},
+		{
+			name:    "Should return an error for an invalid field path",
+			wantErr: true,
+			args: args{
+				fieldPath: "spec.forProvider.wrong",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {Type: "string"}}}}}}}},
+		},
+		{
+			name:          "Should not return an error for an undefined by accepted field path",
+			wantErr:       false,
+			wantFieldType: "",
+			wantRequired:  false,
+			args: args{
+				fieldPath: "spec.forProvider.wrong",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {Type: "string"}},
+									XPreserveUnknownFields: &[]bool{true}[0],
+								}}}}}},
+		},
+		{
+			name:          "Should validate arrays properly",
+			wantFieldType: "string",
+			wantRequired:  false,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.foo[0].bar",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {
+											Type: "array",
+											Items: &apiextensions.JSONSchemaPropsOrArray{
+												Schema: &apiextensions.JSONSchemaProps{
+													Properties: map[string]apiextensions.JSONSchemaProps{
+														"bar": {Type: "string"}}}}}}}}}}}},
+		},
+		{
+			name:          "Should validate arrays properly with a field not required the whole chain, minimum length 1",
+			wantFieldType: "string",
+			wantRequired:  false,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.foo[1].bar",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {
+											Type:     "array",
+											MinItems: &[]int64{1}[0],
+											Items: &apiextensions.JSONSchemaPropsOrArray{
+												Schema: &apiextensions.JSONSchemaProps{
+													Required: []string{"bar"},
+													Properties: map[string]apiextensions.JSONSchemaProps{
+														"bar": {Type: "string"}}}}}}}}}}}},
+		},
+		{
+			name:          "Should validate arrays properly with a field required the whole chain, minimum length 1",
+			wantFieldType: "string",
+			wantRequired:  true,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.foo[1].bar",
+				schema: &apiextensions.JSONSchemaProps{
+					Required: []string{"spec"},
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"spec": {
+							Required: []string{"forProvider"},
+							Properties: map[string]apiextensions.JSONSchemaProps{
+								"forProvider": {
+									Required: []string{"foo"},
+									Properties: map[string]apiextensions.JSONSchemaProps{
+										"foo": {
+											Type:     "array",
+											MinItems: &[]int64{1}[0],
+											Items: &apiextensions.JSONSchemaPropsOrArray{
+												Schema: &apiextensions.JSONSchemaProps{
+													Required: []string{"bar"},
+													Properties: map[string]apiextensions.JSONSchemaProps{
+														"bar": {Type: "string"}}}}}}}}}}}},
+		},
+		{
+			name:          "Should validate properly with complex schema",
+			wantFieldType: "string",
+			wantRequired:  false,
+			wantErr:       false,
+			args: args{
+				fieldPath: "spec.forProvider.clientIDList[0]",
+				// parse the schema from json
+				schema: complexSchemaOpenIDConnectProvidersV1beta1Props,
+			},
+		},
+		{
+			name:    "Should error if above max items",
+			wantErr: true,
+			args: args{
+				fieldPath: "spec.forProvider.clientIDList[101]",
+				// parse the schema from json
+				schema: complexSchemaOpenIDConnectProvidersV1beta1Props,
+			},
+		},
+		{
+			name:          "Should accept if below min items, and mark as required if the whole chain is required",
+			wantErr:       false,
+			wantRequired:  true,
+			wantFieldType: "string",
+			args: args{
+				fieldPath: "spec.forProvider.thumbprintList[0]",
+				// parse the schema from json
+				schema: complexSchemaOpenIDConnectProvidersV1beta1Props,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotFieldType, gotRequired, err := validateFieldPath(tt.args.schema, tt.args.fieldPath)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("validateFieldPath() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if gotFieldType != tt.wantFieldType {
+				t.Errorf("validateFieldPath() gotFieldType = %v, want %v", gotFieldType, tt.wantFieldType)
+			}
+			if gotRequired != tt.wantRequired {
+				t.Errorf("validateFieldPath() gotRequired = %v, want %v", gotRequired, tt.wantRequired)
 			}
 		})
 	}
