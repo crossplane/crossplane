@@ -45,3 +45,4 @@ This list is sorted in the order that organizations were added to it.
 | [Splash](https://splashthat.com/) | @adrienzieba | Manage our shared infrastructure in EKS and provide a self-service framework for engineers' application resource needs |
 | [Grafana Labs](https://grafana.com/) | @Duologic | Control plane for an internal developer platform |
 | [Ancestry](https://www.ancestry.com/) | @joshadambell | Control plane and infrastructure management solution in production for AWS EKS |
+| [Syntasso](https://syntasso.io) | @syntassodev |  Used as an optional subcomponent in [Kratix](https://kratix.io), to enable platform teams to manage infrastructure. |
