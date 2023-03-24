@@ -5,6 +5,16 @@ This policy is adapted from the policies of the following CNCF projects:
 * [Rook](https://github.com/rook/rook)
 * [Containerd](https://github.com/containerd/project)
 
+## Audits
+
+The following security related audits have been performed in the Crossplane
+project and are available for download from the [security folder](./security)
+and from the direct links below:
+
+* A fuzzing security audit was completed in March 2023 by [Ada
+  Logics](https://adalogics.com/). The full report is available
+  [here](./security/ADA-fuzzing-audit-22.pdf).
+
 ## Reporting a Vulnerability
 
 To report a vulnerability, either:
