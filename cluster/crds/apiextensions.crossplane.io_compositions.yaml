@@ -322,10 +322,29 @@ spec:
                                 description: Math is used to transform the input via
                                   mathematical operations such as multiplication.
                                 properties:
+                                  clampMax:
+                                    description: ClampMax makes sure that the value
+                                      is not bigger than the given value.
+                                    format: int64
+                                    type: integer
+                                  clampMin:
+                                    description: ClampMin makes sure that the value
+                                      is not smaller than the given value.
+                                    format: int64
+                                    type: integer
                                   multiply:
                                     description: Multiply the value.
                                     format: int64
                                     type: integer
+                                  type:
+                                    default: Multiply
+                                    description: Type of the math transform to be
+                                      run.
+                                    enum:
+                                    - Multiply
+                                    - ClampMin
+                                    - ClampMax
+                                    type: string
                                 type: object
                               string:
                                 description: String is used to transform the input
@@ -741,10 +760,29 @@ spec:
                                   description: Math is used to transform the input
                                     via mathematical operations such as multiplication.
                                   properties:
+                                    clampMax:
+                                      description: ClampMax makes sure that the value
+                                        is not bigger than the given value.
+                                      format: int64
+                                      type: integer
+                                    clampMin:
+                                      description: ClampMin makes sure that the value
+                                        is not smaller than the given value.
+                                      format: int64
+                                      type: integer
                                     multiply:
                                       description: Multiply the value.
                                       format: int64
                                       type: integer
+                                    type:
+                                      default: Multiply
+                                      description: Type of the math transform to be
+                                        run.
+                                      enum:
+                                      - Multiply
+                                      - ClampMin
+                                      - ClampMax
+                                      type: string
                                   type: object
                                 string:
                                   description: String is used to transform the input
@@ -1133,10 +1171,29 @@ spec:
                                   description: Math is used to transform the input
                                     via mathematical operations such as multiplication.
                                   properties:
+                                    clampMax:
+                                      description: ClampMax makes sure that the value
+                                        is not bigger than the given value.
+                                      format: int64
+                                      type: integer
+                                    clampMin:
+                                      description: ClampMin makes sure that the value
+                                        is not smaller than the given value.
+                                      format: int64
+                                      type: integer
                                     multiply:
                                       description: Multiply the value.
                                       format: int64
                                       type: integer
+                                    type:
+                                      default: Multiply
+                                      description: Type of the math transform to be
+                                        run.
+                                      enum:
+                                      - Multiply
+                                      - ClampMin
+                                      - ClampMax
+                                      type: string
                                   type: object
                                 string:
                                   description: String is used to transform the input
