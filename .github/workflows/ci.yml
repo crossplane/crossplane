@@ -182,6 +182,7 @@ jobs:
           ignore-unfixed: true
           skip-dirs: design
           scan-ref: '.'
+          exit-code: '1'
           severity: 'CRITICAL,HIGH'
 
   unit-tests:
