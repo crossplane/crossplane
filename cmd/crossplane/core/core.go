@@ -20,6 +20,8 @@ package core
 import (
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
 	"github.com/crossplane/crossplane/pkg/validation/apiextensions/v1/composition"
 
 	"github.com/alecthomas/kong"
@@ -182,9 +184,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err := validator.SetupWithManager(mgr); err != nil {
 			return err
 		}
-		if err := (&apiextensionsv1.Composition{}).SetupWebhookWithManager(mgr, &validator); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
-		}
+		validationHandler := composition.NewHandler(&validator)
+		mgr.GetWebhookServer().Register("/validate-apiextensions-crossplane-io-v1-composition",
+			&webhook.Admission{Handler: validationHandler})
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")

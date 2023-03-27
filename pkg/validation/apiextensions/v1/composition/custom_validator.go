@@ -62,42 +62,28 @@ func (c *CustomValidator) SetupWithManager(mgr ctrl.Manager) error {
 	}
 
 	c.reader = unstructured.NewClient(mgr.GetClient())
-
-	return ctrl.NewWebhookManagedBy(mgr).
-		WithValidator(c).
-		For(&v1.Composition{}).
-		Complete()
-}
-
-// ValidateUpdate is a no-op for now.
-func (c *CustomValidator) ValidateUpdate(ctx context.Context, _, newObj runtime.Object) error {
-	// TODO(phisco): check if there is anything to validate in the diff
-	return c.ValidateCreate(ctx, newObj)
-}
-
-// ValidateDelete is a no-op for now.
-func (c *CustomValidator) ValidateDelete(_ context.Context, _ runtime.Object) error {
 	return nil
 }
 
-// ValidateCreate validates the Composition by rendering it and then validating the rendered resources.
+// Validate validates the Composition by rendering it and then validating the rendered resources.
 //
 //nolint:gocyclo // TODO (phisco): refactor this function
-func (c *CustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) error {
+func (c *CustomValidator) Validate(ctx context.Context, obj runtime.Object) ([]string, error) {
+	var warns []string
 	comp, ok := obj.(*v1.Composition)
 	if !ok {
-		return xperrors.New("not a v1 Composition")
+		return warns, xperrors.New("not a v1 Composition")
 	}
 
 	// Validate the composition itself, we'll disable it on the Validator below
 	if errs := comp.Validate(); len(errs) != 0 {
-		return apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errs)
+		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errs)
 	}
 
 	// Get the composition validation mode from annotation
 	validationMode, err := comp.GetValidationMode()
 	if err != nil {
-		return xperrors.Wrap(err, "cannot get validation mode")
+		return warns, xperrors.Wrap(err, "cannot get validation mode")
 	}
 
 	// Get all the needed CRDs, Composite Resource, Managed resources ... ? Error out if missing in strict mode
@@ -109,37 +95,36 @@ func (c *CustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object
 		}
 		// If any of the errors is not a NotFound error, error out
 		if !apierrors.IsNotFound(err) {
-			return xperrors.Errorf("there were some errors while getting the needed CRDs: %v", errs)
+			return warns, xperrors.Errorf("there were some errors while getting the needed CRDs: %v", errs)
 		}
 		// If any of the needed CRDs is not found, error out if strict mode is enabled, otherwise continue
 		if validationMode == v1.CompositionValidationModeStrict {
-			return xperrors.Wrap(err, "cannot get needed CRDs and strict mode is enabled")
+			return warns, xperrors.Wrap(err, "cannot get needed CRDs and strict mode is enabled")
 		}
 		if validationMode == v1.CompositionValidationModeLoose {
 			shouldSkip = true
+			warns = append(warns, fmt.Sprintf("cannot get needed CRDs and loose mode is enabled: %v", err))
 		}
 	}
 
 	// Given that some requirement is missing, and we are in loose mode, skip validation
 	if shouldSkip {
-		// TODO(phisco): emit a warning here
-		return nil
+		return warns, nil
 	}
 
 	// from here on we should refactor the code to allow using it from linters/Lsp
-	// TODO (lsviben) figure out how to emit warnings instead of errors in case of WARN state (strict, but just warnings)
 	v, err := NewValidator(
 		WithCRDGetterFromMap(gvkToCRDs),
 		// We disable logical Validation as this has already been done above
 		WithoutLogicalValidation(),
 	)
 	if err != nil {
-		return apierrors.NewInternalError(err)
+		return warns, apierrors.NewInternalError(err)
 	}
 	if errs := v.Validate(ctx, comp); len(errs) != 0 {
-		return apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errs)
+		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errs)
 	}
-	return nil
+	return warns, nil
 }
 
 func (c *CustomValidator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition, []error) {

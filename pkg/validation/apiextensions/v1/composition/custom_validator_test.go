@@ -267,13 +267,15 @@ func TestClientValidator_ValidateCreate(t *testing.T) {
 		existingObjs []runtime.Object
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name     string
+		args     args
+		wantErr  bool
+		wantWarn bool
 	}{
 		{
-			name:    "Should accept a Composition if validation mode is loose and no CRDs are found",
-			wantErr: false,
+			name:     "Should accept a Composition if validation mode is loose and no CRDs are found",
+			wantErr:  false,
+			wantWarn: true,
 			args: args{
 				obj:          buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil),
 				existingObjs: nil,
@@ -352,8 +354,9 @@ func TestClientValidator_ValidateCreate(t *testing.T) {
 				})),
 			},
 		}, {
-			name:    "Should accept a Composition with valid patches, if validation mode is loose and only the Managed resource CRDs are found",
-			wantErr: false,
+			name:     "Should accept a Composition with valid patches, if validation mode is loose and only the Managed resource CRDs are found",
+			wantErr:  false,
+			wantWarn: true,
 			args: args{
 				existingObjs: []runtime.Object{
 					defaultManagedCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
@@ -398,8 +401,9 @@ func TestClientValidator_ValidateCreate(t *testing.T) {
 						},
 			*/
 		}, {
-			name:    "Should accept a Composition with an invalid patch, if validation mode is loose and no CRDs are found",
-			wantErr: false,
+			name:     "Should accept a Composition with an invalid patch, if validation mode is loose and no CRDs are found",
+			wantErr:  false,
+			wantWarn: true,
 			args: args{
 				existingObjs: nil,
 				obj: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
@@ -554,8 +558,12 @@ func TestClientValidator_ValidateCreate(t *testing.T) {
 					return []string{object.(*extv1.CustomResourceDefinition).Spec.Names.Kind}
 				}).WithRuntimeObjects(tt.args.existingObjs...).Build(),
 			}
-			if err := c.ValidateCreate(context.TODO(), tt.args.obj); (err != nil) != tt.wantErr {
-				t.Errorf("ValidateCreate() error = %v, wantErr %v", err, tt.wantErr)
+			warns, err := c.Validate(context.TODO(), tt.args.obj)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if (warns != nil) != tt.wantWarn {
+				t.Errorf("Validate() warns = %v, wantWarn %v", warns, tt.wantWarn)
 			}
 		})
 	}
