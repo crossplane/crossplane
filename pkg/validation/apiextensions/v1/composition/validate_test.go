@@ -221,11 +221,8 @@ func TestValidateComposition(t *testing.T) {
 			name:    "Should reject a Composition with a combine patch with missing fields, if validation mode is strict and all CRDs are found",
 			wantErr: true,
 			args: args{
-				gvkToCRDs: buildGvkToCRDs(
-					defaultCompositeCrdBuilder().build(),
-					defaultManagedCrdBuilder().build(),
-				),
-				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+				gvkToCRDs: defaultGVKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
 						Variables: []v1.CombineVariable{
@@ -242,6 +239,18 @@ func TestValidateComposition(t *testing.T) {
 						},
 					},
 					ToFieldPath: toPointer("spec.someOtherField"),
+				})),
+			},
+		},
+		{
+			name:    "Should accept Composition using an EnvironmentConfig related PatchType, if all CRDs are found",
+			wantErr: false,
+			args: args{
+				gvkToCRDs: defaultGVKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
+					Type:          v1.PatchTypeFromEnvironmentFieldPath,
+					FromFieldPath: toPointer("spec.someField"),
+					ToFieldPath:   toPointer("spec.someOtherField"),
 				})),
 			},
 		},

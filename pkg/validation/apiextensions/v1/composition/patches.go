@@ -85,8 +85,7 @@ func (v *Validator) validatePatchWithSchemas( //nolint:gocyclo // TODO(phisco): 
 
 	var validationErr *field.Error
 	var fromType, toType xpschema.KnownJSONType
-	// TODO(phisco): add test cases for patch types not covered to check we behave correctly, e.g. what if a patch from environment is setting a required field?
-	switch patch.GetType() { //nolint:exhaustive // TODO(phisco): implement other patch types
+	switch patch.GetType() {
 	case v1.PatchTypeFromCompositeFieldPath:
 		fromType, toType, validationErr = ValidateFromCompositeFieldPathPatch(
 			patch,
@@ -109,13 +108,21 @@ func (v *Validator) validatePatchWithSchemas( //nolint:gocyclo // TODO(phisco): 
 			patch,
 			resourceCRD.Spec.Validation.OpenAPIV3Schema,
 			compositeCRD.Spec.Validation.OpenAPIV3Schema)
+	case v1.PatchTypePatchSet:
+		// Should never happen as patchSets should have been dereferenced and removed by now.
+		return field.InternalError(field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber), errors.Errorf("patchSet should have been dereferenced"))
+	case v1.PatchTypeFromEnvironmentFieldPath,
+		v1.PatchTypeCombineFromEnvironment, v1.PatchTypeToEnvironmentFieldPath,
+		v1.PatchTypeCombineToEnvironment:
+		// TODO(phisco): implement validation for environment related patches
+		return nil
 	}
 	if validationErr != nil {
 		return xperrors.WrapFieldError(validationErr, field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber))
 	}
 
 	return xperrors.WrapFieldError(
-		validateTransformsIOTypes(patch.Transforms, fromType, toType),
+		validateIOTypesWithTransforms(patch.Transforms, fromType, toType),
 		field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber),
 	)
 }
@@ -214,14 +221,15 @@ func ValidateFromCompositeFieldPathPatch(
 	return fromType, toType, nil
 }
 
-func validateTransformsIOTypes(transforms []v1.Transform, fromType, toType xpschema.KnownJSONType) *field.Error {
+//nolint:gocyclo // TODO(phico): there is not much we can refactor here
+func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType xpschema.KnownJSONType) *field.Error {
 	transformedToType, err := v1.FromKnownJSONType(fromType)
-	if err != nil {
+	if err != nil && fromType != "" {
 		return field.InternalError(field.NewPath("transforms"), err)
 	}
 	for i, transform := range transforms {
 		err := transform.IsValidInput(transformedToType)
-		if err != nil {
+		if err != nil && transformedToType != "" {
 			return field.Invalid(field.NewPath("transforms").Index(i), transforms, err.Error())
 		}
 		out, err := transform.GetOutputType()
@@ -234,6 +242,9 @@ func validateTransformsIOTypes(transforms []v1.Transform, fromType, toType xpsch
 			return nil
 		}
 		transformedToType = *out
+	}
+	if transformedToType == "" || toType == "" {
+		return nil
 	}
 	transformedToJSONType := transformedToType.ToKnownJSONType()
 

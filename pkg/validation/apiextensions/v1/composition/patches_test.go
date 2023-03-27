@@ -20,6 +20,8 @@ import (
 	"encoding/json"
 	"testing"
 
+	"k8s.io/utils/pointer"
+
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
@@ -79,7 +81,8 @@ func Test_validateTransforms(t *testing.T) {
 			},
 		},
 		{
-			name: "Should accept empty transforms to a different type when its integer to number",
+			name:    "Should accept empty transforms to a different type when its integer to number",
+			wantErr: false,
 			args: args{
 				transforms: []v1.Transform{},
 				fromType:   "integer",
@@ -178,11 +181,113 @@ func Test_validateTransforms(t *testing.T) {
 				toType:   "string",
 			},
 		},
+		{
+			name:    "Should return nil if no transforms are provided and the types are the same",
+			wantErr: false,
+			args: args{
+				transforms: nil,
+				fromType:   "string",
+				toType:     "string",
+			},
+		},
+		{
+			name:    "Should return an error if no transforms are provided and the types are not the same",
+			wantErr: true,
+			args: args{
+				transforms: nil,
+				fromType:   "string",
+				toType:     "integer",
+			},
+		},
+		{
+			name:    "Should return nil if no transforms are provided and the types are not the same but the types are integer and number",
+			wantErr: false,
+			args: args{
+				transforms: nil,
+				fromType:   "integer",
+				toType:     "number",
+			},
+		},
+		{
+			name:    "Should return nil if there is no type spec for input and no transforms are provided",
+			wantErr: false,
+			args: args{
+				transforms: nil,
+				fromType:   "",
+				toType:     "string",
+			},
+		},
+		{
+			name:    "Should return nil if there is no type spec for output and no transforms are provided",
+			wantErr: false,
+			args: args{
+				transforms: nil,
+				fromType:   "string",
+				toType:     "",
+			},
+		},
+		{
+			name:    "Should return nil if there are no type spec for input and output and no transforms are provided",
+			wantErr: false,
+			args: args{
+				transforms: nil,
+				fromType:   "",
+				toType:     "",
+			},
+		},
+		{
+			name:    "Should return nil if there are no type spec for input and output and transforms are provided",
+			wantErr: false,
+			args: args{
+				transforms: []v1.Transform{
+					{
+						Type: v1.TransformTypeConvert,
+						Convert: &v1.ConvertTransform{
+							ToType: "int64",
+						},
+					},
+				},
+				fromType: "",
+				toType:   "",
+			},
+		},
+		{
+			name:    "Should return an error if there is no type spec for the output, but input is specified and transforms are wrong",
+			wantErr: true,
+			args: args{
+				transforms: []v1.Transform{
+					{
+						Type: v1.TransformTypeMath,
+						Math: &v1.MathTransform{
+							Multiply: pointer.Int64(2),
+						},
+					},
+				},
+				fromType: "string",
+				toType:   "",
+			},
+		},
+		{
+			name:    "Should return an error if there is no type spec for the input, but output is specified and transforms are wrong",
+			wantErr: true,
+			args: args{
+				transforms: []v1.Transform{
+					{
+						Type: v1.TransformTypeMath,
+						Math: &v1.MathTransform{
+							Multiply: pointer.Int64(2),
+						},
+					},
+				},
+				fromType: "",
+				toType:   "string",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := validateTransformsIOTypes(tt.args.transforms, tt.args.fromType, tt.args.toType); (err != nil) != tt.wantErr {
-				t.Errorf("validateTransformsIOTypes() error = %v, wantErr %v", err, tt.wantErr)
+			if err := validateIOTypesWithTransforms(tt.args.transforms, tt.args.fromType, tt.args.toType); (err != nil) != tt.wantErr {
+				t.Errorf("validateIOTypesWithTransforms() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
