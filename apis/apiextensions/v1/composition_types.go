@@ -17,6 +17,8 @@ limitations under the License.
 package v1
 
 import (
+	"encoding/json"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,8 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
+
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -176,7 +179,8 @@ func (ct *ComposedTemplate) initBaseObject() error {
 	if ct.Base.Object != nil {
 		return nil
 	}
-	cd, err := composed.ParseToUnstructured(ct.Base.Raw)
+	cd := composed.New()
+	err := json.Unmarshal(ct.Base.Raw, cd)
 	if err != nil {
 		return errors.Wrap(err, "cannot parse base")
 	}

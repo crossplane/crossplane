@@ -2,9 +2,6 @@ module github.com/crossplane/crossplane
 
 go 1.19
 
-//replace github.com/crossplane/crossplane-runtime => github.com/phisco/crossplane-runtime compositions-validation-rewrite
-replace github.com/crossplane/crossplane-runtime => github.com/phisco/crossplane-runtime v0.0.0-20230321140752-94dd70070ec0
-
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/semver v1.5.0
