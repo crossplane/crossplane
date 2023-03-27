@@ -71,8 +71,6 @@ func (v *Validator) validatePatchWithSchemas( //nolint:gocyclo // TODO(phisco): 
 		return field.Invalid(field.NewPath("spec", "resources").Index(resourceNumber).Child("base"), resource.Base, err.Error())
 	}
 
-	// TODO(phisco): what about patch.Policy ?
-
 	compositeCRD, err := v.crdGetter.Get(ctx, schema.FromAPIVersionAndKind(
 		comp.Spec.CompositeTypeRef.APIVersion,
 		comp.Spec.CompositeTypeRef.Kind,
@@ -125,6 +123,8 @@ func (v *Validator) validatePatchWithSchemas( //nolint:gocyclo // TODO(phisco): 
 // ValidateCombineFromCompositePathPatch validates Combine Patch types, by going through and validating the fromField
 // path variables, checking if they all need to be required, checking if the right combine strategy is set and
 // validating transforms.
+//
+//nolint:gocyclo // TODO(phico): there is not much we can refactor here
 func ValidateCombineFromCompositePathPatch(
 	patch v1.Patch,
 	from *apiextensions.JSONSchemaProps,
@@ -138,16 +138,24 @@ func ValidateCombineFromCompositePathPatch(
 	errs := field.ErrorList{}
 	for _, variable := range patch.Combine.Variables {
 		fromFieldPath := variable.FromFieldPath
-		_, required, err := validateFieldPath(from, fromFieldPath)
+		_, fromRequired, err := validateFieldPath(from, fromFieldPath)
 		if err != nil {
 			errs = append(errs, field.Invalid(field.NewPath("fromFieldPath"), fromFieldPath, err.Error()))
 			continue
 		}
-		if toRequired && !required {
+
+		if patch.Policy.GetFromFieldPathPolicy() == v1.FromFieldPathPolicyRequired && !fromRequired {
+			return "", "", field.Invalid(
+				field.NewPath("policy", "fromFieldPath"),
+				patch.Policy.FromFieldPath,
+				"fromFieldPath is required according to the schema, but policy is set to optional",
+			)
+		}
+		if toRequired && !fromRequired {
 			errs = append(errs, field.Invalid(
 				field.NewPath("combine"),
 				patch.Combine.Variables,
-				fmt.Sprintf("fromFieldPath (%v) is not required but toFieldPath (%s) is, this could lead to unexpected runtime errors", patch.Combine.Variables, toFieldPath),
+				fmt.Sprintf("fromFieldPath (%v) is not fromRequired but toFieldPath (%s) is, this could lead to unexpected runtime errors", patch.Combine.Variables, toFieldPath),
 			))
 			continue
 		}
@@ -173,20 +181,32 @@ func ValidateCombineFromCompositePathPatch(
 }
 
 // ValidateFromCompositeFieldPathPatch validates a patch of type FromCompositeFieldPath.
-func ValidateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, res *field.Error) {
+func ValidateFromCompositeFieldPathPatch(
+	patch v1.Patch,
+	from, to *apiextensions.JSONSchemaProps,
+) (fromType, toType xpschema.KnownJSONType, res *field.Error) {
 	fromFieldPath := patch.GetFromFieldPath()
 	toFieldPath := patch.GetToFieldPath()
 	fromType, fromRequired, err := validateFieldPath(from, fromFieldPath)
 	if err != nil {
 		return "", "", field.Invalid(field.NewPath("fromFieldPath"), fromFieldPath, err.Error())
 	}
+
+	if patch.Policy.GetFromFieldPathPolicy() == v1.FromFieldPathPolicyRequired && !fromRequired {
+		return "", "", field.Invalid(
+			field.NewPath("policy", "fromFieldPath"),
+			patch.Policy.FromFieldPath,
+			"fromFieldPath policy is set to Required, but it is not required according to the source's schema, this could lead to runtime errors",
+		)
+	}
+
 	toType, toRequired, err := validateFieldPath(to, toFieldPath)
 	if err != nil {
 		return "", "", field.Invalid(field.NewPath("toFieldPath"), toFieldPath, err.Error())
 	}
 	if toRequired && !fromRequired {
 		return "", "", field.Invalid(field.NewPath("fromFieldPath"), fromFieldPath, fmt.Sprintf(
-			"fromFieldPath is optional, but toFieldPath '%s' is required according to their schemas",
+			"fromFieldPath is optional by the source's schema, but toFieldPath '%s' is required by the destination's schemas, this could lead to runtime errors",
 			toFieldPath,
 		))
 	}
