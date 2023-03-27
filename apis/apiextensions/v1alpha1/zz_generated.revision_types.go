@@ -581,6 +581,8 @@ type MatchTransform struct {
 	// The fallback value that should be returned by the transform if now pattern
 	// matches.
 	FallbackValue extv1.JSON `json:"fallbackValue,omitempty"`
+	// If set to true, the input value will be returned if no pattern matches.
+	FallbackToInput bool `json:"fallbackToInput,omitempty"`
 }
 
 // MatchTransformPatternType defines the type of a MatchTransformPattern.

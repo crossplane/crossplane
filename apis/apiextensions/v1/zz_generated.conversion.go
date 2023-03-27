@@ -417,6 +417,7 @@ func (c *GeneratedRevisionSpecConverter) v1MatchTransformToV1beta1MatchTransform
 	}
 	v1beta1MatchTransform.Patterns = v1beta1MatchTransformPatternList
 	v1beta1MatchTransform.FallbackValue = c.v1JSONToV1JSON(source.FallbackValue)
+	v1beta1MatchTransform.FallbackToInput = source.FallbackToInput
 	return v1beta1MatchTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1MathTransformToV1beta1MathTransform(source MathTransform) v1beta1.MathTransform {
@@ -923,6 +924,7 @@ func (c *GeneratedRevisionSpecConverter) v1beta1MatchTransformToV1MatchTransform
 	}
 	v1MatchTransform.Patterns = v1MatchTransformPatternList
 	v1MatchTransform.FallbackValue = c.v1JSONToV1JSON(source.FallbackValue)
+	v1MatchTransform.FallbackToInput = source.FallbackToInput
 	return v1MatchTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1beta1MathTransformToV1MathTransform(source v1beta1.MathTransform) MathTransform {

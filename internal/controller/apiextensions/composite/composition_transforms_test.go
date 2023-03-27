@@ -176,6 +176,19 @@ func TestMatchResolve(t *testing.T) {
 				err: errors.Wrapf(errors.Errorf(errFmtMatchInputTypeInvalid, "int"), errFmtMatchPattern, 0),
 			},
 		},
+		"ErrFallbackValueAndToInput": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:        []v1.MatchTransformPattern{},
+					FallbackValue:   asJSON("foo"),
+					FallbackToInput: true,
+				},
+				i: "foo",
+			},
+			want: want{
+				err: errors.New(errMatchFallbackBoth),
+			},
+		},
 		"NoPatternsFallback": {
 			args: args{
 				t: v1.MatchTransform{
@@ -197,6 +210,31 @@ func TestMatchResolve(t *testing.T) {
 				i: "foo",
 			},
 			want: want{},
+		},
+		"NoPatternsFallbackToInput": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:        []v1.MatchTransformPattern{},
+					FallbackToInput: true,
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "foo",
+			},
+		},
+		"NoPatternsFallbackNilToInput": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:        []v1.MatchTransformPattern{},
+					FallbackValue:   asJSON(nil),
+					FallbackToInput: true,
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "foo",
+			},
 		},
 		"MatchLiteral": {
 			args: args{
