@@ -23,6 +23,8 @@ const (
 	errParseCACertificate      = "cannot parse ca certificate"
 	errParseCAKey              = "cannot parse ca key"
 	errLoadOrGenerateSigner    = "cannot load or generate certificate signer"
+	errDecodeKey               = "cannot decode key"
+	errDecodeCert              = "cannot decode cert"
 	errFmtGetESSSecret         = "cannot get ess secret: %s"
 	errFmtCannotCreateOrUpdate = "cannot create or update secret: %s"
 )
@@ -96,7 +98,7 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	}
 	e.log.Info("ESS CA secret is empty or not complete, generating a new CA...")
 
-	caKeyByte, caCrtByte, err := e.certificate.Generate(&x509.Certificate{
+	a := &x509.Certificate{
 		SerialNumber:          big.NewInt(2022),
 		Subject:               pkixName,
 		Issuer:                pkixName,
@@ -106,7 +108,9 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 		IsCA:                  true,
 		KeyUsage:              x509.KeyUsageCRLSign | x509.KeyUsageCertSign,
 		BasicConstraintsValid: true,
-	}, nil)
+	}
+
+	caKeyByte, caCrtByte, err := e.certificate.Generate(a, nil)
 	if err != nil {
 		return nil, errors.Wrap(err, errGenerateCA)
 	}
@@ -207,12 +211,20 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 
 func parseCertificateSigner(key, cert []byte) (*CertificateSigner, error) {
 	block, _ := pem.Decode(key)
+	if block == nil {
+		return nil, errors.New(errDecodeKey)
+	}
+
 	sKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, errors.Wrap(err, errParseCAKey)
 	}
 
 	block, _ = pem.Decode(cert)
+	if block == nil {
+		return nil, errors.New(errDecodeCert)
+	}
+
 	sCert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
 		return nil, errors.Wrap(err, errParseCACertificate)
