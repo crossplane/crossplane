@@ -83,7 +83,7 @@ func ApplyToObjects(p v1.Patch, cp, cd runtime.Object, only ...v1.PatchType) err
 		return nil
 	}
 
-	switch p.Type {
+	switch p.GetType() {
 	case v1.PatchTypeFromCompositeFieldPath, v1.PatchTypeFromEnvironmentFieldPath:
 		return ApplyFromFieldPathPatch(p, cp, cd)
 	case v1.PatchTypeToCompositeFieldPath, v1.PatchTypeToEnvironmentFieldPath:
@@ -321,7 +321,7 @@ func ComposedTemplates(cs v1.CompositionSpec) ([]v1.ComposedTemplate, error) {
 
 	ct := make([]v1.ComposedTemplate, len(cs.Resources))
 	for i, r := range cs.Resources {
-		po := []v1.Patch{}
+		var po []v1.Patch
 		for _, p := range r.Patches {
 			if p.Type != v1.PatchTypePatchSet {
 				po = append(po, p)

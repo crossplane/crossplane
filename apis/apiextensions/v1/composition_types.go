@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -153,6 +154,14 @@ type ComposedTemplate struct {
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
+// GetName returns the name of the composed template or an empty string if it is nil.
+func (ct *ComposedTemplate) GetName() string {
+	if ct.Name != nil {
+		return *ct.Name
+	}
+	return ""
+}
+
 // ReadinessCheckType is used for readiness check types.
 type ReadinessCheckType string
 
@@ -163,6 +172,15 @@ const (
 	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
 	ReadinessCheckTypeNone         ReadinessCheckType = "None"
 )
+
+// IsValid returns nil if the readiness check type is valid, or an error otherwise.
+func (t *ReadinessCheckType) IsValid() bool {
+	switch *t {
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeNone:
+		return true
+	}
+	return false
+}
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
@@ -186,6 +204,34 @@ type ReadinessCheck struct {
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	// +optional
 	MatchInteger int64 `json:"matchInteger,omitempty"`
+}
+
+// Validate checks if the readiness check is logically valid.
+func (r *ReadinessCheck) Validate() *field.Error {
+	if !r.Type.IsValid() {
+		return field.Invalid(field.NewPath("type"), string(r.Type), "unknown readiness check type")
+	}
+	switch r.Type {
+	case ReadinessCheckTypeNone:
+		return nil
+	// NOTE: ComposedTemplate doesn't use pointer values for optional
+	// strings, so today the empty string and 0 are equivalent to "unset".
+	case ReadinessCheckTypeMatchString:
+		if r.MatchString == "" {
+			return field.Required(field.NewPath("matchString"), "cannot be empty for type MatchString")
+		}
+	case ReadinessCheckTypeMatchInteger:
+		if r.MatchInteger == 0 {
+			return field.Required(field.NewPath("matchInteger"), "cannot be 0 for type MatchInteger")
+		}
+	case ReadinessCheckTypeNonEmpty:
+		// No specific validation required.
+	}
+	if r.FieldPath == "" {
+		return field.Required(field.NewPath("fieldPath"), "cannot be empty")
+	}
+
+	return nil
 }
 
 // A ConnectionDetailType is a type of connection detail.
@@ -257,6 +303,17 @@ type Function struct {
 	// Container configuration of this function.
 	// +optional
 	Container *ContainerFunction `json:"container,omitempty"`
+}
+
+// Validate this Function.
+func (f *Function) Validate() *field.Error {
+	if f.Type == FunctionTypeContainer {
+		if f.Container == nil {
+			return field.Required(field.NewPath("container"), "cannot be empty for type Container")
+		}
+		return nil
+	}
+	return field.Required(field.NewPath("type"), "the only supported type is Container")
 }
 
 // A FunctionType is a type of Composition Function.

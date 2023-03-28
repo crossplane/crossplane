@@ -690,13 +690,16 @@ type StringTransformRegexp struct {
 	Group *int `json:"group,omitempty"`
 }
 
+// A ConvertTransformType defines the type of a conversion transform.
+type ConvertTransformType string
+
 // The list of supported ConvertTransform input and output types.
 const (
-	ConvertTransformTypeString  = "string"
-	ConvertTransformTypeBool    = "bool"
-	ConvertTransformTypeInt     = "int"
-	ConvertTransformTypeInt64   = "int64"
-	ConvertTransformTypeFloat64 = "float64"
+	TransformIOTypeString  ConvertTransformType = "string"
+	TransformIOTypeBool    ConvertTransformType = "bool"
+	TransformIOTypeInt     ConvertTransformType = "int"
+	TransformIOTypeInt64   ConvertTransformType = "int64"
+	TransformIOTypeFloat64 ConvertTransformType = "float64"
 )
 
 // ConvertTransformFormat defines the expected format of an input value of a
@@ -713,7 +716,7 @@ const (
 type ConvertTransform struct {
 	// ToType is the type of the output of this transform.
 	// +kubebuilder:validation:Enum=string;int;int64;bool;float64
-	ToType string `json:"toType"`
+	ToType ConvertTransformType `json:"toType"`
 
 	// The expected input format.
 	//

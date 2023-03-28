@@ -42,6 +42,7 @@ import (
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/transport"
+	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -192,6 +193,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// registrations.
 		if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+		}
+		if err := composition.SetupWebhookWithManager(mgr); err != nil {
+			return errors.Wrap(err, "cannot setup webhook for compositions")
 		}
 	}
 
