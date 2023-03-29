@@ -19,9 +19,8 @@ package xpkg
 import (
 	"testing"
 
-	"github.com/spf13/afero"
-
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
+	"github.com/spf13/afero"
 )
 
 func FuzzFindXpkgInDir(f *testing.F) {

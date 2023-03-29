@@ -21,9 +21,9 @@ import (
 	"context"
 	"reflect"
 
-	"github.com/crossplane/crossplane-runtime/pkg/logging"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 )
 
 // New returns a new *Initializer.

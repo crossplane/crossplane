@@ -20,12 +20,13 @@ import (
 	"context"
 	"testing"
 
+	fuzz "github.com/AdaLogics/go-fuzz-headers"
+
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/internal/xpkg"
 	"github.com/crossplane/crossplane/internal/xpkg/fake"
-
-	fuzz "github.com/AdaLogics/go-fuzz-headers"
 )
 
 func FuzzPackageRevision(f *testing.F) {
