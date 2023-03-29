@@ -31,10 +31,15 @@ linters-settings:
     # simplify code: gofmt with `-s` option, true by default
     simplify: true
 
-  goimports:
-    # put imports beginning with prefix after 3rd-party packages;
-    # it's a comma-separated list of prefixes
-    local-prefixes: github.com/crossplane/crossplane
+  gci:
+    custom-order: true
+    sections:
+      - standard
+      - default
+      - prefix(github.com/crossplane/crossplane-runtime)
+      - prefix(github.com/crossplane/crossplane)
+      - blank
+      - dot
 
   gocyclo:
     # minimal code complexity to report, 30 by default (but we recommend 10-20)
@@ -110,7 +115,7 @@ linters:
     - gocyclo
     - gocritic
     - goconst
-    - goimports
+    - gci
     - gofmt  # We enable this as well as goimports for its simplify mode.
     - prealloc
     - revive

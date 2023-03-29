@@ -4,7 +4,6 @@ import (
 	"context"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 )

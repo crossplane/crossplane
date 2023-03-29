@@ -34,6 +34,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+
 	"github.com/crossplane/crossplane/internal/oci/spec"
 )
 

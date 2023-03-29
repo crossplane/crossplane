@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
+
 	"github.com/crossplane/crossplane/cmd/xfn/run"
 	"github.com/crossplane/crossplane/cmd/xfn/spark"
 	"github.com/crossplane/crossplane/cmd/xfn/start"

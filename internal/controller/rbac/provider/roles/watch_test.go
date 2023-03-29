@@ -19,6 +19,7 @@ package roles
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -27,10 +28,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/google/go-cmp/cmp"
-
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 

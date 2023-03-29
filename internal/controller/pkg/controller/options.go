@@ -18,10 +18,10 @@ limitations under the License.
 package controller
 
 import (
-	"github.com/crossplane/crossplane/internal/xpkg"
-
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/feature"
+
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 // Options specific to pkg controllers.

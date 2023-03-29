@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
