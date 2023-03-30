@@ -188,7 +188,7 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	if o.WebhookTLSSecretName != "" {
 		opts = append(opts, WithWebhookTLSSecretName(o.WebhookTLSSecretName))
 	}
-	if o.ESSOptions != nil && o.ESSOptions.TLSConfig != nil {
+	if o.ESSOptions != nil && o.ESSOptions.TLSSecretName != nil {
 		opts = append(opts, WithESSTLSSecretName(o.ESSOptions.TLSSecretName))
 	}
 	return ctrl.NewControllerManagedBy(mgr).
