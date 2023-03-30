@@ -1,3 +1,4 @@
+{{- $externalSecretStoresEnabled := include "crossplane.externalSecretStoresEnabled" . | eq "true" -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -92,6 +93,12 @@ spec:
           - name: "WEBHOOK_SERVICE_PORT"
             value: "9443"
           {{- end }}
+          {{- if $externalSecretStoresEnabled }}
+          - name: "ESS_TLS_CLIENT_SECRET_NAME"
+            value: ess-client-certs
+          - name: "ESS_TLS_SERVER_SECRET_NAME"
+            value: ess-server-certs
+          {{- end }}
       containers:
       - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         args:
@@ -144,6 +151,12 @@ spec:
           - name: "WEBHOOK_TLS_CERT_DIR"
             value: /webhook/tls
           {{- end }}
+          {{- if $externalSecretStoresEnabled }}
+          - name: "ESS_TLS_SECRET_NAME"
+            value: ess-client-certs
+          - name: "ESS_TLS_CERTS_DIR"
+            value: /ess/tls
+          {{- end }}
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
@@ -158,6 +171,10 @@ spec:
           {{- if .Values.webhooks.enabled }}
           - mountPath: /webhook/tls
             name: webhook-tls-secret
+          {{- end }}
+          {{- if $externalSecretStoresEnabled }}
+          - mountPath: /ess/tls
+            name: ess-client-certs
           {{- end }}
           {{- if .Values.extraVolumeMountsCrossplane }}
           {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
@@ -241,6 +258,11 @@ spec:
           # It's assumed that initializer generates this anyway, so it should be
           # fine.
           secretName: webhook-tls-secret
+      {{- end }}
+      {{- if $externalSecretStoresEnabled }}
+      - name: ess-client-certs
+        secret:
+          secretName: ess-client-certs
       {{- end }}
       {{- if .Values.extraVolumesCrossplane }}
       {{- toYaml .Values.extraVolumesCrossplane | nindent 6 }}

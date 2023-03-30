@@ -80,6 +80,10 @@ spec:
                 description: DesiredState of the PackageRevision. Can be either Active
                   or Inactive.
                 type: string
+              essTLSSecretName:
+                description: ESSTLSSecretName is the secret name of the TLS certificates
+                  that will be used by the provider for External Secret Stores.
+                type: string
               ignoreCrossplaneConstraints:
                 default: false
                 description: IgnoreCrossplaneConstraints indicates to the package

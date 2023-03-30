@@ -18,6 +18,7 @@ package initializer
 
 import (
 	"context"
+	"crypto/x509"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -29,17 +30,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
-
-// MockCertificateGenerator is used to mock certificate generator because the
-// real one takes a few seconds to generate a real certificate.
-type MockCertificateGenerator struct {
-	MockGenerate func(domain ...string) (key []byte, crt []byte, err error)
-}
-
-// Generate calls MockGenerate.
-func (m *MockCertificateGenerator) Generate(domain ...string) (key []byte, crt []byte, err error) {
-	return m.MockGenerate(domain...)
-}
 
 func TestRun(t *testing.T) {
 	type args struct {
@@ -62,7 +52,7 @@ func TestRun(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 				ca: &MockCertificateGenerator{
-					MockGenerate: func(_ ...string) ([]byte, []byte, error) {
+					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
 						return nil, nil, nil
 					},
 				},
@@ -103,7 +93,7 @@ func TestRun(t *testing.T) {
 					MockGet: test.NewMockGetFn(nil),
 				},
 				ca: &MockCertificateGenerator{
-					MockGenerate: func(_ ...string) ([]byte, []byte, error) {
+					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
 						return nil, nil, errBoom
 					},
 				},
@@ -120,7 +110,7 @@ func TestRun(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(errBoom),
 				},
 				ca: &MockCertificateGenerator{
-					MockGenerate: func(_ ...string) ([]byte, []byte, error) {
+					MockGenerate: func(cert *x509.Certificate, signer *CertificateSigner) ([]byte, []byte, error) {
 						return []byte("key"), []byte("crt"), nil
 					},
 				},
@@ -137,7 +127,7 @@ func TestRun(t *testing.T) {
 				types.NamespacedName{},
 				"crossplane-system",
 				logging.NewNopLogger(),
-				WithCertificateGenerator(tc.args.ca)).Run(context.TODO(), tc.kube)
+				WithWebhookCertificateGenerator(tc.args.ca)).Run(context.TODO(), tc.kube)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%sch\nRun(...): -want err, +got err:\n%s", tc.reason, diff)
 			}

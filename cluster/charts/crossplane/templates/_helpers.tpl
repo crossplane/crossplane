@@ -30,3 +30,14 @@ app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{ toYaml .Values.customLabels }}
 {{- end }}
 {{- end }}
+
+{{/*
+Define ExternalSecretStoreEnabled Feature Flag
+*/}}
+{{- define "crossplane.externalSecretStoresEnabled" -}}
+{{- if has "--enable-external-secret-stores" .Values.args -}}
+true
+{{- else -}}
+false
+{{- end -}}
+{{- end -}}
