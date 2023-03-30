@@ -11,6 +11,19 @@
 # - modify build.sh to call the build script in Crossplanes repository
 # - $ python3 ../../infra/helper.py build_image crossplane
 # - $ python3 ../../infra/helper.py build_fuzzers crossplane
+#
+# ASSUMPTIONS:
+# This script's only assumption is that all 'Fuzz*' test cases MUST live in a
+# separate '*_test.go' file with respect to other 'Test*' functions and that
+# all functions it requires MUST either be defined in the same file or in non
+# '*_test.go' files. This is because, due to how OSS-Fuzz builds fuzzers, we
+# have to rename files defining 'Fuzz*' functions to be in non '*_test.go'
+# files and therefore, once moved, the tests won't have access to functions
+# defined in other '*_test.go' files as usual for Go code. The files are
+# usually named 'fuzz_test.go', but that's not mandatory as the script is
+# automatically finding any file containing at least one 'Fuzz*' test case.
+# Multiple 'Fuzz*' test cases can live in the same file, the script will build
+# separate fuzzers for each of them as required.
 
 set -o nounset
 set -o pipefail
