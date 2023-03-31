@@ -17,7 +17,13 @@ limitations under the License.
 package v1
 
 import (
+	"fmt"
+
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
+	"github.com/crossplane/crossplane/pkg/validation/errors"
 )
 
 // A PatchType is a type of patch.
@@ -98,6 +104,45 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// GetType returns the patch type. If the type is not set, it returns the default type.
+func (p *Patch) GetType() PatchType {
+	if p.Type == "" {
+		return PatchTypeFromCompositeFieldPath
+	}
+	return p.Type
+}
+
+// Validate the Patch object.
+func (p *Patch) Validate() *field.Error {
+	switch p.GetType() {
+	case PatchTypeFromCompositeFieldPath, PatchTypeFromEnvironmentFieldPath, PatchTypeToCompositeFieldPath, PatchTypeToEnvironmentFieldPath:
+		if p.FromFieldPath == nil {
+			return field.Required(field.NewPath("fromFieldPath"), fmt.Sprintf("fromFieldPath must be set for patch type %s", p.Type))
+		}
+	case PatchTypePatchSet:
+		if p.PatchSetName == nil {
+			return field.Required(field.NewPath("patchSetName"), fmt.Sprintf("patchSetName must be set for patch type %s", p.Type))
+		}
+	case PatchTypeCombineFromEnvironment, PatchTypeCombineFromComposite, PatchTypeCombineToComposite, PatchTypeCombineToEnvironment:
+		if p.Combine == nil {
+			return field.Required(field.NewPath("combine"), fmt.Sprintf("combine must be set for patch type %s", p.Type))
+		}
+		if p.ToFieldPath == nil {
+			return field.Required(field.NewPath("toFieldPath"), fmt.Sprintf("toFieldPath must be set for patch type %s", p.Type))
+		}
+	default:
+		// Should never happen
+		return field.Invalid(field.NewPath("type"), p.Type, "unknown patch type")
+	}
+	for i, transform := range p.Transforms {
+		if err := transform.Validate(); err != nil {
+			return errors.WrapFieldError(err, field.NewPath("transforms").Index(i))
+		}
+	}
+
+	return nil
 }
 
 // A CombineVariable defines the source of a value that is combined with

@@ -18,12 +18,12 @@ package composite
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -483,7 +483,7 @@ func TestStringResolve(t *testing.T) {
 		i       any
 	}
 	type want struct {
-		o   any
+		o   string
 		err error
 	}
 	sFmt := "verycool%s"
@@ -817,7 +817,7 @@ func TestStringResolve(t *testing.T) {
 
 func TestConvertResolve(t *testing.T) {
 	type args struct {
-		to     string
+		to     v1.TransformIOType
 		format *v1.ConvertTransformFormat
 		i      any
 	}
@@ -833,7 +833,7 @@ func TestConvertResolve(t *testing.T) {
 		"StringToBool": {
 			args: args{
 				i:  "true",
-				to: v1.ConvertTransformTypeBool,
+				to: v1.TransformIOTypeBool,
 			},
 			want: want{
 				o: true,
@@ -842,7 +842,7 @@ func TestConvertResolve(t *testing.T) {
 		"StringToFloat64": {
 			args: args{
 				i:  "1000",
-				to: v1.ConvertTransformTypeFloat64,
+				to: v1.TransformIOTypeFloat64,
 			},
 			want: want{
 				o: 1000.0,
@@ -851,7 +851,7 @@ func TestConvertResolve(t *testing.T) {
 		"StringToQuantityFloat64": {
 			args: args{
 				i:      "1000m",
-				to:     v1.ConvertTransformTypeFloat64,
+				to:     v1.TransformIOTypeFloat64,
 				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
@@ -861,7 +861,7 @@ func TestConvertResolve(t *testing.T) {
 		"StringToQuantityFloat64InvalidFormat": {
 			args: args{
 				i:      "1000 blabla",
-				to:     v1.ConvertTransformTypeFloat64,
+				to:     v1.TransformIOTypeFloat64,
 				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
@@ -871,7 +871,7 @@ func TestConvertResolve(t *testing.T) {
 		"SameTypeNoOp": {
 			args: args{
 				i:  true,
-				to: v1.ConvertTransformTypeBool,
+				to: v1.TransformIOTypeBool,
 			},
 			want: want{
 				o: true,
@@ -880,7 +880,7 @@ func TestConvertResolve(t *testing.T) {
 		"IntAliasToInt64": {
 			args: args{
 				i:  int64(1),
-				to: v1.ConvertTransformTypeInt,
+				to: v1.TransformIOTypeInt,
 			},
 			want: want{
 				o: int64(1),
@@ -889,20 +889,20 @@ func TestConvertResolve(t *testing.T) {
 		"InputTypeNotSupported": {
 			args: args{
 				i:  []int{64},
-				to: v1.ConvertTransformTypeString,
+				to: v1.TransformIOTypeString,
 			},
 			want: want{
-				err: errors.Errorf(errFmtConvertInputTypeNotSupported, reflect.TypeOf([]int{}).Kind().String()),
+				err: errors.Errorf(errFmtConvertInputTypeNotSupported, []int{}),
 			},
 		},
 		"ConversionPairFormatNotSupported": {
 			args: args{
 				i:      100,
-				to:     v1.ConvertTransformTypeString,
+				to:     v1.TransformIOTypeString,
 				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatQuantity))),
 			},
 			want: want{
-				err: errors.Errorf(errConvertFormatPairNotSupported, "int", "string", string(v1.ConvertTransformFormatQuantity)),
+				err: errors.Errorf(errFmtConvertFormatPairNotSupported, "int", "string", string(v1.ConvertTransformFormatQuantity)),
 			},
 		},
 		"ConversionPairNotSupported": {
@@ -911,7 +911,21 @@ func TestConvertResolve(t *testing.T) {
 				to: "[]int",
 			},
 			want: want{
-				err: errors.Errorf(errConvertFormatPairNotSupported, "string", "[]int", string(v1.ConvertTransformFormatNone)),
+				err: &field.Error{
+					Type:     field.ErrorTypeInvalid,
+					Field:    "toType",
+					BadValue: v1.TransformIOType("[]int"),
+					Detail:   "invalid type",
+				},
+			},
+		},
+		"ConversionPairSupportedFloat64Int64": {
+			args: args{
+				i:  float64(1.1),
+				to: v1.TransformIOTypeInt64,
+			},
+			want: want{
+				o: int64(1),
 			},
 		},
 	}
