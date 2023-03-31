@@ -206,6 +206,34 @@ non-deterministic behaviors, e.g. Composition Functions. Their usage should be
 identified early on in the validation logic and should short-circuit any
 unnecessary check in both `strict` and `loose` modes.
 
+#### Notes
+
+A few additional notes worth highligting or making more explicit w.r.t. the description above:
+
+* We identified 3 increasingly complex types of validation, that we will
+    probably introduce in different phases and PRs:
+    1. **Logical validation**: checking that a Composition is valid per se,
+       therefore respecting any constraint that might not have been enforced by
+       the schema itself, but is expected to hold at runtime, e.g. patches of a
+       specific type should define specific fields, or regexes should compile.
+    1. **Schema validation**: checking that a Composition is valid according to
+       all the schemas available, e.g. paths in patches are accessing valid
+       fields according to the schema, or that input and output types of
+       patches are correct according the source and target schemas. Can only be
+       performed if needed schemas are available.
+    1. **Rendered resources validation**: rendered Managed Resources that would
+       be produced given a mocked minimal Composite Resource which selects the
+       given Composition should be valid according to their schema. This will
+       require we run the full Composite Resources reconciliation loop, or part
+       of it if we identify a subset that satisfies our needs, providing mocked
+       or read-only real resources as inputs. Can only be performed if needed
+       schemas are available.
+* To address **Rendered resources validation**, we will have to provide to the
+    Composite Resources Reconciler a **mocked minimal Composite Resource**, at
+    least given its current implementation. By "minimal" we mean having the
+    minimal set of required fields set according to its schema so that it can
+    be considered valid.
+
 ### Expected behaviour
 
 Given the following valid Composition:
