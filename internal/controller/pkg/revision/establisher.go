@@ -364,6 +364,7 @@ func (e *APIEstablisher) update(ctx context.Context, current, desired resource.O
 		return err
 	}
 	desired.SetResourceVersion(current.GetResourceVersion())
+	desired.SetFinalizers(current.GetFinalizers())
 	return e.client.Update(ctx, desired, opts...)
 }
 
