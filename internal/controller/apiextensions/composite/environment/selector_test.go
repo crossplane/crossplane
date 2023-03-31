@@ -145,8 +145,8 @@ func TestSelect(t *testing.T) {
 				),
 			},
 		},
-		"RefForLabelSelectedObject": {
-			reason: "It should create a name reference for the first selected EnvironmentConfig that matches the labels.",
+		"RefForLabelSelectedObjects": {
+			reason: "It should create a name reference for selected EnvironmentConfigs that match the labels.",
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -154,7 +154,18 @@ func TestSelect(t *testing.T) {
 						list.Items = []v1alpha1.EnvironmentConfig{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name: "test",
+									Name: "test-1",
+									Labels: map[string]string{
+										"foo": "bar",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+									Labels: map[string]string{
+										"foo": "bar",
+									},
 								},
 							},
 						}
@@ -163,7 +174,6 @@ func TestSelect(t *testing.T) {
 				},
 				cr: composite(
 					withName("test-composite"),
-					withEnvironmentRefs(environmentConfigRef("test")),
 				),
 				comp: &v1.Composition{
 					Spec: v1.CompositionSpec{
@@ -189,7 +199,7 @@ func TestSelect(t *testing.T) {
 			want: want{
 				cr: composite(
 					withName("test-composite"),
-					withEnvironmentRefs(environmentConfigRef("test")),
+					withEnvironmentRefs(environmentConfigRef("test-1"), environmentConfigRef("test-2")),
 				),
 			},
 		},
