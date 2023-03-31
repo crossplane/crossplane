@@ -80,16 +80,22 @@ func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resou
 	}
 
 	refs := make([]corev1.ObjectReference, len(comp.Spec.Environment.EnvironmentConfigs))
+	idx := 0
 	for i, src := range comp.Spec.Environment.EnvironmentConfigs {
 		switch src.Type {
 		case v1.EnvironmentSourceTypeReference:
-			refs[i] = s.buildEnvironmentConfigRefFromRef(src.Ref)
+			refs = append(
+				refs[:idx],
+				s.buildEnvironmentConfigRefFromRef(src.Ref),
+			)
+			idx++
 		case v1.EnvironmentSourceTypeSelector:
 			r, err := s.buildEnvironmentConfigRefFromSelector(ctx, cr, src.Selector)
 			if err != nil {
 				return errors.Wrapf(err, errFmtReferenceEnvironmentConfig, i)
 			}
-			refs[i] = r
+			refs = append(refs[:idx], r...)
+			idx += len(r)
 		default:
 			return errors.Errorf(errFmtInvalidEnvironmentSourceType, string(src.Type))
 		}
@@ -106,28 +112,33 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromRef(ref *v1.Enviro
 	}
 }
 
-func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(ctx context.Context, cr resource.Composite, selector *v1.EnvironmentSourceSelector) (corev1.ObjectReference, error) {
+func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(ctx context.Context, cr resource.Composite, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
 	matchLabels := make(client.MatchingLabels, len(selector.MatchLabels))
 	for i, m := range selector.MatchLabels {
 		val, err := ResolveLabelValue(m, cr)
 		if err != nil {
-			return corev1.ObjectReference{}, errors.Wrapf(err, errFmtResolveLabelValue, i)
+			return []corev1.ObjectReference{}, errors.Wrapf(err, errFmtResolveLabelValue, i)
 		}
 		matchLabels[m.Key] = val
 	}
 	res := &v1alpha1.EnvironmentConfigList{}
 	if err := s.kube.List(ctx, res, matchLabels); err != nil {
-		return corev1.ObjectReference{}, errors.Wrap(err, errListEnvironmentConfigs)
+		return []corev1.ObjectReference{}, errors.Wrap(err, errListEnvironmentConfigs)
 	}
 	if len(res.Items) == 0 {
-		return corev1.ObjectReference{}, errors.New(errListEnvironmentConfigsNoResult)
+		return []corev1.ObjectReference{}, errors.New(errListEnvironmentConfigsNoResult)
 	}
-	envConfig := res.Items[0]
-	return corev1.ObjectReference{
-		Name:       envConfig.Name,
-		Kind:       v1alpha1.EnvironmentConfigKind,
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-	}, nil
+
+	envConfigs := make([]corev1.ObjectReference, len(res.Items))
+	for i, v := range res.Items {
+		envConfigs[i] = corev1.ObjectReference{
+			Name:       v.Name,
+			Kind:       v1alpha1.EnvironmentConfigKind,
+			APIVersion: v1alpha1.SchemeGroupVersion.String(),
+		}
+	}
+
+	return envConfigs, nil
 }
 
 // ResolveLabelValue from a EnvironmentSourceSelectorLabelMatcher and an Object.
