@@ -1,6 +1,6 @@
 module github.com/crossplane/crossplane
 
-go 1.19
+go 1.20
 
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
