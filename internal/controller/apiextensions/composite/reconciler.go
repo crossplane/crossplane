@@ -350,7 +350,8 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		composition: composition{
 			CompositionFetcher: NewAPICompositionFetcher(kube),
 			CompositionValidatorFunc: func(in *v1.Composition) error {
-				return in.Validate().ToAggregate()
+				_, errs := in.Validate()
+				return errs.ToAggregate()
 			},
 		},
 

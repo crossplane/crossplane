@@ -17,12 +17,81 @@ limitations under the License.
 package v1
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+func TestComposedTemplate_GetBaseObject(t *testing.T) {
+	type args struct {
+		ct *ComposedTemplate
+	}
+	type want struct {
+		output client.Object
+		err    error
+	}
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidBaseObject": {
+			reason: "Valid base object should be parsed properly",
+			args: args{
+				ct: &ComposedTemplate{
+					Base: runtime.RawExtension{
+						Raw: []byte(`{"apiVersion":"v1","kind":"Service","metadata":{"name":"foo"}}`),
+					},
+				},
+			},
+			want: want{
+				output: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Service",
+						"metadata": map[string]interface{}{
+							"name": "foo",
+						},
+					},
+				},
+			},
+		},
+		"InvalidBaseObject": {
+			reason: "Invalid base object should return an error",
+			args: args{
+				ct: &ComposedTemplate{
+					Base: runtime.RawExtension{
+						Raw: []byte(`{$$$WRONG$$$:"v1","kind":"Service","metadata":{"name":"foo"}}`),
+					},
+				},
+			},
+			want: want{
+				err: xperrors.Wrap(errors.New("invalid character '$' looking for beginning of object key string"), errUnableToParse),
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := tc.args.ct.GetBaseObject()
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nGetBaseObject(...): -want error, +got error: \n%s", tc.reason, diff)
+				return
+			}
+			if diff := cmp.Diff(tc.want.output, got); diff != "" {
+				t.Errorf("\n%s\nGetBaseObject(...): -want, +got: \n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestReadinessCheck_Validate(t *testing.T) {
 	type args struct {
