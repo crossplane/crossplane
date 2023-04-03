@@ -126,8 +126,8 @@ Pros
 Cons
 
 * The average deployment may require more compute resources, short term.
-* Three widely used service groups (including EC2) are still quite large (~100
-  CRDs).
+* At least three widely used service groups (including EC2) are still quite
+  large (~100 CRDs).
 * Some folks are going to feel it's not enough granularity.
 
 
@@ -397,13 +397,14 @@ lazily-loaded)  there would be over 325 discovery API endpoints (one per API
 group). This means clients would make over 300 requests and rate-limit
 themselves (and log about it).
 
-A much more efficient discovery API is being introduced as beta with Kubernetes
-v1.27 in April. We expect this API to eliminate most discovery issues, but based
-on historical release timeframes we don’t expect it to be widely deployed until
-2024. It’s not likely to be available at all on EKS until late September 2023.
+A [much more efficient discovery API][kep-aggregated-discovery] is being
+introduced as beta with Kubernetes v1.27 in April. We expect this API to
+eliminate most discovery issues, but based on historical release timeframes we
+don’t expect it to be widely deployed until 2024. It’s not likely to be
+available at all on EKS until late September 2023.
 
 One issue that won’t be eliminated by the more efficient discovery API is CRD
-category queries like kubectl get managed and kubectl get crossplane. These
+category queries like `kubectl get managed` and `kubectl get crossplane`. These
 queries are inherently inefficient. Clients must first discover all supported
 types (i.e. walk the discovery API) to determine which types are in a particular
 category, then make at least one API request per type to list instances. This
@@ -421,3 +422,4 @@ to recommend folks run the feature in production until at least Crossplane v1.13
 [upjet]: https://github.com/upbound/upjet
 [issue-1770]: https://github.com/crossplane/crossplane/issues/1770
 [issue-3754]: https://github.com/crossplane/crossplane/issues/3754
+[kep-aggregated-discovery]: https://github.com/kubernetes/enhancements/issues/3352
