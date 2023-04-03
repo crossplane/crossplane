@@ -1,5 +1,9 @@
 # Break Up Large Providers by Service
 
+* Owner: Nic Cope (@negz)
+* Reviewers: Hasan Türken (@turkenh), Alper Ulucinar (@ulucinar)
+* Status: Draft
+
 ## Background
 
 The most popular and largest Crossplane providers install hundreds of CRDs.
