@@ -87,7 +87,7 @@ I proposed we only break up the largest providers. For example:
 * `crossplane-contrib/provider-tencentcloud` - Becomes ~50 smaller providers.
 
 It's important to note that we don't expect anyone to be installing and
-operating all of these providers. Per [Community Impact][#community-impact], we
+operating all of these providers. Per [Community Impact](#community-impact), we
 expect folks to install ~10 providers on average.
 
 These providers would:
@@ -257,7 +257,7 @@ this, but we suspect we can get providers down to _at least_:
 * ~300MB per Terraform provider process.
 
 The current thinking is that we need to run one Terraform provider process for
-each ProviderConfig` that is used by at least one MR. So for example one upjet
+each ProviderConfig that is used by at least one MR. So for example one upjet
 provider:
 
 * Doing nothing would use ~600MB memory.
@@ -382,7 +382,7 @@ the API server directly. This may be feasible for API servers we control (e.g.
 MCPs), but is probably not feasible in the wild.
 
 I believe all forms of lazy-loading to be ultimately infeasible due to the
-discovery API (see the links in [Background][#background] if you’re unfamiliar
+discovery API (see the links in [Background](#background) if you’re unfamiliar
 with discovery and its issues). In order for clients like kubectl to try to use
 (e.g. list or create) a particular kind of MR it must exist in the discovery
 API. This means all supported types would need to exist in the discovery API
