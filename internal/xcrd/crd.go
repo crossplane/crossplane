@@ -54,10 +54,11 @@ const (
 func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomResourceDefinition, error) {
 	crd := &extv1.CustomResourceDefinition{
 		Spec: extv1.CustomResourceDefinitionSpec{
-			Scope:    extv1.ClusterScoped,
-			Group:    xrd.Spec.Group,
-			Names:    xrd.Spec.Names,
-			Versions: make([]extv1.CustomResourceDefinitionVersion, len(xrd.Spec.Versions)),
+			Scope:      extv1.ClusterScoped,
+			Group:      xrd.Spec.Group,
+			Names:      xrd.Spec.Names,
+			Versions:   make([]extv1.CustomResourceDefinitionVersion, len(xrd.Spec.Versions)),
+			Conversion: xrd.Spec.Conversion,
 		},
 	}
 
@@ -126,10 +127,11 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 
 	crd := &extv1.CustomResourceDefinition{
 		Spec: extv1.CustomResourceDefinitionSpec{
-			Scope:    extv1.NamespaceScoped,
-			Group:    xrd.Spec.Group,
-			Names:    *xrd.Spec.ClaimNames,
-			Versions: make([]extv1.CustomResourceDefinitionVersion, len(xrd.Spec.Versions)),
+			Scope:      extv1.NamespaceScoped,
+			Group:      xrd.Spec.Group,
+			Names:      *xrd.Spec.ClaimNames,
+			Versions:   make([]extv1.CustomResourceDefinitionVersion, len(xrd.Spec.Versions)),
+			Conversion: xrd.Spec.Conversion,
 		},
 	}
 
