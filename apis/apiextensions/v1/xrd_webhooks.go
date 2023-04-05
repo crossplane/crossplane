@@ -39,7 +39,7 @@ const (
 
 // ValidateCreate is run for creation actions.
 func (in *CompositeResourceDefinition) ValidateCreate() error {
-	if conversion := in.Spec.Conversion; conversion != nil && conversion.Strategy == extv1.WebhookConverter && conversion.Webhook == nil {
+	if c := in.Spec.Conversion; c != nil && c.Strategy == extv1.WebhookConverter && c.Webhook == nil {
 		return errors.New(errConversionWebhookConfigRequired)
 	}
 	return nil
