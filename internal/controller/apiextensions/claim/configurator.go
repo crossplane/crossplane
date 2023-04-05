@@ -78,7 +78,7 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 
 	icmSpec := ucm.Object["spec"]
-	spec, ok := icmSpec.(map[string]any)
+	cmSpec, ok := icmSpec.(map[string]any)
 	if !ok {
 		return errors.New(errUnsupportedClaimSpec)
 	}
@@ -127,9 +127,25 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 
 	claimSpecFilter := xcrd.GetPropFields(wellKnownClaimFields)
-	ucp.Object["spec"] = filter(spec, claimSpecFilter...)
+	icpSpec := ucp.Object["spec"]
+	cpSpec, _ := icpSpec.(map[string]any)
 
-	// Note that we overwrite the entire composite spec above, so we wait
+	// We want to filter out claim specific fields
+	cmSpec = filter(cmSpec, claimSpecFilter...)
+
+	// We want to overwrite arrays and maps if they are present in the claim.
+	// This step is needed to support field removal.
+	overwriteArraysAndMaps(cpSpec, cmSpec)
+
+	// We want to keep composite specific fields like "resourceRefs".
+	// Since we changed the call from patch to update, we need this additional
+	// step.
+	if err := mergo.Merge(&cmSpec, cpSpec); err != nil {
+		return errors.Wrap(err, errMergeClaimSpec)
+	}
+	ucp.Object["spec"] = cmSpec
+
+	// Note that we overwrite the entire composite cmSpec above, so we wait
 	// until this point to set the claim reference. We compute the reference
 	// earlier so we can return early if it would not be allowed.
 	ucp.SetClaimReference(proposed)
@@ -145,6 +161,19 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 	}
 
 	return nil
+}
+
+func overwriteArraysAndMaps(dest map[string]any, source map[string]any) {
+	for k, v := range source {
+		if _, ok := dest[k]; ok {
+			switch v.(type) {
+			case map[string]interface{}:
+				dest[k] = v
+			case []any:
+				dest[k] = v
+			}
+		}
+	}
 }
 
 func filter(in map[string]any, keys ...string) map[string]any {

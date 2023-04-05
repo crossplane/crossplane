@@ -143,7 +143,7 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	kube = unstructured.NewClient(kube)
 
 	c := &PTComposer{
-		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
+		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIUpdatingApplicator(kube)},
 
 		// TODO(negz): Once Composition Functions are GA this Composer will only
 		// need to handle legacy Compositions that use anonymous templates. This

@@ -309,8 +309,9 @@ func NewReconciler(m manager.Manager, of resource.CompositeClaimKind, with resou
 	c := unstructured.NewClient(m.GetClient())
 	r := &Reconciler{
 		client: resource.ClientApplicator{
-			Client:     c,
-			Applicator: resource.NewAPIPatchingApplicator(c),
+			Client: c,
+			// We use update to be able to remove fields from arrays and maps.
+			Applicator: resource.NewAPIUpdatingApplicator(c),
 		},
 		newClaim: func() resource.CompositeClaim {
 			return claim.New(claim.WithGroupVersionKind(schema.GroupVersionKind(of)))

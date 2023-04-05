@@ -372,6 +372,154 @@ func TestCompositeConfigure(t *testing.T) {
 				},
 			},
 		},
+		"RemoveMapField": {
+			reason: "A map field should be deleted if it is removed from the claim",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+								"stuff": map[string]any{
+									"foo": "bar",
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"generateName": name + "-",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"coolness": 42,
+								"stuff": map[string]any{
+									"foo": "bar",
+									"baz": "qux",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"generateName": name + "-",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+								"stuff": map[string]any{
+									"foo": "bar",
+								},
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"RemoveArrayField": {
+			reason: "An array entry field should be deleted if it is removed from the claim",
+			c: &test.MockClient{
+				MockCreate: test.NewMockCreateFn(nil),
+			},
+			args: args{
+				ctx: context.Background(),
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+								"stuff": []any{
+									"foo",
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"generateName": name + "-",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"coolness": 42,
+								"stuff": []any{
+									"foo",
+									"bar",
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"generateName": name + "-",
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"coolness": 23,
+								"stuff": []any{
+									"foo",
+								},
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
