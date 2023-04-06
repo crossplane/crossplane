@@ -152,13 +152,14 @@
       ],
       "groupName": "all non-major go dependencies"
     }, {
-// We want a single PR for all minor and patch bumps of Github Actions
+// We want a single PR for all non-major bumps of Github Actions
       "matchDepTypes": [
         "action"
       ],
       "matchUpdateTypes": [
         "minor",
-        "patch"
+        "patch",
+        "digest"
       ],
       "groupName": "all non-major github action",
       "pinDigests": true
