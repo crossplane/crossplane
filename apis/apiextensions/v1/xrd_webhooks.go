@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -26,17 +27,21 @@ import (
 const (
 	errUnexpectedType = "unexpected type"
 
-	errGroupImmutable       = "spec.group is immutable"
-	errPluralImmutable      = "spec.names.plural is immutable"
-	errKindImmutable        = "spec.names.kind is immutable"
-	errClaimPluralImmutable = "spec.claimNames.plural is immutable"
-	errClaimKindImmutable   = "spec.claimNames.kind is immutable"
+	errGroupImmutable                  = "spec.group is immutable"
+	errPluralImmutable                 = "spec.names.plural is immutable"
+	errKindImmutable                   = "spec.names.kind is immutable"
+	errClaimPluralImmutable            = "spec.claimNames.plural is immutable"
+	errClaimKindImmutable              = "spec.claimNames.kind is immutable"
+	errConversionWebhookConfigRequired = "spec.conversion.webhook is required when spec.conversion.strategy is 'Webhook'"
 )
 
 // +kubebuilder:webhook:verbs=update,path=/validate-apiextensions-crossplane-io-v1-compositeresourcedefinition,mutating=false,failurePolicy=fail,groups=apiextensions.crossplane.io,resources=compositeresourcedefinitions,versions=v1,name=compositeresourcedefinitions.apiextensions.crossplane.io,sideEffects=None,admissionReviewVersions=v1
 
 // ValidateCreate is run for creation actions.
 func (in *CompositeResourceDefinition) ValidateCreate() error {
+	if c := in.Spec.Conversion; c != nil && c.Strategy == extv1.WebhookConverter && c.Webhook == nil {
+		return errors.New(errConversionWebhookConfigRequired)
+	}
 	return nil
 }
 
