@@ -28,8 +28,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // Error strings.
@@ -37,8 +40,11 @@ const (
 	errUpdateClaim          = "cannot update composite resource claim"
 	errBindClaimConflict    = "cannot bind claim that references a different composite resource"
 	errGetSecret            = "cannot get composite resource's connection secret"
+	errGetXRD               = "cannot get composite resource definition"
 	errSecretConflict       = "cannot establish control of existing connection secret"
 	errCreateOrUpdateSecret = "cannot create or update connection secret"
+
+	reasonCompositeDeletePolicy event.Reason = "CompositeDeletePolicy"
 )
 
 // An APIBinder binds claims to composites by updating them in a Kubernetes API
@@ -130,4 +136,32 @@ func (a *APIConnectionPropagator) PropagateConnection(ctx context.Context, to re
 	}
 
 	return true, nil
+}
+
+// NewAPIDefaultSelector returns a APIDefaultSelector.
+func NewAPIDefaultSelector(c client.Client, ref corev1.ObjectReference, r event.Recorder) *APIDefaultSelector {
+	return &APIDefaultSelector{client: c, defRef: ref, recorder: r}
+}
+
+// APIDefaultSelector selects the default composite delete policy referenced in
+// the definition of the resource if the policy is not specified in the claim.
+type APIDefaultSelector struct {
+	client   client.Client
+	defRef   corev1.ObjectReference
+	recorder event.Recorder
+}
+
+// SelectDefaults selects the default composite delete policy if a policy is not
+// given in the Claim.
+func (s *APIDefaultSelector) SelectDefaults(ctx context.Context, cm resource.CompositeClaim) error {
+	if cm.GetCompositeDeletePolicy() != nil {
+		return nil
+	}
+	def := &v1.CompositeResourceDefinition{}
+	if err := s.client.Get(ctx, meta.NamespacedNameOf(&s.defRef), def); err != nil {
+		return errors.Wrap(err, errGetXRD)
+	}
+	cm.SetCompositeDeletePolicy(def.Spec.DefaultCompositeDeletePolicy)
+	s.recorder.Event(cm, event.Normal(reasonCompositeDeletePolicy, "Default composite delete policy has been selected"))
+	return nil
 }

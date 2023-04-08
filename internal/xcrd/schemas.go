@@ -112,7 +112,6 @@ func CompositeResourceSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Automatic"`)},
 				{Raw: []byte(`"Manual"`)},
 			},
-			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
 		"claimRef": {
 			Type:     "object",
@@ -252,7 +251,6 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Automatic"`)},
 				{Raw: []byte(`"Manual"`)},
 			},
-			Default: &extv1.JSON{Raw: []byte(`"Automatic"`)},
 		},
 		"compositeDeletePolicy": {
 			Type: "string",
@@ -260,7 +258,7 @@ func CompositeResourceClaimSpecProps() map[string]extv1.JSONSchemaProps {
 				{Raw: []byte(`"Background"`)},
 				{Raw: []byte(`"Foreground"`)},
 			},
-			Default: &extv1.JSON{Raw: []byte(`"Background"`)}},
+		},
 		"resourceRef": {
 			Type:     "object",
 			Required: []string{"apiVersion", "kind", "name"},

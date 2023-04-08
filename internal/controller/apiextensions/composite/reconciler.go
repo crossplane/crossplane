@@ -51,22 +51,23 @@ const (
 
 // Error strings
 const (
-	errGet               = "cannot get composite resource"
-	errUpdate            = "cannot update composite resource"
-	errUpdateStatus      = "cannot update composite resource status"
-	errAddFinalizer      = "cannot add composite resource finalizer"
-	errRemoveFinalizer   = "cannot remove composite resource finalizer"
-	errSelectComp        = "cannot select Composition"
-	errFetchComp         = "cannot fetch Composition"
-	errConfigure         = "cannot configure composite resource"
-	errPublish           = "cannot publish connection details"
-	errUnpublish         = "cannot unpublish connection details"
-	errValidate          = "refusing to use invalid Composition"
-	errAssociate         = "cannot associate composed resources with Composition resource templates"
-	errFetchEnvironment  = "cannot fetch environment"
-	errSelectEnvironment = "cannot select environment"
-	errCompose           = "cannot compose resources"
-	errRenderCD          = "cannot render composed resource"
+	errGet                    = "cannot get composite resource"
+	errUpdate                 = "cannot update composite resource"
+	errUpdateStatus           = "cannot update composite resource status"
+	errAddFinalizer           = "cannot add composite resource finalizer"
+	errRemoveFinalizer        = "cannot remove composite resource finalizer"
+	errSelectComp             = "cannot select Composition"
+	errSelectCompUpdatePolicy = "cannot select CompositionUpdatePolicy"
+	errFetchComp              = "cannot fetch Composition"
+	errConfigure              = "cannot configure composite resource"
+	errPublish                = "cannot publish connection details"
+	errUnpublish              = "cannot unpublish connection details"
+	errValidate               = "refusing to use invalid Composition"
+	errAssociate              = "cannot associate composed resources with Composition resource templates"
+	errFetchEnvironment       = "cannot fetch environment"
+	errSelectEnvironment      = "cannot select environment"
+	errCompose                = "cannot compose resources"
+	errRenderCD               = "cannot render composed resource"
 
 	errFmtPatchEnvironment = "cannot apply environment patch at index %d"
 )
@@ -117,6 +118,19 @@ type CompositionFetcherFn func(ctx context.Context, cr resource.Composite) (*v1.
 
 // Fetch an appropriate Composition for the supplied Composite resource.
 func (fn CompositionFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) {
+	return fn(ctx, cr)
+}
+
+// A CompositionUpdatePolicySelector selects a composition update policy.
+type CompositionUpdatePolicySelector interface {
+	SelectCompositionUpdatePolicy(ctx context.Context, cr resource.Composite) error
+}
+
+// A CompositionUpdatePolicySelectorFn selects a composition update policy.
+type CompositionUpdatePolicySelectorFn func(ctx context.Context, cr resource.Composite) error
+
+// SelectCompositionUpdatePolicy for the supplied composite resource.
+func (fn CompositionUpdatePolicySelectorFn) SelectCompositionUpdatePolicy(ctx context.Context, cr resource.Composite) error {
 	return fn(ctx, cr)
 }
 
@@ -273,6 +287,14 @@ func WithCompositionSelector(s CompositionSelector) ReconcilerOption {
 	}
 }
 
+// WithCompositionUpdatePolicySelector specifies how the composition update policy to be used should be
+// selected.
+func WithCompositionUpdatePolicySelector(s CompositionUpdatePolicySelector) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.composite.CompositionUpdatePolicySelector = s
+	}
+}
+
 // WithEnvironmentSelector specifies how the environment to be used should be
 // selected.
 func WithEnvironmentSelector(s EnvironmentSelector) ReconcilerOption {
@@ -331,6 +353,7 @@ type environment struct {
 type compositeResource struct {
 	resource.Finalizer
 	CompositionSelector
+	CompositionUpdatePolicySelector
 	EnvironmentSelector
 	Configurator
 	managed.ConnectionPublisher
@@ -462,6 +485,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(xr, event.Warning(reasonInit, err))
+		xr.SetConditions(xpv1.ReconcileError(err))
+		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	}
+
+	if err := r.composite.SelectCompositionUpdatePolicy(ctx, xr); err != nil {
+		log.Debug(errSelectCompUpdatePolicy, "error", err)
+		err = errors.Wrap(err, errSelectCompUpdatePolicy)
+		r.record.Event(xr, event.Warning(reasonResolve, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}

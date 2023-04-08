@@ -199,6 +199,11 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.DefaultCompositeDeletePolicy != nil {
+		in, out := &in.DefaultCompositeDeletePolicy, &out.DefaultCompositeDeletePolicy
+		*out = new(commonv1.CompositeDeletePolicy)
+		**out = **in
+	}
 	if in.DefaultCompositionRef != nil {
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
 		*out = new(CompositionReference)
@@ -207,6 +212,11 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 	if in.EnforcedCompositionRef != nil {
 		in, out := &in.EnforcedCompositionRef, &out.EnforcedCompositionRef
 		*out = new(CompositionReference)
+		**out = **in
+	}
+	if in.DefaultCompositionUpdatePolicy != nil {
+		in, out := &in.DefaultCompositionUpdatePolicy, &out.DefaultCompositionUpdatePolicy
+		*out = new(commonv1.UpdatePolicy)
 		**out = **in
 	}
 	if in.Versions != nil {
