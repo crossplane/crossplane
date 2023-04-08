@@ -33,6 +33,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/internal/version"
@@ -80,6 +81,11 @@ kind: Composition
 metadata:
   name: test`)
 
+	v1alpha1EnvCfgbytes = []byte(`apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: test`)
+
 	v1beta1crd       = &apiextensions.CustomResourceDefinition{}
 	_                = yaml.Unmarshal(v1beta1CRDBytes, v1beta1crd)
 	v1crd            = &apiextensions.CustomResourceDefinition{}
@@ -96,6 +102,8 @@ metadata:
 	_                = yaml.Unmarshal(v1XRDBytes, v1XRD)
 	v1Comp           = &v1.Composition{}
 	_                = yaml.Unmarshal(v1CompBytes, v1Comp)
+	v1alpha1EnvCfg   = &v1alpha1.EnvironmentConfig{}
+	_                = yaml.Unmarshal(v1alpha1EnvCfgbytes, v1alpha1EnvCfg)
 
 	meta, _ = BuildMetaScheme()
 	obj, _  = BuildObjectScheme()
@@ -437,6 +445,34 @@ func TestIsComposition(t *testing.T) {
 
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsComposition(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsEnvironmentConfig(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1": {
+			reason: "Should not return error if object is EnvironmentConfig.",
+			obj:    v1alpha1EnvCfg,
+		},
+		"ErrNotEnvironmentConfig": {
+			reason: "Should return error if object is not EnvironmentConfig.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotEnvironmentConfig),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsEnvironmentConfig(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsEnvironmentConfig(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

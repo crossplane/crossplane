@@ -27,6 +27,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/parser"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	"github.com/crossplane/crossplane/internal/version"
 )
@@ -41,6 +42,7 @@ const (
 	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
+	errNotEnvironmentConfig              = "object is not an EnvironmentConfig"
 	errBadConstraints                    = "package version constraints are poorly formatted"
 	errCrossplaneIncompatibleFmt         = "package is not compatible with Crossplane version (%s)"
 )
@@ -53,13 +55,19 @@ func NewProviderLinter() parser.Linter {
 			IsCRD,
 			IsValidatingWebhookConfiguration,
 			IsMutatingWebhookConfiguration,
+			IsEnvironmentConfig,
 		)))
 }
 
 // NewConfigurationLinter is a convenience function for creating a package linter for
 // configurations.
 func NewConfigurationLinter() parser.Linter {
-	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver), parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition)))
+	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver),
+		parser.ObjectLinterFns(parser.Or(
+			IsXRD,
+			IsComposition,
+			IsEnvironmentConfig,
+		)))
 }
 
 // OneMeta checks that there is only one meta object in the package.
@@ -165,6 +173,14 @@ func IsXRD(o runtime.Object) error {
 func IsComposition(o runtime.Object) error {
 	if _, ok := o.(*v1.Composition); !ok {
 		return errors.New(errNotComposition)
+	}
+	return nil
+}
+
+// IsEnvironmentConfig checks that an object is a EnvironmentConfig meta type.
+func IsEnvironmentConfig(o runtime.Object) error {
+	if _, ok := o.(*v1alpha1.EnvironmentConfig); !ok {
+		return errors.New(errNotEnvironmentConfig)
 	}
 	return nil
 }

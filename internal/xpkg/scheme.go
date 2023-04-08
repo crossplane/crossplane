@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 )
@@ -46,6 +47,9 @@ func BuildMetaScheme() (*runtime.Scheme, error) {
 func BuildObjectScheme() (*runtime.Scheme, error) {
 	objScheme := runtime.NewScheme()
 	if err := v1.AddToScheme(objScheme); err != nil {
+		return nil, err
+	}
+	if err := v1alpha1.AddToScheme(objScheme); err != nil {
 		return nil, err
 	}
 	if err := extv1beta1.AddToScheme(objScheme); err != nil {
