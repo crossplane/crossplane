@@ -27,6 +27,19 @@ documentation].
 You can subscribe to the [community calendar] to track all release dates, and
 find the most recent releases on the [releases] page.
 
+## Roadmap
+
+The public roadmap for Crossplane is published as a GitHub project board. Issues
+added to the roadmap have been triaged and identified as valuable to the
+community, and therefore a priority for the project that we expect to invest in.
+
+Milestones assigned to any issues in the roadmap are intended to give a sense of
+overall priority and the expected order of delivery. They should be considered
+approximate estimations and are **not** a strict commitment to a specific
+delivery timeline.
+
+[Crossplane Roadmap]
+
 ## Get Involved
 
 Crossplane is a community driven project; we welcome your contribution. To file
@@ -80,3 +93,4 @@ Crossplane is under the Apache 2.0 license.
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
+[Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/3
