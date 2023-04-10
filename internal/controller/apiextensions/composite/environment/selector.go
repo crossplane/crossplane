@@ -126,7 +126,7 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(ctx conte
 		return []corev1.ObjectReference{}, errors.Wrap(err, errListEnvironmentConfigs)
 	}
 	if len(res.Items) == 0 {
-		return []corev1.ObjectReference{}, errors.New(errListEnvironmentConfigsNoResult)
+		return []corev1.ObjectReference{}, nil
 	}
 
 	envConfigs := make([]corev1.ObjectReference, len(res.Items))

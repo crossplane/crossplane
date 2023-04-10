@@ -378,8 +378,8 @@ func TestSelect(t *testing.T) {
 				err: errors.Wrapf(errors.Wrap(errBoom, errListEnvironmentConfigs), errFmtReferenceEnvironmentConfig, 0),
 			},
 		},
-		"ErrorOnKubeListEmpty": {
-			reason: "It should return an error if kube.List returns an empty list.",
+		"NoReferenceOnKubeListEmpty": {
+			reason: "It should return an empty list of references if kube.List returns an empty list.",
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil),
@@ -408,9 +408,8 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr: composite(
-					withEnvironmentRefs(),
+					withEnvironmentRefs([]corev1.ObjectReference{}...),
 				),
-				err: errors.Wrapf(errors.New(errListEnvironmentConfigsNoResult), errFmtReferenceEnvironmentConfig, 0),
 			},
 		},
 		"ErrorOnInvalidLabelValueFieldPath": {
