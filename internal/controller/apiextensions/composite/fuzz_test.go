@@ -26,7 +26,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 )
@@ -50,7 +49,7 @@ func init() {
 func FuzzAsComposition(f *testing.F) {
 	f.Fuzz(func(t *testing.T, data []byte) {
 		f := fuzz.NewConsumer(data)
-		c := &v1beta1.CompositionRevision{}
+		c := &v1.CompositionRevision{}
 		f.GenerateStruct(c)
 
 		_ = AsComposition(c)

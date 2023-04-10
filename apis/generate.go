@@ -25,7 +25,13 @@ limitations under the License.
 //go:generate rm -rf ../cluster/webhookconfigurations
 
 // Replicate identical API versions
-//go:generate ../hack/duplicate_api_type.sh apiextensions/v1beta1/revision_types.go apiextensions/v1alpha1
+
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_revision_types.go apiextensions/v1beta1
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_common.go apiextensions/v1beta1
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_patches.go apiextensions/v1beta1
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_transforms.go apiextensions/v1beta1
+//go:generate ../hack/duplicate_api_type.sh apiextensions/v1/composition_environment.go apiextensions/v1beta1
+
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/configuration_types.go pkg/meta/v1alpha1
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/provider_types.go pkg/meta/v1alpha1
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/meta.go pkg/meta/v1alpha1

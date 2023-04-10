@@ -36,6 +36,10 @@ func (c *FakeApiextensionsV1) Compositions() v1.CompositionInterface {
 	return &FakeCompositions{c}
 }
 
+func (c *FakeApiextensionsV1) CompositionRevisions() v1.CompositionRevisionInterface {
+	return &FakeCompositionRevisions{c}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeApiextensionsV1) RESTClient() rest.Interface {

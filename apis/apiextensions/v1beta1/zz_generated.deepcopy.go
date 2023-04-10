@@ -22,8 +22,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	"github.com/crossplane/crossplane-runtime/apis/common/v1"
-	corev1 "k8s.io/api/core/v1"
+	commonv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -281,7 +281,7 @@ func (in *ContainerFunction) DeepCopyInto(out *ContainerFunction) {
 	*out = *in
 	if in.ImagePullPolicy != nil {
 		in, out := &in.ImagePullPolicy, &out.ImagePullPolicy
-		*out = new(corev1.PullPolicy)
+		*out = new(v1.PullPolicy)
 		**out = **in
 	}
 	if in.Timeout != nil {
@@ -762,7 +762,7 @@ func (in *PatchPolicy) DeepCopyInto(out *PatchPolicy) {
 	}
 	if in.MergeOptions != nil {
 		in, out := &in.MergeOptions, &out.MergeOptions
-		*out = new(v1.MergeOptions)
+		*out = new(commonv1.MergeOptions)
 		(*in).DeepCopyInto(*out)
 	}
 }

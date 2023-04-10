@@ -21,3 +21,5 @@ package v1
 type CompositeResourceDefinitionExpansion interface{}
 
 type CompositionExpansion interface{}
+
+type CompositionRevisionExpansion interface{}

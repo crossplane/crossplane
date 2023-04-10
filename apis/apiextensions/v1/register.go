@@ -56,7 +56,16 @@ var (
 	CompositionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionKind)
 )
 
+// CompositionRevision type metadata.
+var (
+	CompositionRevisionKind             = reflect.TypeOf(CompositionRevision{}).Name()
+	CompositionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: CompositionRevisionKind}.String()
+	CompositionRevisionKindAPIVersion   = CompositionRevisionKind + "." + SchemeGroupVersion.String()
+	CompositionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(CompositionRevisionKind)
+)
+
 func init() {
 	SchemeBuilder.Register(&CompositeResourceDefinition{}, &CompositeResourceDefinitionList{})
 	SchemeBuilder.Register(&Composition{}, &CompositionList{})
+	SchemeBuilder.Register(&CompositionRevision{}, &CompositionRevisionList{})
 }
