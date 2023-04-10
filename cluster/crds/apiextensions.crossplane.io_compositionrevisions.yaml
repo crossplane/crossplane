@@ -272,10 +272,10 @@ spec:
                                 description: Match is a more complex version of Map
                                   that matches a list of patterns.
                                 properties:
-                                  fallbackToInput:
-                                    description: If set to true, the input value will
-                                      be returned if no pattern matches.
-                                    type: boolean
+                                  fallbackTo:
+                                    description: Determines to what value the transform
+                                      should fallback if no pattern matches.
+                                    type: string
                                   fallbackValue:
                                     description: The fallback value that should be
                                       returned by the transform if now pattern matches.
@@ -687,10 +687,10 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
-                                    fallbackToInput:
-                                      description: If set to true, the input value
-                                        will be returned if no pattern matches.
-                                      type: boolean
+                                    fallbackTo:
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
@@ -1077,10 +1077,10 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
-                                    fallbackToInput:
-                                      description: If set to true, the input value
-                                        will be returned if no pattern matches.
-                                      type: boolean
+                                    fallbackTo:
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
@@ -1589,10 +1589,10 @@ spec:
                                 description: Match is a more complex version of Map
                                   that matches a list of patterns.
                                 properties:
-                                  fallbackToInput:
-                                    description: If set to true, the input value will
-                                      be returned if no pattern matches.
-                                    type: boolean
+                                  fallbackTo:
+                                    description: Determines to what value the transform
+                                      should fallback if no pattern matches.
+                                    type: string
                                   fallbackValue:
                                     description: The fallback value that should be
                                       returned by the transform if now pattern matches.
@@ -2004,10 +2004,10 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
-                                    fallbackToInput:
-                                      description: If set to true, the input value
-                                        will be returned if no pattern matches.
-                                      type: boolean
+                                    fallbackTo:
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
@@ -2394,10 +2394,10 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
-                                    fallbackToInput:
-                                      description: If set to true, the input value
-                                        will be returned if no pattern matches.
-                                      type: boolean
+                                    fallbackTo:
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern

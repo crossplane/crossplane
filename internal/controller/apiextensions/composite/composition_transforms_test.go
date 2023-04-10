@@ -179,9 +179,9 @@ func TestMatchResolve(t *testing.T) {
 		"ErrFallbackValueAndToInput": {
 			args: args{
 				t: v1.MatchTransform{
-					Patterns:        []v1.MatchTransformPattern{},
-					FallbackValue:   asJSON("foo"),
-					FallbackToInput: true,
+					Patterns:      []v1.MatchTransformPattern{},
+					FallbackValue: asJSON("foo"),
+					FallbackTo:    "Input",
 				},
 				i: "foo",
 			},
@@ -194,6 +194,19 @@ func TestMatchResolve(t *testing.T) {
 				t: v1.MatchTransform{
 					Patterns:      []v1.MatchTransformPattern{},
 					FallbackValue: asJSON("bar"),
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "bar",
+			},
+		},
+		"NoPatternsFallbackToValueExplicit": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:      []v1.MatchTransformPattern{},
+					FallbackValue: asJSON("bar"),
+					FallbackTo:    "Value", // Explicitly set to Value, unnecessary but valid.
 				},
 				i: "foo",
 			},
@@ -214,8 +227,8 @@ func TestMatchResolve(t *testing.T) {
 		"NoPatternsFallbackToInput": {
 			args: args{
 				t: v1.MatchTransform{
-					Patterns:        []v1.MatchTransformPattern{},
-					FallbackToInput: true,
+					Patterns:   []v1.MatchTransformPattern{},
+					FallbackTo: "Input",
 				},
 				i: "foo",
 			},
@@ -226,9 +239,9 @@ func TestMatchResolve(t *testing.T) {
 		"NoPatternsFallbackNilToInput": {
 			args: args{
 				t: v1.MatchTransform{
-					Patterns:        []v1.MatchTransformPattern{},
-					FallbackValue:   asJSON(nil),
-					FallbackToInput: true,
+					Patterns:      []v1.MatchTransformPattern{},
+					FallbackValue: asJSON(nil),
+					FallbackTo:    "Input",
 				},
 				i: "foo",
 			},

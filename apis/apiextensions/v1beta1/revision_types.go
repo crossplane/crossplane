@@ -568,6 +568,15 @@ func (m *MapTransform) Resolve(input any) (any, error) {
 	}
 }
 
+// MatchFallbackTo defines how a match operation will fallback.
+type MatchFallbackTo string
+
+// Valid MatchFallbackTo.
+const (
+	MatchFallbackToTypeValue MatchFallbackTo = "Value"
+	MatchFallbackToTypeInput MatchFallbackTo = "Input"
+)
+
 // MatchTransform is a more complex version of a map transform that matches a
 // list of patterns.
 type MatchTransform struct {
@@ -579,8 +588,8 @@ type MatchTransform struct {
 	// The fallback value that should be returned by the transform if now pattern
 	// matches.
 	FallbackValue extv1.JSON `json:"fallbackValue,omitempty"`
-	// If set to true, the input value will be returned if no pattern matches.
-	FallbackToInput bool `json:"fallbackToInput,omitempty"`
+	// Determines to what value the transform should fallback if no pattern matches.
+	FallbackTo MatchFallbackTo `json:"fallbackTo,omitempty"`
 }
 
 // MatchTransformPatternType defines the type of a MatchTransformPattern.

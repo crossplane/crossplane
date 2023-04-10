@@ -162,7 +162,7 @@ func ResolveMatch(t v1.MatchTransform, input any) (any, error) {
 	}
 
 	// Fallback to input if no pattern matches and fallback to input is set
-	if t.FallbackToInput {
+	if t.FallbackTo == v1.MatchFallbackToTypeInput {
 		if t.FallbackValue.Size() != 0 {
 			return nil, errors.New(errMatchFallbackBoth)
 		}
