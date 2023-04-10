@@ -273,8 +273,12 @@ spec:
                                   that matches a list of patterns.
                                 properties:
                                   fallbackTo:
+                                    default: Value
                                     description: Determines to what value the transform
                                       should fallback if no pattern matches.
+                                    enum:
+                                    - Value
+                                    - Input
                                     type: string
                                   fallbackValue:
                                     description: The fallback value that should be
@@ -688,8 +692,12 @@ spec:
                                     Map that matches a list of patterns.
                                   properties:
                                     fallbackTo:
+                                      default: Value
                                       description: Determines to what value the transform
                                         should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
                                       type: string
                                     fallbackValue:
                                       description: The fallback value that should
@@ -1078,8 +1086,12 @@ spec:
                                     Map that matches a list of patterns.
                                   properties:
                                     fallbackTo:
+                                      default: Value
                                       description: Determines to what value the transform
                                         should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
                                       type: string
                                     fallbackValue:
                                       description: The fallback value that should
@@ -1590,8 +1602,12 @@ spec:
                                   that matches a list of patterns.
                                 properties:
                                   fallbackTo:
+                                    default: Value
                                     description: Determines to what value the transform
                                       should fallback if no pattern matches.
+                                    enum:
+                                    - Value
+                                    - Input
                                     type: string
                                   fallbackValue:
                                     description: The fallback value that should be
@@ -2005,8 +2021,12 @@ spec:
                                     Map that matches a list of patterns.
                                   properties:
                                     fallbackTo:
+                                      default: Value
                                       description: Determines to what value the transform
                                         should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
                                       type: string
                                     fallbackValue:
                                       description: The fallback value that should
@@ -2395,8 +2415,12 @@ spec:
                                     Map that matches a list of patterns.
                                   properties:
                                     fallbackTo:
+                                      default: Value
                                       description: Determines to what value the transform
                                         should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
                                       type: string
                                     fallbackValue:
                                       description: The fallback value that should

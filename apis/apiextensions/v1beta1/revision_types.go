@@ -589,6 +589,9 @@ type MatchTransform struct {
 	// matches.
 	FallbackValue extv1.JSON `json:"fallbackValue,omitempty"`
 	// Determines to what value the transform should fallback if no pattern matches.
+	// +optional
+	// +kubebuilder:validation:Enum=Value;Input
+	// +kubebuilder:default=Value
 	FallbackTo MatchFallbackTo `json:"fallbackTo,omitempty"`
 }
 
