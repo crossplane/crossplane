@@ -849,8 +849,8 @@ func TestPatchAndTransform(t *testing.T) {
 			reason: "We should return any error encountered while inlining a Composition's PatchSets.",
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{{
 								Patches: []v1.Patch{{
 									// This reference to a non-existent patchset
@@ -877,8 +877,8 @@ func TestPatchAndTransform(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{
 								{
 									Name: pointer.String("cool-resource"),
@@ -932,8 +932,8 @@ func TestPatchAndTransform(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{
 								{
 									Name: pointer.String("cool-resource"),
@@ -1141,8 +1141,8 @@ func TestRunFunctionPipeline(t *testing.T) {
 			reason: "We should return an error if asked to run an unsupported function type.",
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{
 								{
 									Name: "cool-fn",
@@ -1166,8 +1166,8 @@ func TestRunFunctionPipeline(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{
 								{
 									Name: "cool-fn",
@@ -1198,8 +1198,8 @@ func TestRunFunctionPipeline(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{
 								{
 									Name: "cool-fn",
@@ -1232,8 +1232,8 @@ func TestRunFunctionPipeline(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{
 								{
 									Name: "cool-fn",
@@ -1274,8 +1274,8 @@ func TestRunFunctionPipeline(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{
 								{
 									Name: "cool-fn",
@@ -1341,8 +1341,8 @@ func TestRunFunctionPipeline(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{
 								{
 									Name: "cool-fn",

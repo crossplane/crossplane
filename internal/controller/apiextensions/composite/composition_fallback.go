@@ -82,7 +82,7 @@ func (c *FallBackComposer) Compose(ctx context.Context, xr resource.Composite, r
 func FallBackForAnonymousTemplates(c client.Reader) TriggerFn {
 	return func(ctx context.Context, xr resource.Composite, req CompositionRequest) (bool, error) {
 		// Fall back if any templates are unnamed.
-		for _, t := range req.Composition.Spec.Resources {
+		for _, t := range req.Revision.Spec.Resources {
 			if t.Name == nil {
 				return true, nil
 			}

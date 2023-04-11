@@ -158,20 +158,20 @@ type SecretStoreConnectionDetailsConfigurator struct {
 
 // Configure any required fields that were omitted from the composite resource
 // by copying them from its composition.
-func (c *SecretStoreConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, comp *v1.Composition) error {
+func (c *SecretStoreConnectionDetailsConfigurator) Configure(ctx context.Context, cp resource.Composite, rev *v1.CompositionRevision) error {
 	apiVersion, kind := cp.GetObjectKind().GroupVersionKind().ToAPIVersionAndKind()
-	if comp.Spec.CompositeTypeRef.APIVersion != apiVersion || comp.Spec.CompositeTypeRef.Kind != kind {
+	if rev.Spec.CompositeTypeRef.APIVersion != apiVersion || rev.Spec.CompositeTypeRef.Kind != kind {
 		return errors.New(errCompositionNotCompatible)
 	}
 
-	if cp.GetPublishConnectionDetailsTo() != nil || comp.Spec.PublishConnectionDetailsWithStoreConfigRef == nil {
+	if cp.GetPublishConnectionDetailsTo() != nil || rev.Spec.PublishConnectionDetailsWithStoreConfigRef == nil {
 		return nil
 	}
 
 	cp.SetPublishConnectionDetailsTo(&xpv1.PublishConnectionDetailsTo{
 		Name: string(cp.GetUID()),
 		SecretStoreConfigRef: &xpv1.Reference{
-			Name: comp.Spec.PublishConnectionDetailsWithStoreConfigRef.Name,
+			Name: rev.Spec.PublishConnectionDetailsWithStoreConfigRef.Name,
 		},
 	})
 

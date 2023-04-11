@@ -440,13 +440,6 @@ func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDe
 		composite.WithPollInterval(co.PollInterval),
 	}
 
-	// Build Compositions using a CompositionRevision when the composition
-	// revisions feature flag is enabled.
-	if co.Features.Enabled(features.EnableBetaCompositionRevisions) {
-		a := resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)}
-		o = append(o, composite.WithCompositionFetcher(composite.NewAPIRevisionFetcher(a)))
-	}
-
 	// We only want to enable Composition environment support if the relevant
 	// feature flag is enabled. Otherwise we will default to noop selector and
 	// fetcher that will always return nil. All environment features are

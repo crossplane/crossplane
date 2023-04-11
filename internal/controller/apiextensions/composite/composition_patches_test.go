@@ -1182,7 +1182,7 @@ func TestComposedTemplates(t *testing.T) {
 	}
 
 	type args struct {
-		cs v1.CompositionSpec
+		cs v1.CompositionRevisionSpec
 	}
 
 	type want struct {
@@ -1198,7 +1198,7 @@ func TestComposedTemplates(t *testing.T) {
 		"NoCompositionPatchSets": {
 			reason: "Patches defined on a composite resource should be applied correctly if no PatchSets are defined on the composition",
 			args: args{
-				cs: v1.CompositionSpec{
+				cs: v1.CompositionRevisionSpec{
 					Resources: []v1.ComposedTemplate{
 						{
 							Patches: []v1.Patch{
@@ -1235,7 +1235,7 @@ func TestComposedTemplates(t *testing.T) {
 		"UndefinedPatchSet": {
 			reason: "Should return error and not modify the patches field when referring to an undefined PatchSet",
 			args: args{
-				cs: v1.CompositionSpec{
+				cs: v1.CompositionRevisionSpec{
 					Resources: []v1.ComposedTemplate{{
 						Patches: []v1.Patch{
 							{
@@ -1253,7 +1253,7 @@ func TestComposedTemplates(t *testing.T) {
 		"DefinedPatchSets": {
 			reason: "Should de-reference PatchSets defined on the Composition when referenced in a composed resource",
 			args: args{
-				cs: v1.CompositionSpec{
+				cs: v1.CompositionRevisionSpec{
 					// PatchSets, existing patches and references
 					// should output in the correct order.
 					PatchSets: []v1.PatchSet{

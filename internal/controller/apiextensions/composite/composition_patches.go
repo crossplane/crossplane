@@ -308,7 +308,7 @@ func CombineString(format string, vars []any) (any, error) {
 
 // ComposedTemplates returns a revision's composed resource templates with any
 // patchsets dereferenced.
-func ComposedTemplates(cs v1.CompositionSpec) ([]v1.ComposedTemplate, error) {
+func ComposedTemplates(cs v1.CompositionRevisionSpec) ([]v1.ComposedTemplate, error) {
 	pn := make(map[string][]v1.Patch)
 	for _, s := range cs.PatchSets {
 		for _, p := range s.Patches {

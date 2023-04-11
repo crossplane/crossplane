@@ -106,18 +106,18 @@ func (fn CompositionSelectorFn) SelectComposition(ctx context.Context, cr resour
 	return fn(ctx, cr)
 }
 
-// A CompositionFetcher fetches an appropriate Composition for the supplied
+// A CompositionRevisionFetcher fetches an appropriate Composition for the supplied
 // composite resource.
-type CompositionFetcher interface {
-	Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error)
+type CompositionRevisionFetcher interface {
+	Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error)
 }
 
-// A CompositionFetcherFn fetches an appropriate Composition for the supplied
-// composite resource.
-type CompositionFetcherFn func(ctx context.Context, cr resource.Composite) (*v1.Composition, error)
+// A CompositionRevisionFetcherFn fetches an appropriate CompositionRevision for
+// the supplied composite resource.
+type CompositionRevisionFetcherFn func(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error)
 
 // Fetch an appropriate Composition for the supplied Composite resource.
-func (fn CompositionFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*v1.Composition, error) {
+func (fn CompositionRevisionFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error) {
 	return fn(ctx, cr)
 }
 
@@ -136,15 +136,15 @@ func (fn CompositionUpdatePolicySelectorFn) SelectCompositionUpdatePolicy(ctx co
 
 // EnvironmentSelector selects environment references for a composition environment.
 type EnvironmentSelector interface {
-	SelectEnvironment(ctx context.Context, cr resource.Composite, comp *v1.Composition) error
+	SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
 }
 
 // A EnvironmentSelectorFn selects a composition reference.
-type EnvironmentSelectorFn func(ctx context.Context, cr resource.Composite, comp *v1.Composition) error
+type EnvironmentSelectorFn func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
 
 // SelectEnvironment for the supplied composite resource.
-func (fn EnvironmentSelectorFn) SelectEnvironment(ctx context.Context, cr resource.Composite, comp *v1.Composition) error {
-	return fn(ctx, cr, comp)
+func (fn EnvironmentSelectorFn) SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
+	return fn(ctx, cr, rev)
 }
 
 // An EnvironmentFetcher fetches an appropriate environment for the supplied
@@ -164,15 +164,15 @@ func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, cr resource.Composite)
 
 // A Configurator configures a composite resource using its composition.
 type Configurator interface {
-	Configure(ctx context.Context, cr resource.Composite, cp *v1.Composition) error
+	Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
 }
 
 // A ConfiguratorFn configures a composite resource using its composition.
-type ConfiguratorFn func(ctx context.Context, cr resource.Composite, cp *v1.Composition) error
+type ConfiguratorFn func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error
 
 // Configure the supplied composite resource using its composition.
-func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, cp *v1.Composition) error {
-	return fn(ctx, cr, cp)
+func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
+	return fn(ctx, cr, rev)
 }
 
 // A Renderer is used to render a composed resource.
@@ -192,7 +192,7 @@ func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resou
 // A CompositionRequest is a request to compose resources.
 // It should be treated as immutable.
 type CompositionRequest struct {
-	Composition *v1.Composition
+	Revision    *v1.CompositionRevision
 	Environment *env.Environment
 }
 
@@ -253,19 +253,19 @@ func WithClient(c client.Client) ReconcilerOption {
 	}
 }
 
-// WithCompositionFetcher specifies how the composition to be used should be
+// WithCompositionRevisionFetcher specifies how the composition to be used should be
 // fetched.
-func WithCompositionFetcher(f CompositionFetcher) ReconcilerOption {
+func WithCompositionRevisionFetcher(f CompositionRevisionFetcher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composition.CompositionFetcher = f
+		r.revision.CompositionRevisionFetcher = f
 	}
 }
 
-// WithCompositionValidator specifies how the Reconciler should validate
-// Compositions.
-func WithCompositionValidator(v CompositionValidatorFunc) ReconcilerOption {
+// WithCompositionRevisionValidator specifies how the Reconciler should validate
+// CompositionRevisions.
+func WithCompositionRevisionValidator(v CompositionRevisionValidator) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.composition.CompositionValidatorFunc = v
+		r.revision.CompositionRevisionValidator = v
 	}
 }
 
@@ -334,17 +334,24 @@ func WithComposer(c Composer) ReconcilerOption {
 	}
 }
 
-type composition struct {
-	CompositionFetcher
-	CompositionValidatorFunc
+type revision struct {
+	CompositionRevisionFetcher
+	CompositionRevisionValidator
 }
 
-func (c *composition) Validate(comp *v1.Composition) error {
-	return c.CompositionValidatorFunc(comp)
+// A CompositionRevisionValidator validates the supplied CompositionRevision.
+type CompositionRevisionValidator interface {
+	Validate(*v1.CompositionRevision) error
 }
 
-// A CompositionValidatorFunc is a function that validates a Composition.
-type CompositionValidatorFunc func(*v1.Composition) error
+// A CompositionRevisionValidatorFn is a function that validates a
+// CompositionRevision.
+type CompositionRevisionValidatorFn func(*v1.CompositionRevision) error
+
+// Validate the supplied CompositionRevision.
+func (fn CompositionRevisionValidatorFn) Validate(c *v1.CompositionRevision) error {
+	return fn(c)
+}
 
 type environment struct {
 	EnvironmentFetcher
@@ -370,12 +377,19 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		client:       kube,
 		newComposite: nc,
 
-		composition: composition{
-			CompositionFetcher: NewAPICompositionFetcher(kube),
-			CompositionValidatorFunc: func(in *v1.Composition) error {
-				_, errs := in.Validate()
+		revision: revision{
+			CompositionRevisionFetcher: NewAPIRevisionFetcher(resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)}),
+			CompositionRevisionValidator: CompositionRevisionValidatorFn(func(rev *v1.CompositionRevision) error {
+				// TODO(negz): Presumably this validation will eventually be
+				// removed in favor of the new Composition validation
+				// webhook.
+				// This is the last remaining use of conv.FromRevisionSpec -
+				// we can stop generating that once this is removed.
+				conv := &v1.GeneratedRevisionSpecConverter{}
+				comp := &v1.Composition{Spec: conv.FromRevisionSpec(rev.Spec)}
+				_, errs := comp.Validate()
 				return errs.ToAggregate()
-			},
+			}),
 		},
 
 		environment: environment{
@@ -415,8 +429,8 @@ type Reconciler struct {
 
 	environment environment
 
-	composition composition
-	composite   compositeResource
+	revision  revision
+	composite compositeResource
 
 	resource Composer
 
@@ -509,7 +523,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Note that this 'Composition' will be derived from a
 	// CompositionRevision if the relevant feature flag is enabled.
-	comp, err := r.composition.Fetch(ctx, xr)
+	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
 		log.Debug(errFetchComp, "error", err)
 		err = errors.Wrap(err, errFetchComp)
@@ -518,7 +532,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if err := r.composition.Validate(comp); err != nil {
+	// TODO(negz): Update this to validate the revision? In practice that's what
+	// it's doing today when revis are enabled.
+	if err := r.revision.Validate(rev); err != nil {
 		log.Debug(errValidate, "error", err)
 		err = errors.Wrap(err, errValidate)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -526,7 +542,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
-	if err := r.composite.Configure(ctx, xr, comp); err != nil {
+	if err := r.composite.Configure(ctx, xr, rev); err != nil {
 		log.Debug(errConfigure, "error", err)
 		err = errors.Wrap(err, errConfigure)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -536,7 +552,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Prepare the environment.
 	// Note that environments are optional, so env can be nil.
-	if err := r.composite.SelectEnvironment(ctx, xr, comp); err != nil {
+	if err := r.composite.SelectEnvironment(ctx, xr, rev); err != nil {
 		log.Debug(errSelectEnvironment, "error", err)
 		err = errors.Wrap(err, errSelectEnvironment)
 		r.record.Event(xr, event.Warning(reasonCompose, err))
@@ -553,7 +569,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// TODO(negz): Pass this method a copy of xr, to make very clear that
 	// anything it does won't be reflected in the state of xr?
-	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Composition: comp, Environment: env})
+	res, err := r.resource.Compose(ctx, xr, CompositionRequest{Revision: rev, Environment: env})
 	if err != nil {
 		log.Debug(errCompose, "error", err)
 		err = errors.Wrap(err, errCompose)

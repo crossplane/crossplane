@@ -46,16 +46,6 @@ func init() {
 	}
 }
 
-func FuzzAsComposition(f *testing.F) {
-	f.Fuzz(func(t *testing.T, data []byte) {
-		f := fuzz.NewConsumer(data)
-		c := &v1.CompositionRevision{}
-		f.GenerateStruct(c)
-
-		_ = AsComposition(c)
-	})
-}
-
 // Adds a type to the patch
 func addType(p *v1.Patch, i int) {
 	chooseType := i % 5
