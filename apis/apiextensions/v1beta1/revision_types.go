@@ -518,13 +518,34 @@ type Transform struct {
 	Convert *ConvertTransform `json:"convert,omitempty"`
 }
 
+// MathTransformType conducts mathematical operations.
+type MathTransformType string
+
+// Accepted MathTransformType.
+const (
+	MathTransformTypeMultiply MathTransformType = "Multiply" // Default
+	MathTransformTypeClampMin MathTransformType = "ClampMin"
+	MathTransformTypeClampMax MathTransformType = "ClampMax"
+)
+
 // MathTransform conducts mathematical operations on the input with the given
 // configuration in its properties.
 type MathTransform struct {
+	// Type of the math transform to be run.
+	// +optional
+	// +kubebuilder:validation:Enum=Multiply;ClampMin;ClampMax
+	// +kubebuilder:default=Multiply
+	Type MathTransformType `json:"type,omitempty"`
+
 	// Multiply the value.
 	// +optional
-	// +immutable
 	Multiply *int64 `json:"multiply,omitempty"`
+	// ClampMin makes sure that the value is not smaller than the given value.
+	// +optional
+	ClampMin *int64 `json:"clampMin,omitempty"`
+	// ClampMax makes sure that the value is not bigger than the given value.
+	// +optional
+	ClampMax *int64 `json:"clampMax,omitempty"`
 }
 
 // MapTransform returns a value for the input from the given map.

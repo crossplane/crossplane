@@ -421,12 +421,25 @@ func (c *GeneratedRevisionSpecConverter) v1MatchTransformToV1beta1MatchTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1MathTransformToV1beta1MathTransform(source MathTransform) v1beta1.MathTransform {
 	var v1beta1MathTransform v1beta1.MathTransform
+	v1beta1MathTransform.Type = v1beta1.MathTransformType(source.Type)
 	var pInt64 *int64
 	if source.Multiply != nil {
 		xint64 := *source.Multiply
 		pInt64 = &xint64
 	}
 	v1beta1MathTransform.Multiply = pInt64
+	var pInt642 *int64
+	if source.ClampMin != nil {
+		xint642 := *source.ClampMin
+		pInt642 = &xint642
+	}
+	v1beta1MathTransform.ClampMin = pInt642
+	var pInt643 *int64
+	if source.ClampMax != nil {
+		xint643 := *source.ClampMax
+		pInt643 = &xint643
+	}
+	v1beta1MathTransform.ClampMax = pInt643
 	return v1beta1MathTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1MergeOptionsToV1MergeOptions(source v13.MergeOptions) v13.MergeOptions {
@@ -927,12 +940,25 @@ func (c *GeneratedRevisionSpecConverter) v1beta1MatchTransformToV1MatchTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1beta1MathTransformToV1MathTransform(source v1beta1.MathTransform) MathTransform {
 	var v1MathTransform MathTransform
+	v1MathTransform.Type = MathTransformType(source.Type)
 	var pInt64 *int64
 	if source.Multiply != nil {
 		xint64 := *source.Multiply
 		pInt64 = &xint64
 	}
 	v1MathTransform.Multiply = pInt64
+	var pInt642 *int64
+	if source.ClampMin != nil {
+		xint642 := *source.ClampMin
+		pInt642 = &xint642
+	}
+	v1MathTransform.ClampMin = pInt642
+	var pInt643 *int64
+	if source.ClampMax != nil {
+		xint643 := *source.ClampMax
+		pInt643 = &xint643
+	}
+	v1MathTransform.ClampMax = pInt643
 	return v1MathTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1beta1PatchPolicyToV1PatchPolicy(source v1beta1.PatchPolicy) PatchPolicy {
