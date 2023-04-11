@@ -38,7 +38,6 @@ import (
 
 const (
 	errMathTransformTypeFailed = "type %s is not supported for math transform type"
-	errMathNoInput             = "no input is given"
 	errMathInputNonNumber      = "input is required to be a number for math transformer"
 
 	errFmtRequiredField                 = "%s is required by type %s"
@@ -124,21 +123,15 @@ func ResolveMath(t v1.MathTransform, input any) (any, error) {
 		return nil, errors.New(errMathInputNonNumber)
 	}
 
-	switch t.Type {
+	if err := t.Validate(); err != nil {
+		return nil, err
+	}
+	switch t.GetType() {
 	case v1.MathTransformTypeMultiply:
-		if t.Multiply == nil {
-			return nil, errors.New(errMathNoInput)
-		}
 		return inputInt * *t.Multiply, nil
 	case v1.MathTransformTypeClampMax:
-		if t.ClampMax == nil {
-			return nil, errors.New(errMathNoInput)
-		}
 		return mathClampMax(inputInt, *t.ClampMax), nil
 	case v1.MathTransformTypeClampMin:
-		if t.ClampMin == nil {
-			return nil, errors.New(errMathNoInput)
-		}
 		return mathClampMin(inputInt, *t.ClampMin), nil
 	default:
 		return nil, errors.Errorf(errMathTransformTypeFailed, string(t.Type))

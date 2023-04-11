@@ -42,8 +42,20 @@ func TestTransform_Validate(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ValidMath": {
-			reason: "Math transform with MathTransform set should be valid",
+		"ValidMathMultiply": {
+			reason: "Math transform with MathTransform Multiply set should be valid",
+			args: args{
+				transform: &Transform{
+					Type: TransformTypeMath,
+					Math: &MathTransform{
+						Type:     MathTransformTypeMultiply,
+						Multiply: pointer.Int64(2),
+					},
+				},
+			},
+		},
+		"ValidMathDefaultType": {
+			reason: "Math transform with MathTransform Default set should be valid",
 			args: args{
 				transform: &Transform{
 					Type: TransformTypeMath,
@@ -53,7 +65,37 @@ func TestTransform_Validate(t *testing.T) {
 				},
 			},
 		},
-		"InvalidMath": {
+		"ValidMathClampMin": {
+			reason: "Math transform with valid MathTransform ClampMin set should be valid",
+			args: args{
+				transform: &Transform{
+					Type: TransformTypeMath,
+					Math: &MathTransform{
+						Type:     MathTransformTypeClampMin,
+						ClampMin: pointer.Int64(10),
+					},
+				},
+			},
+		},
+		"InvalidMathWrongSpec": {
+			reason: "Math transform with invalid MathTransform set should be invalid",
+			args: args{
+				transform: &Transform{
+					Type: TransformTypeMath,
+					Math: &MathTransform{
+						Type:     MathTransformTypeMultiply,
+						ClampMin: pointer.Int64(10),
+					},
+				},
+			},
+			want: want{
+				&field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "math.multiply",
+				},
+			},
+		},
+		"InvalidMathNotDefinedAtAll": {
 			reason: "Math transform with no MathTransform set should be invalid",
 			args: args{
 				transform: &Transform{
