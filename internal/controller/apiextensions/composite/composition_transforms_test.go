@@ -481,7 +481,10 @@ func TestMathResolve(t *testing.T) {
 				i:        25,
 			},
 			want: want{
-				err: errors.New("type bad is not supported for math transform type"),
+				err: &field.Error{
+					Type:  field.ErrorTypeInvalid,
+					Field: "type",
+				},
 			},
 		},
 		"NonNumberInput": {
@@ -500,7 +503,10 @@ func TestMathResolve(t *testing.T) {
 				i:        25,
 			},
 			want: want{
-				err: errors.New(errMathNoInput),
+				err: &field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "multiply",
+				},
 			},
 		},
 		"MultiplySuccess": {
@@ -559,7 +565,10 @@ func TestMathResolve(t *testing.T) {
 				i:        25,
 			},
 			want: want{
-				err: errors.New(errMathNoInput),
+				err: &field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "clampMin",
+				},
 			},
 		},
 		"ClampMaxSuccess": {
@@ -598,7 +607,10 @@ func TestMathResolve(t *testing.T) {
 				i:        25,
 			},
 			want: want{
-				err: errors.New(errMathNoInput),
+				err: &field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "clampMax",
+				},
 			},
 		},
 	}
@@ -609,6 +621,11 @@ func TestMathResolve(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			fieldErr := &field.Error{}
+			if err != nil && errors.As(err, &fieldErr) {
+				fieldErr.Detail = ""
+				fieldErr.BadValue = nil
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)

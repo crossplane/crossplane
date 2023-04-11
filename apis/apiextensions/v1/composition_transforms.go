@@ -261,10 +261,31 @@ type MathTransform struct {
 	ClampMax *int64 `json:"clampMax,omitempty"`
 }
 
+// GetType returns the type of the math transform, returning the default if not specified.
+func (m *MathTransform) GetType() MathTransformType {
+	if m.Type == "" {
+		return MathTransformTypeMultiply
+	}
+	return m.Type
+}
+
 // Validate checks this MathTransform is valid.
 func (m *MathTransform) Validate() *field.Error {
-	if m.Multiply == nil {
-		return field.Required(field.NewPath("multiply"), "at least one operation must be specified if a math transform is specified")
+	switch m.GetType() {
+	case MathTransformTypeMultiply:
+		if m.Multiply == nil {
+			return field.Required(field.NewPath("multiply"), "must specify a value if a multiply math transform is specified")
+		}
+	case MathTransformTypeClampMin:
+		if m.ClampMin == nil {
+			return field.Required(field.NewPath("clampMin"), "must specify a value if a clamp min math transform is specified")
+		}
+	case MathTransformTypeClampMax:
+		if m.ClampMax == nil {
+			return field.Required(field.NewPath("clampMax"), "must specify a value if a clamp max math transform is specified")
+		}
+	default:
+		return field.Invalid(field.NewPath("type"), m.Type, "unknown math transform type")
 	}
 	return nil
 }
