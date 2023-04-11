@@ -55,6 +55,7 @@ const (
 	errFmtMatchPattern            = "cannot match pattern at index %d"
 	errFmtMatchParseResult        = "cannot parse result of pattern at index %d"
 	errMatchParseFallbackValue    = "cannot parse fallback value"
+	errMatchFallbackBoth          = "cannot set both a fallback value and the fallback to input flag"
 	errFmtMatchPatternTypeInvalid = "unsupported pattern type '%s'"
 	errFmtMatchInputTypeInvalid   = "unsupported input type '%s'"
 	errMatchRegexpCompile         = "cannot compile regexp"
@@ -192,6 +193,16 @@ func ResolveMatch(t v1.MatchTransform, input any) (any, error) {
 			return output, nil
 		}
 	}
+
+	// Fallback to input if no pattern matches and fallback to input is set
+	if t.FallbackTo == v1.MatchFallbackToTypeInput {
+		if t.FallbackValue.Size() != 0 {
+			return nil, errors.New(errMatchFallbackBoth)
+		}
+
+		return input, nil
+	}
+
 	// Use fallback value if no pattern matches (or if there are no patterns)
 	if err := unmarshalJSON(t.FallbackValue, &output); err != nil {
 		return nil, errors.Wrap(err, errMatchParseFallbackValue)

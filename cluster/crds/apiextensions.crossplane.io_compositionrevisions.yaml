@@ -272,6 +272,14 @@ spec:
                                 description: Match is a more complex version of Map
                                   that matches a list of patterns.
                                 properties:
+                                  fallbackTo:
+                                    default: Value
+                                    description: Determines to what value the transform
+                                      should fallback if no pattern matches.
+                                    enum:
+                                    - Value
+                                    - Input
+                                    type: string
                                   fallbackValue:
                                     description: The fallback value that should be
                                       returned by the transform if now pattern matches.
@@ -702,6 +710,14 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
+                                    fallbackTo:
+                                      default: Value
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
@@ -1107,6 +1123,14 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
+                                    fallbackTo:
+                                      default: Value
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
@@ -1634,6 +1658,14 @@ spec:
                                 description: Match is a more complex version of Map
                                   that matches a list of patterns.
                                 properties:
+                                  fallbackTo:
+                                    default: Value
+                                    description: Determines to what value the transform
+                                      should fallback if no pattern matches.
+                                    enum:
+                                    - Value
+                                    - Input
+                                    type: string
                                   fallbackValue:
                                     description: The fallback value that should be
                                       returned by the transform if now pattern matches.
@@ -2064,6 +2096,14 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
+                                    fallbackTo:
+                                      default: Value
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
@@ -2469,6 +2509,14 @@ spec:
                                   description: Match is a more complex version of
                                     Map that matches a list of patterns.
                                   properties:
+                                    fallbackTo:
+                                      default: Value
+                                      description: Determines to what value the transform
+                                        should fallback if no pattern matches.
+                                      enum:
+                                      - Value
+                                      - Input
+                                      type: string
                                     fallbackValue:
                                       description: The fallback value that should
                                         be returned by the transform if now pattern
