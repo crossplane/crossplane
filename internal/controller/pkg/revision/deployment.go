@@ -51,8 +51,9 @@ const (
 	webhookPortName         = "webhook"
 	webhookPort             = 9443
 
-	essCertsVolumeName = "ess-client-certs"
-	essCertsDir        = "/ess/tls"
+	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
+	essCertsVolumeName  = "ess-client-certs"
+	essCertsDir         = "/ess/tls"
 )
 
 //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
@@ -200,6 +201,12 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		}
 		d.Spec.Template.Spec.Containers[0].VolumeMounts =
 			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+		envs := []corev1.EnvVar{
+			{Name: essTLSCertDirEnvVar, Value: essCertsDir},
+		}
+		d.Spec.Template.Spec.Containers[0].Env =
+			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
 	}
 
 	templateLabels := make(map[string]string)
