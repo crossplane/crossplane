@@ -39,4 +39,10 @@ const (
 	// functions. See the below design for more details.
 	// https://github.com/crossplane/crossplane/blob/9ee7a2/design/design-doc-composition-functions.md
 	EnableAlphaCompositionFunctions feature.Flag = "EnableAlphaCompositionFunctions"
+
+	// EnableAlphaCompositionWebhookSchemaValidation enables alpha support for
+	// composition webhook schema validation. See the below design for more
+	// details.
+	// https://github.com/crossplane/crossplane/blob/f32496bed53a393c8239376fd8266ddf2ef84d61/design/design-doc-composition-validating-webhook.md
+	EnableAlphaCompositionWebhookSchemaValidation feature.Flag = "EnableAlphaCompositionWebhookSchemaValidation"
 )

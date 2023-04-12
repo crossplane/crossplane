@@ -85,9 +85,10 @@ type startCommand struct {
 
 	EnableCompositionRevisions bool `group:"Beta Features:" help:"Enable support for CompositionRevisions." default:"true"`
 
-	EnableEnvironmentConfigs   bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
-	EnableExternalSecretStores bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
-	EnableCompositionFunctions bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
+	EnableEnvironmentConfigs                 bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
+	EnableExternalSecretStores               bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
+	EnableCompositionFunctions               bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
+	EnableCompositionWebhookSchemaValidation bool `group:"Alpha Features:" help:"Enable Composition validation using schemas."`
 }
 
 // Run core Crossplane controllers.
@@ -130,6 +131,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableCompositionFunctions {
 		feats.Enable(features.EnableAlphaCompositionFunctions)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionFunctions)
+	}
+	if c.EnableCompositionWebhookSchemaValidation {
+		feats.Enable(features.EnableAlphaCompositionWebhookSchemaValidation)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionWebhookSchemaValidation)
 	}
 
 	o := controller.Options{
@@ -194,7 +199,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
 		}
-		if err := composition.SetupWebhookWithManager(mgr); err != nil {
+		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositions")
 		}
 	}
