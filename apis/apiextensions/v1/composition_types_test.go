@@ -93,7 +93,7 @@ func TestComposedTemplate_GetBaseObject(t *testing.T) {
 	}
 }
 
-func TestReadinessCheck_Validate(t *testing.T) {
+func TestReadinessCheckValidate(t *testing.T) {
 	type args struct {
 		r *ReadinessCheck
 	}

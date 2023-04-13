@@ -25,7 +25,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func TestPatch_Validate(t *testing.T) {
+func TestPatchValidate(t *testing.T) {
 	type args struct {
 		patch *Patch
 	}
