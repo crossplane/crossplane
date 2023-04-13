@@ -56,6 +56,12 @@ type CompositeResourceDefinitionSpec struct {
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
+	// DefaultCompositeDeletePolicy is the policy used when deleting the Composite
+	// that is associated with the Claim if no policy has been specified.
+	// +optional
+	// +kubebuilder:default=Background
+	DefaultCompositeDeletePolicy *xpv1.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
+
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
 	// +optional
@@ -66,6 +72,12 @@ type CompositeResourceDefinitionSpec struct {
 	// +optional
 	// +immutable
 	EnforcedCompositionRef *CompositionReference `json:"enforcedCompositionRef,omitempty"`
+
+	// DefaultCompositionUpdatePolicy is the policy used when updating composites after a new
+	// Composition Revision has been created if no policy has been specified on the composite.
+	// +optional
+	// +kubebuilder:default=Automatic
+	DefaultCompositionUpdatePolicy *xpv1.UpdatePolicy `json:"defaultCompositionUpdatePolicy,omitempty"`
 
 	// Versions is the list of all API versions of the defined composite
 	// resource. Version names are used to compute the order in which served

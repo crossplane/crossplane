@@ -393,6 +393,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		claim.WithLogger(log.WithValues("controller", claim.ControllerName(d.GetName()))),
 		claim.WithRecorder(r.record.WithAnnotations("controller", claim.ControllerName(d.GetName()))),
 		claim.WithPollInterval(r.options.PollInterval),
+		claim.WithDefaultsSelector(claim.NewAPIDefaultSelector(r.client, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), r.record.WithAnnotations("controller", claim.ControllerName(d.GetName())))),
 	}
 
 	// We only want to enable ExternalSecretStore support if the relevant

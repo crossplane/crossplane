@@ -205,6 +205,15 @@ spec:
                 required:
                 - strategy
                 type: object
+              defaultCompositeDeletePolicy:
+                default: Background
+                description: DefaultCompositeDeletePolicy is the policy used when
+                  deleting the Composite that is associated with the Claim if no policy
+                  has been specified.
+                enum:
+                - Background
+                - Foreground
+                type: string
               defaultCompositionRef:
                 description: DefaultCompositionRef refers to the Composition resource
                   that will be used in case no composition selector is given.
@@ -215,6 +224,15 @@ spec:
                 required:
                 - name
                 type: object
+              defaultCompositionUpdatePolicy:
+                default: Automatic
+                description: DefaultCompositionUpdatePolicy is the policy used when
+                  updating composites after a new Composition Revision has been created
+                  if no policy has been specified on the composite.
+                enum:
+                - Automatic
+                - Manual
+                type: string
               enforcedCompositionRef:
                 description: EnforcedCompositionRef refers to the Composition resource
                   that will be used by all composite instances whose schema is defined
