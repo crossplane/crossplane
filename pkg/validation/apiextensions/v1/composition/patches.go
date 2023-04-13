@@ -75,11 +75,7 @@ func getSchemaForVersion(crd *apiextensions.CustomResourceDefinition, version st
 }
 
 // validatePatchWithSchemas validates a patch against the resources schemas.
-func (v *Validator) validatePatchWithSchemas( //nolint:gocyclo // mainly due to the switch, not much to refactor
-	ctx context.Context,
-	comp *v1.Composition,
-	resourceNumber, patchNumber int,
-) *field.Error {
+func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Composition, resourceNumber, patchNumber int) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
 	if len(comp.Spec.Resources) <= resourceNumber {
 		return field.InternalError(field.NewPath("spec", "resources").Index(resourceNumber), errors.Errorf("cannot find resource"))
 	}
@@ -163,11 +159,7 @@ func (v *Validator) validatePatchWithSchemas( //nolint:gocyclo // mainly due to 
 
 // ValidateCombineFromCompositePathPatch validates Combine Patch types, by going through and validating the fromField
 // path variables, checking if the right combine strategy is set and validating transforms.
-func ValidateCombineFromCompositePathPatch(
-	patch v1.Patch,
-	from *apiextensions.JSONSchemaProps,
-	to *apiextensions.JSONSchemaProps,
-) (fromType, toType xpschema.KnownJSONType, err *field.Error) {
+func ValidateCombineFromCompositePathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, err *field.Error) {
 	toFieldPath := patch.GetToFieldPath()
 	toType, toFieldPathErr := validateFieldPath(to, toFieldPath)
 	if toFieldPathErr != nil {
@@ -203,10 +195,7 @@ func ValidateCombineFromCompositePathPatch(
 }
 
 // ValidateFromCompositeFieldPathPatch validates a patch of type FromCompositeFieldPath.
-func ValidateFromCompositeFieldPathPatch(
-	patch v1.Patch,
-	from, to *apiextensions.JSONSchemaProps,
-) (fromType, toType xpschema.KnownJSONType, res *field.Error) {
+func ValidateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, res *field.Error) {
 	fromFieldPath := patch.GetFromFieldPath()
 	toFieldPath := patch.GetToFieldPath()
 	fromType, err := validateFieldPath(from, fromFieldPath)
