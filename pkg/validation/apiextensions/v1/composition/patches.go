@@ -48,7 +48,7 @@ const (
 // validatePatchesWithSchemas validates the patches of a composition against the resources schemas.
 func (v *Validator) validatePatchesWithSchemas(ctx context.Context, comp *v1.Composition) (errs field.ErrorList) {
 	// Let's first dereference patchSets
-	resources, err := composite.ComposedTemplates(comp.Spec)
+	resources, err := composite.ComposedTemplates(comp.Spec.PatchSets, comp.Spec.Resources)
 	if err != nil {
 		errs = append(errs, field.Invalid(field.NewPath("spec", "resources"), comp.Spec.Resources, err.Error()))
 		return errs

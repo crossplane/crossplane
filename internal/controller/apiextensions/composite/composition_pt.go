@@ -170,8 +170,8 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 // Compose resources using the bases, patches, and transforms specified by the
 // supplied Composition.
 func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
-	// Inline PatchSets from Composition Spec before composing resources.
-	ct, err := ComposedTemplates(req.Revision.Spec)
+	// Inline PatchSets before composing resources.
+	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errInline)
 	}

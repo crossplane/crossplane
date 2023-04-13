@@ -519,8 +519,8 @@ func NewXRCDPatchAndTransformer(composite, composed Renderer) *XRCDPatchAndTrans
 // PatchAndTransform updates the supplied composition state by running all
 // patches and transforms within the CompositionRequest.
 func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-	// Inline PatchSets from Composition Spec before composing resources.
-	ct, err := ComposedTemplates(req.Revision.Spec)
+	// Inline PatchSets before composing resources.
+	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
 	if err != nil {
 		return errors.Wrap(err, errInline)
 	}
