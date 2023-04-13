@@ -40,7 +40,7 @@ import (
 
 const (
 	errMathTransformTypeFailed = "type %s is not supported for math transform type"
-	errMathInputNonNumber      = "input is required to be a number for math transformer"
+	errFmtMathInputNonNumber   = "input is required to be a number for math transformer, got %T"
 
 	errFmtRequiredField                 = "%s is required by type %s"
 	errFmtConvertInputTypeNotSupported  = "invalid input type %T"
@@ -115,44 +115,69 @@ func Resolve(t v1.Transform, input any) (any, error) { //nolint:gocyclo // This 
 
 // ResolveMath resolves a Math transform.
 func ResolveMath(t v1.MathTransform, input any) (any, error) {
-	inputInt := int64(0)
-	switch i := input.(type) {
-	case int64:
-		inputInt = i
-	case int:
-		inputInt = int64(i)
-	default:
-		return nil, errors.New(errMathInputNonNumber)
-	}
-
 	if err := t.Validate(); err != nil {
 		return nil, err
 	}
+	switch input.(type) {
+	case int, int64, float64:
+	default:
+		return nil, errors.Errorf(errFmtMathInputNonNumber, input)
+	}
 	switch t.GetType() {
 	case v1.MathTransformTypeMultiply:
-		return inputInt * *t.Multiply, nil
-	case v1.MathTransformTypeClampMax:
-		return mathClampMax(inputInt, *t.ClampMax), nil
-	case v1.MathTransformTypeClampMin:
-		return mathClampMin(inputInt, *t.ClampMin), nil
+		return resolveMathMultiply(t, input)
+	case v1.MathTransformTypeClampMin, v1.MathTransformTypeClampMax:
+		return resolveMathClamp(t, input)
 	default:
 		return nil, errors.Errorf(errMathTransformTypeFailed, string(t.Type))
-
 	}
 }
 
-func mathClampMin(input int64, min int64) int64 {
-	if input < min {
-		return min
+// resolveMathMultiply resolves a multiply transform, returning an error if the
+// input is not a number. If the input is a float, the result will be a float64, otherwise
+// it will be an int64.
+func resolveMathMultiply(t v1.MathTransform, input any) (any, error) {
+	switch i := input.(type) {
+	case int:
+		return int64(i) * *t.Multiply, nil
+	case int64:
+		return i * *t.Multiply, nil
+	case float64:
+		return i * float64(*t.Multiply), nil
+	default:
+		return nil, errors.Errorf(errFmtMathInputNonNumber, input)
 	}
-	return input
 }
 
-func mathClampMax(input int64, max int64) int64 {
-	if input > max {
-		return max
+// resolveMathClamp resolves a clamp transform, returning an error if the input
+// is not a number. depending on the type of clamp, the result will be either
+// the input or the clamp value, preserving their original types.
+func resolveMathClamp(t v1.MathTransform, input any) (any, error) {
+	in := int64(0)
+	switch i := input.(type) {
+	case int:
+		in = int64(i)
+	case int64:
+		in = i
+	case float64:
+		in = int64(i)
+	default:
+		// should never happen as we validate the input type in ResolveMath
+		return nil, errors.Errorf(errFmtMathInputNonNumber, input)
 	}
-	return input
+	switch t.GetType() { //nolint:exhaustive // We validate the type in ResolveMath
+	case v1.MathTransformTypeClampMin:
+		if in < *t.ClampMin {
+			return *t.ClampMin, nil
+		}
+	case v1.MathTransformTypeClampMax:
+		if in > *t.ClampMax {
+			return *t.ClampMax, nil
+		}
+	default:
+		return nil, errors.Errorf(errMathTransformTypeFailed, string(t.Type))
+	}
+	return input, nil
 }
 
 // ResolveMap resolves a Map transform.
