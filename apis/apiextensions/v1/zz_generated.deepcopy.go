@@ -199,6 +199,11 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.DefaultCompositeDeletePolicy != nil {
+		in, out := &in.DefaultCompositeDeletePolicy, &out.DefaultCompositeDeletePolicy
+		*out = new(commonv1.CompositeDeletePolicy)
+		**out = **in
+	}
 	if in.DefaultCompositionRef != nil {
 		in, out := &in.DefaultCompositionRef, &out.DefaultCompositionRef
 		*out = new(CompositionReference)
@@ -209,12 +214,22 @@ func (in *CompositeResourceDefinitionSpec) DeepCopyInto(out *CompositeResourceDe
 		*out = new(CompositionReference)
 		**out = **in
 	}
+	if in.DefaultCompositionUpdatePolicy != nil {
+		in, out := &in.DefaultCompositionUpdatePolicy, &out.DefaultCompositionUpdatePolicy
+		*out = new(commonv1.UpdatePolicy)
+		**out = **in
+	}
 	if in.Versions != nil {
 		in, out := &in.Versions, &out.Versions
 		*out = make([]CompositeResourceDefinitionVersion, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
+	}
+	if in.Conversion != nil {
+		in, out := &in.Conversion, &out.Conversion
+		*out = new(apiextensionsv1.CustomResourceConversion)
+		(*in).DeepCopyInto(*out)
 	}
 }
 
@@ -880,6 +895,16 @@ func (in *MathTransform) DeepCopyInto(out *MathTransform) {
 	*out = *in
 	if in.Multiply != nil {
 		in, out := &in.Multiply, &out.Multiply
+		*out = new(int64)
+		**out = **in
+	}
+	if in.ClampMin != nil {
+		in, out := &in.ClampMin, &out.ClampMin
+		*out = new(int64)
+		**out = **in
+	}
+	if in.ClampMax != nil {
+		in, out := &in.ClampMax, &out.ClampMax
 		*out = new(int64)
 		**out = **in
 	}

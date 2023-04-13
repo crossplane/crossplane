@@ -29,9 +29,12 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 var (
@@ -339,6 +342,84 @@ func TestPropagateConnection(t *testing.T) {
 			api := &APIConnectionPropagator{client: tc.fields.client}
 			got, err := api.PropagateConnection(tc.args.ctx, tc.args.to, tc.args.from)
 			if diff := cmp.Diff(tc.want.propagated, got); diff != "" {
+				t.Errorf("\n%s\napi.PropagateConnection(...): -want, +got:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\napi.PropagateConnection(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestAPIDefaultsSelector(t *testing.T) {
+	errBoom := errors.New("boom")
+	b := xpv1.CompositeDeleteBackground
+	f := xpv1.CompositeDeleteForeground
+	type args struct {
+		kube   client.Client
+		defRef corev1.ObjectReference
+		cm     resource.CompositeClaim
+	}
+	type want struct {
+		cm  resource.CompositeClaim
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"AlreadyResolved": {
+			reason: "Should be no-op if a composite delete policy is already specified",
+			args: args{
+				defRef: corev1.ObjectReference{},
+				cm: &fake.CompositeClaim{
+					CompositeResourceDeleter: fake.CompositeResourceDeleter{Policy: &b},
+				},
+			},
+			want: want{
+				cm: &fake.CompositeClaim{
+					CompositeResourceDeleter: fake.CompositeResourceDeleter{Policy: &b},
+				},
+			},
+		},
+		"GetDefinitionFailed": {
+			reason: "Should return error if XRD cannot be retrieved",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				cm: &fake.CompositeClaim{},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetXRD),
+				cm:  &fake.CompositeClaim{},
+			},
+		},
+		"Success": {
+			reason: "Successfully set the default composition update policy",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: func(_ context.Context, _ client.ObjectKey, obj client.Object) error {
+						*obj.(*v1.CompositeResourceDefinition) = v1.CompositeResourceDefinition{Spec: v1.CompositeResourceDefinitionSpec{DefaultCompositeDeletePolicy: &f}}
+						return nil
+					}},
+				cm: &fake.CompositeClaim{},
+			},
+			want: want{
+				cm: &fake.CompositeClaim{
+					CompositeResourceDeleter: fake.CompositeResourceDeleter{Policy: &f},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			api := &APIDefaultSelector{tc.args.kube, tc.args.defRef, event.NewNopRecorder()}
+			err := api.SelectDefaults(context.Background(), tc.args.cm)
+			if diff := cmp.Diff(tc.want.cm, tc.args.cm); diff != "" {
 				t.Errorf("\n%s\napi.PropagateConnection(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

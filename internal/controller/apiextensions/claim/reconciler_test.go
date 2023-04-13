@@ -393,6 +393,29 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{Requeue: true},
 			},
 		},
+		"SelectDefaultsError": {
+			reason: "We should return any error we encounter selecting the claim defaults",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClaimFinalizer(resource.FinalizerFns{
+						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
+					}),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return errBoom })),
+				},
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetResourceReference(&corev1.ObjectReference{})
+				}),
+			},
+			want: want{
+				claim: withClaim(func(o *claim.Unstructured) {
+					o.SetResourceReference(&corev1.ObjectReference{})
+					o.SetConditions(xpv1.ReconcileError(errors.Wrap(errBoom, errSelectDefaults)))
+				}),
+				r: reconcile.Result{Requeue: true},
+			},
+		},
+
 		"ConfigureError": {
 			reason: "We should return any error we encounter configuring the composite resource",
 			args: args{
@@ -402,6 +425,7 @@ func TestReconcile(t *testing.T) {
 						AddFinalizerFn: func(ctx context.Context, obj resource.Object) error { return nil },
 					}),
 					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -430,6 +454,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -458,6 +483,7 @@ func TestReconcile(t *testing.T) {
 					}),
 					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -490,6 +516,7 @@ func TestReconcile(t *testing.T) {
 					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return errBoom })),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -522,6 +549,7 @@ func TestReconcile(t *testing.T) {
 					WithCompositeConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithBinder(BinderFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
 					WithClaimConfigurator(ConfiguratorFn(func(ctx context.Context, cm resource.CompositeClaim, cp resource.Composite) error { return nil })),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -563,6 +591,7 @@ func TestReconcile(t *testing.T) {
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return false, errBoom
 					})),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -604,6 +633,7 @@ func TestReconcile(t *testing.T) {
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -684,6 +714,7 @@ func TestReconcile(t *testing.T) {
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})
@@ -728,6 +759,7 @@ func TestReconcile(t *testing.T) {
 					WithConnectionPropagator(ConnectionPropagatorFn(func(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
 						return true, nil
 					})),
+					WithDefaultsSelector(DefaultsSelectorFn(func(ctx context.Context, cm resource.CompositeClaim) error { return nil })),
 				},
 				claim: withClaim(func(o *claim.Unstructured) {
 					o.SetResourceReference(&corev1.ObjectReference{})

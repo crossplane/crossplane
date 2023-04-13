@@ -107,6 +107,113 @@ spec:
                 items:
                   type: string
                 type: array
+              conversion:
+                description: Conversion defines all conversion settings for the defined
+                  Composite resource.
+                properties:
+                  strategy:
+                    description: 'strategy specifies how custom resources are converted
+                      between versions. Allowed values are: - `None`: The converter
+                      only change the apiVersion and would not touch any other field
+                      in the custom resource. - `Webhook`: API Server will call to
+                      an external webhook to do the conversion. Additional information
+                      is needed for this option. This requires spec.preserveUnknownFields
+                      to be false, and spec.conversion.webhook to be set.'
+                    type: string
+                  webhook:
+                    description: webhook describes how to call the conversion webhook.
+                      Required when `strategy` is set to `Webhook`.
+                    properties:
+                      clientConfig:
+                        description: clientConfig is the instructions for how to call
+                          the webhook if strategy is `Webhook`.
+                        properties:
+                          caBundle:
+                            description: caBundle is a PEM encoded CA bundle which
+                              will be used to validate the webhook's server certificate.
+                              If unspecified, system trust roots on the apiserver
+                              are used.
+                            format: byte
+                            type: string
+                          service:
+                            description: "service is a reference to the service for
+                              this webhook. Either service or url must be specified.
+                              \n If the webhook is running within the cluster, then
+                              you should use `service`."
+                            properties:
+                              name:
+                                description: name is the name of the service. Required
+                                type: string
+                              namespace:
+                                description: namespace is the namespace of the service.
+                                  Required
+                                type: string
+                              path:
+                                description: path is an optional URL path at which
+                                  the webhook will be contacted.
+                                type: string
+                              port:
+                                description: port is an optional service port at which
+                                  the webhook will be contacted. `port` should be
+                                  a valid port number (1-65535, inclusive). Defaults
+                                  to 443 for backward compatibility.
+                                format: int32
+                                type: integer
+                            required:
+                            - name
+                            - namespace
+                            type: object
+                          url:
+                            description: "url gives the location of the webhook, in
+                              standard URL form (`scheme://host:port/path`). Exactly
+                              one of `url` or `service` must be specified. \n The
+                              `host` should not refer to a service running in the
+                              cluster; use the `service` field instead. The host might
+                              be resolved via external DNS in some apiservers (e.g.,
+                              `kube-apiserver` cannot resolve in-cluster DNS as that
+                              would be a layering violation). `host` may also be an
+                              IP address. \n Please note that using `localhost` or
+                              `127.0.0.1` as a `host` is risky unless you take great
+                              care to run this webhook on all hosts which run an apiserver
+                              which might need to make calls to this webhook. Such
+                              installs are likely to be non-portable, i.e., not easy
+                              to turn up in a new cluster. \n The scheme must be \"https\";
+                              the URL must begin with \"https://\". \n A path is optional,
+                              and if present may be any string permissible in a URL.
+                              You may use the path to pass an arbitrary string to
+                              the webhook, for example, a cluster identifier. \n Attempting
+                              to use a user or basic auth e.g. \"user:password@\"
+                              is not allowed. Fragments (\"#...\") and query parameters
+                              (\"?...\") are not allowed, either."
+                            type: string
+                        type: object
+                      conversionReviewVersions:
+                        description: conversionReviewVersions is an ordered list of
+                          preferred `ConversionReview` versions the Webhook expects.
+                          The API server will use the first version in the list which
+                          it supports. If none of the versions specified in this list
+                          are supported by API server, conversion will fail for the
+                          custom resource. If a persisted Webhook configuration specifies
+                          allowed versions and does not include any versions known
+                          to the API Server, calls to the webhook will fail.
+                        items:
+                          type: string
+                        type: array
+                    required:
+                    - conversionReviewVersions
+                    type: object
+                required:
+                - strategy
+                type: object
+              defaultCompositeDeletePolicy:
+                default: Background
+                description: DefaultCompositeDeletePolicy is the policy used when
+                  deleting the Composite that is associated with the Claim if no policy
+                  has been specified.
+                enum:
+                - Background
+                - Foreground
+                type: string
               defaultCompositionRef:
                 description: DefaultCompositionRef refers to the Composition resource
                   that will be used in case no composition selector is given.
@@ -117,6 +224,15 @@ spec:
                 required:
                 - name
                 type: object
+              defaultCompositionUpdatePolicy:
+                default: Automatic
+                description: DefaultCompositionUpdatePolicy is the policy used when
+                  updating composites after a new Composition Revision has been created
+                  if no policy has been specified on the composite.
+                enum:
+                - Automatic
+                - Manual
+                type: string
               enforcedCompositionRef:
                 description: EnforcedCompositionRef refers to the Composition resource
                   that will be used by all composite instances whose schema is defined
@@ -187,9 +303,7 @@ spec:
                   (where GA is a version with no suffix such as beta or alpha), and
                   then by comparing major version, then minor version. An example
                   sorted list of versions: v10, v2, v1, v11beta2, v10beta3, v3beta1,
-                  v12alpha1, v11alpha2, foo1, foo10. Note that all versions must have
-                  identical schemas; Crossplane does not currently support conversion
-                  between different version schemas.'
+                  v12alpha1, v11alpha2, foo1, foo10.'
                 items:
                   description: CompositeResourceDefinitionVersion describes a version
                     of an XR.
@@ -259,7 +373,8 @@ spec:
                         referenced by a Composition in order to configure which resources
                         an XR may be composed of. Exactly one version must be marked
                         as referenceable; all Compositions must target only the referenceable
-                        version. The referenceable version must be served.
+                        version. The referenceable version must be served. It's mapped
+                        to the CRD's `spec.versions[*].storage` field.
                       type: boolean
                     schema:
                       description: Schema describes the schema used for validation,

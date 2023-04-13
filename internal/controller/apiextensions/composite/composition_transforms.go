@@ -37,8 +37,8 @@ import (
 )
 
 const (
-	errMathNoMultiplier   = "no input is given"
-	errMathInputNonNumber = "input is required to be a number for math transformer"
+	errMathTransformTypeFailed = "type %s is not supported for math transform type"
+	errMathInputNonNumber      = "input is required to be a number for math transformer"
 
 	errFmtRequiredField                 = "%s is required by type %s"
 	errFmtConvertInputTypeNotSupported  = "invalid input type %T"
@@ -54,6 +54,7 @@ const (
 	errFmtMatchPattern            = "cannot match pattern at index %d"
 	errFmtMatchParseResult        = "cannot parse result of pattern at index %d"
 	errMatchParseFallbackValue    = "cannot parse fallback value"
+	errMatchFallbackBoth          = "cannot set both a fallback value and the fallback to input flag"
 	errFmtMatchPatternTypeInvalid = "unsupported pattern type '%s'"
 	errFmtMatchInputTypeInvalid   = "unsupported input type '%s'"
 	errMatchRegexpCompile         = "cannot compile regexp"
@@ -112,18 +113,44 @@ func Resolve(t v1.Transform, input any) (any, error) { //nolint:gocyclo // This 
 
 // ResolveMath resolves a Math transform.
 func ResolveMath(t v1.MathTransform, input any) (any, error) {
-	// Currently we support only multiply.
-	if t.Multiply == nil {
-		return nil, errors.New(errMathNoMultiplier)
-	}
+	inputInt := int64(0)
 	switch i := input.(type) {
 	case int64:
-		return *t.Multiply * i, nil
+		inputInt = i
 	case int:
-		return *t.Multiply * int64(i), nil
+		inputInt = int64(i)
 	default:
 		return nil, errors.New(errMathInputNonNumber)
 	}
+
+	if err := t.Validate(); err != nil {
+		return nil, err
+	}
+	switch t.GetType() {
+	case v1.MathTransformTypeMultiply:
+		return inputInt * *t.Multiply, nil
+	case v1.MathTransformTypeClampMax:
+		return mathClampMax(inputInt, *t.ClampMax), nil
+	case v1.MathTransformTypeClampMin:
+		return mathClampMin(inputInt, *t.ClampMin), nil
+	default:
+		return nil, errors.Errorf(errMathTransformTypeFailed, string(t.Type))
+
+	}
+}
+
+func mathClampMin(input int64, min int64) int64 {
+	if input < min {
+		return min
+	}
+	return input
+}
+
+func mathClampMax(input int64, max int64) int64 {
+	if input > max {
+		return max
+	}
+	return input
 }
 
 // ResolveMap resolves a Map transform.
@@ -159,6 +186,16 @@ func ResolveMatch(t v1.MatchTransform, input any) (any, error) {
 			return output, nil
 		}
 	}
+
+	// Fallback to input if no pattern matches and fallback to input is set
+	if t.FallbackTo == v1.MatchFallbackToTypeInput {
+		if t.FallbackValue.Size() != 0 {
+			return nil, errors.New(errMatchFallbackBoth)
+		}
+
+		return input, nil
+	}
+
 	// Use fallback value if no pattern matches (or if there are no patterns)
 	if err := unmarshalJSON(t.FallbackValue, &output); err != nil {
 		return nil, errors.Wrap(err, errMatchParseFallbackValue)

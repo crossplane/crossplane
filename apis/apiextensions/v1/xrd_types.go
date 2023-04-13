@@ -56,6 +56,12 @@ type CompositeResourceDefinitionSpec struct {
 	// +optional
 	ConnectionSecretKeys []string `json:"connectionSecretKeys,omitempty"`
 
+	// DefaultCompositeDeletePolicy is the policy used when deleting the Composite
+	// that is associated with the Claim if no policy has been specified.
+	// +optional
+	// +kubebuilder:default=Background
+	DefaultCompositeDeletePolicy *xpv1.CompositeDeletePolicy `json:"defaultCompositeDeletePolicy,omitempty"`
+
 	// DefaultCompositionRef refers to the Composition resource that will be used
 	// in case no composition selector is given.
 	// +optional
@@ -67,6 +73,12 @@ type CompositeResourceDefinitionSpec struct {
 	// +immutable
 	EnforcedCompositionRef *CompositionReference `json:"enforcedCompositionRef,omitempty"`
 
+	// DefaultCompositionUpdatePolicy is the policy used when updating composites after a new
+	// Composition Revision has been created if no policy has been specified on the composite.
+	// +optional
+	// +kubebuilder:default=Automatic
+	DefaultCompositionUpdatePolicy *xpv1.UpdatePolicy `json:"defaultCompositionUpdatePolicy,omitempty"`
+
 	// Versions is the list of all API versions of the defined composite
 	// resource. Version names are used to compute the order in which served
 	// versions are listed in API discovery. If the version string is
@@ -77,10 +89,12 @@ type CompositeResourceDefinitionSpec struct {
 	// are sorted first by GA > beta > alpha (where GA is a version with no
 	// suffix such as beta or alpha), and then by comparing major version, then
 	// minor version. An example sorted list of versions: v10, v2, v1, v11beta2,
-	// v10beta3, v3beta1, v12alpha1, v11alpha2, foo1, foo10. Note that all
-	// versions must have identical schemas; Crossplane does not currently
-	// support conversion between different version schemas.
+	// v10beta3, v3beta1, v12alpha1, v11alpha2, foo1, foo10.
 	Versions []CompositeResourceDefinitionVersion `json:"versions"`
+
+	// Conversion defines all conversion settings for the defined Composite resource.
+	// +optional
+	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
 }
 
 // A CompositionReference references a Composition.
@@ -100,7 +114,7 @@ type CompositeResourceDefinitionVersion struct {
 	// Composition in order to configure which resources an XR may be composed
 	// of. Exactly one version must be marked as referenceable; all Compositions
 	// must target only the referenceable version. The referenceable version
-	// must be served.
+	// must be served. It's mapped to the CRD's `spec.versions[*].storage` field.
 	Referenceable bool `json:"referenceable"`
 
 	// Served specifies that this version should be served via REST APIs.

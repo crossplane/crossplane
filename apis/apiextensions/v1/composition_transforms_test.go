@@ -26,7 +26,10 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
 
+	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
+
+	"github.com/crossplane/crossplane/pkg/validation/schema"
 )
 
 func TestTransform_Validate(t *testing.T) {
@@ -42,8 +45,20 @@ func TestTransform_Validate(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ValidMath": {
-			reason: "Math transform with MathTransform set should be valid",
+		"ValidMathMultiply": {
+			reason: "Math transform with MathTransform Multiply set should be valid",
+			args: args{
+				transform: &Transform{
+					Type: TransformTypeMath,
+					Math: &MathTransform{
+						Type:     MathTransformTypeMultiply,
+						Multiply: pointer.Int64(2),
+					},
+				},
+			},
+		},
+		"ValidMathDefaultType": {
+			reason: "Math transform with MathTransform Default set should be valid",
 			args: args{
 				transform: &Transform{
 					Type: TransformTypeMath,
@@ -53,7 +68,37 @@ func TestTransform_Validate(t *testing.T) {
 				},
 			},
 		},
-		"InvalidMath": {
+		"ValidMathClampMin": {
+			reason: "Math transform with valid MathTransform ClampMin set should be valid",
+			args: args{
+				transform: &Transform{
+					Type: TransformTypeMath,
+					Math: &MathTransform{
+						Type:     MathTransformTypeClampMin,
+						ClampMin: pointer.Int64(10),
+					},
+				},
+			},
+		},
+		"InvalidMathWrongSpec": {
+			reason: "Math transform with invalid MathTransform set should be invalid",
+			args: args{
+				transform: &Transform{
+					Type: TransformTypeMath,
+					Math: &MathTransform{
+						Type:     MathTransformTypeMultiply,
+						ClampMin: pointer.Int64(10),
+					},
+				},
+			},
+			want: want{
+				&field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "math.multiply",
+				},
+			},
+		},
+		"InvalidMathNotDefinedAtAll": {
 			reason: "Math transform with no MathTransform set should be invalid",
 			args: args{
 				transform: &Transform{
@@ -392,6 +437,164 @@ func TestConvertTransform_GetConversionFunc(t *testing.T) {
 			_, err := tc.args.ct.GetConversionFunc(tc.args.from)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("%s\nGetConversionFunc(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestConvertTransformType_ToKnownJSONType(t *testing.T) {
+	type args struct {
+		c TransformIOType
+	}
+	type want struct {
+		t schema.KnownJSONType
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"Int": {
+			reason: "Int",
+			args: args{
+				c: TransformIOTypeInt,
+			},
+			want: want{
+				t: schema.KnownJSONTypeInteger,
+			},
+		},
+		"Int64": {
+			reason: "Int64",
+			args: args{
+				c: TransformIOTypeInt64,
+			},
+			want: want{
+				t: schema.KnownJSONTypeInteger,
+			},
+		},
+		"Float64": {
+			reason: "Float64",
+			args: args{
+				c: TransformIOTypeFloat64,
+			},
+			want: want{
+				t: schema.KnownJSONTypeNumber,
+			},
+		},
+		"Unknown": {
+			reason: "Unknown returns empty string, should never happen",
+			args: args{
+				c: TransformIOType("foo"),
+			},
+			want: want{
+				t: "",
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := tc.args.c.ToKnownJSONType()
+			if diff := cmp.Diff(tc.want.t, got); diff != "" {
+				t.Errorf("\n%s\nToKnownJSONType(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if tc.want.t == "" && tc.args.c.IsValid() {
+				t.Errorf("IsValid() should return false for unknown type: %s", tc.args.c)
+			}
+		})
+	}
+}
+
+func TestFromKnownJSONType(t *testing.T) {
+	type args struct {
+		t schema.KnownJSONType
+	}
+	type want struct {
+		out TransformIOType
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidInt": {
+			reason: "Int should be valid and convert properly",
+			args: args{
+				t: schema.KnownJSONTypeInteger,
+			},
+			want: want{
+				out: TransformIOTypeInt64,
+			},
+		},
+		"ValidNumber": {
+			reason: "Number should be valid and convert properly",
+			args: args{
+				t: schema.KnownJSONTypeNumber,
+			},
+			want: want{
+				out: TransformIOTypeFloat64,
+			},
+		},
+		"InvalidUnknown": {
+			reason: "Unknown return an error",
+			args: args{
+				t: schema.KnownJSONType("foo"),
+			},
+			want: want{
+				err: xperrors.Errorf(errFmtUnknownJSONType, "foo"),
+			},
+		},
+		"InvalidEmpty": {
+			reason: "Empty string return an error",
+			args: args{
+				t: "",
+			},
+			want: want{
+				err: xperrors.Errorf(errFmtUnknownJSONType, ""),
+			},
+		},
+		"InvalidNull": {
+			reason: "Null return an error",
+			args: args{
+				t: schema.KnownJSONTypeNull,
+			},
+			want: want{
+				err: xperrors.Errorf(errFmtUnsupportedJSONType, schema.KnownJSONTypeNull),
+			},
+		},
+		"ValidBoolean": {
+			reason: "Boolean should be valid and convert properly",
+			args: args{
+				t: schema.KnownJSONTypeBoolean,
+			},
+			want: want{
+				out: TransformIOTypeBool,
+			},
+		},
+		"InvalidArray": {
+			reason: "Array should not be valid",
+			args:   args{t: schema.KnownJSONTypeArray},
+			want: want{
+				err: xperrors.Errorf(errFmtUnsupportedJSONType, schema.KnownJSONTypeArray),
+			},
+		},
+		"InvalidObject": {
+			reason: "Object should not be valid",
+			args:   args{t: schema.KnownJSONTypeObject},
+			want: want{
+				err: xperrors.Errorf(errFmtUnsupportedJSONType, schema.KnownJSONTypeObject),
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := FromKnownJSONType(tc.args.t)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nFromKnownJSONType(...): -want error, +got error:\n%s", tc.reason, diff)
+				return
+			}
+			if diff := cmp.Diff(tc.want.out, got); diff != "" {
+				t.Errorf("\n%s\nFromKnownJSONType(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}

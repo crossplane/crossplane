@@ -176,11 +176,37 @@ func TestMatchResolve(t *testing.T) {
 				err: errors.Wrapf(errors.Errorf(errFmtMatchInputTypeInvalid, "int"), errFmtMatchPattern, 0),
 			},
 		},
+		"ErrFallbackValueAndToInput": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:      []v1.MatchTransformPattern{},
+					FallbackValue: asJSON("foo"),
+					FallbackTo:    "Input",
+				},
+				i: "foo",
+			},
+			want: want{
+				err: errors.New(errMatchFallbackBoth),
+			},
+		},
 		"NoPatternsFallback": {
 			args: args{
 				t: v1.MatchTransform{
 					Patterns:      []v1.MatchTransformPattern{},
 					FallbackValue: asJSON("bar"),
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "bar",
+			},
+		},
+		"NoPatternsFallbackToValueExplicit": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:      []v1.MatchTransformPattern{},
+					FallbackValue: asJSON("bar"),
+					FallbackTo:    "Value", // Explicitly set to Value, unnecessary but valid.
 				},
 				i: "foo",
 			},
@@ -197,6 +223,31 @@ func TestMatchResolve(t *testing.T) {
 				i: "foo",
 			},
 			want: want{},
+		},
+		"NoPatternsFallbackToInput": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:   []v1.MatchTransformPattern{},
+					FallbackTo: "Input",
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "foo",
+			},
+		},
+		"NoPatternsFallbackNilToInput": {
+			args: args{
+				t: v1.MatchTransform{
+					Patterns:      []v1.MatchTransformPattern{},
+					FallbackValue: asJSON(nil),
+					FallbackTo:    "Input",
+				},
+				i: "foo",
+			},
+			want: want{
+				o: "foo",
+			},
 		},
 		"MatchLiteral": {
 			args: args{
@@ -406,10 +457,13 @@ func TestMatchResolve(t *testing.T) {
 }
 
 func TestMathResolve(t *testing.T) {
-	m := int64(2)
+	two := int64(2)
 
 	type args struct {
+		mathType   v1.MathTransformType
 		multiplier *int64
+		clampMin   *int64
+		clampMax   *int64
 		i          any
 	}
 	type want struct {
@@ -421,49 +475,157 @@ func TestMathResolve(t *testing.T) {
 		args
 		want
 	}{
-		"NoMultiplier": {
+		"InvalidType": {
 			args: args{
-				i: 25,
+				mathType: "bad",
+				i:        25,
 			},
 			want: want{
-				err: errors.New(errMathNoMultiplier),
+				err: &field.Error{
+					Type:  field.ErrorTypeInvalid,
+					Field: "type",
+				},
 			},
 		},
 		"NonNumberInput": {
 			args: args{
-				multiplier: &m,
+				mathType:   v1.MathTransformTypeMultiply,
+				multiplier: &two,
 				i:          "ola",
 			},
 			want: want{
 				err: errors.New(errMathInputNonNumber),
 			},
 		},
-		"Success": {
+		"MultiplyNoConfig": {
 			args: args{
-				multiplier: &m,
+				mathType: v1.MathTransformTypeMultiply,
+				i:        25,
+			},
+			want: want{
+				err: &field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "multiply",
+				},
+			},
+		},
+		"MultiplySuccess": {
+			args: args{
+				mathType:   v1.MathTransformTypeMultiply,
+				multiplier: &two,
 				i:          3,
 			},
 			want: want{
-				o: 3 * m,
+				o: 3 * two,
 			},
 		},
-		"SuccessInt64": {
+		"MultiplySuccessInt64": {
 			args: args{
-				multiplier: &m,
+				mathType:   v1.MathTransformTypeMultiply,
+				multiplier: &two,
 				i:          int64(3),
 			},
 			want: want{
-				o: 3 * m,
+				o: 3 * two,
+			},
+		},
+		"ClampMinSuccess": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMin,
+				clampMin: &two,
+				i:        1,
+			},
+			want: want{
+				o: int64(2),
+			},
+		},
+		"ClampMinSuccessNoChange": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMin,
+				clampMin: &two,
+				i:        3,
+			},
+			want: want{
+				o: int64(3),
+			},
+		},
+		"ClampMinSuccessInt64": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMin,
+				clampMin: &two,
+				i:        int64(1),
+			},
+			want: want{
+				o: int64(2),
+			},
+		},
+		"ClampMinNoConfig": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMin,
+				i:        25,
+			},
+			want: want{
+				err: &field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "clampMin",
+				},
+			},
+		},
+		"ClampMaxSuccess": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMax,
+				clampMax: &two,
+				i:        3,
+			},
+			want: want{
+				o: int64(2),
+			},
+		},
+		"ClampMaxSuccessNoChange": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMax,
+				clampMax: &two,
+				i:        1,
+			},
+			want: want{
+				o: int64(1),
+			},
+		},
+		"ClampMaxSuccessInt64": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMax,
+				clampMax: &two,
+				i:        int64(3),
+			},
+			want: want{
+				o: int64(2),
+			},
+		},
+		"ClampMaxNoConfig": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMax,
+				i:        25,
+			},
+			want: want{
+				err: &field.Error{
+					Type:  field.ErrorTypeRequired,
+					Field: "clampMax",
+				},
 			},
 		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			tr := v1.MathTransform{Multiply: tc.multiplier}
+			tr := v1.MathTransform{Type: tc.mathType, Multiply: tc.multiplier, ClampMin: tc.clampMin, ClampMax: tc.clampMax}
 			got, err := ResolveMath(tr, tc.i)
 
 			if diff := cmp.Diff(tc.want.o, got); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+			fieldErr := &field.Error{}
+			if err != nil && errors.As(err, &fieldErr) {
+				fieldErr.Detail = ""
+				fieldErr.BadValue = nil
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)

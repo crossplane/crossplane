@@ -25,7 +25,7 @@ import (
 )
 
 // Validate performs logical validation of a Composition.
-func (c *Composition) Validate() (errs field.ErrorList) {
+func (c *Composition) Validate() (warns []string, errs field.ErrorList) {
 	type validationFunc func() field.ErrorList
 	validations := []validationFunc{
 		c.validatePatchSets,
@@ -35,7 +35,7 @@ func (c *Composition) Validate() (errs field.ErrorList) {
 	for _, f := range validations {
 		errs = append(errs, f()...)
 	}
-	return errs
+	return nil, errs
 }
 
 func (c *Composition) validateFunctions() (errs field.ErrorList) {

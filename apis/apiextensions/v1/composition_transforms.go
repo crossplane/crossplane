@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
+	"github.com/crossplane/crossplane/pkg/validation/schema"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -112,6 +113,37 @@ func (t *Transform) Validate() *field.Error {
 		return field.Invalid(field.NewPath("type"), t.Type, "unknown transform type")
 	}
 
+	return nil
+}
+
+// IsValidInput validates the supplied Transform type, taking into consideration also the input type.
+//
+//nolint:gocyclo // This is a long but simple/same-y switch.
+func (t *Transform) IsValidInput(fromType TransformIOType) error {
+	switch t.Type {
+	case TransformTypeMath:
+		if fromType != TransformIOTypeInt && fromType != TransformIOTypeInt64 && fromType != TransformIOTypeFloat64 {
+			return errors.Errorf("math transform can only be used with numeric types, got %s", fromType)
+		}
+	case TransformTypeMap:
+		if fromType != TransformIOTypeString {
+			return errors.Errorf("map transform can only be used with string types, got %s", fromType)
+		}
+	case TransformTypeMatch:
+		if fromType != TransformIOTypeString {
+			return errors.Errorf("match transform can only be used with string input types, got %s", fromType)
+		}
+	case TransformTypeString:
+		if fromType != TransformIOTypeString {
+			return errors.Errorf("string transform can only be used with string input types, got %s", fromType)
+		}
+	case TransformTypeConvert:
+		if _, err := t.Convert.GetConversionFunc(fromType); err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("unknown transform type %s", t.Type)
+	}
 	return nil
 }
 
@@ -231,18 +263,61 @@ func (t *Transform) GetOutputType() (*TransformIOType, error) {
 	return &out, nil
 }
 
+// MathTransformType conducts mathematical operations.
+type MathTransformType string
+
+// Accepted MathTransformType.
+const (
+	MathTransformTypeMultiply MathTransformType = "Multiply" // Default
+	MathTransformTypeClampMin MathTransformType = "ClampMin"
+	MathTransformTypeClampMax MathTransformType = "ClampMax"
+)
+
 // MathTransform conducts mathematical operations on the input with the given
 // configuration in its properties.
 type MathTransform struct {
+	// Type of the math transform to be run.
+	// +optional
+	// +kubebuilder:validation:Enum=Multiply;ClampMin;ClampMax
+	// +kubebuilder:default=Multiply
+	Type MathTransformType `json:"type,omitempty"`
+
 	// Multiply the value.
 	// +optional
 	Multiply *int64 `json:"multiply,omitempty"`
+	// ClampMin makes sure that the value is not smaller than the given value.
+	// +optional
+	ClampMin *int64 `json:"clampMin,omitempty"`
+	// ClampMax makes sure that the value is not bigger than the given value.
+	// +optional
+	ClampMax *int64 `json:"clampMax,omitempty"`
+}
+
+// GetType returns the type of the math transform, returning the default if not specified.
+func (m *MathTransform) GetType() MathTransformType {
+	if m.Type == "" {
+		return MathTransformTypeMultiply
+	}
+	return m.Type
 }
 
 // Validate checks this MathTransform is valid.
 func (m *MathTransform) Validate() *field.Error {
-	if m.Multiply == nil {
-		return field.Required(field.NewPath("multiply"), "at least one operation must be specified if a math transform is specified")
+	switch m.GetType() {
+	case MathTransformTypeMultiply:
+		if m.Multiply == nil {
+			return field.Required(field.NewPath("multiply"), "must specify a value if a multiply math transform is specified")
+		}
+	case MathTransformTypeClampMin:
+		if m.ClampMin == nil {
+			return field.Required(field.NewPath("clampMin"), "must specify a value if a clamp min math transform is specified")
+		}
+	case MathTransformTypeClampMax:
+		if m.ClampMax == nil {
+			return field.Required(field.NewPath("clampMax"), "must specify a value if a clamp max math transform is specified")
+		}
+	default:
+		return field.Invalid(field.NewPath("type"), m.Type, "unknown math transform type")
 	}
 	return nil
 }
@@ -279,6 +354,15 @@ func (m *MapTransform) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.Pairs)
 }
 
+// MatchFallbackTo defines how a match operation will fallback.
+type MatchFallbackTo string
+
+// Valid MatchFallbackTo.
+const (
+	MatchFallbackToTypeValue MatchFallbackTo = "Value"
+	MatchFallbackToTypeInput MatchFallbackTo = "Input"
+)
+
 // MatchTransform is a more complex version of a map transform that matches a
 // list of patterns.
 type MatchTransform struct {
@@ -290,6 +374,11 @@ type MatchTransform struct {
 	// The fallback value that should be returned by the transform if now pattern
 	// matches.
 	FallbackValue extv1.JSON `json:"fallbackValue,omitempty"`
+	// Determines to what value the transform should fallback if no pattern matches.
+	// +optional
+	// +kubebuilder:validation:Enum=Value;Input
+	// +kubebuilder:default=Value
+	FallbackTo MatchFallbackTo `json:"fallbackTo,omitempty"`
 }
 
 // Validate checks this MatchTransform is valid.
@@ -387,6 +476,9 @@ const (
 	StringConversionTypeToSHA1     StringConversionType = "ToSha1"
 	StringConversionTypeToSHA256   StringConversionType = "ToSha256"
 	StringConversionTypeToSHA512   StringConversionType = "ToSha512"
+
+	errFmtUnknownJSONType     = "unknown JSON type: %q"
+	errFmtUnsupportedJSONType = "JSON type not supported: %q"
 )
 
 // A StringTransform returns a string given the supplied input.
@@ -487,6 +579,42 @@ func (c TransformIOType) IsValid() bool {
 		return true
 	}
 	return false
+}
+
+// ToKnownJSONType returns the matching JSON type for the given TransformIOType.
+// It returns an empty string if the type is not valid, call IsValid() before
+// calling this method.
+func (c TransformIOType) ToKnownJSONType() schema.KnownJSONType {
+	switch c {
+	case TransformIOTypeString:
+		return schema.KnownJSONTypeString
+	case TransformIOTypeBool:
+		return schema.KnownJSONTypeBoolean
+	case TransformIOTypeInt, TransformIOTypeInt64:
+		return schema.KnownJSONTypeInteger
+	case TransformIOTypeFloat64:
+		return schema.KnownJSONTypeNumber
+	}
+	// should never happen
+	return ""
+}
+
+// FromKnownJSONType returns the TransformIOType for the given KnownJSONType.
+func FromKnownJSONType(t schema.KnownJSONType) (TransformIOType, error) {
+	switch t {
+	case schema.KnownJSONTypeString:
+		return TransformIOTypeString, nil
+	case schema.KnownJSONTypeBoolean:
+		return TransformIOTypeBool, nil
+	case schema.KnownJSONTypeInteger:
+		return TransformIOTypeInt64, nil
+	case schema.KnownJSONTypeNumber:
+		return TransformIOTypeFloat64, nil
+	case schema.KnownJSONTypeObject, schema.KnownJSONTypeArray, schema.KnownJSONTypeNull:
+		return "", errors.Errorf(errFmtUnsupportedJSONType, t)
+	default:
+		return "", errors.Errorf(errFmtUnknownJSONType, t)
+	}
 }
 
 // ConvertTransformFormat defines the expected format of an input value of a

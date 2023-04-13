@@ -434,6 +434,7 @@ func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDe
 			composite.NewAPIDefaultCompositionSelector(c, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), e),
 			composite.NewAPILabelSelectorResolver(c),
 		)),
+		composite.WithCompositionUpdatePolicySelector(composite.NewAPIDefaultCompositionUpdatePolicySelector(c, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), e)),
 		composite.WithLogger(l.WithValues("controller", composite.ControllerName(d.GetName()))),
 		composite.WithRecorder(e.WithAnnotations("controller", composite.ControllerName(d.GetName()))),
 		composite.WithPollInterval(co.PollInterval),

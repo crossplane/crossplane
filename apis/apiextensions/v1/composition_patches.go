@@ -63,6 +63,14 @@ type PatchPolicy struct {
 	MergeOptions  *xpv1.MergeOptions   `json:"mergeOptions,omitempty"`
 }
 
+// GetFromFieldPathPolicy returns the FromFieldPathPolicy for this PatchPolicy, defaulting to FromFieldPathPolicyOptional if not specified.
+func (pp *PatchPolicy) GetFromFieldPathPolicy() FromFieldPathPolicy {
+	if pp == nil || pp.FromFieldPath == nil {
+		return FromFieldPathPolicyOptional
+	}
+	return *pp.FromFieldPath
+}
+
 // Patch objects are applied between composite and composed resources. Their
 // behaviour depends on the Type selected. The default Type,
 // FromCompositeFieldPath, copies a value from the composite resource to
@@ -104,6 +112,22 @@ type Patch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// GetFromFieldPath returns the FromFieldPath for this Patch, or an empty string if it is nil.
+func (p *Patch) GetFromFieldPath() string {
+	if p.FromFieldPath == nil {
+		return ""
+	}
+	return *p.FromFieldPath
+}
+
+// GetToFieldPath returns the ToFieldPath for this Patch, or an empty string if it is nil.
+func (p *Patch) GetToFieldPath() string {
+	if p.ToFieldPath == nil {
+		return ""
+	}
+	return *p.ToFieldPath
 }
 
 // GetType returns the patch type. If the type is not set, it returns the default type.
