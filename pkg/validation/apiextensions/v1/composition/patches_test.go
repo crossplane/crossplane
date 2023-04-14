@@ -18,21 +18,25 @@ package composition
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/pkg/validation/schema"
+	"github.com/crossplane/crossplane/pkg/validation/internal/schema"
 
 	_ "embed"
 )
@@ -58,7 +62,7 @@ func toJSONSchemaProps(in []byte) *apiextensions.JSONSchemaProps {
 	return &out
 }
 
-func Test_validateTransforms(t *testing.T) {
+func TestValidateTransforms(t *testing.T) {
 	type args struct {
 		transforms       []v1.Transform
 		fromType, toType schema.KnownJSONType
@@ -320,7 +324,7 @@ func Test_validateTransforms(t *testing.T) {
 	}
 }
 
-func Test_validateFieldPath(t *testing.T) {
+func TestValidateFieldPath(t *testing.T) {
 	type args struct {
 		schema    *apiextensions.JSONSchemaProps
 		fieldPath string
@@ -435,7 +439,7 @@ func Test_validateFieldPath(t *testing.T) {
 	}
 }
 
-func Test_validateFieldPathSegmentIndex(t *testing.T) {
+func TestValidateFieldPathSegmentIndex(t *testing.T) {
 	type args struct {
 		parent  *apiextensions.JSONSchemaProps
 		segment fieldpath.Segment
@@ -584,7 +588,7 @@ func Test_validateFieldPathSegmentIndex(t *testing.T) {
 	}
 }
 
-func Test_validateFieldPathSegmentField(t *testing.T) {
+func TestValidateFieldPathSegmentField(t *testing.T) {
 	type args struct {
 		parent  *apiextensions.JSONSchemaProps
 		segment fieldpath.Segment
@@ -697,7 +701,7 @@ func Test_validateFieldPathSegmentField(t *testing.T) {
 	}
 }
 
-func Test_getSchemaForVersion(t *testing.T) {
+func TestGetSchemaForVersion(t *testing.T) {
 	type args struct {
 		crd     *apiextensions.CustomResourceDefinition
 		version string
@@ -833,4 +837,66 @@ func Test_getSchemaForVersion(t *testing.T) {
 		})
 	}
 
+}
+
+func TestComposedTemplateGetBaseObject(t *testing.T) {
+	type args struct {
+		ct *v1.ComposedTemplate
+	}
+	type want struct {
+		output client.Object
+		err    error
+	}
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidBaseObject": {
+			reason: "Valid base object should be parsed properly",
+			args: args{
+				ct: &v1.ComposedTemplate{
+					Base: runtime.RawExtension{
+						Raw: []byte(`{"apiVersion":"v1","kind":"Service","metadata":{"name":"foo"}}`),
+					},
+				},
+			},
+			want: want{
+				output: &unstructured.Unstructured{
+					Object: map[string]interface{}{
+						"apiVersion": "v1",
+						"kind":       "Service",
+						"metadata": map[string]interface{}{
+							"name": "foo",
+						},
+					},
+				},
+			},
+		},
+		"InvalidBaseObject": {
+			reason: "Invalid base object should return an error",
+			args: args{
+				ct: &v1.ComposedTemplate{
+					Base: runtime.RawExtension{
+						Raw: []byte(`{$$$WRONG$$$:"v1","kind":"Service","metadata":{"name":"foo"}}`),
+					},
+				},
+			},
+			want: want{
+				err: xperrors.Wrap(errors.New("invalid character '$' looking for beginning of object key string"), errUnableToParse),
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			got, err := GetBaseObject(tc.args.ct)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nGetBaseObject(...): -want error, +got error: \n%s", tc.reason, diff)
+				return
+			}
+			if diff := cmp.Diff(tc.want.output, got); diff != "" {
+				t.Errorf("\n%s\nGetBaseObject(...): -want, +got: \n%s", tc.reason, diff)
+			}
+		})
+	}
 }

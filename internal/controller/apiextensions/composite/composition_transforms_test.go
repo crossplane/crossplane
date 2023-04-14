@@ -18,6 +18,7 @@ package composite
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -1101,6 +1102,107 @@ func TestConvertResolve(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("Resolve(b): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestConvertTransformGetConversionFunc(t *testing.T) {
+	type args struct {
+		ct   *v1.ConvertTransform
+		from v1.TransformIOType
+	}
+	type want struct {
+		err error
+	}
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"IntToString": {
+			reason: "Int to String should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeString,
+				},
+				from: v1.TransformIOTypeInt,
+			},
+		},
+		"IntToInt": {
+			reason: "Int to Int should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt,
+				},
+				from: v1.TransformIOTypeInt,
+			},
+		},
+		"IntToInt64": {
+			reason: "Int to Int64 should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt,
+				},
+				from: v1.TransformIOTypeInt64,
+			},
+		},
+		"Int64ToInt": {
+			reason: "Int64 to Int should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt64,
+				},
+				from: v1.TransformIOTypeInt,
+			},
+		},
+		"IntToFloat": {
+			reason: "Int to Float should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt,
+				},
+				from: v1.TransformIOTypeFloat64,
+			},
+		},
+		"IntToBool": {
+			reason: "Int to Bool should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt,
+				},
+				from: v1.TransformIOTypeBool,
+			},
+		},
+		"StringToIntInvalidFormat": {
+			reason: "String to Int with invalid format should be invalid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt,
+					Format: &[]v1.ConvertTransformFormat{"wrong"}[0],
+				},
+				from: v1.TransformIOTypeString,
+			},
+			want: want{
+				err: fmt.Errorf("conversion from string to int64 is not supported with format wrong"),
+			},
+		},
+		"IntToIntInvalidFormat": {
+			reason: "Int to Int, invalid format ignored because it is the same type",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeInt,
+					Format: &[]v1.ConvertTransformFormat{"wrong"}[0],
+				},
+				from: v1.TransformIOTypeInt,
+			},
+		},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := GetConversionFunc(tc.args.ct, tc.args.from)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("%s\nGetConversionFunc(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -23,7 +23,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	"github.com/crossplane/crossplane/pkg/validation/errors"
+	verrors "github.com/crossplane/crossplane/internal/validation/errors"
 )
 
 // A PatchType is a type of patch.
@@ -162,7 +162,7 @@ func (p *Patch) Validate() *field.Error {
 	}
 	for i, transform := range p.Transforms {
 		if err := transform.Validate(); err != nil {
-			return errors.WrapFieldError(err, field.NewPath("transforms").Index(i))
+			return verrors.WrapFieldError(err, field.NewPath("transforms").Index(i))
 		}
 	}
 

@@ -201,7 +201,8 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 
 	// Get schema for all Managed Resource Definitions defined by comp.Spec.Resources
 	for _, res := range comp.Spec.Resources {
-		cd, err := res.GetBaseObject()
+		res := res
+		cd, err := composition.GetBaseObject(&res)
 		if err != nil {
 			return nil, []error{err}
 		}

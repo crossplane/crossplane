@@ -3,7 +3,7 @@ package composition
 import (
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 
-	"github.com/crossplane/crossplane/pkg/validation/schema"
+	"github.com/crossplane/crossplane/pkg/validation/internal/schema"
 )
 
 var (

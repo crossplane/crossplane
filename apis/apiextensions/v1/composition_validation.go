@@ -21,7 +21,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
+	verrors "github.com/crossplane/crossplane/internal/validation/errors"
 )
 
 // Validate performs logical validation of a Composition.
@@ -46,7 +46,7 @@ func (c *Composition) validateFunctions() (errs field.ErrorList) {
 		}
 		seen[f.Name] = true
 		if err := f.Validate(); err != nil {
-			errs = append(errs, xperrors.WrapFieldError(err, field.NewPath("spec", "functions").Index(i)))
+			errs = append(errs, verrors.WrapFieldError(err, field.NewPath("spec", "functions").Index(i)))
 		}
 	}
 	return errs
@@ -60,7 +60,7 @@ func (c *Composition) validatePatchSets() (errs field.ErrorList) {
 				continue
 			}
 			if err := p.Validate(); err != nil {
-				errs = append(errs, xperrors.WrapFieldError(err, field.NewPath("spec", "patchSets").Index(i).Child("patches").Index(j)))
+				errs = append(errs, verrors.WrapFieldError(err, field.NewPath("spec", "patchSets").Index(i).Child("patches").Index(j)))
 			}
 		}
 	}
@@ -74,12 +74,12 @@ func (c *Composition) validateResources() (errs field.ErrorList) {
 	for i, res := range c.Spec.Resources {
 		for j, patch := range res.Patches {
 			if err := patch.Validate(); err != nil {
-				errs = append(errs, xperrors.WrapFieldError(err, field.NewPath("spec", "resources").Index(i).Child("patches").Index(j)))
+				errs = append(errs, verrors.WrapFieldError(err, field.NewPath("spec", "resources").Index(i).Child("patches").Index(j)))
 			}
 		}
 		for j, rd := range res.ReadinessChecks {
 			if err := rd.Validate(); err != nil {
-				errs = append(errs, xperrors.WrapFieldError(err, field.NewPath("spec", "resources").Index(i).Child("readinessChecks").Index(j)))
+				errs = append(errs, verrors.WrapFieldError(err, field.NewPath("spec", "resources").Index(i).Child("readinessChecks").Index(j)))
 			}
 		}
 		// TODO(phisco): we should validate also ConnectionDetails, but would need a major refactoring

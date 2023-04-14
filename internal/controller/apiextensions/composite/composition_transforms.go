@@ -26,9 +26,11 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/utils/pointer"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -357,9 +359,97 @@ func ResolveConvert(t v1.ConvertTransform, input any) (any, error) {
 	if !from.IsValid() {
 		return nil, errors.Errorf(errFmtConvertInputTypeNotSupported, input)
 	}
-	f, err := t.GetConversionFunc(from)
+	f, err := GetConversionFunc(&t, from)
 	if err != nil {
 		return nil, err
 	}
 	return f(input)
+}
+
+type conversionPair struct {
+	from   v1.TransformIOType
+	to     v1.TransformIOType
+	format v1.ConvertTransformFormat
+}
+
+// GetConversionFunc returns the conversion function for the given input and output types, or an error if no conversion is
+// supported. Will return a no-op conversion if the input and output types are the same.
+func GetConversionFunc(t *v1.ConvertTransform, from v1.TransformIOType) (func(any) (any, error), error) {
+	originalFrom := from
+	to := t.ToType
+	if to == v1.TransformIOTypeInt {
+		to = v1.TransformIOTypeInt64
+	}
+	if from == v1.TransformIOTypeInt {
+		from = v1.TransformIOTypeInt64
+	}
+	if to == from {
+		return func(input any) (any, error) {
+			return input, nil
+		}, nil
+	}
+	f, ok := conversions[conversionPair{from: from, to: to, format: t.GetFormat()}]
+	if !ok {
+		return nil, errors.Errorf(v1.ErrFmtConvertFormatPairNotSupported, originalFrom, to, t.GetFormat())
+	}
+	return f, nil
+}
+
+// The unparam linter is complaining that these functions always return a nil
+// error, but we need this to be the case given some other functions in the map
+// may return an error.
+var conversions = map[conversionPair]func(any) (any, error){
+	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+
+		return strconv.ParseInt(i.(string), 10, 64)
+	},
+	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		return strconv.ParseBool(i.(string))
+	},
+	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) {
+		return strconv.ParseFloat(i.(string), 64)
+	},
+	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatQuantity}: func(i any) (any, error) {
+		q, err := resource.ParseQuantity(i.(string))
+		if err != nil {
+			return nil, err
+		}
+		return q.AsApproximateFloat64(), nil
+	},
+
+	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return strconv.FormatInt(i.(int64), 10), nil
+	},
+	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return i.(int64) == 1, nil
+	},
+	{from: v1.TransformIOTypeInt64, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return float64(i.(int64)), nil
+	},
+
+	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return strconv.FormatBool(i.(bool)), nil
+	},
+	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		if i.(bool) {
+			return int64(1), nil
+		}
+		return int64(0), nil
+	},
+	{from: v1.TransformIOTypeBool, to: v1.TransformIOTypeFloat64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		if i.(bool) {
+			return float64(1), nil
+		}
+		return float64(0), nil
+	},
+
+	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeString, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
+	},
+	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeInt64, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return int64(i.(float64)), nil
+	},
+	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
+		return i.(float64) == float64(1), nil
+	},
 }
