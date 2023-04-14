@@ -341,7 +341,7 @@ func TestTransformValidate(t *testing.T) {
 	}
 }
 
-func TestConvertTransform_GetConversionFunc(t *testing.T) {
+func TestConvertTransformGetConversionFunc(t *testing.T) {
 	type args struct {
 		ct   *ConvertTransform
 		from TransformIOType
@@ -600,7 +600,7 @@ func TestFromKnownJSONType(t *testing.T) {
 	}
 }
 
-func TestTransform_GetOutputType(t *testing.T) {
+func TestTransformGetOutputType(t *testing.T) {
 	type args struct {
 		transform *Transform
 	}

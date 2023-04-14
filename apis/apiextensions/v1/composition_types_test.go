@@ -31,7 +31,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-func TestComposedTemplate_GetBaseObject(t *testing.T) {
+func TestComposedTemplateGetBaseObject(t *testing.T) {
 	type args struct {
 		ct *ComposedTemplate
 	}

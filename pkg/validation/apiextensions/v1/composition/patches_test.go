@@ -58,7 +58,7 @@ func toJSONSchemaProps(in []byte) *apiextensions.JSONSchemaProps {
 	return &out
 }
 
-func Test_validateTransforms(t *testing.T) {
+func TestValidateTransforms(t *testing.T) {
 	type args struct {
 		transforms       []v1.Transform
 		fromType, toType schema.KnownJSONType
@@ -320,7 +320,7 @@ func Test_validateTransforms(t *testing.T) {
 	}
 }
 
-func Test_validateFieldPath(t *testing.T) {
+func TestValidateFieldPath(t *testing.T) {
 	type args struct {
 		schema    *apiextensions.JSONSchemaProps
 		fieldPath string
@@ -435,7 +435,7 @@ func Test_validateFieldPath(t *testing.T) {
 	}
 }
 
-func Test_validateFieldPathSegmentIndex(t *testing.T) {
+func TestValidateFieldPathSegmentIndex(t *testing.T) {
 	type args struct {
 		parent  *apiextensions.JSONSchemaProps
 		segment fieldpath.Segment
@@ -584,7 +584,7 @@ func Test_validateFieldPathSegmentIndex(t *testing.T) {
 	}
 }
 
-func Test_validateFieldPathSegmentField(t *testing.T) {
+func TestValidateFieldPathSegmentField(t *testing.T) {
 	type args struct {
 		parent  *apiextensions.JSONSchemaProps
 		segment fieldpath.Segment
@@ -697,7 +697,7 @@ func Test_validateFieldPathSegmentField(t *testing.T) {
 	}
 }
 
-func Test_getSchemaForVersion(t *testing.T) {
+func TestGetSchemaForVersion(t *testing.T) {
 	type args struct {
 		crd     *apiextensions.CustomResourceDefinition
 		version string

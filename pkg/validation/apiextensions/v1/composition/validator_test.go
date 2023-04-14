@@ -20,7 +20,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/validation/errors"
 )
 
-func TestValidator_Validate(t *testing.T) {
+func TestValidatorValidate(t *testing.T) {
 	type args struct {
 		comp      *v1.Composition
 		gvkToCRDs map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition
