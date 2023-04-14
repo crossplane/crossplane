@@ -22,7 +22,7 @@ img.publish:
 	@$(OK) docker publish $(IMAGE)
 
 img.build.shared:
-	@cp Dockerfile $(IMAGE_TEMP_DIR) || $(FAIL)
+	@cp dockerfile $(IMAGE_TEMP_DIR) || $(FAIL)
 	@cp -r $(OUTPUT_DIR)/bin/ $(IMAGE_TEMP_DIR)/bin || $(FAIL)
 	@docker buildx build $(BUILD_ARGS) \
 		--platform $(IMAGE_PLATFORMS) \

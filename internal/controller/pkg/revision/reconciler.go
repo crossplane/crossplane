@@ -19,14 +19,18 @@ package revision
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -578,8 +582,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	// filter the objects that should be applied
+	wantedObjects, err := filterCRDs(pkg, pr)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	// Establish control or ownership of objects.
-	refs, err := r.objects.Establish(ctx, pkg.GetObjects(), pr, pr.GetDesiredState() == v1.PackageRevisionActive)
+	refs, err := r.objects.Establish(ctx, wantedObjects, pr, pr.GetDesiredState() == v1.PackageRevisionActive)
 	if err != nil {
 		pr.SetConditions(v1.Unhealthy())
 		_ = r.client.Status().Update(ctx, pr)
@@ -620,4 +630,62 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	pr.SetConditions(v1.Healthy())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+}
+
+func filterCRDs(pkg *parser.Package, pr v1.PackageRevision) ([]runtime.Object, error) {
+	exclude := pr.GetExcludeCrds()
+
+	// Add generic crds to include list
+	include := []string{
+		`^ProviderConfigUsage\.`,
+		`^ProviderConfig\.`,
+		`^StoreConfig\.`,
+	}
+
+	include = append(include, pr.GetIncludeCrds()...)
+
+	allObjects := pkg.GetObjects()
+	var wantedObjects []runtime.Object
+
+objectLoop:
+	for _, obj := range allObjects {
+		switch conf := obj.(type) {
+		case *extv1.CustomResourceDefinition:
+			group := conf.Spec.Group
+			kind := conf.Spec.Names.Kind
+
+			nameToMatch := strings.ToLower(fmt.Sprintf("%s.%s", kind, group))
+
+			// include if matches entries in include list
+			for _, includeReg := range include {
+				matchedInclude, err := regexp.MatchString(strings.ToLower(includeReg), nameToMatch)
+				if err != nil {
+					return nil, err
+				}
+				if matchedInclude {
+					wantedObjects = append(wantedObjects, obj)
+					continue objectLoop
+				}
+			}
+
+			// exclude if matches entry in exclude list
+			for _, excludeReg := range exclude {
+				matchedExclude, err := regexp.MatchString(strings.ToLower(excludeReg), nameToMatch)
+				if err != nil {
+					return nil, err
+				}
+				if matchedExclude {
+					continue objectLoop
+				}
+			}
+
+			// include if not expecially excluded
+			wantedObjects = append(wantedObjects, obj)
+
+		default:
+			// include if not of type crd
+			wantedObjects = append(wantedObjects, obj)
+		}
+	}
+	return wantedObjects, nil
 }

@@ -1,3 +1,4 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -84,6 +85,12 @@ spec:
                 description: ESSTLSSecretName is the secret name of the TLS certificates
                   that will be used by the provider for External Secret Stores.
                 type: string
+              excludeCrds:
+                description: ExcludeCrds contains an array of regexess that matches
+                  crds that should not be installed for the provider
+                items:
+                  type: string
+                type: array
               ignoreCrossplaneConstraints:
                 default: false
                 description: IgnoreCrossplaneConstraints indicates to the package
@@ -94,6 +101,13 @@ spec:
                 description: Package image used by install Pod to extract package
                   contents.
                 type: string
+              includeCrds:
+                description: IncludeCrds contains an array of regexess that matches
+                  crds that should be installed even even if they match excludeCrds
+                  for the provider
+                items:
+                  type: string
+                type: array
               packagePullPolicy:
                 default: IfNotPresent
                 description: PackagePullPolicy defines the pull policy for the package.

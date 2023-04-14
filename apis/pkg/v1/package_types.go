@@ -69,6 +69,17 @@ type PackageSpec struct {
 	// More info: http://kubernetes.io/docs/user-guide/labels
 	// +optional
 	CommonLabels map[string]string `json:"commonLabels,omitempty"`
+
+	// IncludeCrds contains an array of regexess that matches crds that should be installed even
+	// even if they match excludeCrds
+	// for the provider
+	// +optional
+	IncludeCrds []string `json:"includeCrds,omitempty"`
+
+	// ExcludeCrds contains an array of regexess that matches crds that should not be installed
+	// for the provider
+	// +optional
+	ExcludeCrds []string `json:"excludeCrds,omitempty"`
 }
 
 // PackageStatus represents the observed state of a Package.

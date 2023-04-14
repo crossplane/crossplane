@@ -17,6 +17,9 @@ limitations under the License.
 package revision
 
 import (
+	"encoding/base64"
+	"encoding/json"
+
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -54,7 +57,13 @@ const (
 	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
 	essCertsVolumeName  = "ess-client-certs"
 	essCertsDir         = "/ess/tls"
+	crdFilterEnv        = "CRD_FILTER"
 )
+
+type filterArgument struct {
+	IncludeCrds []string `json:"includeCrds"`
+	ExcludeCrds []string `json:"excludeCrds"`
+}
 
 //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) {
@@ -276,6 +285,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		if len(cc.Spec.Args) > 0 {
 			d.Spec.Template.Spec.Containers[0].Args = cc.Spec.Args
 		}
+
 		if len(cc.Spec.EnvFrom) > 0 {
 			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
 		}
@@ -284,6 +294,12 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			// want to set (e.g. POD_NAMESPACE), so we just append the new ones
 			// that user provided if there are any.
 			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
+		}
+
+		// Using env becaus arg would lead to unknown argument error on provider side is unknown
+		filterEnv, _ := createFilterCRDEnv(revision)
+		if filterEnv != nil {
+			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, *filterEnv)
 		}
 	}
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
@@ -311,4 +327,43 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		},
 	}
 	return s, d, svc
+}
+
+func createFilterCRDEnv(revision v1.PackageRevision) (*corev1.EnvVar, error) {
+
+	// Using env becaus arg would lead to unknown argument error on provider side is unknown
+	includeCrds := revision.GetIncludeCrds()
+	excludeCRDs := revision.GetExcludeCrds()
+
+	if len(includeCrds) > 0 || len(excludeCRDs) > 0 {
+		encodedIncludes := []string{}
+		encodedExcludes := []string{}
+
+		// base64 encode values in array as JSON Unmarshal throws in case of '.'
+		for _, incl := range includeCrds {
+			value := base64.StdEncoding.EncodeToString([]byte(incl))
+			encodedIncludes = append(encodedIncludes, value)
+		}
+		for _, excl := range excludeCRDs {
+			value := base64.StdEncoding.EncodeToString([]byte(excl))
+			encodedExcludes = append(encodedExcludes, value)
+		}
+		filterArgument := filterArgument{
+			IncludeCrds: encodedIncludes,
+			ExcludeCrds: encodedExcludes,
+		}
+
+		filter, err := json.Marshal(filterArgument)
+		if err != nil {
+			return nil, err
+		}
+
+		env := corev1.EnvVar{
+			Name:  crdFilterEnv,
+			Value: string(filter),
+		}
+		return &env, nil
+	}
+
+	return nil, nil
 }

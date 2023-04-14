@@ -93,6 +93,12 @@ type Package interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetIncludeCrds() []string
+	SetIncludeCrds(i []string)
+
+	GetExcludeCrds() []string
+	SetExcludeCrds(i []string)
 }
 
 // GetCondition of this Provider.
@@ -215,6 +221,26 @@ func (p *Provider) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetIncludeCrds of this Provider.
+func (p *Provider) GetIncludeCrds() []string {
+	return p.Spec.IncludeCrds
+}
+
+// SetIncludeCrds of this Provider.
+func (p *Provider) SetIncludeCrds(i []string) {
+	p.Spec.IncludeCrds = i
+}
+
+// GetExcludeCrds of this Provider.
+func (p *Provider) GetExcludeCrds() []string {
+	return p.Spec.ExcludeCrds
+}
+
+// SetExcludeCrds of this Provider.
+func (p *Provider) SetExcludeCrds(e []string) {
+	p.Spec.ExcludeCrds = e
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -333,6 +359,26 @@ func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetIncludeCrds of this Configuration.
+func (p *Configuration) GetIncludeCrds() []string {
+	return p.Spec.IncludeCrds
+}
+
+// SetIncludeCrds of this Configuration.
+func (p *Configuration) SetIncludeCrds(i []string) {
+	p.Spec.IncludeCrds = i
+}
+
+// GetExcludeCrds of this Configuration.
+func (p *Configuration) GetExcludeCrds() []string {
+	return p.Spec.ExcludeCrds
+}
+
+// SetExcludeCrds of this Configuration.
+func (p *Configuration) SetExcludeCrds(e []string) {
+	p.Spec.ExcludeCrds = e
+}
+
 var _ PackageRevision = &ProviderRevision{}
 var _ PackageRevision = &ConfigurationRevision{}
 
@@ -383,6 +429,12 @@ type PackageRevision interface {
 
 	GetESSTLSSecretName() *string
 	SetESSTLSSecretName(s *string)
+
+	GetIncludeCrds() []string
+	SetIncludeCrds(i []string)
+
+	GetExcludeCrds() []string
+	SetExcludeCrds(i []string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -537,6 +589,26 @@ func (p *ProviderRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetIncludeCrds of this ProviderRevision.
+func (p *ProviderRevision) GetIncludeCrds() []string {
+	return p.Spec.IncludeCrds
+}
+
+// SetIncludeCrds of this ProviderRevision.
+func (p *ProviderRevision) SetIncludeCrds(i []string) {
+	p.Spec.IncludeCrds = i
+}
+
+// GetExcludeCrds of this ProviderRevision.
+func (p *ProviderRevision) GetExcludeCrds() []string {
+	return p.Spec.ExcludeCrds
+}
+
+// SetExcludeCrds of this ProviderRevision.
+func (p *ProviderRevision) SetExcludeCrds(e []string) {
+	p.Spec.ExcludeCrds = e
+}
+
 // GetCondition of this ConfigurationRevision.
 func (p *ConfigurationRevision) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -687,6 +759,26 @@ func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
 // SetCommonLabels of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetIncludeCrds of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetIncludeCrds() []string {
+	return p.Spec.IncludeCrds
+}
+
+// SetIncludeCrds of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetIncludeCrds(i []string) {
+	p.Spec.IncludeCrds = i
+}
+
+// GetExcludeCrds of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetExcludeCrds() []string {
+	return p.Spec.ExcludeCrds
+}
+
+// SetExcludeCrds of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetExcludeCrds(e []string) {
+	p.Spec.ExcludeCrds = e
 }
 
 var _ PackageRevisionList = &ProviderRevisionList{}

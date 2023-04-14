@@ -1,3 +1,4 @@
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
@@ -68,12 +69,25 @@ spec:
                 required:
                 - name
                 type: object
+              excludeCrds:
+                description: ExcludeCrds contains an array of regexess that matches
+                  crds that should not be installed for the provider
+                items:
+                  type: string
+                type: array
               ignoreCrossplaneConstraints:
                 default: false
                 description: IgnoreCrossplaneConstraints indicates to the package
                   manager whether to honor Crossplane version constrains specified
                   by the package. Default is false.
                 type: boolean
+              includeCrds:
+                description: IncludeCrds contains an array of regexess that matches
+                  crds that should be installed even even if they match excludeCrds
+                  for the provider
+                items:
+                  type: string
+                type: array
               package:
                 description: Package is the name of the package that is being requested.
                 type: string

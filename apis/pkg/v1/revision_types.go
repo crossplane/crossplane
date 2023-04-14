@@ -101,6 +101,17 @@ type PackageRevisionSpec struct {
 	// by the provider for External Secret Stores.
 	// +optional
 	ESSTLSSecretName *string `json:"essTLSSecretName,omitempty"`
+
+	// IncludeCrds contains an array of regexess that matches crds that should be installed even
+	// even if they match excludeCrds
+	// for the provider
+	// +optional
+	IncludeCrds []string `json:"includeCrds,omitempty"`
+
+	// ExcludeCrds contains an array of regexess that matches crds that should not be installed
+	// for the provider
+	// +optional
+	ExcludeCrds []string `json:"excludeCrds,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

@@ -387,6 +387,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
 	pr.SetESSTLSSecretName(r.essTLSSecretName)
 	pr.SetCommonLabels(p.GetCommonLabels())
+	pr.SetExcludeCrds(p.GetExcludeCrds())
+	pr.SetIncludeCrds(p.GetIncludeCrds())
 
 	// If current revision is not active and we have an automatic or
 	// undefined activation policy, always activate.
