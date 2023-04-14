@@ -33,7 +33,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	xperrors "github.com/crossplane/crossplane/internal/errors"
+	verrors "github.com/crossplane/crossplane/internal/validation/errors"
 	xpschema "github.com/crossplane/crossplane/pkg/validation/internal/schema"
 )
 
@@ -152,10 +152,10 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		return nil
 	}
 	if validationErr != nil {
-		return xperrors.WrapFieldError(validationErr, field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber))
+		return verrors.WrapFieldError(validationErr, field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber))
 	}
 
-	return xperrors.WrapFieldError(
+	return verrors.WrapFieldError(
 		validateIOTypesWithTransforms(patch.Transforms, fromType, toType),
 		field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber),
 	)

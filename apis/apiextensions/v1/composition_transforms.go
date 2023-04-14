@@ -25,7 +25,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	xperrors "github.com/crossplane/crossplane/internal/errors"
+	verrors "github.com/crossplane/crossplane/internal/validation/errors"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -82,28 +82,28 @@ func (t *Transform) Validate() *field.Error {
 		if t.Math == nil {
 			return field.Required(field.NewPath("math"), "given transform type math requires configuration")
 		}
-		return xperrors.WrapFieldError(t.Math.Validate(), field.NewPath("math"))
+		return verrors.WrapFieldError(t.Math.Validate(), field.NewPath("math"))
 	case TransformTypeMap:
 		if t.Map == nil {
 			return field.Required(field.NewPath("map"), "given transform type map requires configuration")
 		}
-		return xperrors.WrapFieldError(t.Map.Validate(), field.NewPath("map"))
+		return verrors.WrapFieldError(t.Map.Validate(), field.NewPath("map"))
 	case TransformTypeMatch:
 		if t.Match == nil {
 			return field.Required(field.NewPath("match"), "given transform type match requires configuration")
 		}
-		return xperrors.WrapFieldError(t.Match.Validate(), field.NewPath("match"))
+		return verrors.WrapFieldError(t.Match.Validate(), field.NewPath("match"))
 	case TransformTypeString:
 		if t.String == nil {
 			return field.Required(field.NewPath("string"), "given transform type string requires configuration")
 		}
-		return xperrors.WrapFieldError(t.String.Validate(), field.NewPath("string"))
+		return verrors.WrapFieldError(t.String.Validate(), field.NewPath("string"))
 	case TransformTypeConvert:
 		if t.Convert == nil {
 			return field.Required(field.NewPath("convert"), "given transform type convert requires configuration")
 		}
 		if err := t.Convert.Validate(); err != nil {
-			return xperrors.WrapFieldError(err, field.NewPath("convert"))
+			return verrors.WrapFieldError(err, field.NewPath("convert"))
 		}
 	default:
 		// Should never happen
@@ -266,7 +266,7 @@ func (m *MatchTransform) Validate() *field.Error {
 	}
 	for i, p := range m.Patterns {
 		if err := p.Validate(); err != nil {
-			return xperrors.WrapFieldError(err, field.NewPath("patterns").Index(i))
+			return verrors.WrapFieldError(err, field.NewPath("patterns").Index(i))
 		}
 	}
 	return nil
