@@ -17,22 +17,12 @@ limitations under the License.
 package v1
 
 import (
-	"encoding/json"
-
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
-)
-
-const (
-	errUnableToParse = "cannot parse base"
 )
 
 // CompositionSpec specifies desired state of a composition.
@@ -162,33 +152,6 @@ type ComposedTemplate struct {
 	// default readiness check is to have the "Ready" condition to be "True".
 	// +optional
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
-}
-
-// GetBaseObject returns the base object of the composed template.
-// Uses the cached object if it is available, or parses the raw Base
-// otherwise. The returned object is a deep copy.
-func (ct *ComposedTemplate) GetBaseObject() (client.Object, error) {
-	if err := ct.initBaseObject(); err != nil {
-		return nil, err
-	}
-	if ct, ok := ct.Base.Object.(client.Object); ok {
-		return ct.DeepCopyObject().(client.Object), nil
-	}
-	return nil, errors.New("base object is not a client.Object")
-}
-
-// InitBaseObject parses the raw base and sets the base object.
-func (ct *ComposedTemplate) initBaseObject() error {
-	if ct.Base.Object != nil {
-		return nil
-	}
-	cd := composed.New()
-	err := json.Unmarshal(ct.Base.Raw, cd)
-	if err != nil {
-		return errors.Wrap(err, errUnableToParse)
-	}
-	ct.Base.Object = cd
-	return nil
 }
 
 // GetName returns the name of the composed template or an empty string if it is nil.

@@ -18,15 +18,18 @@ package composition
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
@@ -39,6 +42,7 @@ const (
 	errFmtFieldInvalid         = "field '%s' is not valid according to the schema"
 	errFmtIndexAccessWrongType = "trying to access a '%s' by index"
 	errFmtFieldAccessWrongType = "trying to access a field '%s' of object, but schema says parent is of type: '%v'"
+	errUnableToParse           = "cannot parse base"
 )
 
 // validatePatchesWithSchemas validates the patches of a composition against the resources schemas.
@@ -84,7 +88,7 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	}
 	resource := comp.Spec.Resources[resourceNumber]
 	patch := resource.Patches[patchNumber]
-	res, err := resource.GetBaseObject()
+	res, err := GetBaseObject(&resource)
 	if err != nil {
 		return field.Invalid(field.NewPath("spec", "resources").Index(resourceNumber).Child("base"), resource.Base, err.Error())
 	}
@@ -399,4 +403,22 @@ func IsValidInputForTransform(t *v1.Transform, fromType v1.TransformIOType) erro
 		return errors.Errorf("unknown transform type %s", t.Type)
 	}
 	return nil
+}
+
+// GetBaseObject returns the base object of the composed template.
+// Uses the cached object if it is available, or parses the raw Base
+// otherwise. The returned object is a deep copy.
+func GetBaseObject(ct *v1.ComposedTemplate) (client.Object, error) {
+	if ct.Base.Object == nil {
+		cd := composed.New()
+		err := json.Unmarshal(ct.Base.Raw, cd)
+		if err != nil {
+			return nil, errors.Wrap(err, errUnableToParse)
+		}
+		ct.Base.Object = cd
+	}
+	if ct, ok := ct.Base.Object.(client.Object); ok {
+		return ct.DeepCopyObject().(client.Object), nil
+	}
+	return nil, errors.New("base object is not a client.Object")
 }
