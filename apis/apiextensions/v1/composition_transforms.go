@@ -19,10 +19,8 @@ package v1
 import (
 	"encoding/json"
 	"regexp"
-	"strconv"
 
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -113,125 +111,6 @@ func (t *Transform) Validate() *field.Error {
 	}
 
 	return nil
-}
-
-// IsValidInput validates the supplied Transform type, taking into consideration also the input type.
-//
-//nolint:gocyclo // This is a long but simple/same-y switch.
-func (t *Transform) IsValidInput(fromType TransformIOType) error {
-	switch t.Type {
-	case TransformTypeMath:
-		if fromType != TransformIOTypeInt && fromType != TransformIOTypeInt64 && fromType != TransformIOTypeFloat64 {
-			return errors.Errorf("math transform can only be used with numeric types, got %s", fromType)
-		}
-	case TransformTypeMap:
-		if fromType != TransformIOTypeString {
-			return errors.Errorf("map transform can only be used with string types, got %s", fromType)
-		}
-	case TransformTypeMatch:
-		if fromType != TransformIOTypeString {
-			return errors.Errorf("match transform can only be used with string input types, got %s", fromType)
-		}
-	case TransformTypeString:
-		if fromType != TransformIOTypeString {
-			return errors.Errorf("string transform can only be used with string input types, got %s", fromType)
-		}
-	case TransformTypeConvert:
-		if _, err := t.Convert.GetConversionFunc(fromType); err != nil {
-			return err
-		}
-	default:
-		return errors.Errorf("unknown transform type %s", t.Type)
-	}
-	return nil
-}
-
-type conversionPair struct {
-	from   TransformIOType
-	to     TransformIOType
-	format ConvertTransformFormat
-}
-
-// GetConversionFunc returns the conversion function for the given input and output types, or an error if no conversion is
-// supported. Will return a no-op conversion if the input and output types are the same.
-func (t *ConvertTransform) GetConversionFunc(from TransformIOType) (func(any) (any, error), error) {
-	originalFrom := from
-	to := t.ToType
-	if to == TransformIOTypeInt {
-		to = TransformIOTypeInt64
-	}
-	if from == TransformIOTypeInt {
-		from = TransformIOTypeInt64
-	}
-	if to == from {
-		return func(input any) (any, error) {
-			return input, nil
-		}, nil
-	}
-	f, ok := conversions[conversionPair{from: from, to: to, format: t.GetFormat()}]
-	if !ok {
-		return nil, errors.Errorf(ErrFmtConvertFormatPairNotSupported, originalFrom, to, t.GetFormat())
-	}
-	return f, nil
-}
-
-// The unparam linter is complaining that these functions always return a nil
-// error, but we need this to be the case given some other functions in the map
-// may return an error.
-var conversions = map[conversionPair]func(any) (any, error){
-	{from: TransformIOTypeString, to: TransformIOTypeInt64, format: ConvertTransformFormatNone}: func(i any) (any, error) {
-
-		return strconv.ParseInt(i.(string), 10, 64)
-	},
-	{from: TransformIOTypeString, to: TransformIOTypeBool, format: ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseBool(i.(string))
-	},
-	{from: TransformIOTypeString, to: TransformIOTypeFloat64, format: ConvertTransformFormatNone}: func(i any) (any, error) {
-		return strconv.ParseFloat(i.(string), 64)
-	},
-	{from: TransformIOTypeString, to: TransformIOTypeFloat64, format: ConvertTransformFormatQuantity}: func(i any) (any, error) {
-		q, err := resource.ParseQuantity(i.(string))
-		if err != nil {
-			return nil, err
-		}
-		return q.AsApproximateFloat64(), nil
-	},
-
-	{from: TransformIOTypeInt64, to: TransformIOTypeString, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatInt(i.(int64), 10), nil
-	},
-	{from: TransformIOTypeInt64, to: TransformIOTypeBool, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return i.(int64) == 1, nil
-	},
-	{from: TransformIOTypeInt64, to: TransformIOTypeFloat64, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return float64(i.(int64)), nil
-	},
-
-	{from: TransformIOTypeBool, to: TransformIOTypeString, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatBool(i.(bool)), nil
-	},
-	{from: TransformIOTypeBool, to: TransformIOTypeInt64, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		if i.(bool) {
-			return int64(1), nil
-		}
-		return int64(0), nil
-	},
-	{from: TransformIOTypeBool, to: TransformIOTypeFloat64, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		if i.(bool) {
-			return float64(1), nil
-		}
-		return float64(0), nil
-	},
-
-	{from: TransformIOTypeFloat64, to: TransformIOTypeString, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return strconv.FormatFloat(i.(float64), 'f', -1, 64), nil
-	},
-	{from: TransformIOTypeFloat64, to: TransformIOTypeInt64, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return int64(i.(float64)), nil
-	},
-	{from: TransformIOTypeFloat64, to: TransformIOTypeBool, format: ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
-		return i.(float64) == float64(1), nil
-	},
 }
 
 // GetFormat returns the format of the transform.

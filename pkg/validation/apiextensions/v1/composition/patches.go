@@ -237,7 +237,8 @@ func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType x
 
 func validateTransformsChainIOTypes(transforms []v1.Transform, inputType v1.TransformIOType) (outputType v1.TransformIOType, err *field.Error) {
 	for i, transform := range transforms {
-		err := transform.IsValidInput(inputType)
+		transform := transform
+		err := IsValidInputForTransform(&transform, inputType)
 		if err != nil && inputType != "" {
 			return "", field.Invalid(field.NewPath("transforms").Index(i), transform, err.Error())
 		}
@@ -367,4 +368,35 @@ func validateFieldPathSegmentIndex(parent *apiextensions.JSONSchemaProps, segmen
 
 	// means there is no schema at all for this array
 	return nil, nil
+}
+
+// IsValidInputForTransform validates the supplied Transform type, taking into consideration also the input type.
+//
+//nolint:gocyclo // This is a long but simple/same-y switch.
+func IsValidInputForTransform(t *v1.Transform, fromType v1.TransformIOType) error {
+	switch t.Type {
+	case v1.TransformTypeMath:
+		if fromType != v1.TransformIOTypeInt && fromType != v1.TransformIOTypeInt64 && fromType != v1.TransformIOTypeFloat64 {
+			return errors.Errorf("math transform can only be used with numeric types, got %s", fromType)
+		}
+	case v1.TransformTypeMap:
+		if fromType != v1.TransformIOTypeString {
+			return errors.Errorf("map transform can only be used with string types, got %s", fromType)
+		}
+	case v1.TransformTypeMatch:
+		if fromType != v1.TransformIOTypeString {
+			return errors.Errorf("match transform can only be used with string input types, got %s", fromType)
+		}
+	case v1.TransformTypeString:
+		if fromType != v1.TransformIOTypeString {
+			return errors.Errorf("string transform can only be used with string input types, got %s", fromType)
+		}
+	case v1.TransformTypeConvert:
+		if _, err := composite.GetConversionFunc(t.Convert, fromType); err != nil {
+			return err
+		}
+	default:
+		return errors.Errorf("unknown transform type %s", t.Type)
+	}
+	return nil
 }
