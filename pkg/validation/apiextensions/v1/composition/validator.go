@@ -115,9 +115,11 @@ func (v *Validator) Validate(ctx context.Context, obj runtime.Object) (warns []s
 		return nil, append(errs, field.NotSupported(field.NewPath("kind"), obj.GetObjectKind().GroupVersionKind().Kind, []string{v1.CompositionGroupVersionKind.Kind}))
 	}
 
-	// Validate the composition itself, we'll disable it on the Validator below
-	if warns, errs := comp.Validate(); len(errs) != 0 {
-		return warns, errs
+	// Validate the Composition itself
+	if v.logicalValidation != nil {
+		if warns, errs := v.logicalValidation(comp); len(errs) != 0 {
+			return warns, errs
+		}
 	}
 
 	// Validate patches given the above CRDs, skip if any of the required CRDs is not available
