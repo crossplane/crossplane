@@ -51,7 +51,8 @@ func NewValidator(opts ...ValidatorOption) (*Validator, error) {
 	v := &Validator{}
 	// Configure all default options and then any option passed in.
 	for _, f := range append([]ValidatorOption{
-		WithLogicalValidation(func(in *v1.Composition) ([]string, field.ErrorList) { return in.Validate() })},
+		WithLogicalValidation(),
+	},
 		opts...) {
 		f(v)
 	}
@@ -75,6 +76,7 @@ func WithCRDGetter(c CRDGetter) ValidatorOption {
 }
 
 // WithCRDGetterFromMap returns a ValidatorOption that configure the Validator to use the given map as a CRDGetter.
+// Will return an error if the CRD is not found on calls to Get.
 func WithCRDGetterFromMap(m map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition) ValidatorOption {
 	return WithCRDGetter(crdGetterMap(m))
 }
@@ -94,18 +96,22 @@ func (c crdGetterMap) GetAll(_ context.Context) (map[schema.GroupVersionKind]api
 
 // WithLogicalValidation returns a ValidatorOption that configures the Validator to use the given function to logically
 // validate the Composition.
-func WithLogicalValidation(f func(composition *v1.Composition) (warns []string, errs field.ErrorList)) ValidatorOption {
+func WithLogicalValidation() ValidatorOption {
 	return func(v *Validator) {
-		v.logicalValidation = f
+		v.logicalValidation = func(in *v1.Composition) ([]string, field.ErrorList) {
+			return in.Validate()
+		}
 	}
 }
 
 // WithoutLogicalValidation returns a ValidatorOption that configures the Validator to not perform any logical check on
 // the Composition.
 func WithoutLogicalValidation() ValidatorOption {
-	return WithLogicalValidation(func(*v1.Composition) ([]string, field.ErrorList) {
-		return nil, nil
-	})
+	return func(v *Validator) {
+		v.logicalValidation = func(*v1.Composition) ([]string, field.ErrorList) {
+			return nil, nil
+		}
+	}
 }
 
 // Validate validates the provided Composition.

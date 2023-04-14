@@ -17,10 +17,6 @@ limitations under the License.
 package errors
 
 import (
-	"strings"
-
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 )
 
@@ -34,11 +30,4 @@ func WrapFieldError(err *field.Error, path *field.Path) *field.Error {
 	}
 	err.Field = path.Child(err.Field).String()
 	return err
-}
-
-// SortFieldErrors sorts the given field.ErrorList by the error message.
-func SortFieldErrors() cmp.Option {
-	return cmpopts.SortSlices(func(e1, e2 *field.Error) bool {
-		return strings.Compare(e1.Error(), e2.Error()) < 0
-	})
 }

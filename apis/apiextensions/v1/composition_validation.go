@@ -21,7 +21,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
+	xperrors "github.com/crossplane/crossplane/internal/errors"
 )
 
 // Validate performs logical validation of a Composition.

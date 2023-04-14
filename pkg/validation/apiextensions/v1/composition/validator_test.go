@@ -17,7 +17,6 @@ import (
 	"k8s.io/utils/pointer"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/pkg/validation/errors"
 )
 
 func TestValidatorValidate(t *testing.T) {
@@ -316,11 +315,18 @@ func TestValidatorValidate(t *testing.T) {
 				return
 			}
 			_, got := v.Validate(context.TODO(), tc.args.comp)
-			if diff := cmp.Diff(tc.want.errs, got, errors.SortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+			if diff := cmp.Diff(tc.want.errs, got, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
 				t.Errorf("%s\nValidate(...) = -want, +got\n%s", tc.reason, diff)
 			}
 		})
 	}
+}
+
+// SortFieldErrors sorts the given field.ErrorList by the error message.
+func sortFieldErrors() cmp.Option {
+	return cmpopts.SortSlices(func(e1, e2 *field.Error) bool {
+		return strings.Compare(e1.Error(), e2.Error()) < 0
+	})
 }
 
 const testGroup = "resources.test.com"

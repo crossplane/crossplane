@@ -23,7 +23,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
-	"github.com/crossplane/crossplane/pkg/validation/errors"
+	"github.com/crossplane/crossplane/internal/errors"
 )
 
 // A PatchType is a type of patch.

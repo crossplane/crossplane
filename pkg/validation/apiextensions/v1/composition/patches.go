@@ -30,8 +30,8 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
-	xpschema "github.com/crossplane/crossplane/pkg/validation/schema"
+	xperrors "github.com/crossplane/crossplane/internal/errors"
+	xpschema "github.com/crossplane/crossplane/pkg/validation/internal/schema"
 )
 
 const (
@@ -115,25 +115,25 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	var fromType, toType xpschema.KnownJSONType
 	switch patch.GetType() {
 	case v1.PatchTypeFromCompositeFieldPath:
-		fromType, toType, validationErr = ValidateFromCompositeFieldPathPatch(
+		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
 			patch,
 			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
 			getSchemaForVersion(resourceCRD, resourceGVK.Version),
 		)
 	case v1.PatchTypeToCompositeFieldPath:
-		fromType, toType, validationErr = ValidateFromCompositeFieldPathPatch(
+		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
 			patch,
 			getSchemaForVersion(resourceCRD, resourceGVK.Version),
 			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
 		)
 	case v1.PatchTypeCombineFromComposite:
-		fromType, toType, validationErr = ValidateCombineFromCompositePathPatch(
+		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
 			patch,
 			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
 			getSchemaForVersion(resourceCRD, resourceGVK.Version),
 		)
 	case v1.PatchTypeCombineToComposite:
-		fromType, toType, validationErr = ValidateCombineFromCompositePathPatch(
+		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
 			patch,
 			getSchemaForVersion(resourceCRD, resourceGVK.Version),
 			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
@@ -157,9 +157,9 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	)
 }
 
-// ValidateCombineFromCompositePathPatch validates Combine Patch types, by going through and validating the fromField
+// validateCombineFromCompositePathPatch validates Combine Patch types, by going through and validating the fromField
 // path variables, checking if the right combine strategy is set and validating transforms.
-func ValidateCombineFromCompositePathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, err *field.Error) {
+func validateCombineFromCompositePathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, err *field.Error) {
 	toFieldPath := patch.GetToFieldPath()
 	toType, toFieldPathErr := validateFieldPath(to, toFieldPath)
 	if toFieldPathErr != nil {
@@ -194,8 +194,8 @@ func ValidateCombineFromCompositePathPatch(patch v1.Patch, from, to *apiextensio
 	return fromType, toType, nil
 }
 
-// ValidateFromCompositeFieldPathPatch validates a patch of type FromCompositeFieldPath.
-func ValidateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, res *field.Error) {
+// validateFromCompositeFieldPathPatch validates a patch of type FromCompositeFieldPath.
+func validateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions.JSONSchemaProps) (fromType, toType xpschema.KnownJSONType, res *field.Error) {
 	fromFieldPath := patch.GetFromFieldPath()
 	toFieldPath := patch.GetToFieldPath()
 	fromType, err := validateFieldPath(from, fromFieldPath)
@@ -212,7 +212,7 @@ func ValidateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions
 }
 
 func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType xpschema.KnownJSONType) *field.Error {
-	inputType, err := v1.FromKnownJSONType(fromType)
+	inputType, err := xpschema.FromKnownJSONType(fromType)
 	if err != nil && fromType != "" {
 		return field.InternalError(field.NewPath("transforms"), err)
 	}
@@ -223,7 +223,7 @@ func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType x
 	if transformsOutputType == "" || toType == "" {
 		return nil
 	}
-	transformedToJSONType := transformsOutputType.ToKnownJSONType()
+	transformedToJSONType := xpschema.FromTransformIOType(transformsOutputType)
 
 	if !transformedToJSONType.IsEquivalent(toType) {
 		if len(transforms) == 0 {
@@ -287,7 +287,7 @@ func validateFieldPathSegments(segments fieldpath.Segments, schema *apiextension
 		current = currentSegment
 	}
 
-	if !xpschema.IsKnownJSONType(current.Type) {
+	if !xpschema.IsValid(current.Type) {
 		return "", fmt.Errorf("field path %q has an unsupported type %q", fieldPath, current.Type)
 	}
 	return xpschema.KnownJSONType(current.Type), nil

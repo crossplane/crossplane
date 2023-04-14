@@ -27,8 +27,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
-	xperrors "github.com/crossplane/crossplane/pkg/validation/errors"
-	"github.com/crossplane/crossplane/pkg/validation/schema"
+	xperrors "github.com/crossplane/crossplane/internal/errors"
 )
 
 // TransformType is type of the transform function to be chosen.
@@ -476,9 +475,6 @@ const (
 	StringConversionTypeToSHA1     StringConversionType = "ToSha1"
 	StringConversionTypeToSHA256   StringConversionType = "ToSha256"
 	StringConversionTypeToSHA512   StringConversionType = "ToSha512"
-
-	errFmtUnknownJSONType     = "unknown JSON type: %q"
-	errFmtUnsupportedJSONType = "JSON type not supported: %q"
 )
 
 // A StringTransform returns a string given the supplied input.
@@ -579,42 +575,6 @@ func (c TransformIOType) IsValid() bool {
 		return true
 	}
 	return false
-}
-
-// ToKnownJSONType returns the matching JSON type for the given TransformIOType.
-// It returns an empty string if the type is not valid, call IsValid() before
-// calling this method.
-func (c TransformIOType) ToKnownJSONType() schema.KnownJSONType {
-	switch c {
-	case TransformIOTypeString:
-		return schema.KnownJSONTypeString
-	case TransformIOTypeBool:
-		return schema.KnownJSONTypeBoolean
-	case TransformIOTypeInt, TransformIOTypeInt64:
-		return schema.KnownJSONTypeInteger
-	case TransformIOTypeFloat64:
-		return schema.KnownJSONTypeNumber
-	}
-	// should never happen
-	return ""
-}
-
-// FromKnownJSONType returns the TransformIOType for the given KnownJSONType.
-func FromKnownJSONType(t schema.KnownJSONType) (TransformIOType, error) {
-	switch t {
-	case schema.KnownJSONTypeString:
-		return TransformIOTypeString, nil
-	case schema.KnownJSONTypeBoolean:
-		return TransformIOTypeBool, nil
-	case schema.KnownJSONTypeInteger:
-		return TransformIOTypeInt64, nil
-	case schema.KnownJSONTypeNumber:
-		return TransformIOTypeFloat64, nil
-	case schema.KnownJSONTypeObject, schema.KnownJSONTypeArray, schema.KnownJSONTypeNull:
-		return "", errors.Errorf(errFmtUnsupportedJSONType, t)
-	default:
-		return "", errors.Errorf(errFmtUnknownJSONType, t)
-	}
 }
 
 // ConvertTransformFormat defines the expected format of an input value of a

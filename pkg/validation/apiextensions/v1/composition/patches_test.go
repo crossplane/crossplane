@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/pkg/validation/schema"
+	"github.com/crossplane/crossplane/pkg/validation/internal/schema"
 
 	_ "embed"
 )
