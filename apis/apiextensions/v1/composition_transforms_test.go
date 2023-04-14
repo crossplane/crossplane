@@ -32,7 +32,7 @@ import (
 	"github.com/crossplane/crossplane/pkg/validation/schema"
 )
 
-func TestTransform_Validate(t *testing.T) {
+func TestTransformValidate(t *testing.T) {
 	type args struct {
 		transform *Transform
 	}

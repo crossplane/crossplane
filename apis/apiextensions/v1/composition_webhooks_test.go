@@ -10,7 +10,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-func TestComposition_GetValidationMode(t *testing.T) {
+func TestCompositionGetValidationMode(t *testing.T) {
 	type args struct {
 		comp *Composition
 	}

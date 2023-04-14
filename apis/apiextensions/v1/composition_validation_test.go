@@ -25,7 +25,7 @@ import (
 	"k8s.io/utils/pointer"
 )
 
-func TestComposition_validateResourceName(t *testing.T) {
+func TestCompositionValidateResourceName(t *testing.T) {
 	type args struct {
 		spec CompositionSpec
 	}
@@ -178,7 +178,7 @@ func TestComposition_validateResourceName(t *testing.T) {
 	}
 }
 
-func TestComposition_validatePatchSets(t *testing.T) {
+func TestCompositionValidatePatchSets(t *testing.T) {
 	type args struct {
 		comp *Composition
 	}
@@ -295,7 +295,7 @@ func TestComposition_validatePatchSets(t *testing.T) {
 	}
 }
 
-func TestComposition_validateFunctions(t *testing.T) {
+func TestCompositionValidateFunctions(t *testing.T) {
 	type args struct {
 		comp *Composition
 	}
@@ -421,7 +421,7 @@ func TestComposition_validateFunctions(t *testing.T) {
 	}
 }
 
-func TestComposition_validateResources(t *testing.T) {
+func TestCompositionValidateResources(t *testing.T) {
 	type args struct {
 		comp *Composition
 	}
