@@ -131,8 +131,8 @@ func (v *Validator) Validate(ctx context.Context, obj runtime.Object) (warns []s
 	// Validate patches given the above CRDs, skip if any of the required CRDs is not available
 	for _, f := range []func(context.Context, *v1.Composition) field.ErrorList{
 		v.validatePatchesWithSchemas,
+		v.validateReadinessChecksWithSchemas,
 		// v.validateConnectionDetailsWithSchemas,
-		// v.validateReadinessCheckWithSchemas,
 		// TODO(phisco): add more phase 2 validation here
 	} {
 		errs = append(errs, f(ctx, comp)...)

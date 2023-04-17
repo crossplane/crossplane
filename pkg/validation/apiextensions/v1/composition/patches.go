@@ -83,7 +83,7 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	}
 	resource := comp.Spec.Resources[resourceNumber]
 	patch := resource.Patches[patchNumber]
-	res, err := GetBaseObject(&resource)
+	resourceGVK, err := GetBaseObjectGVK(&resource)
 	if err != nil {
 		return field.Invalid(field.NewPath("spec", "resources").Index(resourceNumber).Child("base"), resource.Base, err.Error())
 	}
@@ -97,10 +97,9 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	if err != nil {
 		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Wrapf(err, "cannot find composite type %s: %s", comp.Spec.CompositeTypeRef, err))
 	}
-	resourceGVK := res.GetObjectKind().GroupVersionKind()
 	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK.GroupKind())
 	if err != nil {
-		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find resource type %s: %s", res.GetObjectKind().GroupVersionKind(), err))
+		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find resource type %s: %s", resourceGVK, err))
 	}
 
 	// TODO(phisco): we could relax this condition and handle partially missing crds in the future
@@ -444,4 +443,13 @@ func GetBaseObject(ct *v1.ComposedTemplate) (client.Object, error) {
 		return ct.DeepCopyObject().(client.Object), nil
 	}
 	return nil, errors.New("base object is not a client.Object")
+}
+
+// GetBaseObjectGVK returns the GroupVersionKind of the base object of the composed template.
+func GetBaseObjectGVK(ct *v1.ComposedTemplate) (schema.GroupVersionKind, error) {
+	obj, err := GetBaseObject(ct)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	return obj.GetObjectKind().GroupVersionKind(), nil
 }
