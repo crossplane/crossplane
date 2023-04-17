@@ -43,6 +43,7 @@ spec:
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
       serviceAccountName: {{ template "crossplane.name" . }}
+      hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
         - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           args:

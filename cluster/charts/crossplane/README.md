@@ -80,6 +80,7 @@ and their default values.
 | `customAnnotations` | Custom annotations to add to the Crossplane deployment and pod | `{}` |
 | `serviceAccount.customAnnotations` | Custom annotations to add to the serviceaccount of Crossplane | `{}` |
 | `priorityClassName` | Priority class name for Crossplane and RBAC Manager (if enabled) pods | `""` |
+| `hostNetwork` | Enable hostNetwork for Crossplane. Caution: setting it to true means Crossplane's Pod will have high privileges. | `false` |
 | `resourcesCrossplane.limits.cpu` | CPU resource limits for Crossplane | `100m` |
 | `resourcesCrossplane.limits.memory` | Memory resource limits for Crossplane | `512Mi` |
 | `resourcesCrossplane.requests.cpu` | CPU resource requests for Crossplane | `100m` |

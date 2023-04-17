@@ -11,6 +11,9 @@ nodeSelector: {}
 tolerations: []
 affinity: {}
 
+# -- Enable hostNetwork for Crossplane. Caution: setting it to true means Crossplane's Pod will have high privileges.
+hostNetwork: false
+
 # -- Custom labels to add into metadata
 customLabels: {}
 
