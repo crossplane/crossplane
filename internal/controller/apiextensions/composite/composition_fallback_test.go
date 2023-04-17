@@ -163,8 +163,8 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 			reason: "We should fallback if the supplied Composition has an anonymous template.",
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{
 								{}, // A resource without a name.
 							},
@@ -194,7 +194,7 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 					},
 				},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -215,7 +215,7 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 					},
 				},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -238,8 +238,8 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 					},
 				},
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Functions: []v1.Function{{
 								Name: "cool-fn",
 								Type: v1.FunctionTypeContainer,

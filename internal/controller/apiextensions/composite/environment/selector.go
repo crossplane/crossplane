@@ -52,7 +52,7 @@ func NewNoopEnvironmentSelector() *NoopEnvironmentSelector {
 type NoopEnvironmentSelector struct{}
 
 // SelectEnvironment always returns nil.
-func (s *NoopEnvironmentSelector) SelectEnvironment(_ context.Context, _ resource.Composite, _ *v1.Composition) error {
+func (s *NoopEnvironmentSelector) SelectEnvironment(_ context.Context, _ resource.Composite, _ *v1.CompositionRevision) error {
 	return nil
 }
 
@@ -70,17 +70,17 @@ type APIEnvironmentSelector struct {
 
 // SelectEnvironment for cr using the configuration defined in comp.
 // The computed list of EnvironmentConfig references will be stored in cr.
-func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resource.Composite, comp *v1.Composition) error {
+func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
 	// noop if EnvironmentConfig references are already computed
 	if len(cr.GetEnvironmentConfigReferences()) > 0 {
 		return nil
 	}
-	if comp.Spec.Environment == nil || comp.Spec.Environment.EnvironmentConfigs == nil {
+	if rev.Spec.Environment == nil || rev.Spec.Environment.EnvironmentConfigs == nil {
 		return nil
 	}
 
-	refs := make([]corev1.ObjectReference, len(comp.Spec.Environment.EnvironmentConfigs))
-	for i, src := range comp.Spec.Environment.EnvironmentConfigs {
+	refs := make([]corev1.ObjectReference, len(rev.Spec.Environment.EnvironmentConfigs))
+	for i, src := range rev.Spec.Environment.EnvironmentConfigs {
 		switch src.Type {
 		case v1.EnvironmentSourceTypeReference:
 			refs[i] = s.buildEnvironmentConfigRefFromRef(src.Ref)

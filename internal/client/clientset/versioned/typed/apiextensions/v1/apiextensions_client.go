@@ -30,6 +30,7 @@ type ApiextensionsV1Interface interface {
 	RESTClient() rest.Interface
 	CompositeResourceDefinitionsGetter
 	CompositionsGetter
+	CompositionRevisionsGetter
 }
 
 // ApiextensionsV1Client is used to interact with features provided by the apiextensions.crossplane.io group.
@@ -43,6 +44,10 @@ func (c *ApiextensionsV1Client) CompositeResourceDefinitions() CompositeResource
 
 func (c *ApiextensionsV1Client) Compositions() CompositionInterface {
 	return newCompositions(c)
+}
+
+func (c *ApiextensionsV1Client) CompositionRevisions() CompositionRevisionInterface {
+	return newCompositionRevisions(c)
 }
 
 // NewForConfig creates a new ApiextensionsV1Client for the given config.

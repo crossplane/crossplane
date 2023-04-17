@@ -19,8 +19,6 @@ package v1
 import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 // A RevisionSpecConverter converts a CompositionSpec to the equivalent
@@ -32,8 +30,8 @@ import (
 // +k8s:deepcopy-gen=false
 type RevisionSpecConverter interface {
 	// goverter:ignore Revision
-	ToRevisionSpec(in CompositionSpec) v1beta1.CompositionRevisionSpec
-	FromRevisionSpec(in v1beta1.CompositionRevisionSpec) CompositionSpec
+	ToRevisionSpec(in CompositionSpec) CompositionRevisionSpec
+	FromRevisionSpec(in CompositionRevisionSpec) CompositionSpec
 }
 
 // ConvertRawExtension 'converts' a RawExtension by producing a deepcopy. This

@@ -519,16 +519,16 @@ func NewXRCDPatchAndTransformer(composite, composed Renderer) *XRCDPatchAndTrans
 // PatchAndTransform updates the supplied composition state by running all
 // patches and transforms within the CompositionRequest.
 func (pt *XRCDPatchAndTransformer) PatchAndTransform(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-	// Inline PatchSets from Composition Spec before composing resources.
-	ct, err := ComposedTemplates(req.Composition.Spec)
+	// Inline PatchSets before composing resources.
+	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
 	if err != nil {
 		return errors.Wrap(err, errInline)
 	}
 
 	// If we have an environment, run all environment patches before composing
 	// resources.
-	if req.Environment != nil && req.Composition.Spec.Environment != nil {
-		for i, p := range req.Composition.Spec.Environment.Patches {
+	if req.Environment != nil && req.Revision.Spec.Environment != nil {
+		for i, p := range req.Revision.Spec.Environment.Patches {
 			if err := ApplyEnvironmentPatch(p, s.Composite, req.Environment); err != nil {
 				return errors.Wrapf(err, errFmtPatchEnvironment, i)
 			}
@@ -652,7 +652,7 @@ func NewFunctionPipeline(c ContainerFunctionRunner) *FunctionPipeline {
 // RunFunctionPipeline runs a pipeline of Composition Functions.
 func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error { //nolint:gocyclo // Currently only at 12.
 	r := make([]iov1alpha1.Result, 0)
-	for _, fn := range req.Composition.Spec.Functions {
+	for _, fn := range req.Revision.Spec.Functions {
 		switch fn.Type {
 		case v1.FunctionTypeContainer:
 			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{Config: fn.Config, Observed: o, Desired: d, Results: r}, fn.Container)

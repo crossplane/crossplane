@@ -1182,7 +1182,8 @@ func TestComposedTemplates(t *testing.T) {
 	}
 
 	type args struct {
-		cs v1.CompositionSpec
+		pss []v1.PatchSet
+		cts []v1.ComposedTemplate
 	}
 
 	type want struct {
@@ -1198,18 +1199,16 @@ func TestComposedTemplates(t *testing.T) {
 		"NoCompositionPatchSets": {
 			reason: "Patches defined on a composite resource should be applied correctly if no PatchSets are defined on the composition",
 			args: args{
-				cs: v1.CompositionSpec{
-					Resources: []v1.ComposedTemplate{
-						{
-							Patches: []v1.Patch{
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("metadata.name"),
-								},
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("metadata.namespace"),
-								},
+				cts: []v1.ComposedTemplate{
+					{
+						Patches: []v1.Patch{
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("metadata.name"),
+							},
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("metadata.namespace"),
 							},
 						},
 					},
@@ -1235,16 +1234,14 @@ func TestComposedTemplates(t *testing.T) {
 		"UndefinedPatchSet": {
 			reason: "Should return error and not modify the patches field when referring to an undefined PatchSet",
 			args: args{
-				cs: v1.CompositionSpec{
-					Resources: []v1.ComposedTemplate{{
-						Patches: []v1.Patch{
-							{
-								Type:         v1.PatchTypePatchSet,
-								PatchSetName: pointer.String("patch-set-1"),
-							},
+				cts: []v1.ComposedTemplate{{
+					Patches: []v1.Patch{
+						{
+							Type:         v1.PatchTypePatchSet,
+							PatchSetName: pointer.String("patch-set-1"),
 						},
-					}},
-				},
+					},
+				}},
 			},
 			want: want{
 				err: errors.Errorf(errFmtUndefinedPatchSet, "patch-set-1"),
@@ -1253,69 +1250,67 @@ func TestComposedTemplates(t *testing.T) {
 		"DefinedPatchSets": {
 			reason: "Should de-reference PatchSets defined on the Composition when referenced in a composed resource",
 			args: args{
-				cs: v1.CompositionSpec{
-					// PatchSets, existing patches and references
-					// should output in the correct order.
-					PatchSets: []v1.PatchSet{
-						{
-							Name: "patch-set-1",
-							Patches: []v1.Patch{
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("metadata.namespace"),
-								},
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("spec.parameters.test"),
-								},
+				// PatchSets, existing patches and references
+				// should output in the correct order.
+				pss: []v1.PatchSet{
+					{
+						Name: "patch-set-1",
+						Patches: []v1.Patch{
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("metadata.namespace"),
 							},
-						},
-						{
-							Name: "patch-set-2",
-							Patches: []v1.Patch{
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("metadata.annotations.patch-test-1"),
-								},
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("metadata.annotations.patch-test-2"),
-									Transforms: []v1.Transform{{
-										Type: v1.TransformTypeMap,
-										Map: &v1.MapTransform{
-											Pairs: map[string]extv1.JSON{
-												"k-1": asJSON("v-1"),
-												"k-2": asJSON("v-2"),
-											},
-										},
-									}},
-								},
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("spec.parameters.test"),
 							},
 						},
 					},
-					Resources: []v1.ComposedTemplate{
-						{
-							Patches: []v1.Patch{
-								{
-									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("patch-set-2"),
-								},
-								{
-									Type:          v1.PatchTypeFromCompositeFieldPath,
-									FromFieldPath: pointer.String("metadata.name"),
-								},
-								{
-									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("patch-set-1"),
-								},
+					{
+						Name: "patch-set-2",
+						Patches: []v1.Patch{
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("metadata.annotations.patch-test-1"),
+							},
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("metadata.annotations.patch-test-2"),
+								Transforms: []v1.Transform{{
+									Type: v1.TransformTypeMap,
+									Map: &v1.MapTransform{
+										Pairs: map[string]extv1.JSON{
+											"k-1": asJSON("v-1"),
+											"k-2": asJSON("v-2"),
+										},
+									},
+								}},
 							},
 						},
-						{
-							Patches: []v1.Patch{
-								{
-									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("patch-set-1"),
-								},
+					},
+				},
+				cts: []v1.ComposedTemplate{
+					{
+						Patches: []v1.Patch{
+							{
+								Type:         v1.PatchTypePatchSet,
+								PatchSetName: pointer.String("patch-set-2"),
+							},
+							{
+								Type:          v1.PatchTypeFromCompositeFieldPath,
+								FromFieldPath: pointer.String("metadata.name"),
+							},
+							{
+								Type:         v1.PatchTypePatchSet,
+								PatchSetName: pointer.String("patch-set-1"),
+							},
+						},
+					},
+					{
+						Patches: []v1.Patch{
+							{
+								Type:         v1.PatchTypePatchSet,
+								PatchSetName: pointer.String("patch-set-1"),
 							},
 						},
 					},
@@ -1376,7 +1371,7 @@ func TestComposedTemplates(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ComposedTemplates(tc.args.cs)
+			got, err := ComposedTemplates(tc.args.pss, tc.args.cts)
 
 			if diff := cmp.Diff(tc.want.ct, got); diff != "" {
 				t.Errorf("\n%s\nrs.ComposedTemplates(...): -want, +got:\n%s", tc.reason, diff)

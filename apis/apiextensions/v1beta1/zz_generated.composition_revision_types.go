@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2022 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,14 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+// Generated from apiextensions/v1/composition_revision_types.go by ../hack/duplicate_api_type.sh. DO NOT EDIT.
+
+package v1beta1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// CompositionSpec specifies desired state of a composition.
-type CompositionSpec struct {
+const (
+	// LabelCompositionName is the name of the Composition used to create
+	// this CompositionRevision.
+	LabelCompositionName = "crossplane.io/composition-name"
+
+	// LabelCompositionHash is a hash of the Composition label, annotation
+	// and spec used to create this CompositionRevision. Used to identify
+	// identical revisions.
+	LabelCompositionHash = "crossplane.io/composition-hash"
+)
+
+// CompositionRevisionSpec specifies the desired state of the composition
+// revision.
+type CompositionRevisionSpec struct {
 	// CompositeTypeRef specifies the type of composite resource that this
 	// composition is compatible with.
 	// +immutable
@@ -34,36 +50,26 @@ type CompositionSpec struct {
 	PatchSets []PatchSet `json:"patchSets,omitempty"`
 
 	// Environment configures the environment in which resources are rendered.
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
 	// +optional
 	Environment *EnvironmentConfiguration `json:"environment,omitempty"`
 
-	// Resources is a list of resource templates that will be used when a
-	// composite resource referring to this composition is created. At least one
-	// of resources and functions must be specififed. If both are specified the
-	// resources will be rendered first, then passed to the functions for
-	// further processing.
+	// Resources is the list of resource templates that will be used when a
+	// composite resource referring to this composition is created.
 	// +optional
-	Resources []ComposedTemplate `json:"resources,omitempty"`
+	Resources []ComposedTemplate `json:"resources"`
 
 	// Functions is list of Composition Functions that will be used when a
 	// composite resource referring to this composition is created. At least one
 	// of resources and functions must be specified. If both are specified the
 	// resources will be rendered first, then passed to the functions for
 	// further processing.
-	//
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
 	// +optional
 	Functions []Function `json:"functions,omitempty"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using
 	// this composition will be created.
-	// This field is planned to be replaced in a future release in favor of
+	// This field is planned to be removed in a future release in favor of
 	// PublishConnectionDetailsWithStoreConfigRef. Currently, both could be
 	// set independently and connection details would be published to both
 	// without affecting each other as long as related fields at MR level
@@ -74,37 +80,46 @@ type CompositionSpec struct {
 	// PublishConnectionDetailsWithStoreConfig specifies the secret store config
 	// with which the connection details of composite resources dynamically
 	// provisioned using this composition will be published.
-	//
-	// THIS IS AN ALPHA FIELD. Do not use it in production. It is not honored
-	// unless the relevant Crossplane feature flag is enabled, and may be
-	// changed or removed without notice.
 	// +optional
 	// +kubebuilder:default={"name": "default"}
 	PublishConnectionDetailsWithStoreConfigRef *StoreConfigReference `json:"publishConnectionDetailsWithStoreConfigRef,omitempty"`
+
+	// Revision number. Newer revisions have larger numbers.
+	// +immutable
+	Revision int64 `json:"revision"`
+}
+
+// CompositionRevisionStatus shows the observed state of the composition
+// revision.
+type CompositionRevisionStatus struct {
+	xpv1.ConditionedStatus `json:",inline"`
 }
 
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +genclient
 // +genclient:nonNamespaced
 
-// A Composition specifies how a composite resource should be composed.
+// A CompositionRevision represents a revision in time of a Composition.
+// Revisions are created by Crossplane; they should be treated as immutable.
+// +kubebuilder:printcolumn:name="REVISION",type="string",JSONPath=".spec.revision"
 // +kubebuilder:printcolumn:name="XR-KIND",type="string",JSONPath=".spec.compositeTypeRef.kind"
 // +kubebuilder:printcolumn:name="XR-APIVERSION",type="string",JSONPath=".spec.compositeTypeRef.apiVersion"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane
-type Composition struct {
+// +kubebuilder:subresource:status
+type CompositionRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec CompositionSpec `json:"spec,omitempty"`
+	Spec   CompositionRevisionSpec   `json:"spec,omitempty"`
+	Status CompositionRevisionStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// CompositionList contains a list of Compositions.
-type CompositionList struct {
+// CompositionRevisionList contains a list of CompositionRevisions.
+type CompositionRevisionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Composition `json:"items"`
+	Items           []CompositionRevision `json:"items"`
 }

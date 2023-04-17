@@ -72,8 +72,8 @@ func TestPTCompose(t *testing.T) {
 			reason: "We should return any error encountered while inlining a composition's patchsets.",
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{
-						Spec: v1.CompositionSpec{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{{
 								Patches: []v1.Patch{{
 									// This reference to a non-existent patchset
@@ -101,7 +101,7 @@ func TestPTCompose(t *testing.T) {
 			},
 			args: args{
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -142,7 +142,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -180,7 +180,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -213,7 +213,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -250,7 +250,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -290,7 +290,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -333,7 +333,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -379,7 +379,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -410,7 +410,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{
@@ -456,7 +456,7 @@ func TestPTCompose(t *testing.T) {
 			args: args{
 				xr: &fake.Composite{},
 				req: CompositionRequest{
-					Composition: &v1.Composition{},
+					Revision: &v1.CompositionRevision{},
 				},
 			},
 			want: want{

@@ -36,7 +36,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -151,70 +150,6 @@ func TestPublishConnection(t *testing.T) {
 	}
 }
 
-func TestFetchComposition(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type args struct {
-		ctx context.Context
-		cr  resource.Composite
-	}
-	type want struct {
-		comp *v1.Composition
-		err  error
-	}
-
-	cases := map[string]struct {
-		reason string
-		r      client.Reader
-		args   args
-		want   want
-	}{
-		"GetCompositionError": {
-			reason: "We should wrap and return errors encountered getting the Composition.",
-			r:      &test.MockClient{MockGet: test.NewMockGetFn(errBoom)},
-			args: args{
-				cr: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{}},
-				},
-			},
-			want: want{
-				comp: &v1.Composition{},
-				err:  errors.Wrap(errBoom, errGetComposition),
-			},
-		},
-		"Success": {
-			reason: "We should return the fetched Composition.",
-			r: &test.MockClient{MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-				*obj.(*v1.Composition) = v1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "coolcomp"}}
-				return nil
-			})},
-			args: args{
-				cr: &fake.Composite{
-					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{}},
-				},
-			},
-			want: want{
-				comp: &v1.Composition{ObjectMeta: metav1.ObjectMeta{Name: "coolcomp"}},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			f := NewAPICompositionFetcher(tc.r)
-			got, err := f.Fetch(tc.args.ctx, tc.args.cr)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("%s\nf.Fetch(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.comp, got); diff != "" {
-				t.Errorf("%s\nf.Fetch(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
 func TestFetchRevision(t *testing.T) {
 	errBoom := errors.New("boom")
 	manual := xpv1.UpdateManual
@@ -229,18 +164,18 @@ func TestFetchRevision(t *testing.T) {
 	}
 
 	// We don't own this revision.
-	rev3 := &v1beta1.CompositionRevision{
+	rev3 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-jfdm2",
 		},
 	}
 
 	// The latest revision.
-	rev2 := &v1beta1.CompositionRevision{
+	rev2 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-dl2nd",
 			Labels: map[string]string{
-				v1beta1.LabelCompositionHash: comp.Hash(),
+				v1.LabelCompositionHash: comp.Hash(),
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:                comp.GetUID(),
@@ -248,15 +183,15 @@ func TestFetchRevision(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 		},
-		Spec: v1beta1.CompositionRevisionSpec{Revision: 2},
+		Spec: v1.CompositionRevisionSpec{Revision: 2},
 	}
 
 	// An older revision
-	rev1 := &v1beta1.CompositionRevision{
+	rev1 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: comp.GetName() + "-mdk12",
 			Labels: map[string]string{
-				v1beta1.LabelCompositionHash: "I'm different!",
+				v1.LabelCompositionHash: "I'm different!",
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				UID:                comp.GetUID(),
@@ -264,7 +199,7 @@ func TestFetchRevision(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 		},
-		Spec: v1beta1.CompositionRevisionSpec{Revision: 1},
+		Spec: v1.CompositionRevisionSpec{Revision: 1},
 	}
 
 	type args struct {
@@ -272,8 +207,8 @@ func TestFetchRevision(t *testing.T) {
 		cr  resource.Composite
 	}
 	type want struct {
-		comp *v1.Composition
-		err  error
+		rev *v1.CompositionRevision
+		err error
 	}
 
 	cases := map[string]struct {
@@ -294,15 +229,15 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				comp: AsComposition(&v1beta1.CompositionRevision{}),
-				err:  errors.Wrap(errBoom, errGetCompositionRevision),
+				rev: &v1.CompositionRevision{},
+				err: errors.Wrap(errBoom, errGetCompositionRevision),
 			},
 		},
 		"UpdateManual": {
 			reason: "When we're using the manual update policy and a revision reference is set we should return that revision as a composition.",
 			client: resource.ClientApplicator{Client: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-					*obj.(*v1beta1.CompositionRevision) = *rev3
+					*obj.(*v1.CompositionRevision) = *rev3
 					return nil
 				}),
 			}},
@@ -313,7 +248,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				comp: AsComposition(rev3),
+				rev: rev3,
 			},
 		},
 		"GetCompositionError": {
@@ -369,8 +304,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-							Items: []v1beta1.CompositionRevision{
+						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+							Items: []v1.CompositionRevision{
 								// We should ignore this revision because it does not have
 								// our composition above as its controller reference.
 								*rev3,
@@ -402,7 +337,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				comp: AsComposition(rev2),
+				rev: rev2,
 			},
 		},
 		"NoRevisionSet": {
@@ -414,8 +349,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-							Items: []v1beta1.CompositionRevision{
+						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+							Items: []v1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
 								*rev2,
@@ -432,8 +367,8 @@ func TestFetchRevision(t *testing.T) {
 						},
 						CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
 							Ref: &corev1.ObjectReference{
-								APIVersion: v1beta1.SchemeGroupVersion.String(),
-								Kind:       v1beta1.CompositionRevisionKind,
+								APIVersion: v1.SchemeGroupVersion.String(),
+								Kind:       v1.CompositionRevisionKind,
 								Name:       rev2.GetName(),
 							},
 						},
@@ -456,7 +391,7 @@ func TestFetchRevision(t *testing.T) {
 				},
 			},
 			want: want{
-				comp: AsComposition(rev1),
+				rev: rev2,
 			},
 		},
 		"OutdatedRevisionSet": {
@@ -468,8 +403,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-							Items: []v1beta1.CompositionRevision{
+						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+							Items: []v1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
 								*rev2,
@@ -489,8 +424,8 @@ func TestFetchRevision(t *testing.T) {
 						},
 						CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
 							Ref: &corev1.ObjectReference{
-								APIVersion: v1beta1.SchemeGroupVersion.String(),
-								Kind:       v1beta1.CompositionRevisionKind,
+								APIVersion: v1.SchemeGroupVersion.String(),
+								Kind:       v1.CompositionRevisionKind,
 								Name:       rev2.GetName(),
 							},
 						},
@@ -509,15 +444,15 @@ func TestFetchRevision(t *testing.T) {
 					// We reference the outdated revision.
 					CompositionRevisionReferencer: fake.CompositionRevisionReferencer{
 						Ref: &corev1.ObjectReference{
-							APIVersion: v1beta1.SchemeGroupVersion.String(),
-							Kind:       v1beta1.CompositionRevisionKind,
+							APIVersion: v1.SchemeGroupVersion.String(),
+							Kind:       v1.CompositionRevisionKind,
 							Name:       rev1.GetName(),
 						},
 					},
 				},
 			},
 			want: want{
-				comp: AsComposition(rev2),
+				rev: rev2,
 			},
 		},
 		"SetRevisionError": {
@@ -529,8 +464,8 @@ func TestFetchRevision(t *testing.T) {
 						return nil
 					}),
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-							Items: []v1beta1.CompositionRevision{
+						*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+							Items: []v1.CompositionRevision{
 								// This revision is owned by our composition, and is the
 								// latest revision.
 								*rev2,
@@ -565,7 +500,7 @@ func TestFetchRevision(t *testing.T) {
 				t.Errorf("%s\nf.Fetch(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.comp, got); diff != "" {
+			if diff := cmp.Diff(tc.want.rev, got); diff != "" {
 				t.Errorf("%s\nf.Fetch(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -587,7 +522,7 @@ func TestConfigure(t *testing.T) {
 	type args struct {
 		kube client.Client
 		cp   resource.Composite
-		comp *v1.Composition
+		rev  *v1.CompositionRevision
 	}
 	type want struct {
 		cp  resource.Composite
@@ -601,8 +536,8 @@ func TestConfigure(t *testing.T) {
 		"NotCompatible": {
 			reason: "Should return error if given composition is not compatible",
 			args: args{
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						CompositeTypeRef: v1.TypeReference{APIVersion: "ola/crossplane.io", Kind: "olala"},
 					},
 				},
@@ -615,7 +550,7 @@ func TestConfigure(t *testing.T) {
 		},
 		"AlreadyFilled": {
 			reason: "Should be no-op if connection secret namespace is already filled",
-			args:   args{cp: cp, comp: &v1.Composition{}},
+			args:   args{cp: cp, rev: &v1.CompositionRevision{}},
 			want:   want{cp: cp},
 		},
 		"ConnectionSecretRefMissing": {
@@ -625,8 +560,8 @@ func TestConfigure(t *testing.T) {
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{WriteConnectionSecretsToNamespace: &cs.Ref.Namespace},
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{WriteConnectionSecretsToNamespace: &cs.Ref.Namespace},
 				},
 			},
 			want: want{cp: cp},
@@ -638,8 +573,8 @@ func TestConfigure(t *testing.T) {
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{},
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{},
 				},
 			},
 			want: want{cp: &fake.Composite{
@@ -653,8 +588,8 @@ func TestConfigure(t *testing.T) {
 				cp: &fake.Composite{
 					ObjectMeta: metav1.ObjectMeta{UID: types.UID(cs.Ref.Name)},
 				},
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						WriteConnectionSecretsToNamespace: &cs.Ref.Namespace,
 					},
 				},
@@ -668,7 +603,7 @@ func TestConfigure(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			c := &APIConfigurator{client: tc.args.kube}
-			err := c.Configure(context.Background(), tc.args.cp, tc.args.comp)
+			err := c.Configure(context.Background(), tc.args.cp, tc.args.rev)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nConfigure(...): -want, +got:\n%s", tc.reason, diff)
 			}

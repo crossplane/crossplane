@@ -304,13 +304,11 @@ func CombineString(format string, vars []any) (any, error) {
 	return fmt.Sprintf(format, vars...), nil
 }
 
-// TODO(negz): Perhaps have this take PatchSets and ComposedTemplates as args?
-
-// ComposedTemplates returns a revision's composed resource templates with any
-// patchsets dereferenced.
-func ComposedTemplates(cs v1.CompositionSpec) ([]v1.ComposedTemplate, error) {
+// ComposedTemplates returns the supplied composed resource templates with any
+// supplied patchsets dereferenced.
+func ComposedTemplates(pss []v1.PatchSet, cts []v1.ComposedTemplate) ([]v1.ComposedTemplate, error) {
 	pn := make(map[string][]v1.Patch)
-	for _, s := range cs.PatchSets {
+	for _, s := range pss {
 		for _, p := range s.Patches {
 			if p.Type == v1.PatchTypePatchSet {
 				return nil, errors.New(errPatchSetType)
@@ -319,8 +317,8 @@ func ComposedTemplates(cs v1.CompositionSpec) ([]v1.ComposedTemplate, error) {
 		pn[s.Name] = s.Patches
 	}
 
-	ct := make([]v1.ComposedTemplate, len(cs.Resources))
-	for i, r := range cs.Resources {
+	ct := make([]v1.ComposedTemplate, len(cts))
+	for i, r := range cts {
 		var po []v1.Patch
 		for _, p := range r.Patches {
 			if p.Type != v1.PatchTypePatchSet {

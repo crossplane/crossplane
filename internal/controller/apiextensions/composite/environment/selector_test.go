@@ -38,7 +38,7 @@ func TestSelect(t *testing.T) {
 	type args struct {
 		kube client.Client
 		cr   *fake.Composite
-		comp *v1.Composition
+		rev  *v1.CompositionRevision
 	}
 	type want struct {
 		cr  *fake.Composite
@@ -83,8 +83,8 @@ func TestSelect(t *testing.T) {
 		"NoopOnNilEnvironment": {
 			reason: "It should be a noop if the composition does not configure an environment.",
 			args: args{
-				cr:   composite(),
-				comp: &v1.Composition{},
+				cr:  composite(),
+				rev: &v1.CompositionRevision{},
 			},
 			want: want{
 				cr: composite(),
@@ -94,8 +94,8 @@ func TestSelect(t *testing.T) {
 			reason: "It should be a noop if the composition does not configure an environment.",
 			args: args{
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{},
 					},
 				},
@@ -108,8 +108,8 @@ func TestSelect(t *testing.T) {
 			reason: "It should create an empty list of references if the config reference list is empty.",
 			args: args{
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{},
 					},
 				},
@@ -124,8 +124,8 @@ func TestSelect(t *testing.T) {
 			reason: "It should create a name reference for a named reference in the config.",
 			args: args{
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -165,8 +165,8 @@ func TestSelect(t *testing.T) {
 					withName("test-composite"),
 					withEnvironmentRefs(environmentConfigRef("test")),
 				),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -216,8 +216,8 @@ func TestSelect(t *testing.T) {
 				cr: composite(
 					withName("test-composite"),
 				),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -268,8 +268,8 @@ func TestSelect(t *testing.T) {
 				cr: composite(
 					withEnvironmentRefs(environmentConfigRef("test")),
 				),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -298,8 +298,8 @@ func TestSelect(t *testing.T) {
 			reason: "It should create the reference list in order of the configuration.",
 			args: args{
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -342,8 +342,8 @@ func TestSelect(t *testing.T) {
 					MockList: test.NewMockListFn(errBoom),
 				},
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -375,8 +375,8 @@ func TestSelect(t *testing.T) {
 					MockList: test.NewMockListFn(nil),
 				},
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -410,8 +410,8 @@ func TestSelect(t *testing.T) {
 					MockList: test.NewMockListFn(nil),
 				},
 				cr: composite(),
-				comp: &v1.Composition{
-					Spec: v1.CompositionSpec{
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
 							EnvironmentConfigs: []v1.EnvironmentSource{
 								{
@@ -443,7 +443,7 @@ func TestSelect(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			s := NewAPIEnvironmentSelector(tc.args.kube)
-			err := s.SelectEnvironment(context.Background(), tc.args.cr, tc.args.comp)
+			err := s.SelectEnvironment(context.Background(), tc.args.cr, tc.args.rev)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

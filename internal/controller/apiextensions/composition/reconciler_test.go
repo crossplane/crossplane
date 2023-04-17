@@ -37,7 +37,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 func TestReconcile(t *testing.T) {
@@ -79,15 +78,15 @@ func TestReconcile(t *testing.T) {
 	}
 
 	// Not owned by the above composition.
-	rev1 := &v1beta1.CompositionRevision{
+	rev1 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: compDev.GetName() + "-1",
 		},
-		Spec: v1beta1.CompositionRevisionSpec{Revision: 1},
+		Spec: v1.CompositionRevisionSpec{Revision: 1},
 	}
 
 	// Owned by the above composition, but with an 'older' hash.
-	rev2 := &v1beta1.CompositionRevision{
+	rev2 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: compDev.GetName() + "-2",
 			OwnerReferences: []metav1.OwnerReference{{
@@ -96,16 +95,16 @@ func TestReconcile(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1beta1.LabelCompositionHash: "some-older-hash",
-				v1beta1.LabelCompositionName: compDev.Name,
+				v1.LabelCompositionHash: "some-older-hash",
+				v1.LabelCompositionName: compDev.Name,
 			},
 		},
-		Spec: v1beta1.CompositionRevisionSpec{Revision: 2},
+		Spec: v1.CompositionRevisionSpec{Revision: 2},
 	}
 
 	// Owned by the above composition, with a current hash. The revision number
 	// indicates it is the current revision, and thus should not be updated.
-	rev3 := &v1beta1.CompositionRevision{
+	rev3 := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: compDev.GetName() + "-3",
 			OwnerReferences: []metav1.OwnerReference{{
@@ -114,12 +113,12 @@ func TestReconcile(t *testing.T) {
 				BlockOwnerDeletion: &ctrl,
 			}},
 			Labels: map[string]string{
-				v1beta1.LabelCompositionHash: compDev.Hash()[:63],
-				v1beta1.LabelCompositionName: compDev.Name,
-				"channel":                    "dev",
+				v1.LabelCompositionHash: compDev.Hash()[:63],
+				v1.LabelCompositionName: compDev.Name,
+				"channel":               "dev",
 			},
 		},
-		Spec: v1beta1.CompositionRevisionSpec{Revision: 3},
+		Spec: v1.CompositionRevisionSpec{Revision: 3},
 	}
 
 	type args struct {
@@ -204,8 +203,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-								Items: []v1beta1.CompositionRevision{
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
 									// Not controlled by the above composition.
 									*rev1,
 
@@ -249,8 +248,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-								Items: []v1beta1.CompositionRevision{
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
 									// Not controlled by the above composition.
 									*rev1,
 
@@ -288,8 +287,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-								Items: []v1beta1.CompositionRevision{
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
 									// Not controlled by the above composition.
 									*rev1,
 
@@ -326,8 +325,8 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 						MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-							*obj.(*v1beta1.CompositionRevisionList) = v1beta1.CompositionRevisionList{
-								Items: []v1beta1.CompositionRevision{
+							*obj.(*v1.CompositionRevisionList) = v1.CompositionRevisionList{
+								Items: []v1.CompositionRevision{
 									// Not controlled by the above composition.
 									*rev1,
 

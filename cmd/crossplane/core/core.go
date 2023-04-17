@@ -83,12 +83,16 @@ type startCommand struct {
 	ESSTLSSecretName string        `help:"The name of the TLS Secret that will be used by Crossplane and providers as clients of External Secret Store plugins." env:"ESS_TLS_SECRET_NAME"`
 	ESSTLSCertsDir   string        `help:"The path of the folder which will store TLS certificates to be used by Crossplane and providers for communicating with External Secret Store plugins." env:"ESS_TLS_CERTS_DIR"`
 
-	EnableCompositionRevisions bool `group:"Beta Features:" help:"Enable support for CompositionRevisions." default:"true"`
-
 	EnableEnvironmentConfigs                 bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
 	EnableExternalSecretStores               bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableCompositionFunctions               bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
-	EnableCompositionWebhookSchemaValidation bool `group:"Alpha Features:" help:"Enable Composition validation using schemas."`
+	EnableCompositionWebhookSchemaValidation bool `group:"Alpha Features:" help:"Enable support for Composition validation using schemas."`
+
+	// These are GA features that previously had alpha or beta feature flags.
+	// You can't turn off a GA feature. We maintain the flags to avoid breaking
+	// folks who are passing them, but they do nothing. The flags are hidden so
+	// they don't show up in the help output.
+	EnableCompositionRevisions bool `hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -120,10 +124,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	feats := &feature.Flags{}
-	if c.EnableCompositionRevisions {
-		feats.Enable(features.EnableBetaCompositionRevisions)
-		log.Info("Beta feature enabled", "flag", features.EnableBetaCompositionRevisions)
-	}
 	if c.EnableEnvironmentConfigs {
 		feats.Enable(features.EnableAlphaEnvironmentConfigs)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)

@@ -25,7 +25,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	"github.com/crossplane/crossplane/apis/apiextensions/v1beta1"
 )
 
 func TestNewCompositionRevision(t *testing.T) {
@@ -41,12 +40,12 @@ func TestNewCompositionRevision(t *testing.T) {
 	)
 
 	ctrl := true
-	want := &v1beta1.CompositionRevision{
+	want := &v1.CompositionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", comp.GetName(), hash[0:7]),
 			Labels: map[string]string{
-				v1beta1.LabelCompositionName: comp.GetName(),
-				v1beta1.LabelCompositionHash: hash[0:63],
+				v1.LabelCompositionName: comp.GetName(),
+				v1.LabelCompositionHash: hash[0:63],
 			},
 			OwnerReferences: []metav1.OwnerReference{{
 				APIVersion:         v1.SchemeGroupVersion.String(),
@@ -60,7 +59,7 @@ func TestNewCompositionRevision(t *testing.T) {
 		// type. We don't want to test generated code, and we've historically
 		// demonstrated that it's tough to remember to update these conversion
 		// tests when new fields are added to a type.
-		Spec: v1beta1.CompositionRevisionSpec{
+		Spec: v1.CompositionRevisionSpec{
 			Revision: rev,
 		},
 	}
