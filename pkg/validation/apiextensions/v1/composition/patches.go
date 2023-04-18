@@ -48,12 +48,7 @@ const (
 // validatePatchesWithSchemas validates the patches of a composition against the resources schemas.
 func (v *Validator) validatePatchesWithSchemas(ctx context.Context, comp *v1.Composition) (errs field.ErrorList) {
 	// Let's first dereference patchSets
-	resources, err := composite.ComposedTemplates(comp.Spec.PatchSets, comp.Spec.Resources)
-	if err != nil {
-		errs = append(errs, field.Invalid(field.NewPath("spec", "resources"), comp.Spec.Resources, err.Error()))
-		return errs
-	}
-	for i, resource := range resources {
+	for i, resource := range comp.Spec.Resources {
 		for j := range resource.Patches {
 			if err := v.validatePatchWithSchemas(ctx, comp, i, j); err != nil {
 				errs = append(errs, err)
@@ -79,7 +74,7 @@ func getSchemaForVersion(crd *apiextensions.CustomResourceDefinition, version st
 }
 
 // validatePatchWithSchemas validates a patch against the resources schemas.
-func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Composition, resourceNumber, patchNumber int) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
+func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Composition, resourceNumber, patchNumber int) *field.Error {
 	if len(comp.Spec.Resources) <= resourceNumber {
 		return field.InternalError(field.NewPath("spec", "resources").Index(resourceNumber), errors.Errorf("cannot find resource"))
 	}
@@ -115,36 +110,71 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		return nil
 	}
 
+	return verrors.WrapFieldError(v.validatePatchWithSchemaInternal(patchValidationCtx{
+		comp:            comp,
+		patch:           patch,
+		compositeCRD:    compositeCRD,
+		compositeResGVK: compositeResGVK,
+		resourceCRD:     resourceCRD,
+		resourceGVK:     resourceGVK,
+	}), field.NewPath("spec").Child("resources").Index(resourceNumber).Child("patches").Index(patchNumber))
+}
+
+type patchValidationCtx struct {
+	comp            *v1.Composition
+	patch           v1.Patch
+	compositeCRD    *apiextensions.CustomResourceDefinition
+	compositeResGVK schema.GroupVersionKind
+	resourceCRD     *apiextensions.CustomResourceDefinition
+	resourceGVK     schema.GroupVersionKind
+}
+
+func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
 	var validationErr *field.Error
 	var fromType, toType xpschema.KnownJSONType
-	switch patch.GetType() {
+	switch ctx.patch.GetType() {
 	case v1.PatchTypeFromCompositeFieldPath:
 		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
-			patch,
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
 		)
 	case v1.PatchTypeToCompositeFieldPath:
 		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
-			patch,
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
 		)
 	case v1.PatchTypeCombineFromComposite:
 		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
-			patch,
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
 		)
 	case v1.PatchTypeCombineToComposite:
 		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
-			patch,
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
 		)
 	case v1.PatchTypePatchSet:
-		// Should never happen as patchSets should have been dereferenced and removed by now.
-		return field.InternalError(field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber), errors.Errorf("patchSet should have been dereferenced"))
+		for _, ps := range ctx.comp.Spec.PatchSets {
+			if *ctx.patch.PatchSetName == ps.Name {
+				for j, patch := range ps.Patches {
+					if err := v.validatePatchWithSchemaInternal(patchValidationCtx{
+						comp:            ctx.comp,
+						patch:           patch,
+						compositeCRD:    ctx.compositeCRD,
+						compositeResGVK: ctx.compositeResGVK,
+						resourceCRD:     ctx.resourceCRD,
+						resourceGVK:     ctx.resourceGVK,
+					},
+					); err != nil {
+						return verrors.WrapFieldError(err, field.NewPath("inlinedPatchSet").Key(ps.Name).Child("patches").Index(j))
+					}
+				}
+			}
+		}
 	case v1.PatchTypeFromEnvironmentFieldPath,
 		v1.PatchTypeCombineFromEnvironment, v1.PatchTypeToEnvironmentFieldPath,
 		v1.PatchTypeCombineToEnvironment:
@@ -152,13 +182,10 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		return nil
 	}
 	if validationErr != nil {
-		return verrors.WrapFieldError(validationErr, field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber))
+		return validationErr
 	}
 
-	return verrors.WrapFieldError(
-		validateIOTypesWithTransforms(patch.Transforms, fromType, toType),
-		field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber),
-	)
+	return validateIOTypesWithTransforms(ctx.patch.Transforms, fromType, toType)
 }
 
 // validateCombineFromCompositePathPatch validates Combine Patch types, by going through and validating the fromField

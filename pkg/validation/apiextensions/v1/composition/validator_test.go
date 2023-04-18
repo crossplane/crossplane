@@ -306,6 +306,67 @@ func TestValidatorValidate(t *testing.T) {
 				})),
 			},
 		},
+		"PatchSetsAreHandledProperly": {
+			reason: "Should accept a Composition with a patch that references a patchset, if all CRDs are found",
+			want: want{
+				errs: nil,
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatchSets(
+					v1.PatchSet{
+						Name: "some-patch-set",
+						Patches: []v1.Patch{{
+							Type:          v1.PatchTypeFromCompositeFieldPath,
+							FromFieldPath: pointer.String("spec.someField"),
+							ToFieldPath:   pointer.String("spec.someOtherField"),
+						}}},
+				), withPatches(0, v1.Patch{
+					Type:         v1.PatchTypePatchSet,
+					PatchSetName: pointer.String("some-patch-set"),
+				})),
+			},
+		},
+		"PatchSetsAreReportedProperly": {
+			reason: "Should reject a Composition with an invalid combine patch as a patchSet with missing fields, if validation mode is strict and all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.resources[0].patches[0].inlinedPatchSet[some-patch-set].patches[0].combine",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil,
+					withPatchSets(
+						v1.PatchSet{
+							Name: "some-patch-set",
+							Patches: []v1.Patch{{
+								Type: v1.PatchTypeCombineFromComposite,
+								Combine: &v1.Combine{
+									Variables: []v1.CombineVariable{
+										{
+											FromFieldPath: "spec.someField",
+										},
+										{
+											FromFieldPath: "spec.someNonDefinedField",
+										},
+									},
+									Strategy: v1.CombineStrategyString,
+									String: &v1.StringCombine{
+										Format: "%s-%s",
+									},
+								},
+								ToFieldPath: pointer.String("spec.someOtherField"),
+							}}},
+					), withPatches(0, v1.Patch{
+						Type:         v1.PatchTypePatchSet,
+						PatchSetName: pointer.String("some-patch-set"),
+					})),
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -480,6 +541,12 @@ type compositionBuilderOption func(c *v1.Composition)
 func withPatches(index int, patches ...v1.Patch) compositionBuilderOption {
 	return func(c *v1.Composition) {
 		c.Spec.Resources[index].Patches = patches
+	}
+}
+
+func withPatchSets(patchSets ...v1.PatchSet) compositionBuilderOption {
+	return func(c *v1.Composition) {
+		c.Spec.PatchSets = patchSets
 	}
 }
 
