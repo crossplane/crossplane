@@ -21,8 +21,8 @@ import (
 
 func TestValidatorValidate(t *testing.T) {
 	type args struct {
-		comp      *v1.Composition
-		gvkToCRDs map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition
+		comp     *v1.Composition
+		gkToCRDs map[schema.GroupKind]apiextensions.CustomResourceDefinition
 	}
 	type want struct {
 		errs field.ErrorList
@@ -38,8 +38,8 @@ func TestValidatorValidate(t *testing.T) {
 				errs: nil,
 			},
 			args: args{
-				comp:      buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
-				gvkToCRDs: nil,
+				comp:     buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
+				gkToCRDs: nil,
 			},
 		},
 		"RejectStrictNoCRDsWithPatches": {
@@ -58,15 +58,15 @@ func TestValidatorValidate(t *testing.T) {
 						FromFieldPath: pointer.String("spec.someField"),
 						ToFieldPath:   pointer.String("spec.someOtherField"),
 					})),
-				gvkToCRDs: nil,
+				gkToCRDs: nil,
 			},
 		},
 		"AcceptStrictAllCRDs": {
 			reason: "Should accept a valid Composition if all CRDs are available",
 			want:   want{errs: nil},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
-				comp:      buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
+				gkToCRDs: defaultGKToCRDs(),
+				comp:     buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}),
 			},
 		},
 		"AcceptStrictInvalid": {
@@ -74,15 +74,15 @@ func TestValidatorValidate(t *testing.T) {
 			// TODO(phisco): this should return an error once we implement rendered validation
 			want: want{errs: nil},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
-				comp:      buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil),
+				gkToCRDs: defaultGKToCRDs(),
+				comp:     buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil),
 			},
 		},
 		"AcceptStrictRequiredFieldByPatch": {
 			reason: "Should accept a Composition with a required field defined only by a patch if all CRDs are available",
 			want:   want{errs: nil},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.String("spec.someField"),
@@ -101,7 +101,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.String("spec.someWrongField"),
@@ -120,7 +120,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, map[string]any{"someOtherField": "test"}, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.String("spec.someField"),
@@ -139,7 +139,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				gvkToCRDs: buildGvkToCRDs(
+				gkToCRDs: buildGkToCRDs(
 					defaultCompositeCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
 						crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someField"] = extv1.JSONSchemaProps{
 							Type: "integer",
@@ -165,7 +165,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.String("spec.someField"),
@@ -190,7 +190,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromCompositeFieldPath,
 					FromFieldPath: pointer.String("spec.someField"),
@@ -207,7 +207,7 @@ func TestValidatorValidate(t *testing.T) {
 		"AcceptStrictPatchWithCombinePatch": {
 			reason: "Should accept a Composition with a combine patch, if all CRDs are found",
 			args: args{
-				gvkToCRDs: buildGvkToCRDs(
+				gkToCRDs: buildGkToCRDs(
 					defaultCompositeCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
 						spec := crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"]
 						spec.Properties["someOtherOtherField"] = extv1.JSONSchemaProps{
@@ -251,7 +251,7 @@ func TestValidatorValidate(t *testing.T) {
 				},
 			},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
 					Type: v1.PatchTypeCombineFromComposite,
 					Combine: &v1.Combine{
@@ -278,7 +278,7 @@ func TestValidatorValidate(t *testing.T) {
 				errs: nil,
 			},
 			args: args{
-				gvkToCRDs: defaultGVKToCRDs(),
+				gkToCRDs: defaultGKToCRDs(),
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withPatches(0, v1.Patch{
 					Type:          v1.PatchTypeFromEnvironmentFieldPath,
 					FromFieldPath: pointer.String("spec.someField"),
@@ -292,7 +292,7 @@ func TestValidatorValidate(t *testing.T) {
 				errs: nil,
 			},
 			args: args{
-				gvkToCRDs: buildGvkToCRDs(defaultManagedCrdBuilder().withOption(func(d *extv1.CustomResourceDefinition) {
+				gkToCRDs: buildGkToCRDs(defaultManagedCrdBuilder().withOption(func(d *extv1.CustomResourceDefinition) {
 					d.Spec.Versions = append(d.Spec.Versions, *d.Spec.Versions[0].DeepCopy())
 					d.Spec.Versions[len(d.Spec.Versions)-1].Name = "v2"
 					d.Spec.Versions[len(d.Spec.Versions)-1].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someNewField"] = extv1.JSONSchemaProps{
@@ -309,7 +309,7 @@ func TestValidatorValidate(t *testing.T) {
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			v, err := NewValidator(WithCRDGetterFromMap(tc.args.gvkToCRDs))
+			v, err := NewValidator(WithCRDGetterFromMap(tc.args.gkToCRDs))
 			if err != nil {
 				t.Errorf("NewValidator(...) = %v", err)
 				return
@@ -376,15 +376,14 @@ func defaultManagedCrdBuilder() *crdBuilder {
 	}))
 }
 
-func defaultGVKToCRDs() map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition {
+func defaultGKToCRDs() map[schema.GroupKind]apiextensions.CustomResourceDefinition {
 	crds := []apiextensions.CustomResourceDefinition{*defaultManagedCrdBuilder().build(), *defaultCompositeCrdBuilder().build()}
-	m := make(map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition, len(crds))
+	m := make(map[schema.GroupKind]apiextensions.CustomResourceDefinition, len(crds))
 	for _, crd := range crds {
 		crd := crd
-		m[schema.GroupVersionKind{
-			Group:   crd.Spec.Group,
-			Version: crd.Spec.Versions[0].Name,
-			Kind:    crd.Spec.Names.Kind,
+		m[schema.GroupKind{
+			Group: crd.Spec.Group,
+			Kind:  crd.Spec.Names.Kind,
 		}] = crd
 	}
 	return m
@@ -526,27 +525,16 @@ func buildDefaultComposition(t *testing.T, validationMode v1.CompositionValidati
 	return c
 }
 
-func buildGvkToCRDs(crds ...*apiextensions.CustomResourceDefinition) map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition {
-	m := map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition{}
+func buildGkToCRDs(crds ...*apiextensions.CustomResourceDefinition) map[schema.GroupKind]apiextensions.CustomResourceDefinition {
+	m := map[schema.GroupKind]apiextensions.CustomResourceDefinition{}
 	for _, crd := range crds {
 		if crd == nil {
 			continue
 		}
-		if len(crd.Spec.Versions) == 0 {
-			m[schema.GroupVersionKind{
-				Group:   crd.Spec.Group,
-				Version: crd.Spec.Version,
-				Kind:    crd.Spec.Names.Kind,
-			}] = *crd
-			continue
-		}
-		for _, version := range crd.Spec.Versions {
-			m[schema.GroupVersionKind{
-				Group:   crd.Spec.Group,
-				Version: version.Name,
-				Kind:    crd.Spec.Names.Kind,
-			}] = *crd
-		}
+		m[schema.GroupKind{
+			Group: crd.Spec.Group,
+			Kind:  crd.Spec.Names.Kind,
+		}] = *crd
 	}
 	return m
 }

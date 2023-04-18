@@ -139,7 +139,7 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 	}
 
 	// Get all the needed CRDs, Composite Resource, Managed resources ... ? Error out if missing in strict mode
-	gvkToCRD, errs := h.getNeededCRDs(ctx, comp)
+	gkToCRD, errs := h.getNeededCRDs(ctx, comp)
 	// if we have errors, and we are in strict mode or any of the errors is not a , return them
 	if len(errs) != 0 {
 		if validationMode == v1.CompositionValidationModeStrict || containsOtherThanNotFound(errs) {
@@ -155,7 +155,7 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 	}
 
 	v, err := composition.NewValidator(
-		composition.WithCRDGetterFromMap(gvkToCRD),
+		composition.WithCRDGetterFromMap(gkToCRD),
 		// We disable logical Validation as this has already been done above
 		composition.WithoutLogicalValidation(),
 	)
@@ -180,15 +180,15 @@ func containsOtherThanNotFound(errs []error) bool {
 	return false
 }
 
-func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition, []error) {
+func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, []error) {
 	var resultErrs []error
-	neededCrds := make(map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition)
+	neededCrds := make(map[schema.GroupKind]apiextensions.CustomResourceDefinition)
 
 	// Get schema for the Composite Resource Definition defined by comp.Spec.CompositeTypeRef
-	compositeResGVK := schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion,
-		comp.Spec.CompositeTypeRef.Kind)
+	compositeResGK := schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion,
+		comp.Spec.CompositeTypeRef.Kind).GroupKind()
 
-	compositeCRD, err := h.getCRDForGVK(ctx, &compositeResGVK)
+	compositeCRD, err := h.getCRDForGVK(ctx, &compositeResGK)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, []error{err}
@@ -196,7 +196,7 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 		resultErrs = append(resultErrs, err)
 	}
 	if compositeCRD != nil {
-		neededCrds[compositeResGVK] = *compositeCRD
+		neededCrds[compositeResGK] = *compositeCRD
 	}
 
 	// Get schema for all Managed Resource Definitions defined by comp.Spec.Resources
@@ -206,18 +206,18 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 		if err != nil {
 			return nil, []error{err}
 		}
-		gvk := cd.GetObjectKind().GroupVersionKind()
-		if _, ok := neededCrds[gvk]; ok {
+		gk := cd.GetObjectKind().GroupVersionKind().GroupKind()
+		if _, ok := neededCrds[gk]; ok {
 			continue
 		}
-		crd, err := h.getCRDForGVK(ctx, &gvk)
+		crd, err := h.getCRDForGVK(ctx, &gk)
 		switch {
 		case apierrors.IsNotFound(err):
 			resultErrs = append(resultErrs, err)
 		case err != nil:
 			return nil, []error{err}
 		case crd != nil:
-			neededCrds[gvk] = *crd
+			neededCrds[gk] = *crd
 		}
 	}
 
@@ -226,18 +226,18 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 
 // getCRDForGVK returns the validation schema for the given GVK, by looking up the CRD by group and kind using
 // the provided client.
-func (h *handler) getCRDForGVK(ctx context.Context, gvk *schema.GroupVersionKind) (*apiextensions.CustomResourceDefinition, error) {
+func (h *handler) getCRDForGVK(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
 	crds := extv1.CustomResourceDefinitionList{}
 	if err := h.reader.List(ctx, &crds,
-		client.MatchingFields{"spec.group": gvk.Group},
-		client.MatchingFields{"spec.names.kind": gvk.Kind}); err != nil {
+		client.MatchingFields{"spec.group": gk.Group},
+		client.MatchingFields{"spec.names.kind": gk.Kind}); err != nil {
 		return nil, err
 	}
 	switch {
 	case len(crds.Items) == 0:
-		return nil, apierrors.NewNotFound(schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "CustomResourceDefinition"}, fmt.Sprintf("%s.%s", gvk.Kind, gvk.Group))
+		return nil, apierrors.NewNotFound(schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "CustomResourceDefinition"}, fmt.Sprintf("%s.%s", gk.Kind, gk.Group))
 	case len(crds.Items) > 1:
-		return nil, apierrors.NewInternalError(fmt.Errorf("more than one CRD found for %s.%s", gvk.Kind, gvk.Group))
+		return nil, apierrors.NewInternalError(fmt.Errorf("more than one CRD found for %s.%s", gk.Kind, gk.Group))
 	}
 	crd := crds.Items[0]
 	internal := &apiextensions.CustomResourceDefinition{}

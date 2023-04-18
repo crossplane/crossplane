@@ -98,12 +98,12 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		comp.Spec.CompositeTypeRef.Kind,
 	)
 
-	compositeCRD, err := v.crdGetter.Get(ctx, compositeResGVK)
+	compositeCRD, err := v.crdGetter.Get(ctx, compositeResGVK.GroupKind())
 	if err != nil {
 		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Wrapf(err, "cannot find composite type %s: %s", comp.Spec.CompositeTypeRef, err))
 	}
 	resourceGVK := res.GetObjectKind().GroupVersionKind()
-	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK)
+	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK.GroupKind())
 	if err != nil {
 		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find resource type %s: %s", res.GetObjectKind().GroupVersionKind(), err))
 	}
