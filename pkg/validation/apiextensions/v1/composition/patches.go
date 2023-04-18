@@ -158,6 +158,7 @@ func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *fie
 			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
 		)
 	case v1.PatchTypePatchSet:
+		// patches in a patch set are validated separately, so we'll just recurse one level deeper
 		for _, ps := range ctx.comp.Spec.PatchSets {
 			if *ctx.patch.PatchSetName == ps.Name {
 				for j, patch := range ps.Patches {
@@ -183,6 +184,10 @@ func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *fie
 	}
 	if validationErr != nil {
 		return validationErr
+	}
+	// if there are no transforms and the types are either the same or unknown, we don't need to validate transforms
+	if len(ctx.patch.Transforms) == 0 && (fromType == "" || toType == "" || fromType == toType) {
+		return nil
 	}
 
 	return validateIOTypesWithTransforms(ctx.patch.Transforms, fromType, toType)
@@ -298,10 +303,10 @@ func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) 
 	if err != nil {
 		return "", err
 	}
-	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" &&
-		isMissingMetadataSchema(schema) {
-		segments = segments[1:]
-		schema = &metadataSchema
+	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" {
+		// if the fieldPath starts with metadata, we need to merge the metadata schema with the schema
+		// to make sure we validate the fieldPath correctly.
+		defaultMetadataSchema(schema)
 	}
 	return validateFieldPathSegments(segments, schema, fieldPath)
 }
@@ -323,17 +328,6 @@ func validateFieldPathSegments(segments fieldpath.Segments, schema *apiextension
 		return "", fmt.Errorf("field path %q has an unsupported type %q", fieldPath, current.Type)
 	}
 	return xpschema.KnownJSONType(current.Type), nil
-}
-
-func isMissingMetadataSchema(schema *apiextensions.JSONSchemaProps) bool {
-	if schema == nil || schema.Properties == nil {
-		return true
-	}
-	m, defined := schema.Properties["metadata"]
-	if !defined || m.Properties == nil || len(m.Properties) == 0 {
-		return true
-	}
-	return false
 }
 
 // validateFieldPathSegment validates that the given field path segment is valid for the given schema.
@@ -364,10 +358,15 @@ func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segmen
 		if pointer.BoolDeref(parent.XPreserveUnknownFields, false) {
 			return nil, nil
 		}
-		if parent.AdditionalProperties != nil && parent.AdditionalProperties.Allows {
+
+		// Allows and Schema are mutually exclusive, so we should accept additional properties both if Allows is true or
+		// Schema is not nil.
+		// See https://github.com/kubernetes/kubernetes/blob/ff4eff24ac4fad5431aa89681717d6c4fe5733a4/staging/src/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/validation/validation.go#L828
+		if parent.AdditionalProperties != nil && (parent.AdditionalProperties.Allows || parent.AdditionalProperties.Schema != nil) {
 			return parent.AdditionalProperties.Schema, nil
 		}
 		return nil, errors.Errorf(errFmtFieldInvalid, segment.Field)
+
 	}
 	return &prop, nil
 }

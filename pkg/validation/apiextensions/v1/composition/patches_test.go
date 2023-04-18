@@ -351,6 +351,18 @@ func TestValidateFieldPath(t *testing.T) {
 									Properties: map[string]apiextensions.JSONSchemaProps{
 										"foo": {Type: "string"}}}}}}}},
 		},
+		"AcceptMetadataLabelsValue": {
+			reason: "Should validate a valid field path",
+			want:   want{err: nil, fieldType: "string"},
+			args: args{
+				fieldPath: "metadata.labels[networks.aws.platformref.upbound.io/network-id]",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"metadata": *getMetadataSchema(),
+					},
+				},
+			},
+		},
 		"RejectInvalidFieldPath": {
 			reason: "Should return an error for an invalid field path",
 			want:   want{err: xperrors.Errorf(errFmtFieldInvalid, "wrong")},
@@ -422,6 +434,14 @@ func TestValidateFieldPath(t *testing.T) {
 				fieldPath: "spec.forProvider.thumbprintList[0]",
 				// parse the schema from json
 				schema: complexSchemaOpenIDConnectProvidersV1beta1Props,
+			},
+		},
+		"AcceptMetadataUID": {
+			reason: "Should accept metadata.uid",
+			want:   want{err: nil, fieldType: "string"},
+			args: args{
+				fieldPath: "metadata.uid",
+				schema:    &apiextensions.JSONSchemaProps{Properties: map[string]apiextensions.JSONSchemaProps{"metadata": {Type: "object"}}},
 			},
 		},
 	}
