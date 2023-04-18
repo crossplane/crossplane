@@ -7,8 +7,8 @@ deploymentStrategy: RollingUpdate
 image:
   # -- Crossplane image.
   repository: crossplane/crossplane
-  # -- Crossplane image tag.
-  tag: %%VERSION%%
+  # -- Crossplane image tag: if not set, appVersion field from Chart.yaml is used.
+  tag: ""
   # -- Crossplane image pull policy used in all containers.
   pullPolicy: IfNotPresent
 
@@ -165,10 +165,10 @@ xfn:
   # -- Enable alpha xfn sidecar container that runs Composition Functions. Note you also
   # need to run Crossplane with --enable-composition-functions for it to call xfn.
   enabled: false
-  # -- Image for xfn.
+  # -- Image for xfn: if tag is not set appVersion field from Chart.yaml is used.
   image:
     repository: crossplane/xfn
-    tag: %%VERSION%%
+    tag: ""
     pullPolicy: IfNotPresent
   # -- List of additional args for the xfn container.
   args: []

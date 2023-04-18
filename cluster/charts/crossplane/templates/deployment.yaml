@@ -45,7 +45,7 @@ spec:
       serviceAccountName: {{ template "crossplane.name" . }}
       hostNetwork: {{ .Values.hostNetwork }}
       initContainers:
-        - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
           args:
           - core
           - init
@@ -101,7 +101,7 @@ spec:
             value: ess-server-certs
           {{- end }}
       containers:
-      - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:
         - core
         - start
@@ -181,7 +181,7 @@ spec:
           {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
           {{- end }}
       {{- if .Values.xfn.enabled }}
-      - image: {{ .Values.xfn.image.repository }}:{{ .Values.xfn.image.tag }}
+      - image: "{{ .Values.xfn.image.repository }}:{{ .Values.xfn.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:
         - start
         {{- range $arg := .Values.xfn.args }}

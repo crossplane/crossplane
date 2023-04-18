@@ -36,7 +36,7 @@ spec:
       {{- end }}
       serviceAccountName: rbac-manager
       initContainers:
-      - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:
         - rbac
         - init
@@ -58,7 +58,7 @@ spec:
                 containerName: {{ .Chart.Name }}-init
                 resource: limits.memory
       containers:
-      - image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+      - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:
         - rbac
         - start

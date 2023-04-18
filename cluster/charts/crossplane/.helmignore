@@ -21,3 +21,4 @@
 *.tmproj
 # Templates
 values.yaml.tmpl
+README.md.tmpl
