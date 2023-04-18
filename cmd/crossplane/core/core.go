@@ -92,7 +92,7 @@ type startCommand struct {
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
 	// folks who are passing them, but they do nothing. The flags are hidden so
 	// they don't show up in the help output.
-	EnableCompositionRevisions bool `hidden:""`
+	EnableCompositionRevisions bool `default:"true" hidden:""`
 }
 
 // Run core Crossplane controllers.
@@ -135,6 +135,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableCompositionWebhookSchemaValidation {
 		feats.Enable(features.EnableAlphaCompositionWebhookSchemaValidation)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionWebhookSchemaValidation)
+	}
+	if !c.EnableCompositionRevisions {
+		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
 	}
 
 	o := controller.Options{
