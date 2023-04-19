@@ -1,139 +1,213 @@
+# -- The number of replicas to run for the Crossplane pods.
 replicas: 1
 
+# -- The deployment strategy for the Crossplane and RBAC Manager (if enabled) pods.
 deploymentStrategy: RollingUpdate
 
 image:
+  # -- Crossplane image.
   repository: crossplane/crossplane
+  # -- Crossplane image tag.
   tag: %%VERSION%%
+  # -- Crossplane image pull policy used in all containers.
   pullPolicy: IfNotPresent
 
+# -- Enable nodeSelector for Crossplane pod.
 nodeSelector: {}
+# -- Enable tolerations for Crossplane pod.
 tolerations: []
+# -- Enable affinity for Crossplane pod.
 affinity: {}
 
 # -- Enable hostNetwork for Crossplane. Caution: setting it to true means Crossplane's Pod will have high privileges.
 hostNetwork: false
 
-# -- Custom labels to add into metadata
+# -- Custom labels to add into metadata.
 customLabels: {}
 
-# -- Custom annotations to add to the Crossplane deployment and pod
+# -- Custom annotations to add to the Crossplane deployment and pod.
 customAnnotations: {}
 
-# -- Custom annotations to add to the serviceaccount of Crossplane
 serviceAccount:
+  # -- Custom annotations to add to the serviceaccount of Crossplane.
   customAnnotations: {}
 
+# -- Enable leader election for Crossplane Managers pod.
 leaderElection: true
+# -- A list of additional args to be passed to Crossplane's container.
 args: []
 
 provider:
+  # -- The list of Provider packages to install together with Crossplane.
   packages: []
 
 configuration:
+  # -- The list of Configuration packages to install together with Crossplane.
   packages: []
 
+# -- Names of image pull secrets to use.
 imagePullSecrets: {}
 
-registryCaBundleConfig: {}
+registryCaBundleConfig:
+  # -- Name of ConfigMap containing additional CA bundle for fetching from package registries.
+  name: {}
+  # -- Key to use from ConfigMap containing additional CA bundle for fetching from package registries.
+  key: {}
 
 webhooks:
+  # -- Enable webhook functionality for Crossplane as well as packages installed by Crossplane.
   enabled: true
 
 rbacManager:
+  # -- Deploy RBAC Manager and its required roles.
   deploy: true
+  # -- Opt out of deploying aggregated ClusterRoles.
   skipAggregatedClusterRoles: false
+  # -- The number of replicas to run for the RBAC Manager pods.
   replicas: 1
+  # -- The extent to which the RBAC manager will manage permissions:.
+  # - `All` indicates to manage all Crossplane controller and user roles.
+  # - `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles.
   managementPolicy: All
+  # -- Enable leader election for RBAC Managers pod.
   leaderElection: true
+  # -- A list of additional args to be pased to the RBAC manager's container.
   args: []
+  # -- Enable nodeSelector for RBAC Managers pod.
   nodeSelector: {}
+  # -- Enable tolerations for RBAC Managers pod.
   tolerations: []
+  # -- Enable affinity for RBAC Managers pod.
   affinity: {}
 
+# -- Priority class name for Crossplane and RBAC Manager (if enabled) pods.
 priorityClassName: ""
 
 resourcesCrossplane:
   limits:
+    # -- CPU resource limits for Crossplane.
     cpu: 100m
+    # -- Memory resource limits for Crossplane.
     memory: 512Mi
   requests:
+    # -- CPU resource requests for Crossplane.
     cpu: 100m
+    # -- Memory resource requests for Crossplane.
     memory: 256Mi
 
 securityContextCrossplane:
+  # -- Run as user for Crossplane.
   runAsUser: 65532
+  # -- Run as group for Crossplane.
   runAsGroup: 65532
+  # -- Allow privilege escalation for Crossplane.
   allowPrivilegeEscalation: false
+  # -- ReadOnly root filesystem for Crossplane.
   readOnlyRootFilesystem: true
 
 packageCache:
+  # -- Storage medium for package cache. `Memory` means volume will be backed by tmpfs, which can be useful for development.
   medium: ""
+  # -- Size limit for package cache. If medium is `Memory` then maximum usage would be the minimum of this value the sum of all memory limits on containers in the Crossplane pod.
   sizeLimit: 20Mi
+  # -- Name of the PersistentVolumeClaim to be used as the package cache. Providing a value will cause the default emptyDir volume to not be mounted.
   pvc: ""
+  # -- Name of the ConfigMap to be used as package cache. Providing a value will cause the default emptyDir volume not to be mounted.
   configMap: ""
 
 resourcesRBACManager:
   limits:
+    # -- CPU resource limits for RBAC Manager.
     cpu: 100m
+    # -- Memory resource limits for RBAC Manager.
     memory: 512Mi
   requests:
+    # -- CPU resource requests for RBAC Manager.
     cpu: 100m
+    # -- Memory resource requests for RBAC Manager.
     memory: 256Mi
 
 securityContextRBACManager:
+  # -- Run as user for RBAC Manager.
   runAsUser: 65532
+  # -- Run as group for RBAC Manager.
   runAsGroup: 65532
+  # -- Allow privilege escalation for RBAC Manager.
   allowPrivilegeEscalation: false
+  # -- ReadOnly root filesystem for RBAC Manager.
   readOnlyRootFilesystem: true
 
 metrics:
+  # -- Expose Crossplane and RBAC Manager metrics endpoint.
   enabled: false
 
+# -- List of extra environment variables to set in the Crossplane deployment.
+# Any `.` in variable names will be replaced with `_` (example: `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`).
 extraEnvVarsCrossplane: {}
 
+# -- List of extra environment variables to set in the Crossplane rbac manager deployment.
+# Any `.` in variable names will be replaced with `_` (example: `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`).
 extraEnvVarsRBACManager: {}
 
+# -- PodSecurityContext for Crossplane.
 podSecurityContextCrossplane: {}
 
+# -- PodSecurityContext for RBAC Manager.
 podSecurityContextRBACManager: {}
 
+# -- List of extra Volumes to add to Crossplane.
 extraVolumesCrossplane: {}
 
+# -- List of extra volumesMounts to add to Crossplane.
 extraVolumeMountsCrossplane: {}
 
-# The alpha xfn sidecar container that runs Composition Functions. Note you also
-# need to run Crossplane with --enable-composition-functions for it to call xfn.
 xfn:
+  # -- Enable alpha xfn sidecar container that runs Composition Functions. Note you also
+  # need to run Crossplane with --enable-composition-functions for it to call xfn.
   enabled: false
+  # -- Image for xfn.
   image:
     repository: crossplane/xfn
     tag: %%VERSION%%
     pullPolicy: IfNotPresent
+  # -- List of additional args for the xfn container.
   args: []
+  # -- List of additional environment variables for the xfn container.
   extraEnvVars: {}
   securityContext:
+    # -- Run as user for xfn sidecar.
     runAsUser: 65532
+    # -- Run as group for xfn sidecar.
     runAsGroup: 65532
+    # -- Allow privilege escalation for xfn sidecar.
     allowPrivilegeEscalation: false
+    # -- ReadOnly root filesystem for xfn sidecar.
     readOnlyRootFilesystem: true
-    # These capabilities allow xfn to create better user namespaces. It drops
-    # them after creating a namespace.
+    # -- Capabilities configuration for xfn sidecar.
+    # These capabilities allow xfn sidecar to create better user namespaces. It
+    # drops them after creating a namespace.
     capabilities:
       add: ["SETUID", "SETGID"]
+    # -- Seccomp Profile for xfn.
     # xfn needs the unshare syscall, which most RuntimeDefault seccomp profiles
     # do not allow.
     seccompProfile:
       type: Unconfined
+  # -- Cache configuration for xfn.
   cache:
     medium: ""
     sizeLimit: 1Gi
     pvc: ""
     configMap: ""
+  # -- Resources definition for xfn.
   resources:
     limits:
+      # -- CPU resource limits for RBAC Manager.
       cpu: 2000m
+      # -- Memory resource limits for RBAC Manager.
       memory: 2Gi
     requests:
+      # -- CPU resource requests for RBAC Manager.
       cpu: 1000m
+      # -- Memory resource requests for RBAC Manager.
       memory: 1Gi
