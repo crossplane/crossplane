@@ -667,9 +667,7 @@ func TestClaimConfigure(t *testing.T) {
 								"writeConnectionSecretToRef": "ref",
 							},
 							"status": map[string]any{
-								"previousCoolness": 23,
-								// unavailableObjects and availableObjects are the same with unavailableReplicas and availaableReplicas
-								// unavailableReplicas changes to availableReplicas when the pods are all ready.
+								"previousCoolness":   23,
 								"unavailableObjects": 1,
 								"conditions": []map[string]any{
 									{
