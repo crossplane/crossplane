@@ -71,7 +71,7 @@ docker tag "${BUILD_IMAGE}" "${CROSSPLANE_IMAGE}"
 "${KIND}" load docker-image "${CROSSPLANE_IMAGE}" --name="${K8S_CLUSTER}"
 
 echo_step "installing helm package(s) into \"${CROSSPLANE_NAMESPACE}\" namespace"
-"${HELM3}" install --create-namespace -n "${CROSSPLANE_NAMESPACE}" "${PROJECT_NAME}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set replicas=2,args={'-d'},rbacManager.replicas=2,rbacManager.args={'-d'},image.pullPolicy=Never,imagePullSecrets=''
+"${HELM3}" install --create-namespace -n "${CROSSPLANE_NAMESPACE}" "${PROJECT_NAME}" "${projectdir}/cluster/charts/${PROJECT_NAME}" --set replicas=2,args={'-d'},rbacManager.replicas=2,rbacManager.args={'-d'},image.pullPolicy=Never,imagePullSecrets='',image.tag=${helm_tag}
 
 echo_step "waiting for deployment ${PROJECT_NAME} rollout to finish"
 "${KUBECTL}" -n "${CROSSPLANE_NAMESPACE}" rollout status "deploy/${PROJECT_NAME}" --timeout=2m
