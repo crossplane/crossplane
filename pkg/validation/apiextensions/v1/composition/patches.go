@@ -185,11 +185,6 @@ func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *fie
 	if validationErr != nil {
 		return validationErr
 	}
-	// if there are no transforms and the types are either the same or unknown, we don't need to validate transforms
-	if len(ctx.patch.Transforms) == 0 && (fromType == "" || toType == "" || fromType == toType) {
-		return nil
-	}
-
 	return validateIOTypesWithTransforms(ctx.patch.Transforms, fromType, toType)
 }
 
@@ -248,30 +243,31 @@ func validateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions
 }
 
 func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType xpschema.KnownJSONType) *field.Error {
-	inputType, err := xpschema.FromKnownJSONType(fromType)
-	if err != nil && fromType != "" {
-		return field.InternalError(field.NewPath("transforms"), err)
+	// if there are no transforms and the types are either the same or unknown, we don't need to validate transforms
+	if len(transforms) == 0 && (fromType == "" || toType == "" || fromType == toType) {
+		return nil
 	}
-	transformsOutputType, fieldErr := validateTransformsChainIOTypes(transforms, inputType)
+
+	transformsOutputType, fieldErr := validateTransformsChainIOTypes(transforms, fromType)
 	if fieldErr != nil {
 		return fieldErr
 	}
-	if transformsOutputType == "" || toType == "" {
+
+	if transformsOutputType == "" || toType == "" || xpschema.FromTransformIOType(transformsOutputType).IsEquivalent(toType) {
 		return nil
 	}
-	transformedToJSONType := xpschema.FromTransformIOType(transformsOutputType)
 
-	if !transformedToJSONType.IsEquivalent(toType) {
-		if len(transforms) == 0 {
-			return field.Required(field.NewPath("transforms"), fmt.Sprintf("the fromFieldPath does not have a type compatible with the toFieldPath according to their schemas and no transforms were provided: %s != %s", inputType, toType))
-		}
-		return field.Invalid(field.NewPath("transforms"), transforms, fmt.Sprintf("the provided transforms do not output a type compatible with the toFieldPath according to the schema: %s != %s", inputType, toType))
+	if len(transforms) == 0 {
+		return field.Required(field.NewPath("transforms"), fmt.Sprintf("the fromFieldPath does not have a type compatible with the toFieldPath according to their schemas and no transforms were provided: %s != %s", fromType, toType))
 	}
-
-	return nil
+	return field.Invalid(field.NewPath("transforms"), transforms, fmt.Sprintf("the provided transforms do not output a type compatible with the toFieldPath according to the schema: %s != %s", fromType, toType))
 }
 
-func validateTransformsChainIOTypes(transforms []v1.Transform, inputType v1.TransformIOType) (outputType v1.TransformIOType, err *field.Error) {
+func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema.KnownJSONType) (outputType v1.TransformIOType, fErr *field.Error) {
+	inputType, err := xpschema.FromKnownJSONType(fromType)
+	if err != nil && fromType != "" {
+		return "", field.InternalError(field.NewPath("transforms"), fErr)
+	}
 	for i, transform := range transforms {
 		transform := transform
 		err := IsValidInputForTransform(&transform, inputType)
