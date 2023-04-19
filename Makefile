@@ -50,6 +50,8 @@ HELM_BASE_URL = https://charts.crossplane.io
 HELM_S3_BUCKET = crossplane.charts
 HELM_CHARTS = crossplane
 HELM_CHART_LINT_ARGS_crossplane = --set nameOverride='',imagePullSecrets=''
+HELM_DOCS_ENABLED = true
+HELM_VALUES_TEMPLATE_SKIPPED = true
 -include build/makelib/helm.mk
 
 # ====================================================================================

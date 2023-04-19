@@ -78,7 +78,7 @@ and their default values.
 | `hostNetwork` | Enable hostNetwork for Crossplane. Caution: setting it to true means Crossplane's Pod will have high privileges. | `false` |
 | `image.pullPolicy` | Crossplane image pull policy used in all containers. | `"IfNotPresent"` |
 | `image.repository` | Crossplane image. | `"crossplane/crossplane"` |
-| `image.tag` | Crossplane image tag. | `"master"` |
+| `image.tag` | Crossplane image tag: if not set, appVersion field from Chart.yaml is used. | `""` |
 | `imagePullSecrets` | Names of image pull secrets to use. | `{}` |
 | `leaderElection` | Enable leader election for Crossplane Managers pod. | `true` |
 | `metrics.enabled` | Expose Crossplane and RBAC Manager metrics endpoint. | `false` |
@@ -126,7 +126,7 @@ and their default values.
 | `xfn.cache` | Cache configuration for xfn. | `{"configMap":"","medium":"","pvc":"","sizeLimit":"1Gi"}` |
 | `xfn.enabled` | Enable alpha xfn sidecar container that runs Composition Functions. Note you also need to run Crossplane with --enable-composition-functions for it to call xfn. | `false` |
 | `xfn.extraEnvVars` | List of additional environment variables for the xfn container. | `{}` |
-| `xfn.image` | Image for xfn. | `{"pullPolicy":"IfNotPresent","repository":"crossplane/xfn","tag":"master"}` |
+| `xfn.image` | Image for xfn: if tag is not set appVersion field from Chart.yaml is used. | `{"pullPolicy":"IfNotPresent","repository":"crossplane/xfn","tag":""}` |
 | `xfn.resources` | Resources definition for xfn. | `{"limits":{"cpu":"2000m","memory":"2Gi"},"requests":{"cpu":"1000m","memory":"1Gi"}}` |
 | `xfn.resources.limits.cpu` | CPU resource limits for RBAC Manager. | `"2000m"` |
 | `xfn.resources.limits.memory` | Memory resource limits for RBAC Manager. | `"2Gi"` |
