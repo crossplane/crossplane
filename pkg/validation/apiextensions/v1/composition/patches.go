@@ -159,7 +159,7 @@ func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *fie
 		)
 	case v1.PatchTypePatchSet:
 		// patches in a patch set are validated separately, so we'll just recurse one level deeper
-		for _, ps := range ctx.comp.Spec.PatchSets {
+		for i, ps := range ctx.comp.Spec.PatchSets {
 			if *ctx.patch.PatchSetName == ps.Name {
 				for j, patch := range ps.Patches {
 					if err := v.validatePatchWithSchemaInternal(patchValidationCtx{
@@ -171,7 +171,7 @@ func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *fie
 						resourceGVK:     ctx.resourceGVK,
 					},
 					); err != nil {
-						return verrors.WrapFieldError(err, field.NewPath("inlinedPatchSet").Key(ps.Name).Child("patches").Index(j))
+						return verrors.WrapFieldError(err, field.NewPath("patchSets").Index(i).Child("patches").Index(j))
 					}
 				}
 			}

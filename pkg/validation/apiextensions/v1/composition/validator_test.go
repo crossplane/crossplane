@@ -333,7 +333,7 @@ func TestValidatorValidate(t *testing.T) {
 				errs: field.ErrorList{
 					{
 						Type:  field.ErrorTypeInvalid,
-						Field: "spec.resources[0].patches[0].inlinedPatchSet[some-patch-set].patches[0].combine",
+						Field: "spec.resources[0].patches[0].patchSets[0].patches[0].combine",
 					},
 				},
 			},
