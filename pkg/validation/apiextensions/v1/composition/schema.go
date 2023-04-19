@@ -6,79 +6,82 @@ import (
 	"github.com/crossplane/crossplane/pkg/validation/internal/schema"
 )
 
-func getMetadataSchema() *apiextensions.JSONSchemaProps {
-	// hardcoded metadata schema as CRDs usually don't contain it, but we need the information to be able
-	// to validate patches from `metadata.uid` or similar fields
-	return &apiextensions.JSONSchemaProps{
-		Type: string(schema.KnownJSONTypeObject),
-		AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
-			Allows: true,
-		},
-		Properties: map[string]apiextensions.JSONSchemaProps{
-			"name": {
-				Type: string(schema.KnownJSONTypeString),
-			},
-			"namespace": {
-				Type: string(schema.KnownJSONTypeString),
-			},
-			"labels": {
-				Type: string(schema.KnownJSONTypeObject),
-				AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
-					Allows: true,
-					Schema: &apiextensions.JSONSchemaProps{
-						Type: string(schema.KnownJSONTypeString),
-					},
-				},
-			},
-			"annotations": {
-				Type: string(schema.KnownJSONTypeObject),
-				AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
-					Allows: true,
-					Schema: &apiextensions.JSONSchemaProps{
-						Type: string(schema.KnownJSONTypeString),
-					},
-				},
-			},
-			"uid": {
-				Type: string(schema.KnownJSONTypeString),
-			},
-		},
+// sets all the defaults in the given schema
+func defaultMetadataSchema(in *apiextensions.JSONSchemaProps) *apiextensions.JSONSchemaProps {
+	out := in
+	if out == nil {
+		out = &apiextensions.JSONSchemaProps{}
+	}
+	if out.Type == "" {
+		out.Type = string(schema.KnownJSONTypeObject)
+	}
+	if out.Properties == nil {
+		out.Properties = map[string]apiextensions.JSONSchemaProps{}
+	}
+	if _, exists := out.Properties["metadata"]; !exists {
+		out.Properties["metadata"] = apiextensions.JSONSchemaProps{}
+	}
+	metadata := out.Properties["metadata"]
+	out.Properties["metadata"] = *defaultMetadataOnly(&metadata)
+
+	return out
+}
+func defaultMetadataOnly(metadata *apiextensions.JSONSchemaProps) *apiextensions.JSONSchemaProps {
+	setDefaultType(metadata)
+	setDefaultProperty(metadata, "name", string(schema.KnownJSONTypeString))
+	setDefaultProperty(metadata, "namespace", string(schema.KnownJSONTypeString))
+	setDefaultProperty(metadata, "uid", string(schema.KnownJSONTypeString))
+	setDefaultLabels(metadata)
+	setDefaultAnnotations(metadata)
+	return metadata
+}
+
+func setDefaultType(metadata *apiextensions.JSONSchemaProps) {
+	if metadata.Type == "" {
+		metadata.Type = string(schema.KnownJSONTypeObject)
 	}
 }
 
-func defaultMetadataSchema(in *apiextensions.JSONSchemaProps) {
-	if in == nil {
-		in = &apiextensions.JSONSchemaProps{}
-	}
-	if in.Type == "" {
-		in.Type = string(schema.KnownJSONTypeObject)
-	}
-	if in.Properties == nil {
-		in.Properties = map[string]apiextensions.JSONSchemaProps{}
-	}
-	if _, exists := in.Properties["metadata"]; !exists {
-		in.Properties["metadata"] = apiextensions.JSONSchemaProps{
-			Type: string(schema.KnownJSONTypeObject),
-		}
-	}
-	metadata := in.Properties["metadata"]
+func setDefaultProperty(metadata *apiextensions.JSONSchemaProps, propertyName string, defaultType string) {
 	if metadata.Properties == nil {
 		metadata.Properties = map[string]apiextensions.JSONSchemaProps{}
 	}
-	for name, prop := range getMetadataSchema().Properties {
-		if _, exists := metadata.Properties[name]; !exists {
-			metadata.Properties[name] = prop
-			continue
-		}
-		t := metadata.Properties[name]
-		if metadata.Properties[name].Type == "" {
-			t.Type = prop.Type
-		}
-		if metadata.Properties[name].AdditionalProperties == nil {
-			t.AdditionalProperties = prop.AdditionalProperties
-		}
-		metadata.Properties[name] = t
-
+	if _, exists := metadata.Properties[propertyName]; !exists {
+		metadata.Properties[propertyName] = apiextensions.JSONSchemaProps{}
 	}
-	in.Properties["metadata"] = metadata
+	property := metadata.Properties[propertyName]
+	if property.Type == "" {
+		property.Type = defaultType
+	}
+	metadata.Properties[propertyName] = property
+}
+
+func setDefaultLabels(metadata *apiextensions.JSONSchemaProps) {
+	setDefaultProperty(metadata, "labels", string(schema.KnownJSONTypeObject))
+	labels := metadata.Properties["labels"]
+	if labels.AdditionalProperties == nil {
+		labels.AdditionalProperties = &apiextensions.JSONSchemaPropsOrBool{}
+	}
+	if labels.AdditionalProperties.Schema == nil {
+		labels.AdditionalProperties.Schema = &apiextensions.JSONSchemaProps{}
+	}
+	if labels.AdditionalProperties.Schema.Type == "" {
+		labels.AdditionalProperties.Schema.Type = string(schema.KnownJSONTypeString)
+	}
+	metadata.Properties["labels"] = labels
+}
+
+func setDefaultAnnotations(metadata *apiextensions.JSONSchemaProps) {
+	setDefaultProperty(metadata, "annotations", string(schema.KnownJSONTypeObject))
+	annotations := metadata.Properties["annotations"]
+	if annotations.AdditionalProperties == nil {
+		annotations.AdditionalProperties = &apiextensions.JSONSchemaPropsOrBool{}
+	}
+	if annotations.AdditionalProperties.Schema == nil {
+		annotations.AdditionalProperties.Schema = &apiextensions.JSONSchemaProps{}
+	}
+	if annotations.AdditionalProperties.Schema.Type == "" {
+		annotations.AdditionalProperties.Schema.Type = string(schema.KnownJSONTypeString)
+	}
+	metadata.Properties["annotations"] = annotations
 }

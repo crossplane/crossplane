@@ -306,7 +306,7 @@ func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) 
 	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" {
 		// if the fieldPath starts with metadata, we need to merge the metadata schema with the schema
 		// to make sure we validate the fieldPath correctly.
-		defaultMetadataSchema(schema)
+		schema = defaultMetadataSchema(schema)
 	}
 	return validateFieldPathSegments(segments, schema, fieldPath)
 }

@@ -358,7 +358,7 @@ func TestValidateFieldPath(t *testing.T) {
 				fieldPath: "metadata.labels[networks.aws.platformref.upbound.io/network-id]",
 				schema: &apiextensions.JSONSchemaProps{
 					Properties: map[string]apiextensions.JSONSchemaProps{
-						"metadata": *getMetadataSchema(),
+						"metadata": *getDefaultMetadataSchema(),
 					},
 				},
 			},
