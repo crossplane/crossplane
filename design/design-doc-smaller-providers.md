@@ -27,8 +27,8 @@ installs more than ~30 CRDs.
 Quantifying the performance penalty of installing too many CRDs is hard, because
 it depends on many factors. These include the size of the Kubernetes control
 plane nodes and the version of Kubernetes being run. As recently as March 2023
-we’ve seen that installing just provider-aws on a new GKE cluster can bring the
-control plane offline for an hour while it scales to handle the load.
+we’ve seen that installing just `provider-aws` on a new GKE cluster can bring
+the control plane offline for an hour while it scales to handle the load.
 
 Problems tend to start happening once you’re over - very approximately - 500
 CRDs. Keep in mind that many folks are installing Kubernetes alongside other
@@ -119,7 +119,7 @@ expect folks to install ~10 providers on average.
 These providers would:
 
 * Be built from “monorepos” - the same repositories they are today, like
-  upbound/provider-aws.
+  `upbound/provider-aws`.
 * Share a `ProviderConfig` by taking a dependency on a (e.g.)
   `provider-aws-config` package.
 * Continue to use contemporary “compiled-in” cross-resource-references, short to
@@ -152,7 +152,7 @@ Pros
 Cons
 
 * Granular deployments. More providers to upgrade, monitor, etc.
-* Does not achieve a "perfect" 1:1 ratio of installed-to-used CRDs.
+* Does not achieve a perfect 1:1 ratio of installed-to-used CRDs.
 * The average deployment may require more compute resources, short term.
 
 I'd like to expand on the first pro a little. No new concepts or configuration
@@ -166,13 +166,14 @@ steps on your getting started checklist are probably:
 2. Install the Provider(s) for the things you want to manage.
 
 Keep in mind today that the things you might want to manage might be a cloud
-provider like AWS, but it might also be Helm charts, SQL databases, etc.
+provider like AWS, but it might also be Helm charts, SQL databases, etc. Most
+folks today are running more than one provider.
 
-Under this proposal, this does not change. If we were to adopt this proposal, in
-six to nine months you'd explain how to get started with Crossplane in exactly
-the same way. The only difference is that in some cases you'd think about "the
-things you want to manage" in a more granular way. You'd think "I want RDS,
-ElastiCache, CloudSQL, GKE, and Helm" not "I want AWS, GCP, and Helm".
+Under this proposal, this does not change. You'd explain how to get started with
+Crossplane in exactly the same way. The only difference is that in some cases
+you'd think about "the things you want to manage" in a more granular way. You'd
+think "I want RDS, ElastiCache, CloudSQL, GKE, and Helm" not "I want AWS, GCP,
+and Helm".
 
 I would argue that most folks already think this way. Folks don't think "I want
 AWS support" without having some idea which AWS _services_ they want to use.
@@ -186,6 +187,9 @@ Based on a survey of ~40 community members, the average deployment would:
 * Install ~100 provider CRDs, down from over 900 today.
 * Run ~9 provider pods, up from ~2 today.
 
+Keep in mind this represents where folks are at with Crossplane today. Over time
+we expect these numbers to grow as production deployments mature.
+
 ### Large Services
 
 One service API group from each of the three major providers is quite large:
@@ -195,37 +199,34 @@ One service API group from each of the three major providers is quite large:
 * `networking.azure.upbound.io` (100 CRDs)
 
 `datafactory.azure.upbound.io` is also quite large at 45 CRDs. All other
-services currently have 25 or less CRDs.
+services currently have 25 or fewer CRDs.
 
-These large services are problematic because they contain types that are very
-commonly used. For example `ec2.aws.upbound.io` contains the `VPC` and
-`SecurityGroup` types, which are dependencies of many other services. For
-example to deploy an EKS cluster you may want to create and reference a `VPC`
-and a `SecurityGroup` (or three). To do so, you would need to bring in
-`provider-aws-ec2` and thus install ~90 superfluous CRDs.
+These large services contain types that are very commonly used. For example
+`ec2.aws.upbound.io` contains the `VPC` and `SecurityGroup` types, which are
+dependencies of many other services. To deploy an EKS cluster you may want to
+create and reference a `VPC` and a `SecurityGroup` (or three). To do so, you
+would need to bring in `provider-aws-ec2` and thus install ~90 superfluous CRDs.
 
 I propose that in these cases where a service:
 
 * Is large, containing 25 or more CRDs
 * Is commonly used as a dependency of other services
-* Contains a few 'core' types (e.g. `VPC`) alongside many more obscure types
+* Contains a few 'core' types alongside many less commonly used types
 
 We break the service up into two providers; "core" and "everything else". For
 example in the case of `ec2.aws.upbound.io` we would create:
 
 * `upbound/provider-aws-ec2-core` - Contains the ~10-20 most commonly used types
-  (e.g. `VPC`, `SecurityGroup`, `Subnet`, etc).
+  (e.g. `VPC`, `SecurityGroup`, etc.
 * `upbound/provider-aws-ec2` - Contains the remaining types.
 
-These providers would "share" the `ec2.aws.upbound.io` API group. That is, the
-core provider would not be `ec2-core.aws.upbound.io`. The core provider would be
-a dependency of the full provider, such that:
+The `ec2.aws.upbound.io` API group would be split across these two providers.
+The core provider would be a dependency of the full provider, such that:
 
 * Installing `upbound/provider-aws-ec2` installed support for all of EC2,
   including the things in core (as a dependency).
 * Installing `upbound/provider-aws-ec2-core` installed support for just the
   core types.
-
 
 ### Cross-Resource References
 
@@ -240,7 +241,7 @@ and how to reference it.
 Even outside of this proposal this is limiting; it’s not possible today to make
 a reference from one provider to another. Doing so would require all providers
 to be compiled against all other providers. This means for example that a
-provider-helm Release MR cannot today reference a provider-aws EKS cluster MR.
+provider-helm Release MR cannot today reference a `provider-aws` EKS cluster MR.
 
 In the medium-to-long term I believe contemporary cross-resource references
 should be deprecated in favor of a generic alternative that supports references
@@ -249,8 +250,8 @@ across providers. This is tracked in Crossplane issue [#1770][issue-1770].
 In the short term, breaking up the biggest providers would cause many existing
 cross-resource references to be from one provider to another. For example today
 an EKS-cluster-to-VPC reference is “internal” to a single provider
-(provider-aws). If providers were broken up by API group this reference would
-cross provider boundaries; from provider-aws-eks to provider-aws-ec2.
+(`provider-aws`). If providers were broken up by API group this reference would
+cross provider boundaries; from `provider-aws-eks` to `provider-aws-ec2-core`.
 
 I’m not concerned about this as a short term problem. As long as all AWS
 providers (for example) are built from a monorepo it should be possible to
@@ -323,8 +324,8 @@ untouched.
 ### Compute Resource Impact
 
 I expect 'native' providers (i.e. providers that aren't generated with `upjet`)
-to use less CPU and memory under this proposal. This is because while adding
-extra pods means a little extra overhead, most folks will have a lot fewer
+to use less CPU and memory under this proposal. This is because each extra
+provider pod incurs a _little_ extra overhead, folks will have a lot fewer
 Crossplane controllers running. Each controller, even at idle, uses at least
 some memory to keep caches and goroutines around.
 
@@ -361,15 +362,15 @@ they’ll just be spread across multiple Provider pods.
 
 We expect fewer compute resources (in particular less memory) will be consumed
 by Crossplane provider processes because we’ll be running fewer controllers
-overall. Today provider-aws, at idle, must start almost 900 controllers. One for
-each supported kind of managed resource. Each controller spins up a few
+overall. Today `provider-aws`, at idle, must start almost 900 controllers. One
+for each supported kind of managed resource. Each controller spins up a few
 goroutines and subscribes to API server updates for the type of MR it
 reconciles. By breaking up providers significantly fewer controllers would be
 running, using resources at idle.
 
 We expect significantly more compute resources to be consumed by Terraform
 provider processes because there will need to be more of them. It’s safe to
-assume each deployment of provider-aws becomes ~7 smaller deployments on
+assume each deployment of `provider-aws` becomes ~7 smaller deployments on
 average. For a single ProviderConfig, each of these smaller deployments would
 incur the ~300MB of memory required to run a Terraform provider process. This
 doubles as we increase to two ProviderConfigs, etc.
@@ -438,10 +439,7 @@ Cons
 
 There would be quite a lot of work required to Crossplane core, and some to
 providers to implement this feature. The core work would be subject to the
-typical alpha, beta, GA release cycle. Assuming we could design and implement
-this in time for Crossplane v1.13 (due in July) this means we wouldn’t be able
-to recommend folks run the feature in production until at least Crossplane v1.14
-(due in October).
+typical alpha, beta, GA release cycle.
 
 ### Lazy-load CRDs
 
@@ -487,16 +485,13 @@ category queries like `kubectl get managed` and `kubectl get crossplane`. These
 queries are inherently inefficient. Clients must first discover all supported
 types (i.e. walk the discovery API) to determine which types are in a particular
 category, then make at least one API request per type to list instances. This
-means that even if the ~900 provider-aws CRDs aren’t actually loaded, kubectl
+means that even if the ~900 `provider-aws` CRDs aren’t actually loaded, kubectl
 will try to make ~900 API requests for the types it sees in the discovery API
 when someone runs kubectl get managed.
 
 There would be quite a lot of work required to both Crossplane core and
 providers to implement this feature. The core work would be subject to the
-typical alpha, beta, GA release cycle. Assuming we could design and implement
-this in time for Crossplane v1.12 (due in April) this means we wouldn’t be able
-to recommend folks run the feature in production until at least Crossplane v1.13
-(due in July).
+typical alpha, beta, GA release cycle.
 
 [upjet]: https://github.com/upbound/upjet
 [issue-1770]: https://github.com/crossplane/crossplane/issues/1770
