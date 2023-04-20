@@ -151,11 +151,33 @@ Pros
 
 Cons
 
-* The average deployment may require more compute resources, short term.
 * Granular deployments. More providers to upgrade, monitor, etc.
-* Does not achieve a "perfect" 1:1 ratio of installed-to-used CRDs - Crossplane
-  deployments would hit
+* Does not achieve a "perfect" 1:1 ratio of installed-to-used CRDs.
+* The average deployment may require more compute resources, short term.
 
+I'd like to expand on the first pro a little. No new concepts or configuration
+required. To me, this is the key benefit of the proposed approach, and the
+reason I believe it's the best option for our project and community, long term.
+
+Imagine you're learning how Crossplane works for the first time. The first two
+steps on your getting started checklist are probably:
+
+1. Install Crossplane.
+2. Install the Provider(s) for the things you want to manage.
+
+Keep in mind today that the things you might want to manage might be a cloud
+provider like AWS, but it might also be Helm charts, SQL databases, etc.
+
+Under this proposal, this does not change. If we were to adopt this proposal, in
+six to nine months you'd explain how to get started with Crossplane in exactly
+the same way. The only difference is that in some cases you'd think about "the
+things you want to manage" in a more granular way. You'd think "I want RDS,
+ElastiCache, CloudSQL, GKE, and Helm" not "I want AWS, GCP, and Helm".
+
+I would argue that most folks already think this way. Folks don't think "I want
+AWS support" without having some idea which AWS _services_ they want to use.
+Confirming "Does it support AWS?" is a tiny speed bump before you confirm "Does
+it support RDS?" (or whatever services you need).
 
 ### Community Impact
 
