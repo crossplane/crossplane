@@ -321,6 +321,41 @@ for the new value, or update only some providers and have them use a new
 ProviderConfig using the new value, leaving the existing ProviderConfigs
 untouched.
 
+### Inter-Provider Dependencies
+
+As established in the [Provider Configs](#provider-configs) section, all
+providers within a provider family will depend on a single config provider. For
+example all `provider-aws-*` providers will have a package dependency on
+`provider-aws-config`.
+
+A common misconception is that providers will need to depend on the providers
+they may (cross-resource) reference. This is not the case. I expect that the
+_only_ dependency providers within a family will have is on their config
+provider.
+
+Each cross resource reference consists of three fields:
+
+1. An underlying field that refers to some other resource. For example
+   `spec.forProvider.vpcID` may refer to a VPC by its ID (e.g. `vpc-deadbeef`).
+2. A reference field that references a Crossplane VPC MR by its `metadata.name`.
+3. A selector field that selects a resource to be referenced.
+
+These are resolved in selector -> reference -> underlying field order.
+
+Note that it's not actually _required_ to specify a reference or selector. Even
+if `vpcID` is (in practice, if not schema) a required field you could just set
+the `vpcID` field directly. In this case there is no Crossplane VPC MR to
+reference; you don't need `provider-aws-ec2-core` to be installed at all.
+
+If you _did_ want to reference a VPC MR you'd need to have one first. Therefore
+you install `provider-aws-ec2-core` to _create a VPC MR_, not because you want
+to _reference a VPC MR_.
+
+Following this logic, there's no need for a provider to take a package
+dependency on `provider-aws-ec2-core`. If you know you'll want to manage (and
+reference) VPCs you can install `provider-aws-ec2-core` directly. If you don't,
+don't.
+
 ### Compute Resource Impact
 
 I expect 'native' providers (i.e. providers that aren't generated with `upjet`)
