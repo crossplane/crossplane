@@ -382,8 +382,7 @@ Of these options the aggregation API server seems to be the most feasible. We
 found that an API request to create a non-existent type was rejected before a
 webhook gets a chance to load the CRD for the type on-demand. The proxy option
 would require all Kubernetes clients to talk to the proxy rather than talking to
-the API server directly. This may be feasible for API servers we control (e.g.
-MCPs), but is probably not feasible in the wild.
+the API server directly. This is probably not feasible in the wild.
 
 I believe all forms of lazy-loading to be ultimately infeasible due to the
 discovery API (see the links in [Background](#background) if you’re unfamiliar
