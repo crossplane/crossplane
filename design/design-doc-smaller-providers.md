@@ -128,7 +128,6 @@ These providers would:
 Provider generation tooling like [`upjet`][upjet] would be updated to support
 generating service-scoped providers.
 
-
 No changes would be required to Crossplane core - i.e. to the package manager.
 No changes would be required to the long tail of existing, smaller Crossplane
 providers such as `provider-terraform` and `provider-kubernetes`.
@@ -137,24 +136,25 @@ The following are the high level pros and cons of the proposed approach.
 
 Pros
 
-* Fewer CRDs is the default user experience - no new concepts or configuration
-  required.
-* Requires no changes to Crossplane core - no waiting months for core changes to reach
-  beta and be on by default.
-* Provider work spread over many provider processes (i.e. pods) should scale
-  better.
+* No new concepts or configuration required.
+* Fewer CRDs is the default user experience
+* Simple, non-disruptive migration path from existing providers.
 * Folks can create their own “meta-providers” (e.g. `acmeco/provider-aws`) that
   pull in just the services they want. This is just packaging - no compiling
   required.
+* Provider work spread over many provider processes (i.e. pods) should scale
+  better.
 * Granular deployments. You could upgrade the EKS provider without having to
   upgrade RDS. 
+* No major changes to Crossplane core, which means the rollout is uncoupled from
+  Crossplane's quarterly release cycle.
 
 Cons
 
 * The average deployment may require more compute resources, short term.
-* At least three widely used service groups (including EC2) are still quite
-  large (~100 CRDs).
-* Some folks are going to feel it's not enough granularity.
+* Granular deployments. More providers to upgrade, monitor, etc.
+* Does not achieve a "perfect" 1:1 ratio of installed-to-used CRDs - Crossplane
+  deployments would hit
 
 
 ### Community Impact
