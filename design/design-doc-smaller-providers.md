@@ -53,9 +53,7 @@ present at:
 * https://blog.upbound.io/scaling-kubernetes-to-thousands-of-crds/
 
 Apart from performance issues, some folks have expressed concerns about the
-security and general “bloat” of having many unused CRDs installed. I believe the
-security concerns to be an educational issue - I haven't yet seen a convincing
-argument for removing CRDs as opposed to using RBAC.
+security and general “bloat” of having many unused CRDs installed.
 
 Crossplane maintainers have invested in improving the performance of the
 Kubernetes control plane and clients in the face of many CRDs. These
@@ -72,6 +70,30 @@ We have explored the following options:
 * Make it possible to filter unnecessary CRDs by configuring a provider.
 * Break the biggest providers up into smaller, service-scoped providers.
 * Load CRDs into the API server lazily, on-demand.
+
+## Goals
+
+The goal of this proposal is to eliminate _or significantly defer_ the
+performance issues that arise when installing too many CRDs. By "deferring"
+performance issues, I mean buying time for the Kubernetes ecosystem to improve
+its performance under CRD load.
+
+## Non-goals
+
+The goal is not that no Crossplane deployment _ever_ crosses the ~500 CRD mark.
+Instead, that should be a rare edge case until the vast majority of Kubernetes
+deployments can handle it without issue.
+
+This proposal _does not_ intend to address any security concerns related to
+unused CRDs being present in a Crossplane deployment. At this time the
+significance of these security concerns is not well understood. It's also
+unclear how many community members are concerned, relative to the overwhelming
+concern about performance.
+
+At the present time I do not believe installing a CRD (and controller) that you
+don't intend to use poses a significant risk. At least two layers of security
+prevent anyone using the Crossplane Managed Resources (MRs) these CRDs define -
+Kubernetes RBAC in front of the API call, and cloud IAM permissions behind it.
 
 ## Proposal
 
