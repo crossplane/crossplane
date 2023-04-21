@@ -478,47 +478,171 @@ The gist of this proposal is to update the existing Provider.pkg.crossplane.io
 API to include a configurable allow list of enabled CRDs. As far as I can tell
 this is the only feasible alternative to breaking up the largest Providers.
 
-If we took this approach I would propose that:
+#### Overview
 
-* We teach the Package Manager that only some Providers support filtering. Such
-  Providers would have something like `pkg.crossplane.io/filtering: enabled` in
-  their `crossplane.yaml`. This is necessary to avoid filtering being silently
-  ineffectual when not supported by a Provider.
-* We add an optional filter list to the Provider.pkg type. This would be
-  replicated to the ProviderRevision.pkg type (that actually installs/owns a
-  Provider’s CRDs).
-* If you installed a filtering-enabled Provider into an empty control plane and
-  didn’t specify what types to enable, no types would be enabled.
-* If you installed a filtering-enabled Provider into a control plane the Package
-  Manager would automatically detect what types were in use and enable them
-  automatically.
-* If you installed a filtering-enabled Provider as a dependency of a
-  Configuration the Package Manager would scan its Compositions for types and
-  enable them automatically.
+Two proof-of-concept implementations for this proposal have been developed:
 
-This allows us to have an “opt-in” to the types you want approach, without
-uninstalling the types you’re already using when you upgrade from a Provider
-that doesn’t support filtering to one that does. This is preferable to an
-"opt-out" approach, which I believe to be untenable. The default UX for a large
-provider cannot continue to be installing all of its CRDs: this would result in
-a bad user experience (i.e. broken clusters, slow tools) for anyone who did not
-know they needed to filter.
+* https://github.com/crossplane/crossplane/pull/2646
+* https://github.com/crossplane/crossplane/pull/3987
 
-Pros
-* Maximum granularity - you could filter down to only most specific set of CRDs
-  you need.
-* No more pods, and thus no more provider compute resources, than what is needed
-  today.
+In each case the proposed API looks something like:
 
-Cons
-* A new concept for everyone to learn about - filtering.
-* Varying user experiences: filtered providers install no types by default,
-  unfiltered providers install all types by default.
-* Longer release cycle. Would not be enabled by default for several months.
+```yaml
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: crossplane-aws
+spec:
+  package: upbound/provider-aws:v0.40.0
+  # A new, optional field enables matching APIs (i.e. CRDs). When this field is
+  # not specified all APIs are enabled.
+  enabledAPIs:
+  - "vpcs.ec2.aws.upbound.io"
+  - "*.rds.aws.upbound.io"
+```
 
-There would be quite a lot of work required to Crossplane core, and some to
-providers to implement this feature. The core work would be subject to the
-typical alpha, beta, GA release cycle.
+Each time the `enabledAPIs` field was updated a new `ProviderRevision` would be
+created, with an immutable set of `enabledAPIs`. This would cause the Provider
+to be restarted to reconfigure itself with support for the updated set of
+enabled APIs.
+
+Many community members find this alternative appealing. On the surface it
+appears to be a much smaller change relative to breaking up providers. This is
+especially true for folks who are already using Crossplane today, and who have
+already deployed the contemporary, too-large providers. It also makes it
+possible to achieve a perfect 1:1 installed-to-used ratio of CRDs. You can
+optimize your control plane to never install any (Crossplane) CRD that you don't
+intend to use.
+
+I do not recommend we pursue this alternative because I believe it in fact
+increases the complexity of Crossplane - making it harder to reason about. In
+some ways this is obvious. Instead of:
+
+1. Install Crossplane.
+2. Install the Providers you need.
+
+The flow becomes:
+
+1. Install Crossplane.
+2. Install the Providers you need.
+3. Configure which parts of the Providers you want to use.
+
+This alone may not seem so bad, but there are further constraints to consider.
+I'll touch on some of these below.
+
+#### Default Behavior
+
+The first constraint is that we cannot make a breaking change to the v1
+`Provider` API. This means the new `enabledAPIs` field must be optional, and
+thus there must be a safe default. Installing all CRDs by default is not safe -
+we know installing a single large provider can break a cluster. Therefore this
+cannot continue to be the default behavior.
+
+Instead we could install _no_ MR CRDs by default, but this is a breaking (and
+potentially surprising) behavior change. Updating to a version of Crossplane
+that supported filtering would uninstall all MR CRDs. It may also be challenging
+for a new Crossplane user to even discover what APIs (CRDs) they can enable.
+
+The safest and most compatible option therefore seems to be to install no MR
+CRDs by default, but to have the package manager automatically detect and
+implicitly enable any APIs that were already in use.
+
+#### Adding Support to Providers
+
+Support for filtering would need to be built into the Crossplane package
+manager, but also built into every Crossplane provider. It's the package manager
+that extracts CRDs from a provider package and installs them, but currently
+providers assume they should start a controller for every CRD they own. If any
+of those CRDs aren't enabled, the relevant controllers will fail to start.
+
+This raises two questions:
+
+1. Do we need to add support to all providers?
+2. How do we handle providers that don't support filtering?
+
+Note that we need to answer the second question regardless of the answer to the
+first. Even if we required all providers to support filtering there would be a
+lengthy transitional period while we waited for every provider to be updated.
+
+Adding filtering support to all providers seems a little pointless. The majority
+of the long tail of providers deliver so few CRDs that there's little reason to
+filter them. Many, like `provider-helm`, `provider-kubernetes`, and
+`provider-terraform` have only a single MR CRD. There would be no practical
+reason to install the provider but disable its only CRD.
+
+Presuming we didn't require all providers to support filtering, we would need to
+figure out what happens when someone tries to specify `enabledAPIs` for a
+provider that didn't support it. I believe ideally this would involve adding
+some kind of meta-data to providers that _did_ support filtering so that we
+could return an informative error for those that did not. Otherwise, depending
+on how the package manager told the provider what controllers to enable, the
+error might be something unintuitive like "unknown CLI flag --enable-APIs".
+
+#### Package Dependencies
+
+In Crossplane a `Configuration` package can depend on a `Provider`. For example
+https://github.com/upbound/platform-ref-aws has the following dependencies:
+
+```yaml
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: platform-ref-aws
+spec:
+  dependsOn:
+  - provider: xpkg.upbound.io/upbound/provider-aws
+    version: ">=v0.15.0"
+  - provider: xpkg.upbound.io/crossplane-contrib/provider-helm
+    version: ">=v0.12.0"
+```
+
+In practice `platform-ref-aws` depends on `provider-aws` because it contains
+Compositions that use several AWS MRs, including RDS Instances, EC2 VPCs, and
+EKS Clusters.
+
+If we were to implement CRD filtering at the `Provider` level we wouldn't be
+able to satisfy these dependencies; they don't contain enough information. A
+`Configuration` could depend on a `Provider` because it wanted to use RDS
+instances, and the dependency would be satisfied by the `Provider` regardless of
+whether the desired RDS APIs were actually enabled.
+
+A solution here might be to expand `dependsOn` to include a list of the actual
+resources being depended upon. Each time a `Configuration` was installed the
+relevant provider would need to be reconfigured and restarted to enable any
+additional APIs. The set of enabled APIs would be those explicitly specified,
+plus those implicitly enabled by any `Configuration` dependencies.
+
+This option has its own challenges; again we could not make this new field
+required - that would be a breaking API change. We would need to figure out what
+to do if it was omitted. One option might be to scan the contents of the
+`Configuration` package (e.g. its Compositions) to determine what MRs it uses.
+If Composition Functions were in use we'd also need to decorate them with
+information about what MRs they might create, since that information is not part
+of the Composition where the functions are called.
+
+#### Conclusion
+
+I do believe that it would be possible build support for CRD filtering. It is a
+solvable problem.
+
+It would be a significant amount of work, and that work would be subject to the
+typical alpha, beta, GA release cycle due to the extent of the changes to
+Crossplane. This means it would take longer to get into people's hands, but that
+alone is not a good reason to discount the approach.
+
+The main reason I suggest we do not pursue this alternative is that I believe it
+adds a lot of cognitive complexity to Crossplane. In addition to needing to
+understand the concept of filtering itself as a baseline, folks need to
+understand:
+
+* What happens when you update the filter?
+* What happens when you don't specify a filter?
+* What happens when you update to a provider that supports filtering?
+* What happens when you depend on a provider that supports filtering?
+* What happens when you specify a filter but the provider does not support it?
+
+This is a lot for Crossplane users to reason about, and in most cases the answer
+to the question is implicit and "magical" behavior.
 
 ### Lazy-load CRDs
 
