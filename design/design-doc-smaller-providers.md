@@ -424,6 +424,50 @@ could consider:
   importing the Terraform provider code directly. Terraform makes this hard to
   do, but it’s possible. It appears to be what Config Connector does.
 
+### Rollout and Migration
+
+As with any major Crossplane change, it's important to allow the community to
+experiment and provide feedback before we commit. Given that this change is
+largely decoupled from Crossplane core and its release cycle, I propose that we:
+
+* Continue to publish the existing, too-large, providers for now.
+* Begin publishing smaller, service scoped providers in parallel.
+
+These smaller providers would be marked as 'release candidates' to begin with. I
+prefer this to 'alpha' in this context as it better communicates that the
+_packaging_ is what's changing. The code itself does not become any less mature
+(it's today's existing providers, repackaged).
+
+Once we have confidence in the service scoped provider pattern we would mark the
+too-large providers as deprecated and set a date at which they would no longer
+be built and published.
+
+Migration from (for example) `upbound/provider-aws` to `upbound/provider-aws-*`
+should not be significantly more complicated or risky than migrating from one
+version of `upbound/provider-aws` to the next. This is because there would be no
+schema changes to the MRs within the provider.
+
+To upgrade a control plane running (for example) `upbound/provider-aws` with
+several existing MRs in-place, the process would be:
+
+1. Install the relevant new `upbound/provider-aws-*` provider packages, with
+   `revisionActivationPolicy: Manual`. This policy tells the providers not to
+   start their controllers until they are activated.
+2. Uninstall the `upbound/provider-aws` provider package.
+3. Set the `revisionActivationPolicy` of the new `upbound/provider-aws-*`
+   provider packages to `Automatic`, letting them start their controllers.
+
+Behind the scenes the Crossplane package manager:
+
+1. Adds owner references to the CRDs the new provider packages intend to own.
+2. Removes owner references from the CRDs the old provider package owned.
+
+As the old provider is uninstalled, the CRDs it owned will be garbage collected
+(i.e. deleted) if no new provider added an owner reference. If a new provider
+_did_ add an owner reference it will become the only owner of the CRD and mark
+itself as the controller reference. Each CRD can have only one controller
+reference, which represents the provider that is responsible for reconciling it.
+
 ## Alternatives Considered
 
 I considered the following alternatives before making this proposal.
