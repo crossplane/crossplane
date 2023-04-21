@@ -603,8 +603,8 @@ EKS Clusters.
 If we were to implement CRD filtering at the `Provider` level we wouldn't be
 able to satisfy these dependencies; they don't contain enough information. A
 `Configuration` could depend on a `Provider` because it wanted to use RDS
-instances, and the dependency would be satisfied by the `Provider` regardless of
-whether the desired RDS APIs were actually enabled.
+instances, and the dependency would be satisfied by the `Provider` simply being
+installed, regardless of whether the desired RDS APIs were actually enabled.
 
 A solution here might be to expand `dependsOn` to include a list of the actual
 resources being depended upon. Each time a `Configuration` was installed the
@@ -637,8 +637,10 @@ understand:
 
 * What happens when you update the filter?
 * What happens when you don't specify a filter?
-* What happens when you update to a provider that supports filtering?
-* What happens when you depend on a provider that supports filtering?
+* What happens when you update from a version of a provider that does not
+  support filtering to one that does?
+* What happens when your configuration depends on a provider that supports
+  filtering?
 * What happens when you specify a filter but the provider does not support it?
 
 This is a lot for Crossplane users to reason about, and in most cases the answer
