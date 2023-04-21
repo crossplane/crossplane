@@ -13,13 +13,13 @@ unresponsive.
 
 Here are the large providers we have today:
 
-https://marketplace.upbound.io/providers/upbound/provider-aws/v0.30.0 - 872
-https://marketplace.upbound.io/providers/upbound/provider-azure/v0.28.0 - 692
-https://marketplace.upbound.io/providers/upbound/provider-gcp/v0.28.0 - 325
-https://marketplace.upbound.io/providers/crossplane-contrib/provider-tencentcloud/v0.6.0 - 268
-https://marketplace.upbound.io/providers/crossplane-contrib/provider-aws/v0.37.1 - 178
-https://marketplace.upbound.io/providers/frangipaneteam/provider-flexibleengine/v0.4.0 - 169
-https://marketplace.upbound.io/providers/scaleway/provider-scaleway/v0.1.0 - 73
+* https://marketplace.upbound.io/providers/upbound/provider-aws/v0.30.0 - 872
+* https://marketplace.upbound.io/providers/upbound/provider-azure/v0.28.0 - 692
+* https://marketplace.upbound.io/providers/upbound/provider-gcp/v0.28.0 - 325
+* https://marketplace.upbound.io/providers/crossplane-contrib/provider-tencentcloud/v0.6.0 - 268
+* https://marketplace.upbound.io/providers/crossplane-contrib/provider-aws/v0.37.1 - 178
+* https://marketplace.upbound.io/providers/frangipaneteam/provider-flexibleengine/v0.4.0 - 169
+* https://marketplace.upbound.io/providers/scaleway/provider-scaleway/v0.1.0 - 73
 
 Based on a brief survey of the community and Marketplace, no other provider
 installs more than ~30 CRDs.
