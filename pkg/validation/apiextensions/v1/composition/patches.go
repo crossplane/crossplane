@@ -291,7 +291,8 @@ func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema
 // It returns the type of the fieldPath and any error.
 // If the returned type is "", but without error, it means the fieldPath is accepted by the schema, but not defined in it.
 func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) (fieldType xpschema.KnownJSONType, err error) {
-	// Code inspired by https://github.com/crossplane-contrib/crossplane-lint/commit/d58af636f06467151cce7c89ffd319828c1cd7a2#diff-3b13ed191dd7244f19f4c0870298fc5112153e136250e95095323e6c3c440bdfR230
+	// Code inspired by crossplane-contrib/crossplane-lint implementation:
+	// https://github.com/crossplane-contrib/crossplane-lint/commit/d58af636f06467151cce7c89ffd319828c1cd7a2#diff-3b13ed191dd7244f19f4c0870298fc5112153e136250e95095323e6c3c440bdfR230
 	if fieldPath == "" {
 		return "", nil
 	}
