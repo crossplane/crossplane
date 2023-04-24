@@ -11,6 +11,7 @@ env:
 jobs:
   generate-matrix:
     runs-on: ubuntu-latest
+    if: github.repository == 'crossplane/crossplane'
     outputs:
       versions: ${{ steps.get-releases.outputs.versions}}
       supported_releases: ${{ steps.get-releases.outputs.supported_releases }}
