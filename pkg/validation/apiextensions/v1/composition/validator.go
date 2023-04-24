@@ -38,8 +38,8 @@ type Validator struct {
 
 // CRDGetter is used to get all CRDs the Validator needs, either one by one or all at once.
 type CRDGetter interface {
-	Get(ctx context.Context, gvk schema.GroupVersionKind) (*apiextensions.CustomResourceDefinition, error)
-	GetAll(ctx context.Context) (map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition, error)
+	Get(ctx context.Context, gvk schema.GroupKind) (*apiextensions.CustomResourceDefinition, error)
+	GetAll(ctx context.Context) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, error)
 }
 
 // ValidatorOption is used to configure the Validator.
@@ -77,20 +77,20 @@ func WithCRDGetter(c CRDGetter) ValidatorOption {
 
 // WithCRDGetterFromMap returns a ValidatorOption that configure the Validator to use the given map as a CRDGetter.
 // Will return an error if the CRD is not found on calls to Get.
-func WithCRDGetterFromMap(m map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition) ValidatorOption {
+func WithCRDGetterFromMap(m map[schema.GroupKind]apiextensions.CustomResourceDefinition) ValidatorOption {
 	return WithCRDGetter(crdGetterMap(m))
 }
 
-type crdGetterMap map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition
+type crdGetterMap map[schema.GroupKind]apiextensions.CustomResourceDefinition
 
-func (c crdGetterMap) Get(_ context.Context, gvk schema.GroupVersionKind) (*apiextensions.CustomResourceDefinition, error) {
-	if crd, ok := c[gvk]; ok {
+func (c crdGetterMap) Get(_ context.Context, gk schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
+	if crd, ok := c[gk]; ok {
 		return &crd, nil
 	}
-	return nil, apierrors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: "CustomResourceDefinition"}, gvk.String())
+	return nil, apierrors.NewNotFound(schema.GroupResource{Group: gk.Group, Resource: "CustomResourceDefinition"}, gk.String())
 }
 
-func (c crdGetterMap) GetAll(_ context.Context) (map[schema.GroupVersionKind]apiextensions.CustomResourceDefinition, error) {
+func (c crdGetterMap) GetAll(_ context.Context) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, error) {
 	return c, nil
 }
 

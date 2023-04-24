@@ -48,12 +48,7 @@ const (
 // validatePatchesWithSchemas validates the patches of a composition against the resources schemas.
 func (v *Validator) validatePatchesWithSchemas(ctx context.Context, comp *v1.Composition) (errs field.ErrorList) {
 	// Let's first dereference patchSets
-	resources, err := composite.ComposedTemplates(comp.Spec.PatchSets, comp.Spec.Resources)
-	if err != nil {
-		errs = append(errs, field.Invalid(field.NewPath("spec", "resources"), comp.Spec.Resources, err.Error()))
-		return errs
-	}
-	for i, resource := range resources {
+	for i, resource := range comp.Spec.Resources {
 		for j := range resource.Patches {
 			if err := v.validatePatchWithSchemas(ctx, comp, i, j); err != nil {
 				errs = append(errs, err)
@@ -79,7 +74,7 @@ func getSchemaForVersion(crd *apiextensions.CustomResourceDefinition, version st
 }
 
 // validatePatchWithSchemas validates a patch against the resources schemas.
-func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Composition, resourceNumber, patchNumber int) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
+func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Composition, resourceNumber, patchNumber int) *field.Error {
 	if len(comp.Spec.Resources) <= resourceNumber {
 		return field.InternalError(field.NewPath("spec", "resources").Index(resourceNumber), errors.Errorf("cannot find resource"))
 	}
@@ -98,12 +93,12 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		comp.Spec.CompositeTypeRef.Kind,
 	)
 
-	compositeCRD, err := v.crdGetter.Get(ctx, compositeResGVK)
+	compositeCRD, err := v.crdGetter.Get(ctx, compositeResGVK.GroupKind())
 	if err != nil {
 		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Wrapf(err, "cannot find composite type %s: %s", comp.Spec.CompositeTypeRef, err))
 	}
 	resourceGVK := res.GetObjectKind().GroupVersionKind()
-	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK)
+	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK.GroupKind())
 	if err != nil {
 		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find resource type %s: %s", res.GetObjectKind().GroupVersionKind(), err))
 	}
@@ -115,36 +110,72 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		return nil
 	}
 
+	return verrors.WrapFieldError(v.validatePatchWithSchemaInternal(patchValidationCtx{
+		comp:            comp,
+		patch:           patch,
+		compositeCRD:    compositeCRD,
+		compositeResGVK: compositeResGVK,
+		resourceCRD:     resourceCRD,
+		resourceGVK:     resourceGVK,
+	}), field.NewPath("spec").Child("resources").Index(resourceNumber).Child("patches").Index(patchNumber))
+}
+
+type patchValidationCtx struct {
+	comp            *v1.Composition
+	patch           v1.Patch
+	compositeCRD    *apiextensions.CustomResourceDefinition
+	compositeResGVK schema.GroupVersionKind
+	resourceCRD     *apiextensions.CustomResourceDefinition
+	resourceGVK     schema.GroupVersionKind
+}
+
+func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *field.Error { //nolint:gocyclo // mainly due to the switch, not much to refactor
 	var validationErr *field.Error
 	var fromType, toType xpschema.KnownJSONType
-	switch patch.GetType() {
+	switch ctx.patch.GetType() {
 	case v1.PatchTypeFromCompositeFieldPath:
 		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
-			patch,
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
 		)
 	case v1.PatchTypeToCompositeFieldPath:
 		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
-			patch,
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
 		)
 	case v1.PatchTypeCombineFromComposite:
 		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
-			patch,
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
 		)
 	case v1.PatchTypeCombineToComposite:
 		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
-			patch,
-			getSchemaForVersion(resourceCRD, resourceGVK.Version),
-			getSchemaForVersion(compositeCRD, compositeResGVK.Version),
+			ctx.patch,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+			getSchemaForVersion(ctx.compositeCRD, ctx.compositeResGVK.Version),
 		)
 	case v1.PatchTypePatchSet:
-		// Should never happen as patchSets should have been dereferenced and removed by now.
-		return field.InternalError(field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber), errors.Errorf("patchSet should have been dereferenced"))
+		// patches in a patch set are validated separately, so we'll just recurse one level deeper
+		for i, ps := range ctx.comp.Spec.PatchSets {
+			if *ctx.patch.PatchSetName == ps.Name {
+				for j, patch := range ps.Patches {
+					if err := v.validatePatchWithSchemaInternal(patchValidationCtx{
+						comp:            ctx.comp,
+						patch:           patch,
+						compositeCRD:    ctx.compositeCRD,
+						compositeResGVK: ctx.compositeResGVK,
+						resourceCRD:     ctx.resourceCRD,
+						resourceGVK:     ctx.resourceGVK,
+					},
+					); err != nil {
+						return verrors.WrapFieldError(err, field.NewPath("patchSets").Index(i).Child("patches").Index(j))
+					}
+				}
+			}
+		}
 	case v1.PatchTypeFromEnvironmentFieldPath,
 		v1.PatchTypeCombineFromEnvironment, v1.PatchTypeToEnvironmentFieldPath,
 		v1.PatchTypeCombineToEnvironment:
@@ -152,13 +183,9 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 		return nil
 	}
 	if validationErr != nil {
-		return verrors.WrapFieldError(validationErr, field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber))
+		return validationErr
 	}
-
-	return verrors.WrapFieldError(
-		validateIOTypesWithTransforms(patch.Transforms, fromType, toType),
-		field.NewPath("spec", "resources").Index(resourceNumber).Child("patches").Index(patchNumber),
-	)
+	return validateIOTypesWithTransforms(ctx.patch.Transforms, fromType, toType)
 }
 
 // validateCombineFromCompositePathPatch validates Combine Patch types, by going through and validating the fromField
@@ -216,30 +243,31 @@ func validateFromCompositeFieldPathPatch(patch v1.Patch, from, to *apiextensions
 }
 
 func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType xpschema.KnownJSONType) *field.Error {
-	inputType, err := xpschema.FromKnownJSONType(fromType)
-	if err != nil && fromType != "" {
-		return field.InternalError(field.NewPath("transforms"), err)
+	// if there are no transforms and the types are either the same or unknown, we don't need to validate transforms
+	if len(transforms) == 0 && (fromType == "" || toType == "" || fromType == toType) {
+		return nil
 	}
-	transformsOutputType, fieldErr := validateTransformsChainIOTypes(transforms, inputType)
+
+	transformsOutputType, fieldErr := validateTransformsChainIOTypes(transforms, fromType)
 	if fieldErr != nil {
 		return fieldErr
 	}
-	if transformsOutputType == "" || toType == "" {
+
+	if transformsOutputType == "" || toType == "" || xpschema.FromTransformIOType(transformsOutputType).IsEquivalent(toType) {
 		return nil
 	}
-	transformedToJSONType := xpschema.FromTransformIOType(transformsOutputType)
 
-	if !transformedToJSONType.IsEquivalent(toType) {
-		if len(transforms) == 0 {
-			return field.Required(field.NewPath("transforms"), fmt.Sprintf("the fromFieldPath does not have a type compatible with the toFieldPath according to their schemas and no transforms were provided: %s != %s", inputType, toType))
-		}
-		return field.Invalid(field.NewPath("transforms"), transforms, fmt.Sprintf("the provided transforms do not output a type compatible with the toFieldPath according to the schema: %s != %s", inputType, toType))
+	if len(transforms) == 0 {
+		return field.Required(field.NewPath("transforms"), fmt.Sprintf("the fromFieldPath does not have a type compatible with the toFieldPath according to their schemas and no transforms were provided: %s != %s", fromType, toType))
 	}
-
-	return nil
+	return field.Invalid(field.NewPath("transforms"), transforms, fmt.Sprintf("the provided transforms do not output a type compatible with the toFieldPath according to the schema: %s != %s", fromType, toType))
 }
 
-func validateTransformsChainIOTypes(transforms []v1.Transform, inputType v1.TransformIOType) (outputType v1.TransformIOType, err *field.Error) {
+func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema.KnownJSONType) (outputType v1.TransformIOType, fErr *field.Error) {
+	inputType, err := xpschema.FromKnownJSONType(fromType)
+	if err != nil && fromType != "" {
+		return "", field.InternalError(field.NewPath("transforms"), fErr)
+	}
 	for i, transform := range transforms {
 		transform := transform
 		err := IsValidInputForTransform(&transform, inputType)
@@ -264,6 +292,7 @@ func validateTransformsChainIOTypes(transforms []v1.Transform, inputType v1.Tran
 // It returns the type of the fieldPath and any error.
 // If the returned type is "", but without error, it means the fieldPath is accepted by the schema, but not defined in it.
 func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) (fieldType xpschema.KnownJSONType, err error) {
+	// Code inspired by https://github.com/crossplane-contrib/crossplane-lint/commit/d58af636f06467151cce7c89ffd319828c1cd7a2#diff-3b13ed191dd7244f19f4c0870298fc5112153e136250e95095323e6c3c440bdfR230
 	if fieldPath == "" {
 		return "", nil
 	}
@@ -271,10 +300,10 @@ func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) 
 	if err != nil {
 		return "", err
 	}
-	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" &&
-		isMissingMetadataSchema(schema) {
-		segments = segments[1:]
-		schema = &metadataSchema
+	if len(segments) > 0 && segments[0].Type == fieldpath.SegmentField && segments[0].Field == "metadata" {
+		// if the fieldPath starts with metadata, we need to merge the metadata schema with the schema
+		// to make sure we validate the fieldPath correctly.
+		schema = defaultMetadataSchema(schema)
 	}
 	return validateFieldPathSegments(segments, schema, fieldPath)
 }
@@ -296,17 +325,6 @@ func validateFieldPathSegments(segments fieldpath.Segments, schema *apiextension
 		return "", fmt.Errorf("field path %q has an unsupported type %q", fieldPath, current.Type)
 	}
 	return xpschema.KnownJSONType(current.Type), nil
-}
-
-func isMissingMetadataSchema(schema *apiextensions.JSONSchemaProps) bool {
-	if schema == nil || schema.Properties == nil {
-		return true
-	}
-	m, defined := schema.Properties["metadata"]
-	if !defined || m.Properties == nil || len(m.Properties) == 0 {
-		return true
-	}
-	return false
 }
 
 // validateFieldPathSegment validates that the given field path segment is valid for the given schema.
@@ -337,10 +355,15 @@ func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segmen
 		if pointer.BoolDeref(parent.XPreserveUnknownFields, false) {
 			return nil, nil
 		}
-		if parent.AdditionalProperties != nil && parent.AdditionalProperties.Allows {
+
+		// Allows and Schema are mutually exclusive, so we should accept additional properties both if Allows is true or
+		// Schema is not nil.
+		// See https://github.com/kubernetes/kubernetes/blob/ff4eff24ac4fad5431aa89681717d6c4fe5733a4/staging/src/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/validation/validation.go#L828
+		if parent.AdditionalProperties != nil && (parent.AdditionalProperties.Allows || parent.AdditionalProperties.Schema != nil) {
 			return parent.AdditionalProperties.Schema, nil
 		}
 		return nil, errors.Errorf(errFmtFieldInvalid, segment.Field)
+
 	}
 	return &prop, nil
 }
