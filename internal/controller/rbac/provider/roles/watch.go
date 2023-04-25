@@ -137,7 +137,12 @@ func (e *EnqueueRequestForAllRevisionsInFamily) add(obj runtime.Object, queue ad
 		return
 	}
 
-	for _, pr := range l.Items {
-		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
+	for _, member := range l.Items {
+		if member.GetUID() == pr.GetUID() {
+			// No need to enqueue a request for the ProviderRevision that
+			// triggered this enqueue.
+			continue
+		}
+		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: member.GetName()}})
 	}
 }
