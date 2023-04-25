@@ -184,49 +184,11 @@ it support RDS?" (or whatever services you need).
 
 Based on a survey of ~40 community members, the average deployment would:
 
-* Install ~100 provider CRDs, down from over 900 today.
+* Install ~176 provider CRDs, down from over 900 today.
 * Run ~9 provider pods, up from ~2 today.
 
 Keep in mind this represents where folks are at with Crossplane today. Over time
 we expect these numbers to grow as production deployments mature.
-
-### Large Services
-
-One service API group from each of the three major providers is quite large:
-
-* `ec2.aws.upbound.io` (94 CRDs)
-* `compute.gcp.upbound.io` (88 CRDs)
-* `networking.azure.upbound.io` (100 CRDs)
-
-`datafactory.azure.upbound.io` is also quite large at 45 CRDs. All other
-services currently have 25 or fewer CRDs.
-
-These large services contain types that are very commonly used. For example
-`ec2.aws.upbound.io` contains the `VPC` and `SecurityGroup` types, which are
-dependencies of many other services. To deploy an EKS cluster you may want to
-create and reference a `VPC` and a `SecurityGroup` (or three). To do so, you
-would need to bring in `provider-aws-ec2` and thus install ~90 superfluous CRDs.
-
-I propose that in these cases where a service:
-
-* Is large, containing 25 or more CRDs
-* Is commonly used as a dependency of other services
-* Contains a few 'core' types alongside many less commonly used types
-
-We break the service up into two providers; "core" and "everything else". For
-example in the case of `ec2.aws.upbound.io` we would create:
-
-* `upbound/provider-aws-ec2-core` - Contains the ~10-20 most commonly used types
-  (e.g. `VPC`, `SecurityGroup`, etc.
-* `upbound/provider-aws-ec2` - Contains the remaining types.
-
-The `ec2.aws.upbound.io` API group would be split across these two providers.
-The core provider would be a dependency of the full provider, such that:
-
-* Installing `upbound/provider-aws-ec2` installed support for all of EC2,
-  including the things in core (as a dependency).
-* Installing `upbound/provider-aws-ec2-core` installed support for just the
-  core types.
 
 ### Cross-Resource References
 
@@ -467,6 +429,54 @@ As the old provider is uninstalled, the CRDs it owned will be garbage collected
 _did_ add an owner reference it will become the only owner of the CRD and mark
 itself as the controller reference. Each CRD can have only one controller
 reference, which represents the provider that is responsible for reconciling it.
+
+## Future Improvements
+
+The following improvements are out of scope for this initial design, but could
+be made in future if necessary.
+
+### Large Services
+
+One service API group from each of the three major providers is quite large:
+
+* `ec2.aws.upbound.io` (94 CRDs)
+* `compute.gcp.upbound.io` (88 CRDs)
+* `networking.azure.upbound.io` (100 CRDs)
+
+`datafactory.azure.upbound.io` is also quite large at 45 CRDs. All other
+services currently have 25 or fewer CRDs.
+
+These large services contain types that are very commonly used. For example
+`ec2.aws.upbound.io` contains the `VPC` and `SecurityGroup` types, which are
+dependencies of many other services. To deploy an EKS cluster you may want to
+create and reference a `VPC` and a `SecurityGroup` (or three). To do so, you
+would need to bring in `provider-aws-ec2` and thus install ~90 superfluous CRDs.
+
+In these cases where a service:
+
+* Is large, containing 25 or more CRDs
+* Is commonly used as a dependency of other services
+* Contains a few 'core' types alongside many less commonly used types
+
+We could break the service up into two providers; "core" and "everything else".
+For example in the case of `ec2.aws.upbound.io` we would create:
+
+* `upbound/provider-aws-ec2-core` - Contains the ~10-20 most commonly used types
+  (e.g. `VPC`, `SecurityGroup`, etc.
+* `upbound/provider-aws-ec2` - Contains the remaining types.
+
+The `ec2.aws.upbound.io` API group would be split across these two providers.
+The core provider would be a dependency of the full provider, such that:
+
+* Installing `upbound/provider-aws-ec2` installed support for all of EC2,
+  including the things in core (as a dependency).
+* Installing `upbound/provider-aws-ec2-core` installed support for just the
+  core types.
+
+We would like to avoid making this change until there is signal that it's
+necessary (i.e. folks are starting to bump up on CRD limits again). We believe
+that breaking up providers by cloud service (where possible) is easier to reason
+about than more arbitrary distinctions like 'core' and 'everything else'.
 
 ## Alternatives Considered
 
