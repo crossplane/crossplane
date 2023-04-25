@@ -49,7 +49,7 @@ specific data considering the following requirements:
 1. Allow the creation of generic compositions that render composed resources
 based on the environment they are executed in.
 2. Allows users to define this environment in Crossplane native way.
-3. Prevent escalation of priveleges by disallowing users to read out fields
+3. Prevent escalation of privileges by disallowing users to read out fields
 from objects they shouldn't have access to.
 
 ## Proposed Solution
@@ -249,7 +249,7 @@ One could potentially use a managed resource to extract data from a secret
 within another namespace.
 
 Additionally, this solution would require every provider to implement this
-seperately. It would therefore exclude every provider version that does not
+separately. It would therefore exclude every provider version that does not
 implement this feature.
 
 ### Custom compositions
