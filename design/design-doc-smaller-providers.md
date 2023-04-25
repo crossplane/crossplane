@@ -31,7 +31,7 @@ we’ve seen that installing just `provider-aws` on a new GKE cluster can bring
 the control plane offline for an hour while it scales to handle the load.
 
 Problems tend to start happening once you’re over - very approximately - 500
-CRDs. Keep in mind that many folks are installing Kubernetes alongside other
+CRDs. Keep in mind that many folks are installing Crossplane alongside other
 tools that use CRDs. Here’s a brief survey of the number of CRDs common tools
 install:
 
