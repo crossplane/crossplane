@@ -526,8 +526,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 
 	pmo := pkgMeta.(metav1.Object)
-	pr.SetLabels(pmo.GetLabels())
-	pr.SetAnnotations(pmo.GetAnnotations())
+	meta.AddLabels(pr, pmo.GetLabels())
+	meta.AddAnnotations(pr, pmo.GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
 		pr.SetConditions(v1.Unhealthy())
 		_ = r.client.Status().Update(ctx, pr)
