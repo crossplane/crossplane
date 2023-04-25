@@ -128,9 +128,9 @@ These providers would:
 Provider generation tooling like [`upjet`][upjet] would be updated to support
 generating service-scoped providers.
 
-No changes would be required to Crossplane core - i.e. to the package manager.
-No changes would be required to the long tail of existing, smaller Crossplane
-providers such as `provider-terraform` and `provider-kubernetes`.
+Minimal changes would be required to Crossplane core. No changes would be
+required to the long tail of existing, smaller Crossplane providers such as
+`provider-terraform` and `provider-kubernetes`.
 
 The following are the high level pros and cons of the proposed approach.
 
@@ -429,6 +429,32 @@ As the old provider is uninstalled, the CRDs it owned will be garbage collected
 _did_ add an owner reference it will become the only owner of the CRD and mark
 itself as the controller reference. Each CRD can have only one controller
 reference, which represents the provider that is responsible for reconciling it.
+
+### RBAC Manager Updates
+
+The only change required to Crossplane core to implement this proposal is to the
+RBAC manager. Currently the RBAC manager grants a provider (i.e. a provider
+pod's service account) permission to access it needs to reconcile its MRs and to
+read its ProviderConfig.
+
+Under this proposal many providers would need to access a ProviderConfig that
+was installed by another provider (within its family). At first, providers would
+also need access to any MRs from other providers in their family that they might
+reference.
+
+To support this, the RBAC manager would need to grant a provider permission to
+all of the CRDs within its family. This would be done by adding a new
+`pkg.crossplane.io/provider-family` label to the package metadata in
+`crossplane.yaml`. This label will be propagated to the relevant
+`ProviderRevision`, allowing the RBAC manager to easily discover all revisions
+within a family and thus all CRDs owned by revisions within a family.
+
+It's worth noting that these updates are not strictly _necessary_ but do bring a
+large improvement in user experience. Today it's possible for a user to avoid
+running the RBAC manager and curate their own RBAC rules. In theory community
+members could run Crossplane without these RBAC manager changes, but would be
+faced with the onerous task of manually granting access to all CRDs within a
+provider family.
 
 ## Future Improvements
 
