@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -122,7 +123,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
 		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)))
+		WithPermissionRequestsValidator(NewClusterRoleBackedValidator(mgr.GetClient(), o.AllowClusterRole)),
+		WithOrgDiffer(OrgDiffer{DefaultRegistry: o.DefaultRegistry}))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -175,6 +177,15 @@ func WithPermissionRequestsValidator(rv PermissionRequestsValidator) ReconcilerO
 	}
 }
 
+// WithOrgDiffer specifies how the Reconciler should diff OCI orgs. It does this
+// to ensure that two providers may only be part of the same family if they're
+// in the same OCI org.
+func WithOrgDiffer(d OrgDiffer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.org = d
+	}
+}
+
 // NewReconciler returns a Reconciler of ProviderRevisions.
 func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	r := &Reconciler{
@@ -208,6 +219,7 @@ type rbac struct {
 type Reconciler struct {
 	client resource.ClientApplicator
 	rbac   rbac
+	org    OrgDiffer
 
 	log    logging.Logger
 	record event.Recorder
@@ -273,8 +285,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// created any CRDs there will be no CRDs to grant permissions for. If
 		// it's inactive but did create (or would share) CRDs then this provider
 		// might try use them, and we should let it.
-		for _, pr := range prs.Items {
-			inFamily[pr.GetUID()] = true
+		for _, member := range prs.Items {
+
+			// We only allow packages in the same OCI registry and org to be
+			// part of the same family. This prevents a malicious provider from
+			// declaring itself part of a family and thus being granted RBAC
+			// access to its types.
+			// TODO(negz): Consider using package signing here in future.
+			if r.org.Differs(pr.Spec.Package, member.Spec.Package) {
+				continue
+			}
+
+			inFamily[member.GetUID()] = true
 		}
 	}
 
@@ -353,4 +375,44 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 	c := current.(*rbacv1.ClusterRole)
 	d := desired.(*rbacv1.ClusterRole)
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
+}
+
+// An OrgDiffer determines whether two references are part of the same org. In
+// this context we consider an org to consist of:
+//
+//   - The registry (e.g. xpkg.upbound.io or index.docker.io).
+//   - The part of the repository path before the first slash (e.g. crossplane
+//     in crossplane/provider-aws).
+type OrgDiffer struct {
+	// The default OCI registry to use when parsing references.
+	DefaultRegistry string
+}
+
+// Differs returns true if the supplied references are not part of the same OCI
+// registry and org.
+func (d OrgDiffer) Differs(a, b string) bool {
+	// If we can't parse either reference we can't compare them. Safest thing to
+	// do is to assume they're not part of the same org.
+	ra, err := name.ParseReference(a, name.WithDefaultRegistry(d.DefaultRegistry))
+	if err != nil {
+		return true
+	}
+	rb, err := name.ParseReference(b, name.WithDefaultRegistry(d.DefaultRegistry))
+	if err != nil {
+		return true
+	}
+
+	ca := ra.Context()
+	cb := rb.Context()
+
+	// If the registries (e.g. xpkg.upbound.io) don't match they're not in the
+	// same org.
+	if ca.RegistryStr() != cb.RegistryStr() {
+		return true
+	}
+
+	oa := strings.Split(ca.RepositoryStr(), "/")[0]
+	ob := strings.Split(cb.RepositoryStr(), "/")[0]
+
+	return oa != ob
 }

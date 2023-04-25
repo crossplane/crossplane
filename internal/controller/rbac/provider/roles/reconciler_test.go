@@ -255,6 +255,7 @@ func TestReconcile(t *testing.T) {
 								pr := o.(*v1.ProviderRevision)
 								pr.SetUID(ourUID)
 								pr.SetLabels(map[string]string{v1.LabelProviderFamily: family})
+								pr.Spec.Package = "cool/provider:v1.0.0"
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
@@ -267,7 +268,14 @@ func TestReconcile(t *testing.T) {
 									}
 								case *v1.ProviderRevisionList:
 									l.Items = []v1.ProviderRevision{
-										{ObjectMeta: metav1.ObjectMeta{UID: familyUID}},
+										{
+											ObjectMeta: metav1.ObjectMeta{UID: familyUID},
+											Spec:       v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"},
+										},
+										{
+											ObjectMeta: metav1.ObjectMeta{UID: familyUID},
+											Spec:       v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"},
+										},
 									}
 								}
 								return nil
@@ -360,6 +368,44 @@ func TestClusterRolesDiffer(t *testing.T) {
 			got := ClusterRolesDiffer(tc.current, tc.desired)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ClusterRolesDiffer(...): -want, +got\n:%s", diff)
+			}
+		})
+	}
+}
+
+func TestOrgDiffer(t *testing.T) {
+	cases := map[string]struct {
+		registry string
+		a        string
+		b        string
+		want     bool
+	}{
+		"SameOrg": {
+			registry: "xpkg.example.org",
+			a:        "xpkg.example.org/cool/provider:v1.0.0",
+			b:        "cool/other-provider:v1.0.0",
+			want:     false,
+		},
+		"DifferentOrgs": {
+			registry: "xpkg.example.org",
+			a:        "cool/provider:v1.0.0",
+			b:        "evil/other-provider:v1.0.0",
+			want:     true,
+		},
+		"DifferentRegistries": {
+			registry: "xpkg.example.org",
+			a:        "xpkg.example.org/cool/provider:v1.0.0",
+			b:        "index.docker.io/cool/other-provider:v1.0.0",
+			want:     true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := OrgDiffer{DefaultRegistry: tc.registry}
+			got := d.Differs(tc.a, tc.b)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("SameOrg(...): -want, +got\n:%s", diff)
 			}
 		})
 	}
