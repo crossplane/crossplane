@@ -325,7 +325,7 @@ spec:
             # region: us-east-1                 # <== base missing required field error: e.g. region is not defined, but is a required field for RDSInstance and it's not set by any patch later
             dbInstanceClass: db.t2.small
             masterUsername: masteruser
-            engin: postgres                     # <== base definining field not allowed error: e.g. engin instead of engine, field not accepted by RDSInstance
+            engin: postgres                     # <== base defining field not allowed error: e.g. engin instead of engine, field not accepted by RDSInstance
             engineVersion: "12"
             skipFinalSnapshotBeforeDeletion: true
             publiclyAccessible: true
@@ -395,7 +395,7 @@ in mind that it should be reusable for the following use-cases too:
 This does not mean that an initial implementation should be structured as a
 reusable library rightaway, but that it should at least try as much as possible
 avoiding obvious blockers for its usage in such use-cases. So that, it could be
-easily refactored later on to accomodate those usages once we get to work on
+easily refactored later on to accommodate those usages once we get to work on
 them.
 
 ## Alternatives Considered

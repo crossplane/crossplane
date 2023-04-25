@@ -28,7 +28,7 @@ can:
 - Come up with tooling that can help reproducing the issues and assessing the
   effectiveness of considered solutions
 - Establish a common understanding on the Crossplane scenarios and if possible,
-  a set of “definition of done” criterias for the CRD scaling issues, i.e., have
+  a set of “definition of done” criteria for the CRD scaling issues, i.e., have
   a clear expectation on the scenarios we would like to support and on the
   expected performance in those scenarios.
 
@@ -311,7 +311,7 @@ the heap allocation for 780 CRDs are as follows:
   `customresource.CustomResourceStorage` represents the etcd v3 storage, which
   in turn embodies an etcd v3 client and that client [has][etcdv3-client-logger]
   a `zap.Logger`. These relationships reveal that we spend 448 KB of heap space
-  for each version served of each CRD. That's currently rougly 5 times larger
+  for each version served of each CRD. That's currently roughly 5 times larger
   than the total amount of heap space needed to store the deserialized OpenAPI
   v3 schemas of `provider-jet-aws` CRDs.
 - We allocate persistent (during the lifetime of an installed CRD) heap space
