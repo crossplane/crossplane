@@ -28,7 +28,7 @@ jobs:
         # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#requests-from-github-actions
         operations-per-run: 100
         days-before-stale: 90
-        days-before-close: 7
+        days-before-close: 40
         stale-issue-label: stale
         exempt-issue-labels: exempt-from-stale
         stale-issue-message: >
