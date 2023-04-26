@@ -23,8 +23,6 @@ examples of each step, assuming release vX.Y.0 is being cut.
 
 - [ ] Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
   - [ ] Created the release branch.
-  - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
-  - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] Opened a [docs release issue].
 - [ ] Run the [Tag workflow][tag-workflow] on the `release-X.Y` branch with the proper release version, `vX.Y.0`. Message suggested, but not required: `Release vX.Y.0`.
 - [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel, e.g. `build/release-X.Y/vX.Y.0/...` should contain all the relevant binaries.
@@ -39,6 +37,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
 - [ ] Updated, in a single PR, the following on `master`:
   - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
   - [ ] The `baseBranches` list in `.github/renovate.json5`, removing the now old unsupported release and adding the new one.
+- [ ] Once the PR gets merged, run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] Updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
