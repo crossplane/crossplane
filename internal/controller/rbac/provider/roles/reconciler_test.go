@@ -28,6 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -46,6 +47,11 @@ func TestReconcile(t *testing.T) {
 	errBoom := errors.New("boom")
 	testLog := logging.NewLogrLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(io.Discard)).WithName("testlog"))
 	now := metav1.Now()
+	family := "litfam"
+
+	ourUID := types.UID("our-own-uid")
+	familyUID := types.UID("uid-of-another-provider-in-our-family")
+	unknownUID := types.UID("uid-of-some-other-thing")
 
 	type args struct {
 		mgr  manager.Manager
@@ -111,6 +117,27 @@ func TestReconcile(t *testing.T) {
 			},
 			want: want{
 				r: reconcile.Result{Requeue: false},
+			},
+		},
+		"ListProviderRevisionsError": {
+			reason: "We should return an error encountered listing ProviderRevisions.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								pr := obj.(*v1.ProviderRevision)
+								pr.SetLabels(map[string]string{v1.LabelProviderFamily: family})
+								return nil
+							}),
+							MockList: test.NewMockListFn(errBoom),
+						},
+					}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errListPRs),
 			},
 		},
 		"ListCRDsError": {
@@ -224,17 +251,33 @@ func TestReconcile(t *testing.T) {
 				opts: []ReconcilerOption{
 					WithClientApplicator(resource.ClientApplicator{
 						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil),
+							MockGet: test.NewMockGetFn(nil, func(o client.Object) error {
+								pr := o.(*v1.ProviderRevision)
+								pr.SetUID(ourUID)
+								pr.SetLabels(map[string]string{v1.LabelProviderFamily: family})
+								pr.Spec.Package = "cool/provider:v1.0.0"
+								return nil
+							}),
 							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
-								// Exercise the logic that filters out CRDs that
-								// are not owned by the ProviderRevision. Note
-								// the CRD's owner's UID matches that of the
-								// ProviderRevision because they're both the
-								// empty string.
-								l := o.(*extv1.CustomResourceDefinitionList)
-								l.Items = []extv1.CustomResourceDefinition{{
-									ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{}}},
-								}}
+								switch l := o.(type) {
+								case *extv1.CustomResourceDefinitionList:
+									l.Items = []extv1.CustomResourceDefinition{
+										{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{UID: ourUID}}}},
+										{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{UID: familyUID}}}},
+										{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{UID: unknownUID}}}},
+									}
+								case *v1.ProviderRevisionList:
+									l.Items = []v1.ProviderRevision{
+										{
+											ObjectMeta: metav1.ObjectMeta{UID: familyUID},
+											Spec:       v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"},
+										},
+										{
+											ObjectMeta: metav1.ObjectMeta{UID: familyUID},
+											Spec:       v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"},
+										},
+									}
+								}
 								return nil
 							}),
 						},
@@ -325,6 +368,44 @@ func TestClusterRolesDiffer(t *testing.T) {
 			got := ClusterRolesDiffer(tc.current, tc.desired)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("ClusterRolesDiffer(...): -want, +got\n:%s", diff)
+			}
+		})
+	}
+}
+
+func TestOrgDiffer(t *testing.T) {
+	cases := map[string]struct {
+		registry string
+		a        string
+		b        string
+		want     bool
+	}{
+		"SameOrg": {
+			registry: "xpkg.example.org",
+			a:        "xpkg.example.org/cool/provider:v1.0.0",
+			b:        "cool/other-provider:v1.0.0",
+			want:     false,
+		},
+		"DifferentOrgs": {
+			registry: "xpkg.example.org",
+			a:        "cool/provider:v1.0.0",
+			b:        "evil/other-provider:v1.0.0",
+			want:     true,
+		},
+		"DifferentRegistries": {
+			registry: "xpkg.example.org",
+			a:        "xpkg.example.org/cool/provider:v1.0.0",
+			b:        "index.docker.io/cool/other-provider:v1.0.0",
+			want:     true,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			d := OrgDiffer{DefaultRegistry: tc.registry}
+			got := d.Differs(tc.a, tc.b)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("SameOrg(...): -want, +got\n:%s", diff)
 			}
 		})
 	}

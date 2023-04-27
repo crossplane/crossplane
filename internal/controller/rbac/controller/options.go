@@ -48,4 +48,10 @@ type Options struct {
 	// permissions may be granted to Providers that request them. The
 	// provider may request any permission that appears in the named role.
 	AllowClusterRole string
+
+	// DefaultRegistry used by the package manager to pull packages. Must match
+	// the package manager's DefaultRegistry in order for the RBAC manager to be
+	// able to determine whether two packages are part of the same registry and
+	// org.
+	DefaultRegistry string
 }

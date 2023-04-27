@@ -92,3 +92,57 @@ func (e *EnqueueRequestForAllRevisionsWithRequests) add(obj runtime.Object, queu
 		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
 	}
 }
+
+// EnqueueRequestForAllRevisionsInFamily enqueues a request for all
+// provider revisions with the same family as one that changed.
+type EnqueueRequestForAllRevisionsInFamily struct {
+	client client.Client
+}
+
+// Create enqueues a request for all provider revisions within the same family.
+func (e *EnqueueRequestForAllRevisionsInFamily) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	e.add(evt.Object, q)
+}
+
+// Update enqueues a request for all provider revisions within the same family.
+func (e *EnqueueRequestForAllRevisionsInFamily) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	e.add(evt.ObjectOld, q)
+	e.add(evt.ObjectNew, q)
+}
+
+// Delete enqueues a request for all provider revisions within the same family.
+func (e *EnqueueRequestForAllRevisionsInFamily) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	e.add(evt.Object, q)
+}
+
+// Generic enqueues a request for all provider revisions within the same family.
+func (e *EnqueueRequestForAllRevisionsInFamily) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	e.add(evt.Object, q)
+}
+
+func (e *EnqueueRequestForAllRevisionsInFamily) add(obj runtime.Object, queue adder) {
+	pr, ok := obj.(*v1.ProviderRevision)
+	if !ok {
+		return
+	}
+	family := pr.GetLabels()[v1.LabelProviderFamily]
+	if family == "" {
+		// This revision is not part of a family.
+		return
+	}
+
+	l := &v1.ProviderRevisionList{}
+	if err := e.client.List(context.TODO(), l, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
+		// TODO(negz): Handle this error?
+		return
+	}
+
+	for _, member := range l.Items {
+		if member.GetUID() == pr.GetUID() {
+			// No need to enqueue a request for the ProviderRevision that
+			// triggered this enqueue.
+			continue
+		}
+		queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: member.GetName()}})
+	}
+}
