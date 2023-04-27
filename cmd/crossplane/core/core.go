@@ -18,6 +18,8 @@ limitations under the License.
 package core
 
 import (
+	"net/http"
+	"net/http/pprof"
 	"path/filepath"
 	"time"
 
@@ -46,6 +48,8 @@ import (
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
+const pprofPath = "/debug/pprof/"
+
 // Command runs the core crossplane controllers
 type Command struct {
 	Start startCommand `cmd:"" help:"Start Crossplane controllers."`
@@ -67,6 +71,8 @@ func (c *Command) Run() error {
 }
 
 type startCommand struct {
+	Profile string `placeholder:"host:port" help:"Serve runtime profiling data via HTTP at /debug/pprof."`
+
 	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
 	ServiceAccount       string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
 	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
@@ -96,7 +102,34 @@ type startCommand struct {
 }
 
 // Run core Crossplane controllers.
-func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo // Only slightly over (11).
+func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //nolint:gocyclo // Only slightly over.
+	if c.Profile != "" {
+		// NOTE(negz): These log messages attempt to match those emitted by
+		// controller-runtime's metrics HTTP server when it starts.
+		log.Debug("Profiling server is starting to listen", "addr", c.Profile)
+		go func() {
+
+			// Registering these explicitly ensures they're only served by the
+			// HTTP server we start explicitly for profiling.
+			mux := http.NewServeMux()
+			mux.HandleFunc(pprofPath, pprof.Index)
+			mux.HandleFunc(filepath.Join(pprofPath, "cmdline"), pprof.Cmdline)
+			mux.HandleFunc(filepath.Join(pprofPath, "profile"), pprof.Profile)
+			mux.HandleFunc(filepath.Join(pprofPath, "symbol"), pprof.Symbol)
+			mux.HandleFunc(filepath.Join(pprofPath, "trace"), pprof.Trace)
+
+			s := &http.Server{
+				Addr:         c.Profile,
+				ReadTimeout:  2 * time.Minute,
+				WriteTimeout: 2 * time.Minute,
+				Handler:      mux,
+			}
+			log.Debug("Starting server", "type", "pprof", "path", pprofPath, "addr", s.Addr)
+			err := s.ListenAndServe()
+			log.Debug("Profiling server has stopped listening", "error", err)
+		}()
+	}
+
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
