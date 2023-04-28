@@ -21,7 +21,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	rbacv1 "k8s.io/api/rbac/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -46,17 +45,17 @@ func TestRenderClusterRoles(t *testing.T) {
 	nameView := namePrefix + prName + nameSuffixView
 	nameSystem := SystemClusterRoleName(prName)
 
-	groupCRDA := "example.org"
-	groupCRDB := "example.org"
-	groupCRDC := "example.net"
+	groupA := "example.org"
+	groupB := "example.org"
+	groupC := "example.net"
 
-	pluralCRDA := "examples"
-	pluralCRDB := "demonstrations"
-	pluralCRDC := "examples"
+	pluralA := "demonstrations"
+	pluralB := "examples"
+	pluralC := "examples"
 
 	type args struct {
-		pr   *v1.ProviderRevision
-		crds []extv1.CustomResourceDefinition
+		pr        *v1.ProviderRevision
+		resources []Resource
 	}
 
 	cases := map[string]struct {
@@ -64,28 +63,29 @@ func TestRenderClusterRoles(t *testing.T) {
 		args   args
 		want   []rbacv1.ClusterRole
 	}{
+		"EmptyResources": {
+			reason: "If there are no resources (yet) we should not produce any ClusterRoles.",
+			args: args{
+				pr:        &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
+				resources: []Resource{},
+			},
+		},
 		"MergeGroups": {
-			reason: "A ProviderRevision should merge CRDs by group to produce the fewest rules possible.",
+			reason: "A ProviderRevision should merge resources by group to produce the fewest rules possible.",
 			args: args{
 				pr: &v1.ProviderRevision{ObjectMeta: metav1.ObjectMeta{Name: prName, UID: prUID}},
-				crds: []extv1.CustomResourceDefinition{
+				resources: []Resource{
 					{
-						Spec: extv1.CustomResourceDefinitionSpec{
-							Group: groupCRDA,
-							Names: extv1.CustomResourceDefinitionNames{Plural: pluralCRDA},
-						},
+						Group:  groupA,
+						Plural: pluralA,
 					},
 					{
-						Spec: extv1.CustomResourceDefinitionSpec{
-							Group: groupCRDB,
-							Names: extv1.CustomResourceDefinitionNames{Plural: pluralCRDB},
-						},
+						Group:  groupB,
+						Plural: pluralB,
 					},
 					{
-						Spec: extv1.CustomResourceDefinitionSpec{
-							Group: groupCRDC,
-							Names: extv1.CustomResourceDefinitionNames{Plural: pluralCRDC},
-						},
+						Group:  groupC,
+						Plural: pluralC,
 					},
 				},
 			},
@@ -102,13 +102,13 @@ func TestRenderClusterRoles(t *testing.T) {
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
-							APIGroups: []string{groupCRDA},
-							Resources: []string{pluralCRDA, pluralCRDA + suffixStatus, pluralCRDB, pluralCRDB + suffixStatus},
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
 							Verbs:     verbsEdit,
 						},
 						{
-							APIGroups: []string{groupCRDC},
-							Resources: []string{pluralCRDC, pluralCRDC + suffixStatus},
+							APIGroups: []string{groupC},
+							Resources: []string{pluralC, pluralC + suffixStatus},
 							Verbs:     verbsEdit,
 						},
 					},
@@ -123,13 +123,13 @@ func TestRenderClusterRoles(t *testing.T) {
 					},
 					Rules: []rbacv1.PolicyRule{
 						{
-							APIGroups: []string{groupCRDA},
-							Resources: []string{pluralCRDA, pluralCRDA + suffixStatus, pluralCRDB, pluralCRDB + suffixStatus},
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
 							Verbs:     verbsView,
 						},
 						{
-							APIGroups: []string{groupCRDC},
-							Resources: []string{pluralCRDC, pluralCRDC + suffixStatus},
+							APIGroups: []string{groupC},
+							Resources: []string{pluralC, pluralC + suffixStatus},
 							Verbs:     verbsView,
 						},
 					},
@@ -141,17 +141,17 @@ func TestRenderClusterRoles(t *testing.T) {
 					},
 					Rules: append([]rbacv1.PolicyRule{
 						{
-							APIGroups: []string{groupCRDA},
-							Resources: []string{pluralCRDA, pluralCRDA + suffixStatus, pluralCRDB, pluralCRDB + suffixStatus},
+							APIGroups: []string{groupA},
+							Resources: []string{pluralA, pluralA + suffixStatus, pluralB, pluralB + suffixStatus},
 							Verbs:     verbsSystem,
 						},
 						{
-							APIGroups: []string{groupCRDC},
-							Resources: []string{pluralCRDC, pluralCRDC + suffixStatus},
+							APIGroups: []string{groupC},
+							Resources: []string{pluralC, pluralC + suffixStatus},
 							Verbs:     verbsSystem,
 						},
 						{
-							APIGroups: []string{groupCRDA, groupCRDC},
+							APIGroups: []string{groupA, groupC},
 							Resources: []string{rbacv1.ResourceAll + suffixFinalizers},
 							Verbs:     verbsUpdate,
 						},
@@ -163,7 +163,7 @@ func TestRenderClusterRoles(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := RenderClusterRoles(tc.args.pr, tc.args.crds)
+			got := RenderClusterRoles(tc.args.pr, tc.args.resources)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("\n%s\nRenderClusterRoles(...): -want, +got:\n%s\n", tc.reason, diff)
 			}

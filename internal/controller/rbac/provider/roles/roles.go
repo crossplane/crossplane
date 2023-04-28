@@ -21,7 +21,6 @@ import (
 
 	coordinationv1 "k8s.io/api/coordination/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -80,23 +79,36 @@ func SystemClusterRoleName(revisionName string) string {
 	return namePrefix + revisionName + nameSuffixSystem
 }
 
+// A Resource is a Kubernetes API resource.
+type Resource struct {
+	// Group is the unversioned API group of this resource.
+	Group string
+
+	// Plural is the plural name of this resource.
+	Plural string
+}
+
 // RenderClusterRoles returns ClusterRoles for the supplied ProviderRevision.
-func RenderClusterRoles(pr *v1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
-	// Our list of CRDs has no guaranteed order, so we sort them in order to
-	// ensure we don't reorder our RBAC rules on each update.
-	sort.Slice(crds, func(i, j int) bool { return crds[i].GetName() < crds[j].GetName() })
+func RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
+	// Return early if we have no resources to render roles for.
+	if len(rs) == 0 {
+		return nil
+	}
+
+	// Our list of resources has no guaranteed order, so we sort them in order
+	// to ensure we don't reorder our RBAC rules on each update.
+	sort.Slice(rs, func(i, j int) bool {
+		return rs[i].Plural+rs[i].Group < rs[j].Plural+rs[j].Group
+	})
 
 	groups := make([]string, 0)            // Allows deterministic iteration over groups.
 	resources := make(map[string][]string) // Resources by group.
-	for _, crd := range crds {
-		if _, ok := resources[crd.Spec.Group]; !ok {
-			resources[crd.Spec.Group] = make([]string, 0)
-			groups = append(groups, crd.Spec.Group)
+	for _, r := range rs {
+		if _, ok := resources[r.Group]; !ok {
+			resources[r.Group] = make([]string, 0)
+			groups = append(groups, r.Group)
 		}
-		resources[crd.Spec.Group] = append(resources[crd.Spec.Group],
-			crd.Spec.Names.Plural,
-			crd.Spec.Names.Plural+suffixStatus,
-		)
+		resources[r.Group] = append(resources[r.Group], r.Plural, r.Plural+suffixStatus)
 	}
 
 	rules := []rbacv1.PolicyRule{}
