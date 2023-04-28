@@ -176,11 +176,30 @@ func (v *Validator) validatePatchWithSchemaInternal(ctx patchValidationCtx) *fie
 				}
 			}
 		}
-	case v1.PatchTypeFromEnvironmentFieldPath,
-		v1.PatchTypeCombineFromEnvironment, v1.PatchTypeToEnvironmentFieldPath,
-		v1.PatchTypeCombineToEnvironment:
-		// TODO(phisco): implement validation for environment related patches
-		return nil
+	case v1.PatchTypeFromEnvironmentFieldPath:
+		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
+			ctx.patch,
+			nil,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+		)
+	case v1.PatchTypeToEnvironmentFieldPath:
+		fromType, toType, validationErr = validateFromCompositeFieldPathPatch(
+			ctx.patch,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+			nil,
+		)
+	case v1.PatchTypeCombineFromEnvironment:
+		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
+			ctx.patch,
+			nil,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+		)
+	case v1.PatchTypeCombineToEnvironment:
+		fromType, toType, validationErr = validateCombineFromCompositePathPatch(
+			ctx.patch,
+			getSchemaForVersion(ctx.resourceCRD, ctx.resourceGVK.Version),
+			nil,
+		)
 	}
 	if validationErr != nil {
 		return validationErr
