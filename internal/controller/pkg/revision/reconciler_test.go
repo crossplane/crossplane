@@ -895,7 +895,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errUpdateAnnotations),
+				err: errors.Wrap(errBoom, errUpdateMeta),
 			},
 		},
 		"ErrResolveDependencies": {

@@ -82,7 +82,7 @@ const (
 
 	errEstablishControl = "cannot establish control of object"
 
-	errUpdateAnnotations = "cannot update annotations for package revision"
+	errUpdateMeta = "cannot update package revision object metadata"
 
 	errRemoveLock  = "cannot remove package revision from Lock"
 	errResolveDeps = "cannot resolve package dependencies"
@@ -525,13 +525,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
 
-	pr.SetAnnotations(pkgMeta.(metav1.ObjectMetaAccessor).GetObjectMeta().GetAnnotations())
+	pmo := pkgMeta.(metav1.Object)
+	meta.AddLabels(pr, pmo.GetLabels())
+	meta.AddAnnotations(pr, pmo.GetAnnotations())
 	if err := r.client.Update(ctx, pr); err != nil {
 		pr.SetConditions(v1.Unhealthy())
 		_ = r.client.Status().Update(ctx, pr)
 
-		log.Debug(errUpdateAnnotations, "error", err)
-		err = errors.Wrap(err, errUpdateAnnotations)
+		log.Debug(errUpdateMeta, "error", err)
+		err = errors.Wrap(err, errUpdateMeta)
 		r.record.Event(pr, event.Warning(reasonSync, err))
 		return reconcile.Result{}, err
 	}

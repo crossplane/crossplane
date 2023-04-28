@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/google/go-containerregistry/pkg/name"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -51,6 +52,7 @@ var KongVars = kong.Vars{
 			ManagementPolicyBasic,
 		},
 		", "),
+	"default_registry": name.DefaultRegistry,
 }
 
 // Command runs the crossplane RBAC controllers
@@ -70,6 +72,7 @@ type startCommand struct {
 	ProviderClusterRole string `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
 	LeaderElection      bool   `name:"leader-election" short:"l" help:"Use leader election for the conroller manager." env:"LEADER_ELECTION"`
 	ManagementPolicy    string `name:"manage" short:"m" help:"RBAC management policy." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
+	Registry            string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
 	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
@@ -105,6 +108,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		},
 		AllowClusterRole: c.ProviderClusterRole,
 		ManagementPolicy: rbaccontroller.ManagementPolicy(c.ManagementPolicy),
+		DefaultRegistry:  c.Registry,
 	}
 
 	if err := rbac.Setup(mgr, o); err != nil {
