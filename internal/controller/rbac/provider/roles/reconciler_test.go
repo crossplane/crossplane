@@ -34,6 +34,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -51,7 +52,6 @@ func TestReconcile(t *testing.T) {
 
 	ourUID := types.UID("our-own-uid")
 	familyUID := types.UID("uid-of-another-provider-in-our-family")
-	unknownUID := types.UID("uid-of-some-other-thing")
 
 	type args struct {
 		mgr  manager.Manager
@@ -140,23 +140,6 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errListPRs),
 			},
 		},
-		"ListCRDsError": {
-			reason: "We should return an error encountered listing CRDs.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(resource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet:  test.NewMockGetFn(nil),
-							MockList: test.NewMockListFn(errBoom),
-						},
-					}),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errListCRDs),
-			},
-		},
 		"ValidatePermissionRequestsError": {
 			reason: "We should return an error encountered validating permission requests.",
 			args: args{
@@ -211,7 +194,7 @@ func TestReconcile(t *testing.T) {
 							return errBoom
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -235,7 +218,7 @@ func TestReconcile(t *testing.T) {
 							return resource.AllowUpdateIf(func(_, _ runtime.Object) bool { return false })(ctx, o, o)
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -259,24 +242,16 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockList: test.NewMockListFn(nil, func(o client.ObjectList) error {
-								switch l := o.(type) {
-								case *extv1.CustomResourceDefinitionList:
-									l.Items = []extv1.CustomResourceDefinition{
-										{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{UID: ourUID}}}},
-										{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{UID: familyUID}}}},
-										{ObjectMeta: metav1.ObjectMeta{OwnerReferences: []metav1.OwnerReference{{UID: unknownUID}}}},
-									}
-								case *v1.ProviderRevisionList:
-									l.Items = []v1.ProviderRevision{
-										{
-											ObjectMeta: metav1.ObjectMeta{UID: familyUID},
-											Spec:       v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"},
-										},
-										{
-											ObjectMeta: metav1.ObjectMeta{UID: familyUID},
-											Spec:       v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"},
-										},
-									}
+								l := o.(*v1.ProviderRevisionList)
+								l.Items = []v1.ProviderRevision{
+									{
+										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
+										Spec:       v1.PackageRevisionSpec{Package: "cool/other-provider:v1.0.0"},
+									},
+									{
+										ObjectMeta: metav1.ObjectMeta{UID: familyUID},
+										Spec:       v1.PackageRevisionSpec{Package: "evil/other-provider:v1.0.0"},
+									},
 								}
 								return nil
 							}),
@@ -285,7 +260,7 @@ func TestReconcile(t *testing.T) {
 							return nil
 						}),
 					}),
-					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
+					WithClusterRoleRenderer(ClusterRoleRenderFn(func(*v1.ProviderRevision, []Resource) []rbacv1.ClusterRole {
 						return []rbacv1.ClusterRole{{}}
 					})),
 				},
@@ -306,6 +281,62 @@ func TestReconcile(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.r, got, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestDefinedResources(t *testing.T) {
+	cases := map[string]struct {
+		refs []xpv1.TypedReference
+		want []Resource
+	}{
+		"UnparseableAPIVersion": {
+			refs: []xpv1.TypedReference{{
+				APIVersion: "too/many/slashes",
+			}},
+			want: []Resource{},
+		},
+		"WrongGroup": {
+			refs: []xpv1.TypedReference{{
+				APIVersion: "example.org/v1",
+				Kind:       "CustomResourceDefinition",
+			}},
+			want: []Resource{},
+		},
+		"WrongKind": {
+			refs: []xpv1.TypedReference{{
+				APIVersion: extv1.SchemeGroupVersion.String(),
+				Kind:       "ConversionReview",
+			}},
+			want: []Resource{},
+		},
+		"InvalidName": {
+			refs: []xpv1.TypedReference{{
+				APIVersion: extv1.SchemeGroupVersion.String(),
+				Kind:       "CustomResourceDefinition",
+				Name:       "I'm different!",
+			}},
+			want: []Resource{},
+		},
+		"DefinedResource": {
+			refs: []xpv1.TypedReference{{
+				APIVersion: extv1.SchemeGroupVersion.String(),
+				Kind:       "CustomResourceDefinition",
+				Name:       "pinballs.example.org",
+			}},
+			want: []Resource{{
+				Group:  "example.org",
+				Plural: "pinballs",
+			}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := DefinedResources(tc.refs)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("DefinedResources(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

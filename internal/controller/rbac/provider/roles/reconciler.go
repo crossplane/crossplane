@@ -25,15 +25,16 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-containerregistry/pkg/name"
 	rbacv1 "k8s.io/api/rbac/v1"
-	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -50,7 +51,6 @@ const (
 
 	errGetPR               = "cannot get ProviderRevision"
 	errListPRs             = "cannot list ProviderRevisions"
-	errListCRDs            = "cannot list CustomResourceDefinitions"
 	errApplyRole           = "cannot apply ClusterRole"
 	errValidatePermissions = "cannot validate permission requests"
 	errRejectedPermission  = "refusing to apply any RBAC roles due to request for disallowed permission"
@@ -79,18 +79,18 @@ func (fn PermissionRequestsValidatorFn) ValidatePermissionRequests(ctx context.C
 	return fn(ctx, requested...)
 }
 
-// A ClusterRoleRenderer renders ClusterRoles for the given CRDs.
+// A ClusterRoleRenderer renders ClusterRoles for the given resources.
 type ClusterRoleRenderer interface {
-	// RenderClusterRoles for the supplied CRDs.
-	RenderClusterRoles(pr *v1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
+	// RenderClusterRoles for the supplied resources.
+	RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole
 }
 
-// A ClusterRoleRenderFn renders ClusterRoles for the supplied CRDs.
-type ClusterRoleRenderFn func(pr *v1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole
+// A ClusterRoleRenderFn renders ClusterRoles for the supplied resources.
+type ClusterRoleRenderFn func(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole
 
 // RenderClusterRoles renders ClusterRoles for the supplied CRDs.
-func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, crds []extv1.CustomResourceDefinition) []rbacv1.ClusterRole {
-	return fn(pr, crds)
+func (fn ClusterRoleRenderFn) RenderClusterRoles(pr *v1.ProviderRevision, rs []Resource) []rbacv1.ClusterRole {
+	return fn(pr, rs)
 }
 
 // Setup adds a controller that reconciles a ProviderRevision by creating a
@@ -255,11 +255,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	inFamily := map[types.UID]bool{
-		// We're always "in our family", even if we're not actually part of a
-		// provider family.
-		pr.GetUID(): true,
-	}
+	resources := DefinedResources(pr.Status.ObjectRefs)
 
 	// If this revision is part of a provider family we consider it to 'own' all
 	// of the family's CRDs (despite it not actually being an owner reference).
@@ -286,6 +282,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		// it's inactive but did create (or would share) CRDs then this provider
 		// might try use them, and we should let it.
 		for _, member := range prs.Items {
+			// We already added our own resources.
+			if member.GetUID() == pr.GetUID() {
+				continue
+			}
 
 			// We only allow packages in the same OCI registry and org to be
 			// part of the same family. This prevents a malicious provider from
@@ -296,27 +296,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				continue
 			}
 
-			inFamily[member.GetUID()] = true
-		}
-	}
-
-	l := &extv1.CustomResourceDefinitionList{}
-	if err := r.client.List(ctx, l); err != nil {
-		log.Debug(errListCRDs, "error", err)
-		err = errors.Wrap(err, errListCRDs)
-		r.record.Event(pr, event.Warning(reasonApplyRoles, err))
-		return reconcile.Result{}, err
-	}
-
-	// Filter down to the CRDs that are owned either by this ProviderRevision or
-	// by another ProviderRevision from within the same family - i.e. those that
-	// it may reference or use for configuration.
-	crds := make([]extv1.CustomResourceDefinition, 0)
-	for _, crd := range l.Items {
-		for _, ref := range crd.GetOwnerReferences() {
-			if inFamily[ref.UID] {
-				crds = append(crds, crd)
-			}
+			resources = append(resources, DefinedResources(member.Status.ObjectRefs)...)
 		}
 	}
 
@@ -343,7 +323,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
-	for _, cr := range r.rbac.RenderClusterRoles(pr, crds) {
+	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
 		cr := cr // Pin range variable so we can take its address.
 		log = log.WithValues("role-name", cr.GetName())
 		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
@@ -366,6 +346,32 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// DefinedResources returns the resources defined by the supplied references.
+func DefinedResources(refs []xpv1.TypedReference) []Resource {
+	out := make([]Resource, 0, len(refs))
+	for _, ref := range refs {
+
+		// This would only return an error if the APIVersion contained more than
+		// one "/". This should be impossible, but if it somehow happens we'll
+		// just skip this resource since it can't be a CRD.
+		gv, _ := schema.ParseGroupVersion(ref.APIVersion)
+
+		// We're only concerned with CRDs.
+		if gv.Group != apiextensions.GroupName || ref.Kind != "CustomResourceDefinition" {
+			continue
+		}
+
+		p, g, valid := strings.Cut(ref.Name, ".")
+		if !valid {
+			// This shouldn't be possible - CRDs must be named <plural>.<group>.
+			continue
+		}
+
+		out = append(out, Resource{Group: g, Plural: p})
+	}
+	return out
 }
 
 // ClusterRolesDiffer returns true if the supplied objects are different
