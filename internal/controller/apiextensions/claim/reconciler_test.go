@@ -831,7 +831,7 @@ func TestReconcile(t *testing.T) {
 					return s
 				}
 				return ts
-			}), cmpopts.EquateApproxTime(30*time.Second)); diff != "" {
+			}), cmpopts.EquateApproxTime(3*time.Second)); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
