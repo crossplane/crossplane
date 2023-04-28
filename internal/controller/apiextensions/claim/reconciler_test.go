@@ -825,7 +825,13 @@ func TestReconcile(t *testing.T) {
 
 			got, err := r.Reconcile(context.Background(), reconcile.Request{})
 
-			if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.EquateApproxTime(30*time.Second)); diff != "" {
+			if diff := cmp.Diff(tc.want.claim, tc.args.claim, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
+				ts, err := time.Parse(time.RFC3339, s)
+				if err != nil {
+					return s
+				}
+				return ts
+			}), cmpopts.EquateApproxTime(30*time.Second)); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
