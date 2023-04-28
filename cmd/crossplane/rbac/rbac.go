@@ -18,6 +18,9 @@ limitations under the License.
 package rbac
 
 import (
+	"net/http"
+	"net/http/pprof"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,6 +44,8 @@ const (
 	ManagementPolicyAll   = string(rbaccontroller.ManagementPolicyAll)
 	ManagementPolicyBasic = string(rbaccontroller.ManagementPolicyBasic)
 )
+
+const pprofPath = "/debug/pprof/"
 
 // KongVars represent the kong variables associated with the CLI parser
 // required for the RBAC enum interpolation.
@@ -69,6 +74,8 @@ func (c *Command) Run() error {
 }
 
 type startCommand struct {
+	Profile string `placeholder:"host:port" help:"Serve runtime profiling data via HTTP at /debug/pprof."`
+
 	ProviderClusterRole string `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
 	LeaderElection      bool   `name:"leader-election" short:"l" help:"Use leader election for the conroller manager." env:"LEADER_ELECTION"`
 	ManagementPolicy    string `name:"manage" short:"m" help:"RBAC management policy." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
@@ -82,6 +89,32 @@ type startCommand struct {
 // Run the RBAC manager.
 func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	log.Debug("Starting", "policy", c.ManagementPolicy)
+	if c.Profile != "" {
+		// NOTE(negz): These log messages attempt to match those emitted by
+		// controller-runtime's metrics HTTP server when it starts.
+		log.Debug("Profiling server is starting to listen", "addr", c.Profile)
+		go func() {
+
+			// Registering these explicitly ensures they're only served by the
+			// HTTP server we start specifically for profiling.
+			mux := http.NewServeMux()
+			mux.HandleFunc(pprofPath, pprof.Index)
+			mux.HandleFunc(filepath.Join(pprofPath, "cmdline"), pprof.Cmdline)
+			mux.HandleFunc(filepath.Join(pprofPath, "profile"), pprof.Profile)
+			mux.HandleFunc(filepath.Join(pprofPath, "symbol"), pprof.Symbol)
+			mux.HandleFunc(filepath.Join(pprofPath, "trace"), pprof.Trace)
+
+			s := &http.Server{
+				Addr:         c.Profile,
+				ReadTimeout:  2 * time.Minute,
+				WriteTimeout: 2 * time.Minute,
+				Handler:      mux,
+			}
+			log.Debug("Starting server", "type", "pprof", "path", pprofPath, "addr", s.Addr)
+			err := s.ListenAndServe()
+			log.Debug("Profiling server has stopped listening", "error", err)
+		}()
+	}
 
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
