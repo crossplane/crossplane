@@ -285,6 +285,13 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			// that user provided if there are any.
 			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
 		}
+		if len(cc.Spec.Volumes) > 0 {
+			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
+		}
+		if len(cc.Spec.VolumeMounts) > 0 {
+			d.Spec.Template.Spec.Containers[0].VolumeMounts =
+				append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
+		}
 	}
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
 		templateLabels[k] = v

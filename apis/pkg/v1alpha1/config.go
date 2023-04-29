@@ -141,6 +141,14 @@ type ControllerConfigSpec struct {
 	// List of container ports to expose on the container
 	// +optional
 	Ports []corev1.ContainerPort `json:"ports,omitempty"`
+	// List of volumes that can be mounted by containers belonging to the pod.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes
+	// +optional
+	Volumes []corev1.Volume `json:"volumes,omitempty"`
+	// List of VolumeMounts to mount into the container's filesystem.
+	// Cannot be updated.
+	// +optional
+	VolumeMounts []corev1.VolumeMount `json:"volumeMounts,omitempty"`
 }
 
 // PodObjectMeta is metadata that is added to the Pods in a provider's
