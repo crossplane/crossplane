@@ -775,7 +775,13 @@ func WantComposite(t *testing.T, want resource.Composite) func(ctx context.Conte
 		// Normally we use a custom Equal method on conditions to ignore the
 		// lastTransitionTime, but we may be using unstructured types here where
 		// the conditions are just a map[string]any.
-		diff := cmp.Diff(want, got, cmpopts.EquateApproxTime(3*time.Second))
+		diff := cmp.Diff(want, got, cmpopts.AcyclicTransformer("StringToTime", func(s string) any {
+			ts, err := time.Parse(time.RFC3339, s)
+			if err != nil {
+				return s
+			}
+			return ts
+		}), cmpopts.EquateApproxTime(3*time.Second))
 		if diff != "" {
 			t.Errorf("WantComposite(...): -want, +got: %s", diff)
 		}
