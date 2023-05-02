@@ -28,7 +28,7 @@ import (
 
 // A EnvironmentConfig contains a set of arbitrary, unstructured values.
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:resource:scope=Cluster,categories=crossplane,shortName=envcfg
 type EnvironmentConfig struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
