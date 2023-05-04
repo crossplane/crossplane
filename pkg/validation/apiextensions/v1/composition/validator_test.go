@@ -367,6 +367,190 @@ func TestValidatorValidate(t *testing.T) {
 					})),
 			},
 		},
+		"FromEnvironmentFieldPathHandledProperly": {
+			reason: "Should accept a Composition with a FromEnvironmentFieldPath patch, if all CRDs are found",
+			want: want{
+				errs: nil,
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type:          v1.PatchTypeFromEnvironmentFieldPath,
+					FromFieldPath: pointer.String("tier.name"),
+					ToFieldPath:   pointer.String("spec.someOtherField"),
+				})),
+			},
+		},
+		"FromEnvironmentFieldPathCatchErrorInToFieldPath": {
+			reason: "Should reject a Composition with a FromEnvironmentFieldPath patch, if all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.resources[0].patches[0].toFieldPath",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type:          v1.PatchTypeFromEnvironmentFieldPath,
+					FromFieldPath: pointer.String("tier.name"),
+					ToFieldPath:   pointer.String("spec.someOtherWrongField"),
+				})),
+			},
+		},
+		"ToEnvironmentFieldPathHandledProperly": {
+			reason: "Should accept a Composition with a FromEnvironmentFieldPath patch, if all CRDs are found",
+			want: want{
+				errs: nil,
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type:          v1.PatchTypeToEnvironmentFieldPath,
+					FromFieldPath: pointer.String("spec.someOtherField"),
+					ToFieldPath:   pointer.String("tier.name"),
+				})),
+			},
+		},
+		"ToEnvironmentFieldPathCatchErrorInFromFieldPath": {
+			reason: "Should reject a Composition with a FromEnvironmentFieldPath patch, if all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.resources[0].patches[0].fromFieldPath",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type:          v1.PatchTypeToEnvironmentFieldPath,
+					FromFieldPath: pointer.String("spec.someOtherWrongField"),
+					ToFieldPath:   pointer.String("tier.name"),
+				})),
+			},
+		},
+		"CombineToEnvironmentHandledProperly": {
+			reason: "Should accept a Composition with a CombineToEnvironment patch, if all CRDs are found",
+			want: want{
+				errs: nil,
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type: v1.PatchTypeCombineToEnvironment,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
+							{
+								FromFieldPath: "spec.someNonRequiredField",
+							},
+							{
+								FromFieldPath: "spec.someOtherField",
+							},
+						},
+						Strategy: v1.CombineStrategyString,
+						String: &v1.StringCombine{
+							Format: "%s-%s",
+						},
+					},
+					ToFieldPath: pointer.String("tier.name"),
+				})),
+			},
+		},
+		"CombineFromEnvironmentHandledProperly": {
+			reason: "Should accept a Composition with a CombineFromEnvironment patch, if all CRDs are found",
+			want: want{
+				errs: nil,
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type: v1.PatchTypeCombineFromEnvironment,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
+							{
+								FromFieldPath: "tier.name",
+							},
+							{
+								FromFieldPath: "tier.someOtherName",
+							},
+						},
+						Strategy: v1.CombineStrategyString,
+						String: &v1.StringCombine{
+							Format: "%s-%s",
+						},
+					},
+					ToFieldPath: pointer.String("spec.someOtherField"),
+				})),
+			},
+		},
+		"CombineFromEnvironmentCatchErrorInToFieldPath": {
+			reason: "Should reject a Composition with a CombineFromEnvironment patch, if all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.resources[0].patches[0].toFieldPath",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type: v1.PatchTypeCombineFromEnvironment,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
+							{
+								FromFieldPath: "tier.name",
+							},
+							{
+								FromFieldPath: "tier.someOtherName",
+							},
+						},
+						Strategy: v1.CombineStrategyString,
+						String: &v1.StringCombine{
+							Format: "%s-%s",
+						},
+					},
+					ToFieldPath: pointer.String("spec.someOtherWrongField"),
+				})),
+			},
+		},
+		"CombineToEnvironmentCatchErrorInFromFieldPath": {
+			reason: "Should reject a Composition with a CombineToEnvironment patch, if all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.resources[0].patches[0].combine",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withPatches(0, v1.Patch{
+					Type: v1.PatchTypeCombineToEnvironment,
+					Combine: &v1.Combine{
+						Variables: []v1.CombineVariable{
+							{
+								FromFieldPath: "spec.someNonRequiredField",
+							},
+							{
+								FromFieldPath: "spec.someOtherWrongField",
+							},
+						},
+						Strategy: v1.CombineStrategyString,
+						String: &v1.StringCombine{
+							Format: "%s-%s",
+						},
+					},
+					ToFieldPath: pointer.String("tier.name"),
+				})),
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -431,6 +615,9 @@ func defaultManagedCrdBuilder() *crdBuilder {
 		},
 		Properties: map[string]extv1.JSONSchemaProps{
 			"someOtherField": {
+				Type: "string",
+			},
+			"someNonRequiredField": {
 				Type: "string",
 			},
 		},
