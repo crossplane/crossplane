@@ -117,6 +117,7 @@ cobertura:
 
 # integration tests
 e2e.run: test-integration
+	$(GO) test ./test/e2e  -test.v
 
 # Run integration tests.
 test-integration: $(KIND) $(KUBECTL) $(HELM3)
@@ -144,8 +145,7 @@ uninstall-crds:
 # Note that we are not publishing the builds that come from this step.
 e2e-tests-compile:
 	@$(INFO) Checking that e2e tests compile
-	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/apiextensions.test ./test/e2e/apiextensions --tags=e2e
-	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/pkg.test ./test/e2e/pkg --tags=e2e
+	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/e2e.test ./test/e2e
 	@$(OK) Verified e2e tests compile
 
 # Compile e2e tests for each platform.

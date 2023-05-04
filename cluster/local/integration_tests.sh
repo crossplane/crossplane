@@ -48,15 +48,15 @@ K8S_CLUSTER="${K8S_CLUSTER:-${BUILD_REGISTRY}-inttests}"
 CROSSPLANE_NAMESPACE="crossplane-system"
 
 # cleanup on exit
-if [ "$skipcleanup" != true ]; then
-    function cleanup() {
-        echo_step "Cleaning up..."
-        export KUBECONFIG=
-        "${KIND}" delete cluster --name="${K8S_CLUSTER}"
-    }
-
-    trap cleanup EXIT
-fi
+#if [ "$skipcleanup" != true ]; then
+#    function cleanup() {
+#        echo_step "Cleaning up..."
+#        export KUBECONFIG=
+#        "${KIND}" delete cluster --name="${K8S_CLUSTER}"
+#    }
+#
+#    trap cleanup EXIT
+#fi
 
 readonly DEFAULT_KIND_CONFIG="kind: Cluster
 apiVersion: kind.x-k8s.io/v1alpha4
