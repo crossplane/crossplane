@@ -83,7 +83,7 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	}
 	resource := comp.Spec.Resources[resourceNumber]
 	patch := resource.Patches[patchNumber]
-	res, err := GetBaseObject(&resource)
+	resourceGVK, err := GetBaseObjectGVK(&resource)
 	if err != nil {
 		return field.Invalid(field.NewPath("spec", "resources").Index(resourceNumber).Child("base"), resource.Base, err.Error())
 	}
@@ -97,10 +97,9 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 	if err != nil {
 		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Wrapf(err, "cannot find composite type %s: %s", comp.Spec.CompositeTypeRef, err))
 	}
-	resourceGVK := res.GetObjectKind().GroupVersionKind()
 	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK.GroupKind())
 	if err != nil {
-		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find resource type %s: %s", res.GetObjectKind().GroupVersionKind(), err))
+		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find resource type %s: %s", resourceGVK, err))
 	}
 
 	// TODO(phisco): we could relax this condition and handle partially missing crds in the future
@@ -292,7 +291,8 @@ func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema
 // It returns the type of the fieldPath and any error.
 // If the returned type is "", but without error, it means the fieldPath is accepted by the schema, but not defined in it.
 func validateFieldPath(schema *apiextensions.JSONSchemaProps, fieldPath string) (fieldType xpschema.KnownJSONType, err error) {
-	// Code inspired by https://github.com/crossplane-contrib/crossplane-lint/commit/d58af636f06467151cce7c89ffd319828c1cd7a2#diff-3b13ed191dd7244f19f4c0870298fc5112153e136250e95095323e6c3c440bdfR230
+	// Code inspired by crossplane-contrib/crossplane-lint implementation:
+	// https://github.com/crossplane-contrib/crossplane-lint/commit/d58af636f06467151cce7c89ffd319828c1cd7a2#diff-3b13ed191dd7244f19f4c0870298fc5112153e136250e95095323e6c3c440bdfR230
 	if fieldPath == "" {
 		return "", nil
 	}
@@ -444,4 +444,13 @@ func GetBaseObject(ct *v1.ComposedTemplate) (client.Object, error) {
 		return ct.DeepCopyObject().(client.Object), nil
 	}
 	return nil, errors.New("base object is not a client.Object")
+}
+
+// GetBaseObjectGVK returns the GroupVersionKind of the base object of the composed template.
+func GetBaseObjectGVK(ct *v1.ComposedTemplate) (schema.GroupVersionKind, error) {
+	obj, err := GetBaseObject(ct)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	return obj.GetObjectKind().GroupVersionKind(), nil
 }

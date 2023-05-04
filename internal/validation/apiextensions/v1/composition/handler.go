@@ -188,7 +188,7 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 	compositeResGK := schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion,
 		comp.Spec.CompositeTypeRef.Kind).GroupKind()
 
-	compositeCRD, err := h.getCRDForGVK(ctx, &compositeResGK)
+	compositeCRD, err := h.getCRD(ctx, &compositeResGK)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, []error{err}
@@ -202,15 +202,12 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 	// Get schema for all Managed Resource Definitions defined by comp.Spec.Resources
 	for _, res := range comp.Spec.Resources {
 		res := res
-		cd, err := composition.GetBaseObject(&res)
+		gvk, err := composition.GetBaseObjectGVK(&res)
 		if err != nil {
 			return nil, []error{err}
 		}
-		gk := cd.GetObjectKind().GroupVersionKind().GroupKind()
-		if _, ok := neededCrds[gk]; ok {
-			continue
-		}
-		crd, err := h.getCRDForGVK(ctx, &gk)
+		gk := gvk.GroupKind()
+		crd, err := h.getCRD(ctx, &gk)
 		switch {
 		case apierrors.IsNotFound(err):
 			resultErrs = append(resultErrs, err)
@@ -224,9 +221,9 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 	return neededCrds, resultErrs
 }
 
-// getCRDForGVK returns the validation schema for the given GVK, by looking up the CRD by group and kind using
+// getCRD returns the validation schema for the given GVK, by looking up the CRD by group and kind using
 // the provided client.
-func (h *handler) getCRDForGVK(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
+func (h *handler) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
 	crds := extv1.CustomResourceDefinitionList{}
 	if err := h.reader.List(ctx, &crds,
 		client.MatchingFields{"spec.group": gk.Group},
