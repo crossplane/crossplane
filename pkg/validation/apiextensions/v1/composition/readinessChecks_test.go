@@ -182,6 +182,41 @@ func TestValidateReadinessCheck(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "should reject invalid readiness check - matchInteger type - type mismatch - multiple versions",
+			args: args{
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+					0,
+					v1.ReadinessCheck{
+						Type:         v1.ReadinessCheckTypeMatchInteger,
+						MatchInteger: 10,
+						FieldPath:    "spec.someField",
+					},
+				)),
+				gkToCRD: buildGkToCRDs(
+					defaultManagedCrdBuilder().withOption(func(crd *extv1.CustomResourceDefinition) {
+						crd.Spec.Versions[0].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someField"] = extv1.JSONSchemaProps{
+							Type: "string",
+						}
+						alpha := crd.Spec.Versions[0].DeepCopy()
+						alpha.Name = "v1alpha1"
+						crd.Spec.Versions = append(crd.Spec.Versions, *alpha)
+						crd.Spec.Versions[1].Schema.OpenAPIV3Schema.Properties["spec"].Properties["someField"] = extv1.JSONSchemaProps{
+							Type: "integer",
+						}
+
+					}).build()),
+			},
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:     field.ErrorTypeInvalid,
+						Field:    "spec.resources[0].readinessCheck[0].fieldPath",
+						BadValue: "spec.someField",
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -191,7 +226,7 @@ func TestValidateReadinessCheck(t *testing.T) {
 			}
 			got := v.validateReadinessChecksWithSchemas(context.TODO(), tt.args.comp)
 			if diff := cmp.Diff(got, tt.want.errs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
-				t.Errorf("Validate(...) = -want, +got\n%s\n", diff)
+				t.Errorf("validateReadinessChecksWithSchemas(...) = -want, +got\n%s\n", diff)
 			}
 		})
 	}
