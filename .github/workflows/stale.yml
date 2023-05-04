@@ -28,14 +28,14 @@ jobs:
         # https://docs.github.com/en/rest/overview/resources-in-the-rest-api#requests-from-github-actions
         operations-per-run: 100
         days-before-stale: 90
-        days-before-close: 7
+        days-before-close: 14
         stale-issue-label: stale
         exempt-issue-labels: exempt-from-stale
         stale-issue-message: >
           Crossplane does not currently have enough maintainers to address every
           issue and pull request. This issue has been automatically marked as
           `stale` because it has had no activity in the last 90 days. It will be
-          closed in 7 days if no further activity occurs. Leaving a comment
+          closed in 14 days if no further activity occurs. Leaving a comment
           **starting with** `/fresh` will mark this issue as not stale.
         stale-pr-label: stale
         exempt-pr-labels: exempt-from-stale
@@ -43,6 +43,5 @@ jobs:
           Crossplane does not currently have enough maintainers to address every
           issue and pull request. This pull request has been automatically
           marked as `stale` because it has had no activity in the last 90 days.
-          It will be closed in 7 days if no further activity occurs.
-          closed in 7 days if no further activity occurs. Adding a comment
-          **starting with** `/fresh` will mark this PR as not stale.
+          It will be closed in 14 days if no further activity occurs.
+          Adding a comment **starting with** `/fresh` will mark this PR as not stale.
