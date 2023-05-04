@@ -132,7 +132,7 @@ func (v *Validator) Validate(ctx context.Context, obj runtime.Object) (warns []s
 	for _, f := range []func(context.Context, *v1.Composition) field.ErrorList{
 		v.validatePatchesWithSchemas,
 		v.validateReadinessChecksWithSchemas,
-		// v.validateConnectionDetailsWithSchemas,
+		v.validateConnectionDetailsWithSchemas,
 		// TODO(phisco): add more phase 2 validation here
 	} {
 		errs = append(errs, f(ctx, comp)...)
