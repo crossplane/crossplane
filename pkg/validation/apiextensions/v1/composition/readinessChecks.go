@@ -45,7 +45,7 @@ func (v *Validator) validateReadinessChecksWithSchemas(ctx context.Context, comp
 				err,
 			))
 		}
-		errs = append(errs, verrors.WrapFieldErrorList(validateReadinessChecks(resource, crd), field.NewPath("spec", "resources").Index(i))...)
+		errs = append(errs, verrors.WrapFieldErrorList(validateReadinessChecks(resource, getSchemaForVersion(crd, gvk.Version)), field.NewPath("spec", "resources").Index(i))...)
 	}
 
 	if len(errs) > 0 {
@@ -55,12 +55,15 @@ func (v *Validator) validateReadinessChecksWithSchemas(ctx context.Context, comp
 	return nil
 }
 
-func validateReadinessChecks(resource v1.ComposedTemplate, crd *apiextensions.CustomResourceDefinition) (errs field.ErrorList) {
+func validateReadinessChecks(resource v1.ComposedTemplate, schema *apiextensions.JSONSchemaProps) (errs field.ErrorList) {
+	if schema == nil {
+		return nil
+	}
 	for j, r := range resource.ReadinessChecks {
 		if r.FieldPath == "" {
 			continue
 		}
-		fieldType, err := validateFieldPath(crd.Spec.Validation.OpenAPIV3Schema, r.FieldPath)
+		fieldType, err := validateFieldPath(schema, r.FieldPath)
 		if err != nil {
 			errs = append(errs, field.Invalid(field.NewPath("readinessCheck").Index(j).Child("fieldPath"), r.FieldPath, err.Error()))
 			continue
