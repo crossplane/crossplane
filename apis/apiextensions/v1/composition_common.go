@@ -291,6 +291,10 @@ type ContainerFunction struct {
 	// +kubebuilder:default="20s"
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
 
+	// Secrets for pulling function images.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Network configuration for the Composition Function.
 	// +optional
 	Network *ContainerFunctionNetwork `json:"network,omitempty"`

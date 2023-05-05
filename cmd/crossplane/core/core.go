@@ -39,6 +39,7 @@ import (
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
+	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
@@ -73,7 +74,7 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `placeholder:"host:port" help:"Serve runtime profiling data via HTTP at /debug/pprof."`
 
-	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	Namespace            string `short:"n" help:"Namespace used to unpack, run packages and for xfn private registry credentials extraction." default:"crossplane-system" env:"POD_NAMESPACE"`
 	ServiceAccount       string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
 	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
 	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
@@ -197,7 +198,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		}
 	}
 
-	if err := apiextensions.Setup(mgr, o); err != nil {
+	ao := apiextensionscontroller.Options{
+		Options:        o,
+		Namespace:      c.Namespace,
+		ServiceAccount: c.ServiceAccount,
+	}
+
+	if err := apiextensions.Setup(mgr, ao); err != nil {
 		return errors.Wrap(err, "Cannot setup API extension controllers")
 	}
 

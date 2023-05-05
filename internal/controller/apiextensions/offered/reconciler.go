@@ -46,6 +46,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/claim"
+	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -110,7 +111,7 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource claim and starting a controller to reconcile
 // it.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "offered/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	r := NewReconciler(mgr,
@@ -146,7 +147,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // WithOptions lets the Reconciler know which options to pass to new composite
 // resource claim controllers.
-func WithOptions(o controller.Options) ReconcilerOption {
+func WithOptions(o apiextensionscontroller.Options) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.options = o
 	}
@@ -205,7 +206,9 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 
-		options: controller.DefaultOptions(),
+		options: apiextensionscontroller.Options{
+			Options: controller.DefaultOptions(),
+		},
 	}
 
 	for _, f := range opts {
@@ -230,7 +233,7 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	options controller.Options
+	options apiextensionscontroller.Options
 }
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
