@@ -221,6 +221,11 @@ func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1ContainerFunctio
 		pV1Duration = &v1Duration
 	}
 	v1ContainerFunction.Timeout = pV1Duration
+	v1LocalObjectReferenceList := make([]v1.LocalObjectReference, len(source.ImagePullSecrets))
+	for i := 0; i < len(source.ImagePullSecrets); i++ {
+		v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference(source.ImagePullSecrets[i])
+	}
+	v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1ContainerFunctionNetwork *ContainerFunctionNetwork
 	if source.Network != nil {
 		v1ContainerFunctionNetwork := c.v1ContainerFunctionNetworkToV1ContainerFunctionNetwork(*source.Network)
@@ -380,6 +385,11 @@ func (c *GeneratedRevisionSpecConverter) v1JSONToV1JSON(source v12.JSON) v12.JSO
 	}
 	v1JSON.Raw = byteList
 	return v1JSON
+}
+func (c *GeneratedRevisionSpecConverter) v1LocalObjectReferenceToV1LocalObjectReference(source v1.LocalObjectReference) v1.LocalObjectReference {
+	var v1LocalObjectReference v1.LocalObjectReference
+	v1LocalObjectReference.Name = source.Name
+	return v1LocalObjectReference
 }
 func (c *GeneratedRevisionSpecConverter) v1MapTransformToV1MapTransform(source MapTransform) MapTransform {
 	var v1MapTransform MapTransform

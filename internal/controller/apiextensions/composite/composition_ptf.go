@@ -19,6 +19,9 @@ import (
 	"context"
 	"sort"
 
+	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/authn/k8schain"
+	"github.com/google/go-containerregistry/pkg/name"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/durationpb"
@@ -29,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -51,10 +55,12 @@ import (
 const (
 	errFetchXRConnectionDetails = "cannot fetch composite resource connection details"
 	errGetExistingCDs           = "cannot get existing composed resources"
+	errImgPullCfg               = "cannot get xfn image pull config"
 	errBuildFunctionIOObserved  = "cannot build FunctionIO observed state"
 	errBuildFunctionIODesired   = "cannot build initial FunctionIO desired state"
 	errMarshalXR                = "cannot marshal composite resource"
 	errMarshalCD                = "cannot marshal composed resource"
+	errNewKeychain              = "cannot create a new keychain"
 	errPatchAndTransform        = "cannot patch and transform"
 	errRunFunctionPipeline      = "cannot run Composition Function pipeline"
 	errDeleteUndesiredCDs       = "cannot delete undesired composed resources"
@@ -74,6 +80,7 @@ const (
 	errFmtFetchCDConnectionDetails = "cannot fetch connection details for composed resource %q (a %s named %s)"
 	errFmtRenderXR                 = "cannot render composite resource from composed resource %q (a %s named %s)"
 	errFmtRunFn                    = "cannot run function %q"
+
 	errFmtUnsupportedFnType        = "unsupported function type %q"
 	errFmtParseDesiredCD           = "cannot parse desired composed resource %q from FunctionIO"
 	errFmtDeleteCD                 = "cannot delete composed resource %q (a %s named %s)"
@@ -236,6 +243,8 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 
 	f := NewSecretConnectionDetailsFetcher(kube)
 
+	xfnRunner := &DefaultCompositeFunctionRunner{}
+
 	c := &PTFComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
@@ -250,7 +259,7 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 		},
 		composition: ptfComposition{
 			PatchAndTransformer:    NewXRCDPatchAndTransformer(RendererFn(RenderComposite), NewAPIDryRunRenderer(kube)),
-			FunctionPipelineRunner: NewFunctionPipeline(ContainerFunctionRunnerFn(RunFunction)),
+			FunctionPipelineRunner: NewFunctionPipeline(ContainerFunctionRunnerFn(xfnRunner.RunFunction)),
 		},
 	}
 
@@ -646,7 +655,9 @@ type FunctionPipeline struct {
 // NewFunctionPipeline returns a FunctionPipeline that runs functions using the
 // supplied ContainerFunctionRunner.
 func NewFunctionPipeline(c ContainerFunctionRunner) *FunctionPipeline {
-	return &FunctionPipeline{container: c}
+	return &FunctionPipeline{
+		container: c,
+	}
 }
 
 // RunFunctionPipeline runs a pipeline of Composition Functions.
@@ -655,7 +666,12 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 	for _, fn := range req.Revision.Spec.Functions {
 		switch fn.Type {
 		case v1.FunctionTypeContainer:
-			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{Config: fn.Config, Observed: o, Desired: d, Results: r}, fn.Container)
+			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{
+				Config:   fn.Config,
+				Observed: o,
+				Desired:  d,
+				Results:  r,
+			}, fn.Container)
 			if err != nil {
 				return errors.Wrapf(err, errFmtRunFn, fn.Name)
 			}
@@ -707,8 +723,15 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 	return nil
 }
 
+// DefaultCompositeFunctionRunner is a default runner for composite function
+type DefaultCompositeFunctionRunner struct {
+	Namespace      string
+	ServiceAccount string
+}
+
 // RunFunction calls an external container function runner via gRPC.
-func RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+func (r *DefaultCompositeFunctionRunner) RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) { //nolint:gocyclo // Complexity is equal to 13 now
+
 	in, err := yaml.Marshal(fnio)
 	if err != nil {
 		return nil, errors.Wrap(err, errMarshalFnIO)
@@ -724,10 +747,35 @@ func RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.Contai
 		return nil, errors.Wrap(err, errDialRunner)
 	}
 
+	k8schainOpts := k8schain.Options{}
+
+	if r.Namespace != "" {
+		k8schainOpts.Namespace = r.Namespace
+	}
+
+	if r.ServiceAccount != "" {
+		k8schainOpts.ServiceAccountName = r.ServiceAccount
+	}
+
+	// pass all image pull secrets from composite function definition to keychain
+	for _, ips := range fn.ImagePullSecrets {
+		k8schainOpts.ImagePullSecrets = append(k8schainOpts.ImagePullSecrets, ips.Name)
+	}
+
+	keychain, err := k8schain.NewInCluster(ctx, k8schainOpts)
+	// If we're not in a cluster keychain will be nil.
+	if err != nil && !errors.Is(err, rest.ErrNotInCluster) {
+		return nil, errors.Wrap(err, errNewKeychain)
+	}
+
+	pullConfig, err := ImagePullConfig(fn, keychain)
+	if err != nil {
+		return nil, errors.Wrap(err, errImgPullCfg)
+	}
 	req := &fnv1alpha1.RunFunctionRequest{
 		Image:             fn.Image,
 		Input:             in,
-		ImagePullConfig:   ImagePullConfig(fn),
+		ImagePullConfig:   pullConfig,
 		RunFunctionConfig: RunFunctionConfig(fn),
 	}
 	rsp, err := fnv1alpha1.NewContainerizedFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
@@ -785,8 +833,7 @@ func ParseDesiredResource(dr iov1alpha1.DesiredResource, owner resource.Object) 
 }
 
 // ImagePullConfig builds an ImagePullConfig for a FunctionIO.
-func ImagePullConfig(fn *v1.ContainerFunction) *fnv1alpha1.ImagePullConfig {
-	// TODO(negz): Use k8schain at this end to resolve auth.
+func ImagePullConfig(fn *v1.ContainerFunction, keychain authn.Keychain) (*fnv1alpha1.ImagePullConfig, error) {
 	cfg := &fnv1alpha1.ImagePullConfig{}
 
 	if fn.ImagePullPolicy != nil {
@@ -801,8 +848,30 @@ func ImagePullConfig(fn *v1.ContainerFunction) *fnv1alpha1.ImagePullConfig {
 			cfg.PullPolicy = fnv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT
 		}
 	}
+	if keychain == nil {
+		return cfg, nil
+	}
 
-	return cfg
+	tag, err := name.NewTag(fn.Image)
+	if err != nil {
+		return nil, err
+	}
+	auth, err := keychain.Resolve(tag)
+	if err != nil {
+		return nil, err
+	}
+	a, err := auth.Authorization()
+	if err != nil {
+		return nil, err
+	}
+	cfg.Auth = &fnv1alpha1.ImagePullAuth{
+		Username:      a.Username,
+		Password:      a.Password,
+		Auth:          a.Auth,
+		IdentityToken: a.IdentityToken,
+		RegistryToken: a.RegistryToken,
+	}
+	return cfg, nil
 }
 
 // RunFunctionConfig builds a RunFunctionConfig for a FunctionIO.

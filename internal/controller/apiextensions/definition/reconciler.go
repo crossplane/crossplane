@@ -50,6 +50,7 @@ import (
 	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
+	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
@@ -110,7 +111,7 @@ func (fn CRDRenderFn) Render(d *v1.CompositeResourceDefinition) (*extv1.CustomRe
 
 // Setup adds a controller that reconciles CompositeResourceDefinitions by
 // defining a composite resource and starting a controller to reconcile it.
-func Setup(mgr ctrl.Manager, o controller.Options) error {
+func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "defined/" + strings.ToLower(v1.CompositeResourceDefinitionGroupKind)
 
 	r := NewReconciler(mgr,
@@ -145,7 +146,7 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 
 // WithOptions lets the Reconciler know which options to pass to new composite
 // resource controllers.
-func WithOptions(o controller.Options) ReconcilerOption {
+func WithOptions(o apiextensionscontroller.Options) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.options = o
 	}
@@ -210,7 +211,9 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 
-		options: controller.DefaultOptions(),
+		options: apiextensionscontroller.Options{
+			Options: controller.DefaultOptions(),
+		},
 	}
 
 	for _, f := range opts {
@@ -229,7 +232,7 @@ type Reconciler struct {
 	log    logging.Logger
 	record event.Recorder
 
-	options controller.Options
+	options apiextensionscontroller.Options
 }
 
 // Reconcile a CompositeResourceDefinition by defining a new kind of composite
@@ -425,7 +428,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 // CompositeReconcilerOptions builds the options for a composite resource
 // reconciler. The options vary based on the supplied feature flags.
-func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDefinition, c client.Client, l logging.Logger, e event.Recorder) []composite.ReconcilerOption {
+func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.CompositeResourceDefinition, c client.Client, l logging.Logger, e event.Recorder) []composite.ReconcilerOption {
 	// The default set of reconciler options when no feature flags are enabled.
 	o := []composite.ReconcilerOption{
 		composite.WithConnectionPublishers(composite.NewAPIFilteredSecretPublisher(c, d.GetConnectionSecretKeys())),
@@ -496,10 +499,17 @@ func CompositeReconcilerOptions(co controller.Options, d *v1.CompositeResourceDe
 	// Composition validation ensures that a Composition that uses functions
 	// must have named resources templates.
 	if co.Features.Enabled(features.EnableAlphaCompositionFunctions) {
+		xfnRunner := &composite.DefaultCompositeFunctionRunner{
+			Namespace:      co.Namespace,
+			ServiceAccount: co.ServiceAccount,
+		}
 		fb := composite.NewFallBackComposer(
 			composite.NewPTFComposer(c,
 				composite.WithComposedResourceGetter(composite.NewExistingComposedResourceGetter(c, fetcher)),
 				composite.WithCompositeConnectionDetailsFetcher(fetcher),
+				composite.WithFunctionPipelineRunner(composite.NewFunctionPipeline(
+					composite.ContainerFunctionRunnerFn(xfnRunner.RunFunction),
+				)),
 			),
 			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),
 			composite.FallBackForAnonymousTemplates(c),

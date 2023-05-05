@@ -182,7 +182,7 @@ func (f *CachingPuller) Image(ctx context.Context, r name.Reference, o ...ImageC
 		if err == nil {
 			return img, nil
 		}
-		return f.always(ctx, r)
+		return f.always(ctx, r, o...)
 	}
 }
 func (f *CachingPuller) never(r name.Reference) (ociv1.Image, error) {
