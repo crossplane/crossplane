@@ -553,6 +553,18 @@ func (c *GeneratedRevisionSpecConverter) v1StringTransformRegexpToV1StringTransf
 	v1StringTransformRegexp.Group = pInt
 	return v1StringTransformRegexp
 }
+func (c *GeneratedRevisionSpecConverter) v1StringTransformReplaceToV1StringTransformReplace(source StringTransformReplace) StringTransformReplace {
+	var v1StringTransformReplace StringTransformReplace
+	v1StringTransformReplace.Old = source.Old
+	v1StringTransformReplace.New = source.New
+	var pInt *int
+	if source.Count != nil {
+		xint := *source.Count
+		pInt = &xint
+	}
+	v1StringTransformReplace.Count = pInt
+	return v1StringTransformReplace
+}
 func (c *GeneratedRevisionSpecConverter) v1StringTransformToV1StringTransform(source StringTransform) StringTransform {
 	var v1StringTransform StringTransform
 	v1StringTransform.Type = StringTransformType(source.Type)
@@ -580,6 +592,12 @@ func (c *GeneratedRevisionSpecConverter) v1StringTransformToV1StringTransform(so
 		pV1StringTransformRegexp = &v1StringTransformRegexp
 	}
 	v1StringTransform.Regexp = pV1StringTransformRegexp
+	var pV1StringTransformReplace *StringTransformReplace
+	if source.Replace != nil {
+		v1StringTransformReplace := c.v1StringTransformReplaceToV1StringTransformReplace(*source.Replace)
+		pV1StringTransformReplace = &v1StringTransformReplace
+	}
+	v1StringTransform.Replace = pV1StringTransformReplace
 	return v1StringTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1TransformToV1Transform(source Transform) Transform {

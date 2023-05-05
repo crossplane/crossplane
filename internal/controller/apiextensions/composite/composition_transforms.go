@@ -69,6 +69,7 @@ const (
 	errStringTransformTypeRegexpFailed  = "could not compile regexp"
 	errStringTransformTypeRegexpNoMatch = "regexp %q had no matches for group %d"
 	errStringConvertTypeFailed          = "type %s is not supported for string convert"
+	errStringTransformTypeReplace       = "string transform of type %s replace is not set"
 
 	errDecodeString = "string is not valid base64"
 	errMarshalJSON  = "cannot marshal to JSON"
@@ -255,7 +256,7 @@ func unmarshalJSON(j extv1.JSON, output *any) error {
 }
 
 // ResolveString resolves a String transform.
-func ResolveString(t v1.StringTransform, input any) (string, error) {
+func ResolveString(t v1.StringTransform, input any) (string, error) { //nolint:gocyclo // This is a long but simple/same-y switch.
 	switch t.Type {
 	case v1.StringTransformTypeFormat:
 		if t.Format == nil {
@@ -277,6 +278,11 @@ func ResolveString(t v1.StringTransform, input any) (string, error) {
 			return "", errors.Errorf(errStringTransformTypeRegexp, string(t.Type))
 		}
 		return stringRegexpTransform(input, *t.Regexp)
+	case v1.StringTransformTypeReplace:
+		if t.Replace == nil {
+			return "", errors.Errorf(errStringTransformTypeReplace, string(t.Type))
+		}
+		return stringReplaceTransform(input, t.Replace), nil
 	default:
 		return "", errors.Errorf(errStringTransformTypeFailed, string(t.Type))
 	}
@@ -346,6 +352,15 @@ func stringRegexpTransform(input any, r v1.StringTransformRegexp) (string, error
 	}
 
 	return groups[g], nil
+}
+
+func stringReplaceTransform(input any, r *v1.StringTransformReplace) string {
+	str := fmt.Sprintf("%v", input)
+	n := -1
+	if r.Count != nil {
+		n = *r.Count
+	}
+	return strings.Replace(str, r.Old, r.New, n)
 }
 
 // ResolveConvert resolves a Convert transform by looking up the appropriate

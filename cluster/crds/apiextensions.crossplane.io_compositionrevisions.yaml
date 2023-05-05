@@ -406,6 +406,26 @@ spec:
                                     required:
                                     - match
                                     type: object
+                                  replace:
+                                    description: Replace a string in the input with
+                                      another string.
+                                    properties:
+                                      count:
+                                        description: Number of non-overlapping matches
+                                          to replace. -1 (the default) means replace
+                                          all matches.
+                                        type: integer
+                                      new:
+                                        description: New string to replace the old
+                                          string.
+                                        type: string
+                                      old:
+                                        description: Old string to be replaced.
+                                        type: string
+                                    required:
+                                    - new
+                                    - old
+                                    type: object
                                   trim:
                                     description: Trim the prefix or suffix from the
                                       input
@@ -430,6 +450,7 @@ spec:
                                 - math
                                 - string
                                 - convert
+                                - replace
                                 type: string
                             required:
                             - type
@@ -850,6 +871,26 @@ spec:
                                       required:
                                       - match
                                       type: object
+                                    replace:
+                                      description: Replace a string in the input with
+                                        another string.
+                                      properties:
+                                        count:
+                                          description: Number of non-overlapping matches
+                                            to replace. -1 (the default) means replace
+                                            all matches.
+                                          type: integer
+                                        new:
+                                          description: New string to replace the old
+                                            string.
+                                          type: string
+                                        old:
+                                          description: Old string to be replaced.
+                                          type: string
+                                      required:
+                                      - new
+                                      - old
+                                      type: object
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
@@ -874,6 +915,7 @@ spec:
                                   - math
                                   - string
                                   - convert
+                                  - replace
                                   type: string
                               required:
                               - type
@@ -1265,6 +1307,26 @@ spec:
                                       required:
                                       - match
                                       type: object
+                                    replace:
+                                      description: Replace a string in the input with
+                                        another string.
+                                      properties:
+                                        count:
+                                          description: Number of non-overlapping matches
+                                            to replace. -1 (the default) means replace
+                                            all matches.
+                                          type: integer
+                                        new:
+                                          description: New string to replace the old
+                                            string.
+                                          type: string
+                                        old:
+                                          description: Old string to be replaced.
+                                          type: string
+                                      required:
+                                      - new
+                                      - old
+                                      type: object
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
@@ -1289,6 +1351,7 @@ spec:
                                   - math
                                   - string
                                   - convert
+                                  - replace
                                   type: string
                               required:
                               - type
@@ -3185,6 +3248,26 @@ spec:
                                     required:
                                     - match
                                     type: object
+                                  replace:
+                                    description: Replace a string in the input with
+                                      another string.
+                                    properties:
+                                      count:
+                                        description: Number of non-overlapping matches
+                                          to replace. -1 (the default) means replace
+                                          all matches.
+                                        type: integer
+                                      new:
+                                        description: New string to replace the old
+                                          string.
+                                        type: string
+                                      old:
+                                        description: Old string to be replaced.
+                                        type: string
+                                    required:
+                                    - new
+                                    - old
+                                    type: object
                                   trim:
                                     description: Trim the prefix or suffix from the
                                       input
@@ -3209,6 +3292,7 @@ spec:
                                 - math
                                 - string
                                 - convert
+                                - replace
                                 type: string
                             required:
                             - type
@@ -3629,6 +3713,26 @@ spec:
                                       required:
                                       - match
                                       type: object
+                                    replace:
+                                      description: Replace a string in the input with
+                                        another string.
+                                      properties:
+                                        count:
+                                          description: Number of non-overlapping matches
+                                            to replace. -1 (the default) means replace
+                                            all matches.
+                                          type: integer
+                                        new:
+                                          description: New string to replace the old
+                                            string.
+                                          type: string
+                                        old:
+                                          description: Old string to be replaced.
+                                          type: string
+                                      required:
+                                      - new
+                                      - old
+                                      type: object
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
@@ -3653,6 +3757,7 @@ spec:
                                   - math
                                   - string
                                   - convert
+                                  - replace
                                   type: string
                               required:
                               - type
@@ -4044,6 +4149,26 @@ spec:
                                       required:
                                       - match
                                       type: object
+                                    replace:
+                                      description: Replace a string in the input with
+                                        another string.
+                                      properties:
+                                        count:
+                                          description: Number of non-overlapping matches
+                                            to replace. -1 (the default) means replace
+                                            all matches.
+                                          type: integer
+                                        new:
+                                          description: New string to replace the old
+                                            string.
+                                          type: string
+                                        old:
+                                          description: Old string to be replaced.
+                                          type: string
+                                      required:
+                                      - new
+                                      - old
+                                      type: object
                                     trim:
                                       description: Trim the prefix or suffix from
                                         the input
@@ -4068,6 +4193,7 @@ spec:
                                   - math
                                   - string
                                   - convert
+                                  - replace
                                   type: string
                               required:
                               - type

@@ -636,13 +636,13 @@ func TestMathResolve(t *testing.T) {
 }
 
 func TestStringResolve(t *testing.T) {
-
 	type args struct {
 		stype   v1.StringTransformType
 		fmts    *string
 		convert *v1.StringConversionType
 		trim    *string
 		regexp  *v1.StringTransformRegexp
+		replace *v1.StringTransformReplace
 		i       any
 	}
 	type want struct {
@@ -955,6 +955,56 @@ func TestStringResolve(t *testing.T) {
 				err: errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON),
 			},
 		},
+		"ReplaceNoConfig": {
+			args: args{
+				stype: v1.StringTransformTypeReplace,
+			},
+			want: want{
+				o:   "",
+				err: errors.New("string transform of type Replace replace is not set"),
+			},
+		},
+		"ReplaceAll": {
+			args: args{
+				stype: v1.StringTransformTypeReplace,
+				replace: &v1.StringTransformReplace{
+					Old: "old",
+					New: "new",
+				},
+				i: "old-old-old",
+			},
+			want: want{
+				o: "new-new-new",
+			},
+		},
+		"ReplaceN": {
+			args: args{
+				stype: v1.StringTransformTypeReplace,
+				replace: &v1.StringTransformReplace{
+					Old:   "old",
+					New:   "new",
+					Count: pointer.Int(2),
+				},
+				i: "old-old-old",
+			},
+			want: want{
+				o: "new-new-old",
+			},
+		},
+		"ReplaceNAll": {
+			args: args{
+				stype: v1.StringTransformTypeReplace,
+				replace: &v1.StringTransformReplace{
+					Old:   "old",
+					New:   "new",
+					Count: pointer.Int(-1),
+				},
+				i: "old-old-old",
+			},
+			want: want{
+				o: "new-new-new",
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -964,6 +1014,7 @@ func TestStringResolve(t *testing.T) {
 				Convert: tc.convert,
 				Trim:    tc.trim,
 				Regexp:  tc.regexp,
+				Replace: tc.replace,
 			}
 
 			got, err := ResolveString(tr, tc.i)

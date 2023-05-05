@@ -47,7 +47,7 @@ const (
 type Transform struct {
 
 	// Type of the transform to be run.
-	// +kubebuilder:validation:Enum=map;match;math;string;convert
+	// +kubebuilder:validation:Enum=map;match;math;string;convert;replace
 	Type TransformType `json:"type"`
 
 	// Math is used to transform the input via mathematical operations such as
@@ -339,6 +339,7 @@ const (
 	StringTransformTypeTrimPrefix StringTransformType = "TrimPrefix"
 	StringTransformTypeTrimSuffix StringTransformType = "TrimSuffix"
 	StringTransformTypeRegexp     StringTransformType = "Regexp"
+	StringTransformTypeReplace    StringTransformType = "Replace"
 )
 
 // StringConversionType converts a string.
@@ -387,6 +388,10 @@ type StringTransform struct {
 	// Extract a match from the input using a regular expression.
 	// +optional
 	Regexp *StringTransformRegexp `json:"regexp,omitempty"`
+
+	// Replace a string in the input with another string.
+	// +optional
+	Replace *StringTransformReplace `json:"replace,omitempty"`
 }
 
 // Validate checks this StringTransform is valid.
@@ -415,6 +420,16 @@ func (s *StringTransform) Validate() *field.Error {
 		}
 		if _, err := regexp.Compile(s.Regexp.Match); err != nil {
 			return field.Invalid(field.NewPath("regexp", "match"), s.Regexp.Match, "invalid regexp")
+		}
+	case StringTransformTypeReplace:
+		if s.Replace == nil {
+			return field.Required(field.NewPath("replace"), "replace transform requires a replace")
+		}
+		if s.Replace.Old == "" {
+			return field.Required(field.NewPath("replace", "old"), "replace transform requires an old value")
+		}
+		if s.Replace.New == "" {
+			return field.Required(field.NewPath("replace", "new"), "replace transform requires a new value")
 		}
 	default:
 		return field.Invalid(field.NewPath("type"), s.Type, "unknown string transform type")
@@ -502,4 +517,20 @@ func (t ConvertTransform) Validate() *field.Error {
 		return field.Invalid(field.NewPath("toType"), t.ToType, "invalid type")
 	}
 	return nil
+}
+
+// A StringTransformReplace replaces some or all of the non-overlapping
+// matches of a string with a replacement.
+type StringTransformReplace struct {
+	// Old string to be replaced.
+	Old string `json:"old"`
+
+	// New string to replace the old string.
+	New string `json:"new"`
+
+	// Number of non-overlapping matches to replace. -1 (the default) means
+	// replace all matches.
+	// +optional
+	// +kubebuilder:validation:Default=-1
+	Count *int `json:"count,omitempty"`
 }
