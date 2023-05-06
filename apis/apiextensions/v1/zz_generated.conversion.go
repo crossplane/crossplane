@@ -215,17 +215,17 @@ func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1ContainerFunctio
 		pV1PullPolicy = &v1PullPolicy
 	}
 	v1ContainerFunction.ImagePullPolicy = pV1PullPolicy
+	v1LocalObjectReferenceList := make([]v1.LocalObjectReference, len(source.ImagePullSecrets))
+	for i := 0; i < len(source.ImagePullSecrets); i++ {
+		v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference(source.ImagePullSecrets[i])
+	}
+	v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1Duration *v11.Duration
 	if source.Timeout != nil {
 		v1Duration := c.v1DurationToV1Duration(*source.Timeout)
 		pV1Duration = &v1Duration
 	}
 	v1ContainerFunction.Timeout = pV1Duration
-	v1LocalObjectReferenceList := make([]v1.LocalObjectReference, len(source.ImagePullSecrets))
-	for i := 0; i < len(source.ImagePullSecrets); i++ {
-		v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference(source.ImagePullSecrets[i])
-	}
-	v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
 	var pV1ContainerFunctionNetwork *ContainerFunctionNetwork
 	if source.Network != nil {
 		v1ContainerFunctionNetwork := c.v1ContainerFunctionNetworkToV1ContainerFunctionNetwork(*source.Network)

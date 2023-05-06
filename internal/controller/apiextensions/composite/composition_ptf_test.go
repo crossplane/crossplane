@@ -52,7 +52,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -1160,7 +1159,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"RunContainerFunctionError": {
 			reason: "We should return an error if we can't run a containerized function.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return nil, errBoom
 				}),
 			},
@@ -1185,7 +1184,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"ResultError": {
 			reason: "We should return the first result of Error severity.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Results: []iov1alpha1.Result{
 							{
@@ -1217,7 +1216,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"ParseCompositeError": {
 			reason: "We should return an error if we can't unmarshal the desired XR.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Desired: iov1alpha1.Desired{
 							Composite: iov1alpha1.DesiredComposite{
@@ -1251,7 +1250,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"ParseComposedError": {
 			reason: "We should return an error if we can't unmarshal a desired composed resource.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Desired: iov1alpha1.Desired{
 							Composite: iov1alpha1.DesiredComposite{
@@ -1302,14 +1301,14 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"Success": {
 			reason: "We should update our CompositionState with the results of the pipeline.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Desired: iov1alpha1.Desired{
 							Composite: iov1alpha1.DesiredComposite{
 								Resource: runtime.RawExtension{
 									Raw: []byte(`{"apiVersion":"a/v1","kind":"XR"}`),
 								},
-								ConnectionDetails: []v1alpha1.ExplicitConnectionDetail{
+								ConnectionDetails: []iov1alpha1.ExplicitConnectionDetail{
 									{
 										Name:  "a",
 										Value: "b",
@@ -1425,7 +1424,7 @@ func TestRunFunction(t *testing.T) {
 
 	fnio := &iov1alpha1.FunctionIO{
 		Desired: iov1alpha1.Desired{
-			Resources: []v1alpha1.DesiredResource{
+			Resources: []iov1alpha1.DesiredResource{
 				{Name: "cool-resource"},
 			},
 		},
@@ -1510,9 +1509,7 @@ func TestRunFunction(t *testing.T) {
 				Endpoint: pointer.String(lis.Addr().String()),
 			}
 
-			xfnRunner := &DefaultCompositeFunctionRunner{}
-
-			fnio, err := xfnRunner.RunFunction(tc.args.ctx, tc.args.fnio, tc.args.fn)
+			fnio, err := RunFunction(tc.args.ctx, tc.args.fnio, tc.args.fn)
 
 			_ = lis.Close() // This should terminate the goroutine above.
 			wg.Wait()
@@ -1664,16 +1661,14 @@ func TestImagePullConfig(t *testing.T) {
 	ifNotPresent := corev1.PullIfNotPresent
 
 	cases := map[string]struct {
-		reason  string
-		fn      *v1.ContainerFunction
-		want    *fnpbv1alpha1.ImagePullConfig
-		wantErr error
+		reason string
+		fn     *v1.ContainerFunction
+		want   *fnpbv1alpha1.ImagePullConfig
 	}{
 		"NoImagePullPolicy": {
-			reason:  "We should return an empty config if there's no ImagePullPolicy.",
-			fn:      &v1.ContainerFunction{},
-			want:    &fnpbv1alpha1.ImagePullConfig{},
-			wantErr: nil,
+			reason: "We should return an empty config if there's no ImagePullPolicy.",
+			fn:     &v1.ContainerFunction{},
+			want:   &fnpbv1alpha1.ImagePullConfig{},
 		},
 		"PullAlways": {
 			reason: "We should correctly map PullAlways.",
@@ -1683,7 +1678,6 @@ func TestImagePullConfig(t *testing.T) {
 			want: &fnpbv1alpha1.ImagePullConfig{
 				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
 			},
-			wantErr: nil,
 		},
 		"PullNever": {
 			reason: "We should correctly map PullNever.",
@@ -1693,7 +1687,6 @@ func TestImagePullConfig(t *testing.T) {
 			want: &fnpbv1alpha1.ImagePullConfig{
 				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
 			},
-			wantErr: nil,
 		},
 		"PullIfNotPresent": {
 			reason: "We should correctly map PullIfNotPresent.",
@@ -1703,17 +1696,12 @@ func TestImagePullConfig(t *testing.T) {
 			want: &fnpbv1alpha1.ImagePullConfig{
 				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT,
 			},
-			wantErr: nil,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ImagePullConfig(tc.fn, nil)
-
-			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nImagePullConfig(...): -want, +got:\n%s", tc.reason, diff)
-			}
+			got := ImagePullConfig(tc.fn)
 
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nImagePullConfig(...): -want, +got:\n%s", tc.reason, diff)

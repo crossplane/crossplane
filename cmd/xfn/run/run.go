@@ -37,9 +37,9 @@ import (
 const (
 	errWriteFIO        = "cannot write FunctionIO YAML to stdout"
 	errRunFunction     = "cannot run function"
-	errParseImage      = "cannot parse image"
-	errResolveKeychain = "cannot resolve keychain"
-	errAuthCfg         = "cannot get xfn registry auth configuration"
+	errParseImage      = "cannot parse image reference"
+	errResolveKeychain = "cannot resolve default registry authentication keychain"
+	errAuthCfg         = "cannot get default registry authentication credentials"
 )
 
 // Command runs a Composition function.
@@ -75,9 +75,12 @@ func (c *Command) Run() error {
 		return errors.Wrap(err, errParseImage)
 	}
 
-	// DefaultKeychain uses credentials from ~/.docker/config.json to pull Composite Function private image.
-	keychain := authn.DefaultKeychain
-	auth, err := keychain.Resolve(ref.Context())
+	// We want to resolve authentication credentials here, using the caller's
+	// environment rather than inside the user namespace that spark will create.
+	// DefaultKeychain uses credentials from ~/.docker/config.json to pull
+	// private images. Despite being 'the default' it must be explicitly
+	// provided, or go-containerregistry will use anonymous authentication.
+	auth, err := authn.DefaultKeychain.Resolve(ref.Context())
 	if err != nil {
 		return errors.Wrap(err, errResolveKeychain)
 	}

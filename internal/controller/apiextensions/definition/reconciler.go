@@ -499,16 +499,13 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	// Composition validation ensures that a Composition that uses functions
 	// must have named resources templates.
 	if co.Features.Enabled(features.EnableAlphaCompositionFunctions) {
-		xfnRunner := &composite.DefaultCompositeFunctionRunner{
-			Namespace:      co.Namespace,
-			ServiceAccount: co.ServiceAccount,
-		}
 		fb := composite.NewFallBackComposer(
 			composite.NewPTFComposer(c,
 				composite.WithComposedResourceGetter(composite.NewExistingComposedResourceGetter(c, fetcher)),
 				composite.WithCompositeConnectionDetailsFetcher(fetcher),
 				composite.WithFunctionPipelineRunner(composite.NewFunctionPipeline(
-					composite.ContainerFunctionRunnerFn(xfnRunner.RunFunction),
+					composite.ContainerFunctionRunnerFn(composite.RunFunction),
+					composite.WithInClusterAuth(co.Namespace, co.ServiceAccount),
 				)),
 			),
 			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),

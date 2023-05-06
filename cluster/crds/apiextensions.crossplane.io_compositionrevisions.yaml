@@ -486,7 +486,8 @@ spec:
                           - Never
                           type: string
                         imagePullSecrets:
-                          description: Secrets for pulling function images.
+                          description: ImagePullSecrets are used to pull images from
+                            private OCI registries.
                           items:
                             description: LocalObjectReference contains enough information
                               to let you locate the referenced object inside the same
@@ -3280,7 +3281,8 @@ spec:
                           - Never
                           type: string
                         imagePullSecrets:
-                          description: Secrets for pulling function images.
+                          description: ImagePullSecrets are used to pull images from
+                            private OCI registries.
                           items:
                             description: LocalObjectReference contains enough information
                               to let you locate the referenced object inside the same

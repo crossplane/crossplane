@@ -19,7 +19,6 @@ import (
 	"context"
 	"sort"
 
-	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
 	"google.golang.org/grpc"
@@ -60,7 +59,10 @@ const (
 	errBuildFunctionIODesired   = "cannot build initial FunctionIO desired state"
 	errMarshalXR                = "cannot marshal composite resource"
 	errMarshalCD                = "cannot marshal composed resource"
-	errNewKeychain              = "cannot create a new keychain"
+	errParseImage               = "cannot parse image reference"
+	errNewKeychain              = "cannot create a new in-cluster registry authentication keychain"
+	errResolveKeychain          = "cannot resolve in-cluster registry authentication keychain"
+	errAuthCfg                  = "cannot get in-cluster registry authentication credentials"
 	errPatchAndTransform        = "cannot patch and transform"
 	errRunFunctionPipeline      = "cannot run Composition Function pipeline"
 	errDeleteUndesiredCDs       = "cannot delete undesired composed resources"
@@ -71,6 +73,7 @@ const (
 	errUnmarshalDesiredCD       = "cannot unmarshal desired composed resource from FunctionIO"
 	errMarshalFnIO              = "cannot marshal input FunctionIO"
 	errDialRunner               = "cannot dial container runner"
+	errApplyRunFunctionOption   = "cannot apply run function option"
 	errRunFnContainer           = "cannot run container"
 	errCloseRunner              = "cannot close connection to container runner"
 	errUnmarshalFnIO            = "cannot unmarshal output FunctionIO"
@@ -243,8 +246,6 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 
 	f := NewSecretConnectionDetailsFetcher(kube)
 
-	xfnRunner := &DefaultCompositeFunctionRunner{}
-
 	c := &PTFComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
@@ -259,7 +260,7 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 		},
 		composition: ptfComposition{
 			PatchAndTransformer:    NewXRCDPatchAndTransformer(RendererFn(RenderComposite), NewAPIDryRunRenderer(kube)),
-			FunctionPipelineRunner: NewFunctionPipeline(ContainerFunctionRunnerFn(xfnRunner.RunFunction)),
+			FunctionPipelineRunner: NewFunctionPipeline(ContainerFunctionRunnerFn(RunFunction)),
 		},
 	}
 
@@ -634,30 +635,87 @@ func FunctionIODesired(s *PTFCompositionState) (iov1alpha1.Desired, error) {
 	return iov1alpha1.Desired{Composite: dxr, Resources: dcds}, nil
 }
 
+// A ContainerFunctionRunnerOption modifies the behavior of a
+// ContainerFunctionRunner, typically by mutating the RunFunctionRequest it
+// produces.
+type ContainerFunctionRunnerOption func(ctx context.Context, fn *v1.ContainerFunction, r *fnv1alpha1.RunFunctionRequest) error
+
+// WithInClusterAuth configures a ContainerFunctionRunner to use in-cluster
+// OCI registry authentication. Image pull secrets will be loaded from the
+// supplied namespace and service account.
+func WithInClusterAuth(namespace, serviceAccount string) ContainerFunctionRunnerOption {
+	return func(ctx context.Context, fn *v1.ContainerFunction, r *fnv1alpha1.RunFunctionRequest) error {
+		ko := k8schain.Options{
+			Namespace:          namespace,
+			ServiceAccountName: serviceAccount,
+			ImagePullSecrets:   make([]string, 0, len(fn.ImagePullSecrets)),
+		}
+
+		for i := range fn.ImagePullSecrets {
+			ko.ImagePullSecrets[i] = fn.ImagePullSecrets[i].Name
+		}
+
+		keychain, err := k8schain.NewInCluster(ctx, ko)
+		if errors.Is(err, rest.ErrNotInCluster) {
+			// We're not running in a cluster. Nothing to do.
+			return nil
+		}
+		if err != nil {
+			return errors.Wrap(err, errNewKeychain)
+		}
+
+		ref, err := name.ParseReference(fn.Image)
+		if err != nil {
+			return errors.Wrap(err, errParseImage)
+		}
+		auth, err := keychain.Resolve(ref.Context())
+		if err != nil {
+			return errors.Wrap(err, errResolveKeychain)
+		}
+		a, err := auth.Authorization()
+		if err != nil {
+			return errors.Wrap(err, errAuthCfg)
+		}
+
+		if r.ImagePullConfig == nil {
+			r.ImagePullConfig = &fnv1alpha1.ImagePullConfig{}
+		}
+
+		r.ImagePullConfig.Auth = &fnv1alpha1.ImagePullAuth{
+			Username:      a.Username,
+			Password:      a.Password,
+			Auth:          a.Auth,
+			IdentityToken: a.IdentityToken,
+			RegistryToken: a.RegistryToken,
+		}
+
+		return nil
+	}
+}
+
 // A ContainerFunctionRunner runs a containerized Composition Function.
 type ContainerFunctionRunner interface {
-	RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error)
+	RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error)
 }
 
 // A ContainerFunctionRunnerFn runs a containerized Composition Function.
-type ContainerFunctionRunnerFn func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error)
+type ContainerFunctionRunnerFn func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error)
 
 // RunFunction runs a containerized Composition Function.
-func (fn ContainerFunctionRunnerFn) RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fnc *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
-	return fn(ctx, fnio, fnc)
+func (fn ContainerFunctionRunnerFn) RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fnc *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
+	return fn(ctx, fnio, fnc, o...)
 }
 
 // A FunctionPipeline runs a pipeline of Composition Functions.
 type FunctionPipeline struct {
-	container ContainerFunctionRunner
+	container     ContainerFunctionRunner
+	containerOpts []ContainerFunctionRunnerOption
 }
 
 // NewFunctionPipeline returns a FunctionPipeline that runs functions using the
 // supplied ContainerFunctionRunner.
-func NewFunctionPipeline(c ContainerFunctionRunner) *FunctionPipeline {
-	return &FunctionPipeline{
-		container: c,
-	}
+func NewFunctionPipeline(c ContainerFunctionRunner, o ...ContainerFunctionRunnerOption) *FunctionPipeline {
+	return &FunctionPipeline{container: c, containerOpts: o}
 }
 
 // RunFunctionPipeline runs a pipeline of Composition Functions.
@@ -666,12 +724,7 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 	for _, fn := range req.Revision.Spec.Functions {
 		switch fn.Type {
 		case v1.FunctionTypeContainer:
-			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{
-				Config:   fn.Config,
-				Observed: o,
-				Desired:  d,
-				Results:  r,
-			}, fn.Container)
+			fnio, err := p.container.RunFunction(ctx, &iov1alpha1.FunctionIO{Config: fn.Config, Observed: o, Desired: d, Results: r}, fn.Container, p.containerOpts...)
 			if err != nil {
 				return errors.Wrapf(err, errFmtRunFn, fn.Name)
 			}
@@ -723,15 +776,8 @@ func (p *FunctionPipeline) RunFunctionPipeline(ctx context.Context, req Composit
 	return nil
 }
 
-// DefaultCompositeFunctionRunner is a default runner for composite function
-type DefaultCompositeFunctionRunner struct {
-	Namespace      string
-	ServiceAccount string
-}
-
 // RunFunction calls an external container function runner via gRPC.
-func (r *DefaultCompositeFunctionRunner) RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) { //nolint:gocyclo // Complexity is equal to 13 now
-
+func RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 	in, err := yaml.Marshal(fnio)
 	if err != nil {
 		return nil, errors.Wrap(err, errMarshalFnIO)
@@ -747,37 +793,19 @@ func (r *DefaultCompositeFunctionRunner) RunFunction(ctx context.Context, fnio *
 		return nil, errors.Wrap(err, errDialRunner)
 	}
 
-	k8schainOpts := k8schain.Options{}
-
-	if r.Namespace != "" {
-		k8schainOpts.Namespace = r.Namespace
-	}
-
-	if r.ServiceAccount != "" {
-		k8schainOpts.ServiceAccountName = r.ServiceAccount
-	}
-
-	// pass all image pull secrets from composite function definition to keychain
-	for _, ips := range fn.ImagePullSecrets {
-		k8schainOpts.ImagePullSecrets = append(k8schainOpts.ImagePullSecrets, ips.Name)
-	}
-
-	keychain, err := k8schain.NewInCluster(ctx, k8schainOpts)
-	// If we're not in a cluster keychain will be nil.
-	if err != nil && !errors.Is(err, rest.ErrNotInCluster) {
-		return nil, errors.Wrap(err, errNewKeychain)
-	}
-
-	pullConfig, err := ImagePullConfig(fn, keychain)
-	if err != nil {
-		return nil, errors.Wrap(err, errImgPullCfg)
-	}
 	req := &fnv1alpha1.RunFunctionRequest{
 		Image:             fn.Image,
 		Input:             in,
-		ImagePullConfig:   pullConfig,
+		ImagePullConfig:   ImagePullConfig(fn),
 		RunFunctionConfig: RunFunctionConfig(fn),
 	}
+
+	for _, opt := range o {
+		if err := opt(ctx, fn, req); err != nil {
+			return nil, errors.Wrap(err, errApplyRunFunctionOption)
+		}
+	}
+
 	rsp, err := fnv1alpha1.NewContainerizedFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
 	if err != nil {
 		// TODO(negz): Parse any gRPC status codes.
@@ -833,7 +861,7 @@ func ParseDesiredResource(dr iov1alpha1.DesiredResource, owner resource.Object) 
 }
 
 // ImagePullConfig builds an ImagePullConfig for a FunctionIO.
-func ImagePullConfig(fn *v1.ContainerFunction, keychain authn.Keychain) (*fnv1alpha1.ImagePullConfig, error) {
+func ImagePullConfig(fn *v1.ContainerFunction) *fnv1alpha1.ImagePullConfig {
 	cfg := &fnv1alpha1.ImagePullConfig{}
 
 	if fn.ImagePullPolicy != nil {
@@ -848,30 +876,7 @@ func ImagePullConfig(fn *v1.ContainerFunction, keychain authn.Keychain) (*fnv1al
 			cfg.PullPolicy = fnv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT
 		}
 	}
-	if keychain == nil {
-		return cfg, nil
-	}
-
-	tag, err := name.NewTag(fn.Image)
-	if err != nil {
-		return nil, err
-	}
-	auth, err := keychain.Resolve(tag)
-	if err != nil {
-		return nil, err
-	}
-	a, err := auth.Authorization()
-	if err != nil {
-		return nil, err
-	}
-	cfg.Auth = &fnv1alpha1.ImagePullAuth{
-		Username:      a.Username,
-		Password:      a.Password,
-		Auth:          a.Auth,
-		IdentityToken: a.IdentityToken,
-		RegistryToken: a.RegistryToken,
-	}
-	return cfg, nil
+	return cfg
 }
 
 // RunFunctionConfig builds a RunFunctionConfig for a FunctionIO.
