@@ -611,15 +611,15 @@ func (in *ContainerFunction) DeepCopyInto(out *ContainerFunction) {
 		*out = new(corev1.PullPolicy)
 		**out = **in
 	}
-	if in.Timeout != nil {
-		in, out := &in.Timeout, &out.Timeout
-		*out = new(metav1.Duration)
-		**out = **in
-	}
 	if in.ImagePullSecrets != nil {
 		in, out := &in.ImagePullSecrets, &out.ImagePullSecrets
 		*out = make([]corev1.LocalObjectReference, len(*in))
 		copy(*out, *in)
+	}
+	if in.Timeout != nil {
+		in, out := &in.Timeout, &out.Timeout
+		*out = new(metav1.Duration)
+		**out = **in
 	}
 	if in.Network != nil {
 		in, out := &in.Network, &out.Network

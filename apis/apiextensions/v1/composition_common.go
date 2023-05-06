@@ -286,14 +286,14 @@ type ContainerFunction struct {
 	// +kubebuilder:validation:Enum="IfNotPresent";"Always";"Never"
 	ImagePullPolicy *corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
 
+	// ImagePullSecrets are used to pull images from private OCI registries.
+	// +optional
+	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
+
 	// Timeout after which the Composition Function will be killed.
 	// +optional
 	// +kubebuilder:default="20s"
 	Timeout *metav1.Duration `json:"timeout,omitempty"`
-
-	// Secrets for pulling function images.
-	// +optional
-	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 
 	// Network configuration for the Composition Function.
 	// +optional
