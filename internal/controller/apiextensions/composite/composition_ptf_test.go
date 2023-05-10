@@ -54,6 +54,7 @@ import (
 
 	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	fnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -1105,6 +1106,114 @@ func TestFunctionIODesired(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.o, o, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nFunctionIODesired(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestWithKubernetesAuthentication(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type params struct {
+		c              client.Reader
+		namespace      string
+		serviceAccount string
+	}
+	type args struct {
+		ctx context.Context
+		fn  *v1.ContainerFunction
+		r   *fnv1alpha1.RunFunctionRequest
+	}
+	type want struct {
+		r   *fnv1alpha1.RunFunctionRequest
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"GetServiceAccountError": {
+			reason: "We should return an error if we can't get the service account.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetServiceAccount),
+			},
+		},
+		"GetSecretError": {
+			reason: "We should return an error if we can't get an image pull secret.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+					),
+				},
+			},
+			args: args{
+				fn: &v1.ContainerFunction{
+					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetImagePullSecret),
+			},
+		},
+		"Success": {
+			reason: "We should successfully parse OCI registry authentication credentials from an image pull secret.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							s.Type = corev1.SecretTypeDockerConfigJson
+							s.Data = map[string][]byte{
+								corev1.DockerConfigJsonKey: []byte(`{"auths":{"xpkg.example.org":{"username":"cool-user","password":"cool-pass"}}}`),
+							}
+						}
+						return nil
+					},
+					),
+				},
+			},
+			args: args{
+				fn: &v1.ContainerFunction{
+					Image:            "xpkg.example.org/cool-image:v1.0.0",
+					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
+				},
+				r: &fnv1alpha1.RunFunctionRequest{},
+			},
+			want: want{
+				r: &fnv1alpha1.RunFunctionRequest{
+					ImagePullConfig: &fnv1alpha1.ImagePullConfig{
+						Auth: &fnv1alpha1.ImagePullAuth{
+							Username: "cool-user",
+							Password: "cool-pass",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := WithKubernetesAuthentication(tc.params.c, tc.params.namespace, tc.params.serviceAccount)(tc.args.ctx, tc.args.fn, tc.args.r)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.r, tc.args.r, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
