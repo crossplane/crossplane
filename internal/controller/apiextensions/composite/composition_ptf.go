@@ -31,7 +31,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/json"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
@@ -60,6 +59,8 @@ const (
 	errMarshalXR                = "cannot marshal composite resource"
 	errMarshalCD                = "cannot marshal composed resource"
 	errParseImage               = "cannot parse image reference"
+	errGetServiceAccount        = "cannot get image pull secrets from service account"
+	errGetImagePullSecret       = "cannot get image pull secret"
 	errNewKeychain              = "cannot create a new in-cluster registry authentication keychain"
 	errResolveKeychain          = "cannot resolve in-cluster registry authentication keychain"
 	errAuthCfg                  = "cannot get in-cluster registry authentication credentials"
@@ -636,30 +637,42 @@ func FunctionIODesired(s *PTFCompositionState) (iov1alpha1.Desired, error) {
 }
 
 // A ContainerFunctionRunnerOption modifies the behavior of a
-// ContainerFunctionRunner, typically by mutating the RunFunctionRequest it
-// produces.
+// ContainerFunctionRunner by mutating the supplied RunFunctionRequest.
 type ContainerFunctionRunnerOption func(ctx context.Context, fn *v1.ContainerFunction, r *fnv1alpha1.RunFunctionRequest) error
 
-// WithInClusterAuth configures a ContainerFunctionRunner to use in-cluster
-// OCI registry authentication. Image pull secrets will be loaded from the
-// supplied namespace and service account.
-func WithInClusterAuth(namespace, serviceAccount string) ContainerFunctionRunnerOption {
+// WithKubernetesAuthentication configures a ContainerFunctionRunner to use
+// "Kubernetes" authentication to pull images from a private OCI registry.
+// Kubernetes authentication emulates how the Kubelet pulls private images.
+// Specifically, it:
+//
+// 1. Loads credentials from the Docker config file, if any.
+// 2. Loads credentials from the supplied service account's image pull secrets.
+// 3. Loads credentials from the function's image pull secrets.
+// 4. Loads credentials using the GKE, EKS, or AKS credentials helper.
+func WithKubernetesAuthentication(c client.Reader, namespace, serviceAccount string) ContainerFunctionRunnerOption {
 	return func(ctx context.Context, fn *v1.ContainerFunction, r *fnv1alpha1.RunFunctionRequest) error {
-		ko := k8schain.Options{
-			Namespace:          namespace,
-			ServiceAccountName: serviceAccount,
-			ImagePullSecrets:   make([]string, 0, len(fn.ImagePullSecrets)),
+
+		sa := &corev1.ServiceAccount{}
+		if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: serviceAccount}, sa); err != nil {
+			return errors.Wrap(err, errGetServiceAccount)
 		}
 
-		for i := range fn.ImagePullSecrets {
-			ko.ImagePullSecrets[i] = fn.ImagePullSecrets[i].Name
+		refs := make([]corev1.LocalObjectReference, 0, len(fn.ImagePullSecrets)+len(sa.ImagePullSecrets))
+		refs = append(refs, sa.ImagePullSecrets...)
+		refs = append(refs, fn.ImagePullSecrets...)
+
+		ips := make([]corev1.Secret, len(refs))
+		for i := range refs {
+			if err := c.Get(ctx, types.NamespacedName{Namespace: namespace, Name: refs[i].Name}, &ips[i]); err != nil {
+				return errors.Wrap(err, errGetImagePullSecret)
+			}
 		}
 
-		keychain, err := k8schain.NewInCluster(ctx, ko)
-		if errors.Is(err, rest.ErrNotInCluster) {
-			// We're not running in a cluster. Nothing to do.
-			return nil
-		}
+		// We use NewFromPullSecrets rather than NewInCluster so that we can use
+		// our own client.Reader rather than the default in-cluster client. This
+		// makes the option easier to test, ensures we re-use any existing
+		// client caches, and allows us to run out-of-cluster.
+		keychain, err := k8schain.NewFromPullSecrets(ctx, ips)
 		if err != nil {
 			return errors.Wrap(err, errNewKeychain)
 		}
