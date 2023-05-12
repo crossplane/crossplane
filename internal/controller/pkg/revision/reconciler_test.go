@@ -60,12 +60,14 @@ func (e *ErrBackend) Init(_ context.Context, _ ...parser.BackendOption) (io.Read
 var _ Establisher = &MockEstablisher{}
 
 type MockEstablisher struct {
-	MockEstablish func() ([]xpv1.TypedReference, error)
+	MockEstablish  func() ([]xpv1.TypedReference, error)
+	MockRelinquish func() error
 }
 
 func NewMockEstablisher() *MockEstablisher {
 	return &MockEstablisher{
-		MockEstablish: NewMockEstablishFn(nil, nil),
+		MockEstablish:  NewMockEstablishFn(nil, nil),
+		MockRelinquish: NewMockRelinquishFn(nil),
 	}
 }
 
@@ -73,15 +75,24 @@ func NewMockEstablishFn(refs []xpv1.TypedReference, err error) func() ([]xpv1.Ty
 	return func() ([]xpv1.TypedReference, error) { return refs, err }
 }
 
+func NewMockRelinquishFn(err error) func() error {
+	return func() error { return err }
+}
+
 func (e *MockEstablisher) Establish(context.Context, []runtime.Object, v1.PackageRevision, bool) ([]xpv1.TypedReference, error) {
 	return e.MockEstablish()
+}
+
+func (e *MockEstablisher) Relinquish(context.Context, v1.PackageRevision) error {
+	return e.MockRelinquish()
 }
 
 var _ Hooks = &MockHook{}
 
 type MockHook struct {
-	MockPre  func() error
-	MockPost func() error
+	MockPre        func() error
+	MockPost       func() error
+	MockDeactivate func() error
 }
 
 func NewMockPreFn(err error) func() error {
@@ -92,12 +103,20 @@ func NewMockPostFn(err error) func() error {
 	return func() error { return err }
 }
 
+func NewMockDeactivateFn(err error) func() error {
+	return func() error { return err }
+}
+
 func (h *MockHook) Pre(context.Context, runtime.Object, v1.PackageRevision) error {
 	return h.MockPre()
 }
 
 func (h *MockHook) Post(context.Context, runtime.Object, v1.PackageRevision) error {
 	return h.MockPost()
+}
+
+func (h *MockHook) Deactivate(context.Context, v1.PackageRevision) error {
+	return h.MockDeactivate()
 }
 
 var _ parser.Linter = &MockLinter{}

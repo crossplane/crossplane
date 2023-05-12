@@ -27,6 +27,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/pointer"
@@ -59,6 +60,7 @@ const (
 // resources and then establishing it.
 type Establisher interface {
 	Establish(ctx context.Context, objects []runtime.Object, parent v1.PackageRevision, control bool) ([]xpv1.TypedReference, error)
+	Relinquish(ctx context.Context, parent v1.PackageRevision) error
 }
 
 // NewNopEstablisher returns a new NopEstablisher.
@@ -72,6 +74,11 @@ type NopEstablisher struct{}
 // Establish does nothing.
 func (*NopEstablisher) Establish(_ context.Context, _ []runtime.Object, _ v1.PackageRevision, _ bool) ([]xpv1.TypedReference, error) {
 	return nil, nil
+}
+
+// Relinquish does nothing.
+func (*NopEstablisher) Relinquish(_ context.Context, _ v1.PackageRevision) error {
+	return nil
 }
 
 // APIEstablisher establishes control or ownership of resources in the API
@@ -115,6 +122,47 @@ func (e *APIEstablisher) Establish(ctx context.Context, objs []runtime.Object, p
 		return nil, err
 	}
 	return resourceRefs, nil
+}
+
+// Relinquish removes control or ownership of resources in the API server for a
+// package revision.
+func (e *APIEstablisher) Relinquish(ctx context.Context, parent v1.PackageRevision) error {
+	// Note(turkenh): We rely on status.objectRefs to get the list of objects
+	// that are controlled by the package revision. Relying on the status is
+	// not ideal as it might get lost (e.g. if the status subresource is
+	// not properly restored after a backup/restore operation). However, we will
+	// handle this by conditionally fetching/parsing package if there is no
+	// referenced resources available and rebuilding the status.
+	// In the next reconciliation loop, and we will be able to remove the
+	// control/ownership of the objects using the new status.
+	objRefs := parent.GetObjects()
+	// Stop controlling objects.
+	for _, ref := range objRefs {
+		u := unstructured.Unstructured{}
+		u.SetAPIVersion(ref.APIVersion)
+		u.SetKind(ref.Kind)
+		u.SetName(ref.Name)
+
+		if err := e.client.Get(ctx, types.NamespacedName{Name: u.GetName()}, &u); err != nil {
+			if kerrors.IsNotFound(err) {
+				// This is not expected, but still not an error for relinquishing.
+				continue
+			}
+			return errors.Wrap(err, "cannot get controlled object")
+		}
+		ors := u.GetOwnerReferences()
+		for i := range ors {
+			if ors[i].UID == parent.GetUID() {
+				ors[i].Controller = pointer.Bool(false)
+				break
+			}
+		}
+		u.SetOwnerReferences(ors)
+		if err := e.client.Update(ctx, &u); err != nil {
+			return errors.Wrap(err, "cannot update controlled object")
+		}
+	}
+	return nil
 }
 
 func (e *APIEstablisher) addLabels(objs []runtime.Object, parent v1.PackageRevision) error {

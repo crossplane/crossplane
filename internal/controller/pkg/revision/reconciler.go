@@ -103,6 +103,7 @@ const (
 	reasonLint         event.Reason = "LintPackage"
 	reasonDependencies event.Reason = "ResolveDependencies"
 	reasonSync         event.Reason = "SyncPackage"
+	reasonDeactivate   event.Reason = "DeactivateRevision"
 )
 
 // ReconcilerOption is used to configure the Reconciler.
@@ -408,6 +409,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetPackageRevision)
 	}
 
+	log = log.WithValues(
+		"uid", pr.GetUID(),
+		"version", pr.GetResourceVersion(),
+		"name", pr.GetName(),
+	)
+
 	if meta.WasDeleted(pr) {
 		// NOTE(hasheddan): In the event that a pre-cached package was
 		// used for this revision, delete will not remove the pre-cached
@@ -429,6 +436,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(pr, event.Warning(reasonSync, err))
 			return reconcile.Result{}, err
 		}
+		// Note(turkenh): During the deletion of an active package revision,
+		// we don't need to run relinquish step since when the parent objects
+		// (i.e. Package Revision) is gone, the controller reference on the
+		// child objects (i.e. CRD) will be garbage collected.
+		// We don't need to run the deactivate hook either since the owned
+		// Deployment or similar objects will be garbage collected as well.
 		if err := r.revision.RemoveFinalizer(ctx, pr); err != nil {
 			log.Debug(errRemoveFinalizer, "error", err)
 			err = errors.Wrap(err, errRemoveFinalizer)
@@ -445,11 +458,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	log = log.WithValues(
-		"uid", pr.GetUID(),
-		"version", pr.GetResourceVersion(),
-		"name", pr.GetName(),
-	)
+	// Deactivate revision if it is inactive.
+	if pr.GetDesiredState() == v1.PackageRevisionInactive {
+		if err := r.deactivateRevision(ctx, pr); err != nil {
+			log.Debug("cannot deactivate revision", "error", err)
+			err = errors.Wrap(err, "cannot deactivate revision")
+			r.record.Event(pr, event.Warning(reasonDeactivate, err))
+			return reconcile.Result{}, err
+		}
+
+		if len(pr.GetObjects()) > 0 {
+			// Note(turkenh): If the revision is inactive we don't need to
+			// fetch/parse the package again, so we can report success and return
+			// here. The only exception is that revision NOT having references
+			// to the objects that it owns, i.e. status.objectRefs is empty.
+			// This could happen in one of the following two ways:
+			// 1. The revision created as inactive, i.e. was never active before
+			//    which could be possible if package installed with
+			//    `revisionActivationPolicy` as `Manual`.
+			// 2. The status of the revision got lost, e.g. the status subresource
+			//    is not properly restored after a backup/restore operation.
+			// So, we report success and return here iff the revision is inactive
+			// and it has references to the objects that it owns.
+			// Otherwise, we continue with fetching/parsing the package which
+			// would trigger another reconcile after setting object references
+			// in the status where we finalize the deactivation by transitioning
+			// from "controller" to "owner" on owned resources.
+			// We still want to call r.deactivateRevision() above, i.e. even
+			// status.objectRefs is empty, to make sure that the revision is
+			// removed from the lock which could otherwise block a successful
+			// reconciliation.
+			r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
+			pr.SetConditions(v1.Healthy())
+			return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+		}
+	}
 
 	// NOTE(negz): There are a bunch of cases below where we ignore errors
 	// returned while updating our status to reflect that our revision is
@@ -458,8 +501,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// 1. We prefer to return the 'original' underlying error.
 	// 2. We'll requeue and try the status update again if needed.
 	// 3. There's little else we could do about it apart from log.
-
-	// TODO(negz): Use Unhealthy().WithMessage(...) to supply error context?
 
 	pullPolicyNever := false
 	id := pr.GetName()
@@ -709,4 +750,23 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	r.record.Event(pr, event.Normal(reasonSync, "Successfully configured package revision"))
 	pr.SetConditions(v1.Healthy())
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, pr), errUpdateStatus)
+}
+
+func (r *Reconciler) deactivateRevision(ctx context.Context, pr v1.PackageRevision) error {
+	// Remove self from the lock if we are present.
+	if err := r.lock.RemoveSelf(ctx, pr); err != nil {
+		return errors.Wrap(err, errRemoveLock)
+	}
+
+	// Relinquish control of objects.
+	if err := r.objects.Relinquish(ctx, pr); err != nil {
+		return errors.Wrap(err, "cannot relinquish objects")
+	}
+
+	// Call deactivation hook.
+	if err := r.hook.Deactivate(ctx, pr); err != nil {
+		return errors.Wrap(err, "deactivation hook failed")
+	}
+
+	return nil
 }

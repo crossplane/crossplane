@@ -61,85 +61,9 @@ func TestResolve(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"SuccessfulInactiveNoLock": {
-			reason: "Should not return error if we are inactive and lock does not exist.",
+		"ErrorResolveInactive": {
+			reason: "Should return error if we resolve is called for an inactive revision.",
 			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet:    test.NewMockGetFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
-						MockCreate: test.NewMockCreateFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-		},
-		"ErrorInactiveGetLock": {
-			reason: "Should return error if we are inactive and we fail to get the lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-			want: want{
-				err: errBoom,
-			},
-		},
-		"SuccessfulInactiveAlreadyRemoved": {
-			reason: "Should not return error if we are inactive and not in lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							return nil
-						}),
-						MockCreate: test.NewMockCreateFn(nil),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "config-nop-a-abc123",
-					},
-					Spec: v1.PackageRevisionSpec{
-						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
-		"SuccessfulInactiveExists": {
-			reason: "Should not return error if we are inactive and successfully remove from lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							l := obj.(*v1beta1.Lock)
-							l.Packages = []v1beta1.LockPackage{
-								{
-									Source: "hasheddan/config-nop-a:v0.0.1",
-								},
-							}
-							return nil
-						}),
-						MockUpdate: test.NewMockUpdateFn(nil),
-					},
-				},
 				meta: &pkgmetav1.Configuration{},
 				pr: &v1.ConfigurationRevision{
 					Spec: v1.PackageRevisionSpec{
@@ -149,36 +73,7 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				err: nil,
-			},
-		},
-		"ErrorRemoveInactiveFromLock": {
-			reason: "Should return error if we are inactive and fail to remove from lock.",
-			args: args{
-				dep: &PackageDependencyManager{
-					client: &test.MockClient{
-						MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-							l := obj.(*v1beta1.Lock)
-							l.Packages = []v1beta1.LockPackage{
-								{
-									Source: "hasheddan/config-nop-a",
-								},
-							}
-							return nil
-						}),
-						MockUpdate: test.NewMockUpdateFn(errBoom),
-					},
-				},
-				meta: &pkgmetav1.Configuration{},
-				pr: &v1.ConfigurationRevision{
-					Spec: v1.PackageRevisionSpec{
-						Package:      "hasheddan/config-nop-a:v0.0.1",
-						DesiredState: v1.PackageRevisionInactive,
-					},
-				},
-			},
-			want: want{
-				err: errBoom,
+				err: errors.New(errNoResolveForInactiveRevisions),
 			},
 		},
 		"ErrNotMeta": {
