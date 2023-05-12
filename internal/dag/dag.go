@@ -97,7 +97,7 @@ func (d *MapDag) AddNodes(nodes ...Node) error {
 // AddNode adds a node to the graph.
 func (d *MapDag) AddNode(node Node) error {
 	if _, ok := d.nodes[node.Identifier()]; ok {
-		return errors.New("node already exists")
+		return errors.Errorf("node %s already exists", node.Identifier())
 	}
 	d.nodes[node.Identifier()] = node
 	return nil
@@ -120,7 +120,7 @@ func (d *MapDag) NodeExists(identifier string) bool {
 // NodeNeighbors returns a node's neighbors.
 func (d *MapDag) NodeNeighbors(identifier string) ([]Node, error) {
 	if _, ok := d.nodes[identifier]; !ok {
-		return nil, errors.New("node does not exist")
+		return nil, errors.Errorf("node %s does not exist", identifier)
 	}
 	return d.nodes[identifier].Neighbors(), nil
 }
