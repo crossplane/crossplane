@@ -259,7 +259,7 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errBoom,
+				err: errors.Wrap(errBoom, errInitDAG),
 			},
 		},
 		"SuccessfulSelfExistNoDependencies": {

@@ -40,6 +40,7 @@ const (
 
 	errNotMeta                   = "meta type is not a valid package"
 	errGetOrCreateLock           = "cannot get or create lock"
+	errInitDAG                   = "cannot initialize dependency graph from the packages in the lock"
 	errIncompatibleDependencyFmt = "incompatible dependencies: %+v"
 	errMissingDependenciesFmt    = "missing dependencies: %+v"
 	errDependencyNotInGraph      = "dependency is not present in graph"
@@ -116,7 +117,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	d := m.newDag()
 	implied, err := d.Init(v1beta1.ToNodes(lock.Packages...))
 	if err != nil {
-		return found, installed, invalid, err
+		return found, installed, invalid, errors.Wrap(err, errInitDAG)
 	}
 
 	lockRef := xpkg.ParsePackageSourceFromReference(prRef)
