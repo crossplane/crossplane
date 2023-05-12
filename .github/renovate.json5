@@ -40,6 +40,26 @@
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "golangci/golangci-lint",
       "extractVersionTemplate": "^v(?<version>.*)$"
+    }, {
+// We want a PR to bump the helm version used through env variables in
+// any Github Actions or Makefile, taking it from the official Github
+// repository tags.
+      "fileMatch": ["^Makefile$"],
+      "matchStrings": [
+        "HELM3_VERSION = (?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "helm/helm",
+    }, {
+// We want a PR to bump the kind version used through env variables in
+// any Github Actions or Makefile, taking it from the official Github
+// repository tags.
+      "fileMatch": ["^Makefile$"],
+      "matchStrings": [
+        "KIND_VERSION = (?<currentValue>.*?)\\n"
+      ],
+      "datasourceTemplate": "github-tags",
+      "depNameTemplate": "kubernetes-sigs/kind",
     }
   ],
 // PackageRules disabled below should be enabled in case of vulnerabilities
