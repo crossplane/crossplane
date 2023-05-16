@@ -18,6 +18,12 @@ limitations under the License.
 
 package v1beta1
 
+import (
+	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	"github.com/crossplane/crossplane/internal/validation/errors"
+)
+
 // An EnvironmentConfiguration specifies the environment for rendering composed
 // resources.
 type EnvironmentConfiguration struct {
@@ -38,6 +44,25 @@ type EnvironmentConfiguration struct {
 	// Patches is a list of environment patches that are executed before a
 	// composition's resources are composed.
 	Patches []EnvironmentPatch `json:"patches,omitempty"`
+}
+
+// Validate the EnvironmentConfiguration.
+func (e *EnvironmentConfiguration) Validate() field.ErrorList {
+	errs := field.ErrorList{}
+
+	for i, p := range e.Patches {
+		if err := errors.WrapFieldError(p.Validate(), field.NewPath("patches").Index(i)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	for i, ec := range e.EnvironmentConfigs {
+		if err := errors.WrapFieldError(ec.Validate(), field.NewPath("environmentConfigs").Index(i)); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	return errs
 }
 
 // EnvironmentSourceType specifies the way the EnvironmentConfig is selected.
@@ -69,10 +94,47 @@ type EnvironmentSource struct {
 	Selector *EnvironmentSourceSelector `json:"selector,omitempty"`
 }
 
+// Validate the EnvironmentSource.
+func (e *EnvironmentSource) Validate() *field.Error {
+	switch e.Type {
+	case EnvironmentSourceTypeReference:
+		if e.Ref == nil {
+			return field.Required(field.NewPath("ref"), "ref is required")
+		}
+		if err := e.Ref.Validate(); err != nil {
+			return errors.WrapFieldError(err, field.NewPath("ref"))
+		}
+
+	case EnvironmentSourceTypeSelector:
+		if e.Selector == nil {
+			return field.Required(field.NewPath("selector"), "selector is required")
+		}
+		if len(e.Selector.MatchLabels) == 0 {
+			return field.Required(field.NewPath("selector", "matchLabels"), "selector must have at least one match label")
+		}
+		for i, m := range e.Selector.MatchLabels {
+			if err := m.Validate(); err != nil {
+				return errors.WrapFieldError(err, field.NewPath("selector", "matchLabels").Index(i))
+			}
+		}
+	default:
+		return field.Invalid(field.NewPath("type"), e.Type, "invalid type")
+	}
+	return nil
+}
+
 // An EnvironmentSourceReference references an EnvironmentConfig by it's name.
 type EnvironmentSourceReference struct {
 	// The name of the object.
 	Name string `json:"name"`
+}
+
+// Validate the EnvironmentSourceReference.
+func (e *EnvironmentSourceReference) Validate() *field.Error {
+	if e.Name == "" {
+		return field.Required(field.NewPath("name"), "name is required")
+	}
+	return nil
 }
 
 // An EnvironmentSourceSelector selects an EnvironmentConfig via labels.
@@ -113,6 +175,40 @@ type EnvironmentSourceSelectorLabelMatcher struct {
 	Value *string `json:"value,omitempty"`
 }
 
+// GetType returns the type of the label matcher, returning the default if not set.
+func (e *EnvironmentSourceSelectorLabelMatcher) GetType() EnvironmentSourceSelectorLabelMatcherType {
+	if e == nil {
+		return EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath
+	}
+	return e.Type
+}
+
+// Validate logically validate the EnvironmentSourceSelectorLabelMatcher.
+func (e *EnvironmentSourceSelectorLabelMatcher) Validate() *field.Error {
+	if e.Key == "" {
+		return field.Required(field.NewPath("key"), "key is required")
+	}
+	switch e.GetType() {
+	case EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath:
+		if e.ValueFromFieldPath == nil {
+			return field.Required(field.NewPath("valueFromFieldPath"), "valueFromFieldPath is required")
+		}
+		if *e.ValueFromFieldPath == "" {
+			return field.Required(field.NewPath("valueFromFieldPath"), "valueFromFieldPath must not be empty")
+		}
+	case EnvironmentSourceSelectorLabelMatcherTypeValue:
+		if e.Value == nil {
+			return field.Required(field.NewPath("value"), "value is required")
+		}
+		if *e.Value == "" {
+			return field.Required(field.NewPath("value"), "value must not be empty")
+		}
+	default:
+		return field.Invalid(field.NewPath("type"), e.Type, "invalid type")
+	}
+	return nil
+}
+
 // EnvironmentPatch is a patch for a Composition environment.
 type EnvironmentPatch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
@@ -147,4 +243,28 @@ type EnvironmentPatch struct {
 	// Policy configures the specifics of patching behaviour.
 	// +optional
 	Policy *PatchPolicy `json:"policy,omitempty"`
+}
+
+// ToPatch converts the EnvironmentPatch to a Patch.
+func (e *EnvironmentPatch) ToPatch() *Patch {
+	if e == nil {
+		return nil
+	}
+	return &Patch{
+		Type:          e.Type,
+		FromFieldPath: e.FromFieldPath,
+		Combine:       e.Combine,
+		ToFieldPath:   e.ToFieldPath,
+		Transforms:    e.Transforms,
+		Policy:        e.Policy,
+	}
+}
+
+// Validate validates the EnvironmentPatch.
+func (e *EnvironmentPatch) Validate() *field.Error {
+	p := e.ToPatch()
+	if p == nil {
+		return nil
+	}
+	return p.Validate()
 }
