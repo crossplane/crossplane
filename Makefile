@@ -41,7 +41,7 @@ GOLANGCILINT_VERSION = 1.52.2
 
 USE_HELM3 = true
 HELM3_VERSION = v3.12.0
-KIND_VERSION = v0.18.0
+KIND_VERSION = v0.19.0
 -include build/makelib/k8s_tools.mk
 
 # ====================================================================================
