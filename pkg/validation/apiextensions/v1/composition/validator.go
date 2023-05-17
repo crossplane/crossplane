@@ -133,6 +133,7 @@ func (v *Validator) Validate(ctx context.Context, obj runtime.Object) (warns []s
 		v.validatePatchesWithSchemas,
 		v.validateReadinessChecksWithSchemas,
 		v.validateConnectionDetailsWithSchemas,
+		v.validateEnvironmentPatchesWithSchemas,
 		// TODO(phisco): add more phase 2 validation here
 	} {
 		errs = append(errs, f(ctx, comp)...)

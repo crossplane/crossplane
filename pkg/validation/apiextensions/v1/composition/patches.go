@@ -58,7 +58,48 @@ func (v *Validator) validatePatchesWithSchemas(ctx context.Context, comp *v1.Com
 	return errs
 }
 
+func (v *Validator) validateEnvironmentPatchesWithSchemas(ctx context.Context, comp *v1.Composition) (errs field.ErrorList) {
+	if comp.Spec.Environment == nil {
+		return nil
+	}
+	compositeResGVK := schema.FromAPIVersionAndKind(
+		comp.Spec.CompositeTypeRef.APIVersion,
+		comp.Spec.CompositeTypeRef.Kind,
+	)
+
+	compositeCRD, err := v.crdGetter.Get(ctx, compositeResGVK.GroupKind())
+	if err != nil {
+		return append(errs, field.InternalError(field.NewPath("spec").Child("environment"), errors.Errorf("cannot find composite type %s: %w", comp.Spec.CompositeTypeRef, err)))
+	}
+	// TODO(phisco): we could relax this condition and handle partially missing crds in the future
+	if compositeCRD == nil {
+		// means the crdGetter didn't find the needed crds, but didn't return an error
+		// this means we should not treat it as an error either
+		return nil
+	}
+	for i, patch := range comp.Spec.Environment.Patches {
+		v1Patch := patch.ToPatch()
+		if v1Patch == nil {
+			errs = append(errs, field.Invalid(field.NewPath("spec").Child("environment", "patches").Index(i), patch, "cannot convert patch to v1.Patch"))
+			continue
+		}
+		if err := verrors.WrapFieldError(v.validatePatchWithSchemaInternal(patchValidationCtx{
+			comp:            comp,
+			patch:           *v1Patch,
+			compositeCRD:    compositeCRD,
+			compositeResGVK: compositeResGVK,
+		}), field.NewPath("spec").Child("environment", "patches").Index(i)); err != nil {
+			errs = append(errs, err)
+
+		}
+	}
+	return errs
+}
+
 func getSchemaForVersion(crd *apiextensions.CustomResourceDefinition, version string) *apiextensions.JSONSchemaProps {
+	if crd == nil {
+		return nil
+	}
 	if crd.Spec.Validation != nil {
 		return crd.Spec.Validation.OpenAPIV3Schema
 	}
@@ -95,7 +136,7 @@ func (v *Validator) validatePatchWithSchemas(ctx context.Context, comp *v1.Compo
 
 	compositeCRD, err := v.crdGetter.Get(ctx, compositeResGVK.GroupKind())
 	if err != nil {
-		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Wrapf(err, "cannot find composite type %s: %s", comp.Spec.CompositeTypeRef, err))
+		return field.InternalError(field.NewPath("spec").Child("resources").Index(resourceNumber), errors.Errorf("cannot find composite type %s: %w", comp.Spec.CompositeTypeRef, err))
 	}
 	resourceCRD, err := v.crdGetter.Get(ctx, resourceGVK.GroupKind())
 	if err != nil {
