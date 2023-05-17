@@ -442,7 +442,6 @@ spec:
                             the Patch object.
                           enum:
                           - FromCompositeFieldPath
-                          - FromEnvironmentFieldPath
                           - ToCompositeFieldPath
                           - CombineFromComposite
                           - CombineToComposite
@@ -1851,7 +1850,6 @@ spec:
                             the Patch object.
                           enum:
                           - FromCompositeFieldPath
-                          - FromEnvironmentFieldPath
                           - ToCompositeFieldPath
                           - CombineFromComposite
                           - CombineToComposite
