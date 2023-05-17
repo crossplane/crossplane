@@ -116,7 +116,7 @@ type EnvironmentPatch struct {
 	// Type sets the patching behaviour to be used. Each patch type may require
 	// its own fields to be set on the Patch object.
 	// +optional
-	// +kubebuilder:validation:Enum=FromCompositeFieldPath;FromEnvironmentFieldPath;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
+	// +kubebuilder:validation:Enum=FromCompositeFieldPath;ToCompositeFieldPath;CombineFromComposite;CombineToComposite
 	// +kubebuilder:default=FromCompositeFieldPath
 	Type PatchType `json:"type,omitempty"`
 
