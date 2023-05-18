@@ -110,9 +110,9 @@ packageCache:
   medium: ""
   # -- The size limit for the package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory.
   sizeLimit: 20Mi
-  # -- The name of a PersistentVolumeClaim to use as the package cache. Disables the default package cache `emptyDir`.
+  # -- The name of a PersistentVolumeClaim to use as the package cache. Disables the default package cache `emptyDir` Volume.
   pvc: ""
-  # -- The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir`.
+  # -- The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume.
   configMap: ""
 
 resourcesRBACManager:
@@ -201,9 +201,9 @@ xfn:
     medium: ""
     # -- The size limit for the Composite function runner package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory.
     sizeLimit: 1Gi
-    # -- The name of a PersistentVolumeClaim to use as the Composite function runner package cache. Disables the default Composite function runner package cache `emptyDir`.
+    # -- The name of a PersistentVolumeClaim to use as the Composite function runner package cache. Disables the default Composite function runner package cache `emptyDir` Volume.
     pvc: ""
-    # -- The name of a ConfigMap to use as the Composite function runner package cache. Disables the default Composite function runner package cache `emptyDir`.
+    # -- The name of a ConfigMap to use as the Composite function runner package cache. Disables the default Composite function runner package cache `emptyDir` Volume.
     configMap: ""
   resources:
     limits:
