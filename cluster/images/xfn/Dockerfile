@@ -1,5 +1,5 @@
 # This is debian:bookworm-slim (i.e. Debian 12, testing), which has crun v1.5.
-FROM debian:bookworm-slim@sha256:72cc75fa1097aa604b310e70fee7e19afa24d8b64057cc6a717066207af29ee3
+FROM debian:bookworm-slim@sha256:e1a80fdca0e09f557a2bef15c7f601c49915e8977ca16eead985e541afeb5770
 
 ARG TARGETOS
 ARG TARGETARCH
