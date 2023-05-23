@@ -19,6 +19,8 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -201,17 +203,18 @@ type ReadinessCheckType string
 
 // The possible values for readiness check type.
 const (
-	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
-	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
-	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeNone         ReadinessCheckType = "None"
+	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
+	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
+	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
+	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
 
 // A DesiredReadinessCheck is used to indicate how to tell whether a resource is
 // ready for consumption
 type DesiredReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchCondition";"None"
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
@@ -227,6 +230,46 @@ type DesiredReadinessCheck struct {
 	// type.
 	// +optional
 	MatchInteger *int64 `json:"matchInteger,omitempty"`
+
+	// MatchCondition specifies the condition you'd like to match if you're using "MatchCondition" type.
+	// +optional
+	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
+}
+
+// MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption
+type MatchConditionReadinessCheck struct {
+	// Type indicates the type of condition you'd like to use.
+	// +kubebuilder:default="Ready"
+	Type string `json:"type,omitempty"`
+
+	// Status is the status of the condition you'd like to match.
+	// +kubebuilder:default="True"
+	Status string `json:"status,omitempty"`
+}
+
+// DesiredReadinessCheckToV1 converts a DesiredReadinessCheck to a v1.ReadinessCheck.
+func DesiredReadinessCheckToV1(rc *DesiredReadinessCheck) (c *v1.ReadinessCheck) {
+	c.Type = v1.ReadinessCheckType(rc.Type)
+	if rc.FieldPath != nil {
+		c.FieldPath = *rc.FieldPath
+	}
+
+	// NOTE(negz): ComposedTemplate doesn't use pointer values for optional
+	// strings, so today the empty string and 0 are equivalent to "unset".
+	if rc.MatchString != nil {
+		c.MatchString = *rc.MatchString
+	}
+	if rc.MatchInteger != nil {
+		c.MatchInteger = *rc.MatchInteger
+	}
+	if rc.MatchCondition != nil {
+		c.MatchCondition = &v1.MatchConditionReadinessCheck{
+			Type:   rc.MatchCondition.Type,
+			Status: rc.MatchCondition.Status,
+		}
+	}
+	return c
 }
 
 // Result is an optional list that can be used by function to emit results for

@@ -23,6 +23,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	"github.com/crossplane/crossplane/internal/validation/errors"
 )
 
 /*
@@ -89,6 +91,7 @@ type ComposedTemplate struct {
 	// have to return true in order for resource to be considered ready. The
 	// default readiness check is to have the "Ready" condition to be "True".
 	// +optional
+	// +kubebuilder:default={{type:"MatchCondition",matchCondition:{type:"Ready",status:"True"}}}
 	ReadinessChecks []ReadinessCheck `json:"readinessChecks,omitempty"`
 }
 
@@ -105,16 +108,17 @@ type ReadinessCheckType string
 
 // The possible values for readiness check type.
 const (
-	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
-	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
-	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeNone         ReadinessCheckType = "None"
+	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
+	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
+	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
+	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
 
 // IsValid returns nil if the readiness check type is valid, or an error otherwise.
 func (t *ReadinessCheckType) IsValid() bool {
 	switch *t {
-	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeNone:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
 		return true
 	}
 	return false
@@ -128,7 +132,7 @@ type ReadinessCheck struct {
 	// or 0?
 
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchCondition";"None"
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
@@ -142,9 +146,41 @@ type ReadinessCheck struct {
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	// +optional
 	MatchInteger int64 `json:"matchInteger,omitempty"`
+
+	// MatchCondition specifies the condition you'd like to match if you're using "MatchCondition" type.
+	// +optional
+	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
+}
+
+// MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption
+type MatchConditionReadinessCheck struct {
+	// Type indicates the type of condition you'd like to use.
+	// +kubebuilder:default="Ready"
+	Type string `json:"type,omitempty"`
+
+	// Status is the status of the condition you'd like to match.
+	// +kubebuilder:default="True"
+	Status string `json:"status,omitempty"`
+}
+
+// Validate checks if the match condition is logically valid.
+func (m *MatchConditionReadinessCheck) Validate() *field.Error {
+	if m == nil {
+		return nil
+	}
+	if m.Type == "" {
+		return field.Required(field.NewPath("type"), "cannot be empty for type MatchCondition")
+	}
+	if m.Status == "" {
+		return field.Required(field.NewPath("status"), "cannot be empty for type MatchCondition")
+	}
+	return nil
 }
 
 // Validate checks if the readiness check is logically valid.
+//
+//nolint:gocyclo // This function is not that complex, just a switch
 func (r *ReadinessCheck) Validate() *field.Error {
 	if !r.Type.IsValid() {
 		return field.Invalid(field.NewPath("type"), string(r.Type), "unknown readiness check type")
@@ -162,6 +198,11 @@ func (r *ReadinessCheck) Validate() *field.Error {
 		if r.MatchInteger == 0 {
 			return field.Required(field.NewPath("matchInteger"), "cannot be 0 for type MatchInteger")
 		}
+	case ReadinessCheckTypeMatchCondition:
+		if err := r.MatchCondition.Validate(); err != nil {
+			return errors.WrapFieldError(err, field.NewPath("matchCondition"))
+		}
+		return nil
 	case ReadinessCheckTypeNonEmpty:
 		// No specific validation required.
 	}
