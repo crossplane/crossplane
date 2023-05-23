@@ -29,6 +29,7 @@ This list is sorted in the order that organizations were added to it.
 
 | Organization | Contact | Description of Use |
 | ------------ | ------- | ------------------ |
+| [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) | @pheianox | Declarative configuration and integration with CI/CD pipelines |
 | [Upbound](https://upbound.io) | @jbw976 | Main control plane and infrastructure management solution for [Upbound Cloud](https://upbound.io). Crossplane powers the internal developer platforms for all dev, staging, and production environments. |
 | [RunWhen](https://runwhen.com) | @stewartshea | Builds production and developer environments that power the RunWhen Social Reliability Platform.|
 | [Nethopper](https://nethopper.io) | @ddonahuex | Main IaC component in Nethopper's [Cloud Management Platform](https://www.nethopper.io/platform). Nethopper's Cloud Management Platform combines Crossplane with Continuous Delivery to allow DevOps to create, update, and destroy infrastructure in any cloud.|
