@@ -54,7 +54,6 @@ import (
 
 	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
-	fnv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -1122,10 +1121,10 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 	type args struct {
 		ctx context.Context
 		fn  *v1.ContainerFunction
-		r   *fnv1alpha1.RunFunctionRequest
+		r   *fnpbv1alpha1.RunFunctionRequest
 	}
 	type want struct {
-		r   *fnv1alpha1.RunFunctionRequest
+		r   *fnpbv1alpha1.RunFunctionRequest
 		err error
 	}
 
@@ -1189,12 +1188,12 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 					Image:            "xpkg.example.org/cool-image:v1.0.0",
 					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
 				},
-				r: &fnv1alpha1.RunFunctionRequest{},
+				r: &fnpbv1alpha1.RunFunctionRequest{},
 			},
 			want: want{
-				r: &fnv1alpha1.RunFunctionRequest{
-					ImagePullConfig: &fnv1alpha1.ImagePullConfig{
-						Auth: &fnv1alpha1.ImagePullAuth{
+				r: &fnpbv1alpha1.RunFunctionRequest{
+					ImagePullConfig: &fnpbv1alpha1.ImagePullConfig{
+						Auth: &fnpbv1alpha1.ImagePullAuth{
 							Username: "cool-user",
 							Password: "cool-pass",
 						},
