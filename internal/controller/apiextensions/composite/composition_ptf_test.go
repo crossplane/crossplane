@@ -1170,9 +1170,16 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 		"Success": {
 			reason: "We should successfully parse OCI registry authentication credentials from an image pull secret.",
 			params: params{
+				namespace: "cool-namespace",
 				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						if s, ok := obj.(*corev1.Secret); ok {
+							want := client.ObjectKey{Namespace: "cool-namespace", Name: "cool-secret"}
+
+							if diff := cmp.Diff(want, key); diff != "" {
+								t.Errorf("\nclient.Get(...): -want key, +got key:\n%s", diff)
+							}
+
 							s.Type = corev1.SecretTypeDockerConfigJson
 							s.Data = map[string][]byte{
 								corev1.DockerConfigJsonKey: []byte(`{"auths":{"xpkg.example.org":{"username":"cool-user","password":"cool-pass"}}}`),
@@ -1180,7 +1187,6 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 						}
 						return nil
 					},
-					),
 				},
 			},
 			args: args{
