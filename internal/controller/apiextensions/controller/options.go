@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package controller contains options specific to apiextension controllers.
+// Package controller contains options specific to apiextensions controllers.
 package controller
 
 import (
@@ -25,9 +25,11 @@ import (
 type Options struct {
 	controller.Options
 
-	// Namespace used for XFN private registries authentication.
+	// Namespace in which we'll look for image pull secrets for in-cluster
+	// private registry authentication when pulling Composition Functions.
 	Namespace string
 
-	// ServiceAccount is the core Crossplane ServiceAccount name.
+	// ServiceAccount for which we'll find image pull secrets for in-cluster
+	// private registry authentication when pulling Composition Functions.
 	ServiceAccount string
 }

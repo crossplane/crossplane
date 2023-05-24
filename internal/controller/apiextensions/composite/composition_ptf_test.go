@@ -52,7 +52,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	"github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -1111,6 +1110,120 @@ func TestFunctionIODesired(t *testing.T) {
 	}
 }
 
+func TestWithKubernetesAuthentication(t *testing.T) {
+	errBoom := errors.New("boom")
+
+	type params struct {
+		c              client.Reader
+		namespace      string
+		serviceAccount string
+	}
+	type args struct {
+		ctx context.Context
+		fn  *v1.ContainerFunction
+		r   *fnpbv1alpha1.RunFunctionRequest
+	}
+	type want struct {
+		r   *fnpbv1alpha1.RunFunctionRequest
+		err error
+	}
+
+	cases := map[string]struct {
+		reason string
+		params params
+		args   args
+		want   want
+	}{
+		"GetServiceAccountError": {
+			reason: "We should return an error if we can't get the service account.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetServiceAccount),
+			},
+		},
+		"GetSecretError": {
+			reason: "We should return an error if we can't get an image pull secret.",
+			params: params{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						if _, ok := obj.(*corev1.Secret); ok {
+							return errBoom
+						}
+						return nil
+					},
+					),
+				},
+			},
+			args: args{
+				fn: &v1.ContainerFunction{
+					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errGetImagePullSecret),
+			},
+		},
+		"Success": {
+			reason: "We should successfully parse OCI registry authentication credentials from an image pull secret.",
+			params: params{
+				namespace: "cool-namespace",
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						if s, ok := obj.(*corev1.Secret); ok {
+							want := client.ObjectKey{Namespace: "cool-namespace", Name: "cool-secret"}
+
+							if diff := cmp.Diff(want, key); diff != "" {
+								t.Errorf("\nclient.Get(...): -want key, +got key:\n%s", diff)
+							}
+
+							s.Type = corev1.SecretTypeDockerConfigJson
+							s.Data = map[string][]byte{
+								corev1.DockerConfigJsonKey: []byte(`{"auths":{"xpkg.example.org":{"username":"cool-user","password":"cool-pass"}}}`),
+							}
+						}
+						return nil
+					},
+				},
+			},
+			args: args{
+				fn: &v1.ContainerFunction{
+					Image:            "xpkg.example.org/cool-image:v1.0.0",
+					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
+				},
+				r: &fnpbv1alpha1.RunFunctionRequest{},
+			},
+			want: want{
+				r: &fnpbv1alpha1.RunFunctionRequest{
+					ImagePullConfig: &fnpbv1alpha1.ImagePullConfig{
+						Auth: &fnpbv1alpha1.ImagePullAuth{
+							Username: "cool-user",
+							Password: "cool-pass",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := WithKubernetesAuthentication(tc.params.c, tc.params.namespace, tc.params.serviceAccount)(tc.args.ctx, tc.args.fn, tc.args.r)
+
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+
+			if diff := cmp.Diff(tc.want.r, tc.args.r, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestRunFunctionPipeline(t *testing.T) {
 	errBoom := errors.New("boom")
 
@@ -1160,7 +1273,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"RunContainerFunctionError": {
 			reason: "We should return an error if we can't run a containerized function.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return nil, errBoom
 				}),
 			},
@@ -1185,7 +1298,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"ResultError": {
 			reason: "We should return the first result of Error severity.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Results: []iov1alpha1.Result{
 							{
@@ -1217,7 +1330,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"ParseCompositeError": {
 			reason: "We should return an error if we can't unmarshal the desired XR.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Desired: iov1alpha1.Desired{
 							Composite: iov1alpha1.DesiredComposite{
@@ -1251,7 +1364,7 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"ParseComposedError": {
 			reason: "We should return an error if we can't unmarshal a desired composed resource.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Desired: iov1alpha1.Desired{
 							Composite: iov1alpha1.DesiredComposite{
@@ -1302,14 +1415,14 @@ func TestRunFunctionPipeline(t *testing.T) {
 		"Success": {
 			reason: "We should update our CompositionState with the results of the pipeline.",
 			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction) (*iov1alpha1.FunctionIO, error) {
+				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
 					return &iov1alpha1.FunctionIO{
 						Desired: iov1alpha1.Desired{
 							Composite: iov1alpha1.DesiredComposite{
 								Resource: runtime.RawExtension{
 									Raw: []byte(`{"apiVersion":"a/v1","kind":"XR"}`),
 								},
-								ConnectionDetails: []v1alpha1.ExplicitConnectionDetail{
+								ConnectionDetails: []iov1alpha1.ExplicitConnectionDetail{
 									{
 										Name:  "a",
 										Value: "b",
@@ -1425,7 +1538,7 @@ func TestRunFunction(t *testing.T) {
 
 	fnio := &iov1alpha1.FunctionIO{
 		Desired: iov1alpha1.Desired{
-			Resources: []v1alpha1.DesiredResource{
+			Resources: []iov1alpha1.DesiredResource{
 				{Name: "cool-resource"},
 			},
 		},
@@ -1510,9 +1623,7 @@ func TestRunFunction(t *testing.T) {
 				Endpoint: pointer.String(lis.Addr().String()),
 			}
 
-			xfnRunner := &DefaultCompositeFunctionRunner{}
-
-			fnio, err := xfnRunner.RunFunction(tc.args.ctx, tc.args.fnio, tc.args.fn)
+			fnio, err := RunFunction(tc.args.ctx, tc.args.fnio, tc.args.fn)
 
 			_ = lis.Close() // This should terminate the goroutine above.
 			wg.Wait()
@@ -1664,16 +1775,14 @@ func TestImagePullConfig(t *testing.T) {
 	ifNotPresent := corev1.PullIfNotPresent
 
 	cases := map[string]struct {
-		reason  string
-		fn      *v1.ContainerFunction
-		want    *fnpbv1alpha1.ImagePullConfig
-		wantErr error
+		reason string
+		fn     *v1.ContainerFunction
+		want   *fnpbv1alpha1.ImagePullConfig
 	}{
 		"NoImagePullPolicy": {
-			reason:  "We should return an empty config if there's no ImagePullPolicy.",
-			fn:      &v1.ContainerFunction{},
-			want:    &fnpbv1alpha1.ImagePullConfig{},
-			wantErr: nil,
+			reason: "We should return an empty config if there's no ImagePullPolicy.",
+			fn:     &v1.ContainerFunction{},
+			want:   &fnpbv1alpha1.ImagePullConfig{},
 		},
 		"PullAlways": {
 			reason: "We should correctly map PullAlways.",
@@ -1683,7 +1792,6 @@ func TestImagePullConfig(t *testing.T) {
 			want: &fnpbv1alpha1.ImagePullConfig{
 				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
 			},
-			wantErr: nil,
 		},
 		"PullNever": {
 			reason: "We should correctly map PullNever.",
@@ -1693,7 +1801,6 @@ func TestImagePullConfig(t *testing.T) {
 			want: &fnpbv1alpha1.ImagePullConfig{
 				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
 			},
-			wantErr: nil,
 		},
 		"PullIfNotPresent": {
 			reason: "We should correctly map PullIfNotPresent.",
@@ -1703,17 +1810,12 @@ func TestImagePullConfig(t *testing.T) {
 			want: &fnpbv1alpha1.ImagePullConfig{
 				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT,
 			},
-			wantErr: nil,
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got, err := ImagePullConfig(tc.fn, nil)
-
-			if diff := cmp.Diff(tc.wantErr, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nImagePullConfig(...): -want, +got:\n%s", tc.reason, diff)
-			}
+			got := ImagePullConfig(tc.fn)
 
 			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
 				t.Errorf("\n%s\nImagePullConfig(...): -want, +got:\n%s", tc.reason, diff)
