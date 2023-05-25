@@ -29,7 +29,6 @@ This list is sorted in the order that organizations were added to it.
 
 | Organization | Contact | Description of Use |
 | ------------ | ------- | ------------------ |
-| [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) | @pheianox | Declarative configuration and integration with CI/CD pipelines |
 | [Upbound](https://upbound.io) | @jbw976 | Main control plane and infrastructure management solution for [Upbound Cloud](https://upbound.io). Crossplane powers the internal developer platforms for all dev, staging, and production environments. |
 | [RunWhen](https://runwhen.com) | @stewartshea | Builds production and developer environments that power the RunWhen Social Reliability Platform.|
 | [Nethopper](https://nethopper.io) | @ddonahuex | Main IaC component in Nethopper's [Cloud Management Platform](https://www.nethopper.io/platform). Nethopper's Cloud Management Platform combines Crossplane with Continuous Delivery to allow DevOps to create, update, and destroy infrastructure in any cloud.|
@@ -49,3 +48,4 @@ This list is sorted in the order that organizations were added to it.
 | [Syntasso](https://syntasso.io) | @syntassodev |  Used as an optional subcomponent in [Kratix](https://kratix.io), to enable platform teams to manage infrastructure. |
 | [VSHN](https://www.vshn.ch) | @tobru | Crossplane powers the [VSHN Application Catalog (AppCat)](https://products.vshn.ch/appcat/index.html), a Cloud Native marketplace which offers services from Cloud Service Providers like Amazon AWS, Google Cloud, Microsoft Azure, Aiven.io, Exoscale or cloudscale.ch, as well as managed services from VSHN. |
 | [Grupo Boticário](https://www.grupoboticario.com.br/) | [@chicoribas](https://github.com/chicoribas), [@fndiaz](https://github.com/fndiaz), [@digogid](https://github.com/digogid), [@manumbs](https://github.com/manumbs), [@haooliveira84](https://github.com/haooliveira84)| Centralized developer portal|
+| [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) | @pheianox | Declarative configuration and integration with CI/CD pipelines |
