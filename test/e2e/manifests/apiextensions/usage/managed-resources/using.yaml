@@ -1,0 +1,13 @@
+apiVersion: nop.crossplane.io/v1alpha1
+kind: NopResource
+metadata:
+  name: using-resource
+spec:
+  forProvider:
+    conditionAfter:
+      - conditionType: "Ready"
+        conditionStatus: "True"
+        time: "5s"
+      - conditionType: "Synced"
+        conditionStatus: "True"
+        time: "10s"

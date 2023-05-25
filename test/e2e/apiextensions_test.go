@@ -105,3 +105,56 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 	)
 
 }
+
+// TestUsage tests scenarios for Crossplane's `Usage` resource.
+func TestUsage(t *testing.T) {
+	// Test that a claim using a very minimal Composition (with no patches,
+	// transforms, or functions) will become available when its composed
+	// resources do.
+	manifests := "test/e2e/manifests/apiextensions/usage/managed-resources"
+	managedResources := features.Table{
+		{
+			Name: "PrerequisitesAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+			),
+		},
+		{
+			Name: "ManagedResourcesAndUsageAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "*.yaml"),
+			),
+		},
+		{
+			Name: "UsedDeletionBlocked",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResourcesBlocked(manifests, "used.yaml"),
+			),
+		},
+		{
+			Name: "DeletingUsingDeletedUsage",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "using.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "using.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "usage.yaml"),
+			),
+		},
+		{
+			Name: "UsedDeletionUnblocked",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "used.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "used.yaml"),
+			),
+		},
+	}
+
+	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
+	environment.Test(t,
+		managedResources.Build("ManagedResources").
+			WithLabel("area", "apiextensions").
+			WithLabel("size", "small").
+			Setup(setup).Feature(),
+	)
+}

@@ -1,0 +1,60 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xnopresources.nop.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: nop.example.org/v1alpha1
+    kind: XNopResource
+  resources:
+  - name: used-resource
+    base:
+      apiVersion: nop.crossplane.io/v1alpha1
+      kind: NopResource
+      metadata:
+        labels:
+            usage: used
+      spec:
+        forProvider:
+          conditionAfter:
+          - conditionType: Ready
+            conditionStatus: "False"
+            time: 0s
+          - conditionType: Ready
+            conditionStatus: "True"
+            time: 10s
+  - name: using-resource
+    base:
+      apiVersion: nop.crossplane.io/v1alpha1
+      kind: NopResource
+      metadata:
+        labels:
+          usage: using
+      spec:
+        forProvider:
+          conditionAfter:
+            - conditionType: Ready
+              conditionStatus: "False"
+              time: 0s
+            - conditionType: Ready
+              conditionStatus: "True"
+              time: 10s
+  - name: usage-resource
+    base:
+      apiVersion: apiextensions.crossplane.io/v1alpha1
+      kind: Usage
+      spec:
+        of:
+          apiVersion: nop.crossplane.io/v1alpha1
+          kind: NopResource
+          resourceSelector:
+            matchControllerRef: true
+            matchLabels:
+              usage: used
+        by:
+          apiVersion: nop.crossplane.io/v1alpha1
+          kind: NopResource
+          resourceSelector:
+            matchControllerRef: true
+            matchLabels:
+              usage: using

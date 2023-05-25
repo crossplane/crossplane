@@ -1,0 +1,28 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: usage-webhook-configuration
+webhooks:
+  - admissionReviewVersions:
+      - v1
+    clientConfig:
+      service:
+        name: webhook-service
+        namespace: system
+        path: /validate-no-usages
+    failurePolicy: Fail
+    name: nousages.apiextensions.crossplane.io
+    objectSelector:
+      matchLabels:
+        crossplane.io/in-use: "true"
+    rules:
+      - apiGroups:
+          - '*'
+        apiVersions:
+          - '*'
+        operations:
+          - DELETE
+        resources:
+          - '*'
+    sideEffects: None

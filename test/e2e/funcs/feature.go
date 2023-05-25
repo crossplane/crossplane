@@ -18,6 +18,7 @@ package funcs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -519,6 +520,24 @@ func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pat
 		}
 
 		t.Logf("matching resources had desired value %q at field path %s", want, path)
+		return ctx
+	}
+}
+
+// DeleteResourcesBlocked deletes (from the environment) all resources defined by the
+// manifests under the supplied directory that match the supplied glob pattern
+// (e.g. *.yaml).
+func DeleteResourcesBlocked(dir, pattern string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		dfs := os.DirFS(dir)
+
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources())); !strings.HasPrefix(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
+			t.Fatal(errors.New(fmt.Sprintf("expected admission webhook to deny the request but it did not, err: %s", err.Error())))
+			return ctx
+		}
+
+		files, _ := fs.Glob(dfs, pattern)
+		t.Logf("Deletion blocked for resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
 		return ctx
 	}
 }

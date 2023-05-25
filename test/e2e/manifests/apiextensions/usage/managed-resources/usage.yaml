@@ -1,0 +1,15 @@
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Usage
+metadata:
+  name: using-uses-used
+spec:
+  of:
+    apiVersion: nop.crossplane.io/v1alpha1
+    kind: NopResource
+    resourceRef:
+      name: used-resource
+  by:
+    apiVersion: nop.crossplane.io/v1alpha1
+    kind: NopResource
+    resourceRef:
+      name: using-resource
