@@ -50,7 +50,7 @@ const pprofPath = "/debug/pprof/"
 // KongVars represent the kong variables associated with the CLI parser
 // required for the RBAC enum interpolation.
 var KongVars = kong.Vars{
-	"rbac_manage_default_var": ManagementPolicyAll,
+	"rbac_manage_default_var": ManagementPolicyBasic,
 	"rbac_manage_enum_var": strings.Join(
 		[]string{
 			ManagementPolicyAll,
@@ -77,8 +77,8 @@ type startCommand struct {
 	Profile string `placeholder:"host:port" help:"Serve runtime profiling data via HTTP at /debug/pprof."`
 
 	ProviderClusterRole string `name:"provider-clusterrole" help:"A ClusterRole enumerating the permissions provider packages may request."`
-	LeaderElection      bool   `name:"leader-election" short:"l" help:"Use leader election for the conroller manager." env:"LEADER_ELECTION"`
-	ManagementPolicy    string `name:"manage" short:"m" help:"RBAC management policy." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
+	LeaderElection      bool   `name:"leader-election" short:"l" help:"Use leader election for the controller manager." env:"LEADER_ELECTION"`
+	ManagementPolicy    string `name:"manage" short:"m" help:"RBAC management policy - Basic or All." default:"${rbac_manage_default_var}" enum:"${rbac_manage_enum_var}"`
 	Registry            string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 
 	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
