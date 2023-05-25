@@ -72,7 +72,7 @@ rbacManager:
   # - A policy of `Basic` creates and binds Roles only for the Crossplane ServiceAccount, Provider ServiceAccounts and creates Crossplane ClusterRoles.
   # - A policy of `All` includes all the `Basic` settings and also creates Crossplane Roles in all namespaces.
   # - Read the Crossplane docs for more information on the [RBAC Roles and ClusterRoles](https://docs.crossplane.io/latest/concepts/pods/#crossplane-clusterroles)
-  managementPolicy: All
+  managementPolicy: Basic
   # -- Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the RBAC Manager pod.
   leaderElection: true
   # -- Add custom arguments to the RBAC Manager pod.
