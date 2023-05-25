@@ -44,6 +44,12 @@ import (
 	"github.com/crossplane/crossplane/pkg/validation/apiextensions/v1/composition"
 )
 
+const (
+	// key used to index CRDs by "Kind" and "group", to be used when
+	// indexing and retrieving needed CRDs
+	crdsIndexKey = "crd.kind.group"
+)
+
 // handler implements the admission handler for Composition.
 type handler struct {
 	reader  client.Reader
@@ -61,13 +67,8 @@ func (h *handler) InjectDecoder(decoder *admission.Decoder) error {
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	if options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
 		indexer := mgr.GetFieldIndexer()
-		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, "spec.group", func(obj client.Object) []string {
-			return []string{obj.(*extv1.CustomResourceDefinition).Spec.Group}
-		}); err != nil {
-			return err
-		}
-		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, "spec.names.kind", func(obj client.Object) []string {
-			return []string{obj.(*extv1.CustomResourceDefinition).Spec.Names.Kind}
+		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, crdsIndexKey, func(obj client.Object) []string {
+			return []string{getIndexValueForCRD(obj.(*extv1.CustomResourceDefinition))}
 		}); err != nil {
 			return err
 		}
@@ -225,18 +226,30 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 // the provided client.
 func (h *handler) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
 	crds := extv1.CustomResourceDefinitionList{}
-	if err := h.reader.List(ctx, &crds,
-		client.MatchingFields{"spec.group": gk.Group},
-		client.MatchingFields{"spec.names.kind": gk.Kind}); err != nil {
+	if err := h.reader.List(ctx, &crds, client.MatchingFields{crdsIndexKey: getIndexValueForGroupKind(gk)}); err != nil {
 		return nil, err
 	}
 	switch {
 	case len(crds.Items) == 0:
 		return nil, apierrors.NewNotFound(schema.GroupResource{Group: "apiextensions.k8s.io", Resource: "CustomResourceDefinition"}, fmt.Sprintf("%s.%s", gk.Kind, gk.Group))
 	case len(crds.Items) > 1:
-		return nil, apierrors.NewInternalError(fmt.Errorf("more than one CRD found for %s.%s", gk.Kind, gk.Group))
+		names := []string{}
+		for _, crd := range crds.Items {
+			names = append(names, crd.Name)
+		}
+		return nil, apierrors.NewInternalError(fmt.Errorf("more than one CRD found for %s.%s: %v", gk.Kind, gk.Group, names))
 	}
 	crd := crds.Items[0]
 	internal := &apiextensions.CustomResourceDefinition{}
 	return internal, extv1.Convert_v1_CustomResourceDefinition_To_apiextensions_CustomResourceDefinition(&crd, internal, nil)
+}
+
+// getIndexValueForCRD returns the index value for the given CRD, according to the resource defined in the spec.
+func getIndexValueForCRD(crd *extv1.CustomResourceDefinition) string {
+	return getIndexValueForGroupKind(&schema.GroupKind{Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind})
+}
+
+// getIndexValueForGroupKind returns the index value for the given GroupKind.
+func getIndexValueForGroupKind(gk *schema.GroupKind) string {
+	return gk.String()
 }
