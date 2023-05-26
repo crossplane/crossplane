@@ -159,11 +159,11 @@ type ReadinessCheck struct {
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
 	// +kubebuilder:default="Ready"
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 
 	// Status is the status of the condition you'd like to match.
 	// +kubebuilder:default="True"
-	Status string `json:"status,omitempty"`
+	Status string `json:"status"`
 }
 
 // Validate checks if the match condition is logically valid.
@@ -181,9 +181,7 @@ func (m *MatchConditionReadinessCheck) Validate() *field.Error {
 }
 
 // Validate checks if the readiness check is logically valid.
-//
-//nolint:gocyclo // This function is not that complex, just a switch
-func (r *ReadinessCheck) Validate() *field.Error {
+func (r *ReadinessCheck) Validate() *field.Error { //nolint:gocyclo // This function is not that complex, just a switch
 	if !r.Type.IsValid() {
 		return field.Invalid(field.NewPath("type"), string(r.Type), "unknown readiness check type")
 	}

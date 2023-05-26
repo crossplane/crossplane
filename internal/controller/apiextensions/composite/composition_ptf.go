@@ -1028,7 +1028,7 @@ func NewReadinessObserver(c ReadinessChecker) *ReadinessObserver {
 // ObserveComposedResources to determine their readiness.
 func (o *ReadinessObserver) ObserveComposedResources(ctx context.Context, s *PTFCompositionState) error {
 	for _, cd := range s.ComposedResources {
-		rcfgs := append(ReadinessChecksFromTemplate(cd.Template), ReadinessChecksFromDesiredResource(cd.Desired)...)
+		rcfgs := append(ReadinessChecksFromComposedTemplate(cd.Template), ReadinessChecksFromDesiredResource(cd.Desired)...)
 		ready, err := o.check.IsReady(ctx, cd.Resource, rcfgs...)
 		if err != nil {
 			return errors.Wrapf(err, errFmtReadiness, cd.ResourceName, cd.Resource.GetObjectKind().GroupVersionKind().Kind, cd.Resource.GetName())

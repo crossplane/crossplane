@@ -88,32 +88,58 @@ type MatchConditionReadinessCheck struct {
 }
 
 // ReadinessCheckFromV1 derives a ReadinessCheck from the supplied v1.ReadinessCheck.
-func ReadinessCheckFromV1(rc *v1.ReadinessCheck) (c ReadinessCheck) {
-	c.Type = ReadinessCheckType(rc.Type)
-	if rc.FieldPath != "" {
-		c.FieldPath = pointer.String(rc.FieldPath)
+func ReadinessCheckFromV1(in *v1.ReadinessCheck) ReadinessCheck {
+	if in == nil {
+		return ReadinessCheck{}
+	}
+
+	out := ReadinessCheck{
+		Type: ReadinessCheckType(in.Type),
+	}
+	if in.FieldPath != "" {
+		out.FieldPath = pointer.String(in.FieldPath)
 	}
 
 	// NOTE(negz): ComposedTemplate doesn't use pointer values for optional
 	// strings, so today the empty string and 0 are equivalent to "unset".
-	if rc.MatchString != "" {
-		c.MatchString = pointer.String(rc.MatchString)
+	if in.MatchString != "" {
+		out.MatchString = pointer.String(in.MatchString)
 	}
-	if rc.MatchInteger != 0 {
-		c.MatchInteger = pointer.Int64(rc.MatchInteger)
+	if in.MatchInteger != 0 {
+		out.MatchInteger = pointer.Int64(in.MatchInteger)
 	}
-	if rc.MatchCondition != nil {
-		c.MatchCondition = &MatchConditionReadinessCheck{
-			Type:   rc.MatchCondition.Type,
-			Status: rc.MatchCondition.Status,
+	if in.MatchCondition != nil {
+		out.MatchCondition = &MatchConditionReadinessCheck{
+			Type:   in.MatchCondition.Type,
+			Status: in.MatchCondition.Status,
 		}
 	}
-	return c
+	return out
 }
 
-// ReadinessChecksFromTemplate derives readiness checks from the supplied
-// template.
-func ReadinessChecksFromTemplate(t *v1.ComposedTemplate) []ReadinessCheck {
+// ReadinessCheckFromDesiredReadinessCheck derives a ReadinessCheck from the supplied iov1alpha1.DesiredReadinessCheck.
+func ReadinessCheckFromDesiredReadinessCheck(in *iov1alpha1.DesiredReadinessCheck) ReadinessCheck {
+	if in == nil {
+		return ReadinessCheck{}
+	}
+	out := ReadinessCheck{
+		Type:         ReadinessCheckType(in.Type),
+		FieldPath:    in.FieldPath,
+		MatchString:  in.MatchString,
+		MatchInteger: in.MatchInteger,
+	}
+	if in.MatchCondition != nil {
+		out.MatchCondition = &MatchConditionReadinessCheck{
+			Type:   in.MatchCondition.Type,
+			Status: in.MatchCondition.Status,
+		}
+	}
+	return out
+}
+
+// ReadinessChecksFromComposedTemplate derives readiness checks from the supplied
+// composed template.
+func ReadinessChecksFromComposedTemplate(t *v1.ComposedTemplate) []ReadinessCheck {
 	if t == nil {
 		return nil
 	}
@@ -132,7 +158,7 @@ func ReadinessChecksFromDesiredResource(dr *iov1alpha1.DesiredResource) []Readin
 	}
 	out := make([]ReadinessCheck, len(dr.ReadinessChecks))
 	for i := range dr.ReadinessChecks {
-		out[i] = ReadinessCheckFromV1(iov1alpha1.DesiredReadinessCheckToV1(&dr.ReadinessChecks[i]))
+		out[i] = ReadinessCheckFromDesiredReadinessCheck(&dr.ReadinessChecks[i])
 	}
 	return out
 }

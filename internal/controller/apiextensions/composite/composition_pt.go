@@ -272,7 +272,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 			conn[key] = val
 		}
 
-		cds[i].Ready, err = c.composed.IsReady(ctx, cds[i].Resource, ReadinessChecksFromTemplate(cds[i].Template)...)
+		cds[i].Ready, err = c.composed.IsReady(ctx, cds[i].Resource, ReadinessChecksFromComposedTemplate(cds[i].Template)...)
 		if err != nil {
 			return CompositionResult{}, errors.Wrap(err, errReadiness)
 		}

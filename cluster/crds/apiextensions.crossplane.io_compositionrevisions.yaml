@@ -1359,6 +1359,9 @@ spec:
                                 description: Type indicates the type of condition
                                   you'd like to use.
                                 type: string
+                            required:
+                            - status
+                            - type
                             type: object
                           matchInteger:
                             description: MatchInt is the value you'd like to match
@@ -2787,6 +2790,9 @@ spec:
                                 description: Type indicates the type of condition
                                   you'd like to use.
                                 type: string
+                            required:
+                            - status
+                            - type
                             type: object
                           matchInteger:
                             description: MatchInt is the value you'd like to match

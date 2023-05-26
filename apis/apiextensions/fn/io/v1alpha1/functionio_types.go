@@ -19,8 +19,6 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -241,35 +239,11 @@ type DesiredReadinessCheck struct {
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
 	// +kubebuilder:default="Ready"
-	Type string `json:"type,omitempty"`
+	Type string `json:"type"`
 
 	// Status is the status of the condition you'd like to match.
 	// +kubebuilder:default="True"
-	Status string `json:"status,omitempty"`
-}
-
-// DesiredReadinessCheckToV1 converts a DesiredReadinessCheck to a v1.ReadinessCheck.
-func DesiredReadinessCheckToV1(rc *DesiredReadinessCheck) (c *v1.ReadinessCheck) {
-	c.Type = v1.ReadinessCheckType(rc.Type)
-	if rc.FieldPath != nil {
-		c.FieldPath = *rc.FieldPath
-	}
-
-	// NOTE(negz): ComposedTemplate doesn't use pointer values for optional
-	// strings, so today the empty string and 0 are equivalent to "unset".
-	if rc.MatchString != nil {
-		c.MatchString = *rc.MatchString
-	}
-	if rc.MatchInteger != nil {
-		c.MatchInteger = *rc.MatchInteger
-	}
-	if rc.MatchCondition != nil {
-		c.MatchCondition = &v1.MatchConditionReadinessCheck{
-			Type:   rc.MatchCondition.Type,
-			Status: rc.MatchCondition.Status,
-		}
-	}
-	return c
+	Status string `json:"status"`
 }
 
 // Result is an optional list that can be used by function to emit results for
