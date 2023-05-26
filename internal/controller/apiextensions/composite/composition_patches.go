@@ -47,18 +47,15 @@ func ApplyEnvironmentPatch(p v1.EnvironmentPatch, cp, env runtime.Object) error 
 	// TODO(negz): Should this take composite.Resource and *env.Environment as
 	// arguments rather than generic runtime.Objects?
 
+	regularPatch := p.ToPatch()
+	if regularPatch == nil {
+		// Should never happen, but just in case, nothing to do.
+		return nil
+	}
 	// To make thing easy, we are going to reuse the logic of a regular
 	// composition patch.
-	regularPatch := v1.Patch{
-		Type:          p.Type,
-		FromFieldPath: p.FromFieldPath,
-		Combine:       p.Combine,
-		ToFieldPath:   p.ToFieldPath,
-		Transforms:    p.Transforms,
-		Policy:        p.Policy,
-	}
 	return ApplyToObjects(
-		regularPatch,
+		*regularPatch,
 		cp,
 		env,
 		v1.PatchTypeFromCompositeFieldPath,

@@ -17,6 +17,7 @@ limitations under the License.
 package v1
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,6 +25,13 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/utils/pointer"
 )
+
+// SortFieldErrors sorts the given field.ErrorList by the error message.
+func sortFieldErrors() cmp.Option {
+	return cmpopts.SortSlices(func(e1, e2 *field.Error) bool {
+		return strings.Compare(e1.Error(), e2.Error()) < 0
+	})
+}
 
 func TestCompositionValidateResourceName(t *testing.T) {
 	type args struct {
@@ -171,7 +179,7 @@ func TestCompositionValidateResourceName(t *testing.T) {
 				Spec: tc.args.spec,
 			}
 			gotErrs := c.validateResourceNames()
-			if diff := cmp.Diff(tc.want.output, gotErrs, cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
 				t.Errorf("%s\nvalidateResourceNames(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -287,8 +295,8 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.args.comp.validatePatchSets()
-			if diff := cmp.Diff(tc.want.output, got, cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+			gotErrs := tc.args.comp.validatePatchSets()
+			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
 				t.Errorf("%s\nvalidatePatchSets(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -413,8 +421,8 @@ func TestCompositionValidateFunctions(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := tc.args.comp.validateFunctions()
-			if diff := cmp.Diff(tc.want.output, got, cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+			gotErrs := tc.args.comp.validateFunctions()
+			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
 				t.Errorf("%s\nvalidateFunctions(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -587,8 +595,225 @@ func TestCompositionValidateResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			got := tc.args.comp.validateResources()
-			if diff := cmp.Diff(tc.want.output, got, cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+			if diff := cmp.Diff(tc.want.output, got, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
 				t.Errorf("%s\nvalidateResources(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestCompositionValidateEnvironment(t *testing.T) {
+	type args struct {
+		comp *Composition
+	}
+	type want struct {
+		output field.ErrorList
+	}
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidEmptyEnvironment": {
+			reason: "Should accept an empty environment",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: &EnvironmentConfiguration{},
+					}}},
+		},
+		"ValidNilEnvironment": {
+			reason: "Should accept a nil environment",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: nil,
+					}}},
+		},
+		"ValidEnvironment": {
+			reason: "Should accept a valid environment",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: &EnvironmentConfiguration{
+							Patches: []EnvironmentPatch{
+								{
+									Type:          PatchTypeFromCompositeFieldPath,
+									FromFieldPath: pointer.String("spec.foo"),
+									ToFieldPath:   pointer.String("metadata.annotations[\"foo\"]"),
+								},
+							},
+							EnvironmentConfigs: []EnvironmentSource{
+								{
+									Type: EnvironmentSourceTypeReference,
+									Ref: &EnvironmentSourceReference{
+										Name: "foo",
+									},
+								},
+								{
+									Type: EnvironmentSourceTypeSelector,
+									Selector: &EnvironmentSourceSelector{
+										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												Key:                "foo",
+												ValueFromFieldPath: pointer.String("spec.foo"),
+											}}}}}}}}},
+		},
+		"InvalidPatchEnvironment": {
+			reason: "Should reject an environment declaring an invalid patch",
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.environment.patches[0].fromFieldPath",
+					},
+				},
+			},
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: &EnvironmentConfiguration{
+							Patches: []EnvironmentPatch{
+								{
+									Type: PatchTypeFromCompositeFieldPath,
+									//FromFieldPath: pointer.String("spec.foo"), // missing
+									ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
+								},
+							},
+							EnvironmentConfigs: []EnvironmentSource{
+								{
+									Type: EnvironmentSourceTypeReference,
+									Ref: &EnvironmentSourceReference{
+										Name: "foo",
+									},
+								},
+								{
+									Type: EnvironmentSourceTypeSelector,
+									Selector: &EnvironmentSourceSelector{
+										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												Key:                "foo",
+												ValueFromFieldPath: pointer.String("spec.foo"),
+											}}}}}}}}},
+		},
+		"InvalidEnvironmentSourceReferenceNoName": {
+			reason: "Should reject a invalid environment, due to a missing name",
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.environment.environmentConfigs[0].ref.name",
+					},
+				},
+			},
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: &EnvironmentConfiguration{
+							EnvironmentConfigs: []EnvironmentSource{
+								{
+									Type: EnvironmentSourceTypeReference,
+									Ref:  &EnvironmentSourceReference{
+										//Name: "foo", // missing
+									},
+								},
+								{
+									Type: EnvironmentSourceTypeSelector,
+									Selector: &EnvironmentSourceSelector{
+										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:               EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												Key:                "foo",
+												ValueFromFieldPath: pointer.String("spec.foo"),
+											}}}}}}}}},
+		},
+		"InvalidEnvironmentSourceSelectorNoKey": {
+			reason: "Should reject a invalid environment due to a missing key in a selector",
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.environment.environmentConfigs[1].selector.matchLabels[0].key",
+					},
+				},
+			},
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: &EnvironmentConfiguration{
+							EnvironmentConfigs: []EnvironmentSource{
+								{
+									Type: EnvironmentSourceTypeReference,
+									Ref: &EnvironmentSourceReference{
+										Name: "foo",
+									},
+								},
+								{
+									Type: EnvironmentSourceTypeSelector,
+									Selector: &EnvironmentSourceSelector{
+										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type: EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												//Key:                "foo", // missing
+												ValueFromFieldPath: pointer.String("spec.foo"),
+											}}}}}}}}},
+		},
+		"InvalidMultipleErrors": {
+			reason: "Should reject a invalid environment due to multiple errors, reporting all of them",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						Environment: &EnvironmentConfiguration{
+							Patches: []EnvironmentPatch{
+								{
+									Type: PatchTypeFromCompositeFieldPath,
+									//FromFieldPath: pointer.String("spec.foo"), // missing
+									ToFieldPath: pointer.String("metadata.annotations[\"foo\"]"),
+								},
+							},
+							EnvironmentConfigs: []EnvironmentSource{
+								{
+									Type: EnvironmentSourceTypeReference,
+									Ref:  &EnvironmentSourceReference{
+										//Name: "foo", // missing
+									},
+								},
+								{
+									Type: EnvironmentSourceTypeSelector,
+									Selector: &EnvironmentSourceSelector{
+										MatchLabels: []EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type: EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												//Key:                "foo", // missing
+												ValueFromFieldPath: pointer.String("spec.foo"),
+											}}}}}}}}},
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.environment.patches[0].fromFieldPath",
+					},
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.environment.environmentConfigs[0].ref.name",
+					},
+					{
+						Type:  field.ErrorTypeRequired,
+						Field: "spec.environment.environmentConfigs[1].selector.matchLabels[0].key",
+					},
+				},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			gotErrs := tc.args.comp.validateEnvironment()
+			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+				t.Errorf("%s\nvalidateEnvironment(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
