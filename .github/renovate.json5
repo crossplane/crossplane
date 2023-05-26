@@ -96,7 +96,7 @@
       "matchDatasources": [
         "go"
       ],
-      "groupName": "kubernetes patches",
+      "groupName": "kubernetes deps",
       "matchUpdateTypes": [
         "digest",
       ],
@@ -106,28 +106,16 @@
         "sigs.k8s.io"
       ]
     }, {
-// We want a single PR for all the patches bumps of kubernetes related
+// We want a single PR for all the bumps of kubernetes related
 // dependencies, as most of the times these are all strictly related.
       "matchDatasources": [
         "go"
       ],
-      "groupName": "kubernetes patches",
-      "matchUpdateTypes": [
-        "patch",
-      ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ]
-    }, {
-// We want dedicated PRs for each minor and major bumps to kubernetes related
-// dependencies.
-      "matchDatasources": [
-        "go"
-      ],
+      "groupName": "kubernetes deps",
       "matchUpdateTypes": [
         "major",
-        "minor"
+        "minor",
+        "patch"
       ],
       "matchPackagePrefixes": [
         "k8s.io",
