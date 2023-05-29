@@ -89,53 +89,11 @@
       "matchDepNames": [
         "k8s.io/client-go"
       ],
-      "allowedVersions": "<1.0"
+      "allowedVersions": "<1.0",
     }, {
-// We don't want digest updates for kubernetes dependencies, as they are too
-// noisy
-      "matchDatasources": [
-        "go"
-      ],
-      "groupName": "kubernetes patches",
-      "matchUpdateTypes": [
-        "digest",
-      ],
-      "extends": ['schedule:monthly'],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ]
-    }, {
-// We want a single PR for all the patches bumps of kubernetes related
-// dependencies, as most of the times these are all strictly related.
-      "matchDatasources": [
-        "go"
-      ],
-      "groupName": "kubernetes patches",
-      "matchUpdateTypes": [
-        "patch",
-      ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ]
-    }, {
-// We want dedicated PRs for each minor and major bumps to kubernetes related
-// dependencies.
-      "matchDatasources": [
-        "go"
-      ],
-      "matchUpdateTypes": [
-        "major",
-        "minor"
-      ],
-      "matchPackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ]
-    }, {
-// We want dedicated PRs for each bump to non-kubernetes Go dependencies, but
-// only if there are known vulnerabilities in the current version.
+// We want a single PR for all bumps to Go dependencies, but only if there are
+// known vulnerabilities in the current version. We need to ignore k8s related
+// dependencies too as they should be first updated on crossplane-runtime.
       "matchDatasources": [
         "go"
       ],
@@ -143,34 +101,13 @@
         "*"
       ],
       "enabled": false,
-      "excludePackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ],
       "matchUpdateTypes": [
         "major",
-      ],
-    }, {
-// We want a single PR for all minor and patch bumps to non-kubernetes Go
-// dependencies, but only if there are known vulnerabilities in the current
-// version.
-      "matchDatasources": [
-        "go"
-      ],
-      "matchPackagePatterns": [
-        "*"
-      ],
-      "enabled": false,
-      "excludePackagePrefixes": [
-        "k8s.io",
-        "sigs.k8s.io"
-      ],
-      "matchUpdateTypes": [
         "minor",
         "patch",
         "digest"
       ],
-      "groupName": "all non-major go dependencies"
+      "groupName": "all go dependencies"
     }, {
 // We want a single PR for all non-major bumps of Github Actions
       "matchDepTypes": [
