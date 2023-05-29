@@ -411,8 +411,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		cm.SetConditions(xpv1.Deleting())
 		if meta.WasCreated(cp) {
+			requiresForegroundDeletion := false
+			if cdp := cm.GetCompositeDeletePolicy(); cdp != nil && *cdp == xpv1.CompositeDeleteForeground {
+				requiresForegroundDeletion = true
+			}
 			if meta.WasDeleted(cp) {
-				if *cm.GetCompositeDeletePolicy() == xpv1.CompositeDeleteForeground {
+				if requiresForegroundDeletion {
 					log.Debug("Waiting for the Composite to finish deleting (foreground deletion)")
 					return reconcile.Result{Requeue: true}, nil
 				}
@@ -434,7 +438,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			}
 
 			do := &client.DeleteOptions{}
-			if *cm.GetCompositeDeletePolicy() == xpv1.CompositeDeleteForeground {
+			if requiresForegroundDeletion {
 				client.PropagationPolicy(metav1.DeletePropagationForeground).ApplyToDelete(do)
 			}
 			if err := r.client.Delete(ctx, cp, do); resource.IgnoreNotFound(err) != nil {
@@ -444,7 +448,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				cm.SetConditions(xpv1.ReconcileError(err))
 				return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 			}
-			if *cm.GetCompositeDeletePolicy() == xpv1.CompositeDeleteForeground {
+			if requiresForegroundDeletion {
 				log.Debug("Requeue to wait for the Composite to finish deleting (foreground deletion)")
 				return reconcile.Result{Requeue: true}, nil
 			}
