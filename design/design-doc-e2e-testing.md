@@ -1,7 +1,7 @@
 # End-to-end Testing in Crossplane
 
 * Owner: Predrag Knežević (@pedjak), Lovro Sviben (@lsviben)
-* Reviewers: @negz, TBD
+* Reviewers: @negz, @hasheddan
 * Status: Draft
 
 ## Background
