@@ -47,7 +47,7 @@ with [system testing].
 
 Going forward we would like to explore and propose using an e2e testing
 framework, preferably one that would be already familiar to the community.
-The chosen framework should poses the following properties:
+The chosen framework should possess the following properties:
 
 * Support for declarative tests.
 
@@ -666,7 +666,7 @@ its `klient`, which offers some abstractions to make testing easier. In order to
 deploy Crossplane resources, we would need to register Crossplane schemas within
 the client. Such a setup is more convenient for running integration tests. For
 end-to-end testing we should simulate users' interaction with the system and
-that happens very often (as advocated in Crossplane doc)typically using kubectl
+that happens very often (as advocated in Crossplane doc) typically using kubectl
 CLI.
 
 #### Readability
