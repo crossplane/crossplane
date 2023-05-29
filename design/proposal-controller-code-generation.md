@@ -158,7 +158,7 @@ designed to be used and read by developers (vs Terraform where provider code is
 “internal”, and where additional complexity exists to support Terraform internal
 requirements). This is probably high effort because we would need to do it over
 again for each Provider, however it could be easier for developers to fill in
-COUD controller methods using well-documented and Provider-supported SDK code.
+CRUD controller methods using well-documented and Provider-supported SDK code.
 
 **Provider-specific Infrastructure DSL**: rather than trying to represent the
 direct resource-level APIs, we could build on top of cloud provider "stack
