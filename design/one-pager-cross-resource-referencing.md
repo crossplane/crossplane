@@ -290,6 +290,6 @@ dependent objects are deleted first.
 (https://github.com/crossplane/provider-gcp/blob/master/apis/compute/v1alpha2/subnetwork_types.go#L144)
 
 [Managed Reconciler]:
-https://github.com/crossplane/crossplane-runtime/blob/master/pkg/resource/managed_reconciler.go
+https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reconciler/managed/reconciler.go
 [Foreground cascading deletion]:
 (https://kubernetes.io/docs/concepts/workloads/controllers/garbage-collection/#foreground-cascading-deletion)
