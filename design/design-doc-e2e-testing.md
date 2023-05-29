@@ -388,6 +388,56 @@ The existing e2e tests have been converted to Cucumber scenarios, and they could
 make build e2e
 ```
 
+Output example(in reality, it's colored):
+```shell
+Feature: Use configuration package to install all needed providers and other needed resources
+  As a user of Crossplane, I would like to be able to manage all required providers and other resources
+  by defining a configuration that refers all of them, so that they could be installed/managed/removed as a group
+=== RUN   TestE2E/install_provider_by_declaring_it_as_a_part_of_a_configuration
+
+  Background:
+    Given Crossplane is running in cluster                                          # steps.go:86 -> github.com/crossplane/crossplane/test/e2e.crossplaneIsRunningInCluster
+
+  Scenario: install provider by declaring it as a part of a configuration           # features/configurationPackages.feature:9
+    When Configuration is applied                                                   # steps.go:71 -> github.com/crossplane/crossplane/test/e2e.configurationGetsDeployed
+      """
+        apiVersion: pkg.crossplane.io/v1
+        kind: Configuration
+        metadata:
+          name: my-org-infra
+        spec:
+          package: xpkg.upbound.io/xp/getting-started-with-aws:v1.12.1
+      """
+    Then configuration is marked as installed and healthy                           # steps.go:81 -> github.com/crossplane/crossplane/test/e2e.configurationMarkedAsInstalledAndHealthy
+    And provider crossplane-contrib-provider-aws is marked as installed and healthy # provider.go:136 -> github.com/crossplane/crossplane/test/e2e.providerMarkedAsInstalledAndHealthy
+=== RUN   TestE2E/install_configuration_without_installing_its_dependencies
+
+  Scenario: install configuration without installing its dependencies # features/configurationPackages.feature:22
+    When Configuration is applied                                     # steps.go:71 -> github.com/crossplane/crossplane/test/e2e.configurationGetsDeployed
+      """
+        apiVersion: pkg.crossplane.io/v1
+        kind: Configuration
+        metadata:
+          name: my-org-infra-no-deps
+        spec:
+          package: xpkg.upbound.io/devops-toolkit/dot-gitops:v0.2.14
+          skipDependencyResolution: true
+      """
+    Then configuration is marked as installed and healthy             # steps.go:81 -> github.com/crossplane/crossplane/test/e2e.configurationMarkedAsInstalledAndHealthy
+    And provider crossplane-provider-helm does not get installed      # provider.go:141 -> github.com/crossplane/crossplane/test/e2e.providerNotInstalled
+
+4 scenarios (4 passed)
+25 steps (25 passed)
+2m22.520634946s
+--- PASS: TestE2E (142.52s)
+    --- PASS: TestE2E/Create_managed_resources_through_claim_creation (29.84s)
+    --- PASS: TestE2E/Create_provider-nop_managed_resource_through_claim (29.29s)
+    --- PASS: TestE2E/install_provider_by_declaring_it_as_a_part_of_a_configuration (41.16s)
+    --- PASS: TestE2E/install_configuration_without_installing_its_dependencies (42.23s)
+PASS
+ok  	github.com/crossplane/crossplane/test/e2e	142.531s
+```
+
 When it comes to choosing a provider to run tests against, we currently have the
 [NOP provider] used by the current e2e tests. An alternative provider could be
 [provider-dummy]. We believe that most of the tests could be even written so
