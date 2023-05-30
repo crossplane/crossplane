@@ -700,8 +700,9 @@ The framework, although not very popularized yet, is being developed actively,
 but is still in an early phase (0.2.0 version and ~300 stars on GitHub). To make
 it clear, this is not the e2e testing framework that is used in Kubernetes
 upstream e2e tests. Rather, it's an effort to make projects using Kubernetes
-have a standardized and convenient way to test. From what we see, it is for now
-used by Cilium.
+have a standardized and convenient way to test.
+
+Projects which use e2e-framework: [Github search e2e-framework]
 
 #### Conclusion
 
@@ -855,5 +856,6 @@ opinionated framework.
 [Kuttl POC]: https://github.com/lsviben/crossplane/tree/e2e-kuttl/test/e2e/kuttl/basic
 [kubernetes-sig/e2e-framework]: https://github.com/kubernetes-sigs/e2e-framework
 [e2e-framework POC]: https://github.com/lsviben/crossplane/tree/e2e-framework-evaluation/test/e2e/e2e-framework
+[Github search e2e-framework]: https://github.com/search?type=code&q=lang%3Ago++NOT+repo%3Akubernetes-sigs%2Fe2e-framework+NOT+is%3Afork+%22sigs.k8s.io%2Fe2e-framework%22&p=2
 [Terratest]: https://github.com/gruntwork-io/terratest
 [Terratest POC]: https://github.com/lsviben/crossplane/tree/e2e-framework-evaluation/test/e2e/terratest
