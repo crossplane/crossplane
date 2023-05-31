@@ -471,14 +471,6 @@ type Observation struct {
 	Ready             bool
 }
 
-// A RenderFn renders the supplied composed resource.
-type RenderFn func(cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error
-
-// Render calls RenderFn.
-func (c RenderFn) Render(cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate) error {
-	return c(cp, cd, t)
-}
-
 // An APIDryRunRenderer renders composed resources. It may perform a dry-run
 // create against an API server in order to name and validate the rendered
 // resource.
