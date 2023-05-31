@@ -36,7 +36,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -454,84 +453,10 @@ func TestExtractConfigsFromTemplate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			cfgs := ExtractConfigsFromTemplate(tc.args.t)
+			cfgs := ExtractConfigsFromComposedTemplate(tc.args.t)
 
 			if diff := cmp.Diff(tc.want.cfgs, cfgs); diff != "" {
 				t.Errorf("\n%s\nExtractConfigsFromTemplate(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-		})
-	}
-}
-
-func TestExtractConfigsFromDesired(t *testing.T) {
-	type args struct {
-		d *iov1alpha1.DesiredResource
-	}
-	type want struct {
-		cfgs []ConnectionDetailExtractConfig
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"NilResource": {
-			reason: "A nil desired resource should result in a nil slice of extract configs.",
-			args: args{
-				d: nil,
-			},
-			want: want{
-				cfgs: nil,
-			},
-		},
-		"ExplicitName": {
-			reason: "When a template's connection details have an explicit name, we should use it.",
-			args: args{
-				d: &iov1alpha1.DesiredResource{
-					ConnectionDetails: []iov1alpha1.DerivedConnectionDetail{{
-						Name:                    pointer.String("cool-detail"),
-						Type:                    iov1alpha1.ConnectionDetailTypeFromConnectionSecretKey,
-						FromConnectionSecretKey: pointer.String("cool-key"),
-					}},
-				},
-			},
-			want: want{
-				cfgs: []ConnectionDetailExtractConfig{{
-					Name:                    "cool-detail",
-					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: pointer.String("cool-key"),
-				}},
-			},
-		},
-		"InferredName": {
-			reason: "When a template's connection details does not have an explicit name and is of TypeFromConnectionSecretKey, we should infer the name from the connection secret key.",
-			args: args{
-
-				d: &iov1alpha1.DesiredResource{
-					ConnectionDetails: []iov1alpha1.DerivedConnectionDetail{{
-						Type:                    iov1alpha1.ConnectionDetailTypeFromConnectionSecretKey,
-						FromConnectionSecretKey: pointer.String("cool-key"),
-					}},
-				},
-			},
-			want: want{
-				cfgs: []ConnectionDetailExtractConfig{{
-					Name:                    "cool-key",
-					Type:                    ConnectionDetailTypeFromConnectionSecretKey,
-					FromConnectionSecretKey: pointer.String("cool-key"),
-				}},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			cfgs := ExtractConfigsFromDesired(tc.args.d)
-
-			if diff := cmp.Diff(tc.want.cfgs, cfgs); diff != "" {
-				t.Errorf("\n%s\nExtractConfigsFromDesired(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 		})

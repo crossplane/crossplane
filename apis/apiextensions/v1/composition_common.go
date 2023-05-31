@@ -18,8 +18,6 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -265,154 +263,29 @@ type ConnectionDetail struct {
 	Value *string `json:"value,omitempty"`
 }
 
-// A Function represents a Composition Function.
-type Function struct {
-	// Name of this function. Must be unique within its Composition.
-	Name string `json:"name"`
+// A PipelineStep in a Composition Function pipeline.
+type PipelineStep struct {
+	// Step name. Must be unique within its Pipeline.
+	Step string `json:"step"`
 
-	// Type of this function.
-	// +kubebuilder:validation:Enum=Container
-	Type FunctionType `json:"type"`
+	// FunctionRef is a reference to the Composition Function this step should
+	// execute.
+	FunctionRef FunctionReference `json:"functionRef"`
 
-	// Config is an optional, arbitrary Kubernetes resource (i.e. a resource
+	// Input is an optional, arbitrary Kubernetes resource (i.e. a resource
 	// with an apiVersion and kind) that will be passed to the Composition
-	// Function as the 'config' block of its FunctionIO.
+	// Function as the 'input' of its RunFunctionRequest.
 	// +optional
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +kubebuilder:validation:EmbeddedResource
-	Config *runtime.RawExtension `json:"config,omitempty"`
-
-	// Container configuration of this function.
-	// +optional
-	Container *ContainerFunction `json:"container,omitempty"`
+	Input *runtime.RawExtension `json:"input,omitempty"`
 }
 
-// Validate this Function.
-func (f *Function) Validate() *field.Error {
-	if f.Type == FunctionTypeContainer {
-		if f.Container == nil {
-			return field.Required(field.NewPath("container"), "cannot be empty for type Container")
-		}
-		return nil
-	}
-	return field.Required(field.NewPath("type"), "the only supported type is Container")
-}
-
-// A FunctionType is a type of Composition Function.
-type FunctionType string
-
-// FunctionType types.
-const (
-	// FunctionTypeContainer represents a Composition Function that is packaged
-	// as an OCI image and run in a container.
-	FunctionTypeContainer FunctionType = "Container"
-)
-
-// NOTE(negz): This is intentionally much more limited than corev1.Container.
-// This is because:
-//
-// * We always expect functions to be short-lived processes.
-// * We never expect functions to listen for incoming requests.
-// * We don't allow functions to mount volumes.
-
-// A ContainerFunction represents an Composition Function that is packaged as an
-// OCI image and run in a container.
-type ContainerFunction struct {
-	// Image specifies the OCI image in which the function is packaged. The
-	// image should include an entrypoint that reads a FunctionIO from stdin and
-	// emits it, optionally mutated, to stdout.
-	Image string `json:"image"`
-
-	// ImagePullPolicy defines the pull policy for the function image.
-	// +optional
-	// +kubebuilder:default=IfNotPresent
-	// +kubebuilder:validation:Enum="IfNotPresent";"Always";"Never"
-	ImagePullPolicy *corev1.PullPolicy `json:"imagePullPolicy,omitempty"`
-
-	// ImagePullSecrets are used to pull images from private OCI registries.
-	// +optional
-	ImagePullSecrets []corev1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
-
-	// Timeout after which the Composition Function will be killed.
-	// +optional
-	// +kubebuilder:default="20s"
-	Timeout *metav1.Duration `json:"timeout,omitempty"`
-
-	// Network configuration for the Composition Function.
-	// +optional
-	Network *ContainerFunctionNetwork `json:"network,omitempty"`
-
-	// Resources that may be used by the Composition Function.
-	// +optional
-	Resources *ContainerFunctionResources `json:"resources,omitempty"`
-
-	// Runner configuration for the Composition Function.
-	// +optional
-	Runner *ContainerFunctionRunner `json:"runner,omitempty"`
-}
-
-// A ContainerFunctionNetworkPolicy specifies the network policy under which
-// a containerized Composition Function will run.
-type ContainerFunctionNetworkPolicy string
-
-const (
-	// ContainerFunctionNetworkPolicyIsolated specifies that the Composition
-	// Function will not have network access; i.e. invoked inside an isolated
-	// network namespace.
-	ContainerFunctionNetworkPolicyIsolated ContainerFunctionNetworkPolicy = "Isolated"
-
-	// ContainerFunctionNetworkPolicyRunner specifies that the Composition
-	// Function will have the same network access as its runner, i.e. share its
-	// runner's network namespace.
-	ContainerFunctionNetworkPolicyRunner ContainerFunctionNetworkPolicy = "Runner"
-)
-
-// ContainerFunctionNetwork represents configuration for a Composition Function.
-type ContainerFunctionNetwork struct {
-	// Policy specifies the network policy under which the Composition Function
-	// will run. Defaults to 'Isolated' - i.e. no network access. Specify
-	// 'Runner' to allow the function the same network access as
-	// its runner.
-	// +optional
-	// +kubebuilder:validation:Enum="Isolated";"Runner"
-	// +kubebuilder:default=Isolated
-	Policy *ContainerFunctionNetworkPolicy `json:"policy,omitempty"`
-}
-
-// ContainerFunctionResources represents compute resources that may be used by a
-// Composition Function.
-type ContainerFunctionResources struct {
-	// Limits specify the maximum compute resources that may be used by the
-	// Composition Function.
-	// +optional
-	Limits *ContainerFunctionResourceLimits `json:"limits,omitempty"`
-
-	// NOTE(negz): We don't presently have any runners that support scheduling,
-	// so we omit Requests for the time being.
-}
-
-// ContainerFunctionResourceLimits specify the maximum compute resources
-// that may be used by a Composition Function.
-type ContainerFunctionResourceLimits struct {
-	// CPU, in cores. (500m = .5 cores)
-	// +kubebuilder:default="100m"
-	// +optional
-	CPU *resource.Quantity `json:"cpu,omitempty"`
-
-	// Memory, in bytes. (500Gi = 500GiB = 500 * 1024 * 1024 * 1024)
-	// +kubebuilder:default="128Mi"
-	// +optional
-	Memory *resource.Quantity `json:"memory,omitempty"`
-}
-
-// ContainerFunctionRunner represents runner configuration for a Composition
-// Function.
-type ContainerFunctionRunner struct {
-	// Endpoint specifies how and where Crossplane should reach the runner it
-	// uses to invoke containerized Composition Functions.
-	// +optional
-	// +kubebuilder:default="unix-abstract:crossplane/fn/default.sock"
-	Endpoint *string `json:"endpoint,omitempty"`
+// A FunctionReference references a Composition Function that may be used in a
+// Composition pipeline.
+type FunctionReference struct {
+	// Name of the referenced Function.
+	Name string `json:"name"`
 }
 
 // A StoreConfigReference references a secret store config that may be used to

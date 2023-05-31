@@ -27,7 +27,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
@@ -119,26 +118,6 @@ func ReadinessCheckFromV1(in *v1.ReadinessCheck) ReadinessCheck {
 	return out
 }
 
-// ReadinessCheckFromDesiredReadinessCheck derives a ReadinessCheck from the supplied iov1alpha1.DesiredReadinessCheck.
-func ReadinessCheckFromDesiredReadinessCheck(in *iov1alpha1.DesiredReadinessCheck) ReadinessCheck {
-	if in == nil {
-		return ReadinessCheck{}
-	}
-	out := ReadinessCheck{
-		Type:         ReadinessCheckType(in.Type),
-		FieldPath:    in.FieldPath,
-		MatchString:  in.MatchString,
-		MatchInteger: in.MatchInteger,
-	}
-	if in.MatchCondition != nil {
-		out.MatchCondition = &MatchConditionReadinessCheck{
-			Type:   in.MatchCondition.Type,
-			Status: in.MatchCondition.Status,
-		}
-	}
-	return out
-}
-
 // ReadinessChecksFromComposedTemplate derives readiness checks from the supplied
 // composed template.
 func ReadinessChecksFromComposedTemplate(t *v1.ComposedTemplate) []ReadinessCheck {
@@ -148,19 +127,6 @@ func ReadinessChecksFromComposedTemplate(t *v1.ComposedTemplate) []ReadinessChec
 	out := make([]ReadinessCheck, len(t.ReadinessChecks))
 	for i := range t.ReadinessChecks {
 		out[i] = ReadinessCheckFromV1(&t.ReadinessChecks[i])
-	}
-	return out
-}
-
-// ReadinessChecksFromDesiredResource derives readiness checks from the supplied desired
-// resource.
-func ReadinessChecksFromDesiredResource(dr *iov1alpha1.DesiredResource) []ReadinessCheck {
-	if dr == nil {
-		return nil
-	}
-	out := make([]ReadinessCheck, len(dr.ReadinessChecks))
-	for i := range dr.ReadinessChecks {
-		out[i] = ReadinessCheckFromDesiredReadinessCheck(&dr.ReadinessChecks[i])
 	}
 	return out
 }

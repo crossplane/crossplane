@@ -18,30 +18,29 @@ package composite
 
 import (
 	"context"
+	"encoding/json"
 	"net"
-	"sync"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
+	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	computeresource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kunstructured "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/yaml"
 
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
@@ -52,20 +51,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
-	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
-	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestPTFCompose(t *testing.T) {
 	errBoom := errors.New("boom")
-	details := managed.ConnectionDetails{"a": []byte("b")}
 
-	unmarshalable := kunstructured.Unstructured{Object: map[string]interface{}{
-		"you-cant-marshal-a-channel": make(chan<- string),
-	}}
-	_, errUnmarshalableXR := json.Marshal(&composite.Unstructured{Unstructured: unmarshalable})
+	var cd composed.Unstructured
+	errMissingKind := json.Unmarshal([]byte("{}"), &cd)
+	errProtoSyntax := protojson.Unmarshal([]byte("hi"), &structpb.Struct{})
 
 	type params struct {
 		kube client.Client
@@ -87,6 +84,28 @@ func TestPTFCompose(t *testing.T) {
 		args   args
 		want   want
 	}{
+		"ComposedTemplatesError": {
+			reason: "We should return any error encountered while inlining a composition's patchsets.",
+			args: args{
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{{
+								Patches: []v1.Patch{{
+									// This reference to a non-existent patchset
+									// triggers the error.
+									Type:         v1.PatchTypePatchSet,
+									PatchSetName: pointer.String("nonexistent-patchset"),
+								}},
+							}},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Errorf(errFmtUndefinedPatchSet, "nonexistent-patchset"), errInline),
+			},
+		},
 		"FetchConnectionError": {
 			reason: "We should return any error encountered while fetching the XR's connection details.",
 			params: params{
@@ -95,6 +114,9 @@ func TestPTFCompose(t *testing.T) {
 						return nil, errBoom
 					})),
 				},
+			},
+			args: args{
+				req: CompositionRequest{Revision: &v1.CompositionRevision{}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errFetchXRConnectionDetails),
@@ -107,360 +129,900 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
 						return nil, errBoom
 					})),
 				},
+			},
+			args: args{
+				req: CompositionRequest{Revision: &v1.CompositionRevision{}},
 			},
 			want: want{
 				err: errors.Wrap(errBoom, errGetExistingCDs),
 			},
 		},
-		"FunctionIOObservedError": {
-			reason: "We should return any error encountered while building a FunctionIO observed object.",
+		"ParseComposedResourceBaseError": {
+			reason: "We should return any error encountered while parsing a composed resource base template",
 			params: params{
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
 						return nil, nil
 					})),
 				},
 			},
 			args: args{
-				xr: &composite.Unstructured{Unstructured: unmarshalable},
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{
+								{
+									Name: pointer.String("uncool-resource"),
+									Base: runtime.RawExtension{Raw: []byte("{}")}, // An invalid, empty base resource template.
+								},
+							},
+						},
+					},
+				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errUnmarshalableXR, errMarshalXR), errBuildFunctionIOObserved),
+				err: errors.Wrapf(errors.Wrap(errMissingKind, errUnmarshalJSON), errFmtParseBase, "uncool-resource"),
 			},
 		},
-		"PatchAndTransformError": {
-			reason: "We should return any error encountered while running patches and transforms.",
+		"UnmarshalFunctionInputError": {
+			reason: "We should return any error encountered while unmarshalling a Composition Function input",
 			params: params{
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
 						return nil, nil
 					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+									Input:       &runtime.RawExtension{Raw: []byte("hi")}, // This is invalid - it must be a JSON object.
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errProtoSyntax, errFmtUnmarshalPipelineStepInput, "run-cool-function"),
+			},
+		},
+		"RunFunctionError": {
+			reason: "We should return any error encountered while running a Composition Function",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtRunPipelineStep, "run-cool-function"),
+			},
+		},
+		"FatalFunctionResultError": {
+			reason: "We should return any fatal function results as an error",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						r := &fnv1beta1.Result{
+							Severity: fnv1beta1.Severity_SEVERITY_FATAL,
+							Message:  "oh no",
+						}
+						return &fnv1beta1.RunFunctionResponse{Results: []*fnv1beta1.Result{r}}, nil
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("oh no"), errFatalResult),
+			},
+		},
+		"RenderXRFromStructError": {
+			reason: "We should return any error we encounter when rendering our XR from the struct returned in the FunFunctionResponse",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{}, // Missing APIVersion and Kind.
+							},
+						}
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.Wrap(errMissingKind, errUnmarshalJSON), errUnmarshalDesiredXR),
+			},
+		},
+		"RenderComposedResourceFromStructError": {
+			reason: "We should return any error we encounter when rendering a composed resource from the struct returned in the FunFunctionResponse",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+									"kind":       structpb.NewStringValue("CoolComposite"),
+								}},
+							},
+							Resources: map[string]*fnv1beta1.Resource{
+								"cool-resource": {
+									// Missing APIVersion and Kind.
+									Resource: &structpb.Struct{},
+								},
+							},
+						}
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errors.Wrap(errMissingKind, errUnmarshalJSON), errFmtUnmarshalDesiredCD, "cool-resource"),
+			},
+		},
+		"RenderComposedResourceMetadataError": {
+			reason: "We should return any error we encounter when rendering composed resource metadata",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+									"kind":       structpb.NewStringValue("CoolComposite"),
+
+									// Missing labels required by RenderComposedResourceMetadata.
+								}},
+							},
+							Resources: map[string]*fnv1beta1.Resource{
+								"cool-resource": {
+									Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+										"kind":       structpb.NewStringValue("CoolComposite"),
+									}},
+								},
+							},
+						}
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
+					})),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(RenderComposedResourceMetadata(nil, &fake.Composite{}, ""), errFmtRenderMetadata, "cool-resource"),
+			},
+		},
+		"DryRunRenderComposedResourceError": {
+			reason: "We should return any error we encounter when dry-run rendering a composed resource",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+									"kind":       structpb.NewStringValue("CoolComposite"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+										"labels": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+											xcrd.LabelKeyNamePrefixForComposed: structpb.NewStringValue("parent-xr"),
+										}}),
+									}}),
+								}},
+							},
+							Resources: map[string]*fnv1beta1.Resource{
+								"cool-resource": {
+									Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+										"kind":       structpb.NewStringValue("CoolComposite"),
+									}},
+								},
+							},
+						}
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
+					})),
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return errBoom })),
+				},
+			},
+			args: args{
+				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtDryRunApply, "cool-resource"),
+			},
+		},
+		"GarbageCollectComposedResourcesError": {
+			reason: "We should return any error we encounter when garbage collecting composed resources",
+			params: params{
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						return nil, nil
+					})),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+									"kind":       structpb.NewStringValue("CoolComposite"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+										"labels": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+											xcrd.LabelKeyNamePrefixForComposed: structpb.NewStringValue("parent-xr"),
+										}}),
+									}}),
+								}},
+							},
+							Resources: map[string]*fnv1beta1.Resource{
+								"cool-resource": {
+									Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+										"kind":       structpb.NewStringValue("CoolComposed"),
+									}},
+								},
+							},
+						}
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
+					})),
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
 						return errBoom
 					})),
 				},
 			},
 			args: args{
 				xr: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errPatchAndTransform),
-			},
-		},
-		"FunctionIODesiredError": {
-			reason: "We should return any error encountered while building a FunctionIO desired object.",
-			params: params{
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						return nil, nil
-					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						// After FunctionIOObserved has been called we replace
-						// our XR with one that can't be marshalled by
-						// FunctionIODesired.
-						s.Composite = &composite.Unstructured{Unstructured: unmarshalable}
-						return nil
-					})),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
 				},
 			},
-			args: args{
-				// We start with an XR that can be marshalled (i.e. by
-				// FunctionIOObserved).
-				xr: &fake.Composite{},
-			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errUnmarshalableXR, errMarshalXR), errBuildFunctionIODesired),
+				err: errors.Wrap(errBoom, errGarbageCollectCDs),
 			},
 		},
-		"RunFunctionPipelineError": {
-			reason: "We should return any error encountered while running the Composition Function pipeline.",
-			params: params{
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						return nil, nil
-					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return errBoom
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errRunFunctionPipeline),
-			},
-		},
-		"DeleteComposedResourcesError": {
-			reason: "We should return any error encountered while deleting undesired composed resources.",
-			params: params{
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						return nil, nil
-					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return nil
-					})),
-					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return errBoom
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errDeleteUndesiredCDs),
-			},
-		},
-		"ApplyCompositeError": {
-			reason: "We should return any error encountered while applying the XR.",
+		"ApplyXRError": {
+			reason: "We should return any error we encounter when applying the composite resource",
 			params: params{
 				kube: &test.MockClient{
-					// We test through the ClientApplicator - Get is called by Apply.
+					// Apply calls Get.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
 						return nil, nil
 					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+									"kind":       structpb.NewStringValue("CoolComposite"),
+								}},
+							},
+						}
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
 					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return nil
-					})),
-					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
 						return nil
 					})),
 				},
 			},
 			args: args{
 				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
 			},
 			want: want{
 				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyXR),
 			},
 		},
-		"DoNotApplyFailedRenders": {
-			reason: "We should skip applying a composed resource if we failed to render its P&T template.",
+		"ApplyComposedResourceError": {
+			reason: "We should return any error we encounter when applying a composed resource",
 			params: params{
 				kube: &test.MockClient{
-					// We test through the ClientApplicator - Get is called by Apply.
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						// Only return an error if this is a composed resource.
-						if _, ok := obj.(*fake.Composed); ok {
-							// We don't want to return this - if we did it would
-							// imply we called Apply.
-							return errBoom
-						}
-						return nil
-					}),
-					// The ClientApplicator will call Update for the XR.
-					MockPatch: test.NewMockPatchFn(nil),
-				},
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						cds := ComposedResourceStates{
-							"cool-resource": ComposedResourceState{
-								ComposedResource: ComposedResource{
-									ResourceName: "cool-resource",
-								},
-								Resource:          &fake.Composed{},
-								Template:          &v1.ComposedTemplate{},
-								TemplateRenderErr: errBoom,
-							},
-						}
-						return cds, nil
-					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return nil
-					})),
-					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return nil
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-			},
-			want: want{
-				res: CompositionResult{Composed: []ComposedResource{{ResourceName: "cool-resource"}}},
-				err: nil,
-			},
-		},
-		"ApplyComposedError": {
-			reason: "We should return any error encountered while applying a composed resource.",
-			params: params{
-				kube: &test.MockClient{
-					// We test through the ClientApplicator - Get is called by Apply.
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						// Only return an error if this is a composed resource.
-						if _, ok := obj.(*fake.Composed); ok {
-							return errBoom
-						}
-						return nil
-					}),
-					// The ClientApplicator will call Update for the XR.
-					MockPatch: test.NewMockPatchFn(nil),
-				},
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						cds := ComposedResourceStates{
-							"cool-resource": ComposedResourceState{
-								ComposedResource: ComposedResource{
-									ResourceName: "cool-resource",
-								},
-								Resource: &fake.Composed{},
-								Template: &v1.ComposedTemplate{},
-							},
-						}
-						return cds, nil
-					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return nil
-					})),
-					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return nil
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrapf(errors.Wrap(errBoom, "cannot get object"), errFmtApplyCD, "cool-resource"),
-			},
-		},
-		"ObserveComposedResourcesError": {
-			reason: "We should return any error encountered while observing a composed resource.",
-			params: params{
-				kube: &test.MockClient{
-					// These are both called by Apply.
+					// Apply calls Get and Patch for the XR.
 					MockGet:   test.NewMockGetFn(nil),
 					MockPatch: test.NewMockPatchFn(nil),
+
+					// Apply calls Create (immediately) for the composed
+					// resource because it has a GenerateName set.
+					MockCreate: test.NewMockCreateFn(errBoom),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
 						return nil, nil
 					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return nil
-					})),
-					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return errBoom
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errObserveCDs),
-			},
-		},
-		"Success": {
-			reason: "",
-			params: params{
-				kube: &test.MockClient{
-					// These are both called by Apply.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-				},
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return details, nil
-					})),
-					WithComposedResourceGetter(ComposedResourceGetterFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						cds := ComposedResourceStates{
-							"cool-resource": ComposedResourceState{
-								ComposedResource: ComposedResource{
-									ResourceName: "cool-resource",
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
+						d := &fnv1beta1.State{
+							Composite: &fnv1beta1.Resource{
+								Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+									"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+									"kind":       structpb.NewStringValue("CoolComposite"),
+									"metadata": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+										"labels": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+											xcrd.LabelKeyNamePrefixForComposed: structpb.NewStringValue("parent-xr"),
+										}}),
+									}}),
+								}},
+							},
+							Resources: map[string]*fnv1beta1.Resource{
+								"uncool-resource": {
+									Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("test.crossplane.io/v1"),
+										"kind":       structpb.NewStringValue("UncoolComposed"),
+									}},
 								},
-								Resource: &fake.Composed{},
 							},
 						}
-						return cds, nil
+						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
 					})),
-					WithPatchAndTransformer(PatchAndTransformerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithFunctionPipelineRunner(FunctionPipelineRunnerFn(func(ctx context.Context, req CompositionRequest, s *PTFCompositionState, o iov1alpha1.Observed, d iov1alpha1.Desired) error {
-						return nil
-					})),
-					WithComposedResourceDeleter(ComposedResourceDeleterFn(func(ctx context.Context, s *PTFCompositionState) error {
-						return nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, s *PTFCompositionState) error {
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
 						return nil
 					})),
 				},
 			},
 			args: args{
 				xr: &fake.Composite{},
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errors.Wrap(errBoom, "cannot create object"), errFmtApplyCD, "uncool-resource"),
+			},
+		},
+		"ExtractConnectionDetailsError": {
+			reason: "We should return any error we encounter when extracting XR connection details from a composed resource",
+			params: params{
+				kube: &test.MockClient{
+					// Apply calls Get and Patch for the XR.
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+
+					// Apply calls Create (immediately) for the composed
+					// resource because it has a GenerateName set.
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						// We only try to extract connection details for
+						// observed resources.
+						return Resources{"uncool-resource": Resource{Resource: &fake.Composed{}}}, nil
+					})),
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+						return nil
+					})),
+					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+						return nil, errBoom
+					})),
+				},
+			},
+			args: args{
+				xr: func() resource.Composite {
+					// Our XR needs a GVK to survive round-tripping through a
+					// protobuf struct (which involves using the Kubernetes-aware
+					// JSON unmarshaller that requires a GVK).
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
+					})
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{
+								{
+									Name: pointer.String("uncool-resource"),
+
+									// Our composed resources need a GVK too -
+									// same reason as the XR above.
+									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"UncoolComposed"}`)},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtExtractConnectionDetails, "uncool-resource", "UncoolComposed", ""),
+			},
+		},
+		"CheckComposedResourceReadinessError": {
+			reason: "We should return any error we encounter when checking the readiness of a composed resource",
+			params: params{
+				kube: &test.MockClient{
+					// Apply calls Get and Patch for the XR.
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+
+					// Apply calls Create (immediately) for the composed
+					// resource because it has a GenerateName set.
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						// We only try to extract connection details for
+						// observed resources.
+						return Resources{"uncool-resource": Resource{Resource: &fake.Composed{}}}, nil
+					})),
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+						return nil
+					})),
+					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+						return false, errBoom
+					})),
+				},
+			},
+			args: args{
+				xr: func() resource.Composite {
+					// Our XR needs a GVK to survive round-tripping through a
+					// protobuf struct (which involves using the Kubernetes-aware
+					// JSON unmarshaller that requires a GVK).
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
+					})
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{
+								{
+									Name: pointer.String("uncool-resource"),
+
+									// Our composed resources need a GVK too -
+									// same reason as the XR above.
+									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"UncoolComposed"}`)},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtReadiness, "uncool-resource", "UncoolComposed", ""),
+			},
+		},
+		"SuccessfulPatchAndTransformOnly": {
+			reason: "We should return a valid CompositionResult when a 'pure patch and transform' (i.e. Function-less) reconcile succeeds",
+			params: params{
+				kube: &test.MockClient{
+					// Apply calls Get and Patch for the XR.
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+
+					// Apply calls Create (immediately) for the composed
+					// resource because it has a GenerateName set.
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						// We only try to extract connection details for
+						// observed resources.
+						r := Resources{
+							"observed-resource-a": Resource{
+								Resource: &fake.Composed{
+									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
+								},
+							},
+							"observed-resource-b": Resource{
+								Resource: &fake.Composed{
+									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-b"},
+								},
+							},
+						}
+						return r, nil
+					})),
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+						return nil
+					})),
+					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
+						return managed.ConnectionDetails{cd.GetName(): []byte("secret")}, nil
+					})),
+					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
+						return true, nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() resource.Composite {
+					// Our XR needs a GVK to survive round-tripping through a
+					// protobuf struct (which involves using the Kubernetes-aware
+					// JSON unmarshaller that requires a GVK).
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
+					})
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{
+								// Our composed resources need a GVK too -
+								// same reason as the XR above.
+								{
+									Name: pointer.String("observed-resource-a"),
+									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"CoolComposed"}`)},
+								},
+								{
+									Name: pointer.String("observed-resource-b"),
+									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"CoolComposed"}`)},
+								},
+								{
+									// We have a template for this resource, but
+									// we didn't observe it.
+									Name: pointer.String("desired-resource"),
+									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"CoolComposed"}`)},
+								},
+							},
+						},
+					},
+				},
 			},
 			want: want{
 				res: CompositionResult{
-					Composed: []ComposedResource{{
-						ResourceName: "cool-resource",
-					}},
-					ConnectionDetails: details,
+					Composed: []ComposedResource{
+						{ResourceName: "observed-resource-a", Ready: true},
+						{ResourceName: "observed-resource-b", Ready: true},
+						{ResourceName: "desired-resource"},
+					},
+					ConnectionDetails: managed.ConnectionDetails{
+						"observed-resource-a": []byte("secret"),
+						"observed-resource-b": []byte("secret"),
+					},
 				},
 				err: nil,
 			},
 		},
+		"SuccessfulFunctionsOnly": {
+			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
+			params: params{
+				kube: &test.MockClient{
+					// Apply calls Get and Patch for the XR.
+					MockGet:   test.NewMockGetFn(nil),
+					MockPatch: test.NewMockPatchFn(nil),
+
+					// Apply calls Create (immediately) for the composed
+					// resource because it has a GenerateName set.
+					MockCreate: test.NewMockCreateFn(nil),
+				},
+				o: []PTFComposerOption{
+					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+						return nil, nil
+					})),
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+						// We only try to extract connection details for
+						// observed resources.
+						r := Resources{
+							"observed-resource-a": Resource{
+								Resource: &fake.Composed{
+									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
+								},
+							},
+						}
+						return r, nil
+					})),
+					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
+					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
+						rsp := &fnv1beta1.RunFunctionResponse{
+							Desired: &fnv1beta1.State{
+								Composite: &fnv1beta1.Resource{
+									Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+										"apiVersion": structpb.NewStringValue("example.org/v1"),
+										"kind":       structpb.NewStringValue("Composite"),
+										"metadata": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+											"name": structpb.NewStringValue("cool-xr"),
+											"labels": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+												xcrd.LabelKeyNamePrefixForComposed: structpb.NewStringValue("cool-xr"),
+											}}),
+										}}),
+									}},
+									ConnectionDetails: map[string][]byte{"from": []byte("function-pipeline")},
+								},
+								Resources: map[string]*fnv1beta1.Resource{
+									"observed-resource-a": {
+										Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+											"apiVersion": structpb.NewStringValue("example.org/v2"),
+											"kind":       structpb.NewStringValue("Composed"),
+										}},
+									},
+									"desired-resource-a": {
+										Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+											"apiVersion": structpb.NewStringValue("example.org/v2"),
+											"kind":       structpb.NewStringValue("Composed"),
+										}},
+									},
+								},
+							},
+							Results: []*fnv1beta1.Result{
+								{
+									Severity: fnv1beta1.Severity_SEVERITY_NORMAL,
+									Message:  "A normal result",
+								},
+								{
+									Severity: fnv1beta1.Severity_SEVERITY_WARNING,
+									Message:  "A warning result",
+								},
+								{
+									Severity: fnv1beta1.Severity_SEVERITY_UNSPECIFIED,
+									Message:  "A result of unspecified severity",
+								},
+							},
+						}
+						return rsp, nil
+					})),
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+						return nil
+					})),
+				},
+			},
+			args: args{
+				xr: func() resource.Composite {
+					// Our XR needs a GVK to survive round-tripping through a
+					// protobuf struct (which involves using the Kubernetes-aware
+					// JSON unmarshaller that requires a GVK).
+					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+						Group:   "test.crossplane.io",
+						Version: "v1",
+						Kind:    "CoolComposite",
+					}))
+					xr.SetLabels(map[string]string{
+						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
+					})
+					return xr
+				}(),
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Pipeline: []v1.PipelineStep{
+								{
+									Step:        "run-cool-function",
+									FunctionRef: v1.FunctionReference{Name: "cool-function"},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				res: CompositionResult{
+					Composed: []ComposedResource{
+						{ResourceName: "desired-resource-a"},
+						{ResourceName: "observed-resource-a", Ready: true},
+					},
+					ConnectionDetails: managed.ConnectionDetails{
+						"from": []byte("function-pipeline"),
+					},
+					Events: []event.Event{
+						{
+							Type:    "Normal",
+							Reason:  "ComposeResources",
+							Message: "A normal result",
+						},
+						{
+							Type:    "Warning",
+							Reason:  "ComposeResources",
+							Message: "A warning result",
+						},
+						{
+							Type:    "Warning",
+							Reason:  "ComposeResources",
+							Message: "Composition Function pipeline returned a result of unknown severity (assuming warning): A result of unspecified severity",
+						},
+					},
+				},
+				err: nil,
+			},
+		},
+		// TODO(negz): Test interactions between P&T and Functions? They're not
+		// super interesting/different from the above tests.
 	}
 
 	for name, tc := range cases {
@@ -473,7 +1035,9 @@ func TestPTFCompose(t *testing.T) {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty()); diff != "" {
+			// We iterate over a map to produce ComposedResources, so they're
+			// returned in random order.
+			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty(), cmpopts.SortSlices(func(i, j ComposedResource) bool { return i.ResourceName < j.ResourceName })); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -495,7 +1059,7 @@ func TestGetComposedResources(t *testing.T) {
 	}
 
 	type want struct {
-		cds ComposedResourceStates
+		ors Resources
 		err error
 	}
 
@@ -670,21 +1234,17 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			want: want{
-				cds: ComposedResourceStates{
-					"cool-resource": ComposedResourceState{
-						ComposedResource: ComposedResource{
-							ResourceName: "cool-resource",
-						},
-						ConnectionDetails: details,
-						Resource: func() resource.Composed {
-							cd := composed.New()
-							cd.SetAPIVersion("example.org/v1")
-							cd.SetKind("Composed")
-							cd.SetName("cool-resource-42")
-							SetCompositionResourceName(cd, "cool-resource")
-							return cd
-						}(),
-					},
+				ors: Resources{"cool-resource": Resource{
+					ConnectionDetails: details,
+					Resource: func() resource.Composed {
+						cd := composed.New()
+						cd.SetAPIVersion("example.org/v1")
+						cd.SetKind("Composed")
+						cd.SetName("cool-resource-42")
+						SetCompositionResourceName(cd, "cool-resource")
+						return cd
+					}(),
+				},
 				},
 			},
 		},
@@ -693,32 +1253,28 @@ func TestGetComposedResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 
-			g := NewExistingComposedResourceGetter(tc.params.c, tc.params.f)
-			cds, err := g.GetComposedResources(tc.args.ctx, tc.args.xr)
+			g := NewExistingComposedResourceObserver(tc.params.c, tc.params.f)
+			ors, err := g.ObserveComposedResources(tc.args.ctx, tc.args.xr)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			if diff := cmp.Diff(tc.want.cds, cds, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.ors, ors, cmpopts.EquateEmpty()); diff != "" {
+				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
 }
 
-func TestFunctionIOObserved(t *testing.T) {
-	unmarshalable := kunstructured.Unstructured{Object: map[string]interface{}{
-		"you-cant-marshal-a-channel": make(chan<- string),
-	}}
-	_, errUnmarshalableXR := json.Marshal(&composite.Unstructured{Unstructured: unmarshalable})
-	_, errUnmarshalableCD := json.Marshal(&composed.Unstructured{Unstructured: unmarshalable})
-
+func TestAsState(t *testing.T) {
 	type args struct {
-		s *PTFCompositionState
+		xr resource.Composite
+		xc managed.ConnectionDetails
+		rs Resources
 	}
 	type want struct {
-		o   iov1alpha1.Observed
+		d   *fnv1beta1.State
 		err error
 	}
 
@@ -727,1182 +1283,261 @@ func TestFunctionIOObserved(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"MarshalCompositeError": {
-			reason: "We should return an error if we can't marshal the XR.",
-			args: args{
-				s: &PTFCompositionState{
-					Composite: &composite.Unstructured{Unstructured: unmarshalable},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errUnmarshalableXR, errMarshalXR),
-			},
-		},
-		"MarshalComposedError": {
-			reason: "We should return an error if we can't marshal a composed resource.",
-			args: args{
-				s: &PTFCompositionState{
-					Composite: composite.New(),
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							Resource: &composed.Unstructured{Unstructured: unmarshalable},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errUnmarshalableCD, errMarshalCD),
-			},
-		},
 		"Success": {
-			reason: "We should successfully build a FunctionIO Observed struct from our state.",
+			reason: "We should successfully build RunFunctionRequest State.",
 			args: args{
-				s: &PTFCompositionState{
-					Composite: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "example.org",
-						Version: "v1",
-						Kind:    "Composite",
-					})),
-					ConnectionDetails: managed.ConnectionDetails{"a": []byte("b")},
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{ResourceName: "cool-resource"},
-							Resource: composed.New(composed.FromReference(corev1.ObjectReference{
-								APIVersion: "example.org/v2",
-								Kind:       "Composed",
-								Name:       "cool-resource-42",
-							})),
-							ConnectionDetails: managed.ConnectionDetails{"c": []byte("d")},
-						},
+				xr: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
+					Group:   "example.org",
+					Version: "v1",
+					Kind:    "Composite",
+				})),
+				xc: managed.ConnectionDetails{"a": []byte("b")},
+				rs: Resources{
+					"cool-resource": Resource{
+						Resource: composed.New(composed.FromReference(corev1.ObjectReference{
+							APIVersion: "example.org/v2",
+							Kind:       "Composed",
+							Name:       "cool-resource-42",
+						})),
 					},
 				},
 			},
 			want: want{
-				o: iov1alpha1.Observed{
-					Composite: iov1alpha1.ObservedComposite{
-						Resource: runtime.RawExtension{
-							Raw: []byte(`{"apiVersion":"example.org/v1","kind":"Composite"}`),
-						},
-						ConnectionDetails: []iov1alpha1.ExplicitConnectionDetail{{
-							Name:  "a",
-							Value: "b",
+				d: &fnv1beta1.State{
+					Composite: &fnv1beta1.Resource{
+						Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+							"apiVersion": structpb.NewStringValue("example.org/v1"),
+							"kind":       structpb.NewStringValue("Composite"),
 						}},
+						ConnectionDetails: map[string][]byte{"a": []byte("b")},
 					},
-					Resources: []iov1alpha1.ObservedResource{{
-						Name: "cool-resource",
-						Resource: runtime.RawExtension{
-							Raw: []byte(`{"apiVersion":"example.org/v2","kind":"Composed","metadata":{"name":"cool-resource-42"}}`),
-						},
-						ConnectionDetails: []iov1alpha1.ExplicitConnectionDetail{{
-							Name:  "c",
-							Value: "d",
-						}},
-					}},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			o, err := FunctionIOObserved(tc.args.s)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nFunctionIOObserved(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.o, o, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nFunctionIOObserved(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestPatchAndTransform(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type params struct {
-		composite Renderer
-		composed  Renderer
-	}
-
-	type args struct {
-		ctx context.Context
-		req CompositionRequest
-		s   *PTFCompositionState
-	}
-
-	type want struct {
-		s   *PTFCompositionState
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		params params
-		args   args
-		want   want
-	}{
-		"ComposedTemplatesError": {
-			reason: "We should return any error encountered while inlining a Composition's PatchSets.",
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{
-								Patches: []v1.Patch{{
-									// This reference to a non-existent patchset
-									// triggers the error.
-									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("nonexistent-patchset"),
-								}},
+					Resources: map[string]*fnv1beta1.Resource{
+						"cool-resource": {
+							Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
+								"apiVersion": structpb.NewStringValue("example.org/v2"),
+								"kind":       structpb.NewStringValue("Composed"),
+								"metadata": structpb.NewStructValue(&structpb.Struct{Fields: map[string]*structpb.Value{
+									"name": structpb.NewStringValue("cool-resource-42"),
+								}}),
 							}},
 						},
 					},
 				},
 			},
-			want: want{
-				err: errors.Wrap(errors.Errorf(errFmtUndefinedPatchSet, "nonexistent-patchset"), errInline),
-			},
-		},
-		// TODO(negz): Test handling of ApplyEnvironmentPatch errors.
-		"CompositeRenderError": {
-			reason: "We should return any error encountered while rendering an XR.",
-			params: params{
-				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-					return errBoom
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{
-								{
-									Name: pointer.String("cool-resource"),
-								},
-							},
-						},
-					},
-				},
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						// Corresponds to the ComposedTemplate above. The
-						// resource must exist in order for the code to try
-						// render the XR from it.
-						"cool-resource": ComposedResourceState{
-							Resource: func() *composed.Unstructured {
-								r := composed.New()
-								r.SetKind("Broken")
-								r.SetName("cool-resource-42")
-								return r
-							}(),
-						},
-					},
-				},
-			},
-			want: want{
-				// We expect the state to be unchanged.
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							Resource: func() *composed.Unstructured {
-								r := composed.New()
-								r.SetKind("Broken")
-								r.SetName("cool-resource-42")
-								return r
-							}(),
-						},
-					},
-				},
-				err: errors.Wrapf(errBoom, errFmtRenderXR, "cool-resource", "Broken", "cool-resource-42"),
-			},
-		},
-		"ComposedRenderError": {
-			reason: "We should include any error encountered while rendering a composed resource in our state.",
-			params: params{
-				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-					return nil
-				}),
-				composed: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-					return errBoom
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{
-								{
-									Name: pointer.String("cool-resource"),
-								},
-							},
-						},
-					},
-				},
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						// Corresponds to the ComposedTemplate above. The
-						// resource must exist in order for the code to try
-						// render the XR from it.
-						"cool-resource": ComposedResourceState{
-							Resource: func() *composed.Unstructured {
-								r := composed.New()
-								r.SetKind("Broken")
-								r.SetName("cool-resource-42")
-								return r
-							}(),
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: func() *composed.Unstructured {
-								r := composed.New()
-								r.SetKind("Broken")
-								r.SetName("cool-resource-42")
-								return r
-							}(),
-							Template: &v1.ComposedTemplate{
-								Name: pointer.String("cool-resource"),
-							},
-							TemplateRenderErr: errBoom,
-						},
-					},
-					Events: []event.Event{
-						event.Warning(reasonCompose, errors.Wrapf(errBoom, errFmtResourceName, "cool-resource")),
-					},
-				},
-			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-
-			pt := NewXRCDPatchAndTransformer(tc.params.composite, tc.params.composed)
-			err := pt.PatchAndTransform(tc.args.ctx, tc.args.req, tc.args.s)
+			d, err := AsState(tc.args.xr, tc.args.xc, tc.args.rs)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nState(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
-			// We need to EquateErrors here for the TemplateRenderError in state.
-			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty(), test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nGetComposedResources(...): -want, +got:\n%s", tc.reason, diff)
+			if diff := cmp.Diff(tc.want.d, d, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nState(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
-}
-
-func TestFunctionIODesired(t *testing.T) {
-	unmarshalable := kunstructured.Unstructured{Object: map[string]interface{}{
-		"you-cant-marshal-a-channel": make(chan<- string),
-	}}
-	_, errUnmarshalableXR := json.Marshal(&composite.Unstructured{Unstructured: unmarshalable})
-	_, errUnmarshalableCD := json.Marshal(&composed.Unstructured{Unstructured: unmarshalable})
-
-	type args struct {
-		s *PTFCompositionState
-	}
-	type want struct {
-		o   iov1alpha1.Desired
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"MarshalCompositeError": {
-			reason: "We should return an error if we can't marshal the XR.",
-			args: args{
-				s: &PTFCompositionState{
-					Composite: &composite.Unstructured{Unstructured: unmarshalable},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errUnmarshalableXR, errMarshalXR),
-			},
-		},
-		"MarshalComposedError": {
-			reason: "We should return an error if we can't marshal a composed resource.",
-			args: args{
-				s: &PTFCompositionState{
-					Composite: composite.New(),
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							Template: &v1.ComposedTemplate{},
-							Resource: &composed.Unstructured{Unstructured: unmarshalable},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errUnmarshalableCD, errMarshalCD),
-			},
-		},
-		"Success": {
-			reason: "We should successfully build a FunctionIO Desired struct from our state.",
-			args: args{
-				s: &PTFCompositionState{
-					Composite: composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "example.org",
-						Version: "v1",
-						Kind:    "Composite",
-					})),
-					ConnectionDetails: managed.ConnectionDetails{"a": []byte("b")},
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{ResourceName: "cool-resource"},
-							Template:         &v1.ComposedTemplate{},
-							Resource: composed.New(composed.FromReference(corev1.ObjectReference{
-								APIVersion: "example.org/v2",
-								Kind:       "Composed",
-								Name:       "cool-resource-42",
-							})),
-						},
-					},
-				},
-			},
-			want: want{
-				o: iov1alpha1.Desired{
-					Composite: iov1alpha1.DesiredComposite{
-						Resource: runtime.RawExtension{
-							Raw: []byte(`{"apiVersion":"example.org/v1","kind":"Composite"}`),
-						},
-						ConnectionDetails: []iov1alpha1.ExplicitConnectionDetail{{
-							Name:  "a",
-							Value: "b",
-						}},
-					},
-					Resources: []iov1alpha1.DesiredResource{{
-						Name: "cool-resource",
-						Resource: runtime.RawExtension{
-							Raw: []byte(`{"apiVersion":"example.org/v2","kind":"Composed","metadata":{"name":"cool-resource-42"}}`),
-						},
-					}},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			o, err := FunctionIODesired(tc.args.s)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nFunctionIODesired(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.o, o, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nFunctionIODesired(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestWithKubernetesAuthentication(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type params struct {
-		c              client.Reader
-		namespace      string
-		serviceAccount string
-		registry       string
-	}
-	type args struct {
-		ctx context.Context
-		fn  *v1.ContainerFunction
-		r   *fnpbv1alpha1.RunFunctionRequest
-	}
-	type want struct {
-		r   *fnpbv1alpha1.RunFunctionRequest
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		params params
-		args   args
-		want   want
-	}{
-		"GetServiceAccountError": {
-			reason: "We should return an error if we can't get the service account.",
-			params: params{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetServiceAccount),
-			},
-		},
-		"GetSecretError": {
-			reason: "We should return an error if we can't get an image pull secret.",
-			params: params{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						if _, ok := obj.(*corev1.Secret); ok {
-							return errBoom
-						}
-						return nil
-					},
-					),
-				},
-			},
-			args: args{
-				fn: &v1.ContainerFunction{
-					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetImagePullSecret),
-			},
-		},
-		"Success": {
-			reason: "We should successfully parse OCI registry authentication credentials from an image pull secret.",
-			params: params{
-				namespace: "cool-namespace",
-				c: &test.MockClient{
-					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						if s, ok := obj.(*corev1.Secret); ok {
-							want := client.ObjectKey{Namespace: "cool-namespace", Name: "cool-secret"}
-
-							if diff := cmp.Diff(want, key); diff != "" {
-								t.Errorf("\nclient.Get(...): -want key, +got key:\n%s", diff)
-							}
-
-							s.Type = corev1.SecretTypeDockerConfigJson
-							s.Data = map[string][]byte{
-								corev1.DockerConfigJsonKey: []byte(`{"auths":{"xpkg.example.org":{"username":"cool-user","password":"cool-pass"}}}`),
-							}
-						}
-						return nil
-					},
-				},
-				registry: "index.docker.io",
-			},
-			args: args{
-				fn: &v1.ContainerFunction{
-					Image:            "xpkg.example.org/cool-image:v1.0.0",
-					ImagePullSecrets: []corev1.LocalObjectReference{{Name: "cool-secret"}},
-				},
-				r: &fnpbv1alpha1.RunFunctionRequest{},
-			},
-			want: want{
-				r: &fnpbv1alpha1.RunFunctionRequest{
-					ImagePullConfig: &fnpbv1alpha1.ImagePullConfig{
-						Auth: &fnpbv1alpha1.ImagePullAuth{
-							Username: "cool-user",
-							Password: "cool-pass",
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			err := WithKubernetesAuthentication(tc.params.c, tc.params.namespace, tc.params.serviceAccount, tc.params.registry)(tc.args.ctx, tc.args.fn, tc.args.r)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want error, +got error:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.r, tc.args.r, protocmp.Transform()); diff != "" {
-				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestRunFunctionPipeline(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type params struct {
-		c ContainerFunctionRunner
-	}
-
-	type args struct {
-		ctx context.Context
-		req CompositionRequest
-		s   *PTFCompositionState
-		o   iov1alpha1.Observed
-		d   iov1alpha1.Desired
-	}
-
-	type want struct {
-		s   *PTFCompositionState
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		params params
-		args   args
-		want   want
-	}{
-		"UnsupportedFunctionTypeError": {
-			reason: "We should return an error if asked to run an unsupported function type.",
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{
-								{
-									Name: "cool-fn",
-									Type: v1.FunctionType("wat"),
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtUnsupportedFnType, "wat"), errFmtRunFn, "cool-fn"),
-			},
-		},
-		"RunContainerFunctionError": {
-			reason: "We should return an error if we can't run a containerized function.",
-			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
-					return nil, errBoom
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{
-								{
-									Name: "cool-fn",
-									Type: v1.FunctionTypeContainer,
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrapf(errBoom, errFmtRunFn, "cool-fn"),
-			},
-		},
-		"ResultError": {
-			reason: "We should return the first result of Error severity.",
-			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
-					return &iov1alpha1.FunctionIO{
-						Results: []iov1alpha1.Result{
-							{
-								Severity: iov1alpha1.SeverityFatal,
-								Message:  errBoom.Error(),
-							},
-						},
-					}, nil
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{
-								{
-									Name: "cool-fn",
-									Type: v1.FunctionTypeContainer,
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errFatalResult),
-			},
-		},
-		"ParseCompositeError": {
-			reason: "We should return an error if we can't unmarshal the desired XR.",
-			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
-					return &iov1alpha1.FunctionIO{
-						Desired: iov1alpha1.Desired{
-							Composite: iov1alpha1.DesiredComposite{
-								Resource: runtime.RawExtension{
-									// This triggers the unmarshal error.
-									Raw: []byte("}"),
-								},
-							},
-						},
-					}, nil
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{
-								{
-									Name: "cool-fn",
-									Type: v1.FunctionTypeContainer,
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(json.Unmarshal([]byte("}"), nil), errUnmarshalDesiredXR),
-			},
-		},
-		"ParseComposedError": {
-			reason: "We should return an error if we can't unmarshal a desired composed resource.",
-			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
-					return &iov1alpha1.FunctionIO{
-						Desired: iov1alpha1.Desired{
-							Composite: iov1alpha1.DesiredComposite{
-								Resource: runtime.RawExtension{
-									Raw: []byte(`{"apiVersion":"a/v1","kind":"XR"}`),
-								},
-							},
-							Resources: []iov1alpha1.DesiredResource{
-								{
-									Name: "cool-resource",
-									Resource: runtime.RawExtension{
-										// This triggers the unmarshal error.
-										Raw: []byte("}"),
-									},
-								},
-							},
-						},
-					}, nil
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{
-								{
-									Name: "cool-fn",
-									Type: v1.FunctionTypeContainer,
-								},
-							},
-						},
-					},
-				},
-				s: &PTFCompositionState{},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					Composite: func() *composite.Unstructured {
-						xr := composite.New()
-						xr.SetAPIVersion("a/v1")
-						xr.SetKind("XR")
-						return xr
-					}(),
-				},
-				err: errors.Wrapf(errors.Wrap(json.Unmarshal([]byte("}"), nil), errUnmarshalDesiredCD), errFmtParseDesiredCD, "cool-resource"),
-			},
-		},
-		"Success": {
-			reason: "We should update our CompositionState with the results of the pipeline.",
-			params: params{
-				c: ContainerFunctionRunnerFn(func(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.ContainerFunction, o ...ContainerFunctionRunnerOption) (*iov1alpha1.FunctionIO, error) {
-					return &iov1alpha1.FunctionIO{
-						Desired: iov1alpha1.Desired{
-							Composite: iov1alpha1.DesiredComposite{
-								Resource: runtime.RawExtension{
-									Raw: []byte(`{"apiVersion":"a/v1","kind":"XR"}`),
-								},
-								ConnectionDetails: []iov1alpha1.ExplicitConnectionDetail{
-									{
-										Name:  "a",
-										Value: "b",
-									},
-								},
-							},
-							// Note we test ParseDesiredResource separately.
-							Resources: []iov1alpha1.DesiredResource{
-								{
-									Name: "cool-resource",
-									Resource: runtime.RawExtension{
-										Raw: []byte(`{"apiVersion":"a/v1","kind":"Composed"}`),
-									},
-								},
-							},
-						},
-						Results: []iov1alpha1.Result{
-							{
-								Severity: iov1alpha1.SeverityWarning,
-								Message:  "oh no",
-							},
-							{
-								Severity: iov1alpha1.SeverityNormal,
-								Message:  "good stuff",
-							},
-						},
-					}, nil
-				}),
-			},
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{
-								{
-									Name: "cool-fn",
-									Type: v1.FunctionTypeContainer,
-								},
-							},
-						},
-					},
-				},
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					Composite: func() *composite.Unstructured {
-						xr := composite.New()
-						xr.SetAPIVersion("a/v1")
-						xr.SetKind("XR")
-						return xr
-					}(),
-					ConnectionDetails: managed.ConnectionDetails{"a": []byte("b")},
-					ComposedResources: ComposedResourceStates{
-						// We don't need to test that ParseDesiredResource works
-						// here - we do that elsewhere - so just call it.
-						"cool-resource": func() ComposedResourceState {
-							dr := iov1alpha1.DesiredResource{
-								Name: "cool-resource",
-								Resource: runtime.RawExtension{
-									Raw: []byte(`{"apiVersion":"a/v1","kind":"Composed"}`),
-								},
-							}
-							xr := composite.New()
-							xr.SetAPIVersion("a/v1")
-							xr.SetKind("XR")
-							cd, _ := ParseDesiredResource(dr, xr)
-							return cd
-						}(),
-					},
-					Events: []event.Event{
-						event.Warning(reasonCompose, errors.New("oh no")),
-						event.Normal(reasonCompose, "good stuff"),
-					},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-
-			r := NewFunctionPipeline(tc.params.c)
-			err := r.RunFunctionPipeline(tc.args.ctx, tc.args.req, tc.args.s, tc.args.o, tc.args.d)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nRunFunctionPipeline(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nRunFunctionPipeline(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-		})
-	}
-}
-
-type MockFunctionServer struct {
-	fnpbv1alpha1.UnimplementedContainerizedFunctionRunnerServiceServer
-
-	rsp *fnpbv1alpha1.RunFunctionResponse
-	err error
-}
-
-func (s *MockFunctionServer) RunFunction(context.Context, *fnpbv1alpha1.RunFunctionRequest) (*fnpbv1alpha1.RunFunctionResponse, error) {
-	return s.rsp, s.err
 }
 
 func TestRunFunction(t *testing.T) {
 	errBoom := errors.New("boom")
 
-	fnio := &iov1alpha1.FunctionIO{
-		Desired: iov1alpha1.Desired{
-			Resources: []iov1alpha1.DesiredResource{
-				{Name: "cool-resource"},
-			},
-		},
-	}
-	fnioyaml, _ := yaml.Marshal(fnio)
+	// An error indicating that no security credentials were passed.
+	_, errTransportSecurity := grpc.DialContext(context.Background(), "fake.test.crossplane.io")
+
+	// Make sure to add listeners here.
+	listeners := make([]net.Listener, 0)
 
 	type params struct {
-		server fnpbv1alpha1.ContainerizedFunctionRunnerServiceServer
+		c  client.Client
+		tc credentials.TransportCredentials
 	}
-
 	type args struct {
 		ctx  context.Context
-		fnio *iov1alpha1.FunctionIO
-		fn   *v1.ContainerFunction
+		name string
+		req  *fnv1beta1.RunFunctionRequest
 	}
-
 	type want struct {
-		fnio *iov1alpha1.FunctionIO
-		err  error
+		rsp *fnv1beta1.RunFunctionResponse
+		err error
 	}
-
 	cases := map[string]struct {
 		reason string
+		server fnv1beta1.FunctionRunnerServiceServer
 		params params
 		args   args
 		want   want
 	}{
-		"RunFunctionError": {
-			reason: "We should return an error if we can't make an RPC call to run the function.",
+		"GetFunctionError": {
+			reason: "We should return any error encountered trying to get the named Function package",
 			params: params{
-				server: &MockFunctionServer{err: errBoom},
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						return errBoom
+					},
+				},
+			},
+			args: args{
+				name: "cool-fn",
+			},
+			want: want{
+				err: errors.Wrapf(errBoom, errFmtGetFunction, "cool-fn"),
+			},
+		},
+		"MissingEndpointError": {
+			reason: "We should return an error if the named Function has an empty endpoint",
+			params: params{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						return nil // Return an empty Function
+					},
+				},
+			},
+			args: args{
+				name: "cool-fn",
+			},
+			want: want{
+				err: errors.Errorf(errFmtEmptyFunctionStatus, "cool-fn"),
+			},
+		},
+		"DialFunctionError": {
+			reason: "We should return an error if dialing the named Function returns an error",
+			params: params{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						obj.(*pkgv1alpha1.Function).Status.Endpoint = "fake.test.crossplane.io"
+						return nil
+					},
+				},
+				tc: nil, // Supplying no credentials triggers a dial error.
 			},
 			args: args{
 				ctx:  context.Background(),
-				fnio: &iov1alpha1.FunctionIO{},
-				fn:   &v1.ContainerFunction{},
+				name: "cool-fn",
+				req:  &fnv1beta1.RunFunctionRequest{},
 			},
 			want: want{
-				err: errors.Wrap(status.Errorf(codes.Unknown, errBoom.Error()), errRunFnContainer),
+				err: errors.Wrapf(errTransportSecurity, errFmtDialFunction, "cool-fn"),
+			},
+		},
+		"RunFunctionError": {
+			reason: "We should return an error if running the named Function returns an error",
+			params: params{
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						lis := NewGRPCServer(t, &MockFunctionServer{err: errBoom})
+						listeners = append(listeners, lis)
+
+						obj.(*pkgv1alpha1.Function).Status.Endpoint = lis.Addr().String()
+						return nil
+					},
+				},
+				tc: insecure.NewCredentials(),
+			},
+			args: args{
+				ctx:  context.Background(),
+				name: "cool-fn",
+				req:  &fnv1beta1.RunFunctionRequest{},
+			},
+			want: want{
+				err: errors.Wrapf(status.Errorf(codes.Unknown, errBoom.Error()), errFmtRunFunction, "cool-fn"),
 			},
 		},
 		"RunFunctionSuccess": {
-			reason: "We should return the same FunctionIO our server returned.",
+			reason: "We should return the RunFunctionResponse from the Function",
 			params: params{
-				server: &MockFunctionServer{
-					rsp: &fnpbv1alpha1.RunFunctionResponse{
-						Output: fnioyaml,
+				c: &test.MockClient{
+					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+						lis := NewGRPCServer(t, &MockFunctionServer{
+							rsp: &fnv1beta1.RunFunctionResponse{
+								Results: []*fnv1beta1.Result{
+									{
+										Severity: fnv1beta1.Severity_SEVERITY_NORMAL,
+										Message:  "Successfully ran Function!",
+									},
+								},
+							},
+						})
+						listeners = append(listeners, lis)
+
+						obj.(*pkgv1alpha1.Function).Status.Endpoint = lis.Addr().String()
+						return nil
 					},
 				},
+				tc: insecure.NewCredentials(),
 			},
 			args: args{
 				ctx:  context.Background(),
-				fnio: &iov1alpha1.FunctionIO{},
-				fn:   &v1.ContainerFunction{},
+				name: "cool-fn",
+				req:  &fnv1beta1.RunFunctionRequest{},
 			},
 			want: want{
-				fnio: fnio,
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-
-			// Listen on a random port.
-			lis, err := net.Listen("tcp", "127.0.0.1:0")
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			wg := &sync.WaitGroup{}
-			wg.Add(1)
-			go func() {
-				s := grpc.NewServer()
-				fnpbv1alpha1.RegisterContainerizedFunctionRunnerServiceServer(s, tc.params.server)
-				_ = s.Serve(lis)
-				wg.Done()
-			}()
-
-			// Tell the function to connect to our mock server.
-			tc.args.fn.Runner = &v1.ContainerFunctionRunner{
-				Endpoint: pointer.String(lis.Addr().String()),
-			}
-
-			fnio, err := RunFunction(tc.args.ctx, tc.args.fnio, tc.args.fn)
-
-			_ = lis.Close() // This should terminate the goroutine above.
-			wg.Wait()
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nRunFunction(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.fnio, fnio); diff != "" {
-				t.Errorf("\n%s\nRunFunction(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-		})
-	}
-}
-
-func TestParseDesiredResource(t *testing.T) {
-
-	cd := composed.New()
-	cd.SetAPIVersion("a/v1")
-	cd.SetKind("Composed")
-	cd.SetName("composed")
-
-	desired := iov1alpha1.DesiredResource{
-		Name: "cool-resource",
-		Resource: runtime.RawExtension{
-			Raw: func() []byte {
-				j, _ := json.Marshal(cd)
-				return j
-			}(),
-		},
-	}
-
-	type args struct {
-		dr    iov1alpha1.DesiredResource
-		owner resource.Object
-	}
-
-	type want struct {
-		cd  ComposedResourceState
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		args   args
-		want   want
-	}{
-		"UnmarshalResourceError": {
-			reason: "We should return an error if we can't unmarshal our composed resource.",
-			args: args{
-				dr: iov1alpha1.DesiredResource{
-					Resource: runtime.RawExtension{
-						Raw: []byte("}"),
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(json.Unmarshal([]byte("}"), nil), errUnmarshalDesiredCD),
-			},
-		},
-		"SetControllerRefError": {
-			reason: "We should return an error if we can't set a controller reference on our composed resource.",
-			args: args{
-				dr: iov1alpha1.DesiredResource{
-					Resource: runtime.RawExtension{
-						Raw: func() []byte {
-							u := cd.DeepCopy()
-							cd := &composed.Unstructured{Unstructured: *u}
-							meta.AddOwnerReference(cd, meta.AsController(&xpv1.TypedReference{
-								UID:  types.UID("someone-else"),
-								Kind: "Composite",
-								Name: "someone-else",
-							}))
-							j, _ := json.Marshal(cd)
-							return j
-						}(),
-					},
-				},
-				owner: &fake.Composite{},
-			},
-			want: want{
-				err: errors.Wrap(errors.New("composed is already controlled by Composite someone-else (UID someone-else)"), errSetControllerRef),
-			},
-		},
-		"Success": {
-			reason: "We should successfully translate a desired resource into composed resource state.",
-			args: args{
-				dr: desired,
-				owner: &fake.Composite{
-					ObjectMeta: metav1.ObjectMeta{
-						UID: types.UID("owner"),
-						Labels: map[string]string{
-							xcrd.LabelKeyNamePrefixForComposed: "pfx",
-							xcrd.LabelKeyClaimName:             "cool-claim",
-							xcrd.LabelKeyClaimNamespace:        "default",
+				rsp: &fnv1beta1.RunFunctionResponse{
+					Results: []*fnv1beta1.Result{
+						{
+							Severity: fnv1beta1.Severity_SEVERITY_NORMAL,
+							Message:  "Successfully ran Function!",
 						},
 					},
 				},
 			},
-			want: want{
-				cd: ComposedResourceState{
-					ComposedResource: ComposedResource{
-						ResourceName: "cool-resource",
-					},
-					Desired: &desired,
-					Resource: func() *composed.Unstructured {
-						u := cd.DeepCopy()
-						cd := &composed.Unstructured{Unstructured: *u}
-						SetCompositionResourceName(cd, "cool-resource")
-						cd.SetOwnerReferences([]metav1.OwnerReference{{
-							UID:                types.UID("owner"),
-							Controller:         pointer.Bool(true),
-							BlockOwnerDeletion: pointer.Bool(true),
-						}})
-						cd.SetLabels(map[string]string{
-							xcrd.LabelKeyNamePrefixForComposed: "pfx",
-							xcrd.LabelKeyClaimName:             "cool-claim",
-							xcrd.LabelKeyClaimNamespace:        "default",
-						})
-						return cd
-					}(),
-				},
-			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
+			r := NewPackagedFunctionRunner(tc.params.c, tc.params.tc)
+			rsp, err := r.RunFunction(tc.args.ctx, tc.args.name, tc.args.req)
 
-			cd, err := ParseDesiredResource(tc.args.dr, tc.args.owner)
-
+			if diff := cmp.Diff(tc.want.rsp, rsp, protocmp.Transform()); diff != "" {
+				t.Errorf("\n%s\nr.RunFunction(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nParseDesiredResource(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.cd, cd); diff != "" {
-				t.Errorf("\n%s\nParseDesiredResource(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-		})
-	}
-}
-
-func TestImagePullConfig(t *testing.T) {
-
-	always := corev1.PullAlways
-	never := corev1.PullNever
-	ifNotPresent := corev1.PullIfNotPresent
-
-	cases := map[string]struct {
-		reason string
-		fn     *v1.ContainerFunction
-		want   *fnpbv1alpha1.ImagePullConfig
-	}{
-		"NoImagePullPolicy": {
-			reason: "We should return an empty config if there's no ImagePullPolicy.",
-			fn:     &v1.ContainerFunction{},
-			want:   &fnpbv1alpha1.ImagePullConfig{},
-		},
-		"PullAlways": {
-			reason: "We should correctly map PullAlways.",
-			fn: &v1.ContainerFunction{
-				ImagePullPolicy: &always,
-			},
-			want: &fnpbv1alpha1.ImagePullConfig{
-				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_ALWAYS,
-			},
-		},
-		"PullNever": {
-			reason: "We should correctly map PullNever.",
-			fn: &v1.ContainerFunction{
-				ImagePullPolicy: &never,
-			},
-			want: &fnpbv1alpha1.ImagePullConfig{
-				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_NEVER,
-			},
-		},
-		"PullIfNotPresent": {
-			reason: "We should correctly map PullIfNotPresent.",
-			fn: &v1.ContainerFunction{
-				ImagePullPolicy: &ifNotPresent,
-			},
-			want: &fnpbv1alpha1.ImagePullConfig{
-				PullPolicy: fnpbv1alpha1.ImagePullPolicy_IMAGE_PULL_POLICY_IF_NOT_PRESENT,
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := ImagePullConfig(tc.fn)
-
-			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
-				t.Errorf("\n%s\nImagePullConfig(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nr.RunFunction(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
-}
 
-func TestRunFunctionConfig(t *testing.T) {
-
-	cpu := computeresource.MustParse("1")
-	mem := computeresource.MustParse("256Mi")
-
-	isolated := v1.ContainerFunctionNetworkPolicyIsolated
-	runner := v1.ContainerFunctionNetworkPolicyRunner
-
-	cases := map[string]struct {
-		reason string
-		fn     *v1.ContainerFunction
-		want   *fnpbv1alpha1.RunFunctionConfig
-	}{
-		"EmptyConfig": {
-			reason: "An empty config should be returned when there is no run-related configuration.",
-			fn:     &v1.ContainerFunction{},
-			want:   &fnpbv1alpha1.RunFunctionConfig{},
-		},
-		"Resources": {
-			reason: "All resource quantities should be included in the RunFunctionConfig",
-			fn: &v1.ContainerFunction{
-				Resources: &v1.ContainerFunctionResources{
-					Limits: &v1.ContainerFunctionResourceLimits{
-						CPU:    &cpu,
-						Memory: &mem,
-					},
-				},
-			},
-			want: &fnpbv1alpha1.RunFunctionConfig{
-				Resources: &fnpbv1alpha1.ResourceConfig{
-					Limits: &fnpbv1alpha1.ResourceLimits{
-						Cpu:    cpu.String(),
-						Memory: mem.String(),
-					},
-				},
-			},
-		},
-		"IsolatedNetwork": {
-			reason: "The isolated network policy should be returned.",
-			fn: &v1.ContainerFunction{
-				Network: &v1.ContainerFunctionNetwork{
-					Policy: &isolated,
-				},
-			},
-			want: &fnpbv1alpha1.RunFunctionConfig{
-				Network: &fnpbv1alpha1.NetworkConfig{
-					Policy: fnpbv1alpha1.NetworkPolicy_NETWORK_POLICY_ISOLATED,
-				},
-			},
-		},
-		"RunnerNetwork": {
-			reason: "The runner network policy should be returned.",
-			fn: &v1.ContainerFunction{
-				Network: &v1.ContainerFunctionNetwork{
-					Policy: &runner,
-				},
-			},
-			want: &fnpbv1alpha1.RunFunctionConfig{
-				Network: &fnpbv1alpha1.NetworkConfig{
-					Policy: fnpbv1alpha1.NetworkPolicy_NETWORK_POLICY_RUNNER,
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-
-			got := RunFunctionConfig(tc.fn)
-
-			if diff := cmp.Diff(tc.want, got, protocmp.Transform()); diff != "" {
-				t.Errorf("\n%s\nRunFunctionConfig(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
+	for _, lis := range listeners {
+		if err := lis.Close(); err != nil {
+			t.Logf("lis.Close: %s", err)
+		}
 	}
 }
 
-func TestDeleteComposedResources(t *testing.T) {
+func NewGRPCServer(t *testing.T, ss fnv1beta1.FunctionRunnerServiceServer) net.Listener {
+	// Listen on a random port.
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// TODO(negz): Is it worth using a WaitGroup for these?
+	go func() {
+		s := grpc.NewServer()
+		fnv1beta1.RegisterFunctionRunnerServiceServer(s, ss)
+		_ = s.Serve(lis)
+	}()
+
+	// The caller must close this listener to terminate the server.
+	return lis
+}
+
+type MockFunctionServer struct {
+	fnv1beta1.UnimplementedFunctionRunnerServiceServer
+
+	rsp *fnv1beta1.RunFunctionResponse
+	err error
+}
+
+func (s *MockFunctionServer) RunFunction(context.Context, *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
+	return s.rsp, s.err
+}
+
+func TestGarbageCollectComposedResources(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	type params struct {
@@ -1910,12 +1545,13 @@ func TestDeleteComposedResources(t *testing.T) {
 	}
 
 	type args struct {
-		ctx context.Context
-		s   *PTFCompositionState
+		ctx      context.Context
+		owner    metav1.Object
+		observed Resources
+		desired  Resources
 	}
 
 	type want struct {
-		s   *PTFCompositionState
 		err error
 	}
 
@@ -1925,59 +1561,8 @@ func TestDeleteComposedResources(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"HasDesired": {
-			reason: "Desired resources should not be deleted.",
-			args: args{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"desired-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "desired-resource",
-							},
-							Desired: &iov1alpha1.DesiredResource{},
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"desired-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "desired-resource",
-							},
-							Desired: &iov1alpha1.DesiredResource{},
-						},
-					},
-				},
-			},
-		},
-		"NeverCreated": {
-			reason: "Resources that were never created should be deleted from state, but not the API server.",
-			params: params{
-				client: &test.MockClient{
-					// We know Delete wasn't called because it's a nil function
-					// and would thus panic if it was.
-				},
-			},
-			args: args{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"undesired-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{},
-							Resource:         &fake.Composed{},
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{},
-				},
-			},
-		},
 		"UncontrolledResource": {
-			reason: "Resources the XR doesn't control should be deleted from state, but not the API server.",
+			reason: "Resources the XR doesn't control should not be deleted.",
 			params: params{
 				client: &test.MockClient{
 					// We know Delete wasn't called because it's a nil function
@@ -1985,34 +1570,17 @@ func TestDeleteComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ObjectMeta: metav1.ObjectMeta{
-							UID: "cool-xr",
-						},
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
 					},
-					ComposedResources: ComposedResourceStates{
-						"undesired-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									// This resource exists in the API server.
-									CreationTimestamp: metav1.Now(),
-								},
-							},
-						},
-					},
+				},
+				observed: Resources{
+					"undesired-resource": Resource{Resource: &fake.Composed{}},
 				},
 			},
 			want: want{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ObjectMeta: metav1.ObjectMeta{
-							UID: "cool-xr",
-						},
-					},
-					ComposedResources: ComposedResourceStates{},
-				},
+				err: nil,
 			},
 		},
 		"DeleteError": {
@@ -2023,89 +1591,94 @@ func TestDeleteComposedResources(t *testing.T) {
 				},
 			},
 			args: args{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ObjectMeta: metav1.ObjectMeta{
-							UID: "cool-xr",
-						},
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
 					},
-					ComposedResources: ComposedResourceStates{
-						"undesired-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "undesired-resource",
-							},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									// This resource exists in the API server.
-									CreationTimestamp: metav1.Now(),
-
-									// This resource is controlled by the XR.
-									OwnerReferences: []metav1.OwnerReference{{
-										Controller: pointer.Bool(true),
-										UID:        "cool-xr",
-									}},
-								},
+				},
+				observed: Resources{
+					"undesired-resource": Resource{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								// This resource is controlled by the XR.
+								OwnerReferences: []metav1.OwnerReference{{
+									Controller: pointer.Bool(true),
+									UID:        "cool-xr",
+								}},
 							},
 						},
 					},
 				},
 			},
 			want: want{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ObjectMeta: metav1.ObjectMeta{
-							UID: "cool-xr",
-						},
-					},
-					ComposedResources: ComposedResourceStates{},
-				},
 				err: errors.Wrapf(errBoom, errFmtDeleteCD, "undesired-resource", "", ""),
 			},
 		},
-		"Success": {
-			reason: "We should successfully delete the resource from the API server and state.",
+		"SuccessfulDelete": {
+			reason: "We should successfully delete an observed resource from the API server if it is not desired.",
 			params: params{
 				client: &test.MockClient{
 					MockDelete: test.NewMockDeleteFn(nil),
 				},
 			},
 			args: args{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ObjectMeta: metav1.ObjectMeta{
-							UID: "cool-xr",
-						},
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
 					},
-					ComposedResources: ComposedResourceStates{
-						"undesired-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "undesired-resource",
-							},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									// This resource exists in the API server.
-									CreationTimestamp: metav1.Now(),
-
-									// This resource is controlled by the XR.
-									OwnerReferences: []metav1.OwnerReference{{
-										Controller: pointer.Bool(true),
-										UID:        "cool-xr",
-									}},
-								},
+				},
+				observed: Resources{
+					"undesired-resource": Resource{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								// This resource is controlled by the XR.
+								OwnerReferences: []metav1.OwnerReference{{
+									Controller: pointer.Bool(true),
+									UID:        "cool-xr",
+								}},
 							},
 						},
 					},
 				},
 			},
 			want: want{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ObjectMeta: metav1.ObjectMeta{
-							UID: "cool-xr",
+				err: nil,
+			},
+		},
+		"SuccessfulNoop": {
+			reason: "We should not delete an observed resource from the API server if it is desired.",
+			params: params{
+				client: &test.MockClient{
+					// We know Delete wasn't called because it's nil and would
+					// panic if it was.
+				},
+			},
+			args: args{
+				owner: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						UID: "cool-xr",
+					},
+				},
+				observed: Resources{
+					"desired-resource": Resource{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								// This resource is controlled by the XR.
+								OwnerReferences: []metav1.OwnerReference{{
+									Controller: pointer.Bool(true),
+									UID:        "cool-xr",
+								}},
+							},
 						},
 					},
-					ComposedResources: ComposedResourceStates{},
 				},
+				desired: Resources{
+					// The observed resource above is also desired.
+					"desired-resource": Resource{},
+				},
+			},
+			want: want{
+				err: nil,
 			},
 		},
 	}
@@ -2113,30 +1686,24 @@ func TestDeleteComposedResources(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 
-			d := NewUndesiredComposedResourceDeleter(tc.params.client)
-			err := d.DeleteComposedResources(tc.args.ctx, tc.args.s)
+			d := NewDeletingComposedResourceGarbageCollector(tc.params.client)
+			err := d.GarbageCollectComposedResources(tc.args.ctx, tc.args.owner, tc.args.observed, tc.args.desired)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nDeleteComposedResources(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nGarbageCollectComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
-
-			if diff := cmp.Diff(tc.want.s, tc.args.s); diff != "" {
-				t.Errorf("\n%s\nDeleteComposedResources(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
 		})
 	}
 }
 
 func TestUpdateResourceRefs(t *testing.T) {
-	errBoom := errors.New("boom")
-
 	type args struct {
-		s *PTFCompositionState
+		xr  resource.ComposedResourcesReferencer
+		drs Resources
 	}
 
 	type want struct {
-		s *PTFCompositionState
+		xr resource.ComposedResourcesReferencer
 	}
 
 	cases := map[string]struct {
@@ -2144,105 +1711,41 @@ func TestUpdateResourceRefs(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"RenderError": {
-			reason: "We shouldn't record references to resources that were never created and failed to render.",
-			args: args{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{},
-					ComposedResources: ComposedResourceStates{
-						"never-created": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-42",
-								},
-							},
-							TemplateRenderErr: errBoom,
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
-							Refs: []corev1.ObjectReference{},
-						},
-					},
-					ComposedResources: ComposedResourceStates{
-						"never-created": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-42",
-								},
-							},
-							TemplateRenderErr: errBoom,
-						},
-					},
-				},
-			},
-		},
 		"Success": {
 			reason: "We should return a consistently ordered set of references.",
 			args: args{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{},
-					ComposedResources: ComposedResourceStates{
-						"never-created-c": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-c-42",
-								},
+				xr: &fake.Composite{},
+				drs: Resources{
+					"never-created-c": Resource{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "never-created-c-42",
 							},
 						},
-						"never-created-b": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-b-42",
-								},
+					},
+					"never-created-b": Resource{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "never-created-b-42",
 							},
 						},
-						"never-created-a": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-a-42",
-								},
+					},
+					"never-created-a": Resource{
+						Resource: &fake.Composed{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "never-created-a-42",
 							},
 						},
 					},
 				},
 			},
 			want: want{
-				s: &PTFCompositionState{
-					Composite: &fake.Composite{
-						ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
-							Refs: []corev1.ObjectReference{
-								{Name: "never-created-a-42"},
-								{Name: "never-created-b-42"},
-								{Name: "never-created-c-42"},
-							},
-						},
-					},
-					ComposedResources: ComposedResourceStates{
-						"never-created-c": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-c-42",
-								},
-							},
-						},
-						"never-created-b": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-b-42",
-								},
-							},
-						},
-						"never-created-a": ComposedResourceState{
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "never-created-a-42",
-								},
-							},
+				xr: &fake.Composite{
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
+						Refs: []corev1.ObjectReference{
+							{Name: "never-created-a-42"},
+							{Name: "never-created-b-42"},
+							{Name: "never-created-c-42"},
 						},
 					},
 				},
@@ -2253,245 +1756,10 @@ func TestUpdateResourceRefs(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 
-			UpdateResourceRefs(tc.args.s)
+			UpdateResourceRefs(tc.args.xr, tc.args.drs)
 
-			// We need to EquateErrors here for the TemplateRenderError in state.
-			if diff := cmp.Diff(tc.want.s, tc.args.s, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.xr, tc.args.xr); diff != "" {
 				t.Errorf("\n%s\nUpdateResourceRefs(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-		})
-	}
-}
-
-func TestReadinessObserver(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type params struct {
-		c ReadinessChecker
-	}
-
-	type args struct {
-		ctx context.Context
-		s   *PTFCompositionState
-	}
-
-	type want struct {
-		s   *PTFCompositionState
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		params params
-		args   args
-		want   want
-	}{
-		"IsReadyError": {
-			reason: "We should return any error encountered checking readiness.",
-			params: params{
-				c: ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
-					return false, errBoom
-				}),
-			},
-			args: args{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-resource-42",
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-resource-42",
-								},
-							},
-						},
-					},
-				},
-				err: errors.Wrapf(errBoom, errFmtReadiness, "cool-resource", "", "cool-resource-42"),
-			},
-		},
-		"Ready": {
-			reason: "We should record whether the composed resource is ready.",
-			params: params{
-				c: ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
-					return true, nil
-				}),
-			},
-			args: args{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{},
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-								Ready:        true,
-							},
-							Resource: &fake.Composed{},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-
-			o := NewReadinessObserver(tc.params.c)
-			err := o.ObserveComposedResources(tc.args.ctx, tc.args.s)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-		})
-	}
-}
-
-func TestConnectionDetailsObserver(t *testing.T) {
-	errBoom := errors.New("boom")
-
-	type params struct {
-		e ConnectionDetailsExtractor
-	}
-
-	type args struct {
-		ctx context.Context
-		s   *PTFCompositionState
-	}
-
-	type want struct {
-		s   *PTFCompositionState
-		err error
-	}
-
-	cases := map[string]struct {
-		reason string
-		params params
-		args   args
-		want   want
-	}{
-		"ExtractConnectionError": {
-			reason: "We should return any error encountered extracting connetion details.",
-			params: params{
-				e: ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
-					return nil, errBoom
-				}),
-			},
-			args: args{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-resource-42",
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "cool-resource-42",
-								},
-							},
-						},
-					},
-				},
-				err: errors.Wrapf(errBoom, errFmtExtractConnectionDetails, "cool-resource", "", "cool-resource-42"),
-			},
-		},
-		"Success": {
-			reason: "We should record the extracted connection details.",
-			params: params{
-				e: ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
-					return managed.ConnectionDetails{"a": []byte("b")}, nil
-				}),
-			},
-			args: args{
-				s: &PTFCompositionState{
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{},
-						},
-					},
-				},
-			},
-			want: want{
-				s: &PTFCompositionState{
-					ConnectionDetails: managed.ConnectionDetails{"a": []byte("b")},
-					ComposedResources: ComposedResourceStates{
-						"cool-resource": ComposedResourceState{
-							ComposedResource: ComposedResource{
-								ResourceName: "cool-resource",
-							},
-							Resource: &fake.Composed{},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-
-			o := NewConnectionDetailsObserver(tc.params.e)
-			err := o.ObserveComposedResources(tc.args.ctx, tc.args.s)
-
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
-			}
-
-			if diff := cmp.Diff(tc.want.s, tc.args.s, cmpopts.EquateEmpty()); diff != "" {
-				t.Errorf("\n%s\nObserveComposedResources(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 		})

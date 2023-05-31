@@ -58,13 +58,16 @@ type CompositionRevisionSpec struct {
 	// +optional
 	Resources []ComposedTemplate `json:"resources"`
 
-	// Functions is list of Composition Functions that will be used when a
+	// Pipeline is list of composition function steps that will be used when a
 	// composite resource referring to this composition is created. At least one
-	// of resources and functions must be specified. If both are specified the
-	// resources will be rendered first, then passed to the functions for
+	// of resources and pipeline must be specified. If both are specified the
+	// resources will be rendered first, then passed to the step functions for
 	// further processing.
+	//
+	// THIS IS A BETA FIELD. It is not honored if the relevant Crossplane
+	// feature flag is disabled.
 	// +optional
-	Functions []Function `json:"functions,omitempty"`
+	Pipeline []PipelineStep `json:"pipeline,omitempty"`
 
 	// WriteConnectionSecretsToNamespace specifies the namespace in which the
 	// connection secrets of composite resource dynamically provisioned using

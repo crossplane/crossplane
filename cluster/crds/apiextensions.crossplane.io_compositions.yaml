@@ -519,134 +519,6 @@ spec:
                         type: string
                     type: object
                 type: object
-              functions:
-                description: "Functions is list of Composition Functions that will
-                  be used when a composite resource referring to this composition
-                  is created. At least one of resources and functions must be specified.
-                  If both are specified the resources will be rendered first, then
-                  passed to the functions for further processing. \n THIS IS AN ALPHA
-                  FIELD. Do not use it in production. It is not honored unless the
-                  relevant Crossplane feature flag is enabled, and may be changed
-                  or removed without notice."
-                items:
-                  description: A Function represents a Composition Function.
-                  properties:
-                    config:
-                      description: Config is an optional, arbitrary Kubernetes resource
-                        (i.e. a resource with an apiVersion and kind) that will be
-                        passed to the Composition Function as the 'config' block of
-                        its FunctionIO.
-                      type: object
-                      x-kubernetes-embedded-resource: true
-                      x-kubernetes-preserve-unknown-fields: true
-                    container:
-                      description: Container configuration of this function.
-                      properties:
-                        image:
-                          description: Image specifies the OCI image in which the
-                            function is packaged. The image should include an entrypoint
-                            that reads a FunctionIO from stdin and emits it, optionally
-                            mutated, to stdout.
-                          type: string
-                        imagePullPolicy:
-                          default: IfNotPresent
-                          description: ImagePullPolicy defines the pull policy for
-                            the function image.
-                          enum:
-                          - IfNotPresent
-                          - Always
-                          - Never
-                          type: string
-                        imagePullSecrets:
-                          description: ImagePullSecrets are used to pull images from
-                            private OCI registries.
-                          items:
-                            description: LocalObjectReference contains enough information
-                              to let you locate the referenced object inside the same
-                              namespace.
-                            properties:
-                              name:
-                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
-                                  TODO: Add other useful fields. apiVersion, kind,
-                                  uid?'
-                                type: string
-                            type: object
-                            x-kubernetes-map-type: atomic
-                          type: array
-                        network:
-                          description: Network configuration for the Composition Function.
-                          properties:
-                            policy:
-                              default: Isolated
-                              description: Policy specifies the network policy under
-                                which the Composition Function will run. Defaults
-                                to 'Isolated' - i.e. no network access. Specify 'Runner'
-                                to allow the function the same network access as its
-                                runner.
-                              enum:
-                              - Isolated
-                              - Runner
-                              type: string
-                          type: object
-                        resources:
-                          description: Resources that may be used by the Composition
-                            Function.
-                          properties:
-                            limits:
-                              description: Limits specify the maximum compute resources
-                                that may be used by the Composition Function.
-                              properties:
-                                cpu:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
-                                  default: 100m
-                                  description: CPU, in cores. (500m = .5 cores)
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
-                                memory:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
-                                  default: 128Mi
-                                  description: Memory, in bytes. (500Gi = 500GiB =
-                                    500 * 1024 * 1024 * 1024)
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
-                              type: object
-                          type: object
-                        runner:
-                          description: Runner configuration for the Composition Function.
-                          properties:
-                            endpoint:
-                              default: unix-abstract:crossplane/fn/default.sock
-                              description: Endpoint specifies how and where Crossplane
-                                should reach the runner it uses to invoke containerized
-                                Composition Functions.
-                              type: string
-                          type: object
-                        timeout:
-                          default: 20s
-                          description: Timeout after which the Composition Function
-                            will be killed.
-                          type: string
-                      required:
-                      - image
-                      type: object
-                    name:
-                      description: Name of this function. Must be unique within its
-                        Composition.
-                      type: string
-                    type:
-                      description: Type of this function.
-                      enum:
-                      - Container
-                      type: string
-                  required:
-                  - name
-                  - type
-                  type: object
-                type: array
               patchSets:
                 description: PatchSets define a named set of patches that may be included
                   by any resource in this Composition. PatchSets cannot themselves
@@ -993,6 +865,42 @@ spec:
                   required:
                   - name
                   - patches
+                  type: object
+                type: array
+              pipeline:
+                description: "Pipeline is list of composition function steps that
+                  will be used when a composite resource referring to this composition
+                  is created. At least one of resources and pipeline must be specified.
+                  If both are specified the resources will be rendered first, then
+                  passed to the step functions for further processing. \n THIS IS
+                  A BETA FIELD. It is not honored if the relevant Crossplane feature
+                  flag is disabled."
+                items:
+                  description: A PipelineStep in a Composition Function pipeline.
+                  properties:
+                    functionRef:
+                      description: FunctionRef is a reference to the Composition Function
+                        this step should execute.
+                      properties:
+                        name:
+                          description: Name of the referenced Function.
+                          type: string
+                      required:
+                      - name
+                      type: object
+                    input:
+                      description: Input is an optional, arbitrary Kubernetes resource
+                        (i.e. a resource with an apiVersion and kind) that will be
+                        passed to the Composition Function as the 'input' of its RunFunctionRequest.
+                      type: object
+                      x-kubernetes-embedded-resource: true
+                      x-kubernetes-preserve-unknown-fields: true
+                    step:
+                      description: Step name. Must be unique within its Pipeline.
+                      type: string
+                  required:
+                  - functionRef
+                  - step
                   type: object
                 type: array
               publishConnectionDetailsWithStoreConfigRef:

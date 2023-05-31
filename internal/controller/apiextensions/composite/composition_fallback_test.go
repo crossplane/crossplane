@@ -240,12 +240,8 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{
 						Spec: v1.CompositionRevisionSpec{
-							Functions: []v1.Function{{
-								Name: "cool-fn",
-								Type: v1.FunctionTypeContainer,
-								Container: &v1.ContainerFunction{
-									Image: "cool-img:latest",
-								},
+							Pipeline: []v1.PipelineStep{{
+								Step: "cool-fn",
 							}},
 						},
 					},

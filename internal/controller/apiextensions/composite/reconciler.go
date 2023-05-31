@@ -67,8 +67,6 @@ const (
 	errSelectEnvironment      = "cannot select environment"
 	errCompose                = "cannot compose resources"
 	errRenderCD               = "cannot render composed resource"
-
-	errFmtPatchEnvironment = "cannot apply environment patch at index %d"
 )
 
 // Event reasons.
@@ -180,20 +178,6 @@ type ConfiguratorFn func(ctx context.Context, cr resource.Composite, rev *v1.Com
 // Configure the supplied composite resource using its composition.
 func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
 	return fn(ctx, cr, rev)
-}
-
-// A Renderer is used to render a composed resource.
-type Renderer interface {
-	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error
-}
-
-// A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error
-
-// Render the supplied composed resource using the supplied composite resource
-// and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
-	return fn(ctx, cp, cd, t, env)
 }
 
 // A CompositionRequest is a request to compose resources.
@@ -630,7 +614,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
-		id := cd.ResourceName
+		id := string(cd.ResourceName)
 		if id == "" {
 			id = strconv.Itoa(i)
 		}
