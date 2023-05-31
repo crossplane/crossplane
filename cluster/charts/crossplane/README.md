@@ -95,7 +95,7 @@ and their default values.
 | `rbacManager.args` | A list of additional args to be pased to the RBAC manager's container. | `[]` |
 | `rbacManager.deploy` | Deploy RBAC Manager and its required roles. | `true` |
 | `rbacManager.leaderElection` | Enable leader election for RBAC Managers pod. | `true` |
-| `rbacManager.managementPolicy` | The extent to which the RBAC manager will manage permissions:. - `All` indicates to manage all Crossplane controller and user roles. - `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `"All"` |
+| `rbacManager.managementPolicy` | The extent to which the RBAC manager will manage permissions:. - `All` indicates to manage all Crossplane controller and user roles. - `Basic` indicates to only manage Crossplane controller roles and the `crossplane-admin`, `crossplane-edit`, and `crossplane-view` user roles. | `"Basic"` |
 | `rbacManager.nodeSelector` | Enable nodeSelector for RBAC Managers pod. | `{}` |
 | `rbacManager.replicas` | The number of replicas to run for the RBAC Manager pods. | `1` |
 | `rbacManager.skipAggregatedClusterRoles` | Opt out of deploying aggregated ClusterRoles. | `false` |
