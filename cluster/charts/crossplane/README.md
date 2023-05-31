@@ -80,7 +80,7 @@ and their default values.
 | `image.repository` | Repository for the Crossplane pod image. | `"crossplane/crossplane"` |
 | `image.tag` | The Crossplane image tag. Defaults to the value of `appVersion` in Chart.yaml. | `""` |
 | `imagePullSecrets` | The imagePullSecret names to add to the Crossplane ServiceAccount. | `{}` |
-| `leaderElection` | Enable leader election for the Crossplane pod. | `true` |
+| `leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the Crossplane pod. | `true` |
 | `metrics.enabled` | Enable Prometheus path, port and scrape annotations and expose port 8080 for both the Crossplane and RBAC Manager pods. | `false` |
 | `nodeSelector` | Add `nodeSelectors` to the Crossplane pod deployment. | `{}` |
 | `packageCache.configMap` | The name of a ConfigMap to use as the package cache. Disables the default package cache `emptyDir` Volume. | `""` |
@@ -94,8 +94,8 @@ and their default values.
 | `rbacManager.affinity` | Add `affinities` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.args` | Add custom arguments to the RBAC Manager pod. | `[]` |
 | `rbacManager.deploy` | Deploy the RBAC Manager pod and its required roles. | `true` |
-| `rbacManager.leaderElection` | Enable leader election for the RBAC Manager pod. | `true` |
-| `rbacManager.managementPolicy` | Defines the Roles and ClusterRoles the RBAC Manager creates and manages. - A policy of `Basic` creates and binds Roles only for the Crossplane ServiceAccount, Provider ServiceAccounts and creates Crossplane ClusterRoles. - A policy of `All` includes all the `Basic` settings and also creates Crossplane Roles in all namespaces. | `"All"` |
+| `rbacManager.leaderElection` | Enable [leader election](https://docs.crossplane.io/latest/concepts/pods/#leader-election) for the RBAC Manager pod. | `true` |
+| `rbacManager.managementPolicy` | Defines the Roles and ClusterRoles the RBAC Manager creates and manages. - A policy of `Basic` creates and binds Roles only for the Crossplane ServiceAccount, Provider ServiceAccounts and creates Crossplane ClusterRoles. - A policy of `All` includes all the `Basic` settings and also creates Crossplane Roles in all namespaces. - Read the Crossplane docs for more information on the [RBAC Roles and ClusterRoles](https://docs.crossplane.io/latest/concepts/pods/#crossplane-clusterroles) | `"All"` |
 | `rbacManager.nodeSelector` | Add `nodeSelectors` to the RBAC Manager pod deployment. | `{}` |
 | `rbacManager.replicas` | The number of RBAC Manager pod `replicas` to deploy. | `1` |
 | `rbacManager.skipAggregatedClusterRoles` | Don't install aggregated Crossplane ClusterRoles. | `false` |
