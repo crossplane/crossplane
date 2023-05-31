@@ -870,7 +870,7 @@ func TestPatchAndTransform(t *testing.T) {
 		"CompositeRenderError": {
 			reason: "We should return any error encountered while rendering an XR.",
 			params: params{
-				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+				composite: RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 					return errBoom
 				}),
 			},
@@ -922,10 +922,10 @@ func TestPatchAndTransform(t *testing.T) {
 		"ComposedRenderError": {
 			reason: "We should include any error encountered while rendering a composed resource in our state.",
 			params: params{
-				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+				composite: RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 					return nil
 				}),
-				composed: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+				composed: RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 					return errBoom
 				}),
 			},

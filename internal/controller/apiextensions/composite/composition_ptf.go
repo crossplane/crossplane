@@ -260,7 +260,7 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 			},
 		},
 		composition: ptfComposition{
-			PatchAndTransformer:    NewXRCDPatchAndTransformer(RendererFn(RenderComposite), NewAPIDryRunRenderer(kube)),
+			PatchAndTransformer:    NewXRCDPatchAndTransformer(RenderFn(RenderComposite), NewAPIDryRunRenderer(kube)),
 			FunctionPipelineRunner: NewFunctionPipeline(ContainerFunctionRunnerFn(RunFunction)),
 		},
 	}

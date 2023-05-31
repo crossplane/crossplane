@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -41,7 +40,6 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
-	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 func TestPTCompose(t *testing.T) {
@@ -128,10 +126,10 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return errBoom
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 					WithComposedConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
@@ -172,7 +170,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 				},
@@ -205,7 +203,7 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 				},
@@ -239,10 +237,10 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return errBoom
 					})),
 				},
@@ -276,10 +274,10 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -316,10 +314,10 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -359,10 +357,10 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -402,7 +400,7 @@ func TestPTCompose(t *testing.T) {
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
 						return nil, nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 				},
@@ -436,10 +434,10 @@ func TestPTCompose(t *testing.T) {
 						}}
 						return tas, nil
 					})),
-					WithComposedRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithComposedRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
-					WithCompositeRenderer(RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+					WithCompositeRenderer(RenderFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 						return nil
 					})),
 					WithComposedConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
@@ -483,144 +481,6 @@ func TestPTCompose(t *testing.T) {
 
 			if diff := cmp.Diff(tc.want.res, res, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nCompose(...): -want, +got:\n%s", tc.reason, diff)
-			}
-		})
-	}
-}
-
-func TestRender(t *testing.T) {
-	ctrl := true
-	tmpl, _ := json.Marshal(&fake.Managed{})
-	errBoom := errors.New("boom")
-
-	type args struct {
-		ctx context.Context
-		cp  resource.Composite
-		cd  resource.Composed
-		t   v1.ComposedTemplate
-	}
-	type want struct {
-		cd  resource.Composed
-		err error
-	}
-	cases := map[string]struct {
-		reason string
-		client client.Client
-		args
-		want
-	}{
-		"InvalidTemplate": {
-			reason: "Invalid template should not be accepted",
-			args: args{
-				cd: &fake.Composed{},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: []byte("olala")}},
-			},
-			want: want{
-				cd:  &fake.Composed{},
-				err: errors.Wrap(errors.New("invalid character 'o' looking for beginning of value"), errUnmarshal),
-			},
-		},
-		"NoLabel": {
-			reason: "The name prefix label has to be set",
-			args: args{
-				cp: &fake.Composite{},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd:  &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				err: errors.New(errNamePrefix),
-			},
-		},
-		"DryRunError": {
-			reason: "Errors dry-run creating the rendered resource to name it should be returned",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(errBoom)},
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					xcrd.LabelKeyNamePrefixForComposed: "ola",
-					xcrd.LabelKeyClaimName:             "rola",
-					xcrd.LabelKeyClaimNamespace:        "rolans",
-				}}},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					GenerateName: "ola-",
-					Labels: map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "ola",
-						xcrd.LabelKeyClaimName:             "rola",
-						xcrd.LabelKeyClaimNamespace:        "rolans",
-					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl}},
-				}},
-				err: errors.Wrap(errBoom, errName),
-			},
-		},
-		"ControllerError": {
-			reason: "External controller owner references should cause an exception",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					xcrd.LabelKeyNamePrefixForComposed: "ola",
-					xcrd.LabelKeyClaimName:             "rola",
-					xcrd.LabelKeyClaimNamespace:        "rolans",
-				}}},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd",
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl,
-						UID: "random_uid"}}}},
-				t: v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					Name:         "cd",
-					GenerateName: "ola-",
-					Labels: map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "ola",
-						xcrd.LabelKeyClaimName:             "rola",
-						xcrd.LabelKeyClaimNamespace:        "rolans",
-					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl,
-						UID: "random_uid"}},
-				}},
-				err: errors.Wrap(errors.Errorf("cd is already controlled by   (UID random_uid)"), errSetControllerRef),
-			},
-		},
-		"Success": {
-			reason: "Configuration should result in the right object with correct generateName",
-			client: &test.MockClient{MockCreate: test.NewMockCreateFn(nil)},
-			args: args{
-				cp: &fake.Composite{ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{
-					xcrd.LabelKeyNamePrefixForComposed: "ola",
-					xcrd.LabelKeyClaimName:             "rola",
-					xcrd.LabelKeyClaimNamespace:        "rolans",
-				}}},
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{Name: "cd"}},
-				t:  v1.ComposedTemplate{Base: runtime.RawExtension{Raw: tmpl}},
-			},
-			want: want{
-				cd: &fake.Composed{ObjectMeta: metav1.ObjectMeta{
-					Name:         "cd",
-					GenerateName: "ola-",
-					Labels: map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "ola",
-						xcrd.LabelKeyClaimName:             "rola",
-						xcrd.LabelKeyClaimNamespace:        "rolans",
-					},
-					OwnerReferences: []metav1.OwnerReference{{Controller: &ctrl, BlockOwnerDeletion: &ctrl}},
-				}},
-			},
-		},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			r := NewAPIDryRunRenderer(tc.client)
-			err := r.Render(tc.args.ctx, tc.args.cp, tc.args.cd, tc.args.t, nil)
-			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
-			}
-			if diff := cmp.Diff(tc.want.cd, tc.args.cd); diff != "" {
-				t.Errorf("\n%s\nRender(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

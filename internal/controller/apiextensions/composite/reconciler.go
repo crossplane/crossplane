@@ -175,17 +175,30 @@ func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, r
 	return fn(ctx, cr, rev)
 }
 
-// A Renderer is used to render a composed resource.
+// A Renderer is used to render a composed or composite resource.
 type Renderer interface {
 	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
 }
 
-// A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
+// A RenderPipeline is a pipeline of renderers that can be run in sequence to
+// render a composed or composite resource.
+type RenderPipeline []Renderer
 
-// Render the supplied composed resource using the supplied composite resource
-// and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+// Render a composed resource by invoking a pipeline of renderers.
+func (r RenderPipeline) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+	for _, fn := range r {
+		if err := fn.Render(ctx, cp, cd, t, env); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// A RenderFn may be used to render a composed or composite resource.
+type RenderFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
+
+// Render a composed or composite resource.
+func (fn RenderFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
 	return fn(ctx, cp, cd, t, env)
 }
 
