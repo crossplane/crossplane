@@ -139,6 +139,14 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	// already wrapped? Or just do away with unstructured.NewClient completely?
 	kube = unstructured.NewClient(kube)
 
+	rp := RenderPipeline{
+		RenderFn(RenderComposedResourceBase),
+		RenderFn(RenderFromCompositePatches),
+		RenderFn(RenderFromEnvironmentPatches),
+		RenderFn(RenderComposedResourceMetadata),
+		NewAPIDryRunRenderer(kube),
+	}
+
 	c := &PTComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
@@ -147,10 +155,10 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 		// means we will be able to delete the GarbageCollectingAssociator and
 		// just use AssociateByOrder. Compositions with named templates will be
 		// handled by the PTFComposer.
-		composite:   RenderFn(RenderComposite),
+		composite:   RenderFn(RenderToCompositePatches),
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
-			Renderer:                   NewAPIDryRunRenderer(kube),
+			Renderer:                   rp,
 			ReadinessChecker:           ReadinessCheckerFn(IsReady),
 			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
 			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),

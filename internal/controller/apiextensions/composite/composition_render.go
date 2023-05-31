@@ -18,6 +18,7 @@ package composite
 import (
 	"context"
 
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,25 +31,16 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-// An APIDryRunRenderer renders composed resources. It may perform a dry-run
-// create against an API server in order to name and validate the rendered
-// resource.
-type APIDryRunRenderer struct {
-	client client.Client
-}
+// RenderComposedResourceBase renders the supplied composed resource using the
+// base composed resource template. It does not apply any patches.
+func RenderComposedResourceBase(_ context.Context, xr resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *env.Environment) error {
+	// Fail early if the supplied composite resource is missing the name prefix
+	// label.
+	if xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] == "" {
+		return errors.New(errNamePrefix)
+	}
 
-// NewAPIDryRunRenderer returns a Renderer of composed resources that may
-// perform a dry-run create against an API server in order to name and validate
-// it.
-func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
-	return &APIDryRunRenderer{client: c}
-}
-
-// Render the supplied composed resource using the supplied composite resource
-// and template. The rendered resource may be submitted to an API server via a
-// dry run create in order to name and validate it.
-func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error { //nolint:gocyclo // Only slightly over (11).
-	kind := cd.GetObjectKind().GroupVersionKind().Kind
+	gvk := cd.GetObjectKind().GroupVersionKind()
 	name := cd.GetName()
 	namespace := cd.GetNamespace()
 
@@ -56,53 +48,96 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 		return errors.Wrap(err, errUnmarshal)
 	}
 
-	// We think this composed resource exists, but when we rendered its template
-	// its kind changed. This shouldn't happen. Either someone changed the kind
-	// in the template or we're trying to use the wrong template (e.g. because
-	// the order of an array of anonymous templates changed).
-	if kind != "" && cd.GetObjectKind().GroupVersionKind().Kind != kind {
+	// This resource already had a GVK (probably because it already exists), but
+	// when we rendered its template it changed. This shouldn't happen. Either
+	// someone changed the kind in the template or we're trying to use the wrong
+	// template (e.g. because the order of an array of anonymous templates
+	// changed).
+	empty := schema.GroupVersionKind{}
+	if gvk != empty && cd.GetObjectKind().GroupVersionKind() != gvk {
 		return errors.New(errKindChanged)
-	}
-
-	if cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] == "" {
-		return errors.New(errNamePrefix)
 	}
 
 	// Unmarshalling the template will overwrite any existing fields, so we must
 	// restore the existing name, if any. We also set generate name in case we
 	// haven't yet named this composed resource.
-	cd.SetGenerateName(cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
+	cd.SetGenerateName(xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] + "-")
 	cd.SetName(name)
 	cd.SetNamespace(namespace)
 
+	return nil
+}
+
+// RenderFromCompositePatches renders the supplied composed resource by applying
+// all patches that are _from_ the supplied composite resource.
+func RenderFromCompositePatches(_ context.Context, xr resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *env.Environment) error {
 	for i := range t.Patches {
-		if err := Apply(t.Patches[i], cp, cd, patchTypesFromXR()...); err != nil {
+		if err := Apply(t.Patches[i], xr, cd, patchTypesFromXR()...); err != nil {
 			return errors.Wrapf(err, errFmtPatch, i)
 		}
-		if env != nil {
-			if err := ApplyToObjects(t.Patches[i], env, cd, patchTypesFromToEnvironment()...); err != nil {
-				return errors.Wrapf(err, errFmtPatch, i)
-			}
+	}
+	return nil
+}
+
+// RenderFromEnvironmentPatches renders the supplied composed resource by
+// applying all patches that are from the supplied environment.
+func RenderFromEnvironmentPatches(_ context.Context, _ resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+	if env == nil {
+		return nil
+	}
+	for i := range t.Patches {
+		if err := ApplyToObjects(t.Patches[i], env, cd, patchTypesFromToEnvironment()...); err != nil {
+			return errors.Wrapf(err, errFmtPatch, i)
 		}
 	}
+	return nil
+}
 
-	// Composed labels and annotations should be rendered after patches are applied
-	meta.AddLabels(cd, map[string]string{
-		xcrd.LabelKeyNamePrefixForComposed: cp.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
-		xcrd.LabelKeyClaimName:             cp.GetLabels()[xcrd.LabelKeyClaimName],
-		xcrd.LabelKeyClaimNamespace:        cp.GetLabels()[xcrd.LabelKeyClaimNamespace],
-	})
-
+// RenderComposedResourceMetadata derives composed resource metadata from the
+// supplied composite resource and template. It makes the composite resource the
+// controller of the composed resource. It should run toward the end of a
+// render pipeline to ensure that a Composition cannot influence the controller
+// reference.
+func RenderComposedResourceMetadata(_ context.Context, xr resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *env.Environment) error {
 	if t.Name != nil {
 		SetCompositionResourceName(cd, *t.Name)
 	}
 
-	// We do this last to ensure that a Composition cannot influence controller references.
-	or := meta.AsController(meta.TypedReferenceTo(cp, cp.GetObjectKind().GroupVersionKind()))
-	if err := meta.AddControllerReference(cd, or); err != nil {
-		return errors.Wrap(err, errSetControllerRef)
-	}
+	meta.AddLabels(cd, map[string]string{
+		xcrd.LabelKeyNamePrefixForComposed: xr.GetLabels()[xcrd.LabelKeyNamePrefixForComposed],
+		xcrd.LabelKeyClaimName:             xr.GetLabels()[xcrd.LabelKeyClaimName],
+		xcrd.LabelKeyClaimNamespace:        xr.GetLabels()[xcrd.LabelKeyClaimNamespace],
+	})
 
+	or := meta.AsController(meta.TypedReferenceTo(xr, xr.GetObjectKind().GroupVersionKind()))
+	return errors.Wrap(meta.AddControllerReference(cd, or), errSetControllerRef)
+}
+
+// RenderToCompositePatches renders the supplied composite resource by applying
+// all patches that are _from_ the supplied composed resource. composed resource
+// and template.
+func RenderToCompositePatches(_ context.Context, xr resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *env.Environment) error {
+	for i, p := range t.Patches {
+		if err := Apply(p, xr, cd, patchTypesToXR()...); err != nil {
+			return errors.Wrapf(err, errFmtPatch, i)
+		}
+	}
+	return nil
+}
+
+// An APIDryRunRenderer submits a composed resource to the API server in order
+// to name and validate it.
+type APIDryRunRenderer struct{ client client.Client }
+
+// NewAPIDryRunRenderer returns a Renderer that submits a composed resource to
+// the API server in order to name and validate it.
+func NewAPIDryRunRenderer(c client.Client) *APIDryRunRenderer {
+	return &APIDryRunRenderer{client: c}
+}
+
+// Render submits the composed resource to the API server via a dry run create
+// in order to name and validate it.
+func (r *APIDryRunRenderer) Render(ctx context.Context, _ resource.Composite, cd resource.Composed, _ v1.ComposedTemplate, _ *env.Environment) error {
 	// We don't want to dry-run create a resource that can't be named by the API
 	// server due to a missing generate name. We also don't want to create one
 	// that is already named, because doing so will result in an error. The API
@@ -119,16 +154,4 @@ func (r *APIDryRunRenderer) Render(ctx context.Context, cp resource.Composite, c
 	// generates a name that is unavailable it will return a 500 ServerTimeout
 	// error.
 	return errors.Wrap(r.client.Create(ctx, cd, client.DryRunAll), errName)
-}
-
-// RenderComposite renders the supplied composite resource using the supplied composed
-// resource and template.
-func RenderComposite(_ context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, _ *env.Environment) error {
-	for i, p := range t.Patches {
-		if err := Apply(p, cp, cd, patchTypesToXR()...); err != nil {
-			return errors.Wrapf(err, errFmtPatch, i)
-		}
-	}
-
-	return nil
 }

@@ -247,6 +247,14 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 
 	f := NewSecretConnectionDetailsFetcher(kube)
 
+	rp := RenderPipeline{
+		RenderFn(RenderComposedResourceBase),
+		RenderFn(RenderFromCompositePatches),
+		RenderFn(RenderFromEnvironmentPatches),
+		RenderFn(RenderComposedResourceMetadata),
+		NewAPIDryRunRenderer(kube),
+	}
+
 	c := &PTFComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
@@ -260,7 +268,7 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 			},
 		},
 		composition: ptfComposition{
-			PatchAndTransformer:    NewXRCDPatchAndTransformer(RenderFn(RenderComposite), NewAPIDryRunRenderer(kube)),
+			PatchAndTransformer:    NewXRCDPatchAndTransformer(RenderFn(RenderToCompositePatches), rp),
 			FunctionPipelineRunner: NewFunctionPipeline(ContainerFunctionRunnerFn(RunFunction)),
 		},
 	}
