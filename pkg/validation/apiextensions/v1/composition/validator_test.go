@@ -551,6 +551,92 @@ func TestValidatorValidate(t *testing.T) {
 				})),
 			},
 		},
+		"EnvironmentPatchesHandledProperly": {
+			reason: "Should accept a Composition with an Environment patch, if all CRDs are found",
+			want: want{
+				errs: nil,
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeFromCompositeFieldPath,
+						FromFieldPath: pointer.String("spec.someNonRequiredField"),
+						ToFieldPath:   pointer.String("tier.name"),
+					},
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeToCompositeFieldPath,
+						FromFieldPath: pointer.String("tier.name"),
+						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+					},
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeFromEnvironmentFieldPath,
+						FromFieldPath: pointer.String("tier.name"),
+						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+					},
+				)),
+			},
+		},
+		"EnvironmentPatchesCatchErrorInFromFieldPath": {
+			reason: "Should reject a Composition with an Environment patch, if all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.environment.patches[0].fromFieldPath",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeFromCompositeFieldPath,
+						FromFieldPath: pointer.String("spec.someWrongField"),
+						ToFieldPath:   pointer.String("tier.name"),
+					},
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeFromEnvironmentFieldPath,
+						FromFieldPath: pointer.String("tier.name"),
+						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+					})),
+			},
+		},
+		"EnvironmentPatchesCatchErrorInToFieldPath": {
+			reason: "Should reject a Composition with an Environment patch, if all CRDs are found",
+			want: want{
+				errs: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.environment.patches[0].fromFieldPath",
+					},
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.environment.patches[1].toFieldPath",
+					},
+				},
+			},
+			args: args{
+				gkToCRDs: defaultGKToCRDs(),
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeStrict, nil, withEnvironmentPatches(
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeFromCompositeFieldPath,
+						FromFieldPath: pointer.String("spec.someWrongField"),
+						ToFieldPath:   pointer.String("tier.name"),
+					},
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeToCompositeFieldPath,
+						FromFieldPath: pointer.String("tier.name"),
+						ToFieldPath:   pointer.String("spec.someOtherWrongField"),
+					},
+					v1.EnvironmentPatch{
+						Type:          v1.PatchTypeToCompositeFieldPath,
+						FromFieldPath: pointer.String("tier.name"),
+						ToFieldPath:   pointer.String("spec.someNonRequiredField"),
+					},
+				)),
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -728,6 +814,15 @@ type compositionBuilderOption func(c *v1.Composition)
 func withPatches(index int, patches ...v1.Patch) compositionBuilderOption {
 	return func(c *v1.Composition) {
 		c.Spec.Resources[index].Patches = patches
+	}
+}
+
+func withEnvironmentPatches(patches ...v1.EnvironmentPatch) compositionBuilderOption {
+	return func(c *v1.Composition) {
+		if c.Spec.Environment == nil {
+			c.Spec.Environment = &v1.EnvironmentConfiguration{}
+		}
+		c.Spec.Environment.Patches = patches
 	}
 }
 
