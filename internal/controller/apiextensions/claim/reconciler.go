@@ -47,11 +47,6 @@ const (
 	reconcileTimeout = 1 * time.Minute
 )
 
-// Reasons a composite resource claim is or is not ready.
-const (
-	ReasonWaiting = "Composite resource claim is waiting for composite resource to become Ready"
-)
-
 // Error strings.
 const (
 	errGetClaim           = "cannot get composite resource claim"
@@ -586,6 +581,7 @@ func Waiting() xpv1.Condition {
 		Type:               xpv1.TypeReady,
 		Status:             corev1.ConditionFalse,
 		LastTransitionTime: metav1.Now(),
-		Reason:             ReasonWaiting,
+		Reason:             xpv1.ConditionReason("Waiting"),
+		Message:            "Composite resource claim is waiting for composite resource to become Ready",
 	}
 }
