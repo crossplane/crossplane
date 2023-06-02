@@ -20,6 +20,7 @@ package core
 import (
 	"net/http"
 	"net/http/pprof"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/afero"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
 
@@ -135,6 +137,11 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if err != nil {
 		return errors.Wrap(err, "Cannot get config")
 	}
+
+	cfg.WarningHandler = rest.NewWarningWriter(os.Stderr, rest.WarningWriterOptions{
+		// Warnings from API requests should be deduplicated so they are only logged once
+		Deduplicate: true,
+	})
 
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
 		Scheme:     s,
