@@ -200,7 +200,7 @@ func Write(path string, o ...Option) error {
 	if err != nil {
 		return errors.Wrap(err, errMarshal)
 	}
-	return errors.Wrap(os.WriteFile(path, b, 0600), errWriteFile)
+	return errors.Wrap(os.WriteFile(path, b, 0o600), errWriteFile)
 }
 
 // WithRootFS configures a container's rootfs.
@@ -380,7 +380,7 @@ func ParsePasswdFiles(passwd, group string) (Passwd, error) {
 	if err != nil {
 		return Passwd{}, errors.Wrap(err, errOpenPasswdFile)
 	}
-	defer p.Close() //nolint:errcheck,gosec // Only open for reading.
+	defer p.Close() //nolint:errcheck // Only open for reading.
 
 	g, err := os.Open(group) //nolint:gosec // We intentionally take a variable here.
 	if errors.Is(err, os.ErrNotExist) {
@@ -389,7 +389,7 @@ func ParsePasswdFiles(passwd, group string) (Passwd, error) {
 	if err != nil {
 		return Passwd{}, errors.Wrap(err, errOpenGroupFile)
 	}
-	defer g.Close() //nolint:errcheck,gosec // Only open for reading.
+	defer g.Close() //nolint:errcheck // Only open for reading.
 
 	return ParsePasswd(p, g)
 }
