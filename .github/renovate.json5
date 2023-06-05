@@ -21,7 +21,7 @@
   "labels": ["automated"],
   "regexManagers": [
     {
-      "description": "Bump Go version ued in workflows",
+      "description": "Bump Go version used in workflows",
       "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
       "matchStrings": [
         "GO_VERSION: '(?<currentValue>.*?)'\\n"
@@ -69,12 +69,12 @@
       matchBaseBranches: [ "/^release-.*/"],
       enabled: false,
     }, {
-      "description": "Still update docker images on release branches though",
+      "description": "Still update Docker images on release branches though",
       "matchDatasources": ["docker"],
       matchBaseBranches: [ "/^release-.*/"],
       enabled: true,
     }, {
-      "description": "Only get docker image updates every 2 weeks to reduce noise",
+      "description": "Only get Docker image updates every 2 weeks to reduce noise",
       "matchDatasources": ["docker"],
       "schedule": ["every 2 week on monday"],
       enabled: true,
