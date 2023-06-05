@@ -117,7 +117,7 @@ jobs:
         run: docker pull ${{ matrix.image }}:${{ env.tag }}
 
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@e5f43133f6e8736992c9f3c1b3296e24b37e17f2 # 0.10.0
+        uses: aquasecurity/trivy-action@b43daad0c3c96202fc5800b511dfae8e6ecce864 # 0.11.0
         with:
           image-ref: ${{ matrix.image }}:${{ env.tag }}
           format: 'sarif'
