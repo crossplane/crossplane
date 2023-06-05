@@ -135,7 +135,7 @@ func WithServiceAccount(sa string) FetcherOpt {
 func NewK8sFetcher(client kubernetes.Interface, opts ...FetcherOpt) (*K8sFetcher, error) {
 	k := &K8sFetcher{
 		client:    client,
-		transport: remote.DefaultTransport.Clone(),
+		transport: remote.DefaultTransport.(*http.Transport).Clone(),
 	}
 
 	for _, o := range opts {
