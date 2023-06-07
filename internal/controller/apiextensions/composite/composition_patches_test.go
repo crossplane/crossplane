@@ -1382,3 +1382,94 @@ func TestComposedTemplates(t *testing.T) {
 		})
 	}
 }
+
+func TestResolveTransforms(t *testing.T) {
+	type args struct {
+		ts    []v1.Transform
+		input any
+	}
+	type want struct {
+		output any
+		err    error
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "NoTransforms",
+			args: args{
+				ts: nil,
+				input: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"parameters": map[string]interface{}{
+							"test": "test",
+						},
+					},
+				},
+			},
+			want: want{
+				output: map[string]interface{}{
+					"spec": map[string]interface{}{
+						"parameters": map[string]interface{}{
+							"test": "test",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "MathTransformWithConversionToFloat64",
+			args: args{
+				ts: []v1.Transform{{
+					Type: v1.TransformTypeConvert,
+					Convert: &v1.ConvertTransform{
+						ToType: v1.TransformIOTypeFloat64,
+					},
+				}, {
+					Type: v1.TransformTypeMath,
+					Math: &v1.MathTransform{
+						Multiply: pointer.Int64(2),
+					},
+				}},
+				input: int64(2),
+			},
+			want: want{
+				output: float64(4),
+			},
+		},
+		{
+			name: "MathTransformWithConversionToInt64",
+			args: args{
+				ts: []v1.Transform{{
+					Type: v1.TransformTypeConvert,
+					Convert: &v1.ConvertTransform{
+						ToType: v1.TransformIOTypeInt64,
+					},
+				}, {
+					Type: v1.TransformTypeMath,
+					Math: &v1.MathTransform{
+						Multiply: pointer.Int64(2),
+					},
+				}},
+				input: int64(2),
+			},
+			want: want{
+				output: int64(4),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ResolveTransforms(v1.Patch{Transforms: tt.args.ts}, tt.args.input)
+			if diff := cmp.Diff(tt.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("ResolveTransforms(...): -want error, +got error:\n%s", diff)
+			}
+
+			if diff := cmp.Diff(tt.want.output, got); diff != "" {
+				t.Errorf("ResolveTransforms(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

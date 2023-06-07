@@ -495,7 +495,7 @@ func TestMathResolve(t *testing.T) {
 				i:          "ola",
 			},
 			want: want{
-				err: errors.New(errMathInputNonNumber),
+				err: errors.Errorf(errFmtMathInputNonNumber, "ola"),
 			},
 		},
 		"MultiplyNoConfig": {
@@ -540,11 +540,21 @@ func TestMathResolve(t *testing.T) {
 				o: int64(2),
 			},
 		},
-		"ClampMinSuccessNoChange": {
+		"ClampMinSuccessNoChangeInt": {
 			args: args{
 				mathType: v1.MathTransformTypeClampMin,
 				clampMin: &two,
 				i:        3,
+			},
+			want: want{
+				o: 3,
+			},
+		},
+		"ClampMinSuccessNoChangeInt64": {
+			args: args{
+				mathType: v1.MathTransformTypeClampMin,
+				clampMin: &two,
+				i:        int64(3),
 			},
 			want: want{
 				o: int64(3),
@@ -586,7 +596,7 @@ func TestMathResolve(t *testing.T) {
 			args: args{
 				mathType: v1.MathTransformTypeClampMax,
 				clampMax: &two,
-				i:        1,
+				i:        int64(1),
 			},
 			want: want{
 				o: int64(1),
