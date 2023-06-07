@@ -19,8 +19,9 @@ spec:
       name: AGE
       type: date
     deprecated: true
-    deprecationWarning: This API is deprecated and is scheduled to be removed in a
-      future release.
+    deprecationWarning: ControllerConfig.pkg.crossplane.io/v1alpha1 has been deprecated
+      and will be removed in a future release, but only after a comparable alternative
+      is available.
     name: v1alpha1
     schema:
       openAPIV3Schema:
