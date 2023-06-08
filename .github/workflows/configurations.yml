@@ -26,7 +26,7 @@ jobs:
         run: echo "VERSION_TAG=$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )" >> $GITHUB_OUTPUT
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
@@ -56,7 +56,7 @@ jobs:
         run: echo "VERSION_TAG=$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )" >> $GITHUB_OUTPUT
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
@@ -86,7 +86,7 @@ jobs:
         run: echo "VERSION_TAG=$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )" >> $GITHUB_OUTPUT
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
@@ -116,7 +116,7 @@ jobs:
         run: echo "VERSION_TAG=$(git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )" >> $GITHUB_OUTPUT
         id: tagger
       - name: Login to Docker
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2
+        uses: docker/login-action@465a07811f14bebb1938fbed4728c6a1ff8901fc # v2
         if: env.DOCKER_USR != ''
         with:
           registry: registry.upbound.io
