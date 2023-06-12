@@ -201,17 +201,18 @@ type ReadinessCheckType string
 
 // The possible values for readiness check type.
 const (
-	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
-	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
-	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeNone         ReadinessCheckType = "None"
+	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
+	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
+	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
+	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
 
 // A DesiredReadinessCheck is used to indicate how to tell whether a resource is
 // ready for consumption
 type DesiredReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"None"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchCondition";"None"
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
@@ -227,6 +228,22 @@ type DesiredReadinessCheck struct {
 	// type.
 	// +optional
 	MatchInteger *int64 `json:"matchInteger,omitempty"`
+
+	// MatchCondition specifies the condition you'd like to match if you're using "MatchCondition" type.
+	// +optional
+	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
+}
+
+// MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption
+type MatchConditionReadinessCheck struct {
+	// Type indicates the type of condition you'd like to use.
+	// +kubebuilder:default="Ready"
+	Type string `json:"type"`
+
+	// Status is the status of the condition you'd like to match.
+	// +kubebuilder:default="True"
+	Status string `json:"status"`
 }
 
 // Result is an optional list that can be used by function to emit results for

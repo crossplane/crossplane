@@ -35,11 +35,12 @@ const (
 	errInvalidCheck = "invalid"
 	errPaveObject   = "cannot lookup field paths in supplied object"
 
-	errFmtRequiresFieldPath    = "type %q requires a field path"
-	errFmtRequiresMatchString  = "type %q requires a match string"
-	errFmtRequiresMatchInteger = "type %q requires a match integer"
-	errFmtUnknownCheck         = "unknown type %q"
-	errFmtRunCheck             = "cannot run readiness check at index %d"
+	errFmtRequiresFieldPath       = "type %q requires a field path"
+	errFmtRequiresMatchString     = "type %q requires a match string"
+	errFmtRequiresMatchConditions = "type %q requires a valid match condition"
+	errFmtRequiresMatchInteger    = "type %q requires a match integer"
+	errFmtUnknownCheck            = "unknown type %q"
+	errFmtRunCheck                = "cannot run readiness check at index %d"
 )
 
 // ReadinessCheckType is used for readiness check types.
@@ -47,10 +48,11 @@ type ReadinessCheckType string
 
 // The possible values for readiness check type.
 const (
-	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
-	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
-	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeNone         ReadinessCheckType = "None"
+	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
+	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
+	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
+	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
 
 // ReadinessCheck is used to indicate how to tell whether a resource is ready
@@ -67,47 +69,96 @@ type ReadinessCheck struct {
 
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	MatchInteger *int64
+
+	// MatchCondition is the condition you'd like to match if you're using "MatchCondition" type.
+	// +optional
+	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
 }
 
-// ReadinessChecksFromTemplate derives readiness checks from the supplied
-// template.
-func ReadinessChecksFromTemplate(t *v1.ComposedTemplate) []ReadinessCheck {
-	if t == nil {
-		return nil
-	}
-	out := make([]ReadinessCheck, len(t.ReadinessChecks))
-	for i := range t.ReadinessChecks {
-		out[i] = ReadinessCheck{Type: ReadinessCheckType(t.ReadinessChecks[i].Type)}
-		if t.ReadinessChecks[i].FieldPath != "" {
-			out[i].FieldPath = pointer.String(t.ReadinessChecks[i].FieldPath)
-		}
+// MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption
+type MatchConditionReadinessCheck struct {
+	// Type indicates the type of condition you'd like to use.
+	// +kubebuilder:default="Ready"
+	Type string `json:"type,omitempty"`
 
-		// NOTE(negz): ComposedTemplate doesn't use pointer values for optional
-		// strings, so today the empty string and 0 are equivalent to "unset".
-		if t.ReadinessChecks[i].MatchString != "" {
-			out[i].MatchString = pointer.String(t.ReadinessChecks[i].MatchString)
-		}
-		if t.ReadinessChecks[i].MatchInteger != 0 {
-			out[i].MatchInteger = pointer.Int64(t.ReadinessChecks[i].MatchInteger)
+	// Status is the status of the condition you'd like to match.
+	// +kubebuilder:default="True"
+	Status string `json:"status,omitempty"`
+}
+
+// ReadinessCheckFromV1 derives a ReadinessCheck from the supplied v1.ReadinessCheck.
+func ReadinessCheckFromV1(in *v1.ReadinessCheck) ReadinessCheck {
+	if in == nil {
+		return ReadinessCheck{}
+	}
+
+	out := ReadinessCheck{
+		Type: ReadinessCheckType(in.Type),
+	}
+	if in.FieldPath != "" {
+		out.FieldPath = pointer.String(in.FieldPath)
+	}
+
+	// NOTE(negz): ComposedTemplate doesn't use pointer values for optional
+	// strings, so today the empty string and 0 are equivalent to "unset".
+	if in.MatchString != "" {
+		out.MatchString = pointer.String(in.MatchString)
+	}
+	if in.MatchInteger != 0 {
+		out.MatchInteger = pointer.Int64(in.MatchInteger)
+	}
+	if in.MatchCondition != nil {
+		out.MatchCondition = &MatchConditionReadinessCheck{
+			Type:   in.MatchCondition.Type,
+			Status: in.MatchCondition.Status,
 		}
 	}
 	return out
 }
 
-// ReadinessChecksFromDesired derives readiness checks from the supplied desired
+// ReadinessCheckFromDesiredReadinessCheck derives a ReadinessCheck from the supplied iov1alpha1.DesiredReadinessCheck.
+func ReadinessCheckFromDesiredReadinessCheck(in *iov1alpha1.DesiredReadinessCheck) ReadinessCheck {
+	if in == nil {
+		return ReadinessCheck{}
+	}
+	out := ReadinessCheck{
+		Type:         ReadinessCheckType(in.Type),
+		FieldPath:    in.FieldPath,
+		MatchString:  in.MatchString,
+		MatchInteger: in.MatchInteger,
+	}
+	if in.MatchCondition != nil {
+		out.MatchCondition = &MatchConditionReadinessCheck{
+			Type:   in.MatchCondition.Type,
+			Status: in.MatchCondition.Status,
+		}
+	}
+	return out
+}
+
+// ReadinessChecksFromComposedTemplate derives readiness checks from the supplied
+// composed template.
+func ReadinessChecksFromComposedTemplate(t *v1.ComposedTemplate) []ReadinessCheck {
+	if t == nil {
+		return nil
+	}
+	out := make([]ReadinessCheck, len(t.ReadinessChecks))
+	for i := range t.ReadinessChecks {
+		out[i] = ReadinessCheckFromV1(&t.ReadinessChecks[i])
+	}
+	return out
+}
+
+// ReadinessChecksFromDesiredResource derives readiness checks from the supplied desired
 // resource.
-func ReadinessChecksFromDesired(dr *iov1alpha1.DesiredResource) []ReadinessCheck {
+func ReadinessChecksFromDesiredResource(dr *iov1alpha1.DesiredResource) []ReadinessCheck {
 	if dr == nil {
 		return nil
 	}
 	out := make([]ReadinessCheck, len(dr.ReadinessChecks))
 	for i := range dr.ReadinessChecks {
-		out[i] = ReadinessCheck{
-			Type:         ReadinessCheckType(dr.ReadinessChecks[i].Type),
-			FieldPath:    dr.ReadinessChecks[i].FieldPath,
-			MatchString:  dr.ReadinessChecks[i].MatchString,
-			MatchInteger: dr.ReadinessChecks[i].MatchInteger,
-		}
+		out[i] = ReadinessCheckFromDesiredReadinessCheck(&dr.ReadinessChecks[i])
 	}
 	return out
 }
@@ -132,6 +183,11 @@ func (c ReadinessCheck) Validate() error {
 		if c.MatchInteger == nil {
 			return errors.Errorf(errFmtRequiresMatchInteger, c.Type)
 		}
+	case ReadinessCheckTypeMatchCondition:
+		if c.MatchCondition == nil {
+			return errors.Errorf(errFmtRequiresMatchConditions, c.Type)
+		}
+		return nil
 	default:
 		return errors.Errorf(errFmtUnknownCheck, c.Type)
 	}
@@ -144,7 +200,7 @@ func (c ReadinessCheck) Validate() error {
 }
 
 // IsReady runs the readiness check against the supplied object.
-func (c ReadinessCheck) IsReady(p *fieldpath.Paved) (bool, error) {
+func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, error) {
 	if err := c.Validate(); err != nil {
 		return false, errors.Wrap(err, errInvalidCheck)
 	}
@@ -168,6 +224,10 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved) (bool, error) {
 			return false, resource.Ignore(fieldpath.IsNotFound, err)
 		}
 		return val == *c.MatchInteger, nil
+	case ReadinessCheckTypeMatchCondition:
+		// we should have checked this outside of this function
+		val := o.GetCondition(xpv1.ConditionType(c.MatchCondition.Type))
+		return string(val.Status) == c.MatchCondition.Status, errors.New(errInvalidCheck)
 	}
 
 	return false, nil
@@ -194,6 +254,7 @@ type ConditionedObject interface {
 
 // IsReady returns whether the composed resource is ready.
 func IsReady(_ context.Context, o ConditionedObject, rc ...ReadinessCheck) (bool, error) {
+	// kept as a safety net, but defaulting should ensure this is never hit
 	if len(rc) == 0 {
 		return resource.IsConditionTrue(o.GetCondition(xpv1.TypeReady)), nil
 	}
@@ -203,7 +264,7 @@ func IsReady(_ context.Context, o ConditionedObject, rc ...ReadinessCheck) (bool
 	}
 
 	for i := range rc {
-		ready, err := rc[i].IsReady(paved)
+		ready, err := rc[i].IsReady(paved, o)
 		if err != nil {
 			return false, errors.Wrapf(err, errFmtRunCheck, i)
 		}

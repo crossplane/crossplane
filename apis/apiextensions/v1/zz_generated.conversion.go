@@ -400,6 +400,12 @@ func (c *GeneratedRevisionSpecConverter) v1MapTransformToV1MapTransform(source M
 	v1MapTransform.Pairs = mapStringV1JSON
 	return v1MapTransform
 }
+func (c *GeneratedRevisionSpecConverter) v1MatchConditionReadinessCheckToV1MatchConditionReadinessCheck(source MatchConditionReadinessCheck) MatchConditionReadinessCheck {
+	var v1MatchConditionReadinessCheck MatchConditionReadinessCheck
+	v1MatchConditionReadinessCheck.Type = source.Type
+	v1MatchConditionReadinessCheck.Status = source.Status
+	return v1MatchConditionReadinessCheck
+}
 func (c *GeneratedRevisionSpecConverter) v1MatchTransformPatternToV1MatchTransformPattern(source MatchTransformPattern) MatchTransformPattern {
 	var v1MatchTransformPattern MatchTransformPattern
 	v1MatchTransformPattern.Type = MatchTransformPatternType(source.Type)
@@ -540,6 +546,12 @@ func (c *GeneratedRevisionSpecConverter) v1ReadinessCheckToV1ReadinessCheck(sour
 	v1ReadinessCheck.FieldPath = source.FieldPath
 	v1ReadinessCheck.MatchString = source.MatchString
 	v1ReadinessCheck.MatchInteger = source.MatchInteger
+	var pV1MatchConditionReadinessCheck *MatchConditionReadinessCheck
+	if source.MatchCondition != nil {
+		v1MatchConditionReadinessCheck := c.v1MatchConditionReadinessCheckToV1MatchConditionReadinessCheck(*source.MatchCondition)
+		pV1MatchConditionReadinessCheck = &v1MatchConditionReadinessCheck
+	}
+	v1ReadinessCheck.MatchCondition = pV1MatchConditionReadinessCheck
 	return v1ReadinessCheck
 }
 func (c *GeneratedRevisionSpecConverter) v1StoreConfigReferenceToV1StoreConfigReference(source StoreConfigReference) StoreConfigReference {

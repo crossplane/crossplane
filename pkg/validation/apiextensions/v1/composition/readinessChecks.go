@@ -83,7 +83,7 @@ func getReadinessCheckExpectedType(r v1.ReadinessCheck) xpschema.KnownJSONType {
 		matchType = xpschema.KnownJSONTypeString
 	case v1.ReadinessCheckTypeMatchInteger:
 		matchType = xpschema.KnownJSONTypeInteger
-	case v1.ReadinessCheckTypeNone, v1.ReadinessCheckTypeNonEmpty:
+	case v1.ReadinessCheckTypeNone, v1.ReadinessCheckTypeNonEmpty, v1.ReadinessCheckTypeMatchCondition:
 	}
 	return matchType
 }
