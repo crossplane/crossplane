@@ -115,7 +115,7 @@ jobs:
       # this action because it leaves 'annotations' (i.e. it comments on PRs to
       # point out linter violations).
       - name: Lint
-        uses: golangci/golangci-lint-action@5f1fec7010f6ae3b84ea4f7b2129beb8639b564f # v3
+        uses: golangci/golangci-lint-action@639cd343e1d3b897ff35927a75193d57cfcba299 # v3
         with:
           version: ${{ env.GOLANGCI_VERSION }}
           skip-cache: true # We do our own caching.
@@ -176,7 +176,7 @@ jobs:
           submodules: true
 
       - name: Run Trivy vulnerability scanner in fs mode
-        uses: aquasecurity/trivy-action@0cd397afbfae6b60e8061fda662f3511aa5d054e # 0.11.1
+        uses: aquasecurity/trivy-action@41f05d9ecffa2ed3f1580af306000f734b733e54 # 0.11.2
         with:
           scan-type: 'fs'
           ignore-unfixed: true
