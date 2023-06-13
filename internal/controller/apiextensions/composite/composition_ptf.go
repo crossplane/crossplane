@@ -805,6 +805,8 @@ func RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.Contai
 	if err != nil {
 		return nil, errors.Wrap(err, errDialRunner)
 	}
+	// Remember to close the connection, we are not deferring it to be able to properly handle errors,
+	// without having to use a named return.
 
 	req := &fnv1alpha1.RunFunctionRequest{
 		Image:             fn.Image,
@@ -815,6 +817,7 @@ func RunFunction(ctx context.Context, fnio *iov1alpha1.FunctionIO, fn *v1.Contai
 
 	for _, opt := range o {
 		if err := opt(ctx, fn, req); err != nil {
+			_ = conn.Close()
 			return nil, errors.Wrap(err, errApplyRunFunctionOption)
 		}
 	}
