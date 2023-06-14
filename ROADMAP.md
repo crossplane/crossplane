@@ -11,4 +11,4 @@ delivery timeline.
 
 [Crossplane Roadmap]
 
-[Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/3
+[Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/3?pane=info
