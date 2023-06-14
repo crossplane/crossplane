@@ -11,7 +11,7 @@ ARG TARGETARCH
 # time.
 RUN apt-get update && apt-get install -y ca-certificates crun && rm -rf /var/lib/apt/lists/*
 
-ADD bin/${TARGETOS}\_${TARGETARCH}/xfn /usr/local/bin/
+COPY bin/${TARGETOS}\_${TARGETARCH}/xfn /usr/local/bin/
 
 # We run xfn as root in order to grant it CAP_SETUID and CAP_SETGID, which are
 # required in order to create a user namespace with more than one available UID

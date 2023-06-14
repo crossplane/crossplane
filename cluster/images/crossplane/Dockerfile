@@ -3,9 +3,9 @@ FROM gcr.io/distroless/static@sha256:7198a357ff3a8ef750b041324873960cf2153c11cc5
 ARG TARGETOS
 ARG TARGETARCH
 
-ADD bin/$TARGETOS\_$TARGETARCH/crossplane /usr/local/bin/
-ADD crds /crds
-ADD webhookconfigurations /webhookconfigurations
+COPY bin/$TARGETOS\_$TARGETARCH/crossplane /usr/local/bin/
+COPY crds /crds
+COPY webhookconfigurations /webhookconfigurations
 EXPOSE 8080
 USER 65532
 ENTRYPOINT ["crossplane"]
