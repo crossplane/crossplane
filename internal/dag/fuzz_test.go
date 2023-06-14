@@ -74,5 +74,21 @@ func FuzzDag(f *testing.F) {
 		d := NewMapDag()
 
 		_, _ = d.Init(toNodesFuzz(nodes))
+		identifier, err := c.GetString()
+		if err != nil {
+			return
+		}
+		d.Sort()
+		_, _ = d.TraceNode(identifier)
+		d.Sort()
+		from, err := c.GetString()
+		if err != nil {
+			return
+		}
+		fuzzNode := &SimpleFuzzNode{}
+		c.GenerateStruct(fuzzNode)
+		_, _ = d.AddEdge(from, fuzzNode) 
+		d.Sort()
+		d.NodeNeighbors(identifier)
 	})
 }
