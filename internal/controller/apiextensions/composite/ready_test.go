@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -60,6 +61,40 @@ func TestIsReady(t *testing.T) {
 			reason: "If no custom check is given, Ready condition should be used",
 			args: args{
 				o: composed.New(composed.WithConditions(xpv1.Unavailable())),
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"MatchConditionReady": {
+			reason: "If no custom check is given, Ready condition should be used",
+			args: args{
+				o: composed.New(composed.WithConditions(xpv1.Available())),
+				rc: []ReadinessCheck{{
+					Type: ReadinessCheckTypeMatchCondition,
+					MatchCondition: &MatchConditionReadinessCheck{
+						// TODO(negz): These should not be plain strings.
+						Type:   string(xpv1.TypeReady),
+						Status: string(corev1.ConditionTrue),
+					},
+				}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"MatchConditionNotReady": {
+			reason: "If no custom check is given, Ready condition should be used",
+			args: args{
+				o: composed.New(composed.WithConditions(xpv1.Unavailable())),
+				rc: []ReadinessCheck{{
+					Type: ReadinessCheckTypeMatchCondition,
+					MatchCondition: &MatchConditionReadinessCheck{
+						// TODO(negz): These should not be plain strings.
+						Type:   string(xpv1.TypeReady),
+						Status: string(corev1.ConditionTrue),
+					},
+				}},
 			},
 			want: want{
 				ready: false,

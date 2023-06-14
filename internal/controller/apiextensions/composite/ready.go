@@ -227,7 +227,7 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, 
 	case ReadinessCheckTypeMatchCondition:
 		// we should have checked this outside of this function
 		val := o.GetCondition(xpv1.ConditionType(c.MatchCondition.Type))
-		return string(val.Status) == c.MatchCondition.Status, errors.New(errInvalidCheck)
+		return string(val.Status) == c.MatchCondition.Status, nil
 	}
 
 	return false, nil
