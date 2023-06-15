@@ -402,8 +402,8 @@ func (c *GeneratedRevisionSpecConverter) v1MapTransformToV1MapTransform(source M
 }
 func (c *GeneratedRevisionSpecConverter) v1MatchConditionReadinessCheckToV1MatchConditionReadinessCheck(source MatchConditionReadinessCheck) MatchConditionReadinessCheck {
 	var v1MatchConditionReadinessCheck MatchConditionReadinessCheck
-	v1MatchConditionReadinessCheck.Type = source.Type
-	v1MatchConditionReadinessCheck.Status = source.Status
+	v1MatchConditionReadinessCheck.Type = v13.ConditionType(source.Type)
+	v1MatchConditionReadinessCheck.Status = v1.ConditionStatus(source.Status)
 	return v1MatchConditionReadinessCheck
 }
 func (c *GeneratedRevisionSpecConverter) v1MatchTransformPatternToV1MatchTransformPattern(source MatchTransformPattern) MatchTransformPattern {
