@@ -24,6 +24,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	"github.com/crossplane/crossplane/internal/validation/errors"
 )
 
@@ -157,11 +159,11 @@ type ReadinessCheck struct {
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
 	// +kubebuilder:default="Ready"
-	Type string `json:"type"`
+	Type xpv1.ConditionType `json:"type"`
 
 	// Status is the status of the condition you'd like to match.
 	// +kubebuilder:default="True"
-	Status string `json:"status"`
+	Status corev1.ConditionStatus `json:"status"`
 }
 
 // Validate checks if the match condition is logically valid.

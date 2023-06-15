@@ -17,8 +17,11 @@ limitations under the License.
 package v1alpha1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
 // +kubebuilder:object:root=true
@@ -239,11 +242,11 @@ type DesiredReadinessCheck struct {
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
 	// +kubebuilder:default="Ready"
-	Type string `json:"type"`
+	Type xpv1.ConditionType `json:"type"`
 
 	// Status is the status of the condition you'd like to match.
 	// +kubebuilder:default="True"
-	Status string `json:"status"`
+	Status corev1.ConditionStatus `json:"status"`
 }
 
 // Result is an optional list that can be used by function to emit results for

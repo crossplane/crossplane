@@ -19,6 +19,7 @@ package composite
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/pointer"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -71,20 +72,17 @@ type ReadinessCheck struct {
 	MatchInteger *int64
 
 	// MatchCondition is the condition you'd like to match if you're using "MatchCondition" type.
-	// +optional
-	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
+	MatchCondition *MatchConditionReadinessCheck
 }
 
 // MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
 // for consumption
 type MatchConditionReadinessCheck struct {
 	// Type indicates the type of condition you'd like to use.
-	// +kubebuilder:default="Ready"
-	Type string `json:"type,omitempty"`
+	Type xpv1.ConditionType
 
 	// Status is the status of the condition you'd like to match.
-	// +kubebuilder:default="True"
-	Status string `json:"status,omitempty"`
+	Status corev1.ConditionStatus
 }
 
 // ReadinessCheckFromV1 derives a ReadinessCheck from the supplied v1.ReadinessCheck.
@@ -225,9 +223,8 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, 
 		}
 		return val == *c.MatchInteger, nil
 	case ReadinessCheckTypeMatchCondition:
-		// we should have checked this outside of this function
-		val := o.GetCondition(xpv1.ConditionType(c.MatchCondition.Type))
-		return string(val.Status) == c.MatchCondition.Status, errors.New(errInvalidCheck)
+		val := o.GetCondition(c.MatchCondition.Type)
+		return val.Status == c.MatchCondition.Status, nil
 	}
 
 	return false, nil
