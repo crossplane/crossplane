@@ -223,7 +223,6 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, 
 		}
 		return val == *c.MatchInteger, nil
 	case ReadinessCheckTypeMatchCondition:
-		// we should have checked this outside of this function
 		val := o.GetCondition(c.MatchCondition.Type)
 		return val.Status == c.MatchCondition.Status, nil
 	}

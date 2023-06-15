@@ -73,7 +73,6 @@ func TestIsReady(t *testing.T) {
 				rc: []ReadinessCheck{{
 					Type: ReadinessCheckTypeMatchCondition,
 					MatchCondition: &MatchConditionReadinessCheck{
-						// TODO(negz): These should not be plain strings.
 						Type:   xpv1.TypeReady,
 						Status: corev1.ConditionTrue,
 					},
@@ -90,7 +89,6 @@ func TestIsReady(t *testing.T) {
 				rc: []ReadinessCheck{{
 					Type: ReadinessCheckTypeMatchCondition,
 					MatchCondition: &MatchConditionReadinessCheck{
-						// TODO(negz): These should not be plain strings.
 						Type:   xpv1.TypeReady,
 						Status: corev1.ConditionTrue,
 					},
