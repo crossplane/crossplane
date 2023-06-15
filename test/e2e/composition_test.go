@@ -81,10 +81,58 @@ func TestComposition(t *testing.T) {
 		},
 	}
 
+	// Test that a claim using patch-and-transform Composition will become
+	// available when its composed resources do, and have a field derived from
+	// the patch.
+	manifests = "test/e2e/manifests/composition/patch-and-transform"
+	pandt := features.Table{
+		{
+			Name: "PrerequisitesAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesFoundIn(manifests, "prerequisites/*.yaml", 30*time.Second),
+			),
+		},
+		{
+			Name:       "XRDBecomesEstablished",
+			Assessment: funcs.XRDsBecomeEstablishedIn(manifests, "prerequisites/definition.yaml", 1*time.Minute),
+		},
+		{
+			Name: "ClaimIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ResourcesFoundIn(manifests, "claim.yaml", 30*time.Second),
+			),
+		},
+		{
+			Name:       "ClaimBecomesAvailable",
+			Assessment: funcs.ResourcesBecomeIn(manifests, "claim.yaml", 2*time.Minute, xpv1.Available()),
+		},
+		{
+			Name:       "ClaimHasPatchedField",
+			Assessment: funcs.ResourcesHaveIn(manifests, "claim.yaml", 2*time.Minute, "status.coolerField", "I'M COOL!"),
+		},
+		{
+			Name: "ClaimIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedIn(manifests, "claim.yaml", 2*time.Minute),
+			),
+		},
+		{
+			Name: "PrerequisitesAreDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesDeletedIn(manifests, "prerequisites/*.yaml", 3*time.Minute),
+			),
+		},
+	}
+
 	// TODO(negz): Use TestInParallel to test features in parallel. This will
 	// require them to avoid sharing state - e.g. to ensure a claim always
 	// selects the correct Composition when there are many.
 	environment.Test(t,
 		minimal.Build("Minimal").Setup(setup).Feature(),
+		pandt.Build("PatchAndTransform").Setup(setup).Feature(),
 	)
 }
