@@ -145,9 +145,9 @@ func XRDsBecomeEstablishedIn(dir, pattern string, d time.Duration) features.Func
 	}
 }
 
-// ResourcesFoundIn fails a test if the supplied resources are not found to
+// ResourcesCreatedIn fails a test if the supplied resources are not found to
 // exist within the supplied duration.
-func ResourcesFoundIn(dir, pattern string, d time.Duration) features.Func {
+func ResourcesCreatedIn(dir, pattern string, d time.Duration) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
