@@ -67,7 +67,7 @@ func TestIsReady(t *testing.T) {
 			},
 		},
 		"MatchConditionReady": {
-			reason: "If no custom check is given, Ready condition should be used",
+			reason: "If a match condition is explicitly specified it should be used",
 			args: args{
 				o: composed.New(composed.WithConditions(xpv1.Available())),
 				rc: []ReadinessCheck{{
@@ -83,7 +83,7 @@ func TestIsReady(t *testing.T) {
 			},
 		},
 		"MatchConditionNotReady": {
-			reason: "If no custom check is given, Ready condition should be used",
+			reason: "If a match condition is explicitly specified it should be used",
 			args: args{
 				o: composed.New(composed.WithConditions(xpv1.Unavailable())),
 				rc: []ReadinessCheck{{
