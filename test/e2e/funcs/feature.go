@@ -43,8 +43,6 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 )
 
 // AllOf runs the supplied functions in order.
@@ -57,9 +55,9 @@ func AllOf(fns ...features.Func) features.Func {
 	}
 }
 
-// DeploymentBecomesAvailableIn fails a test if the supplied Deployment is not
-// Available within the supplied duration.
-func DeploymentBecomesAvailableIn(namespace, name string, d time.Duration) features.Func {
+// DeploymentBecomesAvailableWithin fails a test if the supplied Deployment is
+// not Available within the supplied duration.
+func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Waiting %s for deployment %s/%s to become Available...", d, dp.GetNamespace(), dp.GetName())
@@ -72,82 +70,20 @@ func DeploymentBecomesAvailableIn(namespace, name string, d time.Duration) featu
 	}
 }
 
-// CrossplaneCRDsBecomeEstablishedIn fails a test if the core Crossplane CRDs
-// are not Established within the environment in the supplied duration.
-func CrossplaneCRDsBecomeEstablishedIn(d time.Duration) features.Func {
-	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		crds, err := decoder.DecodeAllFiles(ctx, os.DirFS(crdsDir), "*.yaml")
-		if err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		list := &unstructured.UnstructuredList{}
-		for _, o := range crds {
-			crd := asUnstructured(o)
-			list.Items = append(list.Items, *crd)
-			t.Logf("Waiting %s for core Crossplane CRD %s to become Established...", d, crd.GetName())
-		}
-
-		match := func(o k8s.Object) bool {
-			u := asUnstructured(o)
-			s := xpv1.ConditionedStatus{}
-			_ = fieldpath.Pave(u.Object).GetValueInto("status", &s)
-
-			return s.GetCondition(xpv1.ConditionType("Established")).Equal(xpv1.Condition{
-				Type:    "Established",
-				Status:  corev1.ConditionTrue,
-				Reason:  "InitialNamesAccepted",
-				Message: "the initial names have been accepted",
-			})
-		}
-
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		t.Logf("%d core Crossplane CRDs are Established", len(crds))
-
-		return ctx
-	}
+// CrossplaneCRDsBecomeEstablishedWithin fails a test if the core Crossplane
+// CRDs are not Established within the environment in the supplied duration.
+func CrossplaneCRDsBecomeEstablishedWithin(d time.Duration) features.Func {
+	return ResourcesHaveConditionWithin(d, "cluster/crds", "*.yaml", xpv1.Condition{
+		Type:    "Established",
+		Status:  corev1.ConditionTrue,
+		Reason:  "InitialNamesAccepted",
+		Message: "the initial names have been accepted",
+	})
 }
 
-// XRDsBecomeEstablishedIn fails a test if the supplied XRDs are not established
-// within the supplied duration.
-func XRDsBecomeEstablishedIn(dir, pattern string, d time.Duration) features.Func {
-	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		xrds, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
-		if err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		list := &apiextensionsv1.CompositeResourceDefinitionList{}
-		for _, o := range xrds {
-			xrd := o.(*apiextensionsv1.CompositeResourceDefinition)
-			list.Items = append(list.Items, *xrd)
-			t.Logf("Waiting %s for XRD %s to become Established...", d, xrd.GetName())
-		}
-
-		match := func(o k8s.Object) bool {
-			xrd := o.(*apiextensionsv1.CompositeResourceDefinition)
-			return xrd.Status.GetCondition(apiextensionsv1.TypeEstablished).Equal(apiextensionsv1.WatchingComposite())
-		}
-
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		t.Logf("%d XRDs are Established", len(xrds))
-		return ctx
-	}
-}
-
-// ResourcesCreatedIn fails a test if the supplied resources are not found to
-// exist within the supplied duration.
-func ResourcesCreatedIn(dir, pattern string, d time.Duration) features.Func {
+// ResourcesCreatedWithin fails a test if the supplied resources are not found
+// to exist within the supplied duration.
+func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
@@ -174,9 +110,9 @@ func ResourcesCreatedIn(dir, pattern string, d time.Duration) features.Func {
 	}
 }
 
-// ResourcesDeletedIn fails a test if the supplied resources are not found
+// ResourcesDeletedWithin fails a test if the supplied resources are not found
 // (i.e. are completely deleted) within the supplied duration.
-func ResourcesDeletedIn(dir, pattern string, d time.Duration) features.Func {
+func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
@@ -201,11 +137,9 @@ func ResourcesDeletedIn(dir, pattern string, d time.Duration) features.Func {
 	}
 }
 
-// ResourcesBecomeIn fails a test if the supplied resources do not have (i.e.
-// become) the supplied conditions within the supplied duration. It is intended
-// for use with resources that aren't registered to the environment's scheme -
-// e.g. claims, XRs, or MRs.
-func ResourcesBecomeIn(dir, pattern string, d time.Duration, cds ...xpv1.Condition) features.Func {
+// ResourcesHaveConditionWithin fails a test if the supplied resources do not
+// have (i.e. become) the supplied conditions within the supplied duration.
+func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
@@ -253,12 +187,10 @@ func ResourcesBecomeIn(dir, pattern string, d time.Duration, cds ...xpv1.Conditi
 	}
 }
 
-// ResourcesHaveIn fails a test if the supplied resources do not have the
-// supplied value at the supplied field path within the supplied duration. It is
-// intended for use with resources that aren't registered to the environment's
-// scheme - e.g. claims, XRs, or MRs.. The supplied 'want' value must cmp.Equal
-// the actual value.
-func ResourcesHaveIn(dir, pattern string, d time.Duration, path string, want any) features.Func {
+// ResourcesHaveFieldValueWithin fails a test if the supplied resources do not
+// have the supplied value at the supplied field path within the supplied
+// duration. The supplied 'want' value must cmp.Equal the actual value.
+func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)

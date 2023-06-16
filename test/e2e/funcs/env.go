@@ -44,10 +44,6 @@ const (
 	helmReleaseName = "crossplane"
 )
 
-const (
-	crdsDir = "cluster/crds"
-)
-
 // HelmInstallCrossplane installs Crossplane by executing helm install.
 func HelmInstallCrossplane(release, namespace, chartDir string, set ...string) env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {

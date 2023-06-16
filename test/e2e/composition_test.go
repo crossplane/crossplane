@@ -24,6 +24,7 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
@@ -34,8 +35,8 @@ func TestComposition(t *testing.T) {
 	// Composition validation webhook is ready. We should probably check whether
 	// the service has replicas instead.
 	setup := funcs.AllOf(
-		funcs.DeploymentBecomesAvailableIn(namespace, "crossplane", 1*time.Minute),
-		funcs.CrossplaneCRDsBecomeEstablishedIn(1*time.Minute),
+		funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane"),
+		funcs.CrossplaneCRDsBecomeEstablishedWithin(1*time.Minute),
 	)
 
 	// Test that a claim using a very minimal Composition (with no patches,
@@ -47,36 +48,36 @@ func TestComposition(t *testing.T) {
 			Name: "PrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
 				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedIn(manifests, "prerequisites/*.yaml", 30*time.Second),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			),
 		},
 		{
 			Name:       "XRDBecomesEstablished",
-			Assessment: funcs.XRDsBecomeEstablishedIn(manifests, "prerequisites/definition.yaml", 1*time.Minute),
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
 		},
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
 				funcs.CreateResources(manifests, "claim.yaml"),
-				funcs.ResourcesCreatedIn(manifests, "claim.yaml", 30*time.Second),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			),
 		},
 		{
 			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesBecomeIn(manifests, "claim.yaml", 2*time.Minute, xpv1.Available()),
+			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 		},
 		{
 			Name: "ClaimIsDeleted",
 			Assessment: funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedIn(manifests, "claim.yaml", 2*time.Minute),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			),
 		},
 		{
 			Name: "PrerequisitesAreDeleted",
 			Assessment: funcs.AllOf(
 				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedIn(manifests, "prerequisites/*.yaml", 3*time.Minute),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
 			),
 		},
 	}
@@ -90,40 +91,41 @@ func TestComposition(t *testing.T) {
 			Name: "PrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
 				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedIn(manifests, "prerequisites/*.yaml", 30*time.Second),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			),
 		},
 		{
 			Name:       "XRDBecomesEstablished",
-			Assessment: funcs.XRDsBecomeEstablishedIn(manifests, "prerequisites/definition.yaml", 1*time.Minute),
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
 		},
+		{},
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
 				funcs.CreateResources(manifests, "claim.yaml"),
-				funcs.ResourcesCreatedIn(manifests, "claim.yaml", 30*time.Second),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			),
 		},
 		{
 			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesBecomeIn(manifests, "claim.yaml", 2*time.Minute, xpv1.Available()),
+			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 		},
 		{
 			Name:       "ClaimHasPatchedField",
-			Assessment: funcs.ResourcesHaveIn(manifests, "claim.yaml", 2*time.Minute, "status.coolerField", "I'M COOL!"),
+			Assessment: funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 		},
 		{
 			Name: "ClaimIsDeleted",
 			Assessment: funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedIn(manifests, "claim.yaml", 2*time.Minute),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			),
 		},
 		{
 			Name: "PrerequisitesAreDeleted",
 			Assessment: funcs.AllOf(
 				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedIn(manifests, "prerequisites/*.yaml", 3*time.Minute),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
 			),
 		},
 	}

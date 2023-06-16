@@ -31,15 +31,15 @@ func TestCrossplane(t *testing.T) {
 	install := features.Table{
 		{
 			Name:       "CoreDeploymentBecomesAvailable",
-			Assessment: funcs.DeploymentBecomesAvailableIn(namespace, "crossplane", 1*time.Minute),
+			Assessment: funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane"),
 		},
 		{
 			Name:       "RBACManagerDeploymentBecomesAvailable",
-			Assessment: funcs.DeploymentBecomesAvailableIn(namespace, "crossplane-rbac-manager", 1*time.Minute),
+			Assessment: funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager"),
 		},
 		{
 			Name:       "CoreCRDsBecomeEstablished",
-			Assessment: funcs.CrossplaneCRDsBecomeEstablishedIn(1 * time.Minute),
+			Assessment: funcs.CrossplaneCRDsBecomeEstablishedWithin(1 * time.Minute),
 		},
 	}
 
