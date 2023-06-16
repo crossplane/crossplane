@@ -32,17 +32,3 @@ spec:
     - type: ToCompositeFieldPath
       fromFieldPath: metadata.annotations[cool-field]
       toFieldPath: status.coolerField
-  - name: nop-resource-2
-    base:
-     apiVersion: nop.crossplane.io/v1alpha1
-     kind: NopResource
-     spec:
-      forProvider:
-        conditionAfter:
-        - conditionType: Ready
-          conditionStatus: "True"
-          time: 0s
-        - conditionType: Synced
-          conditionStatus: "True"
-          time: 0s
-    

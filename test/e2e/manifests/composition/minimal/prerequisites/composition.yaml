@@ -26,23 +26,3 @@ spec:
         - conditionType: Synced
           conditionStatus: "True"
           time: 10s
-  - name: nop-resource-2
-    base:
-     apiVersion: nop.crossplane.io/v1alpha1
-     kind: NopResource
-     spec:
-      forProvider:
-        conditionAfter:
-        - conditionType: Ready
-          conditionStatus: "False"
-          time: 0s
-        - conditionType: Ready
-          conditionStatus: "True"
-          time: 10s
-        - conditionType: Synced
-          conditionStatus: "False"
-          time: 0s
-        - conditionType: Synced
-          conditionStatus: "True"
-          time: 10s
-    
