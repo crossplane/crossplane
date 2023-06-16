@@ -1,0 +1,14 @@
+name: PR
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  checklist-completed:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: mheap/require-checklist-action@v2
+        with:
+          # The checklist must _exist_ and be filled out.
+          requireChecklist: false
