@@ -117,10 +117,10 @@ cobertura:
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
 e2e-tag-images:
-	@$(INFO) Tagging e2e-test Docker images
+	@$(INFO) Tagging E2E test images
 	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
 	@docker tag $(BUILD_REGISTRY)/xfn-$(TARGETARCH) crossplane-e2e/xfn:latest || $(FAIL)
-	@$(OK) Tagged e2e-test Docker images
+	@$(OK) Tagged E2E test images
 
 # NOTE(negz): There's already a go.test.integration target, but it's weird.
 # This relies on make build building the e2e binary.
