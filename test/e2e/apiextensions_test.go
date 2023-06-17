@@ -35,7 +35,7 @@ func TestComposition(t *testing.T) {
 	// Test that a claim using a very minimal Composition (with no patches,
 	// transforms, or functions) will become available when its composed
 	// resources do.
-	manifests := "test/e2e/manifests/composition/minimal"
+	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
 	minimal := features.Table{
 		{
 			Name: "PrerequisitesAreCreated",
@@ -78,7 +78,7 @@ func TestComposition(t *testing.T) {
 	// Test that a claim using patch-and-transform Composition will become
 	// available when its composed resources do, and have a field derived from
 	// the patch.
-	manifests = "test/e2e/manifests/composition/patch-and-transform"
+	manifests = "test/e2e/manifests/apiextensions/composition/patch-and-transform"
 	pandt := features.Table{
 		{
 			Name: "PrerequisitesAreCreated",

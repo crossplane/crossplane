@@ -57,7 +57,7 @@ func TestCrossplane(t *testing.T) {
 	// These are used for both the upgrade and the uninstall test. We just want
 	// to create some resources to ensure doing so doesn't affect our ability to
 	// uninstall or upgrade.
-	manifests := "test/e2e/manifests/crossplane"
+	manifests := "test/e2e/manifests/install"
 
 	// Test that it's possible to cleanly uninstall Crossplane, even after
 	// having created and deleted a claim.
