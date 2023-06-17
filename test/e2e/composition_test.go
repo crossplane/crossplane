@@ -28,6 +28,7 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// TestComposition tests Crossplane's Composition functionality.
 func TestComposition(t *testing.T) {
 	t.Parallel()
 
@@ -36,7 +37,7 @@ func TestComposition(t *testing.T) {
 	// the service has replicas instead.
 	setup := funcs.AllOf(
 		funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane"),
-		funcs.CrossplaneCRDsBecomeEstablishedWithin(1*time.Minute),
+		funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted()),
 	)
 
 	// Test that a claim using a very minimal Composition (with no patches,

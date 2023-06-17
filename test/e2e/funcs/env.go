@@ -18,11 +18,11 @@ package funcs
 
 import (
 	"context"
-	"strings"
+	"testing"
 
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
-	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -32,32 +32,48 @@ import (
 	secretsv1alpha1 "github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 )
 
-// The caller (e.g. make e2e) must ensure these exists.
-// Run `make build e2e-tag-images` to produce them
-const (
-	imgcore = "crossplane-e2e/crossplane:latest"
-	imgxfn  = "crossplane-e2e/xfn:latest"
-)
-
-const (
-	helmChartDir    = "cluster/charts/crossplane"
-	helmReleaseName = "crossplane"
-)
-
-// HelmInstallCrossplane installs Crossplane by executing helm install.
-func HelmInstallCrossplane(release, namespace, chartDir string, set ...string) env.Func {
+// HelmRepo manages a Helm repo.
+func HelmRepo(o ...helm.Option) env.Func {
 	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
-		args := make([]string, len(set))
-		for i := range set {
-			args[i] = "--set " + set[i]
+		err := helm.New(c.KubeconfigFile()).RunRepo(o...)
+		return ctx, errors.Wrap(err, "cannot install Helm chart")
+	}
+}
+
+// HelmInstall installs a Helm chart.
+func HelmInstall(o ...helm.Option) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		err := helm.New(c.KubeconfigFile()).RunInstall(o...)
+		return ctx, errors.Wrap(err, "cannot install Helm chart")
+	}
+}
+
+// HelmUpgrade upgrades a Helm chart.
+func HelmUpgrade(o ...helm.Option) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		err := helm.New(c.KubeconfigFile()).RunUpgrade(o...)
+		return ctx, errors.Wrap(err, "cannot upgrade Helm chart")
+	}
+}
+
+// AsFeaturesFunc converts an env.Func to a features.Func. If the env.Func
+// returns an error the calling test is failed with t.Fatal(err).
+func AsFeaturesFunc(fn env.Func) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		ctx, err := fn(ctx, c)
+		if err != nil {
+			t.Fatal(err)
 		}
-		err := helm.New(c.KubeconfigFile()).RunInstall(
-			helm.WithName(release),
-			helm.WithNamespace(namespace),
-			helm.WithChart(chartDir),
-			helm.WithArgs(args...),
-		)
-		return ctx, errors.Wrap(err, "cannot install Crossplane Helm chart")
+		return ctx
+	}
+
+}
+
+// HelmUninstall uninstalls a Helm chart.
+func HelmUninstall(o ...helm.Option) env.Func {
+	return func(ctx context.Context, c *envconf.Config) (context.Context, error) {
+		err := helm.New(c.KubeconfigFile()).RunUninstall(o...)
+		return ctx, errors.Wrap(err, "cannot uninstall Helm chart")
 	}
 }
 
@@ -85,30 +101,4 @@ func EnvFuncs(fns ...env.Func) env.Func {
 		}
 		return ctx, nil
 	}
-}
-
-// SetupControlPlane creates a kind cluster and installs the local build of
-// Crossplane (produced by `make build`) using its Helm chart.
-func SetupControlPlane(clusterName, crossplaneNamespace string) env.Func {
-	return EnvFuncs(
-		envfuncs.CreateKindCluster(clusterName),
-		envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
-		envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),
-		envfuncs.CreateNamespace(crossplaneNamespace),
-		HelmInstallCrossplane(
-			helmReleaseName,
-			crossplaneNamespace,
-			helmChartDir,
-			"image.repository="+strings.Split(imgcore, ":")[0],
-			"image.tag="+strings.Split(imgcore, ":")[1],
-			"xfn.image.repository="+strings.Split(imgxfn, ":")[0],
-			"xfn.image.tag="+strings.Split(imgxfn, ":")[1],
-		),
-		AddCrossplaneTypesToScheme(),
-	)
-}
-
-// DestroyControlPlane destroys a control plane by deleting its kind cluster.
-func DestroyControlPlane(clusterName string) env.Func {
-	return envfuncs.DestroyKindCluster(clusterName)
 }

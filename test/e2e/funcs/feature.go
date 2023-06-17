@@ -70,17 +70,6 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 	}
 }
 
-// CrossplaneCRDsBecomeEstablishedWithin fails a test if the core Crossplane
-// CRDs are not Established within the environment in the supplied duration.
-func CrossplaneCRDsBecomeEstablishedWithin(d time.Duration) features.Func {
-	return ResourcesHaveConditionWithin(d, "cluster/crds", "*.yaml", xpv1.Condition{
-		Type:    "Established",
-		Status:  corev1.ConditionTrue,
-		Reason:  "InitialNamesAccepted",
-		Message: "the initial names have been accepted",
-	})
-}
-
 // ResourcesCreatedWithin fails a test if the supplied resources are not found
 // to exist within the supplied duration.
 func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func {
@@ -110,8 +99,24 @@ func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func 
 	}
 }
 
-// ResourcesDeletedWithin fails a test if the supplied resources are not found
-// (i.e. are completely deleted) within the supplied duration.
+// ResourceCreatedWithin fails a test if the supplied resource is not found to
+// exist within the supplied duration.
+func ResourceCreatedWithin(d time.Duration, o k8s.Object) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Logf("Waiting %s for %s to be created...", d, identifier(o))
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, func(object k8s.Object) bool { return true }), wait.WithTimeout(d)); err != nil {
+			t.Errorf("resource %s did not exist: %v", identifier(o), err)
+			return ctx
+		}
+
+		t.Logf("resource %s found to exist", identifier(o))
+		return ctx
+	}
+}
+
+// ResourcesDeletedWithin fails a test if the supplied resources are not deleted
+// within the supplied duration.
 func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 
@@ -133,6 +138,22 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 		}
 
 		t.Logf("%d resources deleted", len(rs))
+		return ctx
+	}
+}
+
+// ResourceDeletedWithin fails a test if the supplied resource is not deleted
+// within the supplied duration.
+func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Logf("Waiting %s for %s to be deleted...", d, identifier(o))
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceDeleted(o), wait.WithTimeout(d)); err != nil {
+			t.Errorf("resource %s not deleted: %v", identifier(o), err)
+			return ctx
+		}
+
+		t.Logf("resource %s deleted", identifier(o))
 		return ctx
 	}
 }
@@ -184,6 +205,19 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 
 		t.Logf("%d resources have desired conditions: %s", len(rs), desired)
 		return ctx
+	}
+}
+
+// CRDInitialNamesAccepted is the status condition CRDs emit when they're
+// established. Most of our Crossplane status conditions are defined elsewhere
+// (e.g. in the xpv1 package), but this isn't so we define it here for
+// convenience.
+func CRDInitialNamesAccepted() xpv1.Condition {
+	return xpv1.Condition{
+		Type:    "Established",
+		Status:  corev1.ConditionTrue,
+		Reason:  "InitialNamesAccepted",
+		Message: "the initial names have been accepted",
 	}
 }
 
@@ -300,10 +334,10 @@ func asUnstructured(o runtime.Object) *unstructured.Unstructured {
 
 // identifier returns the supplied resource's kind, name, and (if any)
 // namespace.
-func identifier(u *unstructured.Unstructured) string {
-	if u.GetNamespace() == "" {
-		return fmt.Sprintf("%s %s", u.GetKind(), u.GetName())
+func identifier(o k8s.Object) string {
+	k := o.GetObjectKind().GroupVersionKind().Kind
+	if o.GetNamespace() == "" {
+		return fmt.Sprintf("%s %s", k, o.GetName())
 	}
-
-	return fmt.Sprintf("%s %s/%s", u.GetKind(), u.GetNamespace(), u.GetName())
+	return fmt.Sprintf("%s %s/%s", k, o.GetNamespace(), o.GetName())
 }

@@ -20,14 +20,25 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
+	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// TestCrossplane tests installing, uninstalling, and upgrading Crossplane.
 func TestCrossplane(t *testing.T) {
-	t.Parallel()
+	// We explicitly don't run this test in parallel with others because it
+	// temporarily uninstalls Crossplane.
 
+	// We install Crossplane as part of setting up the test environment, so
+	// we're really only validating the installation here.
 	install := features.Table{
 		{
 			Name:       "CoreDeploymentBecomesAvailable",
@@ -39,9 +50,174 @@ func TestCrossplane(t *testing.T) {
 		},
 		{
 			Name:       "CoreCRDsBecomeEstablished",
-			Assessment: funcs.CrossplaneCRDsBecomeEstablishedWithin(1 * time.Minute),
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted()),
 		},
 	}
 
-	environment.Test(t, install.Build("InstallCrossplane").Feature())
+	// These are used for both the upgrade and the uninstall test. We just want
+	// to create some resources to ensure doing so doesn't affect our ability to
+	// uninstall or upgrade.
+	manifests := "test/e2e/manifests/crossplane"
+
+	// Test that it's possible to cleanly uninstall Crossplane, even after
+	// having created and deleted a claim.
+	uninstall := features.Table{
+		{
+			Name: "ClaimPrerequisitesAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+			),
+		},
+		{
+			Name:       "XRDBecomesEstablished",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
+		},
+		{
+			Name: "ClaimIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			),
+		},
+		{
+			Name:       "ClaimBecomesAvailable",
+			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+		},
+		{
+			Name: "ClaimIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			),
+		},
+		{
+			Name: "PrerequisitesAreDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+			),
+		},
+		{
+			Name: "CrossplaneIsUninstalled",
+			Assessment: funcs.AsFeaturesFunc(funcs.HelmUninstall(
+				helm.WithName(helmReleaseName),
+				helm.WithNamespace(namespace),
+			)),
+		},
+		// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
+		// want to make sure they can be deleted cleanly. If they can't, it's a
+		// sign something they define might have stuck around.
+		{
+			Name: "CoreCRDsAreDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(crdsDir, "*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, crdsDir, "*.yaml"),
+			),
+		},
+		// Uninstalling the Crossplane Helm chart doesn't remove the namespace
+		// it was installed to either. We want to make sure it can be deleted
+		// cleanly.
+		{
+			Name: "CrossplaneNamespaceIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(namespace)),
+				funcs.ResourceDeletedWithin(3*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
+			),
+		},
+	}
+
+	// Test that it's possible to upgrade from the most recent stable Crossplane
+	// Helm chart to the one we're testing, even when a claim exists.
+	upgrade := features.Table{
+		{
+			Name: "CrossplaneNamespaceIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.AsFeaturesFunc(envfuncs.CreateNamespace(namespace)),
+				funcs.ResourceCreatedWithin(1*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
+			),
+		},
+		{
+			Name: "CrossplaneStableIsInstalled",
+			Assessment: funcs.AllOf(
+				funcs.AsFeaturesFunc(funcs.HelmRepo(
+					helm.WithArgs("add"),
+					helm.WithArgs("crossplane-stable"),
+					helm.WithArgs("https://charts.crossplane.io/stable"),
+				)),
+				funcs.AsFeaturesFunc(funcs.HelmInstall(
+					helm.WithNamespace(namespace),
+					helm.WithName(helmReleaseName),
+					helm.WithChart("crossplane-stable/crossplane"),
+				)),
+			),
+		},
+		// Our goal is not to test the stable chart, so we don't test very
+		// thoroughly that it's running. We mostly want to be sure it's ready
+		// for us to use. We don't know that it uses the same CRDs as this build
+		// of Crossplane so we don't wait for them to be established.
+		{
+			Name:       "CrossplaneStableIsRunning",
+			Assessment: funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane"),
+		},
+		{
+			Name: "ClaimPrerequisitesAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+			),
+		},
+		{
+			Name:       "XRDBecomesEstablished",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
+		},
+		{
+			Name: "ClaimIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			),
+		},
+		{
+			Name:       "CrossplaneIsUpgraded",
+			Assessment: funcs.AsFeaturesFunc(funcs.HelmUpgrade(helmOptions...)),
+		},
+		{
+			Name:       "CoreDeploymentBecomesAvailable",
+			Assessment: funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane"),
+		},
+		{
+			Name:       "RBACManagerDeploymentBecomesAvailable",
+			Assessment: funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager"),
+		},
+		{
+			Name:       "CoreCRDsBecomeEstablished",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted()),
+		},
+		{
+			Name:       "ClaimBecomesAvailable",
+			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+		},
+		{
+			Name: "ClaimIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			),
+		},
+		{
+			Name: "PrerequisitesAreDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+			),
+		},
+	}
+
+	// We don't run these tests in parallel - we want them to run in order.
+	environment.Test(t,
+		install.Build("Install").Feature(),
+		uninstall.Build("Uninstall").Feature(),
+		upgrade.Build("Upgrade").Feature(),
+	)
 }
