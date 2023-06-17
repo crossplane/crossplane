@@ -22,14 +22,14 @@ Run `make e2e` to run E2E tests.
 This compiles Crossplane and an E2E test binary. It then runs the test binary.
 Use the `E2E_TEST_FLAGS` to pass flags to the test binary. For example:
 
-```console
+```shell
 # Most tests use t.Log to explain what they're doing. Use the -test.v flag
 # (equivalent to go test -v) to see detailed test progress and logs.
 E2E_TEST_FLAGS="-test.v" make e2e
 
 # Some functions that setup the test environment (e.g. kind) use the klog logger
 # The -v flag controls the verbosity of klog. Use -v=4 for debug logging.
-E2E_TEST_FLAGS="-test.v -v=4"
+E2E_TEST_FLAGS="-test.v -v=4" make e2e
 ```
 
 ## Adding a Test
@@ -53,7 +53,7 @@ Other, larger tests may involve creating a new directory of manifests and a new
 When adding a test:
 
 * Use commentary to explain what your tests should do.
-* Use `CamelCase` test names.
+* Use brief `CamelCase` test names, not descriptive sentences.
 * Avoid adding complex logic in the `e2e` package.
 * Implement new test logic as a `features.Func` in the `e2e/funcs` package.
 
@@ -74,5 +74,8 @@ The following design principals help achieve these goals:
 * Use common, idiomatic Kubernetes ecosystem tooling - [`e2e-framework`].
 * Implement as much _logic_ in Go as possible - avoid scripts or shelling out.
 
+Refer to the [E2E one-pager] for more context.
+
 [`testing`]: https://pkg.go.dev/testing
 [`e2e-framework`]: https://pkg.go.dev/sigs.k8s.io/e2e-framework
+[E2e one-pager]: ../../design/one-pager-e2e-tests.md
