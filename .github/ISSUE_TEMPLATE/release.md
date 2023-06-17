@@ -39,7 +39,6 @@ examples of each step, assuming release vX.Y.0 is being cut.
 - [ ] Updated, in a single PR, the following on `master`:
   - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
   - [ ] The `baseBranches` list in `.github/renovate.json5`, removing the now old unsupported release and adding the new one.
-- [ ] Updated the [`crossplane/test` repo test workflows][crossplane-test-workflows] to ensure the checkout release branch and helm install version(s) point at the new release across all the workflow files.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
   - [ ] Twitter: reach out to a Crossplane maintainer or steering committee member, see [OWNERS.md][owners].
@@ -50,7 +49,6 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [Code Freeze]: https://docs.crossplane.io/knowledge-base/guides/release-cycle/#code-freeze
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
-[crossplane-test-workflows]: https://github.com/crossplane/test/tree/master/.github/workflows
 [docs release issue]: https://github.com/crossplane/docs/issues/new?assignees=&labels=release&template=new_release.md&title=Release+Crossplane+version...+
 [new release]: https://github.com/crossplane/crossplane/releases/new
 [owners]: https://github.com/crossplane/crossplane/blob/master/OWNERS.md
