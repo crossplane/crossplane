@@ -152,13 +152,9 @@ func TestCrossplane(t *testing.T) {
 				)),
 			),
 		},
-		// Our goal is not to test the stable chart, so we don't test very
-		// thoroughly that it's running. We mostly want to be sure it's ready
-		// for us to use. We don't know that it uses the same CRDs as this build
-		// of Crossplane so we don't wait for them to be established.
 		{
 			Name:       "CrossplaneStableIsRunning",
-			Assessment: funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane"),
+			Assessment: funcs.ReadyToTestWithin(1*time.Minute, namespace),
 		},
 		{
 			Name: "ClaimPrerequisitesAreCreated",

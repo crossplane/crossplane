@@ -55,6 +55,27 @@ func AllOf(fns ...features.Func) features.Func {
 	}
 }
 
+// ReadyToTestWithin fails a test if Crossplane is not ready to test within the
+// supplied duration. It's typically called in a feature's Setup function. Its
+// purpose isn't to test that Crossplane installed successfully (we have a
+// specific test for that). Instead its purpose is to make sure tests don't
+// start before Crossplane has finished installing.
+func ReadyToTestWithin(d time.Duration, namespace string) features.Func {
+	// Tests might fail if they start running before...
+	//
+	// * The core Crossplane CRDs are established.
+	// * The Composition validation webhook isn't yet serving.
+	//
+	// The core Crossplane deployment being available is a pretty good signal
+	// that both those things are true. It means the same pods that power the
+	// webhook service are up-and-running, and that their init containers (which
+	// install the CRDs) ran successfully.
+	//
+	// TODO(negz): We could explicitly test the above if we need to, but this is
+	// a little faster and spams the test logs less.
+	return DeploymentBecomesAvailableWithin(d, namespace, "crossplane")
+}
+
 // DeploymentBecomesAvailableWithin fails a test if the supplied Deployment is
 // not Available within the supplied duration.
 func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) features.Func {
@@ -62,7 +83,7 @@ func DeploymentBecomesAvailableWithin(d time.Duration, namespace, name string) f
 		dp := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}
 		t.Logf("Waiting %s for deployment %s/%s to become Available...", d, dp.GetNamespace(), dp.GetName())
 		if err := wait.For(conditions.New(c.Client().Resources()).DeploymentConditionMatch(dp, appsv1.DeploymentAvailable, corev1.ConditionTrue), wait.WithTimeout(d)); err != nil {
-			t.Error(err)
+			t.Fatal(err)
 			return ctx
 		}
 		t.Logf("Deployment %s/%s is Available", dp.GetNamespace(), dp.GetName())
@@ -258,6 +279,34 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		}
 
 		t.Logf("%d resources have desired value %q at field path %s", len(rs), want, path)
+		return ctx
+	}
+}
+
+// ResourceHasFieldValueWithin fails a test if the supplied resource does not
+// have the supplied value at the supplied field path within the supplied
+// duration. The supplied 'want' value must cmp.Equal the actual value.
+func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, want any) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		t.Logf("Waiting %s for %s to have value %q at field path %s...", d, identifier(o), want, path)
+
+		match := func(o k8s.Object) bool {
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if err != nil {
+				return false
+			}
+
+			return cmp.Equal(want, got)
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourceMatch(o, match), wait.WithTimeout(d)); err != nil {
+			y, _ := yaml.Marshal(o)
+			t.Errorf("resource did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+			return ctx
+		}
+
+		t.Logf("%s has desired value %q at field path %s", identifier(o), want, path)
 		return ctx
 	}
 }
