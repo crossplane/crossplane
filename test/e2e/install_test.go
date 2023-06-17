@@ -212,8 +212,8 @@ func TestCrossplane(t *testing.T) {
 
 	// We don't run these tests in parallel - we want them to run in order.
 	environment.Test(t,
-		install.Build("Install").Feature(),
-		uninstall.Build("Uninstall").Feature(),
-		upgrade.Build("Upgrade").Feature(),
+		install.Build("Install").WithLabel("size", "small").Feature(),
+		uninstall.Build("Uninstall").WithLabel("size", "large").Feature(),
+		upgrade.Build("Upgrade").WithLabel("size", "large").Feature(),
 	)
 }

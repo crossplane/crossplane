@@ -128,7 +128,13 @@ func TestComposition(t *testing.T) {
 	// selects the correct Composition when there are many.
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
-		minimal.Build("Minimal").Setup(setup).Feature(),
-		pandt.Build("PatchAndTransform").Setup(setup).Feature(),
+		minimal.Build("Minimal").
+			WithLabel("area", "apiextensions").
+			WithLabel("size", "small").
+			Setup(setup).Feature(),
+		pandt.Build("PatchAndTransform").
+			WithLabel("area", "apiextensions").
+			WithLabel("size", "small").
+			Setup(setup).Feature(),
 	)
 }

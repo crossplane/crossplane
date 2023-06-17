@@ -1,0 +1,11 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: private-repo
+spec:
+  # NOTE(negz): This package used to be automatically built and pushed by a
+  # GitHub Action in the old https://github.com/crossplane/test repo. In
+  # practice it never changes, so this is no longer automated.
+  package: us-west1-docker.pkg.dev/crossplane-playground/xp-install-test/configuration:main
+  packagePullSecrets:
+  - name: package-pull-secret

@@ -30,6 +30,14 @@ E2E_TEST_FLAGS="-test.v" make e2e
 # Some functions that setup the test environment (e.g. kind) use the klog logger
 # The -v flag controls the verbosity of klog. Use -v=4 for debug logging.
 E2E_TEST_FLAGS="-test.v -v=4" make e2e
+
+# To run only a specific test, match it by regular expression
+E2E_TEST_FLAGS="-test.run ^TestConfiguration" make e2e
+
+# To test features with certain labels, use the labels flag
+E2E_TEST_FLAGS="-labels size=small"
+
+# To skip features with certain labels, use -skip-labels
 ```
 
 ## Adding a Test
@@ -48,7 +56,14 @@ new kind of transform by updating the `composition/patch-and-transform`
 manifests and adding a new assessment or two to the `pandt` `features.Table`.
 
 Other, larger tests may involve creating a new directory of manifests and a new
-`features.Table`.
+`features.Table`. Every `features.Table` must be passed to `environment.Test` to
+be run.
+
+When you pass a feature to `environment.Test` you can add arbitary labels that
+may be used to filter which tests are run. Common labels include:
+
+* `area`: The area of Crossplane being tested - `pkg`, `apiextensions`, etc.
+* `size`: `small` if the test completes in under a minute, otherwise `large`.
 
 When adding a test:
 
