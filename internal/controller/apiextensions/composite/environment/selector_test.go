@@ -17,11 +17,14 @@ package environment
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -73,6 +76,18 @@ func TestSelect(t *testing.T) {
 			Kind:       v1alpha1.EnvironmentConfigKind,
 			APIVersion: v1alpha1.SchemeGroupVersion.String(),
 		}
+	}
+
+	makeJSON := func(m map[string]interface{}) map[string]extv1.JSON {
+		raw, err := json.Marshal(m)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res := map[string]extv1.JSON{}
+		if err := json.Unmarshal(raw, &res); err != nil {
+			t.Fatal(err)
+		}
+		return res
 	}
 
 	cases := map[string]struct {
@@ -145,8 +160,8 @@ func TestSelect(t *testing.T) {
 				),
 			},
 		},
-		"RefForLabelSelectedObject": {
-			reason: "It should create a name reference for the first selected EnvironmentConfig that matches the labels.",
+		"RefForLabelSelectedObjects": {
+			reason: "It should create a name reference for selected EnvironmentConfigs that match the labels.",
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -154,7 +169,18 @@ func TestSelect(t *testing.T) {
 						list.Items = []v1alpha1.EnvironmentConfig{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name: "test",
+									Name: "test-1",
+									Labels: map[string]string{
+										"foo": "bar",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+									Labels: map[string]string{
+										"foo": "bar",
+									},
 								},
 							},
 						}
@@ -163,7 +189,6 @@ func TestSelect(t *testing.T) {
 				},
 				cr: composite(
 					withName("test-composite"),
-					withEnvironmentRefs(environmentConfigRef("test")),
 				),
 				rev: &v1.CompositionRevision{
 					Spec: v1.CompositionRevisionSpec{
@@ -172,6 +197,8 @@ func TestSelect(t *testing.T) {
 								{
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "metadata.name",
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
@@ -189,7 +216,7 @@ func TestSelect(t *testing.T) {
 			want: want{
 				cr: composite(
 					withName("test-composite"),
-					withEnvironmentRefs(environmentConfigRef("test")),
+					withEnvironmentRefs(environmentConfigRef("test-1"), environmentConfigRef("test-2")),
 				),
 			},
 		},
@@ -223,6 +250,7 @@ func TestSelect(t *testing.T) {
 								{
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
+										Mode: v1.EnvironmentSourceSelectorSingleMode,
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:               v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
@@ -253,21 +281,19 @@ func TestSelect(t *testing.T) {
 						list.Items = []v1alpha1.EnvironmentConfig{
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name: "test",
+									Name: "test-1",
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{
-									Name: "not-this-one",
+									Name: "test-not-this-one",
 								},
 							},
 						}
 						return nil
 					}),
 				},
-				cr: composite(
-					withEnvironmentRefs(environmentConfigRef("test")),
-				),
+				cr: composite(),
 				rev: &v1.CompositionRevision{
 					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
@@ -275,8 +301,11 @@ func TestSelect(t *testing.T) {
 								{
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorSingleMode,
+										SortByFieldPath: "metadata.name",
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
 												Key:   "foo",
 												Value: pointer.String("bar"),
 											},
@@ -290,7 +319,7 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr: composite(
-					withEnvironmentRefs(environmentConfigRef("test")),
+					withEnvironmentRefs(environmentConfigRef("test-1")),
 				),
 			},
 		},
@@ -368,8 +397,8 @@ func TestSelect(t *testing.T) {
 				err: errors.Wrapf(errors.Wrap(errBoom, errListEnvironmentConfigs), errFmtReferenceEnvironmentConfig, 0),
 			},
 		},
-		"ErrorOnKubeListEmpty": {
-			reason: "It should return an error if kube.List returns an empty list.",
+		"NoReferenceOnKubeListEmpty": {
+			reason: "It should return an empty list of references if kube.List returns an empty list.",
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil),
@@ -398,9 +427,8 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr: composite(
-					withEnvironmentRefs(),
+					withEnvironmentRefs([]corev1.ObjectReference{}...),
 				),
-				err: errors.Wrapf(errors.New(errListEnvironmentConfigsNoResult), errFmtReferenceEnvironmentConfig, 0),
 			},
 		},
 		"ErrorOnInvalidLabelValueFieldPath": {
@@ -436,6 +464,561 @@ func TestSelect(t *testing.T) {
 					withEnvironmentRefs(),
 				),
 				err: errors.Wrapf(errors.Wrapf(errors.New("wrong: no such field"), errFmtResolveLabelValue, 0), errFmtReferenceEnvironmentConfig, 0),
+			},
+		},
+		"AllRefsSortedInMultiMode": {
+			reason: "It should return complete list of references sorted by metadata.name",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-4",
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-3",
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "metadata.name",
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs([]corev1.ObjectReference{
+						{
+							Name:       "test-1",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-2",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-3",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+							Name:       "test-4",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+					}...),
+				),
+			},
+		},
+		"MaxMatchRefsSortedInMultiMode": {
+			reason: "It should return limited list of references sorted by specified annotation",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+									Annotations: map[string]string{
+										"sort.by/weight": "2",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+									Annotations: map[string]string{
+										"sort.by/weight": "1",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-4",
+									Annotations: map[string]string{
+										"sort.by/weight": "4",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-3",
+									Annotations: map[string]string{
+										"sort.by/weight": "3",
+									},
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "metadata.annotations[sort.by/weight]",
+										MaxMatch:        pointer.Uint64(3),
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs([]corev1.ObjectReference{
+						{
+							Name:       "test-1",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-2",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-3",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+					}...),
+				),
+			},
+		},
+		"MaxMatchRefsSortedByFloatInMultiMode": {
+			reason: "It should return limited list of references sorted by float values",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"float/weight": float64(1.2),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"float/weight": float64(1.1),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-4",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"float/weight": float64(1.4),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-3",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"float/weight": float64(1.3),
+									},
+								),
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "data[float/weight]",
+										MaxMatch:        pointer.Uint64(3),
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs([]corev1.ObjectReference{
+						{
+							Name:       "test-1",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-2",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-3",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+					}...),
+				),
+			},
+		},
+		"MaxMatchRefsSortedByIntInMultiMode": {
+			reason: "It should return limited list of references sorted by int values",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(2),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(1),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-4",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(4),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-3",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(3),
+									},
+								),
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "data[int/weight]",
+										MaxMatch:        pointer.Uint64(3),
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs([]corev1.ObjectReference{
+						{
+							Name:       "test-1",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-2",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+
+							Name:       "test-3",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+					}...),
+				),
+			},
+		},
+		"ErrSelectOnNotMatchingType": {
+			reason: "It should return when types of copared values dont match",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": float64(2.1),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(1),
+									},
+								),
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "data[int/weight]",
+										MaxMatch:        pointer.Uint64(3),
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+				err: errors.Wrap(fmt.Errorf("not matching types: int64 : float64"), "failed to build reference at index 0"),
+			},
+		},
+		"ErrSelectOnUnexpectedType": {
+			reason: "It should return error when compared values have unexpected types",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": true,
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": true,
+									},
+								),
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "data[int/weight]",
+										MaxMatch:        pointer.Uint64(3),
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+				err: errors.Wrap(fmt.Errorf("unexpected type bool"), "failed to build reference at index 0"),
+			},
+		},
+		"ErrSelectOnInvalidFieldPath": {
+			reason: "It should return error on invalid field path",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
+										SortByFieldPath: "metadata.annotations[int/weight]",
+										MaxMatch:        pointer.Uint64(3),
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+				err: errors.Wrap(fmt.Errorf("metadata.annotations: no such field"), "failed to build reference at index 0"),
 			},
 		},
 	}

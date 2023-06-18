@@ -231,6 +231,7 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentConfigurationToPV1Environ
 			}
 		}
 		v1EnvironmentConfiguration.Patches = v1EnvironmentPatchList
+		v1EnvironmentConfiguration.Policy = c.pV1PolicyToPV1Policy((*source).Policy)
 		pV1EnvironmentConfiguration = &v1EnvironmentConfiguration
 	}
 	return pV1EnvironmentConfiguration
@@ -248,6 +249,14 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceSelectorToPV1Enviro
 	var pV1EnvironmentSourceSelector *EnvironmentSourceSelector
 	if source != nil {
 		var v1EnvironmentSourceSelector EnvironmentSourceSelector
+		v1EnvironmentSourceSelector.Mode = EnvironmentSourceSelectorModeType((*source).Mode)
+		var pUint64 *uint64
+		if (*source).MaxMatch != nil {
+			xuint64 := *(*source).MaxMatch
+			pUint64 = &xuint64
+		}
+		v1EnvironmentSourceSelector.MaxMatch = pUint64
+		v1EnvironmentSourceSelector.SortByFieldPath = (*source).SortByFieldPath
 		var v1EnvironmentSourceSelectorLabelMatcherList []EnvironmentSourceSelectorLabelMatcher
 		if (*source).MatchLabels != nil {
 			v1EnvironmentSourceSelectorLabelMatcherList = make([]EnvironmentSourceSelectorLabelMatcher, len((*source).MatchLabels))
@@ -362,6 +371,26 @@ func (c *GeneratedRevisionSpecConverter) pV1PatchPolicyToPV1PatchPolicy(source *
 		pV1PatchPolicy = &v1PatchPolicy
 	}
 	return pV1PatchPolicy
+}
+func (c *GeneratedRevisionSpecConverter) pV1PolicyToPV1Policy(source *v13.Policy) *v13.Policy {
+	var pV1Policy *v13.Policy
+	if source != nil {
+		var v1Policy v13.Policy
+		var pV1ResolvePolicy *v13.ResolvePolicy
+		if (*source).Resolve != nil {
+			v1ResolvePolicy := v13.ResolvePolicy(*(*source).Resolve)
+			pV1ResolvePolicy = &v1ResolvePolicy
+		}
+		v1Policy.Resolve = pV1ResolvePolicy
+		var pV1ResolutionPolicy *v13.ResolutionPolicy
+		if (*source).Resolution != nil {
+			v1ResolutionPolicy := v13.ResolutionPolicy(*(*source).Resolution)
+			pV1ResolutionPolicy = &v1ResolutionPolicy
+		}
+		v1Policy.Resolution = pV1ResolutionPolicy
+		pV1Policy = &v1Policy
+	}
+	return pV1Policy
 }
 func (c *GeneratedRevisionSpecConverter) pV1StoreConfigReferenceToPV1StoreConfigReference(source *StoreConfigReference) *StoreConfigReference {
 	var pV1StoreConfigReference *StoreConfigReference

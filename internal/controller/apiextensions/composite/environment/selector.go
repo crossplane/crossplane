@@ -19,6 +19,8 @@ package environment
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"sort"
 
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -38,9 +40,11 @@ const (
 	errListEnvironmentConfigs          = "failed to list environments"
 	errListEnvironmentConfigsNoResult  = "no EnvironmentConfig found that matches labels"
 	errFmtInvalidEnvironmentSourceType = "invalid source type '%s'"
-
-	errFmtInvalidLabelMatcherType = "invalid label matcher type '%s'"
-	errFmtRequiredField           = "%s is required by type %s"
+	errFmtInvalidLabelMatcherType      = "invalid label matcher type '%s'"
+	errFmtRequiredField                = "%s is required by type %s"
+	errUnknownSelectorMode             = "unknown mode '%s'"
+	errSortNotMatchingTypes            = "not matching types: %T : %T"
+	errSortUnknownType                 = "unexpected type %T"
 )
 
 // NewNoopEnvironmentSelector creates a new NoopEnvironmentSelector.
@@ -71,25 +75,33 @@ type APIEnvironmentSelector struct {
 // SelectEnvironment for cr using the configuration defined in comp.
 // The computed list of EnvironmentConfig references will be stored in cr.
 func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
-	// noop if EnvironmentConfig references are already computed
-	if len(cr.GetEnvironmentConfigReferences()) > 0 {
-		return nil
-	}
-	if rev.Spec.Environment == nil || rev.Spec.Environment.EnvironmentConfigs == nil {
+
+	if rev.Spec.Environment.IsNoop(cr.GetEnvironmentConfigReferences()) {
 		return nil
 	}
 
 	refs := make([]corev1.ObjectReference, len(rev.Spec.Environment.EnvironmentConfigs))
+	idx := 0
 	for i, src := range rev.Spec.Environment.EnvironmentConfigs {
 		switch src.Type {
 		case v1.EnvironmentSourceTypeReference:
-			refs[i] = s.buildEnvironmentConfigRefFromRef(src.Ref)
+			refs = append(
+				refs[:idx],
+				s.buildEnvironmentConfigRefFromRef(src.Ref),
+			)
+			idx++
 		case v1.EnvironmentSourceTypeSelector:
-			r, err := s.buildEnvironmentConfigRefFromSelector(ctx, cr, src.Selector)
+
+			ec, err := s.lookUpConfigs(ctx, cr, src.Selector.MatchLabels)
 			if err != nil {
 				return errors.Wrapf(err, errFmtReferenceEnvironmentConfig, i)
 			}
-			refs[i] = r
+			r, err := s.buildEnvironmentConfigRefFromSelector(ec, src.Selector)
+			if err != nil {
+				return errors.Wrapf(err, errFmtReferenceEnvironmentConfig, i)
+			}
+			refs = append(refs[:idx], r...)
+			idx += len(r)
 		default:
 			return errors.Errorf(errFmtInvalidEnvironmentSourceType, string(src.Type))
 		}
@@ -106,28 +118,127 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromRef(ref *v1.Enviro
 	}
 }
 
-func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(ctx context.Context, cr resource.Composite, selector *v1.EnvironmentSourceSelector) (corev1.ObjectReference, error) {
-	matchLabels := make(client.MatchingLabels, len(selector.MatchLabels))
-	for i, m := range selector.MatchLabels {
+func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.Composite, ml []v1.EnvironmentSourceSelectorLabelMatcher) (*v1alpha1.EnvironmentConfigList, error) {
+	matchLabels := make(client.MatchingLabels, len(ml))
+	for i, m := range ml {
 		val, err := ResolveLabelValue(m, cr)
 		if err != nil {
-			return corev1.ObjectReference{}, errors.Wrapf(err, errFmtResolveLabelValue, i)
+			return nil, errors.Wrapf(err, errFmtResolveLabelValue, i)
 		}
 		matchLabels[m.Key] = val
 	}
 	res := &v1alpha1.EnvironmentConfigList{}
 	if err := s.kube.List(ctx, res, matchLabels); err != nil {
-		return corev1.ObjectReference{}, errors.Wrap(err, errListEnvironmentConfigs)
+		return nil, errors.Wrap(err, errListEnvironmentConfigs)
 	}
-	if len(res.Items) == 0 {
-		return corev1.ObjectReference{}, errors.New(errListEnvironmentConfigsNoResult)
+	return res, nil
+}
+
+func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
+
+	ec := make([]v1alpha1.EnvironmentConfig, 0)
+
+	switch {
+	case len(cl.Items) == 0:
+		return []corev1.ObjectReference{}, nil
+
+	case selector.Mode == v1.EnvironmentSourceSelectorSingleMode:
+		err := sortConfigs(cl.Items, selector.SortByFieldPath)
+		if err != nil {
+			return []corev1.ObjectReference{}, err
+		}
+		ec = append(ec, cl.Items[0])
+
+	case selector.Mode == v1.EnvironmentSourceSelectorMultiMode:
+		err := sortConfigs(cl.Items, selector.SortByFieldPath)
+		if err != nil {
+			return []corev1.ObjectReference{}, err
+		}
+
+		if selector.MaxMatch != nil {
+			ec = append(ec, cl.Items[:*selector.MaxMatch]...)
+		} else {
+			ec = append(ec, cl.Items...)
+		}
+
+	default:
+		return []corev1.ObjectReference{}, errors.Errorf(errUnknownSelectorMode, selector.Mode)
 	}
-	envConfig := res.Items[0]
-	return corev1.ObjectReference{
-		Name:       envConfig.Name,
-		Kind:       v1alpha1.EnvironmentConfigKind,
-		APIVersion: v1alpha1.SchemeGroupVersion.String(),
-	}, nil
+
+	envConfigs := make([]corev1.ObjectReference, len(ec))
+	for i, v := range ec {
+		envConfigs[i] = corev1.ObjectReference{
+			Name:       v.Name,
+			Kind:       v1alpha1.EnvironmentConfigKind,
+			APIVersion: v1alpha1.SchemeGroupVersion.String(),
+		}
+	}
+
+	return envConfigs, nil
+}
+
+type sortPair struct {
+	ec  v1alpha1.EnvironmentConfig
+	obj map[string]interface{}
+}
+
+//nolint:gocyclo // tbd
+func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
+
+	var err error
+
+	p := make([]sortPair, len(ec))
+
+	for i := 0; i < len(ec); i++ {
+		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ec[i])
+		if err != nil {
+			return err
+		}
+		p[i] = sortPair{
+			ec:  ec[i],
+			obj: m,
+		}
+	}
+
+	sort.Slice(p, func(i, j int) bool {
+		if err != nil {
+			return false
+		}
+		v1, e := fieldpath.Pave(p[i].obj).GetValue(f)
+		if e != nil {
+			err = e
+			return false
+		}
+		v2, e := fieldpath.Pave(p[j].obj).GetValue(f)
+		if err != nil {
+			err = e
+			return false
+		}
+
+		vt1 := reflect.TypeOf(v1).Kind()
+		vt2 := reflect.TypeOf(v2).Kind()
+		switch {
+		case vt1 == reflect.Float64 && vt2 == reflect.Float64:
+			return v1.(float64) < v2.(float64)
+		case vt1 == reflect.Int64 && vt2 == reflect.Int64:
+			return v1.(int64) < v2.(int64)
+		case vt1 == reflect.String && vt2 == reflect.String:
+			return v1.(string) < v2.(string)
+		case vt1 != vt2:
+			err = errors.Errorf(errSortNotMatchingTypes, v1, v2)
+		default:
+			err = errors.Errorf(errSortUnknownType, v1)
+		}
+		return false
+	})
+
+	if err != nil {
+		return err
+	}
+	for i := 0; i < len(ec); i++ {
+		ec[i] = p[i].ec
+	}
+	return nil
 }
 
 // ResolveLabelValue from a EnvironmentSourceSelectorLabelMatcher and an Object.

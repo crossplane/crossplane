@@ -124,8 +124,9 @@ func TestFetch(t *testing.T) {
 	}
 
 	type args struct {
-		kube client.Client
-		cr   *fake.Composite
+		kube     client.Client
+		cr       *fake.Composite
+		required bool
 	}
 	type want struct {
 		env *Environment
@@ -208,9 +209,25 @@ func TestFetch(t *testing.T) {
 						corev1.ObjectReference{Name: "a"},
 					),
 				),
+				required: true,
 			},
 			want: want{
 				err: errors.Wrapf(errBoom, errGetEnvironmentConfig),
+			},
+		},
+		"NoErrorOnKubeGetErrorIfResolutionNotRequired": {
+			reason: "It should omit EnvironmentConfig if getting a EnvironmentConfig from a reference fails",
+			args: args{
+				kube: &test.MockClient{
+					MockGet: test.NewMockGetFn(errBoom),
+				},
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+				required: false,
+			},
+			want: want{
+				env: makeEnvironment(map[string]interface{}{}),
 			},
 		},
 	}
@@ -218,7 +235,7 @@ func TestFetch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := NewAPIEnvironmentFetcher(tc.args.kube)
-			got, err := f.Fetch(context.Background(), tc.args.cr)
+			got, err := f.Fetch(context.Background(), tc.args.cr, tc.args.required)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

@@ -50,7 +50,7 @@ func NewNilEnvironmentFetcher() *NilEnvironmentFetcher {
 type NilEnvironmentFetcher struct{}
 
 // Fetch always returns nil.
-func (f *NilEnvironmentFetcher) Fetch(_ context.Context, _ resource.Composite) (*Environment, error) {
+func (f *NilEnvironmentFetcher) Fetch(_ context.Context, _ resource.Composite, _ bool) (*Environment, error) {
 	return nil, nil
 }
 
@@ -77,7 +77,7 @@ type APIEnvironmentFetcher struct {
 //
 // Note: The `.Data` path is trimmed from the result so its necessary to include
 // it in patches.
-func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, cr resource.Composite) (*Environment, error) {
+func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, cr resource.Composite, required bool) (*Environment, error) {
 	var env *Environment
 
 	// Return an empty environment if the XR references no EnvironmentConfigs.
@@ -89,7 +89,7 @@ func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, cr resource.Composite
 		}
 	} else {
 		var err error
-		env, err = f.fetchEnvironment(ctx, cr)
+		env, err = f.fetchEnvironment(ctx, cr, required)
 		if err != nil {
 			return nil, err
 		}
@@ -104,7 +104,7 @@ func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, cr resource.Composite
 	return env, nil
 }
 
-func (f *APIEnvironmentFetcher) fetchEnvironment(ctx context.Context, cr resource.Composite) (*Environment, error) {
+func (f *APIEnvironmentFetcher) fetchEnvironment(ctx context.Context, cr resource.Composite, required bool) (*Environment, error) {
 	refs := cr.GetEnvironmentConfigReferences()
 	loadedConfigs := []v1alpha1.EnvironmentConfig{}
 	for _, ref := range refs {
@@ -112,8 +112,13 @@ func (f *APIEnvironmentFetcher) fetchEnvironment(ctx context.Context, cr resourc
 		nn := types.NamespacedName{
 			Name: ref.Name,
 		}
-		if err := f.kube.Get(ctx, nn, &config); err != nil {
-			return nil, errors.Wrap(err, errGetEnvironmentConfig)
+		err := f.kube.Get(ctx, nn, &config)
+		if err != nil {
+			// skip if resolution policy is optional
+			if required {
+				return nil, errors.Wrap(err, errGetEnvironmentConfig)
+			}
+			continue
 		}
 		loadedConfigs = append(loadedConfigs, config)
 	}

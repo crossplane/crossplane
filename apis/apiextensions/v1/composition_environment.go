@@ -17,7 +17,10 @@ limitations under the License.
 package v1
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	"github.com/crossplane/crossplane/internal/validation/errors"
 )
@@ -42,6 +45,11 @@ type EnvironmentConfiguration struct {
 	// Patches is a list of environment patches that are executed before a
 	// composition's resources are composed.
 	Patches []EnvironmentPatch `json:"patches,omitempty"`
+
+	// Policy represents the Resolve and Resolution policies which apply to
+	// all EnvironmentSourceReferences in EnvironmentConfigs list.
+	// +optional
+	Policy *xpv1.Policy `json:"policy,omitempty"`
 }
 
 // Validate the EnvironmentConfiguration.
@@ -61,6 +69,28 @@ func (e *EnvironmentConfiguration) Validate() field.ErrorList {
 	}
 
 	return errs
+}
+
+// IsNoop specifies whether EnvironmentConfiguration should be resolved or not.
+func (e *EnvironmentConfiguration) IsNoop(currentRefs []corev1.ObjectReference) bool {
+
+	if e == nil || len(e.EnvironmentConfigs) == 0 {
+		return true
+	}
+
+	if len(currentRefs) == 0 {
+		return false
+	}
+	// currentRefs is non-empty list -> trigger update only if policy.resolve is Always
+	return !e.Policy.IsResolvePolicyAlways()
+}
+
+// IsRequired specifies whether EnvironmentConfiguration is required or not.
+func (e *EnvironmentConfiguration) IsRequired() bool {
+	if e == nil {
+		return false
+	}
+	return !e.Policy.IsResolutionPolicyOptional()
 }
 
 // EnvironmentSourceType specifies the way the EnvironmentConfig is selected.
@@ -87,7 +117,7 @@ type EnvironmentSource struct {
 	// +optional
 	Ref *EnvironmentSourceReference `json:"ref,omitempty"`
 
-	// Selector selects one EnvironmentConfig via labels.
+	// Selector selects EnvironmentConfig(s) via labels.
 	// +optional
 	Selector *EnvironmentSourceSelector `json:"selector,omitempty"`
 }
@@ -110,6 +140,7 @@ func (e *EnvironmentSource) Validate() *field.Error {
 		if len(e.Selector.MatchLabels) == 0 {
 			return field.Required(field.NewPath("selector", "matchLabels"), "selector must have at least one match label")
 		}
+
 		for i, m := range e.Selector.MatchLabels {
 			if err := m.Validate(); err != nil {
 				return errors.WrapFieldError(err, field.NewPath("selector", "matchLabels").Index(i))
@@ -135,8 +166,33 @@ func (e *EnvironmentSourceReference) Validate() *field.Error {
 	return nil
 }
 
+// EnvironmentSourceSelectorModeType specifies amount of retrieved EnvironmentConfigs
+// with matching label.
+type EnvironmentSourceSelectorModeType string
+
+const (
+	// EnvironmentSourceSelectorSingleMode extracts only first EnvironmentConfig from the sorted list.
+	EnvironmentSourceSelectorSingleMode EnvironmentSourceSelectorModeType = "Single"
+
+	// EnvironmentSourceSelectorMultiMode extracts multiple EnvironmentConfigs from the sorted list.
+	EnvironmentSourceSelectorMultiMode EnvironmentSourceSelectorModeType = "Multiple"
+)
+
 // An EnvironmentSourceSelector selects an EnvironmentConfig via labels.
 type EnvironmentSourceSelector struct {
+
+	// Mode specifies retrieval strategy: "single" or "multiple".
+	// +kubebuilder:validation:Enum=Single;Multiple
+	// +kubebuilder:default=Single
+	Mode EnvironmentSourceSelectorModeType `json:"mode"`
+
+	// MaxMatch specifies the number of extracted EnvironmentConfigs in multi mode, extracts all if nil.
+	MaxMatch *uint64 `json:"maxMatch,omitempty"`
+
+	// SortByFieldPath is the path to the field based on which list of EnvironmentConfigs is alphabetically sorted.
+	// +kubebuilder:default="metadata.name"
+	SortByFieldPath string `json:"sortByFieldPath"`
+
 	// MatchLabels ensures an object with matching labels is selected.
 	MatchLabels []EnvironmentSourceSelectorLabelMatcher `json:"matchLabels,omitempty"`
 }

@@ -92,8 +92,7 @@ spec:
                           - name
                           type: object
                         selector:
-                          description: Selector selects one EnvironmentConfig via
-                            labels.
+                          description: Selector selects EnvironmentConfig(s) via labels.
                           properties:
                             matchLabels:
                               description: MatchLabels ensures an object with matching
@@ -125,6 +124,29 @@ spec:
                                 - key
                                 type: object
                               type: array
+                            maxMatch:
+                              description: MaxMatch specifies the number of extracted
+                                EnvironmentConfigs in multi mode, extracts all if
+                                nil.
+                              format: int64
+                              type: integer
+                            mode:
+                              default: Single
+                              description: 'Mode specifies retrieval strategy: "single"
+                                or "multiple".'
+                              enum:
+                              - Single
+                              - Multiple
+                              type: string
+                            sortByFieldPath:
+                              default: metadata.name
+                              description: SortByFieldPath is the path to the field
+                                based on which list of EnvironmentConfigs is alphabetically
+                                sorted.
+                              type: string
+                          required:
+                          - mode
+                          - sortByFieldPath
                           type: object
                         type:
                           default: Reference
@@ -444,6 +466,33 @@ spec:
                           type: string
                       type: object
                     type: array
+                  policy:
+                    description: Policy represents the Resolve and Resolution policies
+                      which apply to all EnvironmentSourceReferences in EnvironmentConfigs
+                      list.
+                    properties:
+                      resolution:
+                        default: Required
+                        description: Resolution specifies whether resolution of this
+                          reference is required. The default is 'Required', which
+                          means the reconcile will fail if the reference cannot be
+                          resolved. 'Optional' means this reference will be a no-op
+                          if it cannot be resolved.
+                        enum:
+                        - Required
+                        - Optional
+                        type: string
+                      resolve:
+                        description: Resolve specifies when this reference should
+                          be resolved. The default is 'IfNotPresent', which will attempt
+                          to resolve the reference only when the corresponding field
+                          is not present. Use 'Always' to resolve the reference on
+                          every reconcile.
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        type: string
+                    type: object
                 type: object
               functions:
                 description: "Functions is list of Composition Functions that will
