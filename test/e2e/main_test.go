@@ -74,6 +74,13 @@ func TestMain(m *testing.M) {
 	clusterName := envconf.RandomName("crossplane-e2e", 32)
 	environment, _ = env.NewFromFlags()
 	environment.Setup(funcs.EnvFuncs(
+		// TODO(negz): If we want to support running tests on existing clusters
+		// (e.g. GKE, EKS, your own kind cluster) we could wrap most of this in
+		// an env.Func that skips everything but adding types to the scheme when
+		// the tests are run with the --kubeconfig flag. I'm not aware of any
+		// way to load an image to a non-kind cluster, so we'd have to leave it
+		// to the caller to ensure the right build of Crossplane was installed.
+		// https://github.com/cilium/tetragon/blob/v0.9.0/tests/e2e/helpers/cluster.go#L136
 		envfuncs.CreateKindCluster(clusterName),
 		envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
 		envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),

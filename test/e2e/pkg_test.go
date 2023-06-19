@@ -41,7 +41,7 @@ func TestConfiguration(t *testing.T) {
 			),
 		},
 		{
-			Name:       "ConfigurationIsInstalled",
+			Name:       "ConfigurationIsHealthy",
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
 		},
 		{
@@ -53,9 +53,47 @@ func TestConfiguration(t *testing.T) {
 		},
 	}
 
+	manifests = "test/e2e/manifests/pkg/configuration/dependency"
+	dependency := features.Table{
+		{
+			Name: "ConfigurationIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			),
+		},
+		{
+			Name:       "ConfigurationIsHealthy",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
+		},
+		{
+			Name:       "ProviderIsHealthy",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active()),
+		},
+		{
+			Name: "ConfigurationIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			),
+		},
+		{
+			// Dependencies are not automatically deleted.
+			Name: "ProviderIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			),
+		},
+	}
+
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
 		private.Build("PullFromPrivateRegistry").
+			WithLabel("area", "pkg").
+			WithLabel("size", "small").
+			Setup(setup).Feature(),
+		dependency.Build("WithDependency").
 			WithLabel("area", "pkg").
 			WithLabel("size", "small").
 			Setup(setup).Feature(),
