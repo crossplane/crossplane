@@ -34,9 +34,6 @@ import (
 
 // TestCrossplane tests installing, uninstalling, and upgrading Crossplane.
 func TestCrossplane(t *testing.T) {
-	// We explicitly don't run this test in parallel with others because it
-	// temporarily uninstalls Crossplane.
-
 	// We install Crossplane as part of setting up the test environment, so
 	// we're really only validating the installation here.
 	install := features.Table{
@@ -210,7 +207,6 @@ func TestCrossplane(t *testing.T) {
 		},
 	}
 
-	// We don't run these tests in parallel - we want them to run in order.
 	environment.Test(t,
 		install.Build("Install").WithLabel("size", "small").Feature(),
 		uninstall.Build("Uninstall").WithLabel("size", "large").Feature(),

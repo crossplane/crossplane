@@ -35,10 +35,21 @@ E2E_TEST_FLAGS="-test.v -v=4" make e2e
 E2E_TEST_FLAGS="-test.run ^TestConfiguration" make e2e
 
 # To test features with certain labels, use the labels flag
-E2E_TEST_FLAGS="-labels size=small"
-
-# To skip features with certain labels, use -skip-labels
+E2E_TEST_FLAGS="-labels area=apiextensions" make e2e
 ```
+
+## Test Parallelism
+
+`make e2e` runs all defined E2E tests serially. Tests do not run in parallel.
+This is because all tests run against the same API server and Crossplane has a
+lot of cluster-scoped state - XRDs, Providers, Compositions, etc. It's easier
+and less error-prone to write tests when you don't have to worry about one test
+potentially conflicting with another - for example by installing the same
+provider another test would install.
+
+In order to achieve some parallelism at the CI level all tests are labelled with
+an area (e.g. `pkg`, `install`, `apiextensions`, etc). The [CI GitHub workflow]
+uses a matrix strategy to invoke each area as its own job, running in parallel.
 
 ## Adding a Test
 
@@ -59,11 +70,15 @@ Other, larger tests may involve creating a new directory of manifests and a new
 `features.Table`. Every `features.Table` must be passed to `environment.Test` to
 be run.
 
-When you pass a feature to `environment.Test` you can add arbitary labels that
+When you pass a feature to `environment.Test` you can add arbitrary labels that
 may be used to filter which tests are run. Common labels include:
 
 * `area`: The area of Crossplane being tested - `pkg`, `apiextensions`, etc.
 * `size`: `small` if the test completes in under a minute, otherwise `large`.
+
+If you add a new `area` label, be sure to add it to the matrix strategy of the
+e2e-tests job in the [CI GitHub workflow]. We run E2E tests for each area
+of Crossplane in parallel.
 
 When adding a test:
 
@@ -91,6 +106,7 @@ The following design principals help achieve these goals:
 
 Refer to the [E2E one-pager] for more context.
 
+[CI GitHub workflow]: ../../.github/workflows/ci.yml
 [`testing`]: https://pkg.go.dev/testing
 [`e2e-framework`]: https://pkg.go.dev/sigs.k8s.io/e2e-framework
 [E2e one-pager]: ../../design/one-pager-e2e-tests.md

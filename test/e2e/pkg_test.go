@@ -23,13 +23,12 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
 func TestConfiguration(t *testing.T) {
-	t.Parallel()
-
 	// Test that we can install a Configuration from a private repository using
 	// a package pull secret.
 	manifests := "test/e2e/manifests/pkg/configuration/private"
@@ -64,11 +63,6 @@ func TestConfiguration(t *testing.T) {
 }
 
 func TestProvider(t *testing.T) {
-	// TODO(negz): This can't run in parallel with any other test that would
-	// install provider-nop - i.e. TestComposition. Do we need to spin up a
-	// kind cluster per test? How would that work if we ever wanted this test to
-	// be able to run on a real cluster?
-
 	// Test that we can upgrade a provider to a new version, even when a managed
 	// resource has been created.
 	manifests := "test/e2e/manifests/pkg/provider"

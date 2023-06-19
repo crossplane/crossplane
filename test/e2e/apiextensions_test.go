@@ -30,8 +30,6 @@ import (
 
 // TestComposition tests Crossplane's Composition functionality.
 func TestComposition(t *testing.T) {
-	t.Parallel()
-
 	// Test that a claim using a very minimal Composition (with no patches,
 	// transforms, or functions) will become available when its composed
 	// resources do.
@@ -123,9 +121,6 @@ func TestComposition(t *testing.T) {
 		},
 	}
 
-	// TODO(negz): Use TestInParallel to test features in parallel. This will
-	// require them to avoid sharing state - e.g. to ensure a claim always
-	// selects the correct Composition when there are many.
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
 		minimal.Build("Minimal").
