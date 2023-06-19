@@ -173,8 +173,11 @@ func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string, o
 	if err != nil {
 		return nil, errors.Wrap(err, errGetLayers)
 	}
-
-	lowerPaths := make([]string, len(layers))
+	nLayers := len(layers)
+	if nLayers > store.MaxLayers {
+		return nil, errors.Errorf(store.ErrFmtTooManyLayers, nLayers, store.MaxLayers)
+	}
+	lowerPaths := make([]string, nLayers)
 	for i := range layers {
 		p, err := c.layer.Resolve(ctx, layers[i], layers[:i]...)
 		if err != nil {

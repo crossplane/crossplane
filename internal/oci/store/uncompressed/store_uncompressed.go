@@ -104,6 +104,10 @@ func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string, o ...spe
 	}
 	b := Bundle{path: path}
 
+	if nLayers := len(layers); nLayers > store.MaxLayers {
+		return nil, errors.Errorf(store.ErrFmtTooManyLayers, nLayers, store.MaxLayers)
+	}
+
 	for _, l := range layers {
 		tb, err := l.Uncompressed()
 		if err != nil {
