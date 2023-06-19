@@ -251,7 +251,7 @@ func TestWriteImage(t *testing.T) {
 			}
 
 			c := NewImage(tmp)
-			err = c.WriteImage(tc.args.i)
+			err = c.writeImage(tc.args.i)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nWriteImage(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

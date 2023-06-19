@@ -158,8 +158,18 @@ func (i *Image) Image(h ociv1.Hash) (ociv1.Image, error) {
 	return oi, errors.Wrap(validate.Image(oi, validate.Fast), errInvalidImage)
 }
 
-// WriteImage writes the supplied image to the store.
+// WriteImage writes the supplied image to the store, fully validating it first.
 func (i *Image) WriteImage(img ociv1.Image) error {
+	// fully validate, not using validate.Fast, the image before writing it to the store.
+	if err := validate.Image(img); err != nil {
+		return errors.Wrap(err, errInvalidImage)
+	}
+
+	return i.writeImage(img)
+}
+
+// writeImage writes the supplied image to the store.
+func (i *Image) writeImage(img ociv1.Image) error {
 	d, err := img.Digest()
 	if err != nil {
 		return errors.Wrap(err, errGetDigest)
