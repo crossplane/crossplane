@@ -40,7 +40,7 @@ func TestComposition(t *testing.T) {
 		{
 			Name: "PrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			),
 		},
@@ -51,7 +51,7 @@ func TestComposition(t *testing.T) {
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			),
 		},
@@ -83,7 +83,7 @@ func TestComposition(t *testing.T) {
 		{
 			Name: "PrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			),
 		},
@@ -95,7 +95,7 @@ func TestComposition(t *testing.T) {
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			),
 		},

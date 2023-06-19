@@ -45,6 +45,10 @@ const (
 	helmReleaseName = "crossplane"
 )
 
+// FieldManager is the server-side apply field manager used when applying
+// manifests.
+const FieldManager = "crossplane-e2e-tests"
+
 // We reuse these options in TestCrossplane, which uninstalls Crossplane,
 // installs the stable chart, then upgrades back to this chart.
 var helmOptions = []helm.Option{

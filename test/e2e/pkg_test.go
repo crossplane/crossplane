@@ -22,7 +22,8 @@ import (
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
 
-	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
@@ -36,13 +37,13 @@ func TestConfiguration(t *testing.T) {
 		{
 			Name: "ConfigurationIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "*.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "*.yaml"),
 			),
 		},
 		{
 			Name:       "ConfigurationIsInstalled",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", v1.Healthy(), v1.Active()),
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
 		},
 		{
 			Name: "ConfigurationIsDeleted",
@@ -55,9 +56,86 @@ func TestConfiguration(t *testing.T) {
 
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
-		private.Build("PrivateRegistry").
+		private.Build("PullFromPrivateRegistry").
 			WithLabel("area", "pkg").
 			WithLabel("size", "small").
+			Setup(setup).Feature(),
+	)
+}
+
+func TestProvider(t *testing.T) {
+	// TODO(negz): This can't run in parallel with any other test that would
+	// install provider-nop - i.e. TestComposition. Do we need to spin up a
+	// kind cluster per test? How would that work if we ever wanted this test to
+	// be able to run on a real cluster?
+
+	// Test that we can upgrade a provider to a new version, even when a managed
+	// resource has been created.
+	manifests := "test/e2e/manifests/pkg/provider"
+	upgrade := features.Table{
+		{
+			Name: "ProviderIsInstalled",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-initial.yaml"),
+			),
+		},
+		{
+			Name:       "ProviderBecomesHealthy",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
+		},
+		{
+			Name:       "HealthyProviderRevisionExistsForPackage",
+			Assessment: funcs.ProviderRevisionHasConditionsWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy()),
+		},
+		{
+			Name: "ManagedResourceIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mr.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr.yaml"),
+			),
+		},
+		{
+			Name:       "ProviderIsUpgraded",
+			Assessment: funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml"),
+		},
+		{
+			// TODO(negz): This doesn't actually fail if you upgrade to a
+			// non-existent package image. Ideally there'd be some other
+			// condition we could check for to make sure the _desired_ revision
+			// exists and is healthy - not just any revision - per
+			// https://github.com/crossplane/crossplane/issues/4196
+			Name:       "UpgradedProviderBecomesHealthy",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
+		},
+		{
+			Name:       "HealthyProviderRevisionExistsForPackage",
+			Assessment: funcs.ProviderRevisionHasConditionsWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy()),
+		},
+		{
+			Name:       "ManagedResourceBecomesAvailable",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr.yaml", xpv1.Available()),
+		},
+		{
+			Name: "ManagedResourceIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "mr.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr.yaml"),
+			),
+		},
+		{
+			Name: "ProviderIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-upgrade.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-upgrade.yaml"),
+			),
+		},
+	}
+
+	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
+	environment.Test(t,
+		upgrade.Build("Upgrade").
+			WithLabel("area", "pkg").
 			Setup(setup).Feature(),
 	)
 }

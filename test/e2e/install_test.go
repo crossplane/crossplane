@@ -65,7 +65,7 @@ func TestCrossplane(t *testing.T) {
 		{
 			Name: "ClaimPrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			),
 		},
@@ -76,7 +76,7 @@ func TestCrossplane(t *testing.T) {
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			),
 		},
@@ -159,7 +159,7 @@ func TestCrossplane(t *testing.T) {
 		{
 			Name: "ClaimPrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "prerequisites/*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			),
 		},
@@ -170,7 +170,7 @@ func TestCrossplane(t *testing.T) {
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.CreateResources(manifests, "claim.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			),
 		},
