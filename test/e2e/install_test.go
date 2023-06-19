@@ -208,8 +208,17 @@ func TestCrossplane(t *testing.T) {
 	}
 
 	environment.Test(t,
-		install.Build("Install").WithLabel("size", "small").Feature(),
-		uninstall.Build("Uninstall").WithLabel("size", "large").Feature(),
-		upgrade.Build("Upgrade").WithLabel("size", "large").Feature(),
+		install.Build("Install").
+			WithLabel("area", "install").
+			WithLabel("size", "small").
+			Feature(),
+		uninstall.Build("Uninstall").
+			WithLabel("area", "install").
+			WithLabel("size", "large").
+			Feature(),
+		upgrade.Build("Upgrade").
+			WithLabel("area", "install").
+			WithLabel("size", "large").
+			Feature(),
 	)
 }
