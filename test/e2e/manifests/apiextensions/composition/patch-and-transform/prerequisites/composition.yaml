@@ -15,11 +15,11 @@ spec:
       forProvider:
         conditionAfter:
         - conditionType: Ready
-          conditionStatus: "True"
+          conditionStatus: "False"
           time: 0s
-        - conditionType: Synced
+        - conditionType: Ready
           conditionStatus: "True"
-          time: 0s
+          time: 10s
     patches:
     - type: FromCompositeFieldPath
       fromFieldPath: spec.coolField

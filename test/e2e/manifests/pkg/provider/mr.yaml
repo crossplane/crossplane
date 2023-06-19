@@ -11,9 +11,3 @@ spec:
    - conditionType: Ready
      conditionStatus: "True"
      time: 10s
-   - conditionType: Synced
-     conditionStatus: "False"
-     time: 0s
-   - conditionType: Synced
-     conditionStatus: "True"
-     time: 10s
