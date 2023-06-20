@@ -69,6 +69,9 @@ const ociRuntimeRoot = "runtime"
 // the RunFunctionRequest.
 const defaultTimeout = 25 * time.Second
 
+// The maximum size of stdout/stderr to avoid OOM
+const maxStdioBytes = 100 << 20 // 100 MB
+
 // Command runs a containerized Composition Function.
 type Command struct {
 	CacheDir string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
@@ -157,16 +160,47 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 	cmd := exec.CommandContext(ctx, c.Runtime, "--root="+root, "run", "--bundle="+b.Path(), runID)
 	cmd.Stdin = bytes.NewReader(req.GetInput())
 
-	out, err := cmd.Output()
+	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		_ = b.Cleanup()
 		return errors.Wrap(err, errRuntime)
 	}
+	stderrPipe, err := cmd.StderrPipe()
+	if err != nil {
+		_ = b.Cleanup()
+		return errors.Wrap(err, errRuntime)
+	}
+
+	if err := cmd.Start(); err != nil {
+		_ = b.Cleanup()
+		return errors.Wrap(err, errRuntime)
+	}
+
+	stdout, err := io.ReadAll(io.LimitReader(stdoutPipe, maxStdioBytes))
+	if err != nil {
+		_ = b.Cleanup()
+		return errors.Wrap(err, errRuntime)
+	}
+	stderr, err := io.ReadAll(io.LimitReader(stderrPipe, maxStdioBytes))
+	if err != nil {
+		_ = b.Cleanup()
+		return errors.Wrap(err, errRuntime)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			exitErr.Stderr = stderr
+		}
+		_ = b.Cleanup()
+		return errors.Wrap(err, errRuntime)
+	}
+
 	if err := b.Cleanup(); err != nil {
 		return errors.Wrap(err, errCleanupBundle)
 	}
 
-	rsp := &v1alpha1.RunFunctionResponse{Output: out}
+	rsp := &v1alpha1.RunFunctionResponse{Output: stdout}
 	pb, err = proto.Marshal(rsp)
 	if err != nil {
 		return errors.Wrap(err, errMarshalResponse)
