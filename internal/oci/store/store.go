@@ -78,7 +78,7 @@ const (
 	errOpenLayer        = "cannot open layer"
 	errStatLayer        = "cannot stat layer"
 	errCheckExistence   = "cannot determine whether layer exists"
-	ErrFmtTooManyLayers = "image has too many layers: %d (max %d)"
+	errFmtTooManyLayers = "image has too many layers: %d (max %d)"
 )
 
 var (
@@ -210,8 +210,8 @@ func (i *Image) WriteImage(img ociv1.Image) error { //nolint:gocyclo // TODO(phi
 		return errors.Wrap(err, errGetLayers)
 	}
 
-	if nLayers := len(layers); nLayers > MaxLayers {
-		return errors.Errorf(ErrFmtTooManyLayers, nLayers, MaxLayers)
+	if err := Validate(img); err != nil {
+		return err
 	}
 
 	g := &errgroup.Group{}
@@ -355,4 +355,17 @@ func copyChunks(dst io.Writer, src io.Reader, chunkSize int64) (int64, error) {
 			return written, err
 		}
 	}
+}
+
+// Validate returns an error if the supplied image is invalid,
+// e.g. the number of layers is above the maximum allowed.
+func Validate(img ociv1.Image) error {
+	layers, err := img.Layers()
+	if err != nil {
+		return errors.Wrap(err, errGetLayers)
+	}
+	if nLayers := len(layers); nLayers > MaxLayers {
+		return errors.Errorf(errFmtTooManyLayers, nLayers, MaxLayers)
+	}
+	return nil
 }

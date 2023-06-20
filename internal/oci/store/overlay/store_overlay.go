@@ -169,15 +169,16 @@ func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string, o
 		return nil, errors.Wrap(err, errReadConfigFile)
 	}
 
+	if err := store.Validate(i); err != nil {
+		return nil, err
+	}
+
 	layers, err := i.Layers()
 	if err != nil {
 		return nil, errors.Wrap(err, errGetLayers)
 	}
-	nLayers := len(layers)
-	if nLayers > store.MaxLayers {
-		return nil, errors.Errorf(store.ErrFmtTooManyLayers, nLayers, store.MaxLayers)
-	}
-	lowerPaths := make([]string, nLayers)
+
+	lowerPaths := make([]string, len(layers))
 	for i := range layers {
 		p, err := c.layer.Resolve(ctx, layers[i], layers[:i]...)
 		if err != nil {
