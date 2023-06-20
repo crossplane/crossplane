@@ -1106,10 +1106,10 @@ k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 h1:+70TFaan3hfJzs+7VK2o+O
 k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280/go.mod h1:+Axhij7bCpeqhklhUTe3xmOn6bWxolyZEeyaFpjGtl4=
 k8s.io/utils v0.0.0-20230505201702-9f6742963106 h1:EObNQ3TW2D+WptiYXlApGNLVy0zm/JIBVY9i+M4wpAU=
 k8s.io/utils v0.0.0-20230505201702-9f6742963106/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
-kernel.org/pub/linux/libs/security/libcap/cap v1.2.66 h1:3P0DgIuplTGQ4dQdbBSVN0bALFZ4KtE1PndMh1SyEIM=
-kernel.org/pub/linux/libs/security/libcap/cap v1.2.66/go.mod h1:uBDKZw0kXu6ULhetpF19Z7izd74o3u0nO2dXIPQGmb0=
-kernel.org/pub/linux/libs/security/libcap/psx v1.2.66 h1:ikIhPzfkSSAEwBOU+2DWhoF+xnGUhvlMTfQjBVhvzQY=
-kernel.org/pub/linux/libs/security/libcap/psx v1.2.66/go.mod h1:+l6Ee2F59XiJ2I6WR5ObpC1utCQJZ/VLsEbQCD8RG24=
+kernel.org/pub/linux/libs/security/libcap/cap v1.2.69 h1:N0m3tKYbkRMmDobh/47ngz+AWeV7PcfXMDi8xu3Vrag=
+kernel.org/pub/linux/libs/security/libcap/cap v1.2.69/go.mod h1:Tk5Ip2TuxaWGpccL7//rAsLRH6RQ/jfqTGxuN/+i/FQ=
+kernel.org/pub/linux/libs/security/libcap/psx v1.2.69 h1:IdrOs1ZgwGw5CI+BH6GgVVlOt+LAXoPyh7enr8lfaXs=
+kernel.org/pub/linux/libs/security/libcap/psx v1.2.69/go.mod h1:+l6Ee2F59XiJ2I6WR5ObpC1utCQJZ/VLsEbQCD8RG24=
 rsc.io/binaryregexp v0.2.0/go.mod h1:qTv7/COck+e2FymRvadv62gMdZztPaShugOCi3I+8D8=
 rsc.io/quote/v3 v3.1.0/go.mod h1:yEA65RcK8LyAZtP9Kv3t0HmxON59tX3rD+tICJqUlj0=
 rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA=
