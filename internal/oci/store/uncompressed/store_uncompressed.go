@@ -104,8 +104,8 @@ func (c *Bundler) Bundle(ctx context.Context, i ociv1.Image, id string, o ...spe
 	}
 	b := Bundle{path: path}
 
-	if nLayers := len(layers); nLayers > store.MaxLayers {
-		return nil, errors.Errorf(store.ErrFmtTooManyLayers, nLayers, store.MaxLayers)
+	if err := store.Validate(i); err != nil {
+		return nil, err
 	}
 
 	for _, l := range layers {
