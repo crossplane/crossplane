@@ -29,10 +29,10 @@ See [CODEOWNERS](CODEOWNERS) for automatic PR assignment.
 * Daniel Mangum <dan@upbound.io> ([hasheddan](https://github.com/hasheddan))
 * Muvaffak Onus <monus@upbound.io> ([muvaf](https://github.com/muvaf))
 * Hasan Turken <hasan@upbound.io> ([turkenh](https://github.com/turkenh))
+* Bob Haddleton <bob.haddleton@nokia.com> ([bobh66](https://github.com/bobh66))
 
 ## Reviewers
 
-* Bob Haddleton <bob.haddleton@nokia.com> ([bobh66](https://github.com/bobh66))
 * Yury Tsarev <yury@upbound.io> ([ytsarev](https://github.com/ytsarev))
 * Daren Iott <daren@upbound.io> ([nullable-eth](https://github.com/nullable-eth))
 * Ezgi Demirel <ezgi@upbound.io> ([ezgidemirel](https://github.com/ezgidemirel))
