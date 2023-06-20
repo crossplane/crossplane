@@ -1,7 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:base"
+    "config:base",
+    "helpers:pinGitHubActionDigests"
   ],
 // We only want renovate to rebase PRs when they have conflicts,
 // default "auto" mode is not required.
@@ -20,8 +21,7 @@
   "labels": ["automated"],
   "regexManagers": [
     {
-// We want a PR to bump Go versions used through env variables in any Github
-// Actions, taking it from the official Github repository.
+      "description": "Bump Go version used in workflows",
       "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$"],
       "matchStrings": [
         "GO_VERSION: '(?<currentValue>.*?)'\\n"
@@ -29,9 +29,7 @@
       "datasourceTemplate": "golang-version",
       "depNameTemplate": "golang"
     }, {
-// We want a PR to bump golangci-lint versions used through env variables in
-// any Github Actions or Makefile, taking it from the official Github
-// repository tags.
+      "description": "Bump golangci-lint version in workflows and the Makefile",
       "fileMatch": ["^\\.github\\/workflows\\/[^/]+\\.ya?ml$","^Makefile$"],
       "matchStrings": [
         "GOLANGCI_VERSION: 'v(?<currentValue>.*?)'\\n",
@@ -41,9 +39,7 @@
       "depNameTemplate": "golangci/golangci-lint",
       "extractVersionTemplate": "^v(?<version>.*)$"
     }, {
-// We want a PR to bump the helm version used through env variables in
-// any Github Actions or Makefile, taking it from the official Github
-// repository tags.
+      "description": "Bump helm version in the Makefile",
       "fileMatch": ["^Makefile$"],
       "matchStrings": [
         "HELM3_VERSION = (?<currentValue>.*?)\\n"
@@ -51,9 +47,7 @@
       "datasourceTemplate": "github-tags",
       "depNameTemplate": "helm/helm",
     }, {
-// We want a PR to bump the kind version used through env variables in
-// any Github Actions or Makefile, taking it from the official Github
-// repository tags.
+      "description": "Bump kind version in the Makefile",
       "fileMatch": ["^Makefile$"],
       "matchStrings": [
         "KIND_VERSION = (?<currentValue>.*?)\\n"
@@ -66,23 +60,26 @@
   "vulnerabilityAlerts": {
     "enabled": true
   },
+  "osvVulnerabilityAlerts": true,
+// Renovate evaluates all packageRules in order, so low priority rules should
+// be at the beginning, high priority at the end
   "packageRules": [
-// We don't want dependency updates which are not security related for
-// release branches, except for docker images
     {
+      "description": "Ignore non-security related updates to release branches",
       matchBaseBranches: [ "/^release-.*/"],
       enabled: false,
     }, {
+      "description": "Still update Docker images on release branches though",
       "matchDatasources": ["docker"],
       matchBaseBranches: [ "/^release-.*/"],
       enabled: true,
     }, {
+      "description": "Only get Docker image updates every 2 weeks to reduce noise",
       "matchDatasources": ["docker"],
       "schedule": ["every 2 week on monday"],
       enabled: true,
     }, {
-// We need to ignore k8s.io/client-go older versions as they switched to
-// semantic version and old tags are still available in the repo.
+      "description": "Ignore k8s.io/client-go older versions, they switched to semantic version and old tags are still available in the repo",
       "matchDatasources": [
         "go"
       ],
@@ -91,44 +88,26 @@
       ],
       "allowedVersions": "<1.0",
     }, {
-// We want a single PR for all bumps to Go dependencies, but only if there are
-// known vulnerabilities in the current version. We need to ignore k8s related
-// dependencies too as they should be first updated on crossplane-runtime.
+      "description": "Ignore k8s dependencies, should be updated on crossplane-runtime",
       "matchDatasources": [
         "go"
       ],
-      "matchPackagePatterns": [
-        "*"
+      "matchPackagePrefixes": [
+        "k8s.io",
+        "sigs.k8s.io"
       ],
       "enabled": false,
-      "matchUpdateTypes": [
-        "major",
-        "minor",
-        "patch",
-        "digest"
+    },{
+      "description": "Only get dependency digest updates every month to reduce noise",
+      "matchDatasources": [
+        "go"
       ],
-      "groupName": "all go dependencies"
+      "matchUpdateTypes": [
+        "digest",
+      ],
+      "extends": ["schedule:monthly"],
     }, {
-// We want a single PR for all non-major bumps of Github Actions
-      "matchDepTypes": [
-        "action"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch",
-        "digest"
-      ],
-      "groupName": "all non-major github action",
-      "pinDigests": true
-    },{
-// We want dedicated PRs for each major bump to Github Actions
-      "matchDepTypes": [
-        "action"
-      ],
-      "pinDigests": true
-    },{
-// We disable updates actions for oss-fuzz, as it's not using tags, we'll just
-// point to master branch
+      "description": "Ignore oss-fuzz, it's not using tags, we'll stick to master",
       "matchDepTypes": [
         "action"
       ],
