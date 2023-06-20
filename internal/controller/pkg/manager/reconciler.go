@@ -286,7 +286,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err != nil {
 		log.Debug(errUnpack, "error", err)
 		err = errors.Wrap(err, errUnpack)
+		p.SetConditions(v1.Unpacking().WithMessage(err.Error()))
 		r.record.Event(p, event.Warning(reasonUnpack, err))
+
+		if updateErr := r.client.Status().Update(ctx, p); updateErr != nil {
+			return reconcile.Result{}, errors.Wrap(updateErr, errUpdateStatus)
+		}
+
 		return reconcile.Result{}, err
 	}
 

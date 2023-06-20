@@ -129,6 +129,41 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errListRevisions),
 			},
 		},
+		"ErrFetchRevision": {
+			reason: "We should return an error if fetching the revision for a package fails.",
+			args: args{
+				req: reconcile.Request{NamespacedName: types.NamespacedName{Name: "test"}},
+				rec: &Reconciler{
+					newPackage:             func() v1.Package { return &v1.Configuration{} },
+					newPackageRevisionList: func() v1.PackageRevisionList { return &v1.ConfigurationRevisionList{} },
+					client: resource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet:  test.NewMockGetFn(nil),
+							MockList: test.NewMockListFn(kerrors.NewNotFound(schema.GroupResource{}, "")),
+							MockStatusUpdate: test.NewMockSubResourceUpdateFn(nil, func(o client.Object) error {
+								want := &v1.Configuration{}
+								want.SetConditions(v1.Unpacking().WithMessage(errors.Wrap(errBoom, errUnpack).Error()))
+								if diff := cmp.Diff(want, o); diff != "" {
+									t.Errorf("-want, +got:\n%s", diff)
+								}
+								return nil
+							}),
+						},
+						Applicator: resource.ApplyFn(func(_ context.Context, _ client.Object, _ ...resource.ApplyOption) error {
+							return nil
+						}),
+					},
+					log:    testLog,
+					record: event.NewNopRecorder(),
+					pkg: &MockRevisioner{
+						MockRevision: NewMockRevisionFn("", errBoom),
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errUnpack),
+			},
+		},
 		"SuccessfulNoExistingRevisionsAutoActivate": {
 			reason: "We should be active and not requeue on successful creation of the first revision with auto activation.",
 			args: args{
