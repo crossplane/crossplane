@@ -17,7 +17,7 @@ require (
 	github.com/jmattheis/goverter v0.10.1
 	github.com/opencontainers/runtime-spec v1.0.3-0.20210326190908-1c3f411f0417
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.8.0
 	golang.org/x/sync v0.1.0
 	golang.org/x/sys v0.7.0
