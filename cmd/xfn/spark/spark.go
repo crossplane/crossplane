@@ -69,13 +69,11 @@ const ociRuntimeRoot = "runtime"
 // the RunFunctionRequest.
 const defaultTimeout = 25 * time.Second
 
-// The maximum size of stdout/stderr to avoid OOM
-const maxStdioBytes = 100 << 20 // 100 MB
-
 // Command runs a containerized Composition Function.
 type Command struct {
-	CacheDir string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
-	Runtime  string `help:"OCI runtime binary to invoke." default:"crun"`
+	CacheDir      string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
+	Runtime       string `help:"OCI runtime binary to invoke." default:"crun"`
+	MaxStdioBytes int64  `help:"Maximum size of stdout and stderr for functions." default:"0"`
 }
 
 // Run a Composition Function inside an unprivileged user namespace. Reads a
@@ -176,12 +174,12 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 		return errors.Wrap(err, errRuntime)
 	}
 
-	stdout, err := io.ReadAll(io.LimitReader(stdoutPipe, maxStdioBytes))
+	stdout, err := io.ReadAll(limitReaderIfNonZero(stdoutPipe, c.MaxStdioBytes))
 	if err != nil {
 		_ = b.Cleanup()
 		return errors.Wrap(err, errRuntime)
 	}
-	stderr, err := io.ReadAll(io.LimitReader(stderrPipe, maxStdioBytes))
+	stderr, err := io.ReadAll(limitReaderIfNonZero(stderrPipe, c.MaxStdioBytes))
 	if err != nil {
 		_ = b.Cleanup()
 		return errors.Wrap(err, errRuntime)
@@ -207,6 +205,13 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 	}
 	_, err = os.Stdout.Write(pb)
 	return errors.Wrap(err, errWriteResponse)
+}
+
+func limitReaderIfNonZero(r io.Reader, limit int64) io.Reader {
+	if limit == 0 {
+		return r
+	}
+	return io.LimitReader(r, limit)
 }
 
 // FromImagePullConfig configures an image client with options derived from the
