@@ -317,7 +317,8 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 
 // ApplyResources applies all manifests under the supplied directory that match
 // the supplied glob pattern (e.g. *.yaml). It uses server-side apply - fields
-// are managed by the supplied field manager.
+// are managed by the supplied field manager. Use force to apply the manifest
+// even if it conflicts with another field manager.
 func ApplyResources(manager, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
@@ -339,7 +340,12 @@ func ApplyHandler(r *resources.Resources, manager string) decoder.HandlerFunc {
 	return func(ctx context.Context, obj k8s.Object) error {
 		// TODO(negz): Use r.Patch when the below issue is solved?
 		// https://github.com/kubernetes-sigs/e2e-framework/issues/254
-		return r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager))
+
+		// TODO(negz): Make forcing optional? It seems to be necessary
+		// sometimes, e.g. due to conflicts with a provider managing the same
+		// fields. I'm guessing controller-runtime is setting providers as a
+		// field manager at create time even though it doesn't use SSA?
+		return r.GetControllerRuntimeClient().Patch(ctx, obj, client.Apply, client.FieldOwner(manager), client.ForceOwnership)
 	}
 }
 

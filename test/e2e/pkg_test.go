@@ -123,8 +123,8 @@ func TestProvider(t *testing.T) {
 		{
 			Name: "ManagedResourceIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "mr.yaml"),
-				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "mr-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr-initial.yaml"),
 			),
 		},
 		{
@@ -145,14 +145,20 @@ func TestProvider(t *testing.T) {
 			Assessment: funcs.ProviderRevisionHasConditionsWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy()),
 		},
 		{
+			Name: "ManagedResourceIsUpdated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
+			),
+		},
+		{
 			Name:       "ManagedResourceBecomesAvailable",
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr.yaml", xpv1.Available()),
 		},
 		{
 			Name: "ManagedResourceIsDeleted",
 			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "mr.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr.yaml"),
+				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr-upgrade.yaml"),
 			),
 		},
 		{
