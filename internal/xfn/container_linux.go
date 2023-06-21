@@ -21,6 +21,7 @@ package xfn
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -58,6 +59,7 @@ const (
 const (
 	UserNamespaceUIDs = 65536
 	UserNamespaceGIDs = 65536
+	MaxStdioBytes     = 100 << 20 // 100 MB
 )
 
 // The subcommand of xfn to invoke - i.e. "xfn spark <source> <bundle>"
@@ -96,7 +98,7 @@ func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunc
 		bundle, then then executes an OCI runtime in order to actually execute
 		the function.
 	*/
-	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache) //nolint:gosec // We're intentionally executing with variable input.
+	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache, fmt.Sprintf("--max-stdio-bytes=%d", MaxStdioBytes)) //nolint:gosec // We're intentionally executing with variable input.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:  syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: r.rootUID, Size: 1}},
@@ -160,12 +162,14 @@ func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunc
 
 	// We must read all of stdout and stderr before calling cmd.Wait, which
 	// closes the underlying pipes.
-	stdout, err := io.ReadAll(stdio.Stdout)
+	// Limited to MaxStdioBytes to avoid OOMing if the function writes a lot of
+	// data to stdout or stderr.
+	stdout, err := io.ReadAll(io.LimitReader(stdio.Stdout, MaxStdioBytes))
 	if err != nil {
 		return nil, errors.Wrap(err, errReadStdout)
 	}
 
-	stderr, err := io.ReadAll(stdio.Stderr)
+	stderr, err := io.ReadAll(io.LimitReader(stdio.Stderr, MaxStdioBytes))
 	if err != nil {
 		return nil, errors.Wrap(err, errReadStderr)
 	}
