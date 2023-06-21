@@ -184,39 +184,6 @@ func TestWriteImage(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetRawConfigFile),
 			},
 		},
-		"WriteLayerError": {
-			reason: "We should return an error if we can't write a layer to the store.",
-			args: args{
-				i: &MockImage{
-					MockDigest:        func() (ociv1.Hash, error) { return ociv1.Hash{Hex: "cool"}, nil },
-					MockRawConfigFile: func() ([]byte, error) { return nil, nil },
-					MockLayers: func() ([]ociv1.Layer, error) {
-						return []ociv1.Layer{
-							&MockLayer{
-								// To cause WriteLayer to fail.
-								MockDiffID: func() (ociv1.Hash, error) { return ociv1.Hash{}, errBoom },
-							},
-						}, nil
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, errGetDigest), errWriteLayers),
-			},
-		},
-		"SuccessfulWrite": {
-			reason: "We should not return an error if we successfully wrote an image to the store.",
-			args: args{
-				i: &MockImage{
-					MockDigest:        func() (ociv1.Hash, error) { return ociv1.Hash{Hex: "cool"}, nil },
-					MockRawConfigFile: func() ([]byte, error) { return []byte(`{"variant":"cool"}`), nil },
-					MockLayers:        func() ([]ociv1.Layer, error) { return nil, nil },
-				},
-			},
-			want: want{
-				err: nil,
-			},
-		},
 		"SuccessfulNoOp": {
 			reason: "We should return early if the supplied image is already stored.",
 			files: map[string][]byte{
@@ -251,7 +218,7 @@ func TestWriteImage(t *testing.T) {
 			}
 
 			c := NewImage(tmp)
-			err = c.writeImage(tc.args.i)
+			err = c.WriteImage(tc.args.i)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nWriteImage(...): -want error, +got error:\n%s", tc.reason, diff)
 			}

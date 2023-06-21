@@ -159,17 +159,7 @@ func (i *Image) Image(h ociv1.Hash) (ociv1.Image, error) {
 }
 
 // WriteImage writes the supplied image to the store, fully validating it first.
-func (i *Image) WriteImage(img ociv1.Image) error {
-	// fully validate, not using validate.Fast, the image before writing it to the store.
-	if err := validate.Image(img); err != nil {
-		return errors.Wrap(err, errInvalidImage)
-	}
-
-	return i.writeImage(img)
-}
-
-// writeImage writes the supplied image to the store.
-func (i *Image) writeImage(img ociv1.Image) error {
+func (i *Image) WriteImage(img ociv1.Image) error { //nolint:gocyclo // TODO(phisco): just slightly over the limit (11/10).
 	d, err := img.Digest()
 	if err != nil {
 		return errors.Wrap(err, errGetDigest)
@@ -212,6 +202,11 @@ func (i *Image) writeImage(img ociv1.Image) error {
 	layers, err := img.Layers()
 	if err != nil {
 		return errors.Wrap(err, errGetLayers)
+	}
+
+	// fully validate the image, not using validate.Fast, before writing it to the store.
+	if err := validate.Image(img); err != nil {
+		return errors.Wrap(err, errInvalidImage)
 	}
 
 	g := &errgroup.Group{}
