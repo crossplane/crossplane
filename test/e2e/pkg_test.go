@@ -117,10 +117,6 @@ func TestProvider(t *testing.T) {
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
 		},
 		{
-			Name:       "HealthyProviderRevisionExistsForPackage",
-			Assessment: funcs.ProviderRevisionHasConditionsWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy()),
-		},
-		{
 			Name: "ManagedResourceIsCreated",
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mr-initial.yaml"),
@@ -132,17 +128,8 @@ func TestProvider(t *testing.T) {
 			Assessment: funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml"),
 		},
 		{
-			// TODO(negz): This doesn't actually fail if you upgrade to a
-			// non-existent package image. Ideally there'd be some other
-			// condition we could check for to make sure the _desired_ revision
-			// exists and is healthy - not just any revision - per
-			// https://github.com/crossplane/crossplane/issues/4196
 			Name:       "UpgradedProviderBecomesHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name:       "HealthyProviderRevisionExistsForPackage",
-			Assessment: funcs.ProviderRevisionHasConditionsWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy()),
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-upgrade.yaml", pkgv1.Healthy(), pkgv1.Active()),
 		},
 		{
 			Name: "ManagedResourceIsUpdated",

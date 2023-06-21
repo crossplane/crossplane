@@ -45,8 +45,6 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 )
 
 // AllOf runs the supplied functions in order.
@@ -391,74 +389,4 @@ func identifier(o k8s.Object) string {
 		return fmt.Sprintf("%s %s", k, o.GetName())
 	}
 	return fmt.Sprintf("%s %s/%s", k, o.GetNamespace(), o.GetName())
-}
-
-// ProviderRevisionHasConditionsWithin fails a test if any of the supplied
-// manifests, which _must_ be providers, don't have a revision with the same
-// package image and the supplied conditions. It panics if any of the supplied
-// manifests are not a provider.
-//
-// TODO(negz): Ideally per https://github.com/crossplane/crossplane/issues/4196
-// we would not need this function, and could just inspect the provider.
-func ProviderRevisionHasConditionsWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
-	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		dfs := os.DirFS(dir)
-		objs, err := decoder.DecodeAllFiles(ctx, dfs, pattern)
-		if err != nil {
-			t.Fatal(err)
-			return ctx
-		}
-
-		reasons := make([]string, len(cds))
-		for i := range cds {
-			reasons[i] = string(cds[i].Reason)
-		}
-		desired := strings.Join(reasons, ", ")
-
-		list := &metav1.List{Items: make([]runtime.RawExtension, len(objs))}
-		for i := range objs {
-			t.Logf("Waiting %s for %s to become %s...", d, identifier(objs[i]), desired)
-			list.Items[i] = runtime.RawExtension{Object: objs[i]}
-		}
-
-		match := func(o k8s.Object) bool {
-			p := o.(*pkgv1.Provider)
-			list := &pkgv1.ProviderRevisionList{}
-			if err := c.Client().Resources().List(ctx, list, resources.WithLabelSelector(fmt.Sprintf("%s=%s", pkgv1.LabelParentPackage, p.GetName()))); err != nil {
-				return false
-			}
-
-			found := false
-			for _, pr := range list.Items {
-				// TODO(negz): I don't think this is a great way to test whether
-				// this revision is the 'desired' one. I think we'd get
-				//
-				// * A false positive if the provider and this revision have the
-				//   same reference string, but the digest that reference points
-				//   to has changed.
-				// * A false negative if the provider and this revision have two
-				//   different references, but they point to the same digest.
-				if pr.Spec.Package != p.Spec.Package {
-					continue
-				}
-				t.Logf("Found revision %q with matching package %q", pr.GetName(), pr.Spec.Package)
-
-				found = true
-				for _, want := range cds {
-					if !pr.GetCondition(want.Type).Equal(want) {
-						return false
-					}
-				}
-			}
-			return found
-		}
-
-		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
-			y, _ := yaml.Marshal(list)
-			t.Errorf("no revision had desired conditions: %s: %v:\n\n%s\n\n", desired, err, y)
-			return ctx
-		}
-
-		return ctx
-	}
 }
