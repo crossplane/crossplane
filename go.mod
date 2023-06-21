@@ -5,7 +5,7 @@ go 1.20
 require (
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/semver v1.5.0
-	github.com/alecthomas/kong v0.7.2-0.20221130112736-919e70103f7a
+	github.com/alecthomas/kong v0.7.2-0.20230225013903-a9be85c4d3d6
 	github.com/bufbuild/buf v1.10.0
 	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230330081344-bc8be4cd89f3
 	github.com/cyphar/filepath-securejoin v0.2.3
