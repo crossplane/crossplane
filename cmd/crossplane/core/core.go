@@ -144,15 +144,13 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Deduplicate: true,
 	})
 
-	var ws webhook.Server
-	if c.WebhookTLSCertDir != "" {
-		ws = webhook.NewServer(webhook.Options{CertDir: c.WebhookTLSCertDir, TLSMinVersion: "1.3"})
-	}
-
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
-		Scheme:        s,
-		SyncPeriod:    &c.SyncInterval,
-		WebhookServer: ws,
+		Scheme:     s,
+		SyncPeriod: &c.SyncInterval,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			CertDir:       c.WebhookTLSCertDir,
+			TLSMinVersion: "1.3",
+		}),
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
@@ -245,14 +243,18 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 
-	// TODO(muvaf): Once the implementation of other webhook handlers are
-	// fleshed out, implement a registration pattern similar to scheme
-	// registrations.
-	if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
-		return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
-	}
-	if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
-		return errors.Wrap(err, "cannot setup webhook for compositions")
+	// Registering webhooks with the manager is what actually starts the webhook
+	// server.
+	if c.WebhookTLSCertDir != "" {
+		// TODO(muvaf): Once the implementation of other webhook handlers are
+		// fleshed out, implement a registration pattern similar to scheme
+		// registrations.
+		if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
+			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+		}
+		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
+			return errors.Wrap(err, "cannot setup webhook for compositions")
+		}
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")
