@@ -3,6 +3,7 @@ module github.com/crossplane/crossplane
 go 1.20
 
 require (
+	dario.cat/mergo v1.0.0
 	github.com/AdaLogics/go-fuzz-headers v0.0.0-20230106234847-43070de90fa1
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.7.2-0.20221130112736-919e70103f7a
@@ -13,7 +14,6 @@ require (
 	github.com/google/go-containerregistry v0.15.2
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20220517194345-84eb52633e96
 	github.com/google/uuid v1.3.0
-	github.com/imdario/mergo v0.3.16
 	github.com/jmattheis/goverter v0.17.4
 	github.com/opencontainers/runtime-spec v1.1.0-rc.3.0.20230610073135-48415de180cf
 	github.com/pkg/errors v0.9.1
@@ -126,6 +126,7 @@ require (
 	github.com/hashicorp/vault/api v1.5.0 // indirect
 	github.com/hashicorp/vault/sdk v0.4.1 // indirect
 	github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb // indirect
+	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jdxcode/netrc v0.0.0-20221124155335-4616370d1a84 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
