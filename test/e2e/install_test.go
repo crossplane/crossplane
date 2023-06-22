@@ -32,6 +32,10 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelAreaLifecycle is applied to all 'features' pertaining to managing
+// Crossplane's lifecycle (installing, upgrading, etc).
+const LabelAreaLifecycle = "lifecycle"
+
 // TestCrossplane tests installing, uninstalling, and upgrading Crossplane.
 func TestCrossplane(t *testing.T) {
 	// We install Crossplane as part of setting up the test environment, so
@@ -209,16 +213,16 @@ func TestCrossplane(t *testing.T) {
 
 	environment.Test(t,
 		install.Build("Install").
-			WithLabel("area", "install").
-			WithLabel("size", "small").
+			WithLabel(LabelArea, LabelAreaLifecycle).
+			WithLabel(LabelSize, LabelSizeSmall).
 			Feature(),
 		uninstall.Build("Uninstall").
-			WithLabel("area", "install").
-			WithLabel("size", "large").
+			WithLabel(LabelArea, LabelAreaLifecycle).
+			WithLabel(LabelSize, LabelSizeLarge).
 			Feature(),
 		upgrade.Build("Upgrade").
-			WithLabel("area", "install").
-			WithLabel("size", "large").
+			WithLabel(LabelArea, LabelAreaLifecycle).
+			WithLabel(LabelSize, LabelSizeLarge).
 			Feature(),
 	)
 }

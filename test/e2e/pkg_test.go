@@ -28,6 +28,10 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelAreaPkg is applied to all features pertaining to packages, (i.e.
+// Providers, Configurations, etc).
+const LabelAreaPkg = "pkg"
+
 func TestConfiguration(t *testing.T) {
 	// Test that we can install a Configuration from a private repository using
 	// a package pull secret.
@@ -90,12 +94,12 @@ func TestConfiguration(t *testing.T) {
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
 		private.Build("PullFromPrivateRegistry").
-			WithLabel("area", "pkg").
-			WithLabel("size", "small").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
 			Setup(setup).Feature(),
 		dependency.Build("WithDependency").
-			WithLabel("area", "pkg").
-			WithLabel("size", "small").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
 			Setup(setup).Feature(),
 	)
 }
@@ -160,7 +164,8 @@ func TestProvider(t *testing.T) {
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
 		upgrade.Build("Upgrade").
-			WithLabel("area", "pkg").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
 			Setup(setup).Feature(),
 	)
 }

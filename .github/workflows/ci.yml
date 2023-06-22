@@ -240,7 +240,7 @@ jobs:
     if: needs.detect-noop.outputs.noop != 'true'
     strategy:
       matrix:
-        area: [install, pkg, apiextensions]
+        area: [lifecycle, pkg, apiextensions]
 
     steps:
       - name: Setup QEMU

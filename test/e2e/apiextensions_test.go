@@ -28,6 +28,10 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelAreaAPIExtensions is applied to all features pertaining to API
+// extensions (i.e. Composition, XRDs, etc).
+const LabelAreaAPIExtensions = "apiextensions"
+
 // TestComposition tests Crossplane's Composition functionality.
 func TestComposition(t *testing.T) {
 	// Test that a claim using a very minimal Composition (with no patches,
@@ -124,12 +128,12 @@ func TestComposition(t *testing.T) {
 	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
 		minimal.Build("Minimal").
-			WithLabel("area", "apiextensions").
-			WithLabel("size", "small").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
 			Setup(setup).Feature(),
 		pandt.Build("PatchAndTransform").
-			WithLabel("area", "apiextensions").
-			WithLabel("size", "small").
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
 			Setup(setup).Feature(),
 	)
 }

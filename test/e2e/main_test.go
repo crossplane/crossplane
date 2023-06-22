@@ -29,6 +29,22 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
+// LabelArea represents the 'area' of a feature. For example 'apiextensions',
+// 'pkg', etc. Assessments roll up to features, which roll up to feature areas.
+// Features within an area may be split across different test functions.
+const LabelArea = "area"
+
+// LabelSize represents the 'size' (i.e. duration) of a test.
+const LabelSize = "size"
+
+const (
+	// LabelSizeSmall is used for tests that usually complete in a minute.
+	LabelSizeSmall = "small"
+
+	// LabelSizeLarge is used for test that usually complete in over a minute.
+	LabelSizeLarge = "large"
+)
+
 const namespace = "crossplane-system"
 
 const crdsDir = "cluster/crds"
