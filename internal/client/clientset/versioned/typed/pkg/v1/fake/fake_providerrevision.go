@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,24 +34,24 @@ type FakeProviderRevisions struct {
 	Fake *FakePkgV1
 }
 
-var providerrevisionsResource = schema.GroupVersionResource{Group: "pkg.crossplane.io", Version: "v1", Resource: "providerrevisions"}
+var providerrevisionsResource = v1.SchemeGroupVersion.WithResource("providerrevisions")
 
-var providerrevisionsKind = schema.GroupVersionKind{Group: "pkg.crossplane.io", Version: "v1", Kind: "ProviderRevision"}
+var providerrevisionsKind = v1.SchemeGroupVersion.WithKind("ProviderRevision")
 
 // Get takes name of the providerRevision, and returns the corresponding providerRevision object, and an error if there is any.
-func (c *FakeProviderRevisions) Get(ctx context.Context, name string, options v1.GetOptions) (result *pkgv1.ProviderRevision, err error) {
+func (c *FakeProviderRevisions) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ProviderRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(providerrevisionsResource, name), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootGetAction(providerrevisionsResource, name), &v1.ProviderRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ProviderRevision), err
+	return obj.(*v1.ProviderRevision), err
 }
 
 // List takes label and field selectors, and returns the list of ProviderRevisions that match those selectors.
-func (c *FakeProviderRevisions) List(ctx context.Context, opts v1.ListOptions) (result *pkgv1.ProviderRevisionList, err error) {
+func (c *FakeProviderRevisions) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ProviderRevisionList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(providerrevisionsResource, providerrevisionsKind, opts), &pkgv1.ProviderRevisionList{})
+		Invokes(testing.NewRootListAction(providerrevisionsResource, providerrevisionsKind, opts), &v1.ProviderRevisionList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -61,8 +60,8 @@ func (c *FakeProviderRevisions) List(ctx context.Context, opts v1.ListOptions) (
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &pkgv1.ProviderRevisionList{ListMeta: obj.(*pkgv1.ProviderRevisionList).ListMeta}
-	for _, item := range obj.(*pkgv1.ProviderRevisionList).Items {
+	list := &v1.ProviderRevisionList{ListMeta: obj.(*v1.ProviderRevisionList).ListMeta}
+	for _, item := range obj.(*v1.ProviderRevisionList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -71,63 +70,63 @@ func (c *FakeProviderRevisions) List(ctx context.Context, opts v1.ListOptions) (
 }
 
 // Watch returns a watch.Interface that watches the requested providerRevisions.
-func (c *FakeProviderRevisions) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeProviderRevisions) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(providerrevisionsResource, opts))
 }
 
 // Create takes the representation of a providerRevision and creates it.  Returns the server's representation of the providerRevision, and an error, if there is any.
-func (c *FakeProviderRevisions) Create(ctx context.Context, providerRevision *pkgv1.ProviderRevision, opts v1.CreateOptions) (result *pkgv1.ProviderRevision, err error) {
+func (c *FakeProviderRevisions) Create(ctx context.Context, providerRevision *v1.ProviderRevision, opts metav1.CreateOptions) (result *v1.ProviderRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(providerrevisionsResource, providerRevision), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootCreateAction(providerrevisionsResource, providerRevision), &v1.ProviderRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ProviderRevision), err
+	return obj.(*v1.ProviderRevision), err
 }
 
 // Update takes the representation of a providerRevision and updates it. Returns the server's representation of the providerRevision, and an error, if there is any.
-func (c *FakeProviderRevisions) Update(ctx context.Context, providerRevision *pkgv1.ProviderRevision, opts v1.UpdateOptions) (result *pkgv1.ProviderRevision, err error) {
+func (c *FakeProviderRevisions) Update(ctx context.Context, providerRevision *v1.ProviderRevision, opts metav1.UpdateOptions) (result *v1.ProviderRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(providerrevisionsResource, providerRevision), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootUpdateAction(providerrevisionsResource, providerRevision), &v1.ProviderRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ProviderRevision), err
+	return obj.(*v1.ProviderRevision), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeProviderRevisions) UpdateStatus(ctx context.Context, providerRevision *pkgv1.ProviderRevision, opts v1.UpdateOptions) (*pkgv1.ProviderRevision, error) {
+func (c *FakeProviderRevisions) UpdateStatus(ctx context.Context, providerRevision *v1.ProviderRevision, opts metav1.UpdateOptions) (*v1.ProviderRevision, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(providerrevisionsResource, "status", providerRevision), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootUpdateSubresourceAction(providerrevisionsResource, "status", providerRevision), &v1.ProviderRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ProviderRevision), err
+	return obj.(*v1.ProviderRevision), err
 }
 
 // Delete takes name of the providerRevision and deletes it. Returns an error if one occurs.
-func (c *FakeProviderRevisions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeProviderRevisions) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(providerrevisionsResource, name, opts), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootDeleteActionWithOptions(providerrevisionsResource, name, opts), &v1.ProviderRevision{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeProviderRevisions) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (c *FakeProviderRevisions) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(providerrevisionsResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &pkgv1.ProviderRevisionList{})
+	_, err := c.Fake.Invokes(action, &v1.ProviderRevisionList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched providerRevision.
-func (c *FakeProviderRevisions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *pkgv1.ProviderRevision, err error) {
+func (c *FakeProviderRevisions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.ProviderRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(providerrevisionsResource, name, pt, data, subresources...), &pkgv1.ProviderRevision{})
+		Invokes(testing.NewRootPatchSubresourceAction(providerrevisionsResource, name, pt, data, subresources...), &v1.ProviderRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ProviderRevision), err
+	return obj.(*v1.ProviderRevision), err
 }

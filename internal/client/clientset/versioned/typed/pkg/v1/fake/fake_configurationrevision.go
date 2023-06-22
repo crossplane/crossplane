@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,24 +34,24 @@ type FakeConfigurationRevisions struct {
 	Fake *FakePkgV1
 }
 
-var configurationrevisionsResource = schema.GroupVersionResource{Group: "pkg.crossplane.io", Version: "v1", Resource: "configurationrevisions"}
+var configurationrevisionsResource = v1.SchemeGroupVersion.WithResource("configurationrevisions")
 
-var configurationrevisionsKind = schema.GroupVersionKind{Group: "pkg.crossplane.io", Version: "v1", Kind: "ConfigurationRevision"}
+var configurationrevisionsKind = v1.SchemeGroupVersion.WithKind("ConfigurationRevision")
 
 // Get takes name of the configurationRevision, and returns the corresponding configurationRevision object, and an error if there is any.
-func (c *FakeConfigurationRevisions) Get(ctx context.Context, name string, options v1.GetOptions) (result *pkgv1.ConfigurationRevision, err error) {
+func (c *FakeConfigurationRevisions) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.ConfigurationRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(configurationrevisionsResource, name), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootGetAction(configurationrevisionsResource, name), &v1.ConfigurationRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ConfigurationRevision), err
+	return obj.(*v1.ConfigurationRevision), err
 }
 
 // List takes label and field selectors, and returns the list of ConfigurationRevisions that match those selectors.
-func (c *FakeConfigurationRevisions) List(ctx context.Context, opts v1.ListOptions) (result *pkgv1.ConfigurationRevisionList, err error) {
+func (c *FakeConfigurationRevisions) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ConfigurationRevisionList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(configurationrevisionsResource, configurationrevisionsKind, opts), &pkgv1.ConfigurationRevisionList{})
+		Invokes(testing.NewRootListAction(configurationrevisionsResource, configurationrevisionsKind, opts), &v1.ConfigurationRevisionList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -61,8 +60,8 @@ func (c *FakeConfigurationRevisions) List(ctx context.Context, opts v1.ListOptio
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &pkgv1.ConfigurationRevisionList{ListMeta: obj.(*pkgv1.ConfigurationRevisionList).ListMeta}
-	for _, item := range obj.(*pkgv1.ConfigurationRevisionList).Items {
+	list := &v1.ConfigurationRevisionList{ListMeta: obj.(*v1.ConfigurationRevisionList).ListMeta}
+	for _, item := range obj.(*v1.ConfigurationRevisionList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -71,63 +70,63 @@ func (c *FakeConfigurationRevisions) List(ctx context.Context, opts v1.ListOptio
 }
 
 // Watch returns a watch.Interface that watches the requested configurationRevisions.
-func (c *FakeConfigurationRevisions) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeConfigurationRevisions) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(configurationrevisionsResource, opts))
 }
 
 // Create takes the representation of a configurationRevision and creates it.  Returns the server's representation of the configurationRevision, and an error, if there is any.
-func (c *FakeConfigurationRevisions) Create(ctx context.Context, configurationRevision *pkgv1.ConfigurationRevision, opts v1.CreateOptions) (result *pkgv1.ConfigurationRevision, err error) {
+func (c *FakeConfigurationRevisions) Create(ctx context.Context, configurationRevision *v1.ConfigurationRevision, opts metav1.CreateOptions) (result *v1.ConfigurationRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(configurationrevisionsResource, configurationRevision), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootCreateAction(configurationrevisionsResource, configurationRevision), &v1.ConfigurationRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ConfigurationRevision), err
+	return obj.(*v1.ConfigurationRevision), err
 }
 
 // Update takes the representation of a configurationRevision and updates it. Returns the server's representation of the configurationRevision, and an error, if there is any.
-func (c *FakeConfigurationRevisions) Update(ctx context.Context, configurationRevision *pkgv1.ConfigurationRevision, opts v1.UpdateOptions) (result *pkgv1.ConfigurationRevision, err error) {
+func (c *FakeConfigurationRevisions) Update(ctx context.Context, configurationRevision *v1.ConfigurationRevision, opts metav1.UpdateOptions) (result *v1.ConfigurationRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(configurationrevisionsResource, configurationRevision), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootUpdateAction(configurationrevisionsResource, configurationRevision), &v1.ConfigurationRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ConfigurationRevision), err
+	return obj.(*v1.ConfigurationRevision), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeConfigurationRevisions) UpdateStatus(ctx context.Context, configurationRevision *pkgv1.ConfigurationRevision, opts v1.UpdateOptions) (*pkgv1.ConfigurationRevision, error) {
+func (c *FakeConfigurationRevisions) UpdateStatus(ctx context.Context, configurationRevision *v1.ConfigurationRevision, opts metav1.UpdateOptions) (*v1.ConfigurationRevision, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(configurationrevisionsResource, "status", configurationRevision), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootUpdateSubresourceAction(configurationrevisionsResource, "status", configurationRevision), &v1.ConfigurationRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ConfigurationRevision), err
+	return obj.(*v1.ConfigurationRevision), err
 }
 
 // Delete takes name of the configurationRevision and deletes it. Returns an error if one occurs.
-func (c *FakeConfigurationRevisions) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeConfigurationRevisions) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(configurationrevisionsResource, name, opts), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootDeleteActionWithOptions(configurationrevisionsResource, name, opts), &v1.ConfigurationRevision{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeConfigurationRevisions) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (c *FakeConfigurationRevisions) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(configurationrevisionsResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &pkgv1.ConfigurationRevisionList{})
+	_, err := c.Fake.Invokes(action, &v1.ConfigurationRevisionList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched configurationRevision.
-func (c *FakeConfigurationRevisions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *pkgv1.ConfigurationRevision, err error) {
+func (c *FakeConfigurationRevisions) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.ConfigurationRevision, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(configurationrevisionsResource, name, pt, data, subresources...), &pkgv1.ConfigurationRevision{})
+		Invokes(testing.NewRootPatchSubresourceAction(configurationrevisionsResource, name, pt, data, subresources...), &v1.ConfigurationRevision{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.ConfigurationRevision), err
+	return obj.(*v1.ConfigurationRevision), err
 }

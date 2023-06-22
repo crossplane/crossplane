@@ -31,6 +31,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
@@ -143,9 +144,15 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Deduplicate: true,
 	})
 
+	var ws webhook.Server
+	if c.WebhookTLSCertDir != "" {
+		ws = webhook.NewServer(webhook.Options{CertDir: c.WebhookTLSCertDir, TLSMinVersion: "1.3"})
+	}
+
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
-		Scheme:     s,
-		SyncPeriod: &c.SyncInterval,
+		Scheme:        s,
+		SyncPeriod:    &c.SyncInterval,
+		WebhookServer: ws,
 
 		// controller-runtime uses both ConfigMaps and Leases for leader
 		// election by default. Leases expire after 15 seconds, with a
@@ -238,20 +245,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "Cannot add packages controllers to manager")
 	}
 
-	if c.WebhookTLSCertDir != "" {
-		ws := mgr.GetWebhookServer()
-		ws.Port = 9443
-		ws.CertDir = c.WebhookTLSCertDir
-		ws.TLSMinVersion = "1.3"
-		// TODO(muvaf): Once the implementation of other webhook handlers are
-		// fleshed out, implement a registration pattern similar to scheme
-		// registrations.
-		if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
-		}
-		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for compositions")
-		}
+	// TODO(muvaf): Once the implementation of other webhook handlers are
+	// fleshed out, implement a registration pattern similar to scheme
+	// registrations.
+	if err := (&apiextensionsv1.CompositeResourceDefinition{}).SetupWebhookWithManager(mgr); err != nil {
+		return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
+	}
+	if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
+		return errors.Wrap(err, "cannot setup webhook for compositions")
 	}
 
 	return errors.Wrap(mgr.Start(ctrl.SetupSignalHandler()), "Cannot start controller manager")

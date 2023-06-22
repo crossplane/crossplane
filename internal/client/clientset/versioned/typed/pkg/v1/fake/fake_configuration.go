@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,24 +34,24 @@ type FakeConfigurations struct {
 	Fake *FakePkgV1
 }
 
-var configurationsResource = schema.GroupVersionResource{Group: "pkg.crossplane.io", Version: "v1", Resource: "configurations"}
+var configurationsResource = v1.SchemeGroupVersion.WithResource("configurations")
 
-var configurationsKind = schema.GroupVersionKind{Group: "pkg.crossplane.io", Version: "v1", Kind: "Configuration"}
+var configurationsKind = v1.SchemeGroupVersion.WithKind("Configuration")
 
 // Get takes name of the configuration, and returns the corresponding configuration object, and an error if there is any.
-func (c *FakeConfigurations) Get(ctx context.Context, name string, options v1.GetOptions) (result *pkgv1.Configuration, err error) {
+func (c *FakeConfigurations) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.Configuration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootGetAction(configurationsResource, name), &pkgv1.Configuration{})
+		Invokes(testing.NewRootGetAction(configurationsResource, name), &v1.Configuration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.Configuration), err
+	return obj.(*v1.Configuration), err
 }
 
 // List takes label and field selectors, and returns the list of Configurations that match those selectors.
-func (c *FakeConfigurations) List(ctx context.Context, opts v1.ListOptions) (result *pkgv1.ConfigurationList, err error) {
+func (c *FakeConfigurations) List(ctx context.Context, opts metav1.ListOptions) (result *v1.ConfigurationList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootListAction(configurationsResource, configurationsKind, opts), &pkgv1.ConfigurationList{})
+		Invokes(testing.NewRootListAction(configurationsResource, configurationsKind, opts), &v1.ConfigurationList{})
 	if obj == nil {
 		return nil, err
 	}
@@ -61,8 +60,8 @@ func (c *FakeConfigurations) List(ctx context.Context, opts v1.ListOptions) (res
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &pkgv1.ConfigurationList{ListMeta: obj.(*pkgv1.ConfigurationList).ListMeta}
-	for _, item := range obj.(*pkgv1.ConfigurationList).Items {
+	list := &v1.ConfigurationList{ListMeta: obj.(*v1.ConfigurationList).ListMeta}
+	for _, item := range obj.(*v1.ConfigurationList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -71,63 +70,63 @@ func (c *FakeConfigurations) List(ctx context.Context, opts v1.ListOptions) (res
 }
 
 // Watch returns a watch.Interface that watches the requested configurations.
-func (c *FakeConfigurations) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeConfigurations) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewRootWatchAction(configurationsResource, opts))
 }
 
 // Create takes the representation of a configuration and creates it.  Returns the server's representation of the configuration, and an error, if there is any.
-func (c *FakeConfigurations) Create(ctx context.Context, configuration *pkgv1.Configuration, opts v1.CreateOptions) (result *pkgv1.Configuration, err error) {
+func (c *FakeConfigurations) Create(ctx context.Context, configuration *v1.Configuration, opts metav1.CreateOptions) (result *v1.Configuration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootCreateAction(configurationsResource, configuration), &pkgv1.Configuration{})
+		Invokes(testing.NewRootCreateAction(configurationsResource, configuration), &v1.Configuration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.Configuration), err
+	return obj.(*v1.Configuration), err
 }
 
 // Update takes the representation of a configuration and updates it. Returns the server's representation of the configuration, and an error, if there is any.
-func (c *FakeConfigurations) Update(ctx context.Context, configuration *pkgv1.Configuration, opts v1.UpdateOptions) (result *pkgv1.Configuration, err error) {
+func (c *FakeConfigurations) Update(ctx context.Context, configuration *v1.Configuration, opts metav1.UpdateOptions) (result *v1.Configuration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateAction(configurationsResource, configuration), &pkgv1.Configuration{})
+		Invokes(testing.NewRootUpdateAction(configurationsResource, configuration), &v1.Configuration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.Configuration), err
+	return obj.(*v1.Configuration), err
 }
 
 // UpdateStatus was generated because the type contains a Status member.
 // Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *FakeConfigurations) UpdateStatus(ctx context.Context, configuration *pkgv1.Configuration, opts v1.UpdateOptions) (*pkgv1.Configuration, error) {
+func (c *FakeConfigurations) UpdateStatus(ctx context.Context, configuration *v1.Configuration, opts metav1.UpdateOptions) (*v1.Configuration, error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootUpdateSubresourceAction(configurationsResource, "status", configuration), &pkgv1.Configuration{})
+		Invokes(testing.NewRootUpdateSubresourceAction(configurationsResource, "status", configuration), &v1.Configuration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.Configuration), err
+	return obj.(*v1.Configuration), err
 }
 
 // Delete takes name of the configuration and deletes it. Returns an error if one occurs.
-func (c *FakeConfigurations) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeConfigurations) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewRootDeleteActionWithOptions(configurationsResource, name, opts), &pkgv1.Configuration{})
+		Invokes(testing.NewRootDeleteActionWithOptions(configurationsResource, name, opts), &v1.Configuration{})
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeConfigurations) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+func (c *FakeConfigurations) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewRootDeleteCollectionAction(configurationsResource, listOpts)
 
-	_, err := c.Fake.Invokes(action, &pkgv1.ConfigurationList{})
+	_, err := c.Fake.Invokes(action, &v1.ConfigurationList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched configuration.
-func (c *FakeConfigurations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *pkgv1.Configuration, err error) {
+func (c *FakeConfigurations) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.Configuration, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewRootPatchSubresourceAction(configurationsResource, name, pt, data, subresources...), &pkgv1.Configuration{})
+		Invokes(testing.NewRootPatchSubresourceAction(configurationsResource, name, pt, data, subresources...), &v1.Configuration{})
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*pkgv1.Configuration), err
+	return obj.(*v1.Configuration), err
 }

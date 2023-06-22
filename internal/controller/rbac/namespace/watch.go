@@ -47,30 +47,30 @@ type EnqueueRequestForNamespaces struct {
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is an
 // aggregated ClusterRole.
-func (e *EnqueueRequestForNamespaces) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForNamespaces) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Object is an
 // aggregated ClusterRole.
-func (e *EnqueueRequestForNamespaces) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.ObjectOld, q)
-	e.add(evt.ObjectNew, q)
+func (e *EnqueueRequestForNamespaces) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.ObjectOld, q)
+	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is an
 // aggregated ClusterRole.
-func (e *EnqueueRequestForNamespaces) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForNamespaces) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // an aggregated ClusterRole.
-func (e *EnqueueRequestForNamespaces) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForNamespaces) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
-func (e *EnqueueRequestForNamespaces) add(obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForNamespaces) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cr, ok := obj.(*rbacv1.ClusterRole)
 	if !ok {
 		return
@@ -81,7 +81,7 @@ func (e *EnqueueRequestForNamespaces) add(obj runtime.Object, queue adder) {
 	}
 
 	l := &corev1.NamespaceList{}
-	if err := e.client.List(context.Background(), l); err != nil {
+	if err := e.client.List(ctx, l); err != nil {
 		return
 	}
 

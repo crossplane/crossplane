@@ -44,30 +44,30 @@ type EnqueueRequestForAllRevisionsWithRequests struct {
 
 // Create enqueues a request for all provider revisions with permission requests
 // if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForAllRevisionsWithRequests) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions with permission requests
 // if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.ObjectOld, q)
-	e.add(evt.ObjectNew, q)
+func (e *EnqueueRequestForAllRevisionsWithRequests) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.ObjectOld, q)
+	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions with permission requests
 // if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForAllRevisionsWithRequests) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions with permission
 // requests if the event pertains to the ClusterRole.
-func (e *EnqueueRequestForAllRevisionsWithRequests) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForAllRevisionsWithRequests) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
-func (e *EnqueueRequestForAllRevisionsWithRequests) add(obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForAllRevisionsWithRequests) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cr, ok := obj.(*rbacv1.ClusterRole)
 	if !ok {
 		return
@@ -78,7 +78,7 @@ func (e *EnqueueRequestForAllRevisionsWithRequests) add(obj runtime.Object, queu
 	}
 
 	l := &v1.ProviderRevisionList{}
-	if err := e.client.List(context.TODO(), l); err != nil {
+	if err := e.client.List(ctx, l); err != nil {
 		// TODO(negz): Handle this error?
 		return
 	}
@@ -100,27 +100,27 @@ type EnqueueRequestForAllRevisionsInFamily struct {
 }
 
 // Create enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForAllRevisionsInFamily) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.ObjectOld, q)
-	e.add(evt.ObjectNew, q)
+func (e *EnqueueRequestForAllRevisionsInFamily) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.ObjectOld, q)
+	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForAllRevisionsInFamily) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions within the same family.
-func (e *EnqueueRequestForAllRevisionsInFamily) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForAllRevisionsInFamily) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
-func (e *EnqueueRequestForAllRevisionsInFamily) add(obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForAllRevisionsInFamily) add(ctx context.Context, obj runtime.Object, queue adder) {
 	pr, ok := obj.(*v1.ProviderRevision)
 	if !ok {
 		return
@@ -132,7 +132,7 @@ func (e *EnqueueRequestForAllRevisionsInFamily) add(obj runtime.Object, queue ad
 	}
 
 	l := &v1.ProviderRevisionList{}
-	if err := e.client.List(context.TODO(), l, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
+	if err := e.client.List(ctx, l, client.MatchingLabels{v1.LabelProviderFamily: family}); err != nil {
 		// TODO(negz): Handle this error?
 		return
 	}
