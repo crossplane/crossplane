@@ -16,25 +16,29 @@ type GeneratedRevisionSpecConverter struct{}
 func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevisionSpec) CompositionSpec {
 	var v1CompositionSpec CompositionSpec
 	v1CompositionSpec.CompositeTypeRef = c.v1TypeReferenceToV1TypeReference(source.CompositeTypeRef)
-	v1PatchSetList := make([]PatchSet, len(source.PatchSets))
-	for i := 0; i < len(source.PatchSets); i++ {
-		v1PatchSetList[i] = c.v1PatchSetToV1PatchSet(source.PatchSets[i])
+	var v1PatchSetList []PatchSet
+	if source.PatchSets != nil {
+		v1PatchSetList = make([]PatchSet, len(source.PatchSets))
+		for i := 0; i < len(source.PatchSets); i++ {
+			v1PatchSetList[i] = c.v1PatchSetToV1PatchSet(source.PatchSets[i])
+		}
 	}
 	v1CompositionSpec.PatchSets = v1PatchSetList
-	var pV1EnvironmentConfiguration *EnvironmentConfiguration
-	if source.Environment != nil {
-		v1EnvironmentConfiguration := c.v1EnvironmentConfigurationToV1EnvironmentConfiguration(*source.Environment)
-		pV1EnvironmentConfiguration = &v1EnvironmentConfiguration
-	}
-	v1CompositionSpec.Environment = pV1EnvironmentConfiguration
-	v1ComposedTemplateList := make([]ComposedTemplate, len(source.Resources))
-	for j := 0; j < len(source.Resources); j++ {
-		v1ComposedTemplateList[j] = c.v1ComposedTemplateToV1ComposedTemplate(source.Resources[j])
+	v1CompositionSpec.Environment = c.pV1EnvironmentConfigurationToPV1EnvironmentConfiguration(source.Environment)
+	var v1ComposedTemplateList []ComposedTemplate
+	if source.Resources != nil {
+		v1ComposedTemplateList = make([]ComposedTemplate, len(source.Resources))
+		for j := 0; j < len(source.Resources); j++ {
+			v1ComposedTemplateList[j] = c.v1ComposedTemplateToV1ComposedTemplate(source.Resources[j])
+		}
 	}
 	v1CompositionSpec.Resources = v1ComposedTemplateList
-	v1FunctionList := make([]Function, len(source.Functions))
-	for k := 0; k < len(source.Functions); k++ {
-		v1FunctionList[k] = c.v1FunctionToV1Function(source.Functions[k])
+	var v1FunctionList []Function
+	if source.Functions != nil {
+		v1FunctionList = make([]Function, len(source.Functions))
+		for k := 0; k < len(source.Functions); k++ {
+			v1FunctionList[k] = c.v1FunctionToV1Function(source.Functions[k])
+		}
 	}
 	v1CompositionSpec.Functions = v1FunctionList
 	var pString *string
@@ -43,36 +47,35 @@ func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevi
 		pString = &xstring
 	}
 	v1CompositionSpec.WriteConnectionSecretsToNamespace = pString
-	var pV1StoreConfigReference *StoreConfigReference
-	if source.PublishConnectionDetailsWithStoreConfigRef != nil {
-		v1StoreConfigReference := c.v1StoreConfigReferenceToV1StoreConfigReference(*source.PublishConnectionDetailsWithStoreConfigRef)
-		pV1StoreConfigReference = &v1StoreConfigReference
-	}
-	v1CompositionSpec.PublishConnectionDetailsWithStoreConfigRef = pV1StoreConfigReference
+	v1CompositionSpec.PublishConnectionDetailsWithStoreConfigRef = c.pV1StoreConfigReferenceToPV1StoreConfigReference(source.PublishConnectionDetailsWithStoreConfigRef)
 	return v1CompositionSpec
 }
 func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) CompositionRevisionSpec {
 	var v1CompositionRevisionSpec CompositionRevisionSpec
 	v1CompositionRevisionSpec.CompositeTypeRef = c.v1TypeReferenceToV1TypeReference(source.CompositeTypeRef)
-	v1PatchSetList := make([]PatchSet, len(source.PatchSets))
-	for i := 0; i < len(source.PatchSets); i++ {
-		v1PatchSetList[i] = c.v1PatchSetToV1PatchSet(source.PatchSets[i])
+	var v1PatchSetList []PatchSet
+	if source.PatchSets != nil {
+		v1PatchSetList = make([]PatchSet, len(source.PatchSets))
+		for i := 0; i < len(source.PatchSets); i++ {
+			v1PatchSetList[i] = c.v1PatchSetToV1PatchSet(source.PatchSets[i])
+		}
 	}
 	v1CompositionRevisionSpec.PatchSets = v1PatchSetList
-	var pV1EnvironmentConfiguration *EnvironmentConfiguration
-	if source.Environment != nil {
-		v1EnvironmentConfiguration := c.v1EnvironmentConfigurationToV1EnvironmentConfiguration(*source.Environment)
-		pV1EnvironmentConfiguration = &v1EnvironmentConfiguration
-	}
-	v1CompositionRevisionSpec.Environment = pV1EnvironmentConfiguration
-	v1ComposedTemplateList := make([]ComposedTemplate, len(source.Resources))
-	for j := 0; j < len(source.Resources); j++ {
-		v1ComposedTemplateList[j] = c.v1ComposedTemplateToV1ComposedTemplate(source.Resources[j])
+	v1CompositionRevisionSpec.Environment = c.pV1EnvironmentConfigurationToPV1EnvironmentConfiguration(source.Environment)
+	var v1ComposedTemplateList []ComposedTemplate
+	if source.Resources != nil {
+		v1ComposedTemplateList = make([]ComposedTemplate, len(source.Resources))
+		for j := 0; j < len(source.Resources); j++ {
+			v1ComposedTemplateList[j] = c.v1ComposedTemplateToV1ComposedTemplate(source.Resources[j])
+		}
 	}
 	v1CompositionRevisionSpec.Resources = v1ComposedTemplateList
-	v1FunctionList := make([]Function, len(source.Functions))
-	for k := 0; k < len(source.Functions); k++ {
-		v1FunctionList[k] = c.v1FunctionToV1Function(source.Functions[k])
+	var v1FunctionList []Function
+	if source.Functions != nil {
+		v1FunctionList = make([]Function, len(source.Functions))
+		for k := 0; k < len(source.Functions); k++ {
+			v1FunctionList[k] = c.v1FunctionToV1Function(source.Functions[k])
+		}
 	}
 	v1CompositionRevisionSpec.Functions = v1FunctionList
 	var pString *string
@@ -81,29 +84,345 @@ func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) 
 		pString = &xstring
 	}
 	v1CompositionRevisionSpec.WriteConnectionSecretsToNamespace = pString
-	var pV1StoreConfigReference *StoreConfigReference
-	if source.PublishConnectionDetailsWithStoreConfigRef != nil {
-		v1StoreConfigReference := c.v1StoreConfigReferenceToV1StoreConfigReference(*source.PublishConnectionDetailsWithStoreConfigRef)
-		pV1StoreConfigReference = &v1StoreConfigReference
-	}
-	v1CompositionRevisionSpec.PublishConnectionDetailsWithStoreConfigRef = pV1StoreConfigReference
+	v1CompositionRevisionSpec.PublishConnectionDetailsWithStoreConfigRef = c.pV1StoreConfigReferenceToPV1StoreConfigReference(source.PublishConnectionDetailsWithStoreConfigRef)
 	return v1CompositionRevisionSpec
 }
-func (c *GeneratedRevisionSpecConverter) v1CombineToV1Combine(source Combine) Combine {
-	var v1Combine Combine
-	v1CombineVariableList := make([]CombineVariable, len(source.Variables))
-	for i := 0; i < len(source.Variables); i++ {
-		v1CombineVariableList[i] = c.v1CombineVariableToV1CombineVariable(source.Variables[i])
+func (c *GeneratedRevisionSpecConverter) pRuntimeRawExtensionToPRuntimeRawExtension(source *runtime.RawExtension) *runtime.RawExtension {
+	var pRuntimeRawExtension *runtime.RawExtension
+	if source != nil {
+		runtimeRawExtension := ConvertRawExtension((*source))
+		pRuntimeRawExtension = &runtimeRawExtension
 	}
-	v1Combine.Variables = v1CombineVariableList
-	v1Combine.Strategy = CombineStrategy(source.Strategy)
+	return pRuntimeRawExtension
+}
+func (c *GeneratedRevisionSpecConverter) pV1CombineToPV1Combine(source *Combine) *Combine {
+	var pV1Combine *Combine
+	if source != nil {
+		var v1Combine Combine
+		var v1CombineVariableList []CombineVariable
+		if (*source).Variables != nil {
+			v1CombineVariableList = make([]CombineVariable, len((*source).Variables))
+			for i := 0; i < len((*source).Variables); i++ {
+				v1CombineVariableList[i] = c.v1CombineVariableToV1CombineVariable((*source).Variables[i])
+			}
+		}
+		v1Combine.Variables = v1CombineVariableList
+		v1Combine.Strategy = CombineStrategy((*source).Strategy)
+		v1Combine.String = c.pV1StringCombineToPV1StringCombine((*source).String)
+		pV1Combine = &v1Combine
+	}
+	return pV1Combine
+}
+func (c *GeneratedRevisionSpecConverter) pV1ContainerFunctionNetworkToPV1ContainerFunctionNetwork(source *ContainerFunctionNetwork) *ContainerFunctionNetwork {
+	var pV1ContainerFunctionNetwork *ContainerFunctionNetwork
+	if source != nil {
+		var v1ContainerFunctionNetwork ContainerFunctionNetwork
+		var pV1ContainerFunctionNetworkPolicy *ContainerFunctionNetworkPolicy
+		if (*source).Policy != nil {
+			v1ContainerFunctionNetworkPolicy := ContainerFunctionNetworkPolicy(*(*source).Policy)
+			pV1ContainerFunctionNetworkPolicy = &v1ContainerFunctionNetworkPolicy
+		}
+		v1ContainerFunctionNetwork.Policy = pV1ContainerFunctionNetworkPolicy
+		pV1ContainerFunctionNetwork = &v1ContainerFunctionNetwork
+	}
+	return pV1ContainerFunctionNetwork
+}
+func (c *GeneratedRevisionSpecConverter) pV1ContainerFunctionResourceLimitsToPV1ContainerFunctionResourceLimits(source *ContainerFunctionResourceLimits) *ContainerFunctionResourceLimits {
+	var pV1ContainerFunctionResourceLimits *ContainerFunctionResourceLimits
+	if source != nil {
+		var v1ContainerFunctionResourceLimits ContainerFunctionResourceLimits
+		v1ContainerFunctionResourceLimits.CPU = ConvertResourceQuantity((*source).CPU)
+		v1ContainerFunctionResourceLimits.Memory = ConvertResourceQuantity((*source).Memory)
+		pV1ContainerFunctionResourceLimits = &v1ContainerFunctionResourceLimits
+	}
+	return pV1ContainerFunctionResourceLimits
+}
+func (c *GeneratedRevisionSpecConverter) pV1ContainerFunctionResourcesToPV1ContainerFunctionResources(source *ContainerFunctionResources) *ContainerFunctionResources {
+	var pV1ContainerFunctionResources *ContainerFunctionResources
+	if source != nil {
+		var v1ContainerFunctionResources ContainerFunctionResources
+		v1ContainerFunctionResources.Limits = c.pV1ContainerFunctionResourceLimitsToPV1ContainerFunctionResourceLimits((*source).Limits)
+		pV1ContainerFunctionResources = &v1ContainerFunctionResources
+	}
+	return pV1ContainerFunctionResources
+}
+func (c *GeneratedRevisionSpecConverter) pV1ContainerFunctionRunnerToPV1ContainerFunctionRunner(source *ContainerFunctionRunner) *ContainerFunctionRunner {
+	var pV1ContainerFunctionRunner *ContainerFunctionRunner
+	if source != nil {
+		var v1ContainerFunctionRunner ContainerFunctionRunner
+		var pString *string
+		if (*source).Endpoint != nil {
+			xstring := *(*source).Endpoint
+			pString = &xstring
+		}
+		v1ContainerFunctionRunner.Endpoint = pString
+		pV1ContainerFunctionRunner = &v1ContainerFunctionRunner
+	}
+	return pV1ContainerFunctionRunner
+}
+func (c *GeneratedRevisionSpecConverter) pV1ContainerFunctionToPV1ContainerFunction(source *ContainerFunction) *ContainerFunction {
+	var pV1ContainerFunction *ContainerFunction
+	if source != nil {
+		var v1ContainerFunction ContainerFunction
+		v1ContainerFunction.Image = (*source).Image
+		var pV1PullPolicy *v1.PullPolicy
+		if (*source).ImagePullPolicy != nil {
+			v1PullPolicy := v1.PullPolicy(*(*source).ImagePullPolicy)
+			pV1PullPolicy = &v1PullPolicy
+		}
+		v1ContainerFunction.ImagePullPolicy = pV1PullPolicy
+		var v1LocalObjectReferenceList []v1.LocalObjectReference
+		if (*source).ImagePullSecrets != nil {
+			v1LocalObjectReferenceList = make([]v1.LocalObjectReference, len((*source).ImagePullSecrets))
+			for i := 0; i < len((*source).ImagePullSecrets); i++ {
+				v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference((*source).ImagePullSecrets[i])
+			}
+		}
+		v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
+		v1ContainerFunction.Timeout = c.pV1DurationToPV1Duration((*source).Timeout)
+		v1ContainerFunction.Network = c.pV1ContainerFunctionNetworkToPV1ContainerFunctionNetwork((*source).Network)
+		v1ContainerFunction.Resources = c.pV1ContainerFunctionResourcesToPV1ContainerFunctionResources((*source).Resources)
+		v1ContainerFunction.Runner = c.pV1ContainerFunctionRunnerToPV1ContainerFunctionRunner((*source).Runner)
+		pV1ContainerFunction = &v1ContainerFunction
+	}
+	return pV1ContainerFunction
+}
+func (c *GeneratedRevisionSpecConverter) pV1ConvertTransformToPV1ConvertTransform(source *ConvertTransform) *ConvertTransform {
+	var pV1ConvertTransform *ConvertTransform
+	if source != nil {
+		var v1ConvertTransform ConvertTransform
+		v1ConvertTransform.ToType = TransformIOType((*source).ToType)
+		var pV1ConvertTransformFormat *ConvertTransformFormat
+		if (*source).Format != nil {
+			v1ConvertTransformFormat := ConvertTransformFormat(*(*source).Format)
+			pV1ConvertTransformFormat = &v1ConvertTransformFormat
+		}
+		v1ConvertTransform.Format = pV1ConvertTransformFormat
+		pV1ConvertTransform = &v1ConvertTransform
+	}
+	return pV1ConvertTransform
+}
+func (c *GeneratedRevisionSpecConverter) pV1DurationToPV1Duration(source *v11.Duration) *v11.Duration {
+	var pV1Duration *v11.Duration
+	if source != nil {
+		var v1Duration v11.Duration
+		v1Duration.Duration = time.Duration((*source).Duration)
+		pV1Duration = &v1Duration
+	}
+	return pV1Duration
+}
+func (c *GeneratedRevisionSpecConverter) pV1EnvironmentConfigurationToPV1EnvironmentConfiguration(source *EnvironmentConfiguration) *EnvironmentConfiguration {
+	var pV1EnvironmentConfiguration *EnvironmentConfiguration
+	if source != nil {
+		var v1EnvironmentConfiguration EnvironmentConfiguration
+		var v1EnvironmentSourceList []EnvironmentSource
+		if (*source).EnvironmentConfigs != nil {
+			v1EnvironmentSourceList = make([]EnvironmentSource, len((*source).EnvironmentConfigs))
+			for i := 0; i < len((*source).EnvironmentConfigs); i++ {
+				v1EnvironmentSourceList[i] = c.v1EnvironmentSourceToV1EnvironmentSource((*source).EnvironmentConfigs[i])
+			}
+		}
+		v1EnvironmentConfiguration.EnvironmentConfigs = v1EnvironmentSourceList
+		var v1EnvironmentPatchList []EnvironmentPatch
+		if (*source).Patches != nil {
+			v1EnvironmentPatchList = make([]EnvironmentPatch, len((*source).Patches))
+			for j := 0; j < len((*source).Patches); j++ {
+				v1EnvironmentPatchList[j] = c.v1EnvironmentPatchToV1EnvironmentPatch((*source).Patches[j])
+			}
+		}
+		v1EnvironmentConfiguration.Patches = v1EnvironmentPatchList
+		pV1EnvironmentConfiguration = &v1EnvironmentConfiguration
+	}
+	return pV1EnvironmentConfiguration
+}
+func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceReferenceToPV1EnvironmentSourceReference(source *EnvironmentSourceReference) *EnvironmentSourceReference {
+	var pV1EnvironmentSourceReference *EnvironmentSourceReference
+	if source != nil {
+		var v1EnvironmentSourceReference EnvironmentSourceReference
+		v1EnvironmentSourceReference.Name = (*source).Name
+		pV1EnvironmentSourceReference = &v1EnvironmentSourceReference
+	}
+	return pV1EnvironmentSourceReference
+}
+func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceSelectorToPV1EnvironmentSourceSelector(source *EnvironmentSourceSelector) *EnvironmentSourceSelector {
+	var pV1EnvironmentSourceSelector *EnvironmentSourceSelector
+	if source != nil {
+		var v1EnvironmentSourceSelector EnvironmentSourceSelector
+		var v1EnvironmentSourceSelectorLabelMatcherList []EnvironmentSourceSelectorLabelMatcher
+		if (*source).MatchLabels != nil {
+			v1EnvironmentSourceSelectorLabelMatcherList = make([]EnvironmentSourceSelectorLabelMatcher, len((*source).MatchLabels))
+			for i := 0; i < len((*source).MatchLabels); i++ {
+				v1EnvironmentSourceSelectorLabelMatcherList[i] = c.v1EnvironmentSourceSelectorLabelMatcherToV1EnvironmentSourceSelectorLabelMatcher((*source).MatchLabels[i])
+			}
+		}
+		v1EnvironmentSourceSelector.MatchLabels = v1EnvironmentSourceSelectorLabelMatcherList
+		pV1EnvironmentSourceSelector = &v1EnvironmentSourceSelector
+	}
+	return pV1EnvironmentSourceSelector
+}
+func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source *MapTransform) *MapTransform {
+	var pV1MapTransform *MapTransform
+	if source != nil {
+		var v1MapTransform MapTransform
+		mapStringV1JSON := make(map[string]v12.JSON, len((*source).Pairs))
+		for key, value := range (*source).Pairs {
+			mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
+		}
+		v1MapTransform.Pairs = mapStringV1JSON
+		pV1MapTransform = &v1MapTransform
+	}
+	return pV1MapTransform
+}
+func (c *GeneratedRevisionSpecConverter) pV1MatchConditionReadinessCheckToPV1MatchConditionReadinessCheck(source *MatchConditionReadinessCheck) *MatchConditionReadinessCheck {
+	var pV1MatchConditionReadinessCheck *MatchConditionReadinessCheck
+	if source != nil {
+		var v1MatchConditionReadinessCheck MatchConditionReadinessCheck
+		v1MatchConditionReadinessCheck.Type = v13.ConditionType((*source).Type)
+		v1MatchConditionReadinessCheck.Status = v1.ConditionStatus((*source).Status)
+		pV1MatchConditionReadinessCheck = &v1MatchConditionReadinessCheck
+	}
+	return pV1MatchConditionReadinessCheck
+}
+func (c *GeneratedRevisionSpecConverter) pV1MatchTransformToPV1MatchTransform(source *MatchTransform) *MatchTransform {
+	var pV1MatchTransform *MatchTransform
+	if source != nil {
+		var v1MatchTransform MatchTransform
+		var v1MatchTransformPatternList []MatchTransformPattern
+		if (*source).Patterns != nil {
+			v1MatchTransformPatternList = make([]MatchTransformPattern, len((*source).Patterns))
+			for i := 0; i < len((*source).Patterns); i++ {
+				v1MatchTransformPatternList[i] = c.v1MatchTransformPatternToV1MatchTransformPattern((*source).Patterns[i])
+			}
+		}
+		v1MatchTransform.Patterns = v1MatchTransformPatternList
+		v1MatchTransform.FallbackValue = c.v1JSONToV1JSON((*source).FallbackValue)
+		v1MatchTransform.FallbackTo = MatchFallbackTo((*source).FallbackTo)
+		pV1MatchTransform = &v1MatchTransform
+	}
+	return pV1MatchTransform
+}
+func (c *GeneratedRevisionSpecConverter) pV1MathTransformToPV1MathTransform(source *MathTransform) *MathTransform {
+	var pV1MathTransform *MathTransform
+	if source != nil {
+		var v1MathTransform MathTransform
+		v1MathTransform.Type = MathTransformType((*source).Type)
+		var pInt64 *int64
+		if (*source).Multiply != nil {
+			xint64 := *(*source).Multiply
+			pInt64 = &xint64
+		}
+		v1MathTransform.Multiply = pInt64
+		var pInt642 *int64
+		if (*source).ClampMin != nil {
+			xint642 := *(*source).ClampMin
+			pInt642 = &xint642
+		}
+		v1MathTransform.ClampMin = pInt642
+		var pInt643 *int64
+		if (*source).ClampMax != nil {
+			xint643 := *(*source).ClampMax
+			pInt643 = &xint643
+		}
+		v1MathTransform.ClampMax = pInt643
+		pV1MathTransform = &v1MathTransform
+	}
+	return pV1MathTransform
+}
+func (c *GeneratedRevisionSpecConverter) pV1MergeOptionsToPV1MergeOptions(source *v13.MergeOptions) *v13.MergeOptions {
+	var pV1MergeOptions *v13.MergeOptions
+	if source != nil {
+		var v1MergeOptions v13.MergeOptions
+		var pBool *bool
+		if (*source).KeepMapValues != nil {
+			xbool := *(*source).KeepMapValues
+			pBool = &xbool
+		}
+		v1MergeOptions.KeepMapValues = pBool
+		var pBool2 *bool
+		if (*source).AppendSlice != nil {
+			xbool2 := *(*source).AppendSlice
+			pBool2 = &xbool2
+		}
+		v1MergeOptions.AppendSlice = pBool2
+		pV1MergeOptions = &v1MergeOptions
+	}
+	return pV1MergeOptions
+}
+func (c *GeneratedRevisionSpecConverter) pV1PatchPolicyToPV1PatchPolicy(source *PatchPolicy) *PatchPolicy {
+	var pV1PatchPolicy *PatchPolicy
+	if source != nil {
+		var v1PatchPolicy PatchPolicy
+		var pV1FromFieldPathPolicy *FromFieldPathPolicy
+		if (*source).FromFieldPath != nil {
+			v1FromFieldPathPolicy := FromFieldPathPolicy(*(*source).FromFieldPath)
+			pV1FromFieldPathPolicy = &v1FromFieldPathPolicy
+		}
+		v1PatchPolicy.FromFieldPath = pV1FromFieldPathPolicy
+		v1PatchPolicy.MergeOptions = c.pV1MergeOptionsToPV1MergeOptions((*source).MergeOptions)
+		pV1PatchPolicy = &v1PatchPolicy
+	}
+	return pV1PatchPolicy
+}
+func (c *GeneratedRevisionSpecConverter) pV1StoreConfigReferenceToPV1StoreConfigReference(source *StoreConfigReference) *StoreConfigReference {
+	var pV1StoreConfigReference *StoreConfigReference
+	if source != nil {
+		var v1StoreConfigReference StoreConfigReference
+		v1StoreConfigReference.Name = (*source).Name
+		pV1StoreConfigReference = &v1StoreConfigReference
+	}
+	return pV1StoreConfigReference
+}
+func (c *GeneratedRevisionSpecConverter) pV1StringCombineToPV1StringCombine(source *StringCombine) *StringCombine {
 	var pV1StringCombine *StringCombine
-	if source.String != nil {
-		v1StringCombine := c.v1StringCombineToV1StringCombine(*source.String)
+	if source != nil {
+		var v1StringCombine StringCombine
+		v1StringCombine.Format = (*source).Format
 		pV1StringCombine = &v1StringCombine
 	}
-	v1Combine.String = pV1StringCombine
-	return v1Combine
+	return pV1StringCombine
+}
+func (c *GeneratedRevisionSpecConverter) pV1StringTransformRegexpToPV1StringTransformRegexp(source *StringTransformRegexp) *StringTransformRegexp {
+	var pV1StringTransformRegexp *StringTransformRegexp
+	if source != nil {
+		var v1StringTransformRegexp StringTransformRegexp
+		v1StringTransformRegexp.Match = (*source).Match
+		var pInt *int
+		if (*source).Group != nil {
+			xint := *(*source).Group
+			pInt = &xint
+		}
+		v1StringTransformRegexp.Group = pInt
+		pV1StringTransformRegexp = &v1StringTransformRegexp
+	}
+	return pV1StringTransformRegexp
+}
+func (c *GeneratedRevisionSpecConverter) pV1StringTransformToPV1StringTransform(source *StringTransform) *StringTransform {
+	var pV1StringTransform *StringTransform
+	if source != nil {
+		var v1StringTransform StringTransform
+		v1StringTransform.Type = StringTransformType((*source).Type)
+		var pString *string
+		if (*source).Format != nil {
+			xstring := *(*source).Format
+			pString = &xstring
+		}
+		v1StringTransform.Format = pString
+		var pV1StringConversionType *StringConversionType
+		if (*source).Convert != nil {
+			v1StringConversionType := StringConversionType(*(*source).Convert)
+			pV1StringConversionType = &v1StringConversionType
+		}
+		v1StringTransform.Convert = pV1StringConversionType
+		var pString2 *string
+		if (*source).Trim != nil {
+			xstring2 := *(*source).Trim
+			pString2 = &xstring2
+		}
+		v1StringTransform.Trim = pString2
+		v1StringTransform.Regexp = c.pV1StringTransformRegexpToPV1StringTransformRegexp((*source).Regexp)
+		pV1StringTransform = &v1StringTransform
+	}
+	return pV1StringTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1CombineVariableToV1CombineVariable(source CombineVariable) CombineVariable {
 	var v1CombineVariable CombineVariable
@@ -119,19 +438,28 @@ func (c *GeneratedRevisionSpecConverter) v1ComposedTemplateToV1ComposedTemplate(
 	}
 	v1ComposedTemplate.Name = pString
 	v1ComposedTemplate.Base = ConvertRawExtension(source.Base)
-	v1PatchList := make([]Patch, len(source.Patches))
-	for i := 0; i < len(source.Patches); i++ {
-		v1PatchList[i] = c.v1PatchToV1Patch(source.Patches[i])
+	var v1PatchList []Patch
+	if source.Patches != nil {
+		v1PatchList = make([]Patch, len(source.Patches))
+		for i := 0; i < len(source.Patches); i++ {
+			v1PatchList[i] = c.v1PatchToV1Patch(source.Patches[i])
+		}
 	}
 	v1ComposedTemplate.Patches = v1PatchList
-	v1ConnectionDetailList := make([]ConnectionDetail, len(source.ConnectionDetails))
-	for j := 0; j < len(source.ConnectionDetails); j++ {
-		v1ConnectionDetailList[j] = c.v1ConnectionDetailToV1ConnectionDetail(source.ConnectionDetails[j])
+	var v1ConnectionDetailList []ConnectionDetail
+	if source.ConnectionDetails != nil {
+		v1ConnectionDetailList = make([]ConnectionDetail, len(source.ConnectionDetails))
+		for j := 0; j < len(source.ConnectionDetails); j++ {
+			v1ConnectionDetailList[j] = c.v1ConnectionDetailToV1ConnectionDetail(source.ConnectionDetails[j])
+		}
 	}
 	v1ComposedTemplate.ConnectionDetails = v1ConnectionDetailList
-	v1ReadinessCheckList := make([]ReadinessCheck, len(source.ReadinessChecks))
-	for k := 0; k < len(source.ReadinessChecks); k++ {
-		v1ReadinessCheckList[k] = c.v1ReadinessCheckToV1ReadinessCheck(source.ReadinessChecks[k])
+	var v1ReadinessCheckList []ReadinessCheck
+	if source.ReadinessChecks != nil {
+		v1ReadinessCheckList = make([]ReadinessCheck, len(source.ReadinessChecks))
+		for k := 0; k < len(source.ReadinessChecks); k++ {
+			v1ReadinessCheckList[k] = c.v1ReadinessCheckToV1ReadinessCheck(source.ReadinessChecks[k])
+		}
 	}
 	v1ComposedTemplate.ReadinessChecks = v1ReadinessCheckList
 	return v1ComposedTemplate
@@ -170,112 +498,6 @@ func (c *GeneratedRevisionSpecConverter) v1ConnectionDetailToV1ConnectionDetail(
 	v1ConnectionDetail.Value = pString4
 	return v1ConnectionDetail
 }
-func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionNetworkToV1ContainerFunctionNetwork(source ContainerFunctionNetwork) ContainerFunctionNetwork {
-	var v1ContainerFunctionNetwork ContainerFunctionNetwork
-	var pV1ContainerFunctionNetworkPolicy *ContainerFunctionNetworkPolicy
-	if source.Policy != nil {
-		v1ContainerFunctionNetworkPolicy := ContainerFunctionNetworkPolicy(*source.Policy)
-		pV1ContainerFunctionNetworkPolicy = &v1ContainerFunctionNetworkPolicy
-	}
-	v1ContainerFunctionNetwork.Policy = pV1ContainerFunctionNetworkPolicy
-	return v1ContainerFunctionNetwork
-}
-func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionResourceLimitsToV1ContainerFunctionResourceLimits(source ContainerFunctionResourceLimits) ContainerFunctionResourceLimits {
-	var v1ContainerFunctionResourceLimits ContainerFunctionResourceLimits
-	v1ContainerFunctionResourceLimits.CPU = ConvertResourceQuantity(source.CPU)
-	v1ContainerFunctionResourceLimits.Memory = ConvertResourceQuantity(source.Memory)
-	return v1ContainerFunctionResourceLimits
-}
-func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionResourcesToV1ContainerFunctionResources(source ContainerFunctionResources) ContainerFunctionResources {
-	var v1ContainerFunctionResources ContainerFunctionResources
-	var pV1ContainerFunctionResourceLimits *ContainerFunctionResourceLimits
-	if source.Limits != nil {
-		v1ContainerFunctionResourceLimits := c.v1ContainerFunctionResourceLimitsToV1ContainerFunctionResourceLimits(*source.Limits)
-		pV1ContainerFunctionResourceLimits = &v1ContainerFunctionResourceLimits
-	}
-	v1ContainerFunctionResources.Limits = pV1ContainerFunctionResourceLimits
-	return v1ContainerFunctionResources
-}
-func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionRunnerToV1ContainerFunctionRunner(source ContainerFunctionRunner) ContainerFunctionRunner {
-	var v1ContainerFunctionRunner ContainerFunctionRunner
-	var pString *string
-	if source.Endpoint != nil {
-		xstring := *source.Endpoint
-		pString = &xstring
-	}
-	v1ContainerFunctionRunner.Endpoint = pString
-	return v1ContainerFunctionRunner
-}
-func (c *GeneratedRevisionSpecConverter) v1ContainerFunctionToV1ContainerFunction(source ContainerFunction) ContainerFunction {
-	var v1ContainerFunction ContainerFunction
-	v1ContainerFunction.Image = source.Image
-	var pV1PullPolicy *v1.PullPolicy
-	if source.ImagePullPolicy != nil {
-		v1PullPolicy := v1.PullPolicy(*source.ImagePullPolicy)
-		pV1PullPolicy = &v1PullPolicy
-	}
-	v1ContainerFunction.ImagePullPolicy = pV1PullPolicy
-	v1LocalObjectReferenceList := make([]v1.LocalObjectReference, len(source.ImagePullSecrets))
-	for i := 0; i < len(source.ImagePullSecrets); i++ {
-		v1LocalObjectReferenceList[i] = c.v1LocalObjectReferenceToV1LocalObjectReference(source.ImagePullSecrets[i])
-	}
-	v1ContainerFunction.ImagePullSecrets = v1LocalObjectReferenceList
-	var pV1Duration *v11.Duration
-	if source.Timeout != nil {
-		v1Duration := c.v1DurationToV1Duration(*source.Timeout)
-		pV1Duration = &v1Duration
-	}
-	v1ContainerFunction.Timeout = pV1Duration
-	var pV1ContainerFunctionNetwork *ContainerFunctionNetwork
-	if source.Network != nil {
-		v1ContainerFunctionNetwork := c.v1ContainerFunctionNetworkToV1ContainerFunctionNetwork(*source.Network)
-		pV1ContainerFunctionNetwork = &v1ContainerFunctionNetwork
-	}
-	v1ContainerFunction.Network = pV1ContainerFunctionNetwork
-	var pV1ContainerFunctionResources *ContainerFunctionResources
-	if source.Resources != nil {
-		v1ContainerFunctionResources := c.v1ContainerFunctionResourcesToV1ContainerFunctionResources(*source.Resources)
-		pV1ContainerFunctionResources = &v1ContainerFunctionResources
-	}
-	v1ContainerFunction.Resources = pV1ContainerFunctionResources
-	var pV1ContainerFunctionRunner *ContainerFunctionRunner
-	if source.Runner != nil {
-		v1ContainerFunctionRunner := c.v1ContainerFunctionRunnerToV1ContainerFunctionRunner(*source.Runner)
-		pV1ContainerFunctionRunner = &v1ContainerFunctionRunner
-	}
-	v1ContainerFunction.Runner = pV1ContainerFunctionRunner
-	return v1ContainerFunction
-}
-func (c *GeneratedRevisionSpecConverter) v1ConvertTransformToV1ConvertTransform(source ConvertTransform) ConvertTransform {
-	var v1ConvertTransform ConvertTransform
-	v1ConvertTransform.ToType = TransformIOType(source.ToType)
-	var pV1ConvertTransformFormat *ConvertTransformFormat
-	if source.Format != nil {
-		v1ConvertTransformFormat := ConvertTransformFormat(*source.Format)
-		pV1ConvertTransformFormat = &v1ConvertTransformFormat
-	}
-	v1ConvertTransform.Format = pV1ConvertTransformFormat
-	return v1ConvertTransform
-}
-func (c *GeneratedRevisionSpecConverter) v1DurationToV1Duration(source v11.Duration) v11.Duration {
-	var v1Duration v11.Duration
-	v1Duration.Duration = time.Duration(source.Duration)
-	return v1Duration
-}
-func (c *GeneratedRevisionSpecConverter) v1EnvironmentConfigurationToV1EnvironmentConfiguration(source EnvironmentConfiguration) EnvironmentConfiguration {
-	var v1EnvironmentConfiguration EnvironmentConfiguration
-	v1EnvironmentSourceList := make([]EnvironmentSource, len(source.EnvironmentConfigs))
-	for i := 0; i < len(source.EnvironmentConfigs); i++ {
-		v1EnvironmentSourceList[i] = c.v1EnvironmentSourceToV1EnvironmentSource(source.EnvironmentConfigs[i])
-	}
-	v1EnvironmentConfiguration.EnvironmentConfigs = v1EnvironmentSourceList
-	v1EnvironmentPatchList := make([]EnvironmentPatch, len(source.Patches))
-	for j := 0; j < len(source.Patches); j++ {
-		v1EnvironmentPatchList[j] = c.v1EnvironmentPatchToV1EnvironmentPatch(source.Patches[j])
-	}
-	v1EnvironmentConfiguration.Patches = v1EnvironmentPatchList
-	return v1EnvironmentConfiguration
-}
 func (c *GeneratedRevisionSpecConverter) v1EnvironmentPatchToV1EnvironmentPatch(source EnvironmentPatch) EnvironmentPatch {
 	var v1EnvironmentPatch EnvironmentPatch
 	v1EnvironmentPatch.Type = PatchType(source.Type)
@@ -285,35 +507,23 @@ func (c *GeneratedRevisionSpecConverter) v1EnvironmentPatchToV1EnvironmentPatch(
 		pString = &xstring
 	}
 	v1EnvironmentPatch.FromFieldPath = pString
-	var pV1Combine *Combine
-	if source.Combine != nil {
-		v1Combine := c.v1CombineToV1Combine(*source.Combine)
-		pV1Combine = &v1Combine
-	}
-	v1EnvironmentPatch.Combine = pV1Combine
+	v1EnvironmentPatch.Combine = c.pV1CombineToPV1Combine(source.Combine)
 	var pString2 *string
 	if source.ToFieldPath != nil {
 		xstring2 := *source.ToFieldPath
 		pString2 = &xstring2
 	}
 	v1EnvironmentPatch.ToFieldPath = pString2
-	v1TransformList := make([]Transform, len(source.Transforms))
-	for i := 0; i < len(source.Transforms); i++ {
-		v1TransformList[i] = c.v1TransformToV1Transform(source.Transforms[i])
+	var v1TransformList []Transform
+	if source.Transforms != nil {
+		v1TransformList = make([]Transform, len(source.Transforms))
+		for i := 0; i < len(source.Transforms); i++ {
+			v1TransformList[i] = c.v1TransformToV1Transform(source.Transforms[i])
+		}
 	}
 	v1EnvironmentPatch.Transforms = v1TransformList
-	var pV1PatchPolicy *PatchPolicy
-	if source.Policy != nil {
-		v1PatchPolicy := c.v1PatchPolicyToV1PatchPolicy(*source.Policy)
-		pV1PatchPolicy = &v1PatchPolicy
-	}
-	v1EnvironmentPatch.Policy = pV1PatchPolicy
+	v1EnvironmentPatch.Policy = c.pV1PatchPolicyToPV1PatchPolicy(source.Policy)
 	return v1EnvironmentPatch
-}
-func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceReferenceToV1EnvironmentSourceReference(source EnvironmentSourceReference) EnvironmentSourceReference {
-	var v1EnvironmentSourceReference EnvironmentSourceReference
-	v1EnvironmentSourceReference.Name = source.Name
-	return v1EnvironmentSourceReference
 }
 func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceSelectorLabelMatcherToV1EnvironmentSourceSelectorLabelMatcher(source EnvironmentSourceSelectorLabelMatcher) EnvironmentSourceSelectorLabelMatcher {
 	var v1EnvironmentSourceSelectorLabelMatcher EnvironmentSourceSelectorLabelMatcher
@@ -333,55 +543,29 @@ func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceSelectorLabelMatcher
 	v1EnvironmentSourceSelectorLabelMatcher.Value = pString2
 	return v1EnvironmentSourceSelectorLabelMatcher
 }
-func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceSelectorToV1EnvironmentSourceSelector(source EnvironmentSourceSelector) EnvironmentSourceSelector {
-	var v1EnvironmentSourceSelector EnvironmentSourceSelector
-	v1EnvironmentSourceSelectorLabelMatcherList := make([]EnvironmentSourceSelectorLabelMatcher, len(source.MatchLabels))
-	for i := 0; i < len(source.MatchLabels); i++ {
-		v1EnvironmentSourceSelectorLabelMatcherList[i] = c.v1EnvironmentSourceSelectorLabelMatcherToV1EnvironmentSourceSelectorLabelMatcher(source.MatchLabels[i])
-	}
-	v1EnvironmentSourceSelector.MatchLabels = v1EnvironmentSourceSelectorLabelMatcherList
-	return v1EnvironmentSourceSelector
-}
 func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceToV1EnvironmentSource(source EnvironmentSource) EnvironmentSource {
 	var v1EnvironmentSource EnvironmentSource
 	v1EnvironmentSource.Type = EnvironmentSourceType(source.Type)
-	var pV1EnvironmentSourceReference *EnvironmentSourceReference
-	if source.Ref != nil {
-		v1EnvironmentSourceReference := c.v1EnvironmentSourceReferenceToV1EnvironmentSourceReference(*source.Ref)
-		pV1EnvironmentSourceReference = &v1EnvironmentSourceReference
-	}
-	v1EnvironmentSource.Ref = pV1EnvironmentSourceReference
-	var pV1EnvironmentSourceSelector *EnvironmentSourceSelector
-	if source.Selector != nil {
-		v1EnvironmentSourceSelector := c.v1EnvironmentSourceSelectorToV1EnvironmentSourceSelector(*source.Selector)
-		pV1EnvironmentSourceSelector = &v1EnvironmentSourceSelector
-	}
-	v1EnvironmentSource.Selector = pV1EnvironmentSourceSelector
+	v1EnvironmentSource.Ref = c.pV1EnvironmentSourceReferenceToPV1EnvironmentSourceReference(source.Ref)
+	v1EnvironmentSource.Selector = c.pV1EnvironmentSourceSelectorToPV1EnvironmentSourceSelector(source.Selector)
 	return v1EnvironmentSource
 }
 func (c *GeneratedRevisionSpecConverter) v1FunctionToV1Function(source Function) Function {
 	var v1Function Function
 	v1Function.Name = source.Name
 	v1Function.Type = FunctionType(source.Type)
-	var pRuntimeRawExtension *runtime.RawExtension
-	if source.Config != nil {
-		runtimeRawExtension := ConvertRawExtension(*source.Config)
-		pRuntimeRawExtension = &runtimeRawExtension
-	}
-	v1Function.Config = pRuntimeRawExtension
-	var pV1ContainerFunction *ContainerFunction
-	if source.Container != nil {
-		v1ContainerFunction := c.v1ContainerFunctionToV1ContainerFunction(*source.Container)
-		pV1ContainerFunction = &v1ContainerFunction
-	}
-	v1Function.Container = pV1ContainerFunction
+	v1Function.Config = c.pRuntimeRawExtensionToPRuntimeRawExtension(source.Config)
+	v1Function.Container = c.pV1ContainerFunctionToPV1ContainerFunction(source.Container)
 	return v1Function
 }
 func (c *GeneratedRevisionSpecConverter) v1JSONToV1JSON(source v12.JSON) v12.JSON {
 	var v1JSON v12.JSON
-	byteList := make([]uint8, len(source.Raw))
-	for i := 0; i < len(source.Raw); i++ {
-		byteList[i] = source.Raw[i]
+	var byteList []uint8
+	if source.Raw != nil {
+		byteList = make([]uint8, len(source.Raw))
+		for i := 0; i < len(source.Raw); i++ {
+			byteList[i] = source.Raw[i]
+		}
 	}
 	v1JSON.Raw = byteList
 	return v1JSON
@@ -390,21 +574,6 @@ func (c *GeneratedRevisionSpecConverter) v1LocalObjectReferenceToV1LocalObjectRe
 	var v1LocalObjectReference v1.LocalObjectReference
 	v1LocalObjectReference.Name = source.Name
 	return v1LocalObjectReference
-}
-func (c *GeneratedRevisionSpecConverter) v1MapTransformToV1MapTransform(source MapTransform) MapTransform {
-	var v1MapTransform MapTransform
-	mapStringV1JSON := make(map[string]v12.JSON, len(source.Pairs))
-	for key, value := range source.Pairs {
-		mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
-	}
-	v1MapTransform.Pairs = mapStringV1JSON
-	return v1MapTransform
-}
-func (c *GeneratedRevisionSpecConverter) v1MatchConditionReadinessCheckToV1MatchConditionReadinessCheck(source MatchConditionReadinessCheck) MatchConditionReadinessCheck {
-	var v1MatchConditionReadinessCheck MatchConditionReadinessCheck
-	v1MatchConditionReadinessCheck.Type = v13.ConditionType(source.Type)
-	v1MatchConditionReadinessCheck.Status = v1.ConditionStatus(source.Status)
-	return v1MatchConditionReadinessCheck
 }
 func (c *GeneratedRevisionSpecConverter) v1MatchTransformPatternToV1MatchTransformPattern(source MatchTransformPattern) MatchTransformPattern {
 	var v1MatchTransformPattern MatchTransformPattern
@@ -424,78 +593,15 @@ func (c *GeneratedRevisionSpecConverter) v1MatchTransformPatternToV1MatchTransfo
 	v1MatchTransformPattern.Result = c.v1JSONToV1JSON(source.Result)
 	return v1MatchTransformPattern
 }
-func (c *GeneratedRevisionSpecConverter) v1MatchTransformToV1MatchTransform(source MatchTransform) MatchTransform {
-	var v1MatchTransform MatchTransform
-	v1MatchTransformPatternList := make([]MatchTransformPattern, len(source.Patterns))
-	for i := 0; i < len(source.Patterns); i++ {
-		v1MatchTransformPatternList[i] = c.v1MatchTransformPatternToV1MatchTransformPattern(source.Patterns[i])
-	}
-	v1MatchTransform.Patterns = v1MatchTransformPatternList
-	v1MatchTransform.FallbackValue = c.v1JSONToV1JSON(source.FallbackValue)
-	v1MatchTransform.FallbackTo = MatchFallbackTo(source.FallbackTo)
-	return v1MatchTransform
-}
-func (c *GeneratedRevisionSpecConverter) v1MathTransformToV1MathTransform(source MathTransform) MathTransform {
-	var v1MathTransform MathTransform
-	v1MathTransform.Type = MathTransformType(source.Type)
-	var pInt64 *int64
-	if source.Multiply != nil {
-		xint64 := *source.Multiply
-		pInt64 = &xint64
-	}
-	v1MathTransform.Multiply = pInt64
-	var pInt642 *int64
-	if source.ClampMin != nil {
-		xint642 := *source.ClampMin
-		pInt642 = &xint642
-	}
-	v1MathTransform.ClampMin = pInt642
-	var pInt643 *int64
-	if source.ClampMax != nil {
-		xint643 := *source.ClampMax
-		pInt643 = &xint643
-	}
-	v1MathTransform.ClampMax = pInt643
-	return v1MathTransform
-}
-func (c *GeneratedRevisionSpecConverter) v1MergeOptionsToV1MergeOptions(source v13.MergeOptions) v13.MergeOptions {
-	var v1MergeOptions v13.MergeOptions
-	var pBool *bool
-	if source.KeepMapValues != nil {
-		xbool := *source.KeepMapValues
-		pBool = &xbool
-	}
-	v1MergeOptions.KeepMapValues = pBool
-	var pBool2 *bool
-	if source.AppendSlice != nil {
-		xbool2 := *source.AppendSlice
-		pBool2 = &xbool2
-	}
-	v1MergeOptions.AppendSlice = pBool2
-	return v1MergeOptions
-}
-func (c *GeneratedRevisionSpecConverter) v1PatchPolicyToV1PatchPolicy(source PatchPolicy) PatchPolicy {
-	var v1PatchPolicy PatchPolicy
-	var pV1FromFieldPathPolicy *FromFieldPathPolicy
-	if source.FromFieldPath != nil {
-		v1FromFieldPathPolicy := FromFieldPathPolicy(*source.FromFieldPath)
-		pV1FromFieldPathPolicy = &v1FromFieldPathPolicy
-	}
-	v1PatchPolicy.FromFieldPath = pV1FromFieldPathPolicy
-	var pV1MergeOptions *v13.MergeOptions
-	if source.MergeOptions != nil {
-		v1MergeOptions := c.v1MergeOptionsToV1MergeOptions(*source.MergeOptions)
-		pV1MergeOptions = &v1MergeOptions
-	}
-	v1PatchPolicy.MergeOptions = pV1MergeOptions
-	return v1PatchPolicy
-}
 func (c *GeneratedRevisionSpecConverter) v1PatchSetToV1PatchSet(source PatchSet) PatchSet {
 	var v1PatchSet PatchSet
 	v1PatchSet.Name = source.Name
-	v1PatchList := make([]Patch, len(source.Patches))
-	for i := 0; i < len(source.Patches); i++ {
-		v1PatchList[i] = c.v1PatchToV1Patch(source.Patches[i])
+	var v1PatchList []Patch
+	if source.Patches != nil {
+		v1PatchList = make([]Patch, len(source.Patches))
+		for i := 0; i < len(source.Patches); i++ {
+			v1PatchList[i] = c.v1PatchToV1Patch(source.Patches[i])
+		}
 	}
 	v1PatchSet.Patches = v1PatchList
 	return v1PatchSet
@@ -509,12 +615,7 @@ func (c *GeneratedRevisionSpecConverter) v1PatchToV1Patch(source Patch) Patch {
 		pString = &xstring
 	}
 	v1Patch.FromFieldPath = pString
-	var pV1Combine *Combine
-	if source.Combine != nil {
-		v1Combine := c.v1CombineToV1Combine(*source.Combine)
-		pV1Combine = &v1Combine
-	}
-	v1Patch.Combine = pV1Combine
+	v1Patch.Combine = c.pV1CombineToPV1Combine(source.Combine)
 	var pString2 *string
 	if source.ToFieldPath != nil {
 		xstring2 := *source.ToFieldPath
@@ -527,17 +628,15 @@ func (c *GeneratedRevisionSpecConverter) v1PatchToV1Patch(source Patch) Patch {
 		pString3 = &xstring3
 	}
 	v1Patch.PatchSetName = pString3
-	v1TransformList := make([]Transform, len(source.Transforms))
-	for i := 0; i < len(source.Transforms); i++ {
-		v1TransformList[i] = c.v1TransformToV1Transform(source.Transforms[i])
+	var v1TransformList []Transform
+	if source.Transforms != nil {
+		v1TransformList = make([]Transform, len(source.Transforms))
+		for i := 0; i < len(source.Transforms); i++ {
+			v1TransformList[i] = c.v1TransformToV1Transform(source.Transforms[i])
+		}
 	}
 	v1Patch.Transforms = v1TransformList
-	var pV1PatchPolicy *PatchPolicy
-	if source.Policy != nil {
-		v1PatchPolicy := c.v1PatchPolicyToV1PatchPolicy(*source.Policy)
-		pV1PatchPolicy = &v1PatchPolicy
-	}
-	v1Patch.Policy = pV1PatchPolicy
+	v1Patch.Policy = c.pV1PatchPolicyToPV1PatchPolicy(source.Policy)
 	return v1Patch
 }
 func (c *GeneratedRevisionSpecConverter) v1ReadinessCheckToV1ReadinessCheck(source ReadinessCheck) ReadinessCheck {
@@ -546,97 +645,17 @@ func (c *GeneratedRevisionSpecConverter) v1ReadinessCheckToV1ReadinessCheck(sour
 	v1ReadinessCheck.FieldPath = source.FieldPath
 	v1ReadinessCheck.MatchString = source.MatchString
 	v1ReadinessCheck.MatchInteger = source.MatchInteger
-	var pV1MatchConditionReadinessCheck *MatchConditionReadinessCheck
-	if source.MatchCondition != nil {
-		v1MatchConditionReadinessCheck := c.v1MatchConditionReadinessCheckToV1MatchConditionReadinessCheck(*source.MatchCondition)
-		pV1MatchConditionReadinessCheck = &v1MatchConditionReadinessCheck
-	}
-	v1ReadinessCheck.MatchCondition = pV1MatchConditionReadinessCheck
+	v1ReadinessCheck.MatchCondition = c.pV1MatchConditionReadinessCheckToPV1MatchConditionReadinessCheck(source.MatchCondition)
 	return v1ReadinessCheck
-}
-func (c *GeneratedRevisionSpecConverter) v1StoreConfigReferenceToV1StoreConfigReference(source StoreConfigReference) StoreConfigReference {
-	var v1StoreConfigReference StoreConfigReference
-	v1StoreConfigReference.Name = source.Name
-	return v1StoreConfigReference
-}
-func (c *GeneratedRevisionSpecConverter) v1StringCombineToV1StringCombine(source StringCombine) StringCombine {
-	var v1StringCombine StringCombine
-	v1StringCombine.Format = source.Format
-	return v1StringCombine
-}
-func (c *GeneratedRevisionSpecConverter) v1StringTransformRegexpToV1StringTransformRegexp(source StringTransformRegexp) StringTransformRegexp {
-	var v1StringTransformRegexp StringTransformRegexp
-	v1StringTransformRegexp.Match = source.Match
-	var pInt *int
-	if source.Group != nil {
-		xint := *source.Group
-		pInt = &xint
-	}
-	v1StringTransformRegexp.Group = pInt
-	return v1StringTransformRegexp
-}
-func (c *GeneratedRevisionSpecConverter) v1StringTransformToV1StringTransform(source StringTransform) StringTransform {
-	var v1StringTransform StringTransform
-	v1StringTransform.Type = StringTransformType(source.Type)
-	var pString *string
-	if source.Format != nil {
-		xstring := *source.Format
-		pString = &xstring
-	}
-	v1StringTransform.Format = pString
-	var pV1StringConversionType *StringConversionType
-	if source.Convert != nil {
-		v1StringConversionType := StringConversionType(*source.Convert)
-		pV1StringConversionType = &v1StringConversionType
-	}
-	v1StringTransform.Convert = pV1StringConversionType
-	var pString2 *string
-	if source.Trim != nil {
-		xstring2 := *source.Trim
-		pString2 = &xstring2
-	}
-	v1StringTransform.Trim = pString2
-	var pV1StringTransformRegexp *StringTransformRegexp
-	if source.Regexp != nil {
-		v1StringTransformRegexp := c.v1StringTransformRegexpToV1StringTransformRegexp(*source.Regexp)
-		pV1StringTransformRegexp = &v1StringTransformRegexp
-	}
-	v1StringTransform.Regexp = pV1StringTransformRegexp
-	return v1StringTransform
 }
 func (c *GeneratedRevisionSpecConverter) v1TransformToV1Transform(source Transform) Transform {
 	var v1Transform Transform
 	v1Transform.Type = TransformType(source.Type)
-	var pV1MathTransform *MathTransform
-	if source.Math != nil {
-		v1MathTransform := c.v1MathTransformToV1MathTransform(*source.Math)
-		pV1MathTransform = &v1MathTransform
-	}
-	v1Transform.Math = pV1MathTransform
-	var pV1MapTransform *MapTransform
-	if source.Map != nil {
-		v1MapTransform := c.v1MapTransformToV1MapTransform(*source.Map)
-		pV1MapTransform = &v1MapTransform
-	}
-	v1Transform.Map = pV1MapTransform
-	var pV1MatchTransform *MatchTransform
-	if source.Match != nil {
-		v1MatchTransform := c.v1MatchTransformToV1MatchTransform(*source.Match)
-		pV1MatchTransform = &v1MatchTransform
-	}
-	v1Transform.Match = pV1MatchTransform
-	var pV1StringTransform *StringTransform
-	if source.String != nil {
-		v1StringTransform := c.v1StringTransformToV1StringTransform(*source.String)
-		pV1StringTransform = &v1StringTransform
-	}
-	v1Transform.String = pV1StringTransform
-	var pV1ConvertTransform *ConvertTransform
-	if source.Convert != nil {
-		v1ConvertTransform := c.v1ConvertTransformToV1ConvertTransform(*source.Convert)
-		pV1ConvertTransform = &v1ConvertTransform
-	}
-	v1Transform.Convert = pV1ConvertTransform
+	v1Transform.Math = c.pV1MathTransformToPV1MathTransform(source.Math)
+	v1Transform.Map = c.pV1MapTransformToPV1MapTransform(source.Map)
+	v1Transform.Match = c.pV1MatchTransformToPV1MatchTransform(source.Match)
+	v1Transform.String = c.pV1StringTransformToPV1StringTransform(source.String)
+	v1Transform.Convert = c.pV1ConvertTransformToPV1ConvertTransform(source.Convert)
 	return v1Transform
 }
 func (c *GeneratedRevisionSpecConverter) v1TypeReferenceToV1TypeReference(source TypeReference) TypeReference {
