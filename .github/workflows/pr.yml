@@ -11,4 +11,4 @@ jobs:
       - uses: mheap/require-checklist-action@v2
         with:
           # The checklist must _exist_ and be filled out.
-          requireChecklist: false
+          requireChecklist: true
