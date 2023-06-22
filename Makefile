@@ -125,9 +125,17 @@ e2e-tag-images:
 # NOTE(negz): There's already a go.test.integration target, but it's weird.
 # This relies on make build building the e2e binary.
 E2E_TEST_FLAGS ?=
+
+# TODO(negz): Ideally we'd just tell the E2E tests which CLI tools to invoke.
+# https://github.com/kubernetes-sigs/e2e-framework/issues/282
+E2E_PATH = $(WORK_DIR)/e2e
+
 e2e-run-tests: $(KIND) $(HELM3)
 	@$(INFO) Run E2E tests
-	@$(GO_TEST_OUTPUT)/e2e $(E2E_TEST_FLAGS) || $(FAIL)
+	@mkdir -p $(E2E_PATH)
+	@ln -sf $(KIND) $(E2E_PATH)/kind
+	@ln -sf $(HELM) $(E2E_PATH)/helm
+	@PATH="$(E2E_PATH):${PATH}" $(GO_TEST_OUTPUT)/e2e $(E2E_TEST_FLAGS) || $(FAIL)
 	@$(OK) Run E2E tests
 
 e2e.init: build e2e-tag-images
