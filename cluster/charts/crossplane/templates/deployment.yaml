@@ -21,13 +21,16 @@ spec:
     type: {{ .Values.deploymentStrategy }}
   template:
     metadata:
-      {{- if or .Values.metrics.enabled .Values.customAnnotations }}
+      {{- if or .Values.metrics.enabled .Values.xfn.enabled .Values.customAnnotations }}
       annotations:
       {{- end }}
       {{- if .Values.metrics.enabled }}
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
+      {{- end }}
+      {{- if .Values.xfn.enabled }}
+        container.apparmor.security.beta.kubernetes.io/{{ .Chart.Name }}-xfn: unconfined
       {{- end }}
       {{- with .Values.customAnnotations }}
         {{- toYaml . | nindent 8 }}
