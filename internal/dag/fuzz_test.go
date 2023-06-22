@@ -87,7 +87,7 @@ func FuzzDag(f *testing.F) {
 		}
 		fuzzNode := &SimpleFuzzNode{}
 		c.GenerateStruct(fuzzNode)
-		_, _ = d.AddEdge(from, fuzzNode) 
+		_, _ = d.AddEdge(from, fuzzNode)
 		d.Sort()
 		d.NodeNeighbors(identifier)
 	})
