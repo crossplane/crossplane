@@ -36,6 +36,9 @@ E2E_TEST_FLAGS="-test.run ^TestConfiguration" make e2e
 
 # To test features with certain labels, use the labels flag
 E2E_TEST_FLAGS="-labels area=apiextensions" make e2e
+
+# To test a specific feature, use the feature flag
+E2E_TEST_FLAGS="-feature=Install" make e2e
 ```
 
 ## Test Parallelism
