@@ -169,6 +169,10 @@ func (c *CachingBundler) Bundle(ctx context.Context, i ociv1.Image, id string, o
 		return nil, errors.Wrap(err, errReadConfigFile)
 	}
 
+	if err := store.Validate(i); err != nil {
+		return nil, err
+	}
+
 	layers, err := i.Layers()
 	if err != nil {
 		return nil, errors.Wrap(err, errGetLayers)
