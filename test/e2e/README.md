@@ -56,6 +56,9 @@ uses a matrix strategy to invoke each area as its own job, running in parallel.
 
 ## Adding a Test
 
+> We're still learning what the best way to arrange E2E tests is. It's okay for
+> this pattern to change if it's not working well, but please discuss first!
+
 Each feature under test consists of:
 
 1. A directory of manifests - i.e. test fixtures.
