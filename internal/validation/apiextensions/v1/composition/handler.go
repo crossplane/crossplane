@@ -19,7 +19,6 @@ package composition
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -36,7 +35,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -48,6 +47,15 @@ const (
 	// key used to index CRDs by "Kind" and "group", to be used when
 	// indexing and retrieving needed CRDs
 	crdsIndexKey = "crd.kind.group"
+)
+
+// Error strings.
+const (
+	errUnexpectedOp   = "unexpected operation"
+	errValidationMode = "cannot get validation mode"
+
+	errFmtTooManyCRDs = "more than one CRD found for %s.%s: %v"
+	errFmtGetCRDs     = "cannot get the needed CRDs: %v"
 )
 
 // handler implements the admission handler for Composition.
@@ -104,9 +112,9 @@ func (h *handler) Handle(ctx context.Context, request admission.Request) admissi
 	case admissionv1.Delete:
 		return admission.Allowed("")
 	case admissionv1.Connect:
-		return admission.Errored(http.StatusBadRequest, errors.New("unexpected operation"))
+		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
 	default:
-		return admission.Errored(http.StatusBadRequest, errors.New("unexpected operation"))
+		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
 	}
 }
 
@@ -136,7 +144,7 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 	// Get the composition validation mode from annotation
 	validationMode, err := comp.GetValidationMode()
 	if err != nil {
-		return warns, xperrors.Wrap(err, "cannot get validation mode")
+		return warns, errors.Wrap(err, errValidationMode)
 	}
 
 	// Get all the needed CRDs, Composite Resource, Managed resources ... ? Error out if missing in strict mode
@@ -144,7 +152,11 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 	// if we have errors, and we are in strict mode or any of the errors is not a , return them
 	if len(errs) != 0 {
 		if validationMode == v1.CompositionValidationModeStrict || containsOtherThanNotFound(errs) {
-			return warns, xperrors.Errorf("there were some errors while getting the needed CRDs: %v", errs)
+			// TODO(negz): Do we really need to return all the errors? Typically
+			// we just return the first one we hit. This works well with
+			// errors.Wrap. Is there extra value in returning them all here as a
+			// special case?
+			return warns, errors.Errorf(errFmtGetCRDs, errs)
 		}
 		// if we have errors, but we are not in strict mode, and all of the errors are not found errors,
 		// just move them to warnings and skip any further validation
@@ -237,7 +249,7 @@ func (h *handler) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensi
 		for _, crd := range crds.Items {
 			names = append(names, crd.Name)
 		}
-		return nil, apierrors.NewInternalError(fmt.Errorf("more than one CRD found for %s.%s: %v", gk.Kind, gk.Group, names))
+		return nil, apierrors.NewInternalError(errors.Errorf(errFmtTooManyCRDs, gk.Kind, gk.Group, names))
 	}
 	crd := crds.Items[0]
 	internal := &apiextensions.CustomResourceDefinition{}
