@@ -3163,4 +3163,14 @@ spec:
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      # status enables the status subresource.
+      status: {}
+      # scale enables the scale subresource.
+      scale:
+        # specReplicasPath defines the JSONPath inside of a custom resource that corresponds to Scale.Spec.Replicas.
+        specReplicasPath: .spec.replicas
+        # statusReplicasPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Replicas.
+        statusReplicasPath: .status.replicas
+        # labelSelectorPath defines the JSONPath inside of a custom resource that corresponds to Scale.Status.Selector.
+        labelSelectorPath: .status.labelSelector
