@@ -41,7 +41,7 @@ deployed to an EKS Cluster MR. The Helm Release has a dependency on the EKS
 Cluster’s connection details - it uses them as Provider credentials. If the EKS
 Cluster is deleted before the Helm Release the Helm Release controller becomes
 unable to connect to its Provider in order to delete the Release. In practice
-the Release External Resource (ER) was implicitly deleted along with the GKE
+the Release External Resource (ER) was implicitly deleted along with the EKS
 Cluster - there’s actually no work left for the Helm release controller to do -
 but it cannot know that. This results in the Helm Release MR being ‘orphaned’
 in a pending deletion that can never be satisfied.
@@ -75,12 +75,18 @@ depending on a ProviderConfig from provider-aws.
 
 We propose introducing a new `Usage` type that can be used to declare usage
 relationships between Crossplane resources. This type will be defined by the
-Core Crossplane repository, and be available for use as part of a composition.
+Core Crossplane repository, and also be available for use as part of a
+composition.
 
 The relations defined by this type will be enforced by an admission webhook that
 will be running as part of the Crossplane core. Similar to the upstreams [liens
 proposal], the webhook will reject deletions of resources that are in use by
-other resources with a ["409 Conflict" error code].
+other resources with a ["409 Conflict" error code] as `metav1.Status` as part of
+the admission response (not the actual http code of the admission request).
+
+The RBAC manager already grants Crossplane RBAC access to all types in order for
+it to do Composition. Therefore, there's no need for extra RBAC permissions to
+interact with resources across providers.
 
 ### API
 
@@ -125,11 +131,15 @@ spec:
     kind: Cluster
     selector:
       matchControllerRef: true
+      matchLabels:
+        foo: bar
   by:
     apiVersion: helm.crossplane.io/v1beta1
     kind: Release
     selector:
       matchControllerRef: true
+      matchLabels:
+        baz: qux
 ```
 
 While the well-known use cases for this feature are solved with a one-to-one
@@ -201,6 +211,8 @@ reference the same used resource(s).
 
 The admission webhook will be responsible for intercepting the `DELETE` requests
 for the used resource(s) and rejecting them with a ["409 Conflict" error code].
+We will fail open in case of any errors from the webhook with
+[`failurePolicy: Fail`].
 
 The webhook will be implemented as a Kubernetes validating admission webhook
 leveraging the [existing webhook machinery] in Crossplane and will be running
@@ -223,7 +235,7 @@ func (h *handler) validateNoUsages(ctx context.Context, u *unstructured.Unstruct
 				Allowed: false,
 				Result: &metav1.Status{
 					Code:   int32(http.StatusConflict),
-					Reason: metav1.StatusReason(fmt.Sprintf("The resource is used by %s/%s", usageList.Items[0].Spec.By.Kind, usageList.Items[0].Spec.By.Name)),
+					Reason: metav1.StatusReason(fmt.Sprintf("The resource is used by %d resource(s), including %s/%s", len(usageList.Items), usageList.Items[0].Spec.By.Kind, usageList.Items[0].Spec.By.Name)),
 				},
 			},
 		}
@@ -234,7 +246,7 @@ func (h *handler) validateNoUsages(ctx context.Context, u *unstructured.Unstruct
 
 ### User Experience
 
-**Defining a Usage Resource as part of a Composition:**
+#### Defining a Usage Resource as part of a Composition
 
 We expect a typical usage relationship to be defined as part of the same
 composition as the using and used resources. In this case, the user will
@@ -264,7 +276,7 @@ usage relationship between the `XServices` and the `XEKS` Composites:
               matchControllerRef: true
 ```
 
-**Deleting a Claim or Composite which contains a Usage Relationship:**
+#### Deleting a Claim or Composite which contains a Usage Relationship
 
 **With the (default) background propagation policy**, we expect no different in user
 experience. Users will be able to delete the Claim or Composite without any error. 
@@ -289,7 +301,7 @@ delete the resource that was previously blocked. To mitigate this issue, we
 could introduce a mechanism in the controller to re-trigger the deletion of the
 used resource as soon as the Usage resource is deleted.
 
-**Directly Deleting a Composite or Managed Resource that is in Use**
+#### Directly Deleting a Composite or Managed Resource that is in Use
 
 When trying to delete a Composite or managed resource directly, users will get
 an error as follows:
@@ -390,6 +402,7 @@ feedback from the community before committing to a more complex solution.
 [existing policies]: https://github.com/crossplane/crossplane-runtime/blob/23eaff94e7385121bca832955c8885f925f55ae6/apis/common/v1/resource.go#L80
 [reasoning behind]: https://github.com/crossplane/crossplane-runtime/pull/328
 [webhook rules]: https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#matching-requests-rules
+[`failurePolicy: Fail`]: https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#failure-policy
 [existing webhook machinery]: https://github.com/crossplane/crossplane/pull/2919
 [Field Indexers]: https://pkg.go.dev/sigs.k8s.io/controller-runtime/pkg/client#FieldIndexer
 [previous document]: https://docs.google.com/document/d/1Yu3GxNMJOOMWMjD6gEw5QtT8Fz5qQSyo18ZZFKqcqKw
