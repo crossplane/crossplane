@@ -109,7 +109,8 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 	if err := tw.WriteHeader(hdr); err != nil {
 		return nil, errors.Wrap(err, errTarFromStream)
 	}
-	if _, err = io.Copy(tw, buf); err != nil {
+	// copy chunks of 1MB to avoid loading the entire package into memory twice
+	if _, err = copyChunks(tw, buf, 1024*1024); err != nil {
 		return nil, errors.Wrap(err, errTarFromStream)
 	}
 	if err := tw.Close(); err != nil {
@@ -131,4 +132,24 @@ func Build(ctx context.Context, b parser.Backend, p parser.Parser, l parser.Lint
 
 	// Append layer to to scratch image.
 	return mutate.AppendLayers(empty.Image, layer)
+}
+
+// copyChunks pleases gosec per https://github.com/securego/gosec/pull/433.
+// Like Copy it reads from src until EOF, it does not treat an EOF from Read as
+// an error to be reported.
+//
+// NOTE(negz): This rule confused me at first because io.Copy appears to use a
+// buffer, but in fact it bypasses it if src/dst is an io.WriterTo/ReaderFrom.
+func copyChunks(dst io.Writer, src io.Reader, chunkSize int64) (int64, error) {
+	var written int64
+	for {
+		w, err := io.CopyN(dst, src, chunkSize)
+		written += w
+		if errors.Is(err, io.EOF) {
+			return written, nil
+		}
+		if err != nil {
+			return written, err
+		}
+	}
 }
