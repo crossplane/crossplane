@@ -78,6 +78,12 @@ const (
 	errOpenLayer        = "cannot open layer"
 	errStatLayer        = "cannot stat layer"
 	errCheckExistence   = "cannot determine whether layer exists"
+	errFmtTooManyLayers = "image has too many layers: %d (max %d)"
+)
+
+var (
+	// MaxLayers is the maximum number of layers an image can have.
+	MaxLayers = 256
 )
 
 // A Bundler prepares OCI runtime bundles for use by an OCI runtime.
@@ -159,7 +165,7 @@ func (i *Image) Image(h ociv1.Hash) (ociv1.Image, error) {
 }
 
 // WriteImage writes the supplied image to the store.
-func (i *Image) WriteImage(img ociv1.Image) error {
+func (i *Image) WriteImage(img ociv1.Image) error { //nolint:gocyclo // TODO(phisco): Refactor to reduce complexity.
 	d, err := img.Digest()
 	if err != nil {
 		return errors.Wrap(err, errGetDigest)
@@ -202,6 +208,10 @@ func (i *Image) WriteImage(img ociv1.Image) error {
 	layers, err := img.Layers()
 	if err != nil {
 		return errors.Wrap(err, errGetLayers)
+	}
+
+	if err := Validate(img); err != nil {
+		return err
 	}
 
 	g := &errgroup.Group{}
@@ -345,4 +355,17 @@ func copyChunks(dst io.Writer, src io.Reader, chunkSize int64) (int64, error) {
 			return written, err
 		}
 	}
+}
+
+// Validate returns an error if the supplied image is invalid,
+// e.g. the number of layers is above the maximum allowed.
+func Validate(img ociv1.Image) error {
+	layers, err := img.Layers()
+	if err != nil {
+		return errors.Wrap(err, errGetLayers)
+	}
+	if nLayers := len(layers); nLayers > MaxLayers {
+		return errors.Errorf(errFmtTooManyLayers, nLayers, MaxLayers)
+	}
+	return nil
 }
