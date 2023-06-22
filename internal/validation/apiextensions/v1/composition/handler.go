@@ -20,23 +20,18 @@ package composition
 import (
 	"context"
 	"fmt"
-	"net/http"
 
-	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/features"
@@ -51,6 +46,7 @@ const (
 
 // Error strings.
 const (
+	errNotComposition = "supplied object was not a Composition"
 	errUnexpectedOp   = "unexpected operation"
 	errValidationMode = "cannot get validation mode"
 
@@ -58,22 +54,11 @@ const (
 	errFmtGetCRDs     = "cannot get the needed CRDs: %v"
 )
 
-// handler implements the admission handler for Composition.
-type handler struct {
-	reader  client.Reader
-	decoder *admission.Decoder
-	options controller.Options
-}
-
-// InjectDecoder injects the decoder.
-func (h *handler) InjectDecoder(decoder *admission.Decoder) error {
-	h.decoder = decoder
-	return nil
-}
-
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	if options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
+		// TODO(negz): It's not obvious what this does and why. Someone who
+		// understands it should add a comment. :)
 		indexer := mgr.GetFieldIndexer()
 		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, crdsIndexKey, func(obj client.Object) []string {
 			return []string{getIndexValueForCRD(obj.(*extv1.CustomResourceDefinition))}
@@ -82,62 +67,32 @@ func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error
 		}
 	}
 
-	// TODO(lsviben): switch to using admission.CustomValidator when https://github.com/kubernetes-sigs/controller-runtime/issues/1896 is resolved.
-	mgr.GetWebhookServer().Register(v1.CompositionValidatingWebhookPath,
-		&webhook.Admission{Handler: &handler{
-			reader:  unstructured.NewClient(mgr.GetClient()),
-			options: options,
-		}})
-
-	return nil
+	v := &validator{reader: mgr.GetClient(), options: options}
+	return ctrl.NewWebhookManagedBy(mgr).
+		WithValidator(v).
+		For(&v1.Composition{}).
+		Complete()
 }
 
-// Handle handles the admission request, validating the Composition.
-func (h *handler) Handle(ctx context.Context, request admission.Request) admission.Response {
-	switch request.Operation {
-	case admissionv1.Create, admissionv1.Update:
-		c := &v1.Composition{}
-		if err := h.decoder.Decode(request, c); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		warns, err := h.Validate(ctx, c)
-		if err == nil {
-			return admission.Allowed("").WithWarnings(warns...)
-		}
-		var apiStatus apierrors.APIStatus
-		if errors.As(err, &apiStatus) {
-			return validationResponseFromStatus(false, apiStatus.Status()).WithWarnings(warns...)
-		}
-		return admission.Denied(err.Error()).WithWarnings(warns...)
-	case admissionv1.Delete:
-		return admission.Allowed("")
-	case admissionv1.Connect:
-		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
-	default:
-		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
+type validator struct {
+	reader  client.Reader
+	options controller.Options
+}
+
+// ValidateCreate validates a Composition.
+func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) { //nolint:gocyclo // Currently only at 11
+	comp, ok := obj.(*v1.Composition)
+	if !ok {
+		return nil, errors.New(errNotComposition)
 	}
-}
 
-func validationResponseFromStatus(allowed bool, status metav1.Status) admission.Response {
-	resp := admission.Response{
-		AdmissionResponse: admissionv1.AdmissionResponse{
-			Allowed: allowed,
-			Result:  &status,
-		},
-	}
-	return resp
-}
-
-// Validate validates the Composition by rendering it and then validating the rendered resources.
-func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []string, err error) {
 	// Validate the composition itself, we'll disable it on the Validator below
-	var validationErrs field.ErrorList
-	warns, validationErrs = comp.Validate()
+	warns, validationErrs := comp.Validate()
 	if len(validationErrs) != 0 {
 		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), validationErrs)
 	}
 
-	if !h.options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
+	if !v.options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
 		return warns, nil
 	}
 
@@ -147,9 +102,11 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 		return warns, errors.Wrap(err, errValidationMode)
 	}
 
-	// Get all the needed CRDs, Composite Resource, Managed resources ... ? Error out if missing in strict mode
-	gkToCRD, errs := h.getNeededCRDs(ctx, comp)
-	// if we have errors, and we are in strict mode or any of the errors is not a , return them
+	// Get all the needed CRDs, Composite Resource, Managed resources ... ?
+	// Error out if missing in strict mode
+	gkToCRD, errs := v.getNeededCRDs(ctx, comp)
+	// if we have errors, and we are in strict mode or any of the errors is not
+	// a , return them
 	if len(errs) != 0 {
 		if validationMode == v1.CompositionValidationModeStrict || containsOtherThanNotFound(errs) {
 			// TODO(negz): Do we really need to return all the errors? Typically
@@ -158,16 +115,18 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 			// special case?
 			return warns, errors.Errorf(errFmtGetCRDs, errs)
 		}
-		// if we have errors, but we are not in strict mode, and all of the errors are not found errors,
-		// just move them to warnings and skip any further validation
-		// TODO(phisco): we are playing it safe and skipping validation altogether, in the future we might want to also support partially available inputs
+		// if we have errors, but we are not in strict mode, and all of the
+		// errors are not found errors, just move them to warnings and skip any
+		// further validation TODO(phisco): we are playing it safe and skipping
+		// validation altogether, in the future we might want to also support
+		// partially available inputs
 		for _, err := range errs {
 			warns = append(warns, err.Error())
 		}
 		return warns, nil
 	}
 
-	v, err := composition.NewValidator(
+	cv, err := composition.NewValidator(
 		composition.WithCRDGetterFromMap(gkToCRD),
 		// We disable logical Validation as this has already been done above
 		composition.WithoutLogicalValidation(),
@@ -175,12 +134,22 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 	if err != nil {
 		return warns, apierrors.NewInternalError(err)
 	}
-	schemaWarns, errList := v.Validate(ctx, comp)
+	schemaWarns, errList := cv.Validate(ctx, comp)
 	warns = append(warns, schemaWarns...)
 	if len(errList) != 0 {
 		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
 	}
 	return warns, nil
+}
+
+// ValidateUpdate implements the same logic as ValidateCreate.
+func (v *validator) ValidateUpdate(ctx context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
+	return v.ValidateCreate(ctx, newObj)
+}
+
+// ValidateDelete always allows delete requests.
+func (v *validator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	return nil, nil
 }
 
 // containsOtherThanNotFound returns true if the given slice of errors contains any error other than a not found error
@@ -193,7 +162,7 @@ func containsOtherThanNotFound(errs []error) bool {
 	return false
 }
 
-func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, []error) {
+func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, []error) {
 	var resultErrs []error
 	neededCrds := make(map[schema.GroupKind]apiextensions.CustomResourceDefinition)
 
@@ -201,7 +170,7 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 	compositeResGK := schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion,
 		comp.Spec.CompositeTypeRef.Kind).GroupKind()
 
-	compositeCRD, err := h.getCRD(ctx, &compositeResGK)
+	compositeCRD, err := v.getCRD(ctx, &compositeResGK)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, []error{err}
@@ -220,7 +189,7 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 			return nil, []error{err}
 		}
 		gk := gvk.GroupKind()
-		crd, err := h.getCRD(ctx, &gk)
+		crd, err := v.getCRD(ctx, &gk)
 		switch {
 		case apierrors.IsNotFound(err):
 			resultErrs = append(resultErrs, err)
@@ -236,9 +205,9 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 
 // getCRD returns the validation schema for the given GVK, by looking up the CRD by group and kind using
 // the provided client.
-func (h *handler) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
+func (v *validator) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
 	crds := extv1.CustomResourceDefinitionList{}
-	if err := h.reader.List(ctx, &crds, client.MatchingFields{crdsIndexKey: getIndexValueForGroupKind(gk)}); err != nil {
+	if err := v.reader.List(ctx, &crds, client.MatchingFields{crdsIndexKey: getIndexValueForGroupKind(gk)}); err != nil {
 		return nil, err
 	}
 	switch {
