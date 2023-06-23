@@ -17,6 +17,7 @@ limitations under the License.
 package e2e
 
 import (
+	"flag"
 	"os"
 	"strings"
 	"testing"
@@ -87,6 +88,8 @@ var helmOptions = []helm.Option{
 var environment env.Environment
 
 func TestMain(m *testing.M) {
+	destroy := flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
+
 	clusterName := envconf.RandomName("crossplane-e2e", 32)
 	environment, _ = env.NewFromFlags()
 	environment.Setup(funcs.EnvFuncs(
@@ -104,6 +107,8 @@ func TestMain(m *testing.M) {
 		funcs.HelmInstall(helmOptions...),
 		funcs.AddCrossplaneTypesToScheme(),
 	))
-	environment.Finish(envfuncs.DestroyKindCluster(clusterName))
+	if *destroy {
+		environment.Finish(envfuncs.DestroyKindCluster(clusterName))
+	}
 	os.Exit(environment.Run(m))
 }

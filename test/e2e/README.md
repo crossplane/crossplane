@@ -39,6 +39,9 @@ E2E_TEST_FLAGS="-labels area=apiextensions" make e2e
 
 # To test a specific feature, use the feature flag
 E2E_TEST_FLAGS="-feature=Install" make e2e
+
+# Stop immediately on first test failure, and leave the kind cluster to debug.
+E2E_TEST_FLAGS="-test.v -test.failfast -destroy-kind-cluster=false"
 ```
 
 ## Test Parallelism
