@@ -313,8 +313,8 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 
 // ApplyResources applies all manifests under the supplied directory that match
 // the supplied glob pattern (e.g. *.yaml). It uses server-side apply - fields
-// are managed by the supplied field manager. Use force to apply the manifest
-// even if it conflicts with another field manager.
+// are managed by the supplied field manager. It fails the test if any supplied
+// resource cannot be applied successfully.
 func ApplyResources(manager, dir, pattern string) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
@@ -326,6 +326,27 @@ func ApplyResources(manager, dir, pattern string) features.Func {
 
 		files, _ := fs.Glob(dfs, pattern)
 		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
+		return ctx
+	}
+}
+
+// ResourcesFailToApply applies all manifests under the supplied directory that
+// match the supplied glob pattern (e.g. *.yaml). It uses server-side apply -
+// fields are managed by the supplied field manager. It fails the test if any
+// supplied resource _can_ be applied successfully - use it to test that the API
+// server should reject a resource.
+func ResourcesFailToApply(manager, dir, pattern string) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		dfs := os.DirFS(dir)
+
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager)); err == nil {
+			// TODO(negz): Ideally we'd say which one.
+			t.Error("Resource applied successfully, but should have failed")
+			return ctx
+		}
+
+		files, _ := fs.Glob(dfs, pattern)
+		t.Logf("All resources from %s (matched %d manifests) failed to apply", filepath.Join(dir, pattern), len(files))
 		return ctx
 	}
 }

@@ -1,7 +1,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: Composition
 metadata:
-  name: xnopresources.nop.example.org
+  name: invalid
+  annotations:
+    crossplane.io/composition-validation-mode: strict
 spec:
   compositeTypeRef:
     apiVersion: nop.example.org/v1alpha1
@@ -32,3 +34,8 @@ spec:
     - type: ToCompositeFieldPath
       fromFieldPath: metadata.annotations[cool-field]
       toFieldPath: status.coolerField
+    # This patch should result in an error, because we're patching from a string
+    # to an integer field.
+    - type: ToCompositeFieldPath
+      fromFieldPath: metadata.annotations[cool-field]
+      toFieldPath: status.evenCoolerField

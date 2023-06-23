@@ -26,6 +26,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
@@ -140,8 +141,9 @@ func TestComposition(t *testing.T) {
 
 func TestValidation(t *testing.T) {
 
-	manifests := "test/e2e/manifests/apiextensions/validation/composition-schema"
-	composition := features.Table{
+	// A valid Composition should be created when validated in strict mode.
+	manifests := "test/e2e/manifests/apiextensions/validation/composition-schema-valid"
+	valid := features.Table{
 		{
 			Name: "PrerequisitesAreCreated",
 			Assessment: funcs.AllOf(
@@ -154,25 +156,54 @@ func TestValidation(t *testing.T) {
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
 		},
 		{
-			Name: "ClaimIsCreated",
+			Name:       "ProviderIsHealthy",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+		},
+		{
+			Name: "CompositionIsCreated",
 			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition.yaml"),
 			),
 		},
 		{
-			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
-		},
-		{
-			Name:       "ClaimHasPatchedField",
-			Assessment: funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
-		},
-		{
-			Name: "ClaimIsDeleted",
+			Name: "CompositionIsDeleted",
 			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+				funcs.DeleteResources(manifests, "composition.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition.yaml"),
+			),
+		},
+		{
+			Name: "PrerequisitesAreDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+			),
+		},
+	}
+
+	// An invalid Composition should be rejected when validated in strict mode.
+	manifests = "test/e2e/manifests/apiextensions/validation/composition-schema-invalid"
+	invalid := features.Table{
+		{
+			Name: "PrerequisitesAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+			),
+		},
+		{
+			Name:       "XRDBecomesEstablished",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
+		},
+		{
+			Name:       "ProviderIsHealthy",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+		},
+		{
+			Name: "CompositionIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.ResourcesFailToApply(FieldManager, manifests, "composition.yaml"),
 			),
 		},
 		{
@@ -197,7 +228,14 @@ func TestValidation(t *testing.T) {
 	)
 
 	environment.Test(t,
-		composition.Build("CompositionSchema").
+		valid.Build("ValidComposition").
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			Setup(setup).
+			Teardown(teardown).
+			Feature(),
+		invalid.Build("InvalidComposition").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -205,5 +243,4 @@ func TestValidation(t *testing.T) {
 			Teardown(teardown).
 			Feature(),
 	)
-
 }
