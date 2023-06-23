@@ -1,0 +1,6 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: depends-on-provider-nop
+spec:
+  package: crossplane/e2e-depends-on-provider-nop:v0.1.0

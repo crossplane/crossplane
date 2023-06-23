@@ -30,6 +30,7 @@ NPROCS ?= 1
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
 GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank $(GO_PROJECT)/cmd/xfn
+GO_TEST_PACKAGES = $(GO_PROJECT)/test/e2e
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
 GO111MODULE = on
@@ -115,14 +116,31 @@ cobertura:
 		grep -v zz_generated.deepcopy | \
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
-# integration tests
-e2e.run: test-integration
+e2e-tag-images:
+	@$(INFO) Tagging E2E test images
+	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
+	@docker tag $(BUILD_REGISTRY)/xfn-$(TARGETARCH) crossplane-e2e/xfn:latest || $(FAIL)
+	@$(OK) Tagged E2E test images
 
-# Run integration tests.
-test-integration: $(KIND) $(KUBECTL) $(HELM3)
-	@$(INFO) running integration tests using kind $(KIND_VERSION)
-	@$(ROOT_DIR)/cluster/local/integration_tests.sh || $(FAIL)
-	@$(OK) integration tests passed
+# NOTE(negz): There's already a go.test.integration target, but it's weird.
+# This relies on make build building the e2e binary.
+E2E_TEST_FLAGS ?=
+
+# TODO(negz): Ideally we'd just tell the E2E tests which CLI tools to invoke.
+# https://github.com/kubernetes-sigs/e2e-framework/issues/282
+E2E_PATH = $(WORK_DIR)/e2e
+
+e2e-run-tests: $(KIND) $(HELM3)
+	@$(INFO) Run E2E tests
+	@mkdir -p $(E2E_PATH)
+	@ln -sf $(KIND) $(E2E_PATH)/kind
+	@ln -sf $(HELM) $(E2E_PATH)/helm
+	@PATH="$(E2E_PATH):${PATH}" $(GO_TEST_OUTPUT)/e2e $(E2E_TEST_FLAGS) || $(FAIL)
+	@$(OK) Run E2E tests
+
+e2e.init: build e2e-tag-images
+
+e2e.run: e2e-run-tests
 
 # Update the submodules, such as the common build scripts.
 submodules:
@@ -136,20 +154,6 @@ install-crds: $(KUBECTL) reviewable
 # Uninstall CRDs from a cluster. This is for convenience.
 uninstall-crds:
 	$(KUBECTL) delete -f $(CRD_DIR)
-
-# Compile e2e tests.
-# TODO(hasheddan): integrate this functionality into build submodule. The build
-# submodule currently distinguishes tests and integration tests, but it only
-# builds tests and does not support passing build tags only to the test build.
-# Note that we are not publishing the builds that come from this step.
-e2e-tests-compile:
-	@$(INFO) Checking that e2e tests compile
-	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/apiextensions.test ./test/e2e/apiextensions --tags=e2e
-	@$(GO) test -c -o $(WORK_DIR)/e2e/$(PLATFORM)/pkg.test ./test/e2e/pkg --tags=e2e
-	@$(OK) Verified e2e tests compile
-
-# Compile e2e tests for each platform.
-build.code.platform: e2e-tests-compile
 
 # NOTE(hasheddan): the build submodule currently overrides XDG_CACHE_HOME in
 # order to force the Helm 3 to use the .work/helm directory. This causes Go on

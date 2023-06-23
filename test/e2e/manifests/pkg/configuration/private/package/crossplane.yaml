@@ -1,0 +1,6 @@
+# This is the package metadata for the Configuration installed by
+# configuration.yaml.
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: xp-install-test

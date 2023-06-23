@@ -1,0 +1,10 @@
+apiVersion: nop.example.org/v1alpha1
+kind: NopResource
+metadata:
+  namespace: default
+  name: apiextensions-composition-minimal
+spec:
+  coolField: "I'm cool!"
+  # This is necessary to ensure the claim's MRs are actually gone before we
+  # delete the Provider - https://github.com/crossplane/crossplane/issues/4251
+  compositeDeletePolicy: Foreground

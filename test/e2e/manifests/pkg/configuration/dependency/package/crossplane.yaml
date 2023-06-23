@@ -1,0 +1,10 @@
+# This is the package metadata for the Configuration installed by
+# configuration.yaml.
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: e2e-depends-on-provider-nop
+spec:
+  dependsOn:
+  - provider: crossplane/provider-nop
+    version: "=v0.1.1"

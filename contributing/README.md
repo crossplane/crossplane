@@ -46,14 +46,16 @@ values readable, idiomatic Go code. Familiarise yourself with the
 [Coding Style](#coding-style) section below and try to preempt any comments your
 reviewers would otherwise leave. Run `make reviewable` to lint your change.
 
-All Crossplane code must be covered by tests. Note that unlike many Kubernetes
-projects Crossplane does not use Ginkgo tests and will request changes to any PR
-that uses Ginkgo or any third party testing library, per the common Go [test
-review comments]. Crossplane encourages the use of table driven unit tests - you
-can find an example [below](#prefer-table-driven-tests). Note that when opening
-a PR your reviewer will expect you to detail how you've tested your work. For
-all but the smallest changes some manual testing is encouraged in addition to
-unit tests.
+All Crossplane code must be covered by unit **and** end-to-end (E2E) tests.
+
+Crossplane uses table driven unit tests - you can find an example
+[below](#prefer-table-driven-tests). Crossplane does not use third-party test
+libraries (e.g. Ginkgo, Gomega, Testify) for unit tests and will request changes
+to any PR that introduces one. See the Go [test review comments] for our
+rationale.
+
+E2E tests live under `test/e2e`. Refer to the [E2E readme] for information on
+adding and updating E2E tests.
 
 All Crossplane documentation is under revision control; see the [docs]
 repository. Any change that introduces new behaviour or changes existing
@@ -74,7 +76,7 @@ In summary, please:
 * Discuss your change in a GitHub issue before you start.
 * Use your Git commit messages to communicate your intent to your reviewers.
 * Sign-off on all Git commits by running `git commit -s`
-* Add or update tests for all changes.
+* Add or update unit and E2E tests for all changes.
 * Preempt [coding style](#coding-style) review comments.
 * Update all relevant documentation.
 * Don't force push to address review feedback. Your commits should tell a story.
@@ -644,6 +646,7 @@ make run
 [Developer Certificate of Origin]: https://github.com/apps/dco
 [code review comments]: https://github.com/golang/go/wiki/CodeReviewComments
 [test review comments]: https://github.com/golang/go/wiki/TestComments
+[E2E readme]: ../test/e2e/README.md
 [docs]: https://github.com/crossplane/docs
 [Effective Go]: https://golang.org/doc/effective_go
 [Observability Developer Guide]: guide-observability.md
