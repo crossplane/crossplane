@@ -20,6 +20,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
@@ -35,49 +36,55 @@ const (
 	errConversionWebhookConfigRequired = "spec.conversion.webhook is required when spec.conversion.strategy is 'Webhook'"
 )
 
+// NOTE(negz): We only validate updates because we're only using the validation
+// webhook to enforce a few immutable fields. We should look into using CEL per
+// https://github.com/crossplane/crossplane/issues/4128 instead.
+
 // +kubebuilder:webhook:verbs=update,path=/validate-apiextensions-crossplane-io-v1-compositeresourcedefinition,mutating=false,failurePolicy=fail,groups=apiextensions.crossplane.io,resources=compositeresourcedefinitions,versions=v1,name=compositeresourcedefinitions.apiextensions.crossplane.io,sideEffects=None,admissionReviewVersions=v1
 
 // ValidateCreate is run for creation actions.
-func (in *CompositeResourceDefinition) ValidateCreate() error {
+func (in *CompositeResourceDefinition) ValidateCreate() (admission.Warnings, error) {
+	// TODO(negz): Does this code ever get exercised in reality? We don't
+	// register the update verb when we generate a configuration above.
 	if c := in.Spec.Conversion; c != nil && c.Strategy == extv1.WebhookConverter && c.Webhook == nil {
-		return errors.New(errConversionWebhookConfigRequired)
+		return nil, errors.New(errConversionWebhookConfigRequired)
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateUpdate is run for update actions.
-func (in *CompositeResourceDefinition) ValidateUpdate(old runtime.Object) error {
+func (in *CompositeResourceDefinition) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	oldObj, ok := old.(*CompositeResourceDefinition)
 	if !ok {
-		return errors.New(errUnexpectedType)
+		return nil, errors.New(errUnexpectedType)
 	}
 	switch {
 	case in.Spec.Group != oldObj.Spec.Group:
-		return errors.New(errGroupImmutable)
+		return nil, errors.New(errGroupImmutable)
 	case in.Spec.Names.Plural != oldObj.Spec.Names.Plural:
-		return errors.New(errPluralImmutable)
+		return nil, errors.New(errPluralImmutable)
 	case in.Spec.Names.Kind != oldObj.Spec.Names.Kind:
-		return errors.New(errKindImmutable)
+		return nil, errors.New(errKindImmutable)
 	}
 	if in.Spec.ClaimNames != nil && oldObj.Spec.ClaimNames != nil {
 		switch {
 		case in.Spec.ClaimNames.Plural != oldObj.Spec.ClaimNames.Plural:
-			return errors.New(errClaimPluralImmutable)
+			return nil, errors.New(errClaimPluralImmutable)
 		case in.Spec.ClaimNames.Kind != oldObj.Spec.ClaimNames.Kind:
-			return errors.New(errClaimKindImmutable)
+			return nil, errors.New(errClaimKindImmutable)
 		}
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateDelete is run for delete actions.
-func (in *CompositeResourceDefinition) ValidateDelete() error {
-	return nil
+func (in *CompositeResourceDefinition) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 // SetupWebhookWithManager sets up webhook with manager.
-func (in *CompositeResourceDefinition) SetupWebhookWithManager(mgr ctrl.Manager) error {
+func SetupWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).
-		For(in).
+		For(&CompositeResourceDefinition{}).
 		Complete()
 }
