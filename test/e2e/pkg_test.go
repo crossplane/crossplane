@@ -71,13 +71,6 @@ func TestConfiguration(t *testing.T) {
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
 		},
 		{
-			// TODO(negz): This is failing because the nopresource CRD still
-			// exists and is owned by a ProviderRevision that no longer does.
-
-			// The last thing that installed a Provider was
-			// TestCrossplane/Upgrade. It seems to successfully delete its
-			// claim, and its prereqs, then an entire other test runs before
-			// this one starts. What gives?
 			Name:       "ProviderIsHealthy",
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active()),
 		},
