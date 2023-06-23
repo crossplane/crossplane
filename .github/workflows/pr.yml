@@ -8,7 +8,7 @@ jobs:
   checklist-completed:
     runs-on: ubuntu-22.04
     steps:
-      - uses: mheap/require-checklist-action@v2
+      - uses: mheap/require-checklist-action@61408353f11a0a1b1d16972193791960a4f2dc29 # v2
         with:
           # The checklist must _exist_ and be filled out.
           requireChecklist: true
