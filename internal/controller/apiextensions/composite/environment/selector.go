@@ -45,6 +45,7 @@ const (
 	errUnknownSelectorMode             = "unknown mode '%s'"
 	errSortNotMatchingTypes            = "not matching types: %T : %T"
 	errSortUnknownType                 = "unexpected type %T"
+	errExceededMaxMatch                = "found items: %d exceed MaxMatch limit: %d"
 )
 
 // NewNoopEnvironmentSelector creates a new NoopEnvironmentSelector.
@@ -76,7 +77,7 @@ type APIEnvironmentSelector struct {
 // The computed list of EnvironmentConfig references will be stored in cr.
 func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
 
-	if rev.Spec.Environment.IsNoop(cr.GetEnvironmentConfigReferences()) {
+	if !rev.Spec.Environment.ShouldResolve(cr.GetEnvironmentConfigReferences()) {
 		return nil
 	}
 
@@ -155,10 +156,13 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 			return []corev1.ObjectReference{}, err
 		}
 
-		if selector.MaxMatch != nil {
-			ec = append(ec, cl.Items[:*selector.MaxMatch]...)
-		} else {
+		switch {
+		case selector.MaxMatch == nil:
 			ec = append(ec, cl.Items...)
+		case len(cl.Items) <= int(*selector.MaxMatch):
+			ec = append(ec, cl.Items[:*selector.MaxMatch]...)
+		default:
+			return []corev1.ObjectReference{}, errors.Errorf(errExceededMaxMatch, len(cl.Items), *selector.MaxMatch)
 		}
 
 	default:

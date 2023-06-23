@@ -603,7 +603,6 @@ func TestSelect(t *testing.T) {
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
 										SortByFieldPath: "metadata.annotations[sort.by/weight]",
-										MaxMatch:        pointer.Uint64(3),
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
@@ -627,14 +626,17 @@ func TestSelect(t *testing.T) {
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
 						{
-
 							Name:       "test-2",
 							Kind:       v1alpha1.EnvironmentConfigKind,
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
 						{
-
 							Name:       "test-3",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+							Name:       "test-4",
 							Kind:       v1alpha1.EnvironmentConfigKind,
 							APIVersion: v1alpha1.SchemeGroupVersion.String(),
 						},
@@ -703,7 +705,99 @@ func TestSelect(t *testing.T) {
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
 										SortByFieldPath: "data[float/weight]",
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs([]corev1.ObjectReference{
+						{
+							Name:       "test-1",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+							Name:       "test-2",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+							Name:       "test-3",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+						{
+							Name:       "test-4",
+							Kind:       v1alpha1.EnvironmentConfigKind,
+							APIVersion: v1alpha1.SchemeGroupVersion.String(),
+						},
+					}...),
+				),
+			},
+		},
+		"MaxMatchRefsSortedByIntInMultiMode": {
+			reason: "It should return limited list of references sorted by int values",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-2",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(2),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(1),
+									},
+								),
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-3",
+								},
+								Data: makeJSON(
+									map[string]interface{}{
+										"int/weight": int64(3),
+									},
+								),
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorMultiMode,
 										MaxMatch:        pointer.Uint64(3),
+										SortByFieldPath: "data[int/weight]",
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
@@ -742,8 +836,8 @@ func TestSelect(t *testing.T) {
 				),
 			},
 		},
-		"MaxMatchRefsSortedByIntInMultiMode": {
-			reason: "It should return limited list of references sorted by int values",
+		"ErrWhenFoundItemsExceedMaxMatch": {
+			reason: "It should return an error when the number of EnvironmentConfigs is higher than MaxMatch",
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -802,8 +896,8 @@ func TestSelect(t *testing.T) {
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
 										Mode:            v1.EnvironmentSourceSelectorMultiMode,
-										SortByFieldPath: "data[int/weight]",
 										MaxMatch:        pointer.Uint64(3),
+										SortByFieldPath: "data[int/weight]",
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
@@ -819,27 +913,8 @@ func TestSelect(t *testing.T) {
 				},
 			},
 			want: want{
-				cr: composite(
-					withEnvironmentRefs([]corev1.ObjectReference{
-						{
-							Name:       "test-1",
-							Kind:       v1alpha1.EnvironmentConfigKind,
-							APIVersion: v1alpha1.SchemeGroupVersion.String(),
-						},
-						{
-
-							Name:       "test-2",
-							Kind:       v1alpha1.EnvironmentConfigKind,
-							APIVersion: v1alpha1.SchemeGroupVersion.String(),
-						},
-						{
-
-							Name:       "test-3",
-							Kind:       v1alpha1.EnvironmentConfigKind,
-							APIVersion: v1alpha1.SchemeGroupVersion.String(),
-						},
-					}...),
-				),
+				cr:  composite(),
+				err: errors.Wrap(fmt.Errorf("found items: 4 exceed MaxMatch limit: 3"), "failed to build reference at index 0"),
 			},
 		},
 		"ErrSelectOnNotMatchingType": {

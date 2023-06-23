@@ -71,18 +71,18 @@ func (e *EnvironmentConfiguration) Validate() field.ErrorList {
 	return errs
 }
 
-// IsNoop specifies whether EnvironmentConfiguration should be resolved or not.
-func (e *EnvironmentConfiguration) IsNoop(currentRefs []corev1.ObjectReference) bool {
+// ShouldResolve specifies whether EnvironmentConfiguration should be resolved or not.
+func (e *EnvironmentConfiguration) ShouldResolve(currentRefs []corev1.ObjectReference) bool {
 
 	if e == nil || len(e.EnvironmentConfigs) == 0 {
-		return true
+		return false
 	}
 
 	if len(currentRefs) == 0 {
-		return false
+		return true
 	}
-	// currentRefs is non-empty list -> trigger update only if policy.resolve is Always
-	return !e.Policy.IsResolvePolicyAlways()
+
+	return e.Policy.IsResolvePolicyAlways()
 }
 
 // IsRequired specifies whether EnvironmentConfiguration is required or not.
@@ -181,12 +181,12 @@ const (
 // An EnvironmentSourceSelector selects an EnvironmentConfig via labels.
 type EnvironmentSourceSelector struct {
 
-	// Mode specifies retrieval strategy: "single" or "multiple".
+	// Mode specifies retrieval strategy: "Single" or "Multiple".
 	// +kubebuilder:validation:Enum=Single;Multiple
 	// +kubebuilder:default=Single
 	Mode EnvironmentSourceSelectorModeType `json:"mode"`
 
-	// MaxMatch specifies the number of extracted EnvironmentConfigs in multi mode, extracts all if nil.
+	// MaxMatch specifies the number of extracted EnvironmentConfigs in Multiple mode, extracts all if nil.
 	MaxMatch *uint64 `json:"maxMatch,omitempty"`
 
 	// SortByFieldPath is the path to the field based on which list of EnvironmentConfigs is alphabetically sorted.

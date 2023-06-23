@@ -129,14 +129,14 @@ spec:
                               type: array
                             maxMatch:
                               description: MaxMatch specifies the number of extracted
-                                EnvironmentConfigs in multi mode, extracts all if
-                                nil.
+                                EnvironmentConfigs in Multiple mode, extracts all
+                                if nil.
                               format: int64
                               type: integer
                             mode:
                               default: Single
-                              description: 'Mode specifies retrieval strategy: "single"
-                                or "multiple".'
+                              description: 'Mode specifies retrieval strategy: "Single"
+                                or "Multiple".'
                               enum:
                               - Single
                               - Multiple
@@ -1610,14 +1610,14 @@ spec:
                               type: array
                             maxMatch:
                               description: MaxMatch specifies the number of extracted
-                                EnvironmentConfigs in multi mode, extracts all if
-                                nil.
+                                EnvironmentConfigs in Multiple mode, extracts all
+                                if nil.
                               format: int64
                               type: integer
                             mode:
                               default: Single
-                              description: 'Mode specifies retrieval strategy: "single"
-                                or "multiple".'
+                              description: 'Mode specifies retrieval strategy: "Single"
+                                or "Multiple".'
                               enum:
                               - Single
                               - Multiple

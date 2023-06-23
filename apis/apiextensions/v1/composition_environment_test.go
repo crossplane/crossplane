@@ -79,7 +79,7 @@ func TestEnvironmentPatchValidate(t *testing.T) {
 	}
 }
 
-func TestEnvironmentIsNoop(t *testing.T) {
+func TestEnvironmentShouldResolve(t *testing.T) {
 
 	withResolvePolicy := func() *v1.ResolvePolicy {
 		p := v1.ResolvePolicyAlways
@@ -104,7 +104,7 @@ func TestEnvironmentIsNoop(t *testing.T) {
 				},
 				refs: []corev1.ObjectReference{{}},
 			},
-			want: true,
+			want: false,
 		},
 		"ResolveWhenNoRefs": {
 			reason: "Should resolve when no refs are held",
@@ -114,7 +114,7 @@ func TestEnvironmentIsNoop(t *testing.T) {
 				},
 				refs: []corev1.ObjectReference{},
 			},
-			want: false,
+			want: true,
 		},
 		"ResolveWhenPolicyAlways": {
 			reason: "Should resolve when resolve policy is Always",
@@ -132,7 +132,7 @@ func TestEnvironmentIsNoop(t *testing.T) {
 					{},
 				},
 			},
-			want: false,
+			want: true,
 		},
 		"DontResolveWhenPolicyNotAlways": {
 			reason: "Should not resolve when resolve policy is not Always",
@@ -147,16 +147,16 @@ func TestEnvironmentIsNoop(t *testing.T) {
 					{},
 				},
 			},
-			want: true,
+			want: false,
 		},
 	}
 
 	for name, tc := range cases {
 
 		t.Run(name, func(t *testing.T) {
-			got := tc.args.ec.IsNoop(tc.args.refs)
+			got := tc.args.ec.ShouldResolve(tc.args.refs)
 			if diff := cmp.Diff(tc.want, got); diff != "" {
-				t.Errorf("%s\nIsNoop(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("%s\nShouldResolve(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}
