@@ -57,8 +57,8 @@ const (
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	if options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
-		// TODO(negz): It's not obvious what this does and why. Someone who
-		// understands it should add a comment. :)
+		// Setup an index on CRDs so we can retrieve them by group and kind.
+		// The index is used by the getCRD function below.
 		indexer := mgr.GetFieldIndexer()
 		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, crdsIndexKey, func(obj client.Object) []string {
 			return []string{getIndexValueForCRD(obj.(*extv1.CustomResourceDefinition))}
