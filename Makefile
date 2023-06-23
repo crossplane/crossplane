@@ -142,6 +142,11 @@ e2e.init: build e2e-tag-images
 
 e2e.run: $(KIND) $(HELM3) e2e-run-tests
 
+# Run integration tests
+test-integration: go.build do.build.image.xfn
+	$(GO) test ./test/e2e/xfn -test.v -tags=integration --xfn-image-ref=$(BUILD_REGISTRY)/xfn-$(SAFEHOSTARCH)
+	@$(OK) integration tests passed
+
 # Update the submodules, such as the common build scripts.
 submodules:
 	@git submodule sync

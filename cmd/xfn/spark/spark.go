@@ -41,6 +41,7 @@ import (
 	"github.com/crossplane/crossplane/internal/oci/store"
 	"github.com/crossplane/crossplane/internal/oci/store/overlay"
 	"github.com/crossplane/crossplane/internal/oci/store/uncompressed"
+	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
 // Error strings.
@@ -75,6 +76,8 @@ type Command struct {
 	CacheDir      string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
 	Runtime       string `help:"OCI runtime binary to invoke." default:"crun"`
 	MaxStdioBytes int64  `help:"Maximum size of stdout and stderr for functions." default:"0"`
+	DryRun        bool   `help:"pull images, but skip running fn container"`
+	CABundlePath  string `help:"Additional CA bundle to use when fetching function images from registry." env:"CA_BUNDLE_PATH"`
 }
 
 // Run a Composition Function inside an unprivileged user namespace. Reads a
@@ -127,12 +130,20 @@ func (c *Command) Run(args *start.Args) error { //nolint:gocyclo // TODO(negz): 
 		return errors.Wrap(err, errParseRef)
 	}
 
+	opts := []oci.ImageClientOption{FromImagePullConfig(req.GetImagePullConfig())}
+	if c.CABundlePath != "" {
+		rootCA, err := xpkg.ParseCertificatesFromPath(c.CABundlePath)
+		if err != nil {
+			return errors.Wrap(err, "Cannot parse CA bundle")
+		}
+		opts = append(opts, oci.WithCustomCA(rootCA))
+	}
 	// We cache every image we pull to the filesystem. Layers are cached as
 	// uncompressed tarballs. This allows them to be extracted quickly when
 	// using the uncompressed.Bundler, which extracts a new root filesystem for
 	// every container run.
 	p := oci.NewCachingPuller(h, store.NewImage(c.CacheDir), &oci.RemoteClient{})
-	img, err := p.Image(ctx, r, FromImagePullConfig(req.GetImagePullConfig()))
+	img, err := p.Image(ctx, r, opts...)
 	if err != nil {
 		return errors.Wrap(err, errPull)
 	}
@@ -155,51 +166,56 @@ func (c *Command) Run(args *start.Args) error { //nolint:gocyclo // TODO(negz): 
 	// recommended; 'run' is more for testing. In practice though run seems to
 	// work just fine for our use case.
 
-	//nolint:gosec // Executing with user-supplied input is intentional.
-	cmd := exec.CommandContext(ctx, c.Runtime, "--root="+root, "run", "--bundle="+b.Path(), runID)
-	cmd.Stdin = bytes.NewReader(req.GetInput())
+	var rsp *v1alpha1.RunFunctionResponse
+	if c.DryRun {
+		rsp = &v1alpha1.RunFunctionResponse{Output: req.GetInput()}
+	} else {
+		//nolint:gosec // Executing with user-supplied input is intentional.
+		cmd := exec.CommandContext(ctx, c.Runtime, "--root="+root, "run", "--bundle="+b.Path(), runID)
+		cmd.Stdin = bytes.NewReader(req.GetInput())
 
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		_ = b.Cleanup()
-		return errors.Wrap(err, errRuntime)
-	}
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		_ = b.Cleanup()
-		return errors.Wrap(err, errRuntime)
-	}
-
-	if err := cmd.Start(); err != nil {
-		_ = b.Cleanup()
-		return errors.Wrap(err, errRuntime)
-	}
-
-	stdout, err := io.ReadAll(limitReaderIfNonZero(stdoutPipe, c.MaxStdioBytes))
-	if err != nil {
-		_ = b.Cleanup()
-		return errors.Wrap(err, errRuntime)
-	}
-	stderr, err := io.ReadAll(limitReaderIfNonZero(stderrPipe, c.MaxStdioBytes))
-	if err != nil {
-		_ = b.Cleanup()
-		return errors.Wrap(err, errRuntime)
-	}
-
-	if err := cmd.Wait(); err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			exitErr.Stderr = stderr
+		stdoutPipe, err := cmd.StdoutPipe()
+		if err != nil {
+			_ = b.Cleanup()
+			return errors.Wrap(err, errRuntime)
 		}
-		_ = b.Cleanup()
-		return errors.Wrap(err, errRuntime)
-	}
+		stderrPipe, err := cmd.StderrPipe()
+		if err != nil {
+			_ = b.Cleanup()
+			return errors.Wrap(err, errRuntime)
+		}
 
-	if err := b.Cleanup(); err != nil {
-		return errors.Wrap(err, errCleanupBundle)
-	}
+		if err := cmd.Start(); err != nil {
+			_ = b.Cleanup()
+			return errors.Wrap(err, errRuntime)
+		}
 
-	rsp := &v1alpha1.RunFunctionResponse{Output: stdout}
+		stdout, err := io.ReadAll(limitReaderIfNonZero(stdoutPipe, c.MaxStdioBytes))
+		if err != nil {
+			_ = b.Cleanup()
+			return errors.Wrap(err, errRuntime)
+		}
+		stderr, err := io.ReadAll(limitReaderIfNonZero(stderrPipe, c.MaxStdioBytes))
+		if err != nil {
+			_ = b.Cleanup()
+			return errors.Wrap(err, errRuntime)
+		}
+
+		if err := cmd.Wait(); err != nil {
+			var exitErr *exec.ExitError
+			if errors.As(err, &exitErr) {
+				exitErr.Stderr = stderr
+			}
+			_ = b.Cleanup()
+			return errors.Wrap(err, errRuntime)
+		}
+
+		if err := b.Cleanup(); err != nil {
+			return errors.Wrap(err, errCleanupBundle)
+		}
+
+		rsp = &v1alpha1.RunFunctionResponse{Output: stdout}
+	}
 	pb, err = proto.Marshal(rsp)
 	if err != nil {
 		return errors.Wrap(err, errMarshalResponse)

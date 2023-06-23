@@ -228,6 +228,9 @@ jobs:
       - name: Run Unit Tests
         run: make -j2 test
 
+      - name: Run Integration Tests
+        run: make test-integration
+
       - name: Publish Unit Test Coverage
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3
         with:
