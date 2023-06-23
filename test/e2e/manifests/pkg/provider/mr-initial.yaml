@@ -1,7 +1,7 @@
 apiVersion: nop.crossplane.io/v1alpha1
 kind: NopResource
 metadata:
-  name: example-resource
+  name: pkg-provider-upgrade
 spec:
  forProvider:
    # In provider-nop v0.1.x there was no conditionReason field. Every condition

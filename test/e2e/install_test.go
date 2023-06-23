@@ -55,13 +55,9 @@ func TestCrossplane(t *testing.T) {
 		},
 	}
 
-	// These are used for both the upgrade and the uninstall test. We just want
-	// to create some resources to ensure doing so doesn't affect our ability to
-	// uninstall or upgrade.
-	manifests := "test/e2e/manifests/install"
-
 	// Test that it's possible to cleanly uninstall Crossplane, even after
 	// having created and deleted a claim.
+	manifests := "test/e2e/manifests/lifecycle/uninstall"
 	uninstall := features.Table{
 		{
 			Name: "ClaimPrerequisitesAreCreated",
@@ -130,6 +126,7 @@ func TestCrossplane(t *testing.T) {
 
 	// Test that it's possible to upgrade from the most recent stable Crossplane
 	// Helm chart to the one we're testing, even when a claim exists.
+	manifests = "test/e2e/manifests/lifecycle/upgrade"
 	upgrade := features.Table{
 		{
 			Name: "CrossplaneNamespaceIsCreated",
@@ -176,6 +173,10 @@ func TestCrossplane(t *testing.T) {
 			),
 		},
 		{
+			Name:       "ClaimBecomesAvailable",
+			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+		},
+		{
 			Name:       "CrossplaneIsUpgraded",
 			Assessment: funcs.AsFeaturesFunc(funcs.HelmUpgrade(helmOptions...)),
 		},
@@ -192,7 +193,7 @@ func TestCrossplane(t *testing.T) {
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted()),
 		},
 		{
-			Name:       "ClaimBecomesAvailable",
+			Name:       "ClaimStillAvailable",
 			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 		},
 		{
@@ -203,7 +204,7 @@ func TestCrossplane(t *testing.T) {
 			),
 		},
 		{
-			Name: "PrerequisitesAreDeleted",
+			Name: "ClaimPrerequisitesAreDeleted",
 			Assessment: funcs.AllOf(
 				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
