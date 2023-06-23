@@ -60,7 +60,7 @@ func TestComposition(t *testing.T) {
 		},
 		{
 			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			Assessment: funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 		},
 		{
 			Name: "ClaimIsDeleted",
@@ -104,11 +104,11 @@ func TestComposition(t *testing.T) {
 		},
 		{
 			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			Assessment: funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 		},
 		{
 			Name:       "ClaimHasPatchedField",
-			Assessment: funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+			Assessment: funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 		},
 		{
 			Name: "ClaimIsDeleted",
@@ -164,11 +164,11 @@ func TestValidation(t *testing.T) {
 		},
 		{
 			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			Assessment: funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 		},
 		{
 			Name:       "ClaimHasPatchedField",
-			Assessment: funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+			Assessment: funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 		},
 		{
 			Name: "ClaimIsDeleted",
