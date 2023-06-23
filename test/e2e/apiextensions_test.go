@@ -94,7 +94,6 @@ func TestComposition(t *testing.T) {
 			Name:       "XRDBecomesEstablished",
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
 		},
-		{},
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
@@ -154,7 +153,6 @@ func TestValidation(t *testing.T) {
 			Name:       "XRDBecomesEstablished",
 			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
 		},
-		{},
 		{
 			Name: "ClaimIsCreated",
 			Assessment: funcs.AllOf(
