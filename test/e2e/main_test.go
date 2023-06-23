@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -105,6 +107,11 @@ func HelmOptions(extra ...helm.Option) []helm.Option {
 var environment env.Environment
 
 func TestMain(m *testing.M) {
+	// TODO(negz): Global loggers are dumb and klog is dumb. Remove this when
+	// e2e-framework is running controller-runtime v0.15.x per
+	// https://github.com/kubernetes-sigs/e2e-framework/issues/270
+	log.SetLogger(klog.NewKlogr())
+
 	create := flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests")
 	destroy := flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
 
