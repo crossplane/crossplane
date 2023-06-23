@@ -39,8 +39,8 @@ import (
 )
 
 const (
-	// key used to index CRDs by "Kind" and "group", to be used when
-	// indexing and retrieving needed CRDs
+	// Key used to index CRDs by "Kind" and "group", to be used when
+	// indexing and retrieving needed CRDs.
 	crdsIndexKey = "crd.kind.group"
 )
 
@@ -86,7 +86,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 		return nil, errors.New(errNotComposition)
 	}
 
-	// Validate the composition itself, we'll disable it on the Validator below
+	// Validate the composition itself, we'll disable it on the Validator below.
 	warns, validationErrs := comp.Validate()
 	if len(validationErrs) != 0 {
 		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), validationErrs)
@@ -105,21 +105,19 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 	// Get all the needed CRDs, Composite Resource, Managed resources ... ?
 	// Error out if missing in strict mode
 	gkToCRD, errs := v.getNeededCRDs(ctx, comp)
-	// if we have errors, and we are in strict mode or any of the errors is not
-	// a , return them
+	// If we have errors, and we are in strict mode or any of the errors is not
+	// a NotFound, return them.
 	if len(errs) != 0 {
 		if validationMode == v1.CompositionValidationModeStrict || containsOtherThanNotFound(errs) {
-			// TODO(negz): Do we really need to return all the errors? Typically
-			// we just return the first one we hit. This works well with
-			// errors.Wrap. Is there extra value in returning them all here as a
-			// special case?
 			return warns, errors.Errorf(errFmtGetCRDs, errs)
 		}
-		// if we have errors, but we are not in strict mode, and all of the
+		// If we have errors, but we are not in strict mode, and all of the
 		// errors are not found errors, just move them to warnings and skip any
-		// further validation TODO(phisco): we are playing it safe and skipping
-		// validation altogether, in the future we might want to also support
-		// partially available inputs
+		// further validation.
+
+		// TODO(phisco): we are playing it safe and skipping validation
+		// altogether, in the future we might want to also support partially
+		// available inputs.
 		for _, err := range errs {
 			warns = append(warns, err.Error())
 		}
@@ -128,7 +126,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (adm
 
 	cv, err := composition.NewValidator(
 		composition.WithCRDGetterFromMap(gkToCRD),
-		// We disable logical Validation as this has already been done above
+		// We disable logical Validation as this has already been done above.
 		composition.WithoutLogicalValidation(),
 	)
 	if err != nil {
@@ -152,7 +150,8 @@ func (v *validator) ValidateDelete(_ context.Context, _ runtime.Object) (admissi
 	return nil, nil
 }
 
-// containsOtherThanNotFound returns true if the given slice of errors contains any error other than a not found error
+// containsOtherThanNotFound returns true if the given slice of errors contains
+// any error other than a not found error.
 func containsOtherThanNotFound(errs []error) bool {
 	for _, err := range errs {
 		if !apierrors.IsNotFound(err) {
@@ -163,10 +162,12 @@ func containsOtherThanNotFound(errs []error) bool {
 }
 
 func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, []error) {
+	// TODO(negz): Use https://pkg.go.dev/errors#Join to return a single error?
 	var resultErrs []error
 	neededCrds := make(map[schema.GroupKind]apiextensions.CustomResourceDefinition)
 
-	// Get schema for the Composite Resource Definition defined by comp.Spec.CompositeTypeRef
+	// Get schema for the Composite Resource Definition defined by
+	// comp.Spec.CompositeTypeRef.
 	compositeResGK := schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion,
 		comp.Spec.CompositeTypeRef.Kind).GroupKind()
 
@@ -181,7 +182,8 @@ func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (ma
 		neededCrds[compositeResGK] = *compositeCRD
 	}
 
-	// Get schema for all Managed Resource Definitions defined by comp.Spec.Resources
+	// Get schema for all Managed Resource Definitions defined by
+	// comp.Spec.Resources.
 	for _, res := range comp.Spec.Resources {
 		res := res
 		gvk, err := composition.GetBaseObjectGVK(&res)
@@ -203,8 +205,8 @@ func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (ma
 	return neededCrds, resultErrs
 }
 
-// getCRD returns the validation schema for the given GVK, by looking up the CRD by group and kind using
-// the provided client.
+// getCRD returns the validation schema for the given GVK, by looking up the CRD
+// by group and kind using the provided client.
 func (v *validator) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
 	crds := extv1.CustomResourceDefinitionList{}
 	if err := v.reader.List(ctx, &crds, client.MatchingFields{crdsIndexKey: getIndexValueForGroupKind(gk)}); err != nil {
@@ -225,7 +227,8 @@ func (v *validator) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiexten
 	return internal, extv1.Convert_v1_CustomResourceDefinition_To_apiextensions_CustomResourceDefinition(&crd, internal, nil)
 }
 
-// getIndexValueForCRD returns the index value for the given CRD, according to the resource defined in the spec.
+// getIndexValueForCRD returns the index value for the given CRD, according to
+// the resource defined in the spec.
 func getIndexValueForCRD(crd *extv1.CustomResourceDefinition) string {
 	return getIndexValueForGroupKind(&schema.GroupKind{Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind})
 }
