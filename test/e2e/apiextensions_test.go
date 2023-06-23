@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
@@ -136,4 +137,75 @@ func TestComposition(t *testing.T) {
 			WithLabel(LabelSize, LabelSizeSmall).
 			Setup(setup).Feature(),
 	)
+}
+
+func TestValidation(t *testing.T) {
+
+	manifests := "test/e2e/manifests/apiextensions/validation/composition-schema"
+	composition := features.Table{
+		{
+			Name: "PrerequisitesAreCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+			),
+		},
+		{
+			Name:       "XRDBecomesEstablished",
+			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
+		},
+		{},
+		{
+			Name: "ClaimIsCreated",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			),
+		},
+		{
+			Name:       "ClaimBecomesAvailable",
+			Assessment: funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+		},
+		{
+			Name:       "ClaimHasPatchedField",
+			Assessment: funcs.ResourcesHaveFieldValueWithin(2*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+		},
+		{
+			Name: "ClaimIsDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			),
+		},
+		{
+			Name: "PrerequisitesAreDeleted",
+			Assessment: funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+			),
+		},
+	}
+
+	// Enable our feature flag.
+	setup := funcs.AllOf(
+		funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions(helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"))...)),
+		funcs.ReadyToTestWithin(1*time.Minute, namespace),
+	)
+
+	// Disable our feature flag.
+	teardown := funcs.AllOf(
+		funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+		funcs.ReadyToTestWithin(1*time.Minute, namespace),
+	)
+
+	environment.Test(t,
+		composition.Build("CompositionSchema").
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			Setup(setup).
+			Teardown(teardown).
+			Feature(),
+	)
+
 }

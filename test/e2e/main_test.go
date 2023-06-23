@@ -35,6 +35,18 @@ import (
 // Features within an area may be split across different test functions.
 const LabelArea = "area"
 
+// LabelStage represents the 'stage' of a feature - alpha, beta, etc. Generally
+// available features have no stage label.
+const LabelStage = "stage"
+
+const (
+	// LabelStageAlpha is used for tests of alpha features.
+	LabelStageAlpha = "alpha"
+
+	// LabelStageBeta is used for tests of beta features.
+	LabelStageBeta = "beta"
+)
+
 // LabelSize represents the 'size' (i.e. duration) of a test.
 const LabelSize = "size"
 
@@ -66,22 +78,27 @@ const (
 // manifests.
 const FieldManager = "crossplane-e2e-tests"
 
-// We reuse these options in TestCrossplane, which uninstalls Crossplane,
-// installs the stable chart, then upgrades back to this chart.
-var helmOptions = []helm.Option{
-	helm.WithName(helmReleaseName),
-	helm.WithNamespace(namespace),
-	helm.WithChart(helmChartDir),
-	helm.WithArgs(
-		// Run with debug logging to ensure all log statements are run.
-		"--set args={--debug}",
-		"--set image.repository="+strings.Split(imgcore, ":")[0],
-		"--set image.tag="+strings.Split(imgcore, ":")[1],
+// HelmOptions valid for installing and upgrading the Crossplane Helm chart.
+// Used to install Crossplane before any test starts, but some tests also use
+// these options - for example to reinstall Crossplane with a feature flag
+// enabled.
+func HelmOptions(extra ...helm.Option) []helm.Option {
+	o := []helm.Option{
+		helm.WithName(helmReleaseName),
+		helm.WithNamespace(namespace),
+		helm.WithChart(helmChartDir),
+		helm.WithArgs(
+			// Run with debug logging to ensure all log statements are run.
+			"--set args={--debug}",
+			"--set image.repository="+strings.Split(imgcore, ":")[0],
+			"--set image.tag="+strings.Split(imgcore, ":")[1],
 
-		"--set xfn.args={--debug}",
-		"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
-		"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
-	),
+			"--set xfn.args={--debug}",
+			"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
+			"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
+		),
+	}
+	return append(o, extra...)
 }
 
 // The test environment, shared by all E2E test functions.
@@ -103,7 +120,7 @@ func TestMain(m *testing.M) {
 			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
 			envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),
 			envfuncs.CreateNamespace(namespace),
-			funcs.HelmInstall(helmOptions...),
+			funcs.HelmInstall(HelmOptions()...),
 		}
 	}
 
