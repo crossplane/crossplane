@@ -107,7 +107,6 @@ func ResourcesCreatedWithin(d time.Duration, dir, pattern string) features.Func 
 		list := &unstructured.UnstructuredList{}
 		for _, o := range rs {
 			u := asUnstructured(o)
-
 			list.Items = append(list.Items, *u)
 			t.Logf("Waiting %s for %s to exist...", d, identifier(u))
 		}
@@ -152,6 +151,7 @@ func ResourcesDeletedWithin(d time.Duration, dir, pattern string) features.Func 
 		list := &unstructured.UnstructuredList{}
 		for _, o := range rs {
 			u := asUnstructured(o)
+			list.Items = append(list.Items, *u)
 			t.Logf("Waiting %s for %s to be deleted...", d, identifier(u))
 		}
 
@@ -202,7 +202,6 @@ func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...x
 		for _, o := range rs {
 			u := asUnstructured(o)
 			list.Items = append(list.Items, *u)
-
 			t.Logf("Waiting %s for %s to become %s...", d, identifier(u), desired)
 		}
 
@@ -260,7 +259,6 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		for _, o := range rs {
 			u := asUnstructured(o)
 			list.Items = append(list.Items, *u)
-
 			t.Logf("Waiting %s for %s to have value %q at field path %s...", d, identifier(u), want, path)
 		}
 
