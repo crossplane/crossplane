@@ -273,7 +273,53 @@ func TestSelect(t *testing.T) {
 			},
 		},
 		"RefForFirstLabelSelectedObject": {
-			reason: "It should create a name reference for the first selected EnvironmentConfig that matches the labels.",
+			reason: "It should create a name reference for the single selected EnvironmentConfig that matches the labels.",
+			args: args{
+				kube: &test.MockClient{
+					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
+						list := obj.(*v1alpha1.EnvironmentConfigList)
+						list.Items = []v1alpha1.EnvironmentConfig{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "test-1",
+								},
+							},
+						}
+						return nil
+					}),
+				},
+				cr: composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										Mode:            v1.EnvironmentSourceSelectorSingleMode,
+										SortByFieldPath: "metadata.name",
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
+												Key:   "foo",
+												Value: pointer.String("bar"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(environmentConfigRef("test-1")),
+				),
+			},
+		},
+		"ErrorOnMultipleObjectsInSingleMode": {
+			reason: "It should return an error if more than 1 EnvironmentConfigs match the labels.",
 			args: args{
 				kube: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
@@ -318,9 +364,8 @@ func TestSelect(t *testing.T) {
 				},
 			},
 			want: want{
-				cr: composite(
-					withEnvironmentRefs(environmentConfigRef("test-1")),
-				),
+				cr:  composite(),
+				err: errors.Wrap(fmt.Errorf("only 1 EnvironmentConfig should be selected in Single mode, found: 2"), "failed to build reference at index 0"),
 			},
 		},
 		"RefsInOrder": {
@@ -914,7 +959,7 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr:  composite(),
-				err: errors.Wrap(fmt.Errorf("found items: 4 exceed MaxMatch limit: 3"), "failed to build reference at index 0"),
+				err: errors.Wrap(fmt.Errorf("number of found EnvironmentConfigs: 4 exceed MaxMatch limit: 3"), "failed to build reference at index 0"),
 			},
 		},
 		"ErrSelectOnNotMatchingType": {

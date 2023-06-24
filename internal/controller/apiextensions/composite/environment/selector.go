@@ -45,7 +45,8 @@ const (
 	errUnknownSelectorMode             = "unknown mode '%s'"
 	errSortNotMatchingTypes            = "not matching types: %T : %T"
 	errSortUnknownType                 = "unexpected type %T"
-	errExceededMaxMatch                = "found items: %d exceed MaxMatch limit: %d"
+	errExceededMaxMatch                = "number of found EnvironmentConfigs: %d exceed MaxMatch limit: %d"
+	errFoundMultipleInSingleMode       = "only 1 EnvironmentConfig should be selected in Single mode, found: %d"
 )
 
 // NewNoopEnvironmentSelector creates a new NoopEnvironmentSelector.
@@ -144,9 +145,9 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 		return []corev1.ObjectReference{}, nil
 
 	case selector.Mode == v1.EnvironmentSourceSelectorSingleMode:
-		err := sortConfigs(cl.Items, selector.SortByFieldPath)
-		if err != nil {
-			return []corev1.ObjectReference{}, err
+
+		if len(cl.Items) != 1 {
+			return []corev1.ObjectReference{}, errors.Errorf(errFoundMultipleInSingleMode, len(cl.Items))
 		}
 		ec = append(ec, cl.Items[0])
 
