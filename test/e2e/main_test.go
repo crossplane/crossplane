@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 
+	"k8s.io/klog/v2"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -34,6 +36,18 @@ import (
 // 'pkg', etc. Assessments roll up to features, which roll up to feature areas.
 // Features within an area may be split across different test functions.
 const LabelArea = "area"
+
+// LabelStage represents the 'stage' of a feature - alpha, beta, etc. Generally
+// available features have no stage label.
+const LabelStage = "stage"
+
+const (
+	// LabelStageAlpha is used for tests of alpha features.
+	LabelStageAlpha = "alpha"
+
+	// LabelStageBeta is used for tests of beta features.
+	LabelStageBeta = "beta"
+)
 
 // LabelSize represents the 'size' (i.e. duration) of a test.
 const LabelSize = "size"
@@ -66,28 +80,38 @@ const (
 // manifests.
 const FieldManager = "crossplane-e2e-tests"
 
-// We reuse these options in TestCrossplane, which uninstalls Crossplane,
-// installs the stable chart, then upgrades back to this chart.
-var helmOptions = []helm.Option{
-	helm.WithName(helmReleaseName),
-	helm.WithNamespace(namespace),
-	helm.WithChart(helmChartDir),
-	helm.WithArgs(
-		// Run with debug logging to ensure all log statements are run.
-		"--set args={--debug}",
-		"--set image.repository="+strings.Split(imgcore, ":")[0],
-		"--set image.tag="+strings.Split(imgcore, ":")[1],
+// HelmOptions valid for installing and upgrading the Crossplane Helm chart.
+// Used to install Crossplane before any test starts, but some tests also use
+// these options - for example to reinstall Crossplane with a feature flag
+// enabled.
+func HelmOptions(extra ...helm.Option) []helm.Option {
+	o := []helm.Option{
+		helm.WithName(helmReleaseName),
+		helm.WithNamespace(namespace),
+		helm.WithChart(helmChartDir),
+		helm.WithArgs(
+			// Run with debug logging to ensure all log statements are run.
+			"--set args={--debug}",
+			"--set image.repository="+strings.Split(imgcore, ":")[0],
+			"--set image.tag="+strings.Split(imgcore, ":")[1],
 
-		"--set xfn.args={--debug}",
-		"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
-		"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
-	),
+			"--set xfn.args={--debug}",
+			"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
+			"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
+		),
+	}
+	return append(o, extra...)
 }
 
 // The test environment, shared by all E2E test functions.
 var environment env.Environment
 
 func TestMain(m *testing.M) {
+	// TODO(negz): Global loggers are dumb and klog is dumb. Remove this when
+	// e2e-framework is running controller-runtime v0.15.x per
+	// https://github.com/kubernetes-sigs/e2e-framework/issues/270
+	log.SetLogger(klog.NewKlogr())
+
 	create := flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests")
 	destroy := flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
 
@@ -103,7 +127,7 @@ func TestMain(m *testing.M) {
 			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
 			envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),
 			envfuncs.CreateNamespace(namespace),
-			funcs.HelmInstall(helmOptions...),
+			funcs.HelmInstall(HelmOptions()...),
 		}
 	}
 

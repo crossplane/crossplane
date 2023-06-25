@@ -17,6 +17,8 @@ limitations under the License.
 package offered
 
 import (
+	"context"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/util/workqueue"
@@ -52,26 +54,26 @@ type EnqueueRequestForClaim struct{}
 
 // Create adds a NamespacedName for the supplied CreateEvent if its Object is a
 // ClaimReferencer.
-func (e *EnqueueRequestForClaim) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Create(_ context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
 	addClaim(evt.Object, q)
 }
 
 // Update adds a NamespacedName for the supplied UpdateEvent if its Objects are
 // ClaimReferencers.
-func (e *EnqueueRequestForClaim) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Update(_ context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
 	addClaim(evt.ObjectOld, q)
 	addClaim(evt.ObjectNew, q)
 }
 
 // Delete adds a NamespacedName for the supplied DeleteEvent if its Object is a
 // ClaimReferencer.
-func (e *EnqueueRequestForClaim) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Delete(_ context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
 	addClaim(evt.Object, q)
 }
 
 // Generic adds a NamespacedName for the supplied GenericEvent if its Object is
 // a ClaimReferencer.
-func (e *EnqueueRequestForClaim) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+func (e *EnqueueRequestForClaim) Generic(_ context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
 	addClaim(evt.Object, q)
 }
 

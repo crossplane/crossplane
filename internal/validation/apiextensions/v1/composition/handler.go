@@ -19,25 +19,19 @@ package composition
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"net/http"
 
-	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/features"
@@ -45,27 +39,26 @@ import (
 )
 
 const (
-	// key used to index CRDs by "Kind" and "group", to be used when
-	// indexing and retrieving needed CRDs
+	// Key used to index CRDs by "Kind" and "group", to be used when
+	// indexing and retrieving needed CRDs.
 	crdsIndexKey = "crd.kind.group"
 )
 
-// handler implements the admission handler for Composition.
-type handler struct {
-	reader  client.Reader
-	decoder *admission.Decoder
-	options controller.Options
-}
+// Error strings.
+const (
+	errNotComposition = "supplied object was not a Composition"
+	errUnexpectedOp   = "unexpected operation"
+	errValidationMode = "cannot get validation mode"
 
-// InjectDecoder injects the decoder.
-func (h *handler) InjectDecoder(decoder *admission.Decoder) error {
-	h.decoder = decoder
-	return nil
-}
+	errFmtTooManyCRDs = "more than one CRD found for %s.%s: %v"
+	errFmtGetCRDs     = "cannot get the needed CRDs: %v"
+)
 
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
 	if options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
+		// Setup an index on CRDs so we can retrieve them by group and kind.
+		// The index is used by the getCRD function below.
 		indexer := mgr.GetFieldIndexer()
 		if err := indexer.IndexField(context.Background(), &extv1.CustomResourceDefinition{}, crdsIndexKey, func(obj client.Object) []string {
 			return []string{getIndexValueForCRD(obj.(*extv1.CustomResourceDefinition))}
@@ -74,96 +67,72 @@ func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error
 		}
 	}
 
-	// TODO(lsviben): switch to using admission.CustomValidator when https://github.com/kubernetes-sigs/controller-runtime/issues/1896 is resolved.
-	mgr.GetWebhookServer().Register(v1.CompositionValidatingWebhookPath,
-		&webhook.Admission{Handler: &handler{
-			reader:  unstructured.NewClient(mgr.GetClient()),
-			options: options,
-		}})
-
-	return nil
+	v := &validator{reader: mgr.GetClient(), options: options}
+	return ctrl.NewWebhookManagedBy(mgr).
+		WithValidator(v).
+		For(&v1.Composition{}).
+		Complete()
 }
 
-// Handle handles the admission request, validating the Composition.
-func (h *handler) Handle(ctx context.Context, request admission.Request) admission.Response {
-	switch request.Operation {
-	case admissionv1.Create, admissionv1.Update:
-		c := &v1.Composition{}
-		if err := h.decoder.Decode(request, c); err != nil {
-			return admission.Errored(http.StatusBadRequest, err)
-		}
-		warns, err := h.Validate(ctx, c)
-		if err == nil {
-			return admission.Allowed("").WithWarnings(warns...)
-		}
-		var apiStatus apierrors.APIStatus
-		if errors.As(err, &apiStatus) {
-			return validationResponseFromStatus(false, apiStatus.Status()).WithWarnings(warns...)
-		}
-		return admission.Denied(err.Error()).WithWarnings(warns...)
-	case admissionv1.Delete:
-		return admission.Allowed("")
-	case admissionv1.Connect:
-		return admission.Errored(http.StatusBadRequest, errors.New("unexpected operation"))
-	default:
-		return admission.Errored(http.StatusBadRequest, errors.New("unexpected operation"))
+type validator struct {
+	reader  client.Reader
+	options controller.Options
+}
+
+// ValidateCreate validates a Composition.
+func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) { //nolint:gocyclo // Currently only at 11
+	comp, ok := obj.(*v1.Composition)
+	if !ok {
+		return nil, errors.New(errNotComposition)
 	}
-}
 
-func validationResponseFromStatus(allowed bool, status metav1.Status) admission.Response {
-	resp := admission.Response{
-		AdmissionResponse: admissionv1.AdmissionResponse{
-			Allowed: allowed,
-			Result:  &status,
-		},
-	}
-	return resp
-}
-
-// Validate validates the Composition by rendering it and then validating the rendered resources.
-func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []string, err error) {
-	// Validate the composition itself, we'll disable it on the Validator below
-	var validationErrs field.ErrorList
-	warns, validationErrs = comp.Validate()
+	// Validate the composition itself, we'll disable it on the Validator below.
+	warns, validationErrs := comp.Validate()
 	if len(validationErrs) != 0 {
 		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), validationErrs)
 	}
 
-	if !h.options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
+	if !v.options.Features.Enabled(features.EnableAlphaCompositionWebhookSchemaValidation) {
 		return warns, nil
 	}
 
 	// Get the composition validation mode from annotation
 	validationMode, err := comp.GetValidationMode()
 	if err != nil {
-		return warns, xperrors.Wrap(err, "cannot get validation mode")
+		return warns, errors.Wrap(err, errValidationMode)
 	}
 
-	// Get all the needed CRDs, Composite Resource, Managed resources ... ? Error out if missing in strict mode
-	gkToCRD, errs := h.getNeededCRDs(ctx, comp)
-	// if we have errors, and we are in strict mode or any of the errors is not a , return them
+	// Get all the needed CRDs, Composite Resource, Managed resources ... ?
+	// Error out if missing in strict mode
+	gkToCRD, errs := v.getNeededCRDs(ctx, comp)
+	// If we have errors, and we are in strict mode or any of the errors is not
+	// a NotFound, return them.
 	if len(errs) != 0 {
 		if validationMode == v1.CompositionValidationModeStrict || containsOtherThanNotFound(errs) {
-			return warns, xperrors.Errorf("there were some errors while getting the needed CRDs: %v", errs)
+			return warns, errors.Errorf(errFmtGetCRDs, errs)
 		}
-		// if we have errors, but we are not in strict mode, and all of the errors are not found errors,
-		// just move them to warnings and skip any further validation
-		// TODO(phisco): we are playing it safe and skipping validation altogether, in the future we might want to also support partially available inputs
+		// If we have errors, but we are not in strict mode, and all of the
+		// errors are not found errors, just move them to warnings and skip any
+		// further validation.
+
+		// TODO(phisco): we are playing it safe and skipping validation
+		// altogether, in the future we might want to also support partially
+		// available inputs.
 		for _, err := range errs {
 			warns = append(warns, err.Error())
 		}
 		return warns, nil
 	}
 
-	v, err := composition.NewValidator(
+	cv, err := composition.NewValidator(
 		composition.WithCRDGetterFromMap(gkToCRD),
-		// We disable logical Validation as this has already been done above
+		// We disable logical Validation as this has already been done above.
 		composition.WithoutLogicalValidation(),
 	)
 	if err != nil {
 		return warns, apierrors.NewInternalError(err)
 	}
-	schemaWarns, errList := v.Validate(ctx, comp)
+	schemaWarns, errList := cv.Validate(ctx, comp)
 	warns = append(warns, schemaWarns...)
 	if len(errList) != 0 {
 		return warns, apierrors.NewInvalid(comp.GroupVersionKind().GroupKind(), comp.GetName(), errList)
@@ -171,7 +140,18 @@ func (h *handler) Validate(ctx context.Context, comp *v1.Composition) (warns []s
 	return warns, nil
 }
 
-// containsOtherThanNotFound returns true if the given slice of errors contains any error other than a not found error
+// ValidateUpdate implements the same logic as ValidateCreate.
+func (v *validator) ValidateUpdate(ctx context.Context, _, newObj runtime.Object) (admission.Warnings, error) {
+	return v.ValidateCreate(ctx, newObj)
+}
+
+// ValidateDelete always allows delete requests.
+func (v *validator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
+	return nil, nil
+}
+
+// containsOtherThanNotFound returns true if the given slice of errors contains
+// any error other than a not found error.
 func containsOtherThanNotFound(errs []error) bool {
 	for _, err := range errs {
 		if !apierrors.IsNotFound(err) {
@@ -181,15 +161,17 @@ func containsOtherThanNotFound(errs []error) bool {
 	return false
 }
 
-func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, []error) {
+func (v *validator) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[schema.GroupKind]apiextensions.CustomResourceDefinition, []error) {
+	// TODO(negz): Use https://pkg.go.dev/errors#Join to return a single error?
 	var resultErrs []error
 	neededCrds := make(map[schema.GroupKind]apiextensions.CustomResourceDefinition)
 
-	// Get schema for the Composite Resource Definition defined by comp.Spec.CompositeTypeRef
+	// Get schema for the Composite Resource Definition defined by
+	// comp.Spec.CompositeTypeRef.
 	compositeResGK := schema.FromAPIVersionAndKind(comp.Spec.CompositeTypeRef.APIVersion,
 		comp.Spec.CompositeTypeRef.Kind).GroupKind()
 
-	compositeCRD, err := h.getCRD(ctx, &compositeResGK)
+	compositeCRD, err := v.getCRD(ctx, &compositeResGK)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
 			return nil, []error{err}
@@ -200,7 +182,8 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 		neededCrds[compositeResGK] = *compositeCRD
 	}
 
-	// Get schema for all Managed Resource Definitions defined by comp.Spec.Resources
+	// Get schema for all Managed Resource Definitions defined by
+	// comp.Spec.Resources.
 	for _, res := range comp.Spec.Resources {
 		res := res
 		gvk, err := composition.GetBaseObjectGVK(&res)
@@ -208,7 +191,7 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 			return nil, []error{err}
 		}
 		gk := gvk.GroupKind()
-		crd, err := h.getCRD(ctx, &gk)
+		crd, err := v.getCRD(ctx, &gk)
 		switch {
 		case apierrors.IsNotFound(err):
 			resultErrs = append(resultErrs, err)
@@ -222,11 +205,11 @@ func (h *handler) getNeededCRDs(ctx context.Context, comp *v1.Composition) (map[
 	return neededCrds, resultErrs
 }
 
-// getCRD returns the validation schema for the given GVK, by looking up the CRD by group and kind using
-// the provided client.
-func (h *handler) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
+// getCRD returns the validation schema for the given GVK, by looking up the CRD
+// by group and kind using the provided client.
+func (v *validator) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensions.CustomResourceDefinition, error) {
 	crds := extv1.CustomResourceDefinitionList{}
-	if err := h.reader.List(ctx, &crds, client.MatchingFields{crdsIndexKey: getIndexValueForGroupKind(gk)}); err != nil {
+	if err := v.reader.List(ctx, &crds, client.MatchingFields{crdsIndexKey: getIndexValueForGroupKind(gk)}); err != nil {
 		return nil, err
 	}
 	switch {
@@ -237,14 +220,15 @@ func (h *handler) getCRD(ctx context.Context, gk *schema.GroupKind) (*apiextensi
 		for _, crd := range crds.Items {
 			names = append(names, crd.Name)
 		}
-		return nil, apierrors.NewInternalError(fmt.Errorf("more than one CRD found for %s.%s: %v", gk.Kind, gk.Group, names))
+		return nil, apierrors.NewInternalError(errors.Errorf(errFmtTooManyCRDs, gk.Kind, gk.Group, names))
 	}
 	crd := crds.Items[0]
 	internal := &apiextensions.CustomResourceDefinition{}
 	return internal, extv1.Convert_v1_CustomResourceDefinition_To_apiextensions_CustomResourceDefinition(&crd, internal, nil)
 }
 
-// getIndexValueForCRD returns the index value for the given CRD, according to the resource defined in the spec.
+// getIndexValueForCRD returns the index value for the given CRD, according to
+// the resource defined in the spec.
 func getIndexValueForCRD(crd *extv1.CustomResourceDefinition) string {
 	return getIndexValueForGroupKind(&schema.GroupKind{Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind})
 }

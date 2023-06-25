@@ -43,37 +43,37 @@ type EnqueueRequestForReferencingProviderRevisions struct {
 
 // Create enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Create(evt event.CreateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForReferencingProviderRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Update enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Update(evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.ObjectOld, q)
-	e.add(evt.ObjectNew, q)
+func (e *EnqueueRequestForReferencingProviderRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.ObjectOld, q)
+	e.add(ctx, evt.ObjectNew, q)
 }
 
 // Delete enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Delete(evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForReferencingProviderRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
 // Generic enqueues a request for all provider revisions that reference a given
 // ControllerConfig.
-func (e *EnqueueRequestForReferencingProviderRevisions) Generic(evt event.GenericEvent, q workqueue.RateLimitingInterface) {
-	e.add(evt.Object, q)
+func (e *EnqueueRequestForReferencingProviderRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
 }
 
-func (e *EnqueueRequestForReferencingProviderRevisions) add(obj runtime.Object, queue adder) {
+func (e *EnqueueRequestForReferencingProviderRevisions) add(ctx context.Context, obj runtime.Object, queue adder) {
 	cc, ok := obj.(*v1alpha1.ControllerConfig)
 	if !ok {
 		return
 	}
 
 	l := &v1.ProviderRevisionList{}
-	if err := e.client.List(context.TODO(), l); err != nil {
+	if err := e.client.List(ctx, l); err != nil {
 		// TODO(hasheddan): Handle this error?
 		return
 	}

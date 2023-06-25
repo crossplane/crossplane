@@ -17,6 +17,7 @@ limitations under the License.
 package revision
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -50,6 +51,7 @@ func TestAdd(t *testing.T) {
 	prName := "coolpr"
 
 	cases := map[string]struct {
+		ctx              context.Context
 		obj              runtime.Object
 		client           client.Client
 		controllerConfig *v1alpha1.ControllerConfig
@@ -96,6 +98,6 @@ func TestAdd(t *testing.T) {
 
 	for _, tc := range cases {
 		e := &EnqueueRequestForReferencingProviderRevisions{client: tc.client}
-		e.add(tc.obj, tc.queue)
+		e.add(tc.ctx, tc.obj, tc.queue)
 	}
 }

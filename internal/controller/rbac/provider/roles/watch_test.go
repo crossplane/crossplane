@@ -17,6 +17,7 @@ limitations under the License.
 package roles
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -50,6 +51,7 @@ func TestEnqueueRequestForAllRevisionsWithRequests(t *testing.T) {
 	prName := "coolpr"
 
 	cases := map[string]struct {
+		ctx             context.Context
 		obj             runtime.Object
 		client          client.Client
 		clusterRoleName string
@@ -100,7 +102,7 @@ func TestEnqueueRequestForAllRevisionsWithRequests(t *testing.T) {
 
 	for _, tc := range cases {
 		e := &EnqueueRequestForAllRevisionsWithRequests{client: tc.client, clusterRoleName: tc.clusterRoleName}
-		e.add(tc.obj, tc.queue)
+		e.add(tc.ctx, tc.obj, tc.queue)
 	}
 }
 
@@ -110,6 +112,7 @@ func TestEnqueueRequestForAllRevisionsInFamily(t *testing.T) {
 	prName := "coolpr"
 
 	cases := map[string]struct {
+		ctx    context.Context
 		obj    runtime.Object
 		client client.Client
 		queue  adder
@@ -159,6 +162,6 @@ func TestEnqueueRequestForAllRevisionsInFamily(t *testing.T) {
 
 	for _, tc := range cases {
 		e := &EnqueueRequestForAllRevisionsInFamily{client: tc.client}
-		e.add(tc.obj, tc.queue)
+		e.add(tc.ctx, tc.obj, tc.queue)
 	}
 }

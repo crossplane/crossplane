@@ -29,7 +29,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
@@ -82,7 +81,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&corev1.Namespace{}).
 		Owns(&rbacv1.Role{}).
-		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, &EnqueueRequestForNamespaces{client: mgr.GetClient()}).
+		Watches(&rbacv1.ClusterRole{}, &EnqueueRequestForNamespaces{client: mgr.GetClient()}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }

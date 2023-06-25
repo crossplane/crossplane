@@ -178,7 +178,7 @@ func TestCrossplane(t *testing.T) {
 		},
 		{
 			Name:       "CrossplaneIsUpgraded",
-			Assessment: funcs.AsFeaturesFunc(funcs.HelmUpgrade(helmOptions...)),
+			Assessment: funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
 		},
 		{
 			Name:       "CoreDeploymentBecomesAvailable",

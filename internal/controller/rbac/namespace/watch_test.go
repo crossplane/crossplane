@@ -17,6 +17,7 @@ limitations under the License.
 package namespace
 
 import (
+	"context"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -48,6 +49,7 @@ func TestAdd(t *testing.T) {
 
 	cases := map[string]struct {
 		client client.Reader
+		ctx    context.Context
 		obj    runtime.Object
 		queue  adder
 	}{
@@ -85,6 +87,6 @@ func TestAdd(t *testing.T) {
 
 	for _, tc := range cases {
 		e := &EnqueueRequestForNamespaces{client: tc.client}
-		e.add(tc.obj, tc.queue)
+		e.add(tc.ctx, tc.obj, tc.queue)
 	}
 }

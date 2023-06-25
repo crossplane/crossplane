@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -130,8 +129,8 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1.ProviderRevision{}).
 		Owns(&rbacv1.ClusterRole{}).
-		Watches(&source.Kind{Type: &rbacv1.ClusterRole{}}, wrh).
-		Watches(&source.Kind{Type: &v1.ProviderRevision{}}, sfh).
+		Watches(&rbacv1.ClusterRole{}, wrh).
+		Watches(&v1.ProviderRevision{}, sfh).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }

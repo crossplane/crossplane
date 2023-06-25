@@ -22,10 +22,13 @@ import (
 	"github.com/google/go-cmp/cmp"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
+
+var _ admission.Validator = &CompositeResourceDefinition{}
 
 func TestValidateUpdate(t *testing.T) {
 	type args struct {
@@ -34,7 +37,8 @@ func TestValidateUpdate(t *testing.T) {
 	}
 	cases := map[string]struct {
 		args
-		err error
+		warns admission.Warnings
+		err   error
 	}{
 		"UnexpectedType": {
 			args: args{
@@ -156,9 +160,12 @@ func TestValidateUpdate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := tc.new.ValidateUpdate(tc.old)
+			warns, err := tc.new.ValidateUpdate(tc.old)
+			if diff := cmp.Diff(tc.warns, warns); diff != "" {
+				t.Errorf("ValidateUpdate(): -want warnings, +got warnings:\n%s", diff)
+			}
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("ValidateUpdate(): -want, +got:\n%s", diff)
+				t.Errorf("ValidateUpdate(): -want error, +got error:\n%s", diff)
 			}
 		})
 	}
