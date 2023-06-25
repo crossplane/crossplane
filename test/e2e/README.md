@@ -42,6 +42,10 @@ E2E_TEST_FLAGS="-feature=Install" make e2e
 
 # Stop immediately on first test failure, and leave the kind cluster to debug.
 E2E_TEST_FLAGS="-test.v -test.failfast -destroy-kind-cluster=false"
+
+# Use an existing Kubernetes cluster. Note that the E2E tests can't deploy your
+# local build of Crossplane in this scenario, so you'll have to do it yourself.
+E2E_TEST_FLAGS="-create-kind-cluster=false -destroy-kind-cluster=false -kubeconfig=$HOME/.kube/config"
 ```
 
 ## Test Parallelism
