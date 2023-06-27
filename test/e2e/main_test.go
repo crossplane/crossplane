@@ -89,6 +89,9 @@ func HelmOptions(extra ...helm.Option) []helm.Option {
 		helm.WithName(helmReleaseName),
 		helm.WithNamespace(namespace),
 		helm.WithChart(helmChartDir),
+		// wait for the deployment to be ready for up to 5 minutes before returning
+		helm.WithWait(),
+		helm.WithTimeout("5m"),
 		helm.WithArgs(
 			// Run with debug logging to ensure all log statements are run.
 			"--set args={--debug}",
@@ -98,10 +101,6 @@ func HelmOptions(extra ...helm.Option) []helm.Option {
 			"--set xfn.args={--debug}",
 			"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
 			"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
-
-			// wait for the deployment to be ready for up to 5 minutes before returning
-			"--wait",
-			"--timeout=5m",
 		),
 	}
 	return append(o, extra...)
