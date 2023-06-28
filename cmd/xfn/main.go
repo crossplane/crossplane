@@ -21,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/alecthomas/kong"
+	"github.com/google/go-containerregistry/pkg/name"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
@@ -34,10 +35,17 @@ import (
 type debugFlag bool
 type versionFlag bool
 
+// KongVars represent the kong variables associated with the CLI parser
+// required for the Registry default variable interpolation.
+var KongVars = kong.Vars{
+	"default_registry": name.DefaultRegistry,
+}
+
 var cli struct {
 	Debug debugFlag `short:"d" help:"Print verbose logging statements."`
 
-	Version versionFlag `short:"v" help:"Print version and quit."`
+	Version  versionFlag `short:"v" help:"Print version and quit."`
+	Registry string      `short:"r" help:"Default registry used to fetch containers when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
 
 	Start start.Command `cmd:"" help:"Start listening for Composition Function runs over gRPC." default:"1"`
 	Run   run.Command   `cmd:"" help:"Run a Composition Function."`
@@ -69,6 +77,7 @@ func main() {
 		kong.Description("Crossplane Composition Functions."),
 		kong.BindTo(logging.NewLogrLogger(zl), (*logging.Logger)(nil)),
 		kong.UsageOnError(),
+		KongVars,
 	)
-	ctx.FatalIfErrorf(ctx.Run())
+	ctx.FatalIfErrorf(ctx.Run(&start.Args{Registry: cli.Registry}))
 }

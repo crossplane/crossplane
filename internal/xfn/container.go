@@ -43,10 +43,11 @@ type ContainerRunner struct {
 
 	log logging.Logger
 
-	rootUID int
-	rootGID int
-	setuid  bool // Specifically, CAP_SETUID and CAP_SETGID.
-	cache   string
+	rootUID  int
+	rootGID  int
+	setuid   bool // Specifically, CAP_SETUID and CAP_SETGID.
+	cache    string
+	registry string
 }
 
 // A ContainerRunnerOption configures a new ContainerRunner.
@@ -75,6 +76,14 @@ func SetUID(s bool) ContainerRunnerOption {
 func WithCacheDir(d string) ContainerRunnerOption {
 	return func(r *ContainerRunner) {
 		r.cache = d
+	}
+}
+
+// WithRegistry specifies the default registry used to retrieve function images and
+// containers.
+func WithRegistry(dr string) ContainerRunnerOption {
+	return func(r *ContainerRunner) {
+		r.registry = dr
 	}
 }
 

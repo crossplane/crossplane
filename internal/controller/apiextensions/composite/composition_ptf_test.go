@@ -1117,6 +1117,7 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 		c              client.Reader
 		namespace      string
 		serviceAccount string
+		registry       string
 	}
 	type args struct {
 		ctx context.Context
@@ -1188,6 +1189,7 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 						return nil
 					},
 				},
+				registry: "index.docker.io",
 			},
 			args: args{
 				fn: &v1.ContainerFunction{
@@ -1211,7 +1213,7 @@ func TestWithKubernetesAuthentication(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			err := WithKubernetesAuthentication(tc.params.c, tc.params.namespace, tc.params.serviceAccount)(tc.args.ctx, tc.args.fn, tc.args.r)
+			err := WithKubernetesAuthentication(tc.params.c, tc.params.namespace, tc.params.serviceAccount, tc.params.registry)(tc.args.ctx, tc.args.fn, tc.args.r)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nWithKubernetesAuthentication(...): -want error, +got error:\n%s", tc.reason, diff)

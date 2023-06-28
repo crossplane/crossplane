@@ -214,6 +214,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Options:        o,
 		Namespace:      c.Namespace,
 		ServiceAccount: c.ServiceAccount,
+		Registry:       c.Registry,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {

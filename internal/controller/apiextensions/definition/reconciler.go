@@ -505,7 +505,7 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 				composite.WithCompositeConnectionDetailsFetcher(fetcher),
 				composite.WithFunctionPipelineRunner(composite.NewFunctionPipeline(
 					composite.ContainerFunctionRunnerFn(composite.RunFunction),
-					composite.WithKubernetesAuthentication(c, co.Namespace, co.ServiceAccount),
+					composite.WithKubernetesAuthentication(c, co.Namespace, co.ServiceAccount, co.Registry),
 				)),
 			),
 			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),

@@ -33,6 +33,11 @@ const (
 	errListenAndServe = "cannot listen for and serve gRPC API"
 )
 
+// Args contains the default registry used to pull XFN containers.
+type Args struct {
+	Registry string
+}
+
 // Command starts a gRPC API to run Composition Functions.
 type Command struct {
 	CacheDir   string `short:"c" help:"Directory used for caching function images and containers." default:"/xfn"`
@@ -43,7 +48,7 @@ type Command struct {
 }
 
 // Run a Composition Function gRPC API.
-func (c *Command) Run(log logging.Logger) error {
+func (c *Command) Run(args *Args, log logging.Logger) error {
 	// If we don't have CAP_SETUID or CAP_SETGID, we'll only be able to map our
 	// own UID and GID to root inside the user namespace.
 	rootUID := os.Getuid()
@@ -59,6 +64,7 @@ func (c *Command) Run(log logging.Logger) error {
 		xfn.SetUID(setuid),
 		xfn.MapToRoot(rootUID, rootGID),
 		xfn.WithCacheDir(filepath.Clean(c.CacheDir)),
-		xfn.WithLogger(log))
+		xfn.WithLogger(log),
+		xfn.WithRegistry(args.Registry))
 	return errors.Wrap(f.ListenAndServe(c.Network, c.Address), errListenAndServe)
 }
