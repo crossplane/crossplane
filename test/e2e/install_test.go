@@ -46,7 +46,6 @@ const LabelAreaLifecycle = "lifecycle"
 // Note: First time Installation is tested as part of the environment setup,
 // if not disabled explicitly.
 func TestCrossplaneLifecycle(t *testing.T) {
-
 	manifests := "test/e2e/manifests/lifecycle/upgrade"
 	environment.Test(t,
 		// Test that it's possible to cleanly uninstall Crossplane, even after
@@ -93,15 +92,12 @@ func TestCrossplaneLifecycle(t *testing.T) {
 		features.New("Upgrade").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithSetup("CrossplaneIsUninstalled", funcs.AllOf(
-				// We expect Crossplane to have been uninstalled first
+			// We expect Crossplane to have been uninstalled first
+			Assess("CrossplaneIsNotInstalled", funcs.AllOf(
 				funcs.ResourceDeletedWithin(1*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
+				funcs.ResourcesDeletedWithin(3*time.Minute, crdsDir, "*.yaml"),
 			)).
-			WithSetup("CreateCrossplane", funcs.AllOf(
-				funcs.AsFeaturesFunc(envfuncs.CreateNamespace(namespace)),
-				funcs.ResourceCreatedWithin(1*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
-			)).
-			WithSetup("InstallStableCrossplane", funcs.AllOf(
+			Assess("InstallStableCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmRepo(
 					helm.WithArgs("add"),
 					helm.WithArgs("crossplane-stable"),
@@ -111,18 +107,19 @@ func TestCrossplaneLifecycle(t *testing.T) {
 					helm.WithNamespace(namespace),
 					helm.WithName(helmReleaseName),
 					helm.WithChart("crossplane-stable/crossplane"),
+					helm.WithArgs("--create-namespace"),
 				)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace))).
-			WithSetup("CreateClaimPrerequisites", funcs.AllOf(
+			Assess("CreateClaimPrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			)).
-			WithSetup("XRDBecomesEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
-			WithSetup("CreateClaim", funcs.AllOf(
+			Assess("XRDBecomesEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
+			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			WithSetup("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("UpgradeCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
