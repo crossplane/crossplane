@@ -38,7 +38,7 @@ E2E_TEST_FLAGS="-test.run ^TestConfiguration" make e2e
 E2E_TEST_FLAGS="-labels area=apiextensions" make e2e
 
 # To test a specific feature, use the feature flag
-E2E_TEST_FLAGS="-feature=Install" make e2e
+E2E_TEST_FLAGS="-feature=ConfigurationWithDependency" make e2e
 
 # Stop immediately on first test failure, and leave the kind cluster to debug.
 E2E_TEST_FLAGS="-test.v -test.failfast -destroy-kind-cluster=false"
@@ -46,6 +46,14 @@ E2E_TEST_FLAGS="-test.v -test.failfast -destroy-kind-cluster=false"
 # Use an existing Kubernetes cluster. Note that the E2E tests can't deploy your
 # local build of Crossplane in this scenario, so you'll have to do it yourself.
 E2E_TEST_FLAGS="-create-kind-cluster=false -destroy-kind-cluster=false -kubeconfig=$HOME/.kube/config"
+
+# Run the CrossplaneUpgrade feature, against an existing kind cluster named "kind" (or creating it if it doesn't exist),
+# without installing Crossplane first, as the feature expects the cluster to be empty, but still loading the images to
+# it. Setting the tests to fail fast and not destroying the cluster afterward in order to allow debugging it.
+E2E_TEST_FLAGS="-test.v -v 4 -test.failfast -destroy-kind-cluster=false -kind-cluster-name=kind -install-crossplane=false -feature=CrossplaneUpgrade" make e2e
+
+# Run the all tests not installing or upgrading Crossplane against the currently selected cluster where Crossplane has already been installed.
+E2E_TEST_FLAGS="-test.v -v 4 -test.failfast -kubeconfig=$HOME/.kube/config -skip-labels install-crossplane=true -create-kind-cluster=false -install-crossplane=false" make go.build e2e-run-tests```
 ```
 
 ## Test Parallelism

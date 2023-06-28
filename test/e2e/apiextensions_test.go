@@ -128,6 +128,7 @@ func TestCompositionValidation(t *testing.T) {
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(LabelInstallCrossplane, LabelInstallCrossplaneTrue).
 			// Enable our feature flag.
 			WithSetup("EnableAlphaCompositionValidation", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions(helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"))...)),

@@ -50,9 +50,10 @@ func TestCrossplaneLifecycle(t *testing.T) {
 	environment.Test(t,
 		// Test that it's possible to cleanly uninstall Crossplane, even after
 		// having created and deleted a claim.
-		features.New("Uninstall").
+		features.New("CrossplaneUninstall").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(LabelInstallCrossplane, LabelInstallCrossplaneTrue).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
@@ -89,7 +90,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourceDeletedWithin(3*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
 			)).
 			Feature(),
-		features.New("Upgrade").
+		features.New("CrossplaneUpgrade").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			// We expect Crossplane to have been uninstalled first
