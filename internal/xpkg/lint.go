@@ -28,6 +28,7 @@ import (
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
@@ -36,6 +37,7 @@ const (
 	errNotMeta                           = "meta type is not a package"
 	errNotMetaProvider                   = "package meta type is not Provider"
 	errNotMetaConfiguration              = "package meta type is not Configuration"
+	errNotMetaFunction                   = "package meta type is not Function"
 	errNotCRD                            = "object is not a CRD"
 	errNotXRD                            = "object is not an XRD"
 	errNotMutatingWebhookConfiguration   = "object is not a MutatingWebhookConfiguration"
@@ -84,6 +86,15 @@ func IsConfiguration(o runtime.Object) error {
 	po, _ := TryConvert(o, &pkgmetav1.Configuration{})
 	if _, ok := po.(*pkgmetav1.Configuration); !ok {
 		return errors.New(errNotMetaConfiguration)
+	}
+	return nil
+}
+
+// IsFunction checks that an object is a Function meta type.
+func IsFunction(o runtime.Object) error {
+	po, _ := TryConvert(o, &pkgmetav1alpha1.Function{})
+	if _, ok := po.(*pkgmetav1alpha1.Function); !ok {
+		return errors.New(errNotMetaFunction)
 	}
 	return nil
 }

@@ -60,6 +60,11 @@ kind: Configuration
 metadata:
   name: test`)
 
+	v1alpha1FuncBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
+  kind: Function
+  metadata:
+    name: test`)
+
 	v1ProvBytes = []byte(`apiVersion: meta.pkg.crossplane.io/v1
 kind: Provider
 metadata:
@@ -88,6 +93,8 @@ metadata:
 	_                = yaml.Unmarshal(v1alpha1ProvBytes, v1alpha1ProvMeta)
 	v1alpha1ConfMeta = &pkgmetav1alpha1.Configuration{}
 	_                = yaml.Unmarshal(v1alpha1ConfBytes, v1alpha1ConfMeta)
+	v1alpha1FuncMeta = &pkgmetav1alpha1.Function{}
+	_                = yaml.Unmarshal(v1alpha1FuncBytes, v1alpha1FuncMeta)
 	v1ProvMeta       = &pkgmetav1.Provider{}
 	_                = yaml.Unmarshal(v1ProvBytes, v1ProvMeta)
 	v1ConfMeta       = &pkgmetav1.Configuration{}
@@ -201,6 +208,34 @@ func TestIsConfiguration(t *testing.T) {
 
 			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nIsConfiguration(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsFunction(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		obj    runtime.Object
+		err    error
+	}{
+		"v1alpha1": {
+			reason: "Should not return error if object is a v1alpha1 function.",
+			obj:    v1alpha1FuncMeta,
+		},
+		"ErrNotFunction": {
+			reason: "Should return error if object is not function.",
+			obj:    v1beta1crd,
+			err:    errors.New(errNotMetaFunction),
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			err := IsFunction(tc.obj)
+
+			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nIsFunction(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
 		})
 	}
