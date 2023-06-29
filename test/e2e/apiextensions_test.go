@@ -78,7 +78,7 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 		features.New("CompositionPatchAndTransform").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
@@ -87,16 +87,16 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			Assess("ClaimIsReadyWithinTimeout",
+			Assess("ClaimIsReady",
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimHasPatchedField",
 				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
 			).
-			WithTeardown("ClaimIsDeleted", funcs.AllOf(
+			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("PrerequisitesAreDeleted", funcs.AllOf(
+			WithTeardown("DeleteAllPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
 			)).

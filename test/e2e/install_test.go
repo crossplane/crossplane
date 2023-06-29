@@ -58,17 +58,17 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			)).
-			WithSetup("XRDBecomesEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
+			WithSetup("XRDAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
 			WithSetup("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			WithSetup("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			WithSetup("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			Assess("DeletePrerequisites", funcs.AllOf(
+			Assess("DeleteAllPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "prerequisites/*.yaml"),
 			)).
@@ -115,26 +115,26 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
 			)).
-			Assess("XRDBecomesEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
+			Assess("XRDIsEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("UpgradeCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
-			Assess("CoreDeploymentBecomesAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).
-			Assess("RBACManagerDeploymentBecomesAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
-			Assess("CoreCRDsBecomeEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
-			Assess("ClaimStillAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("CoreDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).
+			Assess("RBACManagerDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
+			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
+			Assess("ClaimAreAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
+			WithTeardown("DeleteAllPrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "prerequisites/*.yaml"),
 			)).

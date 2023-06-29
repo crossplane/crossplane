@@ -41,11 +41,11 @@ func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 		features.New("ConfigurationPullFromPrivateRegistry").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithSetup("ConfigurationCreated", funcs.AllOf(
+			WithSetup("CreateConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "*.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "*.yaml"),
 			)).
-			Assess("ConfigurationHealthyBeforeTimeout", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("ConfigurationIsHealthy", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
 			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "*.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "*.yaml"),
@@ -62,19 +62,21 @@ func TestConfigurationWithDependency(t *testing.T) {
 		features.New("ConfigurationWithDependency").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithSetup("ReadyConfiguration", funcs.AllOf(
+			WithSetup("ApplyConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
 			)).
-			Assess("ConfigurationHealthyBeforeTimeout",
+			Assess("ConfigurationIsHealthy",
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
-			Assess("RequiredProviderHealthyBeforeTimeout",
+			Assess("RequiredProviderIsHealthy",
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
-			Teardown(funcs.AllOf(
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "configuration.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
-				// Dependencies are not automatically deleted.
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
 			)).Feature(),
 	)
@@ -89,12 +91,12 @@ func TestProviderUpgrade(t *testing.T) {
 		features.New("ProviderUpgrade").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithSetup("ReadyInitialProvider", funcs.AllOf(
+			WithSetup("ApplyInitialProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-initial.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-initial.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
-			WithSetup("ReadyInitialManagedResource", funcs.AllOf(
+			WithSetup("InitialManagedResourceIsReady", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "mr-initial.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr-initial.yaml"),
 			)).
@@ -106,11 +108,11 @@ func TestProviderUpgrade(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr.yaml", xpv1.Available()),
 			)).
-			WithTeardown("DeletedUpgradedManagedResource", funcs.AllOf(
+			WithTeardown("DeleteUpgradedManagedResource", funcs.AllOf(
 				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr-upgrade.yaml"),
 			)).
-			WithTeardown("DeletedUpgradedProvider", funcs.AllOf(
+			WithTeardown("DeleteUpgradedProvider", funcs.AllOf(
 				funcs.DeleteResources(manifests, "provider-upgrade.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-upgrade.yaml"),
 			)).Feature(),
