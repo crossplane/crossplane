@@ -213,6 +213,9 @@ func (d *MapDag) visit(name string, neighbors []Node, stack map[string]bool, vis
 	stack[name] = true
 	for _, n := range neighbors {
 		if !visited[n.Identifier()] {
+			if _, ok := d.nodes[n.Identifier()]; !ok {
+				return errors.Errorf("node does not exist")
+			}
 			if err := d.visit(n.Identifier(), d.nodes[n.Identifier()].Neighbors(), stack, visited, results); err != nil {
 				return err
 			}

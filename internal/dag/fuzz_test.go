@@ -43,6 +43,9 @@ func (s *SimpleFuzzNode) AddNeighbors(nodes ...Node) error {
 		if !ok {
 			return errors.New("not a simple node")
 		}
+		if s.NeighborsField == nil {
+			s.NeighborsField = make(map[string]SimpleFuzzNode)
+		}
 		s.NeighborsField[sn.Identifier()] = *sn
 	}
 	return nil
@@ -70,6 +73,11 @@ func FuzzDag(f *testing.F) {
 		err := c.CreateSlice(&nodes)
 		if err != nil {
 			return
+		}
+		for _, n := range nodes {
+			if n.NeighborsField == nil {
+				n.NeighborsField = make(map[string]SimpleFuzzNode)
+			}
 		}
 		d := NewMapDag()
 
