@@ -64,6 +64,12 @@ func NewConfigurationLinter() parser.Linter {
 	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsConfiguration, PackageValidSemver), parser.ObjectLinterFns(parser.Or(IsXRD, IsComposition)))
 }
 
+// NewFunctionLinter is a convenience function for creating a package linter for
+// functions.
+func NewFunctionLinter() parser.Linter {
+	return parser.NewPackageLinter(parser.PackageLinterFns(OneMeta), parser.ObjectLinterFns(IsFunction, PackageValidSemver), parser.ObjectLinterFns())
+}
+
 // OneMeta checks that there is only one meta object in the package.
 func OneMeta(pkg *parser.Package) error {
 	if len(pkg.GetMeta()) != 1 {
