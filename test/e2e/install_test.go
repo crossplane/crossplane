@@ -55,10 +55,10 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelInstallCrossplane, LabelInstallCrossplaneTrue).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 			)).
-			WithSetup("XRDAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
+			WithSetup("XRDAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite())).
 			WithSetup("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -69,8 +69,8 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			Assess("DeleteAllPrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "prerequisites/*.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Assess("UninstallCrossplane", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUninstall(helm.WithName(helmReleaseName), helm.WithNamespace(namespace))),
@@ -112,10 +112,10 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace))).
 			Assess("CreateClaimPrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 			)).
-			Assess("XRDIsEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite())).
+			Assess("XRDIsEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite())).
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -135,8 +135,8 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeleteAllPrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "prerequisites/*.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
 	)

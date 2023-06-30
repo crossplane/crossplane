@@ -47,13 +47,24 @@ E2E_TEST_FLAGS="-test.v -test.failfast -destroy-kind-cluster=false"
 # local build of Crossplane in this scenario, so you'll have to do it yourself.
 E2E_TEST_FLAGS="-create-kind-cluster=false -destroy-kind-cluster=false -kubeconfig=$HOME/.kube/config"
 
-# Run the CrossplaneUpgrade feature, against an existing kind cluster named "kind" (or creating it if it doesn't exist),
-# without installing Crossplane first, as the feature expects the cluster to be empty, but still loading the images to
-# it. Setting the tests to fail fast and not destroying the cluster afterward in order to allow debugging it.
-E2E_TEST_FLAGS="-test.v -v 4 -test.failfast -destroy-kind-cluster=false -kind-cluster-name=kind -install-crossplane=false -feature=CrossplaneUpgrade" make e2e
+# Run the CrossplaneUpgrade feature, against an existing kind cluster named
+# "kind" (or creating it if it doesn't exist), # without installing Crossplane
+# first, as the feature expects the cluster to be empty, but still loading the
+# images to # it. Setting the tests to fail fast and not destroying the cluster
+# afterward in order to allow debugging it.
+E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
+  -destroy-kind-cluster=false \
+  -kind-cluster-name=kind \
+  -install-crossplane=false \
+  -feature=CrossplaneUpgrade" make e2e
 
-# Run the all tests not installing or upgrading Crossplane against the currently selected cluster where Crossplane has already been installed.
-E2E_TEST_FLAGS="-test.v -v 4 -test.failfast -kubeconfig=$HOME/.kube/config -skip-labels install-crossplane=true -create-kind-cluster=false -install-crossplane=false" make go.build e2e-run-tests```
+# Run the all tests not installing or upgrading Crossplane against the currently
+# selected cluster where Crossplane has already been installed.
+E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
+  -kubeconfig=$HOME/.kube/config \
+  -skip-labels install-crossplane=true \
+  -create-kind-cluster=false \
+  -install-crossplane=false" make go.build e2e-run-tests
 ```
 
 ## Test Parallelism
@@ -78,7 +89,7 @@ We try to follow this pattern when adding a new test:
 
 1. Define a single feature per Test function, if possible.
 1. Setup a directory of plain YAML manifests per test - i.e. test fixtures - at
-   `e2e/manifests/<area>/<test>`, usually with a `prerequisites` sub-folder
+   `e2e/manifests/<area>/<test>`, usually with a `setup` sub-folder
    containing resources to be deployed at setup phase and cleaned up during the
    teardown. Try to avoid reusing other feature's fixtures, as this would introduce
    hidden dependencies between tests.
@@ -102,9 +113,9 @@ We try to follow this pattern when adding a new test:
    not strictly part of the feature being tested, but are needed to make it
    work, and actions that are needed to clean up the environment after the test
    has run.
-1. Use the `Asses` steps to define the steps required to exercise the actual
+1. Use `Assess` steps to define the steps required to exercise the actual
    feature at hand.
-1. Use `Asses` steps to define both conditions that should hold and actions that
+1. Use `Assess` steps to define both conditions that should hold and actions that
    should be performed. In the former case use active descriptions, e.g.
    `InstallProviderNop`, while in the latter use passive descriptions, e.g.
    `ProviderNopIsInstalled`.

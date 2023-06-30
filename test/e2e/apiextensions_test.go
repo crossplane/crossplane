@@ -46,9 +46,9 @@ func TestCompositionMinimal(t *testing.T) {
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
 			)).
 			Assess("ClaimCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
@@ -60,8 +60,8 @@ func TestCompositionMinimal(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("PrerequisitesAreDeleted", funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
 	)
@@ -79,9 +79,9 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
 			)).
 			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
@@ -97,8 +97,8 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
 			WithTeardown("DeleteAllPrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
 	)
@@ -135,18 +135,18 @@ func TestCompositionValidation(t *testing.T) {
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			WithSetup("ApplyPrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithTeardown("DeleteValidComposition", funcs.AllOf(
 				funcs.DeleteResources(manifests, "*-valid.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "*-valid.yaml"),
 			)).
 			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			// Disable our feature flag.
 			WithTeardown("DisableAlphaCompositionValidation", funcs.AllOf(
