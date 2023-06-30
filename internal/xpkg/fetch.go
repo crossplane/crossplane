@@ -22,8 +22,6 @@ import (
 	"crypto/x509"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 
 	"github.com/google/go-containerregistry/pkg/authn/k8schain"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -63,29 +61,6 @@ type K8sFetcher struct {
 
 // FetcherOpt can be used to add optional parameters to NewK8sFetcher
 type FetcherOpt func(k *K8sFetcher) error
-
-// ParseCertificatesFromPath parses PEM file containing extra x509
-// certificates(s) and combines them with the built in root CA CertPool.
-func ParseCertificatesFromPath(path string) (*x509.CertPool, error) {
-	// Get the SystemCertPool, continue with an empty pool on error
-	rootCAs, _ := x509.SystemCertPool()
-	if rootCAs == nil {
-		rootCAs = x509.NewCertPool()
-	}
-
-	// Read in the cert file
-	certs, err := os.ReadFile(filepath.Clean(path))
-	if err != nil {
-		return nil, errors.Wrapf(err, "Failed to append %q to RootCAs", path)
-	}
-
-	// Append our cert to the system pool
-	if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
-		return nil, errors.Errorf("No certificates could be parsed from %q", path)
-	}
-
-	return rootCAs, nil
-}
 
 // WithCustomCA is a FetcherOpt that can be used to add a custom CA bundle to a K8sFetcher.
 func WithCustomCA(rootCAs *x509.CertPool) FetcherOpt {

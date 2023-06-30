@@ -116,11 +116,17 @@ cobertura:
 		grep -v zz_generated.deepcopy | \
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
-e2e-tag-images:
+e2e.test.images:
+	@$(INFO) Building E2E test images
+	@docker build --load -t $(BUILD_REGISTRY)/fn-labelizer-$(TARGETARCH) test/e2e/testdata/images/labelizer
+	@$(OK) Built E2E test images
+
+e2e-tag-images: e2e.test.images
 	@$(INFO) Tagging E2E test images
 	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
 	@docker tag $(BUILD_REGISTRY)/xfn-$(TARGETARCH) crossplane-e2e/xfn:latest || $(FAIL)
-	@$(OK) Tagged E2E test images crossplane-e2e/$(PROJECT_NAME):latest crossplane-e2e/xfn:latest
+	@docker tag $(BUILD_REGISTRY)/fn-labelizer-$(TARGETARCH) crossplane-e2e/fn-labelizer:latest || $(FAIL)
+	@$(OK) Tagged E2E test images
 
 # NOTE(negz): There's already a go.test.integration target, but it's weird.
 # This relies on make build building the e2e binary.
@@ -141,11 +147,6 @@ e2e-run-tests:
 e2e.init: build e2e-tag-images
 
 e2e.run: $(KIND) $(HELM3) e2e-run-tests
-
-# Run integration tests
-test-integration: go.build do.build.image.xfn
-	$(GO) test ./test/e2e/xfn -test.v -tags=integration --xfn-image-ref=$(BUILD_REGISTRY)/xfn-$(SAFEHOSTARCH)
-	@$(OK) integration tests passed
 
 # Update the submodules, such as the common build scripts.
 submodules:
@@ -177,7 +178,7 @@ run: go.build
 	@# To see other arguments that can be provided, run the command with --help instead
 	$(GO_OUT_DIR)/$(PROJECT_NAME) core start --debug
 
-.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile
+.PHONY: manifests cobertura submodules fallthrough test-integration run install-crds uninstall-crds gen-kustomize-crds e2e-tests-compile e2e.test.images
 
 # ====================================================================================
 # Special Targets

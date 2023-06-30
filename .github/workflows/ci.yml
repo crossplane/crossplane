@@ -228,9 +228,6 @@ jobs:
       - name: Run Unit Tests
         run: make -j2 test
 
-      - name: Run Integration Tests
-        run: make test-integration
-
       - name: Publish Unit Test Coverage
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d # v3
         with:
@@ -243,7 +240,7 @@ jobs:
     if: needs.detect-noop.outputs.noop != 'true'
     strategy:
       matrix:
-        area: [lifecycle, pkg, apiextensions]
+        area: [lifecycle, pkg, apiextensions, xfn]
 
     steps:
       - name: Setup QEMU

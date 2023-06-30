@@ -385,6 +385,17 @@ func DeleteResources(dir, pattern string) features.Func {
 	}
 }
 
+// CreateNamespace creates the given namespace
+func CreateNamespace(name string) features.Func {
+	return func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+		ns := &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: name}}
+		if err := config.Client().Resources().Create(ctx, ns); err != nil {
+			t.Fatalf(fmt.Sprintf("error creating namespace %s", name), err)
+		}
+		return ctx
+	}
+}
+
 // asUnstructured turns an arbitrary runtime.Object into an *Unstructured. If
 // it's already a concrete *Unstructured it just returns it, otherwise it
 // round-trips it through JSON encoding. This is necessary because types that

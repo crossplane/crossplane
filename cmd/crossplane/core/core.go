@@ -47,6 +47,7 @@ import (
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
+	"github.com/crossplane/crossplane/internal/oci"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -233,7 +234,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if c.CABundlePath != "" {
-		rootCAs, err := xpkg.ParseCertificatesFromPath(c.CABundlePath)
+		rootCAs, err := oci.ParseCertificatesFromPath(c.CABundlePath)
 		if err != nil {
 			return errors.Wrap(err, "Cannot parse CA bundle")
 		}
