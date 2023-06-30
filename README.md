@@ -64,6 +64,18 @@ with the broader community is encouraged to join.
 * [Past meeting recordings]
 * [Community Calendar][community calendar]
 
+### Special Interest Groups (SIG)
+Each SIG collaborates in Slack and some groups have regular meetings, you can find the meetings in the [Community Calendar][community calendar].
+- [#sig-composition-environments][sig-composition-environments-slack]
+- [#sig-composition-functions][sig-composition-functions-slack]
+- [#sig-e2e-testing][sig-e2e-testing-slack]
+- [#sig-observe-only][sig-observe-only-slack]
+- [#sig-provider-families][sig-provider-families-slack]
+- [#sig-secret-stores][sig-secret-stores-slack]
+- [#sig-deletion-ordering][sig-deletion-ordering-slack]
+- [#sig-upjet-provider-resource-utilization][sig-upjet-provider-resource-utilization-slack]
+
+
 ## Adopters
 
 A list of publicly known users of the Crossplane project can be found in [ADOPTERS.md].  We
@@ -96,3 +108,11 @@ Crossplane is under the Apache 2.0 license.
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
 [Crossplane Roadmap]: https://github.com/orgs/crossplane/projects/20/views/3?pane=info
+[sig-composition-environments-slack]: https://crossplane.slack.com/archives/C05BP6QFLUW
+[sig-composition-functions-slack]: https://crossplane.slack.com/archives/C031Y29CSAE
+[sig-e2e-testing-slack]: https://crossplane.slack.com/archives/C05C8CCTVNV
+[sig-observe-only-slack]: https://crossplane.slack.com/archives/C04D5988QEA
+[sig-provider-families-slack]: https://crossplane.slack.com/archives/C056YAQRV16
+[sig-secret-stores-slack]: https://crossplane.slack.com/archives/C05BY7DKFV2
+[sig-deletion-ordering-slack]: https://crossplane.slack.com/archives/C05BP8W5ALW
+[sig-upjet-provider-resource-utilization-slack]: https://crossplane.slack.com/archives/C04QLETDJGN
