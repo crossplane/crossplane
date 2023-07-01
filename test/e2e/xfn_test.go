@@ -30,11 +30,13 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/gexe"
+	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	client2 "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
@@ -67,7 +69,6 @@ func TestFunctions(t *testing.T) {
 			)).
 			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ManagedResourcesProcessedByFunction", ManagedResourcedProcessedByFunction()).
-			Teardown(funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...))).
 			Feature(),
 	)
 }
@@ -137,14 +138,21 @@ func ManagedResourcedProcessedByFunction() features.Func {
 		xr := rg(r["name"], "default", r["apiVersion"], r["kind"])
 		mrefs := resourceSliceValue(t, xr, "spec", "resourceRefs")
 		for _, mref := range mrefs {
-			mr := rg(mref["name"], "default", mref["apiVersion"], mref["kind"])
-			l, found := mr.GetLabels()[labelName]
-			if !found {
-				t.Fatalf("managed resource %v was not processed by function", mr)
+			err := wait.For(func() (done bool, err error) {
+				mr := rg(mref["name"], "default", mref["apiVersion"], mref["kind"])
+				l, found := mr.GetLabels()[labelName]
+				if !found {
+					return false, nil
+				}
+				if l != "true" {
+					return false, nil
+				}
+				return true, nil
+			}, wait.WithTimeout(5*time.Minute))
+			if err != nil {
+				t.Fatalf("Expected label %v value to be true", labelName)
 			}
-			if l != "true" {
-				t.Fatalf("Expected label %v value to be true, but got %v", labelName, l)
-			}
+
 		}
 		return ctx
 	}
@@ -192,18 +200,24 @@ func CreateTLSCertificateAsSecret(dnsName string, ns string) features.Func {
 // CopyImagesToRegistry copies fn images to private registry
 func CopyImagesToRegistry() features.Func {
 	return func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-		pfw := gexe.StartProc("kubectl port-forward service/private-docker-registry -n reg 32000:5000")
-		defer func() {
-			pfw.Kill()
-			pfw.Wait()
-			out, _ := io.ReadAll(pfw.Out())
-			t.Log("out", string(out), "err", pfw.Err())
-		}()
-		time.Sleep(20 * time.Second)
-		_ = gexe.Run("docker tag crossplane-e2e/fn-labelizer:latest localhost:32000/fn-labelizer:latest")
-		p := gexe.RunProc("docker push localhost:32000/fn-labelizer:latest")
+		nodes := &corev1.NodeList{}
+		if err := config.Client().Resources().List(ctx, nodes); err != nil {
+			t.Fatal("cannot list nodes", err)
+		}
+		if len(nodes.Items) == 0 {
+			t.Fatalf("no nodes in the cluster")
+		}
+		i := slices.IndexFunc(nodes.Items[0].Status.Addresses, func(a corev1.NodeAddress) bool {
+			return a.Type == corev1.NodeInternalIP
+		})
+		if i == -1 {
+			t.Fatalf("no nodes with private address")
+		}
+		addr := nodes.Items[0].Status.Addresses[i].Address
+		p := gexe.RunProc(fmt.Sprintf("skopeo copy docker-daemon:crossplane-e2e/fn-labelizer:latest docker://%s:32000/fn-labelizer:latest --dest-tls-verify=false", addr)).Wait()
+		out, _ := io.ReadAll(p.Out())
+		t.Logf("skopeo stdout: %s", string(out))
 		if p.ExitCode() != 0 {
-			out, _ := io.ReadAll(p.Out())
 			t.Fatalf("copying image to registry not successful, exit code %v std out %v std err %v", p.ExitCode(), string(out), p.Err())
 		}
 		return ctx
@@ -236,7 +250,10 @@ func CrossplaneDeployedWithFunctionsEnabled() features.Func {
 					"--set xfn.args={--debug}",
 					"--set registryCaBundleConfig.name=reg-ca",
 					"--set registryCaBundleConfig.key=domain.crt",
-				))...)),
+					"--set xfn.resources.requests.cpu=100m",
+					"--set xfn.resources.limits.cpu=100m",
+				),
+				helm.WithWait())...)),
 		funcs.ReadyToTestWithin(1*time.Minute, namespace),
 	)
 }

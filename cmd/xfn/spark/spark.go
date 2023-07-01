@@ -209,7 +209,6 @@ func (c *Command) Run(args *start.Args) error { //nolint:gocyclo // TODO(negz): 
 	}
 
 	rsp := &v1alpha1.RunFunctionResponse{Output: stdout}
-
 	pb, err = proto.Marshal(rsp)
 	if err != nil {
 		return errors.Wrap(err, errMarshalResponse)

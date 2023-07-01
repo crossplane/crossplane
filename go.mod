@@ -37,6 +37,8 @@ require (
 	sigs.k8s.io/yaml v1.3.0
 )
 
+require golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
+
 require (
 	cloud.google.com/go/compute v1.19.3 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
