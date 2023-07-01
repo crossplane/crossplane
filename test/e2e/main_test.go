@@ -41,7 +41,7 @@ const LabelArea = "area"
 
 // LabelInstallCrossplane is used to mark tests that are going to install
 // Crossplane.
-const LabelInstallCrossplane = "install-crossplane"
+const LabelInstallCrossplane = "modify-crossplane-installation"
 
 // LabelInstallCrossplaneTrue is used to mark tests that are going to install
 // or upgrade Crossplane installation.

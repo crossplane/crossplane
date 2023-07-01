@@ -62,7 +62,7 @@ E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
 # selected cluster where Crossplane has already been installed.
 E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
   -kubeconfig=$HOME/.kube/config \
-  -skip-labels install-crossplane=true \
+  -skip-labels modify-crossplane-installation=true \
   -create-kind-cluster=false \
   -install-crossplane=false" make go.build e2e-run-tests
 ```
