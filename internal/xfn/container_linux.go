@@ -95,10 +95,11 @@ func (r *ContainerRunner) RunFunction(ctx context.Context, req *v1alpha1.RunFunc
 
 		Therefore we execute a shim - xfn spark - in a new user and mount
 		namespace. spark fetches and caches the image, creates an OCI runtime
-		bundle, then then executes an OCI runtime in order to actually execute
+		bundle, then executes an OCI runtime in order to actually execute
 		the function.
 	*/
-	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache, fmt.Sprintf("--max-stdio-bytes=%d", MaxStdioBytes)) //nolint:gosec // We're intentionally executing with variable input.
+	cmd := exec.CommandContext(ctx, os.Args[0], spark, "--cache-dir="+r.cache, "--registry="+r.registry, //nolint:gosec // We're intentionally executing with variable input.
+		fmt.Sprintf("--max-stdio-bytes=%d", MaxStdioBytes))
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Cloneflags:  syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
 		UidMappings: []syscall.SysProcIDMap{{ContainerID: 0, HostID: r.rootUID, Size: 1}},

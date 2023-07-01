@@ -32,4 +32,8 @@ type Options struct {
 	// ServiceAccount for which we'll find image pull secrets for in-cluster
 	// private registry authentication when pulling Composition Functions.
 	ServiceAccount string
+
+	// Registry is the default registry to use when pulling containers for
+	// Composition Functions
+	Registry string
 }

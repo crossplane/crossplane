@@ -649,7 +649,7 @@ type ContainerFunctionRunnerOption func(ctx context.Context, fn *v1.ContainerFun
 // 2. Loads credentials from the supplied service account's image pull secrets.
 // 3. Loads credentials from the function's image pull secrets.
 // 4. Loads credentials using the GKE, EKS, or AKS credentials helper.
-func WithKubernetesAuthentication(c client.Reader, namespace, serviceAccount string) ContainerFunctionRunnerOption {
+func WithKubernetesAuthentication(c client.Reader, namespace, serviceAccount, registry string) ContainerFunctionRunnerOption {
 	return func(ctx context.Context, fn *v1.ContainerFunction, r *fnv1alpha1.RunFunctionRequest) error {
 
 		sa := &corev1.ServiceAccount{}
@@ -677,7 +677,7 @@ func WithKubernetesAuthentication(c client.Reader, namespace, serviceAccount str
 			return errors.Wrap(err, errNewKeychain)
 		}
 
-		ref, err := name.ParseReference(fn.Image)
+		ref, err := name.ParseReference(fn.Image, name.WithDefaultRegistry(registry))
 		if err != nil {
 			return errors.Wrap(err, errParseImage)
 		}

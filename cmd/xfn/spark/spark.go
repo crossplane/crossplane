@@ -35,6 +35,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	"github.com/crossplane/crossplane/cmd/xfn/start"
 	"github.com/crossplane/crossplane/internal/oci"
 	"github.com/crossplane/crossplane/internal/oci/spec"
 	"github.com/crossplane/crossplane/internal/oci/store"
@@ -79,7 +80,7 @@ type Command struct {
 // Run a Composition Function inside an unprivileged user namespace. Reads a
 // protocol buffer serialized RunFunctionRequest from stdin, and writes a
 // protocol buffer serialized RunFunctionResponse to stdout.
-func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of this out into functions, add tests.
+func (c *Command) Run(args *start.Args) error { //nolint:gocyclo // TODO(negz): Refactor some of this out into functions, add tests.
 	pb, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		return errors.Wrap(err, errReadRequest)
@@ -121,7 +122,7 @@ func (c *Command) Run() error { //nolint:gocyclo // TODO(negz): Refactor some of
 		return errors.Wrap(err, errNewDigestStore)
 	}
 
-	r, err := name.ParseReference(req.GetImage())
+	r, err := name.ParseReference(req.GetImage(), name.WithDefaultRegistry(args.Registry))
 	if err != nil {
 		return errors.Wrap(err, errParseRef)
 	}

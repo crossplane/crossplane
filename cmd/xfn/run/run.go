@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
+	"github.com/crossplane/crossplane/cmd/xfn/start"
 	"github.com/crossplane/crossplane/internal/xfn"
 )
 
@@ -59,7 +60,7 @@ type Command struct {
 }
 
 // Run a Composition container function.
-func (c *Command) Run() error {
+func (c *Command) Run(args *start.Args) error {
 	// If we don't have CAP_SETUID or CAP_SETGID, we'll only be able to map our
 	// own UID and GID to root inside the user namespace.
 	rootUID := os.Getuid()
@@ -70,7 +71,7 @@ func (c *Command) Run() error {
 		rootGID = c.MapRootGID
 	}
 
-	ref, err := name.ParseReference(c.Image)
+	ref, err := name.ParseReference(c.Image, name.WithDefaultRegistry(args.Registry))
 	if err != nil {
 		return errors.Wrap(err, errParseImage)
 	}
@@ -90,7 +91,7 @@ func (c *Command) Run() error {
 		return errors.Wrap(err, errAuthCfg)
 	}
 
-	f := xfn.NewContainerRunner(xfn.SetUID(setuid), xfn.MapToRoot(rootUID, rootGID), xfn.WithCacheDir(filepath.Clean(c.CacheDir)))
+	f := xfn.NewContainerRunner(xfn.SetUID(setuid), xfn.MapToRoot(rootUID, rootGID), xfn.WithCacheDir(filepath.Clean(c.CacheDir)), xfn.WithRegistry(args.Registry))
 	rsp, err := f.RunFunction(context.Background(), &v1alpha1.RunFunctionRequest{
 		Image: c.Image,
 		Input: c.FunctionIO,
