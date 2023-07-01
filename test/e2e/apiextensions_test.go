@@ -50,16 +50,16 @@ func TestCompositionMinimal(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
 			)).
-			Assess("ClaimCreated", funcs.AllOf(
+			Assess("CreateClaim", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
 			)).
-			WithTeardown("ClaimIsDeleted", funcs.AllOf(
+			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("PrerequisitesAreDeleted", funcs.AllOf(
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
@@ -96,7 +96,7 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeleteAllPrerequisites", funcs.AllOf(
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
@@ -128,13 +128,13 @@ func TestCompositionValidation(t *testing.T) {
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(LabelInstallCrossplane, LabelInstallCrossplaneTrue).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			// Enable our feature flag.
 			WithSetup("EnableAlphaCompositionValidation", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions(helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"))...)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
-			WithSetup("ApplyPrerequisites", funcs.AllOf(
+			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),

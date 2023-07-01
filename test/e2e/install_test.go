@@ -37,11 +37,11 @@ import (
 const LabelAreaLifecycle = "lifecycle"
 
 // TestCrossplaneLifecycle tests two features expecting them to be run in order:
-//   - Uninstall: Test that it's possible to cleanly uninstall Crossplane, even
+//   - CrossplaneUninstall: Test that it's possible to cleanly uninstall Crossplane, even
 //     after having created and deleted a claim.
-//   - Upgrade: Test that it's possible to upgrade Crossplane from the most recent
+//   - CrossplaneUpgrade: Test that it's possible to upgrade Crossplane from the most recent
 //     stable Helm chart to the one we're testing, even when a claim exists. This
-//     expects the Uninstall feature to have been run first.
+//     expects Crossplane not to be installed.
 //
 // Note: First time Installation is tested as part of the environment setup,
 // if not disabled explicitly.
@@ -53,7 +53,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 		features.New("CrossplaneUninstall").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(LabelInstallCrossplane, LabelInstallCrossplaneTrue).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -68,12 +68,15 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			Assess("DeleteAllPrerequisites", funcs.AllOf(
+			Assess("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Assess("UninstallCrossplane", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUninstall(helm.WithName(helmReleaseName), helm.WithNamespace(namespace))),
+				funcs.AsFeaturesFunc(funcs.HelmUninstall(
+					helm.WithName(helmReleaseName),
+					helm.WithNamespace(namespace),
+				)),
 			)).
 			// Uninstalling the Crossplane Helm chart doesn't remove its CRDs. We
 			// want to make sure they can be deleted cleanly. If they can't, it's a
@@ -128,15 +131,14 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			Assess("CoreDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).
 			Assess("RBACManagerDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane-rbac-manager")).
 			Assess("CoreCRDsAreEstablished", funcs.ResourcesHaveConditionWithin(1*time.Minute, crdsDir, "*.yaml", funcs.CRDInitialNamesAccepted())).
-			Assess("ClaimAreAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ClaimIsStillAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
 			)).
-			WithTeardown("DeleteAllPrerequisites", funcs.AllOf(
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
 				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
 			)).
 			Feature(),
 	)

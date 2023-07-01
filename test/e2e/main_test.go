@@ -17,7 +17,6 @@ limitations under the License.
 package e2e
 
 import (
-	"context"
 	"flag"
 	"os"
 	"strings"
@@ -39,13 +38,14 @@ import (
 // Features within an area may be split across different test functions.
 const LabelArea = "area"
 
-// LabelInstallCrossplane is used to mark tests that are going to install
-// Crossplane.
-const LabelInstallCrossplane = "modify-crossplane-installation"
+// LabelModifyCrossplaneInstallation is used to mark tests that are going to
+// modify Crossplane's installation, e.g. installing, uninstalling or upgrading
+// it.
+const LabelModifyCrossplaneInstallation = "modify-crossplane-installation"
 
-// LabelInstallCrossplaneTrue is used to mark tests that are going to install
-// or upgrade Crossplane installation.
-const LabelInstallCrossplaneTrue = "true"
+// LabelModifyCrossplaneInstallationTrue is used to mark tests that are going to
+// modify Crossplane's installation.
+const LabelModifyCrossplaneInstallationTrue = "true"
 
 // LabelStage represents the 'stage' of a feature - alpha, beta, etc. Generally
 // available features have no stage label.
@@ -149,11 +149,6 @@ func TestMain(m *testing.M) {
 		}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
-		setup = []env.Func{
-			func(ctx context.Context, config *envconf.Config) (context.Context, error) {
-				return ctx, nil
-			},
-		}
 	}
 	environment = env.NewWithConfig(cfg)
 
@@ -163,13 +158,6 @@ func TestMain(m *testing.M) {
 			envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),
 		)
 	}
-
-	// We want to destroy the cluster if we created it, but only if we created it,
-	// otherwise the random name will be meaningless.
-	if *destroy && isKindCluster {
-		finish = []env.Func{envfuncs.DestroyKindCluster(clusterName)}
-	}
-
 	if *install {
 		setup = append(setup,
 			envfuncs.CreateNamespace(namespace),
@@ -179,6 +167,12 @@ func TestMain(m *testing.M) {
 
 	// We always want to add our types to the scheme.
 	setup = append(setup, funcs.AddCrossplaneTypesToScheme())
+
+	// We want to destroy the cluster if we created it, but only if we created it,
+	// otherwise the random name will be meaningless.
+	if *destroy && isKindCluster {
+		finish = []env.Func{envfuncs.DestroyKindCluster(clusterName)}
+	}
 
 	environment.Setup(setup...)
 	environment.Finish(finish...)
