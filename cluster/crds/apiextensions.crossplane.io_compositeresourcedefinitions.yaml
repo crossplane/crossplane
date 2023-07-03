@@ -204,6 +204,68 @@ spec:
                 required:
                 - strategy
                 type: object
+              customCompositionSelector:
+                description: CustomCompositionSelector provides a way to override
+                  the composition selector defined in the XR / XRC by generating the
+                  label matcher from arbitrary fields in the claim. It allows making
+                  composition selection transparent to the user who might not know
+                  which composition to select.
+                properties:
+                  matchLabels:
+                    items:
+                      description: CustomCompositionSelectorLabel defines a label
+                        for a custom composition selector.
+                      properties:
+                        key:
+                          description: Key of the label to match.
+                          type: string
+                        value:
+                          description: Value specifies where to extract the label
+                            generator from.
+                          properties:
+                            fromFieldPath:
+                              description: FromFieldPath defines the XR / XRC field
+                                path to extract the label value from.
+                              type: string
+                            policy:
+                              description: Policy defines configuration settings for
+                                loading a label value.
+                              properties:
+                                fromFieldPath:
+                                  description: FromFieldPath specifies how to read
+                                    from a field path. The default is "Required" which
+                                    means the selection will fail if the path is not
+                                    specified. Use 'Optional' if the selection should
+                                    be skipped if the specified path does not exist.
+                                  enum:
+                                  - Optional
+                                  - Required
+                                  type: string
+                              type: object
+                          required:
+                          - fromFieldPath
+                          type: object
+                      required:
+                      - key
+                      - value
+                      type: object
+                    type: array
+                  policy:
+                    description: Policy defines configuration settings for custom
+                      composition selectors.
+                    properties:
+                      resolve:
+                        description: Resolve specifies when this reference should
+                          be resolved. The default is 'IfNotPresent', which will attempt
+                          to resolve the reference only when the corresponding field
+                          is not present. Use 'Always' to resolve the reference on
+                          every reconcile.
+                        enum:
+                        - Always
+                        - IfNotPresent
+                        type: string
+                    type: object
+                type: object
               defaultCompositeDeletePolicy:
                 default: Background
                 description: DefaultCompositeDeletePolicy is the policy used when

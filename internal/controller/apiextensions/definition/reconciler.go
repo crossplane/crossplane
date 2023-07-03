@@ -435,7 +435,7 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 		composite.WithCompositionSelector(composite.NewCompositionSelectorChain(
 			composite.NewEnforcedCompositionSelector(*d, e),
 			composite.NewAPIDefaultCompositionSelector(c, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), e),
-			composite.NewAPILabelSelectorResolver(c),
+			composite.NewAPILabelSelectorResolver(c, compositionLabelResolverOptions(d)...),
 		)),
 		composite.WithCompositionUpdatePolicySelector(composite.NewAPIDefaultCompositionUpdatePolicySelector(c, *meta.ReferenceTo(d, v1.CompositeResourceDefinitionGroupVersionKind), e)),
 		composite.WithLogger(l.WithValues("controller", composite.ControllerName(d.GetName()))),
@@ -518,4 +518,13 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	}
 
 	return o
+}
+
+func compositionLabelResolverOptions(d *v1.CompositeResourceDefinition) []composite.APILabelSelectorResolverOption {
+	if d.Spec.CustomCompositionSelector != nil {
+		return []composite.APILabelSelectorResolverOption{
+			composite.WithCustomCompositionSelector(d.Spec.CustomCompositionSelector),
+		}
+	}
+	return []composite.APILabelSelectorResolverOption{}
 }

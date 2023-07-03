@@ -95,6 +95,85 @@ type CompositeResourceDefinitionSpec struct {
 	// Conversion defines all conversion settings for the defined Composite resource.
 	// +optional
 	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
+
+	// CustomCompositionSelector provides a way to override the composition
+	// selector defined in the XR / XRC by generating the label matcher
+	// from arbitrary fields in the claim.
+	// It allows making composition selection transparent to the user who might
+	// not know which composition to select.
+	// +optional
+	CustomCompositionSelector *CustomCompositionSelector `json:"customCompositionSelector,omitempty"`
+}
+
+// CustomCompositionSelector defines a custom logic to build a composition
+// selector.
+type CustomCompositionSelector struct {
+	MatchLabels []CustomCompositionSelectorLabel `json:"matchLabels,omitempty"`
+
+	// Policy defines configuration settings for custom composition selectors.
+	Policy *CustomCompositionSelectorPolicy `json:"policy,omitempty"`
+}
+
+// GetResolvePolicy returns the s.Policy.Resolve if set or ResolvePolicyAlways.
+func (s *CustomCompositionSelector) GetResolvePolicy() xpv1.ResolvePolicy {
+	if s.Policy != nil && s.Policy.Resolve != nil {
+		return *s.Policy.Resolve
+	}
+	return xpv1.ResolvePolicyAlways
+}
+
+// CustomCompositionSelectorPolicy defines configuration settings for custom
+// composition selectors.
+type CustomCompositionSelectorPolicy struct {
+	// Resolve specifies when this reference should be resolved. The default
+	// is 'IfNotPresent', which will attempt to resolve the reference only when
+	// the corresponding field is not present. Use 'Always' to resolve the
+	// reference on every reconcile.
+	// +optional
+	// +kubebuilder:validation:Enum=Always;IfNotPresent
+	Resolve *xpv1.ResolvePolicy `json:"resolve,omitempty"`
+}
+
+// CustomCompositionSelectorLabel defines a label for a custom composition
+// selector.
+type CustomCompositionSelectorLabel struct {
+	// Key of the label to match.
+	Key string `json:"key"`
+	// Value specifies where to extract the label generator from.
+	Value CustomCompositionSelectorLabelValue `json:"value"`
+}
+
+// CustomCompositionSelectorLabelValue configures a way to load a value for
+// a custom composition selector label.
+type CustomCompositionSelectorLabelValue struct {
+	// FromFieldPath defines the XR / XRC field path to extract the label
+	// value from.
+	FromFieldPath string `json:"fromFieldPath"`
+
+	// Policy defines configuration settings for loading a label value.
+	Policy *CustomCompositionSelectorLabelValuePolicy `json:"policy,omitempty"`
+}
+
+// GetFromFieldPathPolicy returns v.Policy.FromFieldPath if set or
+// FromFieldPathPolicyRequired.
+func (v *CustomCompositionSelectorLabelValue) GetFromFieldPathPolicy() FromFieldPathPolicy {
+	if v.Policy != nil && v.Policy.FromFieldPath != nil {
+		return *v.Policy.FromFieldPath
+	}
+	return FromFieldPathPolicyRequired
+}
+
+// CustomCompositionSelectorLabelValuePolicy defines configuration settings for
+// loading a label value.
+type CustomCompositionSelectorLabelValuePolicy struct {
+	// FromFieldPath specifies how to read from a field path.
+	// The default is "Required" which means the selection will fail if the
+	// path is not specified.
+	// Use 'Optional' if the selection should be skipped if the specified path
+	// does not exist.
+	// +kubebuilder:validation:Enum=Optional;Required
+	// +optional
+	FromFieldPath *FromFieldPathPolicy `json:"fromFieldPath,omitempty"`
 }
 
 // A CompositionReference references a Composition.

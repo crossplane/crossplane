@@ -24,12 +24,14 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -52,6 +54,9 @@ const (
 	errCompositionNotCompatible        = "referenced composition is not compatible with this composite resource"
 	errGetXRD                          = "cannot get composite resource definition"
 	errFetchCompositionRevision        = "cannot fetch composition revision"
+
+	errResolveCustomCompositionSelectorLabel = "cannot resolve custom composition selector label at index %d"
+	errResolveCustomCompositionSelector      = "cannot resolve custom composition selector"
 )
 
 // Event reasons.
@@ -214,15 +219,31 @@ func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp res
 	return nil
 }
 
+// APILabelSelectorResolverOption configures a new APILabelSelectorResolver.
+type APILabelSelectorResolverOption func(r *APILabelSelectorResolver)
+
 // NewAPILabelSelectorResolver returns a SelectorResolver for composite resource.
-func NewAPILabelSelectorResolver(c client.Client) *APILabelSelectorResolver {
-	return &APILabelSelectorResolver{client: c}
+func NewAPILabelSelectorResolver(c client.Client, opts ...APILabelSelectorResolverOption) *APILabelSelectorResolver {
+	r := &APILabelSelectorResolver{client: c}
+	for _, o := range opts {
+		o(r)
+	}
+	return r
+}
+
+// WithCustomCompositionSelector sets the CustomCompositionSelector for a new
+// APILabelSelectorResolver.
+func WithCustomCompositionSelector(selector *v1.CustomCompositionSelector) APILabelSelectorResolverOption {
+	return func(r *APILabelSelectorResolver) {
+		r.customCompositionSelector = selector
+	}
 }
 
 // APILabelSelectorResolver is used to resolve the composition selector on the instance
 // to composition reference.
 type APILabelSelectorResolver struct {
-	client client.Client
+	client                    client.Client
+	customCompositionSelector *v1.CustomCompositionSelector
 }
 
 // SelectComposition resolves selector to a reference if it doesn't exist.
@@ -234,6 +255,9 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	// to another cluster
 	if cp.GetCompositionReference() != nil {
 		return nil
+	}
+	if err := r.resolveCustomCompositionSelectors(cp); err != nil {
+		return errors.Wrap(err, errResolveCustomCompositionSelector)
 	}
 	labels := map[string]string{}
 	sel := cp.GetCompositionSelector()
@@ -263,6 +287,46 @@ func (r *APILabelSelectorResolver) SelectComposition(ctx context.Context, cp res
 	selected := candidates[random.Intn(len(candidates))]
 	cp.SetCompositionReference(&corev1.ObjectReference{Name: selected})
 	return errors.Wrap(r.client.Update(ctx, cp), errUpdateComposite)
+}
+
+func (r *APILabelSelectorResolver) resolveCustomCompositionSelectors(cp resource.Composite) error {
+	if r.customCompositionSelector == nil {
+		return nil
+	}
+	existingSelector := cp.GetCompositionSelector()
+	if existingSelector != nil && r.customCompositionSelector.GetResolvePolicy() != xpv1.ResolvePolicyAlways {
+		return nil
+	}
+	customSelector := &metav1.LabelSelector{
+		MatchLabels: map[string]string{},
+	}
+
+	for i, m := range r.customCompositionSelector.MatchLabels {
+		key, value, err := r.resolveCustomCompositionSelectorLabel(cp, m)
+		if err != nil {
+			return errors.Wrapf(err, errResolveCustomCompositionSelectorLabel, i)
+		}
+		if key != "" {
+			customSelector.MatchLabels[key] = value
+		}
+	}
+	cp.SetCompositionSelector(customSelector)
+	return nil
+}
+
+func (r *APILabelSelectorResolver) resolveCustomCompositionSelectorLabel(cp resource.Composite, label v1.CustomCompositionSelectorLabel) (string, string, error) {
+	cpMap, err := runtime.DefaultUnstructuredConverter.ToUnstructured(cp)
+	if err != nil {
+		return "", "", err
+	}
+	value, err := fieldpath.Pave(cpMap).GetString(label.Value.FromFieldPath)
+	if err != nil {
+		if fieldpath.IsNotFound(err) && label.Value.GetFromFieldPathPolicy() == v1.FromFieldPathPolicyOptional {
+			return "", "", nil
+		}
+		return "", "", err
+	}
+	return label.Key, value, nil
 }
 
 // NewAPIDefaultCompositionSelector returns a APIDefaultCompositionSelector.

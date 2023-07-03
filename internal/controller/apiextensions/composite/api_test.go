@@ -22,9 +22,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -633,6 +635,7 @@ func TestSelectorResolver(t *testing.T) {
 	type args struct {
 		kube client.Client
 		cp   resource.Composite
+		opts []APILabelSelectorResolverOption
 	}
 	type want struct {
 		cp  resource.Composite
@@ -717,10 +720,285 @@ func TestSelectorResolver(t *testing.T) {
 				},
 			},
 		},
+		"SelectCompatibleWithCustomSelectors": {
+			reason: "Should select the one that is compatible based on the custom selectors",
+			args: args{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockList: func(_ context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+						listOpts := client.ListOptions{}
+						for _, o := range opts {
+							o.ApplyToList(&listOpts)
+						}
+						expectLabels := labels.Set{
+							"stage": "test",
+						}
+						if !listOpts.LabelSelector.Matches(expectLabels) {
+							return errors.Errorf("label selector does not match labels %v", expectLabels)
+						}
+						compList := &v1.CompositionList{
+							Items: []v1.Composition{
+								{
+									Spec: v1.CompositionSpec{
+										CompositeTypeRef: v1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+									},
+								},
+								*comp,
+							},
+						}
+						if list, ok := obj.(*v1.CompositionList); ok {
+							compList.DeepCopyInto(list)
+							return nil
+						}
+						t.Errorf("wrong query")
+						return nil
+					},
+				},
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"stage": "test",
+						},
+					},
+				},
+				opts: []APILabelSelectorResolverOption{
+					WithCustomCompositionSelector(&v1.CustomCompositionSelector{
+						MatchLabels: []v1.CustomCompositionSelectorLabel{
+							{
+								Key: "stage",
+								Value: v1.CustomCompositionSelectorLabelValue{
+									FromFieldPath: "objectMeta.annotations.stage",
+								},
+							},
+						},
+					}),
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"stage": "test",
+						},
+					},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"stage": "test",
+						},
+					}},
+				},
+			},
+		},
+		"CustomSelectorsDontUpdateWithoutAlwaysPolicy": {
+			reason: "Should not update custom composition selectors if composition selectors are set and policy is not Always",
+			args: args{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockList: func(_ context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+						listOpts := client.ListOptions{}
+						for _, o := range opts {
+							o.ApplyToList(&listOpts)
+						}
+						expectLabels := labels.Set{
+							"select": "me",
+						}
+						if !listOpts.LabelSelector.Matches(expectLabels) {
+							return errors.Errorf("label selector does not match labels %v", expectLabels)
+						}
+						compList := &v1.CompositionList{
+							Items: []v1.Composition{
+								{
+									Spec: v1.CompositionSpec{
+										CompositeTypeRef: v1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+									},
+								},
+								*comp,
+							},
+						}
+						if list, ok := obj.(*v1.CompositionList); ok {
+							compList.DeepCopyInto(list)
+							return nil
+						}
+						t.Errorf("wrong query")
+						return nil
+					},
+				},
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+				},
+				opts: []APILabelSelectorResolverOption{
+					WithCustomCompositionSelector(&v1.CustomCompositionSelector{
+						MatchLabels: []v1.CustomCompositionSelectorLabel{
+							{
+								Key: "stage",
+								Value: v1.CustomCompositionSelectorLabelValue{
+									FromFieldPath: "objectMeta.annotations.stage",
+								},
+							},
+						},
+						Policy: &v1.CustomCompositionSelectorPolicy{
+							Resolve: (*xpv1.ResolvePolicy)(pointer.String("IfNotPresent")),
+						},
+					}),
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+					CompositionSelector:   fake.CompositionSelector{Sel: sel},
+				},
+			},
+		},
+		"CustomSelectorsErrorIfFieldPathNotDefined": {
+			reason: "Should return an error if the fieldpath of a custom composition selector does not exist",
+			args: args{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockList: func(_ context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+						listOpts := client.ListOptions{}
+						for _, o := range opts {
+							o.ApplyToList(&listOpts)
+						}
+						expectLabels := labels.Set{
+							"stage": "test",
+						}
+						if !listOpts.LabelSelector.Matches(expectLabels) {
+							return errors.Errorf("label selector does not match labels %v", expectLabels)
+						}
+						compList := &v1.CompositionList{
+							Items: []v1.Composition{
+								{
+									Spec: v1.CompositionSpec{
+										CompositeTypeRef: v1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+									},
+								},
+								*comp,
+							},
+						}
+						if list, ok := obj.(*v1.CompositionList); ok {
+							compList.DeepCopyInto(list)
+							return nil
+						}
+						t.Errorf("wrong query")
+						return nil
+					},
+				},
+				cp: &fake.Composite{
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+				},
+				opts: []APILabelSelectorResolverOption{
+					WithCustomCompositionSelector(&v1.CustomCompositionSelector{
+						MatchLabels: []v1.CustomCompositionSelectorLabel{
+							{
+								Key: "stage",
+								Value: v1.CustomCompositionSelectorLabelValue{
+									FromFieldPath: "objectMeta.annotations.stage",
+								},
+							},
+						},
+						Policy: &v1.CustomCompositionSelectorPolicy{
+							Resolve: (*xpv1.ResolvePolicy)(pointer.String(string(xpv1.ResolvePolicyAlways))),
+						},
+					}),
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					CompositionReferencer: fake.CompositionReferencer{},
+					CompositionSelector:   fake.CompositionSelector{Sel: sel},
+				},
+				err: errors.Wrap(errors.Wrapf(errors.New("objectMeta.annotations: no such field"), errResolveCustomCompositionSelectorLabel, 0), errResolveCustomCompositionSelector),
+			},
+		},
+		"CustomSelectorsNoErrorIfFieldPathNotDefined": {
+			reason: "Should not return an error if the fieldpath of a custom composition selector does not exist and policy is optional",
+			args: args{
+				kube: &test.MockClient{
+					MockUpdate: test.NewMockUpdateFn(nil),
+					MockList: func(_ context.Context, obj client.ObjectList, opts ...client.ListOption) error {
+						listOpts := client.ListOptions{}
+						for _, o := range opts {
+							o.ApplyToList(&listOpts)
+						}
+						expectLabels := labels.Set{
+							"stage": "test",
+						}
+						if !listOpts.LabelSelector.Matches(expectLabels) {
+							return errors.Errorf("label selector does not match labels %v", expectLabels)
+						}
+						compList := &v1.CompositionList{
+							Items: []v1.Composition{
+								{
+									Spec: v1.CompositionSpec{
+										CompositeTypeRef: v1.TypeReference{APIVersion: "foreign", Kind: "tome"},
+									},
+								},
+								*comp,
+							},
+						}
+						if list, ok := obj.(*v1.CompositionList); ok {
+							compList.DeepCopyInto(list)
+							return nil
+						}
+						t.Errorf("wrong query")
+						return nil
+					},
+				},
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"stage": "test",
+						},
+					},
+					CompositionSelector: fake.CompositionSelector{Sel: sel},
+				},
+				opts: []APILabelSelectorResolverOption{
+					WithCustomCompositionSelector(&v1.CustomCompositionSelector{
+						MatchLabels: []v1.CustomCompositionSelectorLabel{
+							{
+								Key: "stage",
+								Value: v1.CustomCompositionSelectorLabelValue{
+									FromFieldPath: "objectMeta.annotations.stage",
+								},
+							},
+							{
+								Key: "foo",
+								Value: v1.CustomCompositionSelectorLabelValue{
+									FromFieldPath: "objectMeta.annotations.foo",
+									Policy: &v1.CustomCompositionSelectorLabelValuePolicy{
+										FromFieldPath: (*v1.FromFieldPathPolicy)(pointer.String(string(v1.FromFieldPathPolicyOptional))),
+									},
+								},
+							},
+						},
+						Policy: &v1.CustomCompositionSelectorPolicy{
+							Resolve: (*xpv1.ResolvePolicy)(pointer.String(string(xpv1.ResolvePolicyAlways))),
+						},
+					}),
+				},
+			},
+			want: want{
+				cp: &fake.Composite{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							"stage": "test",
+						},
+					},
+					CompositionReferencer: fake.CompositionReferencer{Ref: &corev1.ObjectReference{Name: comp.Name}},
+					CompositionSelector: fake.CompositionSelector{Sel: &metav1.LabelSelector{
+						MatchLabels: map[string]string{
+							"stage": "test",
+						},
+					}},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			c := NewAPILabelSelectorResolver(tc.args.kube)
+			c := NewAPILabelSelectorResolver(tc.args.kube, tc.opts...)
 			err := c.SelectComposition(context.Background(), tc.args.cp)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nSelectComposition(...): -want, +got:\n%s", tc.reason, diff)
