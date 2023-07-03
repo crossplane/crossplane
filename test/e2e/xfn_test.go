@@ -30,14 +30,14 @@ import (
 	"time"
 
 	"github.com/vladimirvivien/gexe"
-	"golang.org/x/exp/slices"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	client2 "sigs.k8s.io/controller-runtime/pkg/client"
+	cr "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
+	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
@@ -47,18 +47,21 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
-func TestFunctions(t *testing.T) {
+func TestXfnRunnerImagePull(t *testing.T) {
 
-	manifests := "test/e2e/manifests/apiextensions/composition/functions/private-registry"
+	manifests := "test/e2e/manifests/xfnrunner/private-registry/pull"
 	environment.Test(t,
-		features.New("PullImageFromPrivateRegistryWithCustomCert").
+		features.New("PullFnImageFromPrivateRegistryWithCustomCert").
 			WithLabel(LabelArea, "xfn").
-			Setup(funcs.CreateNamespace("reg")).
-			Setup(CreateTLSCertificateAsSecret("private-docker-registry.reg.svc.cluster.local", "reg")).
-			Setup(InstallDockerRegistry()).
-			Setup(CopyImagesToRegistry()).
-			Setup(CrossplaneDeployedWithFunctionsEnabled()).
-			Setup(ProvideNopDeployed()).
+			WithSetup("InstallRegistryWithCustomTlsCertificate",
+				funcs.AllOf(
+					funcs.AsFeaturesFunc(envfuncs.CreateNamespace("reg")),
+					CreateTLSCertificateAsSecret("private-docker-registry.reg.svc.cluster.local", "reg"),
+					InstallDockerRegistry(),
+				)).
+			WithSetup("CopyFnImageToRegistry", CopyImagesToRegistry()).
+			WithSetup("CrossplaneDeployedWithFunctionsEnabled", CrossplaneDeployedWithFunctionsEnabled()).
+			WithSetup("ProvideNopDeployed", ProvideNopDeployed()).
 			Assess("CompositionWithFunctionIsCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition.yaml"),
@@ -82,7 +85,7 @@ func resourceGetter(ctx context.Context, t *testing.T, config *envconf.Config) f
 			t.Fatal(err)
 		}
 		u.SetGroupVersionKind(gv.WithKind(kind))
-		if err := client.Get(ctx, client2.ObjectKey{Name: name, Namespace: namespace}, u); err != nil {
+		if err := client.Get(ctx, cr.ObjectKey{Name: name, Namespace: namespace}, u); err != nil {
 			t.Fatal("cannot get claim", err)
 		}
 		return u
@@ -207,13 +210,17 @@ func CopyImagesToRegistry() features.Func {
 		if len(nodes.Items) == 0 {
 			t.Fatalf("no nodes in the cluster")
 		}
-		i := slices.IndexFunc(nodes.Items[0].Status.Addresses, func(a corev1.NodeAddress) bool {
-			return a.Type == corev1.NodeInternalIP
-		})
-		if i == -1 {
+		var addr string
+		for _, a := range nodes.Items[0].Status.Addresses {
+			if a.Type == corev1.NodeInternalIP {
+				addr = a.Address
+				break
+			}
+		}
+		if addr == "" {
 			t.Fatalf("no nodes with private address")
 		}
-		addr := nodes.Items[0].Status.Addresses[i].Address
+
 		p := gexe.RunProc(fmt.Sprintf("skopeo copy docker-daemon:crossplane-e2e/fn-labelizer:latest docker://%s:32000/fn-labelizer:latest --dest-tls-verify=false", addr)).Wait()
 		out, _ := io.ReadAll(p.Out())
 		t.Logf("skopeo stdout: %s", string(out))
@@ -226,17 +233,26 @@ func CopyImagesToRegistry() features.Func {
 
 // InstallDockerRegistry with custom TLS
 func InstallDockerRegistry() features.Func {
-	return funcs.AsFeaturesFunc(funcs.HelmInstall(
-		helm.WithName("private"),
-		helm.WithNamespace("reg"),
-		helm.WithWait(),
-		helm.WithChart("https://helm.twun.io/docker-registry-2.2.1.tgz"),
-		helm.WithArgs(
-			"--set service.type=NodePort",
-			"--set service.nodePort=32000",
-			"--set tlsSecretName=reg-cert",
-		),
-	))
+	return funcs.AllOf(
+		funcs.AsFeaturesFunc(
+			funcs.HelmRepo(
+				helm.WithArgs("add"),
+				helm.WithArgs("twuni"),
+				helm.WithArgs("https://helm.twun.io"),
+			)),
+		funcs.AsFeaturesFunc(
+			funcs.HelmInstall(
+				helm.WithName("private"),
+				helm.WithNamespace("reg"),
+				helm.WithWait(),
+				helm.WithChart("twuni/docker-registry"),
+				helm.WithVersion("2.2.2"),
+				helm.WithArgs(
+					"--set service.type=NodePort",
+					"--set service.nodePort=32000",
+					"--set tlsSecretName=reg-cert",
+				),
+			)))
 }
 
 // CrossplaneDeployedWithFunctionsEnabled asserts that crossplane deployment with composition functions is enabled
@@ -260,7 +276,7 @@ func CrossplaneDeployedWithFunctionsEnabled() features.Func {
 
 // ProvideNopDeployed assets that provider-nop is deployed and healthy
 func ProvideNopDeployed() features.Func {
-	manifests := "test/e2e/manifests/apiextensions/composition/minimal/prerequisites"
+	manifests := "test/e2e/manifests/xfnrunner/private-registry/pull/prerequisites"
 	return funcs.AllOf(
 		funcs.ApplyResources(FieldManager, manifests, "provider.yaml"),
 		funcs.ApplyResources(FieldManager, manifests, "definition.yaml"),
