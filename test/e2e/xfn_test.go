@@ -23,13 +23,14 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
-	"io"
 	"math/big"
 	"reflect"
 	"testing"
 	"time"
 
-	"github.com/vladimirvivien/gexe"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -221,11 +222,18 @@ func CopyImagesToRegistry() features.Func {
 			t.Fatalf("no nodes with private address")
 		}
 
-		p := gexe.RunProc(fmt.Sprintf("skopeo copy docker-daemon:crossplane-e2e/fn-labelizer:latest docker://%s:32000/fn-labelizer:latest --dest-tls-verify=false", addr)).Wait()
-		out, _ := io.ReadAll(p.Out())
-		t.Logf("skopeo stdout: %s", string(out))
-		if p.ExitCode() != 0 {
-			t.Fatalf("copying image to registry not successful, exit code %v std out %v std err %v", p.ExitCode(), string(out), p.Err())
+		srcRef, err := name.ParseReference("crossplane-e2e/fn-labelizer:latest")
+		if err != nil {
+			t.Fatal(err)
+		}
+		src, err := daemon.Image(srcRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		err = crane.Push(src, fmt.Sprintf("%s:32000/fn-labelizer:latest", addr), crane.Insecure)
+		if err != nil {
+			t.Fatal("copying image to registry not successful", err)
 		}
 		return ctx
 	}

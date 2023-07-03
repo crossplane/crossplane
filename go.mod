@@ -19,7 +19,6 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.9.5
-	github.com/vladimirvivien/gexe v0.2.0
 	golang.org/x/sync v0.3.0
 	golang.org/x/sys v0.10.0
 	google.golang.org/grpc v1.56.1
@@ -155,6 +154,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/tetratelabs/wazero v1.2.1 // indirect
 	github.com/vbatts/tar-split v0.11.3 // indirect
+	github.com/vladimirvivien/gexe v0.2.0 // indirect
 	go.opentelemetry.io/otel v1.16.0 // indirect
 	go.opentelemetry.io/otel/metric v1.16.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.16.0 // indirect
