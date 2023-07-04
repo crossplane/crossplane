@@ -116,6 +116,8 @@ cobertura:
 		grep -v zz_generated.deepcopy | \
 		$(GOCOVER_COBERTURA) > $(GO_TEST_OUTPUT)/cobertura-coverage.xml
 
+# TODO(pedjak):
+# https://github.com/crossplane/crossplane/issues/4294
 e2e.test.images:
 	@$(INFO) Building E2E test images
 	@docker build --load -t $(BUILD_REGISTRY)/fn-labelizer-$(TARGETARCH) test/e2e/testdata/images/labelizer
