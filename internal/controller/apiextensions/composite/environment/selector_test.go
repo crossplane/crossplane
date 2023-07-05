@@ -365,7 +365,7 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr:  composite(),
-				err: errors.Wrap(fmt.Errorf("only 1 EnvironmentConfig should be selected in Single mode, found: 2"), "failed to build reference at index 0"),
+				err: errors.Wrap(fmt.Errorf("only 1 EnvironmentConfig can be selected in Single mode, found: 2"), "failed to build reference at index 0"),
 			},
 		},
 		"RefsInOrder": {
@@ -879,87 +879,6 @@ func TestSelect(t *testing.T) {
 						},
 					}...),
 				),
-			},
-		},
-		"ErrWhenFoundItemsExceedMaxMatch": {
-			reason: "It should return an error when the number of EnvironmentConfigs is higher than MaxMatch",
-			args: args{
-				kube: &test.MockClient{
-					MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-						list := obj.(*v1alpha1.EnvironmentConfigList)
-						list.Items = []v1alpha1.EnvironmentConfig{
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-2",
-								},
-								Data: makeJSON(
-									map[string]interface{}{
-										"int/weight": int64(2),
-									},
-								),
-							},
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-1",
-								},
-								Data: makeJSON(
-									map[string]interface{}{
-										"int/weight": int64(1),
-									},
-								),
-							},
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-4",
-								},
-								Data: makeJSON(
-									map[string]interface{}{
-										"int/weight": int64(4),
-									},
-								),
-							},
-							{
-								ObjectMeta: metav1.ObjectMeta{
-									Name: "test-3",
-								},
-								Data: makeJSON(
-									map[string]interface{}{
-										"int/weight": int64(3),
-									},
-								),
-							},
-						}
-						return nil
-					}),
-				},
-				cr: composite(),
-				rev: &v1.CompositionRevision{
-					Spec: v1.CompositionRevisionSpec{
-						Environment: &v1.EnvironmentConfiguration{
-							EnvironmentConfigs: []v1.EnvironmentSource{
-								{
-									Type: v1.EnvironmentSourceTypeSelector,
-									Selector: &v1.EnvironmentSourceSelector{
-										Mode:            v1.EnvironmentSourceSelectorMultiMode,
-										MaxMatch:        pointer.Uint64(3),
-										SortByFieldPath: "data[int/weight]",
-										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
-											{
-												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
-												Key:   "foo",
-												Value: pointer.String("bar"),
-											},
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				cr:  composite(),
-				err: errors.Wrap(fmt.Errorf("number of found EnvironmentConfigs: 4 exceed MaxMatch limit: 3"), "failed to build reference at index 0"),
 			},
 		},
 		"ErrSelectOnNotMatchingType": {

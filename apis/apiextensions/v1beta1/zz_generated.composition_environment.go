@@ -143,11 +143,10 @@ func (e *EnvironmentSource) Validate() *field.Error {
 			return field.Required(field.NewPath("selector", "matchLabels"), "selector must have at least one match label")
 		}
 
-		for i, m := range e.Selector.MatchLabels {
-			if err := m.Validate(); err != nil {
-				return errors.WrapFieldError(err, field.NewPath("selector", "matchLabels").Index(i))
-			}
+		if err := e.Selector.Validate(); err != nil {
+			return errors.WrapFieldError(err, field.NewPath("selector"))
 		}
+
 	default:
 		return field.Invalid(field.NewPath("type"), e.Type, "invalid type")
 	}
@@ -197,6 +196,22 @@ type EnvironmentSourceSelector struct {
 
 	// MatchLabels ensures an object with matching labels is selected.
 	MatchLabels []EnvironmentSourceSelectorLabelMatcher `json:"matchLabels,omitempty"`
+}
+
+// Validate logically validates the EnvironmentSourceSelector.
+func (e *EnvironmentSourceSelector) Validate() *field.Error {
+
+	if e.Mode == EnvironmentSourceSelectorSingleMode && e.MaxMatch != nil {
+		return field.Forbidden(field.NewPath("maxMatch"), "maxMatch is not supported in Single mode")
+	}
+
+	for i, m := range e.MatchLabels {
+		if err := m.Validate(); err != nil {
+			return errors.WrapFieldError(err, field.NewPath("matchLabels").Index(i))
+		}
+	}
+
+	return nil
 }
 
 // EnvironmentSourceSelectorLabelMatcherType specifies where the value for a
