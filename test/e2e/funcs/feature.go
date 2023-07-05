@@ -22,6 +22,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -404,6 +405,9 @@ func asUnstructured(o runtime.Object) *unstructured.Unstructured {
 // namespace.
 func identifier(o k8s.Object) string {
 	k := o.GetObjectKind().GroupVersionKind().Kind
+	if k == "" {
+		k = reflect.TypeOf(o).Elem().Name()
+	}
 	if o.GetNamespace() == "" {
 		return fmt.Sprintf("%s %s", k, o.GetName())
 	}

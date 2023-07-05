@@ -32,140 +32,89 @@ import (
 // Providers, Configurations, etc).
 const LabelAreaPkg = "pkg"
 
-func TestConfiguration(t *testing.T) {
-	// Test that we can install a Configuration from a private repository using
-	// a package pull secret.
+// TestConfigurationPullFromPrivateRegistry tests that a Configuration can be
+// installed from a private registry using a package pull secret.
+func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/private"
-	private := features.Table{
-		{
-			Name: "ConfigurationIsCreated",
-			Assessment: funcs.AllOf(
+
+	environment.Test(t,
+		features.New("ConfigurationPullFromPrivateRegistry").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithSetup("CreateConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "*.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "*.yaml"),
-			),
-		},
-		{
-			Name:       "ConfigurationIsHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name: "ConfigurationIsDeleted",
-			Assessment: funcs.AllOf(
+			)).
+			Assess("ConfigurationIsHealthy", funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
 				funcs.DeleteResources(manifests, "*.yaml"),
 				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "*.yaml"),
-			),
-		},
-	}
-
-	manifests = "test/e2e/manifests/pkg/configuration/dependency"
-	dependency := features.Table{
-		{
-			Name: "ConfigurationIsCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
-				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
-			),
-		},
-		{
-			Name:       "ConfigurationIsHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name:       "ProviderIsHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name: "ConfigurationIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "configuration.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
-			),
-		},
-		{
-			// Dependencies are not automatically deleted.
-			Name: "ProviderIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
-			),
-		},
-	}
-
-	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
-	environment.Test(t,
-		private.Build("PullFromPrivateRegistry").
-			WithLabel(LabelArea, LabelAreaPkg).
-			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).Feature(),
-		dependency.Build("WithDependency").
-			WithLabel(LabelArea, LabelAreaPkg).
-			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).Feature(),
+			)).Feature(),
 	)
 }
 
-func TestProvider(t *testing.T) {
+// TestConfigurationWithDependency tests that a Configuration with a dependency
+// on a Provider will become healthy when the Provider becomes healthy.
+func TestConfigurationWithDependency(t *testing.T) {
+	manifests := "test/e2e/manifests/pkg/configuration/dependency"
+
+	environment.Test(t,
+		features.New("ConfigurationWithDependency").
+			WithLabel(LabelArea, LabelAreaPkg).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithSetup("ApplyConfiguration", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			Assess("ConfigurationIsHealthy",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "configuration.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			Assess("RequiredProviderIsHealthy",
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-dependency.yaml", pkgv1.Healthy(), pkgv1.Active())).
+			// Dependencies are not automatically deleted.
+			WithTeardown("DeleteConfiguration", funcs.AllOf(
+				funcs.DeleteResources(manifests, "configuration.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "configuration.yaml"),
+			)).
+			WithTeardown("DeleteRequiredProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-dependency.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-dependency.yaml"),
+			)).Feature(),
+	)
+}
+
+func TestProviderUpgrade(t *testing.T) {
 	// Test that we can upgrade a provider to a new version, even when a managed
 	// resource has been created.
 	manifests := "test/e2e/manifests/pkg/provider"
-	upgrade := features.Table{
-		{
-			Name: "ProviderIsInstalled",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "provider-initial.yaml"),
-				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-initial.yaml"),
-			),
-		},
-		{
-			Name:       "ProviderBecomesHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name: "ManagedResourceIsCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "mr-initial.yaml"),
-				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr-initial.yaml"),
-			),
-		},
-		{
-			Name:       "ProviderIsUpgraded",
-			Assessment: funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml"),
-		},
-		{
-			Name:       "UpgradedProviderBecomesHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-upgrade.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name: "ManagedResourceIsUpdated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
-			),
-		},
-		{
-			Name:       "ManagedResourceBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr.yaml", xpv1.Available()),
-		},
-		{
-			Name: "ManagedResourceIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr-upgrade.yaml"),
-			),
-		},
-		{
-			Name: "ProviderIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "provider-upgrade.yaml"),
-				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-upgrade.yaml"),
-			),
-		},
-	}
 
-	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
-		upgrade.Build("Upgrade").
+		features.New("ProviderUpgrade").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).Feature(),
+			WithSetup("ApplyInitialProvider", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-initial.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-initial.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithSetup("InitialManagedResourceIsReady", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mr-initial.yaml"),
+				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "mr-initial.yaml"),
+			)).
+			Assess("UpgradeProvider", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "provider-upgrade.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "provider-upgrade.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			Assess("UpgradeManagedResource", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "mr-upgrade.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "mr.yaml", xpv1.Available()),
+			)).
+			WithTeardown("DeleteUpgradedManagedResource", funcs.AllOf(
+				funcs.DeleteResources(manifests, "mr-upgrade.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "mr-upgrade.yaml"),
+			)).
+			WithTeardown("DeleteUpgradedProvider", funcs.AllOf(
+				funcs.DeleteResources(manifests, "provider-upgrade.yaml"),
+				funcs.ResourcesDeletedWithin(1*time.Minute, manifests, "provider-upgrade.yaml"),
+			)).Feature(),
 	)
 }

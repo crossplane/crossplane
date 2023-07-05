@@ -34,213 +34,125 @@ import (
 // extensions (i.e. Composition, XRDs, etc).
 const LabelAreaAPIExtensions = "apiextensions"
 
-// TestComposition tests Crossplane's Composition functionality.
-func TestComposition(t *testing.T) {
-	// Test that a claim using a very minimal Composition (with no patches,
-	// transforms, or functions) will become available when its composed
-	// resources do.
+// TestCompositionMinimal tests Crossplane's Composition functionality,
+// checking that a claim using a very minimal Composition (with no patches,
+// transforms, or functions) will become available when its composed
+// resources do.
+func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
-	minimal := features.Table{
-		{
-			Name: "PrerequisitesAreCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-			),
-		},
-		{
-			Name:       "XRDBecomesEstablished",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
-		},
-		{
-			Name: "ClaimIsCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-			),
-		},
-		{
-			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
-		},
-		{
-			Name: "ClaimIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
-			),
-		},
-		{
-			Name: "PrerequisitesAreDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
-			),
-		},
-	}
 
-	// Test that a claim using patch-and-transform Composition will become
-	// available when its composed resources do, and have a field derived from
-	// the patch.
-	manifests = "test/e2e/manifests/apiextensions/composition/patch-and-transform"
-	pandt := features.Table{
-		{
-			Name: "PrerequisitesAreCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-			),
-		},
-		{
-			Name:       "XRDBecomesEstablished",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
-		},
-		{
-			Name: "ClaimIsCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
-			),
-		},
-		{
-			Name:       "ClaimBecomesAvailable",
-			Assessment: funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
-		},
-		{
-			Name:       "ClaimHasPatchedField",
-			Assessment: funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
-		},
-		{
-			Name: "ClaimIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "claim.yaml"),
-				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
-			),
-		},
-		{
-			Name: "PrerequisitesAreDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
-			),
-		},
-	}
-
-	setup := funcs.ReadyToTestWithin(1*time.Minute, namespace)
 	environment.Test(t,
-		minimal.Build("Minimal").
+		features.New("CompositionMinimal").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).Feature(),
-		pandt.Build("PatchAndTransform").
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
-			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).Feature(),
+			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available()),
+			)).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
 	)
 }
 
-func TestValidation(t *testing.T) {
+// TestCompositionPatchAndTransform tests Crossplane's Composition functionality,
+// checking that a claim using patch-and-transform Composition will become
+// available when its composed resources do, and have a field derived from
+// the patch.
+func TestCompositionPatchAndTransform(t *testing.T) {
 
-	// A valid Composition should be created when validated in strict mode.
-	manifests := "test/e2e/manifests/apiextensions/validation/composition-schema-valid"
-	valid := features.Table{
-		{
-			Name: "PrerequisitesAreCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-			),
-		},
-		{
-			Name:       "XRDBecomesEstablished",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
-		},
-		{
-			Name:       "ProviderIsHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name: "CompositionIsCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition.yaml"),
-			),
-		},
-		{
-			Name: "CompositionIsDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "composition.yaml"),
-				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition.yaml"),
-			),
-		},
-		{
-			Name: "PrerequisitesAreDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
-			),
-		},
-	}
-
-	// An invalid Composition should be rejected when validated in strict mode.
-	manifests = "test/e2e/manifests/apiextensions/validation/composition-schema-invalid"
-	invalid := features.Table{
-		{
-			Name: "PrerequisitesAreCreated",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/*.yaml"),
-			),
-		},
-		{
-			Name:       "XRDBecomesEstablished",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", apiextensionsv1.WatchingComposite()),
-		},
-		{
-			Name:       "ProviderIsHealthy",
-			Assessment: funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
-		},
-		{
-			Name: "CompositionIsCreated",
-			Assessment: funcs.AllOf(
-				funcs.ResourcesFailToApply(FieldManager, manifests, "composition.yaml"),
-			),
-		},
-		{
-			Name: "PrerequisitesAreDeleted",
-			Assessment: funcs.AllOf(
-				funcs.DeleteResources(manifests, "prerequisites/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "prerequisites/*.yaml"),
-			),
-		},
-	}
-
-	// Enable our feature flag.
-	setup := funcs.AllOf(
-		funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions(helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"))...)),
-		funcs.ReadyToTestWithin(1*time.Minute, namespace),
-	)
-
-	// Disable our feature flag.
-	teardown := funcs.AllOf(
-		funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
-		funcs.ReadyToTestWithin(1*time.Minute, namespace),
-	)
-
+	manifests := "test/e2e/manifests/apiextensions/composition/patch-and-transform"
 	environment.Test(t,
-		valid.Build("ValidComposition").
-			WithLabel(LabelStage, LabelStageAlpha).
+		features.New("CompositionPatchAndTransform").
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).
-			Teardown(teardown).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			Assess("CreateClaim", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimIsReady",
+				funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ClaimHasPatchedField",
+				funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+			).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
 			Feature(),
-		invalid.Build("InvalidComposition").
+	)
+
+}
+
+func TestCompositionValidation(t *testing.T) {
+	manifests := "test/e2e/manifests/apiextensions/composition/validation"
+
+	cases := features.Table{
+		{
+			// A valid Composition should be created when validated in strict mode.
+			Name: "ValidCompositionIsAccepted",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-valid.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-valid.yaml"),
+			),
+		},
+		{
+			// An invalid Composition should be rejected when validated in strict mode.
+			Name:       "InvalidCompositionIsRejected",
+			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid.yaml"),
+		},
+	}
+	environment.Test(t,
+		cases.Build("CompositionValidation").
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
-			Setup(setup).
-			Teardown(teardown).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			// Enable our feature flag.
+			WithSetup("EnableAlphaCompositionValidation", funcs.AllOf(
+				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions(helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"))...)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+			)).
+			WithTeardown("DeleteValidComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "*-valid.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "*-valid.yaml"),
+			)).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			// Disable our feature flag.
+			WithTeardown("DisableAlphaCompositionValidation", funcs.AllOf(
+				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
 			Feature(),
 	)
 }

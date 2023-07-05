@@ -120,7 +120,7 @@ e2e-tag-images:
 	@$(INFO) Tagging E2E test images
 	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
 	@docker tag $(BUILD_REGISTRY)/xfn-$(TARGETARCH) crossplane-e2e/xfn:latest || $(FAIL)
-	@$(OK) Tagged E2E test images
+	@$(OK) Tagged E2E test images crossplane-e2e/$(PROJECT_NAME):latest crossplane-e2e/xfn:latest
 
 # NOTE(negz): There's already a go.test.integration target, but it's weird.
 # This relies on make build building the e2e binary.
@@ -130,7 +130,7 @@ E2E_TEST_FLAGS ?=
 # https://github.com/kubernetes-sigs/e2e-framework/issues/282
 E2E_PATH = $(WORK_DIR)/e2e
 
-e2e-run-tests: $(KIND) $(HELM3)
+e2e-run-tests:
 	@$(INFO) Run E2E tests
 	@mkdir -p $(E2E_PATH)
 	@ln -sf $(KIND) $(E2E_PATH)/kind
@@ -140,7 +140,7 @@ e2e-run-tests: $(KIND) $(HELM3)
 
 e2e.init: build e2e-tag-images
 
-e2e.run: e2e-run-tests
+e2e.run: $(KIND) $(HELM3) e2e-run-tests
 
 # Update the submodules, such as the common build scripts.
 submodules:

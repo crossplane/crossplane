@@ -24,6 +24,7 @@ import (
 
 	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/e2e-framework/klient/conf"
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
@@ -36,6 +37,15 @@ import (
 // 'pkg', etc. Assessments roll up to features, which roll up to feature areas.
 // Features within an area may be split across different test functions.
 const LabelArea = "area"
+
+// LabelModifyCrossplaneInstallation is used to mark tests that are going to
+// modify Crossplane's installation, e.g. installing, uninstalling or upgrading
+// it.
+const LabelModifyCrossplaneInstallation = "modify-crossplane-installation"
+
+// LabelModifyCrossplaneInstallationTrue is used to mark tests that are going to
+// modify Crossplane's installation.
+const LabelModifyCrossplaneInstallationTrue = "true"
 
 // LabelStage represents the 'stage' of a feature - alpha, beta, etc. Generally
 // available features have no stage label.
@@ -89,6 +99,9 @@ func HelmOptions(extra ...helm.Option) []helm.Option {
 		helm.WithName(helmReleaseName),
 		helm.WithNamespace(namespace),
 		helm.WithChart(helmChartDir),
+		// wait for the deployment to be ready for up to 5 minutes before returning
+		helm.WithWait(),
+		helm.WithTimeout("5m"),
 		helm.WithArgs(
 			// Run with debug logging to ensure all log statements are run.
 			"--set args={--debug}",
@@ -112,29 +125,52 @@ func TestMain(m *testing.M) {
 	// https://github.com/kubernetes-sigs/e2e-framework/issues/270
 	log.SetLogger(klog.NewKlogr())
 
-	create := flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests")
+	kindClusterName := flag.String("kind-cluster-name", "", "name of the kind cluster to use")
+	create := flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests, if the cluster does not already exist with the same name")
 	destroy := flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
-
-	clusterName := envconf.RandomName("crossplane-e2e", 32)
-	environment, _ = env.NewFromFlags()
+	install := flag.Bool("install-crossplane", true, "install Crossplane before running tests")
+	load := flag.Bool("load-images-kind-cluster", true, "load Crossplane images into the kind cluster before running tests")
 
 	var setup []env.Func
 	var finish []env.Func
 
-	if *create {
+	cfg, _ := envconf.NewFromFlags()
+
+	clusterName := envconf.RandomName("crossplane-e2e", 32)
+	if *kindClusterName != "" {
+		clusterName = *kindClusterName
+	}
+
+	// we want to create the cluster if it doesn't exist, but only if we're
+	isKindCluster := *create || *kindClusterName != ""
+	if isKindCluster {
 		setup = []env.Func{
 			envfuncs.CreateKindCluster(clusterName),
+		}
+	} else {
+		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
+	}
+	environment = env.NewWithConfig(cfg)
+
+	if *load && isKindCluster {
+		setup = append(setup,
 			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
 			envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),
+		)
+	}
+	if *install {
+		setup = append(setup,
 			envfuncs.CreateNamespace(namespace),
 			funcs.HelmInstall(HelmOptions()...),
-		}
+		)
 	}
 
 	// We always want to add our types to the scheme.
 	setup = append(setup, funcs.AddCrossplaneTypesToScheme())
 
-	if *destroy {
+	// We want to destroy the cluster if we created it, but only if we created it,
+	// otherwise the random name will be meaningless.
+	if *destroy && isKindCluster {
 		finish = []env.Func{envfuncs.DestroyKindCluster(clusterName)}
 	}
 
