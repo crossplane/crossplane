@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package commands implements Crossplane CLI commands.
+package commands
 
 import (
 	"context"
@@ -37,18 +38,18 @@ const (
 	errCreatePackage   = "failed to create package file"
 )
 
-// buildCmd builds a package.
-type buildCmd struct {
-	Configuration buildConfigCmd   `cmd:"" help:"Build a Configuration package."`
-	Provider      buildProviderCmd `cmd:"" help:"Build a Provider package."`
+// BuildCmd builds a package.
+type BuildCmd struct {
+	Configuration BuildConfigCmd   `cmd:"" help:"Build a Configuration package."`
+	Provider      BuildProviderCmd `cmd:"" help:"Build a Provider package."`
 
 	PackageRoot string   `short:"f" help:"Path to package directory." default:"."`
 	Ignore      []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
 }
 
 // Run runs the build cmd.
-func (c *buildCmd) Run(child *buildChild, logger logging.Logger) error {
-	logger = logger.WithValues("Name", child.name)
+func (c *BuildCmd) Run(child *BuildChild, logger logging.Logger) error {
+	logger = logger.WithValues("Name", child.Name)
 	root, err := filepath.Abs(c.PackageRoot)
 	if err != nil {
 		return err
@@ -66,9 +67,9 @@ func (c *buildCmd) Run(child *buildChild, logger logging.Logger) error {
 	}
 	logger.Debug("Successfully built Object scheme for package parser")
 	img, err := xpkg.Build(context.Background(),
-		parser.NewFsBackend(child.fs, parser.FsDir(root), parser.FsFilters(buildFilters(root, c.Ignore)...)),
+		parser.NewFsBackend(child.FS, parser.FsDir(root), parser.FsFilters(buildFilters(root, c.Ignore)...)),
 		parser.New(metaScheme, objScheme),
-		child.linter)
+		child.Linter)
 	if err != nil {
 		logger.Debug(errBuildPackage, "error", err)
 		return errors.Wrap(err, errBuildPackage)
@@ -81,10 +82,10 @@ func (c *buildCmd) Run(child *buildChild, logger logging.Logger) error {
 		return errors.Wrap(err, errImageDigest)
 	}
 	logger.Debug("Successfully found package digest")
-	pkgName := child.name
+	pkgName := child.Name
 	if pkgName == "" {
 		metaPath := filepath.Join(root, xpkg.MetaFile)
-		pkgName, err = xpkg.ParseNameFromMeta(child.fs, metaPath)
+		pkgName, err = xpkg.ParseNameFromMeta(child.FS, metaPath)
 		if err != nil {
 			logger.Debug(errGetNameFromMeta, "error", err)
 			return errors.Wrap(err, errGetNameFromMeta)
@@ -92,7 +93,7 @@ func (c *buildCmd) Run(child *buildChild, logger logging.Logger) error {
 		pkgName = xpkg.FriendlyID(pkgName, hash.Hex)
 	}
 
-	f, err := child.fs.Create(xpkg.BuildPath(root, pkgName, xpkg.XpkgExtension))
+	f, err := child.FS.Create(xpkg.BuildPath(root, pkgName, xpkg.XpkgExtension))
 	if err != nil {
 		logger.Debug(errCreatePackage, "error", err)
 		return errors.Wrap(err, errCreatePackage)
@@ -122,32 +123,33 @@ func buildFilters(root string, skips []string) []parser.FilterFn {
 	return opts
 }
 
-type buildChild struct {
-	name   string
-	linter parser.Linter
-	fs     afero.Fs
+// BuildChild provides context to the Build commands' hooks.
+type BuildChild struct {
+	Name   string
+	Linter parser.Linter
+	FS     afero.Fs
 }
 
-// buildConfigCmd builds a Configuration.
-type buildConfigCmd struct {
+// BuildConfigCmd builds a Configuration.
+type BuildConfigCmd struct {
 	Name string `optional:"" help:"Name of the package to be built. Uses name in crossplane.yaml if not specified. Does not correspond to package tag."`
 }
 
 // AfterApply sets the name and linter for the parent build command.
-func (c buildConfigCmd) AfterApply(b *buildChild) error { //nolint:unparam // AfterApply requires this signature.
-	b.name = c.Name
-	b.linter = xpkg.NewConfigurationLinter()
+func (c BuildConfigCmd) AfterApply(b *BuildChild) error {
+	b.Name = c.Name
+	b.Linter = xpkg.NewConfigurationLinter()
 	return nil
 }
 
-// buildProviderCmd builds a Provider.
-type buildProviderCmd struct {
+// BuildProviderCmd builds a Provider.
+type BuildProviderCmd struct {
 	Name string `optional:"" help:"Name of the package to be built. Uses name in crossplane.yaml if not specified. Does not correspond to package tag."`
 }
 
 // AfterApply sets the name and linter for the parent build command.
-func (c buildProviderCmd) AfterApply(b *buildChild) error { //nolint:unparam // AfterApply requires this signature.
-	b.name = c.Name
-	b.linter = xpkg.NewProviderLinter()
+func (c BuildProviderCmd) AfterApply(b *BuildChild) error {
+	b.Name = c.Name
+	b.Linter = xpkg.NewProviderLinter()
 	return nil
 }

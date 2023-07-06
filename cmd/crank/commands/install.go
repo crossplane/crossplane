@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package commands implements Crossplane CLI commands.
+package commands
 
 import (
 	"context"
@@ -63,19 +64,19 @@ const (
 	msgProviderWaiting  = "Waiting for the Provider to be ready"
 )
 
-// installCmd installs a package.
-type installCmd struct {
-	Configuration installConfigCmd   `cmd:"" help:"Install a Configuration package."`
-	Provider      installProviderCmd `cmd:"" help:"Install a Provider package."`
+// InstallCmd installs a package.
+type InstallCmd struct {
+	Configuration InstallConfigCmd   `cmd:"" help:"Install a Configuration package."`
+	Provider      InstallProviderCmd `cmd:"" help:"Install a Provider package."`
 }
 
 // Run runs the install cmd.
-func (c *installCmd) Run(_ *buildChild) error {
+func (c *InstallCmd) Run(_ *BuildChild) error {
 	return nil
 }
 
-// installConfigCmd installs a Configuration.
-type installConfigCmd struct {
+// InstallConfigCmd installs a Configuration.
+type InstallConfigCmd struct {
 	Package string `arg:"" help:"Image containing Configuration package."`
 
 	Name                 string        `arg:"" optional:"" help:"Name of Configuration."`
@@ -86,7 +87,7 @@ type installConfigCmd struct {
 }
 
 // Run runs the Configuration install cmd.
-func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
+func (c *InstallConfigCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation
@@ -166,8 +167,8 @@ func (c *installConfigCmd) Run(k *kong.Context, logger logging.Logger) error { /
 	return err
 }
 
-// installProviderCmd install a Provider.
-type installProviderCmd struct {
+// InstallProviderCmd install a Provider.
+type InstallProviderCmd struct {
 	Package string `arg:"" help:"Image containing Provider package."`
 
 	Name                 string        `arg:"" optional:"" help:"Name of Provider."`
@@ -179,7 +180,7 @@ type installProviderCmd struct {
 }
 
 // Run runs the Provider install cmd.
-func (c *installProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
+func (c *InstallProviderCmd) Run(k *kong.Context, logger logging.Logger) error { //nolint:gocyclo // TODO(negz): Can anything be broken out here?
 	rap := v1.AutomaticActivation
 	if c.ManualActivation {
 		rap = v1.ManualActivation

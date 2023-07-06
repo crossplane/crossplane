@@ -1,4 +1,21 @@
-package main
+/*
+Copyright 2023 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+// Package commands implements Crossplane CLI commands.
+package commands
 
 import (
 	"context"
@@ -22,25 +39,25 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
 
-// updateCmd updates a package.
-type updateCmd struct {
-	Configuration updateConfigCmd   `cmd:"" help:"Update a Configuration package."`
-	Provider      updateProviderCmd `cmd:"" help:"Update a Provider package."`
+// UpdateCmd updates a package.
+type UpdateCmd struct {
+	Configuration UpdateConfigCmd   `cmd:"" help:"Update a Configuration package."`
+	Provider      UpdateProviderCmd `cmd:"" help:"Update a Provider package."`
 }
 
 // Run runs the update cmd.
-func (c *updateCmd) Run(_ *buildChild) error {
+func (c *UpdateCmd) Run(_ *BuildChild) error {
 	return nil
 }
 
-// updateConfigCmd updates a Configuration.
-type updateConfigCmd struct {
+// UpdateConfigCmd updates a Configuration.
+type UpdateConfigCmd struct {
 	Name string `arg:"" help:"Name of Configuration."`
 	Tag  string `arg:"" help:"Updated tag for Configuration package."`
 }
 
 // Run runs the Configuration update cmd.
-func (c *updateConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *UpdateConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 	logger = logger.WithValues("Name", c.Name)
 	kubeConfig, err := ctrl.GetConfig()
 	if err != nil {
@@ -91,14 +108,14 @@ func (c *updateConfigCmd) Run(k *kong.Context, logger logging.Logger) error {
 	return err
 }
 
-// updateProviderCmd update a Provider.
-type updateProviderCmd struct {
+// UpdateProviderCmd update a Provider.
+type UpdateProviderCmd struct {
 	Name string `arg:"" help:"Name of Provider."`
 	Tag  string `arg:"" help:"Updated tag for Provider package."`
 }
 
 // Run runs the Provider update cmd.
-func (c *updateProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
+func (c *UpdateProviderCmd) Run(k *kong.Context, logger logging.Logger) error {
 	kubeConfig, err := ctrl.GetConfig()
 	if err != nil {
 		logger.Debug(errKubeConfig, "error", err)

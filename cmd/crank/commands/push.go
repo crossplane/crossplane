@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package commands implements Crossplane CLI commands.
+package commands
 
 import (
 	"os"
@@ -36,18 +37,18 @@ const (
 	errFindPackageinWd = "failed to find a package in current working directory"
 )
 
-// pushCmd pushes a package.
-type pushCmd struct {
-	Configuration pushConfigCmd   `cmd:"" help:"Push a Configuration package."`
-	Provider      pushProviderCmd `cmd:"" help:"Push a Provider package."`
+// PushCmd pushes a package.
+type PushCmd struct {
+	Configuration PushConfigCmd   `cmd:"" help:"Push a Configuration package."`
+	Provider      PushProviderCmd `cmd:"" help:"Push a Provider package."`
 
 	Package string `short:"f" help:"Path to package. If not specified and only one package exists in current directory it will be used."`
 }
 
 // Run runs the push cmd.
-func (c *pushCmd) Run(child *pushChild, logger logging.Logger) error {
-	logger = logger.WithValues("tag", child.tag)
-	tag, err := name.NewTag(child.tag)
+func (c *PushCmd) Run(child *PushChild, logger logging.Logger) error {
+	logger = logger.WithValues("tag", child.Tag)
+	tag, err := name.NewTag(child.Tag)
 	if err != nil {
 		logger.Debug("Failed to create tag for package", "error", err)
 		return err
@@ -62,7 +63,7 @@ func (c *pushCmd) Run(child *pushChild, logger logging.Logger) error {
 			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errGetwd))
 			return errors.Wrap(err, errGetwd)
 		}
-		path, err := xpkg.FindXpkgInDir(child.fs, wd)
+		path, err := xpkg.FindXpkgInDir(child.FS, wd)
 		if err != nil {
 			logger.Debug("Failed to find package in directory", "error", errors.Wrap(err, errFindPackageinWd))
 			return errors.Wrap(err, errFindPackageinWd)
@@ -82,29 +83,30 @@ func (c *pushCmd) Run(child *pushChild, logger logging.Logger) error {
 	return nil
 }
 
-type pushChild struct {
-	tag string
-	fs  afero.Fs
+// PushChild provides context to the Push commands' hooks.
+type PushChild struct {
+	Tag string
+	FS  afero.Fs
 }
 
-// pushConfigCmd pushes a Configuration.
-type pushConfigCmd struct {
+// PushConfigCmd pushes a Configuration.
+type PushConfigCmd struct {
 	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
 }
 
 // AfterApply sets the tag for the parent push command.
-func (c pushConfigCmd) AfterApply(p *pushChild) error { //nolint:unparam // AfterApply requires this signature.
-	p.tag = c.Tag
+func (c PushConfigCmd) AfterApply(p *PushChild) error {
+	p.Tag = c.Tag
 	return nil
 }
 
-// pushProviderCmd pushes a Provider.
-type pushProviderCmd struct {
+// PushProviderCmd pushes a Provider.
+type PushProviderCmd struct {
 	Tag string `arg:"" help:"Tag of the package to be pushed. Must be a valid OCI image tag."`
 }
 
 // AfterApply sets the tag for the parent push command.
-func (c pushProviderCmd) AfterApply(p *pushChild) error { //nolint:unparam // AfterApply requires this signature.
-	p.tag = c.Tag
+func (c PushProviderCmd) AfterApply(p *PushChild) error {
+	p.Tag = c.Tag
 	return nil
 }

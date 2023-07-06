@@ -26,6 +26,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 
+	"github.com/crossplane/crossplane/cmd/crank/commands"
 	"github.com/crossplane/crossplane/internal/version"
 )
 
@@ -58,18 +59,18 @@ var cli struct {
 	Version versionFlag `short:"v" name:"version" help:"Print version and quit."`
 	Verbose verboseFlag `name:"verbose" help:"Print verbose logging statements."`
 
-	Build   buildCmd   `cmd:"" help:"Build Crossplane packages."`
-	Install installCmd `cmd:"" help:"Install Crossplane packages."`
-	Update  updateCmd  `cmd:"" help:"Update Crossplane packages."`
-	Push    pushCmd    `cmd:"" help:"Push Crossplane packages."`
+	Build   commands.BuildCmd   `cmd:"" help:"Build Crossplane packages."`
+	Install commands.InstallCmd `cmd:"" help:"Install Crossplane packages."`
+	Update  commands.UpdateCmd  `cmd:"" help:"Update Crossplane packages."`
+	Push    commands.PushCmd    `cmd:"" help:"Push Crossplane packages."`
 }
 
 func main() {
-	buildChild := &buildChild{
-		fs: afero.NewOsFs(),
+	buildChild := &commands.BuildChild{
+		FS: afero.NewOsFs(),
 	}
-	pushChild := &pushChild{
-		fs: afero.NewOsFs(),
+	pushChild := &commands.PushChild{
+		FS: afero.NewOsFs(),
 	}
 	logger := logging.NewNopLogger()
 	ctx := kong.Parse(&cli,

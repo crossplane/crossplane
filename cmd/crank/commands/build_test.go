@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package commands implements Crossplane CLI commands.
+package commands
 
 import (
 	"os"
@@ -33,7 +34,7 @@ import (
 
 func TestBuild(t *testing.T) {
 	type args struct {
-		child  *buildChild
+		child  *BuildChild
 		root   string
 		ignore []string
 	}
@@ -46,10 +47,10 @@ func TestBuild(t *testing.T) {
 		"SuccessfulWithName": {
 			reason: "",
 			args: args{
-				child: &buildChild{
-					name:   "test",
-					linter: parser.NewPackageLinter(nil, nil, nil),
-					fs:     afero.NewMemMapFs(),
+				child: &BuildChild{
+					Name:   "test",
+					Linter: parser.NewPackageLinter(nil, nil, nil),
+					FS:     afero.NewMemMapFs(),
 				},
 				root: "/",
 			},
@@ -57,9 +58,9 @@ func TestBuild(t *testing.T) {
 		"ErrNoNameNoMeta": {
 			reason: "",
 			args: args{
-				child: &buildChild{
-					linter: parser.NewPackageLinter(nil, nil, nil),
-					fs:     afero.NewMemMapFs(),
+				child: &BuildChild{
+					Linter: parser.NewPackageLinter(nil, nil, nil),
+					FS:     afero.NewMemMapFs(),
 				},
 				root: "/",
 			},
@@ -69,7 +70,7 @@ func TestBuild(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			b := buildCmd{
+			b := BuildCmd{
 				PackageRoot: tc.args.root,
 				Ignore:      tc.args.ignore,
 			}
@@ -80,7 +81,7 @@ func TestBuild(t *testing.T) {
 			}
 			// If we didn't encounter an error there should be a package in root.
 			if tc.want == nil {
-				if _, err := xpkg.FindXpkgInDir(tc.args.child.fs, tc.args.root); err != nil {
+				if _, err := xpkg.FindXpkgInDir(tc.args.child.FS, tc.args.root); err != nil {
 					t.Error(err)
 				}
 			}
