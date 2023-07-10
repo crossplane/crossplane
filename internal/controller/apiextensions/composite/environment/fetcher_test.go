@@ -222,7 +222,9 @@ func TestFetch(t *testing.T) {
 					MockGet: test.NewMockGetFn(errBoom),
 				},
 				cr: composite(
-					withEnvironmentRefs(),
+					withEnvironmentRefs(
+						corev1.ObjectReference{Name: "a"},
+					),
 				),
 				required: pointer.Bool(false),
 			},
