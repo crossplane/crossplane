@@ -132,8 +132,13 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-
-				err = crane.Push(src, fmt.Sprintf("%s:32000/fn-labelizer:latest", addr), crane.Insecure)
+				err = wait.For(func() (done bool, err error) {
+					err = crane.Push(src, fmt.Sprintf("%s:32000/fn-labelizer:latest", addr), crane.Insecure)
+					if err != nil {
+						return false, nil //nolint:nilerr // we want to retry and to throw error
+					}
+					return true, nil
+				}, wait.WithTimeout(1*time.Minute))
 				if err != nil {
 					t.Fatal("copying image to registry not successful", err)
 				}
@@ -159,7 +164,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "prerequisites/definition.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/provider.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/	definition.yaml", v1.WatchingComposite()),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", v1.WatchingComposite()),
 			)).
 			Assess("CompositionWithFunctionIsCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
