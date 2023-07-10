@@ -848,7 +848,7 @@ general-purpose-esque programming language. This is similar to the ["GitHub
 Script"][github-script] GitHub Action that lets you plug some arbitrary logic
 into a GitHub Action pipeline when no existing Action does quite what you need.
 
-### Iterating on Compositions that use Functions
+#### Iterating on Compositions
 
 Getting fast feedback on a Crossplane Composition has historically been a pain
 because the Composition logic has been encapsulated in a Kubernetes controller.
@@ -971,8 +971,11 @@ package manager. Deploying Functions as Kubernetes Deployments (with Services,
 Service Accounts, etc) will no doubt necessitate something like a Provider's
 ControllerConfig type.
 
-We've identified that we [don't want to proceed][controllerconfig-deprecation] with ControllerConfig
-
+We've identified that we [don't want to proceed][controllerconfig-deprecation]
+with ControllerConfig, but don't yet have a suitable alternative. Rather than
+propagating a ControllerConfig-like pattern I propose we prioritize finding an
+alternative. I intend to open a separate, simultaneous design to address this
+since it will affect Provider packages as well as Functions.
 
 ### Alternatives Considered
 
