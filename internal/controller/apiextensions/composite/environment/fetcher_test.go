@@ -26,6 +26,7 @@ import (
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
@@ -126,7 +127,7 @@ func TestFetch(t *testing.T) {
 	type args struct {
 		kube     client.Client
 		cr       *fake.Composite
-		required bool
+		required *bool
 	}
 	type want struct {
 		env *Environment
@@ -209,7 +210,6 @@ func TestFetch(t *testing.T) {
 						corev1.ObjectReference{Name: "a"},
 					),
 				),
-				required: true,
 			},
 			want: want{
 				err: errors.Wrapf(errBoom, errGetEnvironmentConfig),
@@ -224,7 +224,7 @@ func TestFetch(t *testing.T) {
 				cr: composite(
 					withEnvironmentRefs(),
 				),
-				required: false,
+				required: pointer.Bool(false),
 			},
 			want: want{
 				env: makeEnvironment(map[string]interface{}{}),
@@ -235,7 +235,11 @@ func TestFetch(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := NewAPIEnvironmentFetcher(tc.args.kube)
-			got, err := f.Fetch(context.Background(), tc.args.cr, tc.args.required)
+			required := true
+			if tc.args.required != nil {
+				required = *tc.args.required
+			}
+			got, err := f.Fetch(context.Background(), tc.args.cr, required)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
