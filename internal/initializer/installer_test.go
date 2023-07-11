@@ -34,12 +34,12 @@ import (
 )
 
 const (
-	errGetProviderFmt              = "unexpected name in provider get: %s"
-	errPatchProviderFmt            = "unexpected name in provider update: %s"
-	errPatchProviderSourceFmt      = "unexpected source in provider update: %s"
-	errGetConfigurationFmt         = "unexpected name in configuration get: %s"
-	errPatchConfigurationFmt       = "unexpected name in configuration update: %s"
-	errPatchConfigurationSourceFmt = "unexpected source in configuration update: %s"
+	errFmtGetProvider              = "unexpected name in provider get: %s"
+	errFmtPatchProvider            = "unexpected name in provider update: %s"
+	errFmtPatchProviderSource      = "unexpected source in provider update: %s"
+	errFmtGetConfiguration         = "unexpected name in configuration get: %s"
+	errFmtPatchConfiguration       = "unexpected name in configuration update: %s"
+	errFmtPatchConfigurationSource = "unexpected source in configuration update: %s"
 )
 
 var errBoom = errors.New("boom")
@@ -111,11 +111,11 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
-								t.Errorf(errGetProviderFmt, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Name {
-								t.Errorf(errGetConfigurationFmt, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -126,11 +126,11 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if obj.GetName() != p1Name {
-								t.Errorf(errPatchProviderFmt, obj.GetName())
+								t.Errorf(errFmtPatchProvider, obj.GetName())
 							}
 						case *v1.Configuration:
 							if obj.GetName() != c1Name {
-								t.Errorf(errPatchConfigurationFmt, obj.GetName())
+								t.Errorf(errFmtPatchConfiguration, obj.GetName())
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -186,11 +186,11 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Existing {
-								t.Errorf(errGetProviderFmt, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Existing {
-								t.Errorf(errGetConfigurationFmt, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -201,17 +201,17 @@ func TestInstaller(t *testing.T) {
 						switch o := obj.(type) {
 						case *v1.Provider:
 							if o.GetName() != p1Existing {
-								t.Errorf(errPatchProviderFmt, o.GetName())
+								t.Errorf(errFmtPatchProvider, o.GetName())
 							}
 							if o.GetSource() != p1 {
-								t.Errorf(errPatchProviderSourceFmt, o.GetSource())
+								t.Errorf(errFmtPatchProviderSource, o.GetSource())
 							}
 						case *v1.Configuration:
 							if o.GetName() != c1Existing {
-								t.Errorf(errPatchConfigurationFmt, o.GetName())
+								t.Errorf(errFmtPatchConfiguration, o.GetName())
 							}
 							if o.GetSource() != c1 {
-								t.Errorf(errPatchConfigurationSourceFmt, o.GetSource())
+								t.Errorf(errFmtPatchConfigurationSource, o.GetSource())
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -233,11 +233,11 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
-								t.Errorf(errGetProviderFmt, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Name {
-								t.Errorf(errGetConfigurationFmt, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
 						default:
 							t.Errorf("unexpected type")
@@ -293,11 +293,11 @@ func TestInstaller(t *testing.T) {
 						switch obj.(type) {
 						case *v1.Provider:
 							if key.Name != p1Name {
-								t.Errorf(errGetProviderFmt, key.Name)
+								t.Errorf(errFmtGetProvider, key.Name)
 							}
 						case *v1.Configuration:
 							if key.Name != c1Name {
-								t.Errorf(errGetConfigurationFmt, key.Name)
+								t.Errorf(errFmtGetConfiguration, key.Name)
 							}
 						default:
 							t.Errorf("unexpected type")

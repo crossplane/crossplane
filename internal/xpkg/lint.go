@@ -44,7 +44,7 @@ const (
 	errNotValidatingWebhookConfiguration = "object is not an ValidatingWebhookConfiguration"
 	errNotComposition                    = "object is not a Composition"
 	errBadConstraints                    = "package version constraints are poorly formatted"
-	errCrossplaneIncompatibleFmt         = "package is not compatible with Crossplane version (%s)"
+	errFmtCrossplaneIncompatible         = "package is not compatible with Crossplane version (%s)"
 )
 
 // NewProviderLinter is a convenience function for creating a package linter for
@@ -118,10 +118,10 @@ func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 		}
 		in, err := v.InConstraints(p.GetCrossplaneConstraints().Version)
 		if err != nil {
-			return errors.Wrapf(err, errCrossplaneIncompatibleFmt, v.GetVersionString())
+			return errors.Wrapf(err, errFmtCrossplaneIncompatible, v.GetVersionString())
 		}
 		if !in {
-			return errors.Errorf(errCrossplaneIncompatibleFmt, v.GetVersionString())
+			return errors.Errorf(errFmtCrossplaneIncompatible, v.GetVersionString())
 		}
 		return nil
 	}

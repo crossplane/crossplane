@@ -58,12 +58,12 @@ const (
 	errRemoveFinalizer      = "cannot remove lock finalizer"
 	errBuildDAG             = "cannot build DAG"
 	errSortDAG              = "cannot sort DAG"
-	errMissingDependencyFmt = "missing package (%s) is not a dependency"
+	errFmtMissingDependency = "missing package (%s) is not a dependency"
 	errInvalidConstraint    = "version constraint on dependency is invalid"
 	errInvalidDependency    = "dependency package is not valid"
 	errFetchTags            = "cannot fetch dependency package tags"
 	errNoValidVersion       = "cannot find a valid version for package constraints"
-	errNoValidVersionFmt    = "dependency (%s) does not have version in constraints (%s)"
+	errFmtNoValidVersion    = "dependency (%s) does not have version in constraints (%s)"
 	errInvalidPackageType   = "cannot create invalid package dependency type"
 	errCreateDependency     = "cannot create dependency package"
 )
@@ -216,7 +216,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// check for missing nodes again.
 	dep, ok := implied[0].(*v1beta1.Dependency)
 	if !ok {
-		log.Debug(errInvalidDependency, "error", errors.Errorf(errMissingDependencyFmt, dep.Identifier()))
+		log.Debug(errInvalidDependency, "error", errors.Errorf(errFmtMissingDependency, dep.Identifier()))
 		return reconcile.Result{Requeue: false}, nil
 	}
 	c, err := semver.NewConstraint(dep.Constraints)
@@ -260,7 +260,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// NOTE(hasheddan): consider creating event on package revision
 	// dictating constraints.
 	if addVer == "" {
-		log.Debug(errNoValidVersion, "error", errors.Errorf(errNoValidVersionFmt, dep.Identifier(), dep.Constraints))
+		log.Debug(errNoValidVersion, "error", errors.Errorf(errFmtNoValidVersion, dep.Identifier(), dep.Constraints))
 		return reconcile.Result{Requeue: false}, nil
 	}
 

@@ -41,8 +41,8 @@ const (
 	errNotMeta                   = "meta type is not a valid package"
 	errGetOrCreateLock           = "cannot get or create lock"
 	errInitDAG                   = "cannot initialize dependency graph from the packages in the lock"
-	errIncompatibleDependencyFmt = "incompatible dependencies: %+v"
-	errMissingDependenciesFmt    = "missing dependencies: %+v"
+	errFmtIncompatibleDependency = "incompatible dependencies: %+v"
+	errFmtMissingDependencies    = "missing dependencies: %+v"
 	errDependencyNotInGraph      = "dependency is not present in graph"
 	errDependencyNotLockPackage  = "dependency in graph is not a lock package"
 )
@@ -160,7 +160,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 			missing = append(missing, dep.Identifier())
 		}
 		if installed != found {
-			return found, installed, invalid, errors.Errorf(errMissingDependenciesFmt, missing)
+			return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, missing)
 		}
 	}
 
@@ -179,7 +179,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 		}
 	}
 	if len(missing) != 0 {
-		return found, installed, invalid, errors.Errorf(errMissingDependenciesFmt, missing)
+		return found, installed, invalid, errors.Errorf(errFmtMissingDependencies, missing)
 	}
 
 	// All of our dependencies and transitive dependencies must exist. Check
@@ -208,7 +208,7 @@ func (m *PackageDependencyManager) Resolve(ctx context.Context, pkg runtime.Obje
 	}
 	invalid = len(invalidDeps)
 	if invalid > 0 {
-		return found, installed, invalid, errors.Errorf(errIncompatibleDependencyFmt, invalidDeps)
+		return found, installed, invalid, errors.Errorf(errFmtIncompatibleDependency, invalidDeps)
 	}
 	return found, installed, invalid, nil
 }
