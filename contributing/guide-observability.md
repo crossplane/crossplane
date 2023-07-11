@@ -50,6 +50,9 @@ Events should be recorded in the following cases:
 * The state of a resource is changed
 * An error occurs
 
+Events should *not* be recorded if nothing happens or changes, with the exception
+of repeated errors.
+
 The events recorded in these cases can be thought of as forming an event log of
 things that happen for the resources that Crossplane manages. Each event should
 refer back to the relevant controller and resource, and use other fields of the
