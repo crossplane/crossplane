@@ -216,12 +216,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		applied = append(applied, rl.GetName())
 	}
 
-	sort.Strings(applied)
-	if len(applied) > 3 {
-		r.record.Event(ns, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC Roles: %s, %s, %s, and %d more", applied[0], applied[1], applied[2], len(applied)-3)))
-	} else if len(applied) > 0 {
-		r.record.Event(ns, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC Roles: %s", strings.Join(applied, ", "))))
+	if len(applied) > 0 {
+		sort.Strings(applied)
+		r.record.Event(ns, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC Roles: %s", firstNAndSomeMore(applied))))
 	}
+
 	return reconcile.Result{Requeue: false}, nil
 }
 
@@ -250,4 +249,11 @@ func equalRolesAnnotations(current, desired *rbacv1.Role) bool {
 		}
 	}
 	return cmp.Equal(currentFiltered, desiredFiltered)
+}
+
+func firstNAndSomeMore(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }

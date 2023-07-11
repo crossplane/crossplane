@@ -209,15 +209,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"subjects", subjects,
 	)
 
-	if err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRoleBindingsDiffer)); err != nil && !resource.IsNotAllowed(err) {
+	err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRoleBindingsDiffer))
+	if resource.IsNotAllowed(err) {
+		log.Debug("Skipped no-op ClusterRoleBinding apply")
+		return reconcile.Result{}, nil
+	}
+	if err != nil {
 		log.Debug(errApplyBinding, "error", err)
 		err = errors.Wrap(err, errApplyBinding)
 		r.record.Event(pr, event.Warning(reasonBind, err))
 		return reconcile.Result{}, err
-	} else if err == nil {
-		r.record.Event(pr, event.Normal(reasonBind, fmt.Sprintf("Bound system ClusterRole %q to provider ServiceAccount(s): %s", n, strings.Join(subjectStrings, ", "))))
-		log.Debug("Applied system ClusterRoleBinding")
 	}
+
+	r.record.Event(pr, event.Normal(reasonBind, fmt.Sprintf("Bound system ClusterRole %q to provider ServiceAccount(s): %s", n, strings.Join(subjectStrings, ", "))))
+	log.Debug("Applied system ClusterRoleBinding")
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil

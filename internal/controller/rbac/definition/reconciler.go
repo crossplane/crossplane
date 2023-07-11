@@ -199,11 +199,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		applied = append(applied, cr.GetName())
 	}
 
-	sort.Strings(applied)
-	if len(applied) > 3 {
-		r.record.Event(d, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC ClusterRoles: %s, %s, %s, and %d more", applied[0], applied[1], applied[2], len(applied)-3)))
-	} else if len(applied) > 0 {
-		r.record.Event(d, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC ClusterRoles: %s", strings.Join(applied, ", "))))
+	if len(applied) > 0 {
+		sort.Strings(applied)
+		r.record.Event(d, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC ClusterRoles: %s", firstNAndSomeMore(applied))))
 	}
 
 	// TODO(negz): Add a condition that indicates the RBAC manager is managing
@@ -220,4 +218,11 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 	c := current.(*rbacv1.ClusterRole)
 	d := desired.(*rbacv1.ClusterRole)
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
+}
+
+func firstNAndSomeMore(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
