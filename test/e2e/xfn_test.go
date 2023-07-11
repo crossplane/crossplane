@@ -202,6 +202,41 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				}
 				return ctx
 			}).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeleteComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "composition.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition.yaml"),
+			)).
+			WithTeardown("ProviderNopRemoved", funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/provider.yaml"),
+				funcs.DeleteResources(manifests, "prerequisites/definition.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/provider.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
+			)).
+			WithTeardown("RemoveRegistry", funcs.AllOf(
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace("reg")),
+				func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+					client := config.Client().Resources(namespace)
+					configMap := &corev1.ConfigMap{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:      "reg-ca",
+							Namespace: namespace,
+						},
+					}
+					err := client.Delete(ctx, configMap)
+					if err != nil {
+						t.Fatal(err)
+					}
+					return ctx
+				},
+			)).
+			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
+				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
 			Feature(),
 	)
 }
