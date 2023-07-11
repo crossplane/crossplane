@@ -215,6 +215,10 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
+          {{- if .Values.registryCaBundleConfig.key }}
+          - name: CA_BUNDLE_PATH
+            value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
+          {{- end}}
         {{- range $key, $value := .Values.xfn.extraEnvVars }}
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
@@ -222,6 +226,10 @@ spec:
         volumeMounts:
           - mountPath: /xfn
             name: xfn-cache
+        {{- if .Values.registryCaBundleConfig.name }}
+          - mountPath: /certs
+            name: ca-certs
+        {{- end }}
       {{- end }}
       volumes:
       - name: package-cache

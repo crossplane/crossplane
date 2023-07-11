@@ -18,6 +18,7 @@ package oci
 
 import (
 	"context"
+	"crypto/x509"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -293,6 +294,44 @@ func TestImage(t *testing.T) {
 			),
 			args: args{
 				o: []ImageClientOption{WithPullPolicy(ImagePullPolicyAlways)},
+			},
+			want: want{
+				i: &MockImage{},
+			},
+		},
+		"PullWithCustomCA": {
+			reason: "We should return a pulled and cached image.",
+			p: NewCachingPuller(
+				&MockHashCache{
+					MockHash: func(r name.Reference) (ociv1.Hash, error) {
+						return ociv1.Hash{}, errors.New("this error should not be returned")
+					},
+					MockWriteHash: func(r name.Reference, h ociv1.Hash) error {
+						return nil
+					},
+				},
+				&MockImageCache{
+					MockWriteImage: func(img ociv1.Image) error { return nil },
+					MockImage:      func(h ociv1.Hash) (ociv1.Image, error) { return &MockImage{}, nil },
+				},
+				&MockImageClient{
+					MockImage: func(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
+						if len(o) != 1 {
+							return nil, errors.New("the number of options should be one")
+						}
+						c := &ImageClientOptions{}
+						o[0](c)
+						if c.transport == nil {
+							return nil, errors.New("Transport should be set")
+						}
+						return &MockImage{
+							MockDigest: func() (ociv1.Hash, error) { return ociv1.Hash{}, nil },
+						}, nil
+					},
+				},
+			),
+			args: args{
+				o: []ImageClientOption{WithCustomCA(&x509.CertPool{})},
 			},
 			want: want{
 				i: &MockImage{},

@@ -18,6 +18,9 @@ package oci
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -86,8 +89,9 @@ func (a ImagePullAuth) Authorization() (*authn.AuthConfig, error) {
 
 // ImageClientOptions configure an ImageClient.
 type ImageClientOptions struct {
-	pull ImagePullPolicy
-	auth *ImagePullAuth
+	pull      ImagePullPolicy
+	auth      *ImagePullAuth
+	transport *http.Transport
 }
 
 func parse(o ...ImageClientOption) ImageClientOptions {
@@ -117,6 +121,14 @@ func WithPullAuth(a *ImagePullAuth) ImageClientOption {
 	}
 }
 
+// WithCustomCA adds given root certificates to tls client configuration
+func WithCustomCA(rootCAs *x509.CertPool) ImageClientOption {
+	return func(c *ImageClientOptions) {
+		c.transport = remote.DefaultTransport.(*http.Transport).Clone()
+		c.transport.TLSClientConfig = &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+	}
+}
+
 // An ImageClient is an OCI registry client.
 type ImageClient interface {
 	// Image pulls an OCI image.
@@ -141,13 +153,17 @@ type RemoteClient struct{}
 // Image fetches an image manifest. The returned image lazily pulls its layers.
 func (i *RemoteClient) Image(ctx context.Context, ref name.Reference, o ...ImageClientOption) (ociv1.Image, error) {
 	opts := parse(o...)
+	iOpts := []remote.Option{remote.WithContext(ctx)}
 	if opts.auth != nil {
-		return remote.Image(ref, remote.WithContext(ctx), remote.WithAuth(opts.auth))
+		iOpts = append(iOpts, remote.WithAuth(opts.auth))
+	}
+	if opts.transport != nil {
+		iOpts = append(iOpts, remote.WithTransport(opts.transport))
 	}
 	if opts.pull == ImagePullPolicyNever {
 		return nil, errors.New(errPullNever)
 	}
-	return remote.Image(ref, remote.WithContext(ctx))
+	return remote.Image(ref, iOpts...)
 }
 
 // A CachingPuller pulls OCI images. Images are pulled either from a local cache
