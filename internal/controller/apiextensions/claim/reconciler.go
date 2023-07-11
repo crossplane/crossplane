@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -520,16 +521,20 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
 	}
 
-	if err := r.client.Apply(ctx, cp); err != nil {
+	err := r.client.Apply(ctx, cp, resource.AllowUpdateIf(func(old, obj runtime.Object) bool { return !cmp.Equal(old, obj) }))
+	switch {
+	case resource.IsNotAllowed(err):
+		log.Debug("Skipped no-op composite resource apply")
+	case err != nil:
 		log.Debug(errApplyComposite, "error", err)
 		err = errors.Wrap(err, errApplyComposite)
 		record.Event(cm, event.Warning(reasonCompositeConfigure, err))
 		cm.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, cm), errUpdateClaimStatus)
+	default:
+		log.Debug("Successfully applied composite resource")
+		record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 	}
-
-	log.Debug("Successfully applied composite resource")
-	record.Event(cm, event.Normal(reasonCompositeConfigure, "Successfully applied composite resource"))
 
 	if err := r.claim.Configure(ctx, cm, cp); err != nil {
 		log.Debug(errConfigureClaim, "error", err)
