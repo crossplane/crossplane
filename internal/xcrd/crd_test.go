@@ -818,3 +818,189 @@ func TestForCompositeResourceClaim(t *testing.T) {
 		t.Errorf("ForCompositeResourceClaim(...): -want, +got:\n%s", diff)
 	}
 }
+
+func TestSetCrdMetadata(t *testing.T) {
+	type args struct {
+		crd *extv1.CustomResourceDefinition
+		xrd *v1.CompositeResourceDefinition
+	}
+	tests := []struct {
+		name string
+		args args
+		want *extv1.CustomResourceDefinition
+	}{
+		{
+			name: "set crd annotations",
+			args: args{
+				crd: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+				xrd: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+						Annotations: map[string]string{
+							"example.com/some-xrd-annotation": "not-propagated",
+						},
+					},
+					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+						Annotations: map[string]string{
+							"cert-manager.io/inject-ca-from": "example1-ns/webhook1-certificate",
+						},
+					}},
+				},
+			},
+			want: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+					Annotations: map[string]string{
+						"cert-manager.io/inject-ca-from": "example1-ns/webhook1-certificate",
+					},
+				},
+			},
+		},
+		{
+			name: "set crd labels",
+			args: args{
+				crd: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+				xrd: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+						Labels: map[string]string{
+							"example.com/some-crd-label":            "value1",
+							"example.com/some-additional-crd-label": "value2",
+						},
+					}},
+				},
+			},
+			want: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+					Labels: map[string]string{
+						"example.com/some-crd-label":            "value1",
+						"example.com/some-additional-crd-label": "value2",
+					},
+				},
+			},
+		},
+		{
+			name: "append labels",
+			args: args{
+				crd: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+				xrd: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+						Labels: map[string]string{
+							"example.com/some-xrd-label":            "value1",
+							"example.com/some-additional-xrd-label": "value2",
+						},
+					},
+					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+						Labels: map[string]string{
+							"example.com/some-crd-label":            "value3",
+							"example.com/some-additional-crd-label": "value4",
+						},
+					}},
+				},
+			},
+			want: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+					Labels: map[string]string{
+						"example.com/some-xrd-label":            "value1",
+						"example.com/some-additional-xrd-label": "value2",
+						"example.com/some-crd-label":            "value3",
+						"example.com/some-additional-crd-label": "value4",
+					},
+				},
+			},
+		},
+		{
+			name: "labels and annotations",
+			args: args{
+				crd: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+				xrd: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+						Annotations: map[string]string{
+							"example.com/some-xrd-annotation":                  "not-propagated",
+							"example.com/some-additional-xrd-label-annotation": "not-propagated",
+						},
+						Labels: map[string]string{
+							"example.com/some-xrd-label":            "value1",
+							"example.com/some-additional-xrd-label": "value2",
+						},
+					},
+					Spec: v1.CompositeResourceDefinitionSpec{Metadata: &v1.CompositeResourceDefinitionSpecMetadata{
+						Annotations: map[string]string{
+							"example.com/some-crd-annotation":                  "value1",
+							"example.com/some-additional-crd-label-annotation": "value2",
+						},
+						Labels: map[string]string{
+							"example.com/some-crd-label":            "value3",
+							"example.com/some-additional-crd-label": "value4",
+						},
+					}},
+				},
+			},
+			want: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+					Annotations: map[string]string{
+						"example.com/some-crd-annotation":                  "value1",
+						"example.com/some-additional-crd-label-annotation": "value2",
+					},
+					Labels: map[string]string{
+						"example.com/some-xrd-label":            "value1",
+						"example.com/some-additional-xrd-label": "value2",
+						"example.com/some-crd-label":            "value3",
+						"example.com/some-additional-crd-label": "value4",
+					},
+				},
+			},
+		},
+		{
+			name: "no labels and no annotations",
+			args: args{
+				crd: &extv1.CustomResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+				xrd: &v1.CompositeResourceDefinition{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "test",
+					},
+				},
+			},
+			want: &extv1.CustomResourceDefinition{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := setCrdMetadata(tt.args.crd, tt.args.xrd)
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("setCrdMetadata(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}

@@ -95,12 +95,35 @@ type CompositeResourceDefinitionSpec struct {
 	// Conversion defines all conversion settings for the defined Composite resource.
 	// +optional
 	Conversion *extv1.CustomResourceConversion `json:"conversion,omitempty"`
+
+	// Metadata specifies the desired metadata for the defined composite resource and claim CRD's.
+	// +optional
+	Metadata *CompositeResourceDefinitionSpecMetadata `json:"metadata,omitempty"`
 }
 
 // A CompositionReference references a Composition.
 type CompositionReference struct {
 	// Name of the Composition.
 	Name string `json:"name"`
+}
+
+// CompositeResourceDefinitionSpecMetadata specifies the desired metadata of the defined composite resource and claim CRD's.
+type CompositeResourceDefinitionSpecMetadata struct {
+	// Map of string keys and values that can be used to organize and categorize
+	// (scope and select) objects. May match selectors of replication controllers
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
+	// and services.
+	// These labels are added to the composite resource and claim CRD's in addition
+	// to any labels defined by `CompositionResourceDefinition` `metadata.labels`.
+	// +optional
+	Labels map[string]string `json:"labels,omitempty"`
+
+	// Annotations is an unstructured key value map stored with a resource that may be
+	// set by external tools to store and retrieve arbitrary metadata. They are not
+	// queryable and should be preserved when modifying objects.
+	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations
+	// +optional
+	Annotations map[string]string `json:"annotations,omitempty"`
 }
 
 // CompositeResourceDefinitionVersion describes a version of an XR.
