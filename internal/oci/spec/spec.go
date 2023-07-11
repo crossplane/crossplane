@@ -111,6 +111,12 @@ func New(o ...Option) (*runtime.Spec, error) {
 				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
 			},
 			{
+				Type:        "tmpfs",
+				Destination: "/tmp",
+				Source:      "tmp",
+				Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			},
+			{
 				Type:        "bind",
 				Destination: "/sys",
 				Source:      "/sys",
