@@ -19,6 +19,8 @@ package namespace
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -193,8 +195,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	var applied []string //nolint:prealloc // We don't know how many roles we'll apply.
 	for _, rl := range r.rbac.RenderRoles(ns, l.Items) {
-		log = log.WithValues("role-name", rl.GetName())
+		log := log.WithValues("role-name", rl.GetName())
 		rl := rl // Pin range variable so we can take its address.
 
 		err := r.client.Apply(ctx, &rl, resource.MustBeControllableBy(ns.GetUID()), resource.AllowUpdateIf(RolesDiffer))
@@ -210,9 +213,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		log.Debug("Applied RBAC Role")
+		applied = append(applied, rl.GetName())
 	}
 
-	r.record.Event(ns, event.Normal(reasonApplyRoles, "Applied RBAC Roles"))
+	sort.Strings(applied)
+	if len(applied) > 3 {
+		r.record.Event(ns, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC Roles: %s, %s, %s, and %d more", applied[0], applied[1], applied[2], len(applied)-3)))
+	} else if len(applied) > 0 {
+		r.record.Event(ns, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC Roles: %s", strings.Join(applied, ", "))))
+	}
 	return reconcile.Result{Requeue: false}, nil
 }
 
