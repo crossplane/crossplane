@@ -150,7 +150,7 @@ In the time since P&T Composition became available we've seen that:
 To address these issues, we added support for 'Composition Functions' in
 Crossplane v1.11. Functions are an alpha feature and are off by default. This
 document is an iteration on (and supersedes) the [previous design
-document][alpha-design] based on what we've learned during since the feature was
+document][alpha-design] based on what we've learned since the feature was
 launched.
 
 ## Goals
@@ -190,7 +190,7 @@ spec:
     # The functionRef tells the Composition which Function to use. This Function
     # uses Go Templates (like Helm) to render composed resources.
     functionRef:
-    - name: go-templates
+      name: go-templates
     # A Function may optionally accept configuration. The configuration is
     # passed to the Function when it is called. The configuration block looks
     # like a nested custom resource - i.e. it has an apiVersion and kind.
@@ -373,7 +373,7 @@ when there are multiple Function replicas.
 
 Note that the fact this endpoint is powered by a Service is an implementation
 detail; it may be possible for Functions to be reached (and indeed deployed) by
-other means in future (see [Runtime Configuration][#runtime-configuration]).
+other means in future (see [Runtime Configuration](#runtime-configuration)).
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1beta1
