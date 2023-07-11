@@ -120,6 +120,86 @@ logs don't show up in production normally.
 For the question of what constitutes an error, errors should be actionable by a
 human. See the [Dave Cheney article] on this topic for some more discussion.
 
+## Good Errors
+
+An error message is good if it communicates
+
+1. what went wrong
+2. where it went wrong
+3. for which inputs
+
+and if it is concise without redundancies and at best displayable in one line.
+
+The general goal of an error message is to be actionable for the user who is 
+trying to avoid the error in the future.
+
+Examples for bad error messages:
+- `cannot resolve package dependencies: Invalid Semantic Version`
+- `cannot parse file foo.yaml: failed to parse YAML of file foo.yaml`
+
+Examples for how to improve them:
+- `cannot resolve package dependencies in crossplane.yaml: invalid Semantic Version "main" on package "provider-kubernetes"`
+- `failed to load OCI image provider-gcp/v0.42.0: failed to unpack layer: cannot parse file: failed to parse YAML of file foo.yaml: unexpected indention in line 4`.
+
+General rules:
+1. follow the pattern `generic error cause: more details: even more details`.
+2. put values into quotes (`%q` in Golang), with the following exceptions 
+   where quotes don't add to readability:
+   - resource names with namespace or resource type (e.g. `default/foo` or 
+     `providers/foo`), resource names alone are quoted
+   - kinds (e.g. `cannot find provider "provider-kubernetes"`; here, the kind 
+     provider is without quotes, the provider name is with)
+   - filenames with extensions and/or path (e.g. `cannot parse foo.yaml`).
+3. add a context of e.g. filenames, object names, or values which are wrong
+   (and the values are known to be insensitive).
+
+   Which context is added by which functions depends on the level of 
+   abstraction of the code at hand: the package loader will know the OCI 
+   image name, the YAML parser might only see a byte slice. The former adds 
+   the image name as context, some layer in-between adds the filename and 
+   the YAML parser adds the line and column in the byte stream.
+
+   Filenames should be relative to the logical working directory of the 
+   context at hand (e.g. a package root, current working directory, 
+   workspace root). Ensure that the context is clear in the error message (e.g.
+   `failed to load package "provider-kubernetes": failed to parse apis/xrd.yaml`). 
+
+4. add a context just once.
+
+   Rule of thumb: if a function gets a parameter, it will also include it in the 
+   error messages, so the caller does not have to.
+   
+   E.g. a function getting a filename as input will include the filename in 
+   errors it returns.
+5. don't return multi-line errors.
+6. aggregate errors if there is clear use for the user, but not in general, i.e.
+   fail fast is the default.
+
+   Aggregate through `kerrors.NewAggregate`. When the number of aggregated
+   errors is unbounded, return a subset, e.g. the first 3.
+
+   E.g.: `cannot parse workspace: failed to parse foo.yaml, bar.yaml, abc.yaml,
+   and 17 more files`
+7. don't include sensitive information like tokens into error messages, not even
+   in debug mode.
+
+   These are usually considered insensitive: field names, file paths, resources, 
+   kinds, object names, namespaces, labels, enum values, numbers, booleans.
+8. use error message constants, e.g. `errSomethingWentWrong` for messages
+   without interpolation, and `errFmtSomethingWentWrong` for those with
+   interpolation.
+9. use [wrapping errors] and github.com/crossplane/crossplane-runtime/pkg/errors
+   in general.
+10. error messages must be deterministic. Use sorting in loops over maps or sort
+    returned errors to ensure determinism.
+
+    Background: one never knows how an error is displayed. Not being
+    deterministic can lead to hot-loops with constant API updates, e.g. of a
+    condition.
+
+11. error messages are good candidates to be included in condition or event
+    messages.
+
 ## In Practice
 
 Crossplane provides two observability libraries as part of crossplane-runtime:
@@ -187,5 +267,5 @@ implementations.
 [not]: https://dave.cheney.net/2017/01/23/the-package-level-logger-anti-pattern
 [`Reconciler`]: https://godoc.org/sigs.k8s.io/controller-runtime/pkg/reconcile#Reconciler
 [managed resource reconciler]: https://github.com/crossplane/crossplane-runtime/blob/a6bb0/pkg/reconciler/managed/reconciler.go#L436
-[wrapping errors]: https://godoc.org/github.com/pkg/errors#Wrap
+[wrapping errors]: https://godoc.org/github.com/crossplane/crossplane-runtime/pkg/errors#Wrap
 [API conventions]: https://github.com/kubernetes/community/blob/09f55c6/contributors/devel/sig-architecture/api-conventions.md#events
