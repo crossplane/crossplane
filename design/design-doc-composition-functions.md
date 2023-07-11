@@ -148,10 +148,29 @@ In the time since P&T Composition became available we've seen that:
   particular configuration DSL, others look for webhooks written in a GPL, etc.
 
 To address these issues, we added support for 'Composition Functions' in
-Crossplane v1.11. Functions are an alpha feature and are off by default. This
-document is an iteration on (and supersedes) the [previous design
+Crossplane v1.11. Functions are an alpha feature and are off by default. In the
+[alpha design][alpha-design] we proposed that how a Function was implemented
+could vary in at least two ways:
+
+* By `type` - i.e. `type: Container`, `type: Webhook`.
+* By "runner" implementation - i.e. how a `type: Container` Function is run.
+
+We implemented a "default" or "reference" `type: Container` Function runner with
+known scalability and compatibility constraints, but didn't lay out a clear path
+for others to build alternative Function runners. Since alpha, no alternative
+Function runners have appeared.
+
+The aforementioned limitations of the reference Function runner lead to a demand
+to support webhook Functions as an alternative. Ultimately we were reluctant to
+support this because it fragments the Function ecosystem. When a Function can be
+an OCI container or a webhook (or more in future?) there is no one artifact that
+constitutes "a Function". This makes discovery and distribution of Functions
+more complicated than we would like.
+
+This document is an iteration on (and supersedes) the [previous design
 document][alpha-design] based on what we've learned since the feature was
-launched.
+launched. In particular, it is motivated by the desire to identify a single kind
+of Function artifact suitable for most people - similar to Providers.
 
 ## Goals
 
@@ -161,6 +180,7 @@ The proposal put forward by this document should:
 * Let folks specify composition logic in their DSL or GPL of choice.
 * Make it easy to extend Crossplane with new ways to 'do composition'.
 * Decouple adding new ways to 'do composition' from the core release cycle.
+* Make it easy to discover and share new ways to 'do composition'.
 * Be possible to keep behind a feature flag until it is generally available.
 
 ## Proposal
