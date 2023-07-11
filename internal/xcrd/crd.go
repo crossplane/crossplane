@@ -63,7 +63,7 @@ func ForCompositeResource(xrd *v1.CompositeResourceDefinition) (*extv1.CustomRes
 	}
 
 	crd.SetName(xrd.GetName())
-	crd.SetLabels(xrd.GetLabels())
+	setCrdMetadata(crd, xrd)
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 		meta.TypedReferenceTo(xrd, v1.CompositeResourceDefinitionGroupVersionKind),
 	)})
@@ -136,7 +136,7 @@ func ForCompositeResourceClaim(xrd *v1.CompositeResourceDefinition) (*extv1.Cust
 	}
 
 	crd.SetName(xrd.Spec.ClaimNames.Plural + "." + xrd.Spec.Group)
-	crd.SetLabels(xrd.GetLabels())
+	setCrdMetadata(crd, xrd)
 	crd.SetOwnerReferences([]metav1.OwnerReference{meta.AsController(
 		meta.TypedReferenceTo(xrd, v1.CompositeResourceDefinitionGroupVersionKind),
 	)})
@@ -231,6 +231,27 @@ func getProps(field string, v *v1.CompositeResourceValidation) (map[string]extv1
 	}
 
 	return spec.Properties, spec.Required, nil
+}
+
+// setCrdMetadata sets the labels and annotations on the CRD.
+func setCrdMetadata(crd *extv1.CustomResourceDefinition, xrd *v1.CompositeResourceDefinition) *extv1.CustomResourceDefinition {
+	crd.SetLabels(xrd.GetLabels())
+	if xrd.Spec.Metadata != nil {
+		if xrd.Spec.Metadata.Labels != nil {
+			inheritedLabels := crd.GetLabels()
+			if inheritedLabels == nil {
+				inheritedLabels = map[string]string{}
+			}
+			for k, v := range xrd.Spec.Metadata.Labels {
+				inheritedLabels[k] = v
+			}
+			crd.SetLabels(inheritedLabels)
+		}
+		if xrd.Spec.Metadata.Annotations != nil {
+			crd.SetAnnotations(xrd.Spec.Metadata.Annotations)
+		}
+	}
+	return crd
 }
 
 // IsEstablished is a helper function to check whether api-server is ready

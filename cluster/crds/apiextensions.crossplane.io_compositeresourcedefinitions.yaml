@@ -248,6 +248,29 @@ spec:
                   resource. Composite resources are served under `/apis/<group>/...`.
                   Must match the name of the XRD (in the form `<names.plural>.<group>`).
                 type: string
+              metadata:
+                description: Metadata specifies the desired metadata for the defined
+                  composite resource and claim CRD's.
+                properties:
+                  annotations:
+                    additionalProperties:
+                      type: string
+                    description: 'Annotations is an unstructured key value map stored
+                      with a resource that may be set by external tools to store and
+                      retrieve arbitrary metadata. They are not queryable and should
+                      be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations'
+                    type: object
+                  labels:
+                    additionalProperties:
+                      type: string
+                    description: 'Map of string keys and values that can be used to
+                      organize and categorize (scope and select) objects. May match
+                      selectors of replication controllers More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels
+                      and services. These labels are added to the composite resource
+                      and claim CRD''s in addition to any labels defined by `CompositionResourceDefinition`
+                      `metadata.labels`.'
+                    type: object
+                type: object
               names:
                 description: Names specifies the resource and kind names of the defined
                   composite resource.
