@@ -158,23 +158,19 @@ launched.
 The proposal put forward by this document should:
 
 * Support 'advanced' composition logic such as loops and conditionals.
-* Let folks specify Composition logic in their DSL or GPL of choice.
-* Make it easy to extend Crossplane with new ways to 'do Composition'.
-* Decouple adding new ways do 'do Composition' from the core release cycle.
+* Let folks specify composition logic in their DSL or GPL of choice.
+* Make it easy to extend Crossplane with new ways to 'do composition'.
+* Decouple adding new ways to 'do composition' from the core release cycle.
 * Be possible to keep behind a feature flag until it is generally available.
-
-While not an explicit goal, it would also be ideal if the solution put forth by
-this document could serve as a test bed - and eventually replacement for - the
-contemporary "patch and transform" form of Composition.
 
 ## Proposal
 
 This document proposes that a new `functions` array be added to the existing
-`Composition` type. This array of functions would be called either instead of or
+`Composition` type. This array of Functions would be called either instead of or
 in addition to the existing `resources` array in order to determine how an XR
-should be composed. The array of functions acts as a pipeline; the output of
-each function is passed as the input to the next. The output of the final
-function tells Crossplane what must be done to reconcile the XR.
+should be composed. The array of Functions acts as a pipeline; the output of
+each Function is passed as the input to the next. The output of the final
+Function tells Crossplane what must be done to reconcile the XR.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2alpha1
@@ -208,14 +204,14 @@ spec:
 The updated API would affect only the `Composition` type - no changes would be
 required to the schema of `CompositeResourceDefinitions`, XRs, etc.
 
-Notably the functions would not need to be responsible for interacting with the
+Notably the Functions would not need to be responsible for interacting with the
 API server to create, update, or delete composed resources. Instead, they
 instruct Crossplane which resources should be created, updated, or deleted.
 
-Under the proposed design functions could also be used for purposes besides
+Under the proposed design Functions could also be used for purposes besides
 rendering composed resources, for example validating the results of the
-`resources` array or earlier functions in the `functions` array. Furthermore, a
-function could also be used to implement 'side effects' such as triggering a
+`resources` array or earlier Functions in the `functions` array. Furthermore, a
+Function could also be used to implement 'side effects' such as triggering a
 replication or backup.
 
 Before you can use a Function, you must install it. Installing a Function works
@@ -242,7 +238,7 @@ this proposal, Functions are long-running processes. When you install one, the
 package manager deploys it using a Kubernetes Deployment - the same way it would
 deploy a Provider.
 
-<img src="assets/design-doc-composition-functions/functions.png" width="50%" />
+![Crossplane calling three Functions via gRPC](assets/design-doc-composition-functions/functions.png)
 
 Crossplane makes a gRPC `RunFunctionRequest` to the Function it wishes to
 invoke. The Function should respond with a `RunFunctionResponse`. These RPCs are
@@ -254,14 +250,15 @@ syntax = "proto3";
 import "google/protobuf/struct.proto";
 import "google/protobuf/duration.proto";
 
-// A FunctionRunnerService runs Composition Functions.
+// A FunctionRunnerService is a Composition Function.
 service FunctionRunnerService {
-  // RunFunction runs a Composition Function.
+  // RunFunction runs the Composition Function.
   rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
 }
 
-// A RunFunctionRequest requests that a Composition Function be run.
+// A RunFunctionRequest requests that the Composition Function be run.
 message RunFunctionRequest {
+  // Metadata pertaining to this request.
   RequestMeta meta = 1;
 
   // The observed state prior to invocation of a Function pipeline. State passed
@@ -272,9 +269,7 @@ message RunFunctionRequest {
   // Desired state according to a Function pipeline. The state passed to a
   // particular Function may have been accumulated by processing a Composition's
   // patch-and-transform resources array. It may also have been accumulated by
-  // previous Functions in the pipeline. Functions may mutate any part of the
-  // desired state they are concerned with, and must pass through any part of
-  // the desired state that they are not concerned with.
+  // previous Functions in the pipeline.
   State desired = 3;
 
   // Configuration specific to this Function invocation. A JSON representation
@@ -285,17 +280,16 @@ message RunFunctionRequest {
 
 // A RunFunctionResponse contains the result of a Composition Function run.
 message RunFunctionResponse {
+  // Metadata pertaining to this response.
   ResponseMeta meta = 1;
 
-  // Desired state according to a Function pipeline. The state passed to a
-  // particular Function may have been accumulated by previous Functions in the
-  // pipeline. Functions may mutate any part of the desired state they are
-  // concerned with, and must pass through any part of the desired state that
-  // they are not concerned with.
+  // Desired state according to a Function pipeline. Functions may add desired
+  // state, and may mutate or delete any part of the desired state they are
+  // concerned with. A Function must pass through any part of the desired state
+  // that it is not concerned with.
   State desired = 2;
 
-  // Results of the Function run. Results may be used for observability and
-  // debugging purposes.
+  // Results of the Function run. Results are used for observability purposes.
   repeated Result results = 3;
 }
 
@@ -308,11 +302,12 @@ message RequestMeta {
 
 // ResponseMeta contains metadata pertaining to a RunFunctionResponse.
 message ResponseMeta {
-  // An opaque string identifying the content of the request.
+  // An opaque string identifying the content of the request. Must match the
+  // meta.tag of the corresponding RunFunctionRequest.
   string tag = 1;
 
-  // Time-to-live of this response. Idempotent functions with no side-effects
-  // (e.g. simple templating functions) may specify a TTL. Crossplane may choose
+  // Time-to-live of this response. Idempotent Functions with no side-effects
+  // (e.g. simple templating Functions) may specify a TTL. Crossplane may choose
   // to cache responses until the TTL expires.
   optional google.protobuf.Duration ttl = 2;
 }
@@ -338,45 +333,47 @@ message Resource {
 // A Result of running a Function.
 message Result {
   // Severity of this result.
-  //
-  // Fatal results are fatal; subsequent Composition Functions may run, but
-  // the Composition Function pipeline run will be considered a failure and
-  // the first fatal result will be returned as an error.
-  //
-  // Warning results are non-fatal; the entire Composition will run to
-  // completion but warning events and debug logs associated with the
-  // composite resource will be emitted.
-  //
-  // Normal results are emitted as normal events and debug logs associated
-  // with the composite resource.
   Severity severity = 1;
 
-  // Details about the result.
+  // Human-readable details about the result.
   string message = 2;
 }
 
 // Severity of Function results.
 enum Severity {
   SEVERITY_UNSPECIFIED = 0;
+
+  // Fatal results are fatal; subsequent Composition Functions may run, but
+  // the Composition Function pipeline run will be considered a failure and
+  // the first fatal result will be returned as an error.
   SEVERITY_FATAL = 1;
+
+  // Warning results are non-fatal; the entire Composition will run to
+  // completion but warning events and debug logs associated with the
+  // composite resource will be emitted.
   SEVERITY_WARNING = 2;
+
+  // Normal results are emitted as normal events and debug logs associated
+  // with the composite resource.
   SEVERITY_NORMAL = 3;
-};
+}
 ```
 
 This RPC is essentially the `RunFunctionRequest` from the [alpha Functions
 design][alpha-design] with the `FunctionIO` elevated from opaque YAML-encoded
-bytes to 'native' RPC code.
+bytes to 'native' RPC code. Kubernetes resources are represented using the
+[`google.protobuf.Struct` well-known type][google-protobuf-struct], which can
+encode arbitrary JSON.
 
 The package manager is responsible for creating a headless Kubernetes Service
 where each Function's Deployment can be reached. The address of the Service will
-be exposed as the `status.endpoint` of the Function resource. The service must
+be exposed as the `status.endpoint` of the Function resource. The Service must
 be headless in order for Crossplane's gRPC client to load-balance connections
 when there are multiple Function replicas.
 
 Note that the fact this endpoint is powered by a Service is an implementation
 detail; it may be possible for Functions to be reached (and indeed deployed) by
-other means in future.
+other means in future (see [Runtime Configuration][#runtime-configuration]).
 
 ```yaml
 apiVersion: pkg.crossplane.io/v1beta1
@@ -411,10 +408,9 @@ frequently each XR is reconciled. There are two main triggers to reconcile an XR
 2. A poll-triggered reconcile, by default once per 60 seconds.
 
 XRs rely on poll-triggered reconciliation to promptly correct drift of their
-composed resources. Ideally XR reconciliation would be purely watch-triggered,
-but this would require dynamically adding and removing watches as the types of
-resources the XR composes changes. The poll interval can be set using the
-`--poll-interval` flag.
+composed resources. The poll interval can be set using the `--poll-interval`
+flag. The XR controller does not know what kinds of resources it will compose
+when started, so it cannot start a watch for them.
 
 Assume:
 
@@ -428,15 +424,9 @@ A few approaches are possible to scale Functions:
 
 * Tune the `--poll-interval`, e.g. to every 5m or 10m.
 * Scale heavily used Functions horizontally, by increasing Deployment replicas.
-* Cache the responses of idempotent Function calls.
-
-The `RunFunctionRequest` includes a `meta.tag` field to assist with caching. The
-tag identifies a unique Function input. How the tag is generated is up to the
-caller (i.e. Crossplane), but two functionally identical Function inputs should
-have the same tag. A Function can optionally signal that its response is valid
-for the same input for a period of time by returning a non-zero `meta.ttl`. This
-allows Crossplane (or an intermediary such as a reverse proxy) to cache the
-responses of idempotent and side-effect-less Functions.
+* Cache the responses of idempotent Function calls (see [Caching](#caching)).
+* Eliminate poll-triggered XR reconciliation (see [Dynamic Composed Resource
+  Watches](#dynamic-composed-resource-watches)).
 
 ### Developing a Function
 
@@ -466,7 +456,7 @@ your own" because:
 I propose we do three things to make Functions easy to develop:
 
 1. Provide SDKs for popular languages - e.g. Go, Python, TypeScript.
-2. Provider tooling to scaffold, build, push, and test Functions.
+2. Provide tooling to scaffold, build, push, and test Functions.
 3. Support providing Function logic as an OCI container that runs to completion.
 
 Consider this section a medium-resolution sketch of the Function development
@@ -480,7 +470,7 @@ Consider for example the following experience for writing a Go Function. Keep in
 mind a similar experience would also exist for other languages.
 
 ```shell
-# Initialize a new function that uses the Go SDK.
+# Initialize a new Function that uses the Go SDK.
 $ kubectl crossplane init function --template="github.com/crossplane/fn-template-go"
 
 # This generates boilerplate that uses the Go SDK.
@@ -496,7 +486,7 @@ just like a Provider or Configuration. A Function may declare dependencies - for
 example a Function could depend on a Provider to indicate that it composes that
 Provider's MRs.
 
-After you initialize a function using the Go SDK you must update fn.go to
+After you initialize a Function using the Go SDK you must update fn.go to
 provide your composition logic. When you first open fn.go you’ll see that
 `kubectl crossplane init function` added boilerplate like this:
 
@@ -527,7 +517,7 @@ func Function(ctx context.Context, req *pb.RunFunctionRequest) (*pb.RunFunctionR
 }
 ```
 
-To write a function, replace the boilerplate with your own logic. Here’s an
+To write a Function, replace the boilerplate with your own logic. Here’s an
 example that uses a mockup of a Go SDK to achieve the same goal as lab 4 from
 [the Kubecon EU ContribFest][kubecon-eu-contribfest].
 
@@ -540,8 +530,8 @@ spec:
   count: 5
 ```
 
-This example takes an XR like the preceding one and uses its `spec.count` to
-compose the desired number of Robot resources:
+This example takes an `XRobotGroup` XR and uses its `spec.count` to compose the
+desired number of Robot resources:
 
 ```go
 package main
@@ -641,7 +631,7 @@ representations of a `RunFunctionRequest` and `RunFunctionResponse`.
 
 #### Use an OCI Container
 
-In the [alpha iteration of Composition Functions][alpha-design] all functions
+In the [alpha iteration of Composition Functions][alpha-design] all Functions
 are binaries that run to completion. These processes are packaged as an OCI
 container. A sidecar container in the Crossplane pod - `xfn` - runs each of them
 in a rootless container.
@@ -653,13 +643,13 @@ languages that don't have a 'first class' SDK available. Think of this like AWS
 Lambda, which supports 9-10 first class languages, and OCI containers as a
 catch-all for everything else.
 
-I propose we move the `xfn` function runner out of crossplane/crossplane,
+I propose we move the `xfn` Function runner out of crossplane/crossplane,
 simplify it, and offer it as an alternative way to build a Function. You could
 think of this as a special kind of Composition Function SDK that builds a
 Composition Function from an OCI container, rather than building a Function a
 literal _function_ (e.g. written in Go).
 
-<img src="assets/design-doc-composition-functions/containerized-functions.png" width="50%" />
+![Crossplane calling two containerized Functions via gRPC](assets/design-doc-composition-functions/containerized-functions.png)
 
 Under this design each containerized Function is "wrapped" in an `xfn`-like
 Composition Function. This means each Function exists as its own Deployment.
@@ -679,14 +669,14 @@ the idea).
 ```Dockerfile
 FROM alpine:3.18
 RUN apk add --no-cache jq
-ENTRYPOINT ["/bin/sh", "-c", "jq '(.desired.resources[] | .resource.metadata.labels) |= {\"labelizer.xfn.crossplane.io/processed\": \"true\"} + .' | .desired.resources"]
+ENTRYPOINT ["/bin/sh", "-c", "jq '(.desired.resources[] | .resource.metadata.labels) |= {\"labelizer.xfn.crossplane.io/processed\": \"true\"} + .' | .desired"]
 ```
 
 Then build a Function from the image. We want the image to run in its own
-container, nested inside the Function container. This allows the OCI container
-to run within its own namespaces without interfering with (or being interfered
-with by) the `xfn`-like 'adaptor'. To do this we bake the container into the
-Function artifact:
+container, not the Function container. This allows the OCI container to run
+within its own namespaces without interfering with (or being interfered with by)
+the `xfn`-like 'adaptor'. To do this we bake the container into the Function
+artifact:
 
 ```shell
 # Build your OCI image.
@@ -725,7 +715,8 @@ lot. However the general pattern is:
 
 1. Find (or build!) a Function you want to use.
 2. Install the Function using the package manager.
-3. Include the Function (and any Function config) in a Composition.
+3. Reference the Function in a Composition.
+4. Provide Function configuration in the Composition, where necessary.
 
 Again, consider this section a medium-resolution sketch of the Function
 experience. The generic Functions demonstrates here don't actually exist (yet!).
@@ -733,7 +724,7 @@ They may not look exactly as proposed here. This section intends only to paint a
 picture of what Functions enable.
 
 Consider the hypothetical generic "Go templates" Function put forward at the
-[beginning of this proposal][#proposal]. Such a Function would make it possible
+[beginning of this proposal](#proposal). Such a Function would make it possible
 to write a Composition that used familiar, Helm-like moustache templates with
 support for iteration and conditionals.
 
@@ -777,10 +768,9 @@ spec:
         {{- end }}
 ```
 
-This example is functionally identical to [the Go example][#use-language-sdks],
+This example is functionally identical to [the Go example](#use-language-sdks),
 but uses a DSL - Go templates with http://masterminds.github.io/sprig/ and a
-few Crossplane-specific functions. Indeed this Function could be built using the
-Go SDK - a generic Function for anyone who prefers Go Templates.
+few Crossplane-specific Functions.
 
 Here's another example of a generic Function. This one lets Composition authors
 express their Composition logic in arbitrary, inline [Starlark][starlark].
@@ -805,7 +795,7 @@ spec:
         # main is passed a RunFunctionRequest as a (Python-like) dictionary.
         # It must return a RunFunctionResponse-shaped dictionary.
         def main(req):
-          rsp = {desired=req["desired"], results=req["results]}
+          rsp = {desired=req["desired"]}
           xr = req["observed"]["composite"]["resource"]
 
           for i in range(int(xr["spec"]["count"])):
@@ -841,12 +831,13 @@ spec:
           return rsp
 ```
 
-Starlark is a (very) limited dialect of Python designed configuration. It embeds
-into many languages - including Go. This makes it a great candidate to build a
-generic Function that allows Composition authors to provide _inline_ logic in a
-general-purpose-esque programming language. This is similar to the ["GitHub
-Script"][github-script] GitHub Action that lets you plug some arbitrary logic
-into a GitHub Action pipeline when no existing Action does quite what you need.
+Starlark is a (very) limited dialect of Python designed for configuration. It
+embeds into many languages, including Go. This makes it a great candidate to
+build a generic Function that allows Composition authors to provide _inline_
+logic in a general-purpose-ish programming language. This is similar to the
+["GitHub Script"][github-script] GitHub Action that lets you plug some arbitrary
+logic into a GitHub Action pipeline when no existing Action does quite what you
+need.
 
 #### Iterating on Compositions
 
@@ -862,11 +853,11 @@ In order to know whether your Composition works as intended you need to:
 
 Moving Composition logic out of Crossplane and into versioned Functions makes it
 a lot easier to test and iterate on, client-side. For example a `function test`
-command could test a single function in isolation:
+command could test a single Function in isolation:
 
 ```shell
 # Test a single Function by passing it a JSON RunFunctionRequest. This pulls and
-# starts the function, makes the request, stops it, then returns the result.
+# starts the Function, makes the request, stops it, then returns the result.
 $ kubectl crossplane function test xpkg.upbound.io/negz/go-templates:v0.1.0 run-function-request.json
 {
   # JSON encoded RunFunctionResponse omitted for brevity.
@@ -901,14 +892,14 @@ like `helm template`.
 
 The advantage of Functions in this regard is that the `composition render`
 command would need to duplicate much less code from the Crossplane Composition
-controller than if it were to try to recreate the built-in P&T logic.
+controller than if it were to try to recreate Crossplane's hardcoded P&T logic.
 
-### Future Improvements
+## Future Improvements
 
 The following functionality is out-of-scope for the beta implementation, but may
 be added in future.
 
-#### Function Config Custom Resources
+### Function Config Custom Resources
 
 In the current alpha implementation of Functions, and this design, Function
 configuration is a custom-resource-like inline resource (i.e. an
@@ -928,7 +919,7 @@ configuration is a custom-resource-like inline resource (i.e. an
 In future it may be useful for a Function to be able to deliver this type as a
 custom resource definition (CRD). This would allow a single configuration to be
 more easily shared by multiple Compositions. A Composition could reference a
-Function configuration:
+Function configuration custom resource:
 
 ```yaml
   functions:
@@ -944,7 +935,7 @@ Function configuration:
 At this stage I suggest holding off on building this functionality until there
 is clear demand. 
 
-#### Metrics and Tracing
+### Metrics and Tracing
 
 Crossplane does not currently expose its own metrics. It relies on [the set
 it gets from controller-runtime][controller-runtime-metrics], and metrics that
@@ -959,12 +950,44 @@ order to debug slow or failing Functions in a pipeline.
 Metrics and tracing for Functions must be implemented before the feature becomes
 generally available (GA).
 
-#### Caching
+### Caching
 
-The gRPC API proposed by this design accomodates caching, but building caching
-support is not in scope for beta. This will likely be a requirement for GA.
+The API proposed by this design accommodates caching. The `RunFunctionRequest`
+includes a `meta.tag` field. The tag identifies a unique Function input. How the
+tag is generated is up to the caller (i.e. Crossplane), but two functionally
+identical Function inputs should have the same tag. A Function can optionally
+signal that its response is valid for the same input for a period of time by
+returning a non-zero `meta.ttl`. This allows Crossplane (or an intermediary such
+as a reverse proxy) to cache the responses of idempotent and side-effect-less
+Functions.
 
-#### Runtime Configuration
+Building caching support is not in scope for beta. This will likely prove to be
+a requirement for GA.
+
+### Dynamic Composed Resource Watches
+
+Ideally XR reconciliation would be purely watch-triggered - this would result in
+less work for the XR controller, and far fewer Function calls.
+
+The XR controller currently watches the XR type, but is also poll-triggered, by
+default polling desired state every 60 seconds. This interval can be changed by
+the `--poll-interval` flag. The XR reconciler is poll-triggered because it wants
+to know when composed resources change, in order to correct drift.
+
+An XR controller doesn't know what kinds of resources it will compose at start
+time, which is typically when a controller's watches are configured.
+Furthermore, two different XRs of the same kind might compose completely
+different types of resources due to using different Compositions.
+
+This is something we should revisit regardless of Functions. For example it may
+be possible to:
+
+1. Make one controller responsible (only) for selecting a Composition for an XR.
+2. Start another controller for every unique (XR, Composition) tuple.
+3. Restart the (XR, Composition) controller whenever the XR's
+   `spec.resourceRefs` changes, watching all referenced types.
+
+### Runtime Configuration
 
 This design proposes Functions be long-running processes, installed by the
 package manager. Deploying Functions as Kubernetes Deployments (with Services,
@@ -977,7 +1000,60 @@ propagating a ControllerConfig-like pattern I propose we prioritize finding an
 alternative. I intend to open a separate, simultaneous design to address this
 since it will affect Provider packages as well as Functions.
 
-### Alternatives Considered
+### Patch-and-Transform as a Function
+
+A key benefit of Functions is that composition logic is decoupled from the core
+Crossplane release cycle. Moving composition logic out-of-tree and versioning it
+separately from Crossplane allows us to iterate faster, and experiment more
+freely.
+
+P&T style Composition could enjoy these benefits if it were not a special case,
+and were just another Function. Imagine for example wanting a new type of patch
+or a new type of transform and being able to simply fork the implementation to
+experiment without affecting everyone who uses Crossplane.
+
+P&T Composition as a Function might look like this:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: example
+spec:
+  compositeTypeRef:
+    apiVersion: database.example.org/v1alpha1
+    kind: AcmeCoDatabase
+  functions:
+  - name: patch-and-transform
+    functionRef:
+      name: patch-and-transform
+    config:
+      apiVersion: apiextensions.crossplane.io/v1
+      kind: Resources
+      resources:
+      - name: cloudsqlinstance
+        base:
+          apiVersion: database.gcp.crossplane.io/v1beta1
+          kind: CloudSQLInstance
+          spec:
+            forProvider:
+              databaseVersion: POSTGRES_9_6
+              region: us-central1
+              settings:
+                tier: db-custom-1-3840
+                dataDiskType: PD_SSD
+        patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.storageGB
+          toFieldPath: spec.forProvider.settings.dataDiskSizeGb
+```
+
+Removing P&T support from the Composition type would be a breaking API change -
+not something we could do easily. One approach could be to deprecate and
+'freeze' the API, recommending folks who prefer P&T style use the generic P&T
+Function instead.
+
+## Alternatives Considered
 
 See the [alpha design document][alpha-design].
 
@@ -1002,6 +1078,7 @@ See the [alpha design document][alpha-design].
 [#4036]: https://github.com/crossplane/crossplane/issues/4036
 [#4065]: https://github.com/crossplane/crossplane/issues/4065
 [#4026]: https://github.com/crossplane/crossplane/issues/4026
+[google-protobuf-struct]: https://protobuf.dev/reference/protobuf/google.protobuf/#struct
 [cert-per-entity]: https://github.com/crossplane/crossplane/issues/4305
 [#3884]: https://github.com/crossplane/crossplane/pull/3884
 [kubecon-eu-contribfest]: https://github.com/crossplane-contrib/contribfest/blob/main/lab-composition-functions/xfn-many/main.go
