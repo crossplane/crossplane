@@ -150,16 +150,16 @@ func (fn EnvironmentSelectorFn) SelectEnvironment(ctx context.Context, cr resour
 // An EnvironmentFetcher fetches an appropriate environment for the supplied
 // composite resource.
 type EnvironmentFetcher interface {
-	Fetch(ctx context.Context, cr resource.Composite) (*env.Environment, error)
+	Fetch(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error)
 }
 
 // An EnvironmentFetcherFn fetches an appropriate environment for the supplied
 // composite resource.
-type EnvironmentFetcherFn func(ctx context.Context, cr resource.Composite) (*env.Environment, error)
+type EnvironmentFetcherFn func(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error)
 
 // Fetch an appropriate environment for the supplied Composite resource.
-func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, cr resource.Composite) (*env.Environment, error) {
-	return fn(ctx, cr)
+func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error) {
+	return fn(ctx, cr, required)
 }
 
 // A Configurator configures a composite resource using its composition.
@@ -559,7 +559,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	env, err := r.environment.Fetch(ctx, xr)
+	env, err := r.environment.Fetch(ctx, xr, rev.Spec.Environment.IsRequired())
 	if err != nil {
 		log.Debug(errFetchEnvironment, "error", err)
 		err = errors.Wrap(err, errFetchEnvironment)

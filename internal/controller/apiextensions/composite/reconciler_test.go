@@ -381,7 +381,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error { return nil })),
-					WithEnvironmentFetcher(EnvironmentFetcherFn(func(ctx context.Context, cr resource.Composite) (*env.Environment, error) {
+					WithEnvironmentFetcher(EnvironmentFetcherFn(func(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error) {
 						return nil, errBoom
 					})),
 					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),
