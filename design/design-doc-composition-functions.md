@@ -633,9 +633,9 @@ func Function(ctx context.Context, req *pb.RunFunctionRequest) (*pb.RunFunctionR
 
 The goals of a Composition Function SDK are to:
 
+* Eliminate boilerplate - make it feel like writing a function, not a server.
 * Expose an API that makes writing Functions intuitive and self-documenting.
 * Steer Function authors toward best practices, and away from anti-patterns.
-* Eliminate boilerplate, like setting up a gRPC server.
 
 This mockup only touches on very basic functionality. A fully featured SDK would
 cover more use cases - for example reading Function-specific config and working
