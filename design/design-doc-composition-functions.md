@@ -756,6 +756,21 @@ Note that most of this functionality already exists in `xfn`. This makes it
 cheap enough to implement this Function variant that I believe it's worth doing,
 even if it ends up covering a relatively niche case.
 
+### Installing a Function
+
+Before you can use a Function, you must install it. Installing a Function works
+just like installing a Provider:
+
+```yaml
+apiVersion: pkg.crossplane.io/v1beta1
+kind: Function
+metadata:
+  name: go-templates
+spec:
+  package: xpkg.upbound.io/negz/go-templates:v0.1.0
+```
+
+
 ### Using a Function
 
 Composition Functions are very flexible, so the user experience could vary a
