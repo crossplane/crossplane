@@ -31,21 +31,20 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 const (
 	errFmtReferenceEnvironmentConfig   = "failed to build reference at index %d"
 	errFmtResolveLabelValue            = "failed to resolve value for label at index %d"
 	errListEnvironmentConfigs          = "failed to list environments"
-	errListEnvironmentConfigsNoResult  = "no EnvironmentConfig found that matches labels"
 	errFmtInvalidEnvironmentSourceType = "invalid source type '%s'"
 	errFmtInvalidLabelMatcherType      = "invalid label matcher type '%s'"
 	errFmtRequiredField                = "%s is required by type %s"
-	errUnknownSelectorMode             = "unknown mode '%s'"
-	errSortNotMatchingTypes            = "not matching types: %T : %T"
-	errSortUnknownType                 = "unexpected type %T"
-	errFoundMultipleInSingleMode       = "only 1 EnvironmentConfig can be selected in Single mode, found: %d"
+	errFmtUnknownSelectorMode          = "unknown mode '%s'"
+	errFmtSortNotMatchingTypes         = "not matching types, got %[1]v (%[1]T), expected %[2]v"
+	errFmtSortUnknownType              = "unexpected type %T"
+	errFmtFoundMultipleInSingleMode    = "only 1 EnvironmentConfig can be selected in Single mode, found: %d"
 )
 
 // NewNoopEnvironmentSelector creates a new NoopEnvironmentSelector.
@@ -76,23 +75,19 @@ type APIEnvironmentSelector struct {
 // SelectEnvironment for cr using the configuration defined in comp.
 // The computed list of EnvironmentConfig references will be stored in cr.
 func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error {
-
 	if !rev.Spec.Environment.ShouldResolve(cr.GetEnvironmentConfigReferences()) {
 		return nil
 	}
 
-	refs := make([]corev1.ObjectReference, len(rev.Spec.Environment.EnvironmentConfigs))
-	idx := 0
+	refs := make([]corev1.ObjectReference, 0, len(rev.Spec.Environment.EnvironmentConfigs))
 	for i, src := range rev.Spec.Environment.EnvironmentConfigs {
 		switch src.Type {
 		case v1.EnvironmentSourceTypeReference:
 			refs = append(
-				refs[:idx],
+				refs,
 				s.buildEnvironmentConfigRefFromRef(src.Ref),
 			)
-			idx++
 		case v1.EnvironmentSourceTypeSelector:
-
 			ec, err := s.lookUpConfigs(ctx, cr, src.Selector.MatchLabels)
 			if err != nil {
 				return errors.Wrapf(err, errFmtReferenceEnvironmentConfig, i)
@@ -101,8 +96,7 @@ func (s *APIEnvironmentSelector) SelectEnvironment(ctx context.Context, cr resou
 			if err != nil {
 				return errors.Wrapf(err, errFmtReferenceEnvironmentConfig, i)
 			}
-			refs = append(refs[:idx], r...)
-			idx += len(r)
+			refs = append(refs, r...)
 		default:
 			return errors.Errorf(errFmtInvalidEnvironmentSourceType, string(src.Type))
 		}
@@ -136,34 +130,35 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 }
 
 func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
-
 	ec := make([]v1alpha1.EnvironmentConfig, 0)
 
-	switch {
-	case len(cl.Items) == 0:
+	if len(cl.Items) == 0 {
 		return []corev1.ObjectReference{}, nil
+	}
 
-	case selector.Mode == v1.EnvironmentSourceSelectorSingleMode:
-
-		if len(cl.Items) != 1 {
-			return []corev1.ObjectReference{}, errors.Errorf(errFoundMultipleInSingleMode, len(cl.Items))
+	switch selector.Mode {
+	case v1.EnvironmentSourceSelectorSingleMode:
+		switch len(cl.Items) {
+		case 1:
+			ec = append(ec, cl.Items[0])
+		default:
+			return nil, errors.Errorf(errFmtFoundMultipleInSingleMode, len(cl.Items))
 		}
-		ec = append(ec, cl.Items[0])
-
-	case selector.Mode == v1.EnvironmentSourceSelectorMultiMode:
+	case v1.EnvironmentSourceSelectorMultiMode:
 		err := sortConfigs(cl.Items, selector.SortByFieldPath)
 		if err != nil {
-			return []corev1.ObjectReference{}, err
+			return nil, err
 		}
 
-		if selector.MaxMatch == nil {
-			ec = append(ec, cl.Items...)
-		} else {
+		if selector.MaxMatch != nil {
 			ec = append(ec, cl.Items[:*selector.MaxMatch]...)
+			break
 		}
+		ec = append(ec, cl.Items...)
 
 	default:
-		return []corev1.ObjectReference{}, errors.Errorf(errUnknownSelectorMode, selector.Mode)
+		// should never happen
+		return nil, errors.Errorf(errFmtUnknownSelectorMode, selector.Mode)
 	}
 
 	envConfigs := make([]corev1.ObjectReference, len(ec))
@@ -178,64 +173,65 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alp
 	return envConfigs, nil
 }
 
-type sortPair struct {
-	ec  v1alpha1.EnvironmentConfig
-	obj map[string]interface{}
-}
+func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error { //nolint:gocyclo // TODO(phisco): refactor
+	p := make([]struct {
+		ec  v1alpha1.EnvironmentConfig
+		val any
+	}, len(ec))
 
-//nolint:gocyclo // tbd
-func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error {
-
-	var err error
-
-	p := make([]sortPair, len(ec))
-
+	var valsKind reflect.Kind
 	for i := 0; i < len(ec); i++ {
 		m, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&ec[i])
 		if err != nil {
 			return err
 		}
-		p[i] = sortPair{
-			ec:  ec[i],
-			obj: m,
+
+		val, err := fieldpath.Pave(m).GetValue(f)
+		if err != nil {
+			return err
 		}
+
+		vt := reflect.TypeOf(val).Kind()
+
+		// check only vt1 as vt1 == vt2
+		switch vt { //nolint:exhaustive // we only support these types
+		case reflect.String, reflect.Int64, reflect.Float64:
+			// ok
+		default:
+			return errors.Errorf(errFmtSortUnknownType, val)
+		}
+
+		if i == 0 {
+			valsKind = vt
+		} else if vt != valsKind {
+			// compare with previous values' kind
+			return errors.Errorf(errFmtSortNotMatchingTypes, val, valsKind)
+		}
+
+		p[i].ec = ec[i]
+		p[i].val = val
 	}
 
+	var err error
 	sort.Slice(p, func(i, j int) bool {
-		if err != nil {
-			return false
-		}
-		v1, e := fieldpath.Pave(p[i].obj).GetValue(f)
-		if e != nil {
-			err = e
-			return false
-		}
-		v2, e := fieldpath.Pave(p[j].obj).GetValue(f)
-		if err != nil {
-			err = e
-			return false
-		}
-
-		vt1 := reflect.TypeOf(v1).Kind()
-		vt2 := reflect.TypeOf(v2).Kind()
-		switch {
-		case vt1 == reflect.Float64 && vt2 == reflect.Float64:
-			return v1.(float64) < v2.(float64)
-		case vt1 == reflect.Int64 && vt2 == reflect.Int64:
-			return v1.(int64) < v2.(int64)
-		case vt1 == reflect.String && vt2 == reflect.String:
-			return v1.(string) < v2.(string)
-		case vt1 != vt2:
-			err = errors.Errorf(errSortNotMatchingTypes, v1, v2)
+		vali, valj := p[i].val, p[j].val
+		switch valsKind { //nolint:exhaustive // we only support these types
+		case reflect.Float64:
+			return vali.(float64) < valj.(float64)
+		case reflect.Int64:
+			return vali.(int64) < valj.(int64)
+		case reflect.String:
+			return vali.(string) < valj.(string)
 		default:
-			err = errors.Errorf(errSortUnknownType, v1)
+			// should never happen
+			err = errors.Errorf(errFmtSortUnknownType, valsKind)
+			return false
 		}
-		return false
 	})
-
 	if err != nil {
 		return err
 	}
+
 	for i := 0; i < len(ec); i++ {
 		ec[i] = p[i].ec
 	}

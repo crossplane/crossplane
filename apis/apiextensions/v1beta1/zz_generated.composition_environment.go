@@ -146,7 +146,6 @@ func (e *EnvironmentSource) Validate() *field.Error {
 		if err := e.Selector.Validate(); err != nil {
 			return errors.WrapFieldError(err, field.NewPath("selector"))
 		}
-
 	default:
 		return field.Invalid(field.NewPath("type"), e.Type, "invalid type")
 	}

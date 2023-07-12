@@ -80,7 +80,6 @@ func TestEnvironmentPatchValidate(t *testing.T) {
 }
 
 func TestEnvironmentShouldResolve(t *testing.T) {
-
 	withResolvePolicy := func() *v1.ResolvePolicy {
 		p := v1.ResolvePolicyAlways
 		return &p

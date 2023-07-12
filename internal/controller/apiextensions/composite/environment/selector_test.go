@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -296,8 +297,7 @@ func TestSelect(t *testing.T) {
 								{
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
-										Mode:            v1.EnvironmentSourceSelectorSingleMode,
-										SortByFieldPath: "metadata.name",
+										Mode: v1.EnvironmentSourceSelectorSingleMode,
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
@@ -347,8 +347,7 @@ func TestSelect(t *testing.T) {
 								{
 									Type: v1.EnvironmentSourceTypeSelector,
 									Selector: &v1.EnvironmentSourceSelector{
-										Mode:            v1.EnvironmentSourceSelectorSingleMode,
-										SortByFieldPath: "metadata.name",
+										Mode: v1.EnvironmentSourceSelectorSingleMode,
 										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
 											{
 												Type:  v1.EnvironmentSourceSelectorLabelMatcherTypeValue,
@@ -365,7 +364,7 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr:  composite(),
-				err: errors.Wrap(fmt.Errorf("only 1 EnvironmentConfig can be selected in Single mode, found: 2"), "failed to build reference at index 0"),
+				err: errors.Wrap(fmt.Errorf(errFmtFoundMultipleInSingleMode, 2), "failed to build reference at index 0"),
 			},
 		},
 		"RefsInOrder": {
@@ -941,7 +940,7 @@ func TestSelect(t *testing.T) {
 				cr: composite(
 					withEnvironmentRefs(),
 				),
-				err: errors.Wrap(fmt.Errorf("not matching types: int64 : float64"), "failed to build reference at index 0"),
+				err: errors.Wrap(fmt.Errorf(errFmtSortNotMatchingTypes, int64(1), reflect.Float64), "failed to build reference at index 0"),
 			},
 		},
 		"ErrSelectOnUnexpectedType": {
