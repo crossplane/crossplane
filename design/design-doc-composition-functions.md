@@ -444,13 +444,24 @@ Assume:
 
 In this case the Function would be called __100 * 1 = 100 times per 60s__.
 
-A few approaches are possible to scale Functions:
+Most gRPC server implementations can serve multiple requests concurrently. For
+example in Go [each RPC is invoked in its own goroutine][go-grpc-concurrency].
+The gRPC project maintains a [suite of benchmarks][grpc-benchmarks]. At the time
+of writing these benchmarks show that an 8-core Python server can serve ~3,500
+trivial requests per second, while an 8-core Go server can serve ~180,000 per
+second. This should be considered a ceiling rather than indicative of real-world
+Function performance. In practice the throughput of a particular Function will
+be determined by the language it's written in, and what it does.
 
-* Tune the `--poll-interval`, e.g. to every 5m or 10m.
+Inevitably some Functions will be called frequently enough to exhaust the
+processing capacity of a single pod. A few potential approaches are possible to
+scale Functions include:
+
+* Tune the `--poll-interval`, e.g. to every 5m or 10m, to reduce calls.
 * Scale heavily used Functions horizontally, by increasing Deployment replicas.
 * Cache the responses of idempotent Function calls (see [Caching](#caching)).
-* Eliminate poll-triggered XR reconciliation (see [Dynamic Composed Resource
-  Watches](#dynamic-composed-resource-watches)).
+* Eliminate poll-triggered XR reconciliation to reduce calls (see [Dynamic
+  Composed Resource Watches](#dynamic-composed-resource-watches)).
 
 ### Developing a Function
 
@@ -1105,6 +1116,8 @@ See the [alpha design document][alpha-design].
 [google-protobuf-struct]: https://protobuf.dev/reference/protobuf/google.protobuf/#struct
 [cert-per-entity]: https://github.com/crossplane/crossplane/issues/4305
 [#3884]: https://github.com/crossplane/crossplane/pull/3884
+[go-grpc-concurrency]: https://github.com/grpc/grpc-go/blob/master/Documentation/concurrency.md#servers
+[grpc-benchmarks]: https://grpc.io/docs/guides/benchmarking/
 [kubecon-eu-contribfest]: https://github.com/crossplane-contrib/contribfest/blob/main/lab-composition-functions/xfn-many/main.go
 [grpc-supported-languages]: https://grpc.io/docs/languages/
 [starlark]: https://github.com/bazelbuild/starlark/blob/master/spec.md
