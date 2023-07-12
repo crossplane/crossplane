@@ -185,12 +185,13 @@ The proposal put forward by this document should:
 
 ## Proposal
 
-This document proposes that a new `functions` array be added to the existing
-`Composition` type. This array of Functions would be called either instead of or
-in addition to the existing `resources` array in order to determine how an XR
-should be composed. The array of Functions acts as a pipeline; the output of
-each Function is passed as the input to the next. The output of the final
-Function tells Crossplane what must be done to reconcile the XR.
+This document proposes that a new `pipeline` array of Function calls be added to
+the existing `Composition` type. This array of Functions would be called either
+instead of or in addition to the existing `resources` array in order to
+determine how an XR should be composed. The array of Functions acts as a
+pipeline; the output of each Function is passed as the input to the next. The
+output of the final Function call tells Crossplane what must be done to
+reconcile the XR.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2alpha1
@@ -201,24 +202,28 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
-  # This Composition specifies functions instead of (P&T) resources.
-  # This is an array - you can specify a pipeline of Functions.
-  functions:
-    # Each entry in the functions array has a name. This uniquely identifies
-    # the Function 'call' within the Composition.
-  - name: compose-xr-using-go-templates
-    # The functionRef tells the Composition which Function to use. This Function
-    # uses Go Templates (like Helm) to render composed resources.
+  # This Composition uses a pipeline of Functions instead of (P&T) resources.
+  pipeline:
+    # Each step in the pipeline calls one Composition Function.
+  - step: compose-xr-using-go-templates
+    # The functionRef tells the Composition which Function to call. Crossplane
+    # passes the desired and observed state of the XR and any existing composed
+    # resources as 'arguments' to the Function call.
     functionRef:
       name: go-templates
-    # A Function may optionally accept configuration. The configuration is
-    # passed to the Function when it is called. The configuration block looks
-    # like a nested custom resource - i.e. it has an apiVersion and kind.
+    # A Function call may optionally accept configuration. Think of this like an
+    # additional, optional argument to the Function call. The configuration is a
+    # nested KRM resource - i.e. it has an apiVersion and kind.
     config:
       apiVersion: example.org/v1
       kind: GoTemplate
       source: Remote
       remote: git://github.com/example/my-xpostgresql-go-templates
+    # A pipeline can have multiple steps. Each step is processed in order. This
+    # validation step is passed the desired state accumulated by the prior step.
+  - step: validate-composed-resources
+    functionRef:
+      name: cel-validation
 ```
 
 The updated API would affect only the `Composition` type - no changes would be
@@ -230,7 +235,7 @@ instruct Crossplane which resources should be created, updated, or deleted.
 
 Under the proposed design Functions could also be used for purposes besides
 rendering composed resources, for example validating the results of the
-`resources` array or earlier Functions in the `functions` array. Furthermore, a
+`resources` array or earlier Functions in the `pipeline`. Furthermore, a
 Function could also be used to implement 'side effects' such as triggering a
 replication or backup.
 
@@ -293,8 +298,7 @@ message RunFunctionRequest {
   State desired = 3;
 
   // Configuration specific to this Function invocation. A JSON representation
-  // of the 'config' block of the relevant entry in a Composition's 'functions'
-  // array.
+  // of the 'config' block of the relevant entry in a Composition's pipeline.
   optional google.protobuf.Struct config = 4;
 }
 
@@ -760,8 +764,8 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
-  functions:
-  - name: compose-xr-using-go-templates
+  pipeline:
+  - step: compose-xr-using-go-templates
     functionRef:
       name: go-templates
     config:
@@ -804,8 +808,8 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
-  functions:
-  - name: compose-xr-using-go-templates
+  pipeline:
+  - step: compose-xr-using-go-templates
     functionRef:
       name: starlark
     config:
@@ -896,7 +900,7 @@ $ kubectl crossplane composition render composition.yaml xr.yaml
 
 Assuming a 'pure' Composition consisting only of Functions with no P&T
 resources, this command would need only to iterate through the Composition's
-`functions` array, and for each Function:
+`pipeline`, and for each Function:
 
 1. Pull and start it.
 2. Form a `RunFunctionRequest` from the XR and any prior `RunFunctionResponse`.
@@ -926,8 +930,8 @@ configuration is a custom-resource-like inline resource (i.e. an
 `x-kubernetes-embedded-resource`):
 
 ```yaml
-  functions:
-  - name: compose-xr-using-go-templates
+  pipeline:
+  - step: compose-xr-using-go-templates
     functionRef:
       name: starlark
     config:
@@ -942,8 +946,8 @@ more easily shared by multiple Compositions. A Composition could reference a
 Function configuration custom resource:
 
 ```yaml
-  functions:
-  - name: compose-xr-using-go-templates
+  pipeline:
+  - step: compose-xr-using-go-templates
     functionRef:
       name: starlark
     configRef:
@@ -1043,8 +1047,8 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: AcmeCoDatabase
-  functions:
-  - name: patch-and-transform
+  pipeline:
+  - step: patch-and-transform
     functionRef:
       name: patch-and-transform
     config:
