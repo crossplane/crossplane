@@ -384,10 +384,23 @@ enum Severity {
 ```
 
 This RPC is essentially the `RunFunctionRequest` from the [alpha Functions
-design][alpha-design] with the `FunctionIO` elevated from opaque YAML-encoded
-bytes to 'native' RPC code. Kubernetes resources are represented using the
-[`google.protobuf.Struct` well-known type][google-protobuf-struct], which can
-encode arbitrary JSON.
+design][alpha-design] with the [`FunctionIO`][functionio-schema] elevated from
+opaque YAML-encoded bytes to 'native' RPC code. Kubernetes resources are
+represented using the [`google.protobuf.Struct` well-known
+type][google-protobuf-struct], which can encode arbitrary JSON.
+
+Some key differences between the alpha `FunctionIO` and the proposed beta
+`RunFunctionRequest`:
+
+* `observed.resources` and `desired.resources` are a map keyed by resource name,
+  not an array of objects with name fields. The previous pattern was a result of
+  `FunctionIO` attempting to be an idiomatic KRM object, which is not a
+  constraint for `RunFunctionRequest`. This is should make it easier to lookup
+  resources by name when developing Functions.
+* Entries in `desired.resources` can no longer return 'derived' connection
+  secrets or readiness checks, similar to an entry in the P&T resources array.
+  Instead a Function is intended to set XR connection details and/or readiness
+  by mutating them directly.
 
 The package manager is responsible for creating a headless Kubernetes Service
 where each Function's Deployment can be reached. The address of the Service will
@@ -1118,6 +1131,7 @@ See the [alpha design document][alpha-design].
 [#3884]: https://github.com/crossplane/crossplane/pull/3884
 [go-grpc-concurrency]: https://github.com/grpc/grpc-go/blob/master/Documentation/concurrency.md#servers
 [grpc-benchmarks]: https://grpc.io/docs/guides/benchmarking/
+[functionio-schema]: https://github.com/crossplane/crossplane/blob/v1.12.2/apis/apiextensions/fn/io/v1alpha1/functionio_types.go#L28
 [kubecon-eu-contribfest]: https://github.com/crossplane-contrib/contribfest/blob/main/lab-composition-functions/xfn-many/main.go
 [grpc-supported-languages]: https://grpc.io/docs/languages/
 [starlark]: https://github.com/bazelbuild/starlark/blob/master/spec.md
