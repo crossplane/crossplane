@@ -445,6 +445,12 @@ composed resources. The poll interval can be set using the `--poll-interval`
 flag. The XR controller does not know what kinds of resources it will compose
 when started, so it cannot start a watch for them.
 
+Note that there is no watch on the Composition type. XRs consume a Composition
+via a CompositionRevision. Each time the Composition changes a new revision is
+created. The XR is pinned to a specific revision of a Composition until it is
+updated to consume a new one. This update would trigger a reconcile due to the
+watch on the XR.
+
 Assume:
 
 * There are 100 XRs, all of the same type, and all using the same Composition.
