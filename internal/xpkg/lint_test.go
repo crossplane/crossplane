@@ -294,7 +294,7 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 					MockGetVersionString: fake.NewMockGetVersionStringFn("v0.12.0"),
 				},
 			},
-			err: errors.Wrapf(errBoom, errCrossplaneIncompatibleFmt, "v0.12.0"),
+			err: errors.Wrapf(errBoom, errFmtCrossplaneIncompatible, "v0.12.0"),
 		},
 		"ErrOutsideConstraints": {
 			reason: "Should return error if Crossplane version outside constraints.",
@@ -313,7 +313,7 @@ func TestPackageCrossplaneCompatible(t *testing.T) {
 					MockGetVersionString: fake.NewMockGetVersionStringFn("v0.12.0"),
 				},
 			},
-			err: errors.Errorf(errCrossplaneIncompatibleFmt, "v0.12.0"),
+			err: errors.Errorf(errFmtCrossplaneIncompatible, "v0.12.0"),
 		},
 		"ErrNotMeta": {
 			reason: "Should return error if object is not a meta package type.",

@@ -353,7 +353,7 @@ func TestResolve(t *testing.T) {
 			},
 			want: want{
 				total: 2,
-				err:   errors.Errorf(errMissingDependenciesFmt, []string{"not-here-1", "not-here-2"}),
+				err:   errors.Errorf(errFmtMissingDependencies, []string{"not-here-1", "not-here-2"}),
 			},
 		},
 		"ErrorSelfExistMissingDependencies": {
@@ -441,7 +441,7 @@ func TestResolve(t *testing.T) {
 			want: want{
 				total:     3,
 				installed: 1,
-				err:       errors.Errorf(errMissingDependenciesFmt, []string{"not-here-2", "not-here-3"}),
+				err:       errors.Errorf(errFmtMissingDependencies, []string{"not-here-2", "not-here-3"}),
 			},
 		},
 		"ErrorSelfExistInvalidDependencies": {
@@ -540,7 +540,7 @@ func TestResolve(t *testing.T) {
 				total:     3,
 				installed: 3,
 				invalid:   2,
-				err:       errors.Errorf(errIncompatibleDependencyFmt, []string{"not-here-1", "not-here-2"}),
+				err:       errors.Errorf(errFmtIncompatibleDependency, []string{"not-here-1", "not-here-2"}),
 			},
 		},
 		"SuccessfulSelfExistValidDependencies": {
