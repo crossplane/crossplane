@@ -326,7 +326,7 @@ message ResponseMeta {
   // meta.tag of the corresponding RunFunctionRequest.
   string tag = 1;
 
-  // Time-to-live of this response. Idempotent Functions with no side-effects
+  // Time-to-live of this response. Deterministic Functions with no side-effects
   // (e.g. simple templating Functions) may specify a TTL. Crossplane may choose
   // to cache responses until the TTL expires.
   optional google.protobuf.Duration ttl = 2;
@@ -474,7 +474,7 @@ scale Functions include:
 
 * Tune the `--poll-interval`, e.g. to every 5m or 10m, to reduce calls.
 * Scale heavily used Functions horizontally, by increasing Deployment replicas.
-* Cache the responses of idempotent Function calls (see [Caching](#caching)).
+* Cache the responses of deterministic Function calls (see [Caching](#caching)).
 * Eliminate poll-triggered XR reconciliation to reduce calls (see [Dynamic
   Composed Resource Watches](#dynamic-composed-resource-watches)).
 
@@ -1032,7 +1032,7 @@ tag is generated is up to the caller (i.e. Crossplane), but two functionally
 identical Function inputs should have the same tag. A Function can optionally
 signal that its response is valid for the same input for a period of time by
 returning a non-zero `meta.ttl`. This allows Crossplane (or an intermediary such
-as a reverse proxy) to cache the responses of idempotent and side-effect-less
+as a reverse proxy) to cache the responses of deterministic and side-effect-less
 Functions.
 
 Building caching support is not in scope for beta. This will likely prove to be
