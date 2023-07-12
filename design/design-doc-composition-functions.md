@@ -232,12 +232,9 @@ required to the schema of `CompositeResourceDefinitions`, XRs, etc.
 Notably the Functions would not need to be responsible for interacting with the
 API server to create, update, or delete composed resources. Instead, they
 instruct Crossplane which resources should be created, updated, or deleted.
-
 Under the proposed design Functions could also be used for purposes besides
 rendering composed resources, for example validating the results of the
-`resources` array or earlier Functions in the `pipeline`. Furthermore, a
-Function could also be used to implement 'side effects' such as triggering a
-replication or backup.
+`resources` array or earlier Functions in the `pipeline`.
 
 Before you can use a Function, you must install it. Installing a Function works
 just like installing a Provider:
