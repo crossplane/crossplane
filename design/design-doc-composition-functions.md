@@ -253,8 +253,7 @@ spec:
 
 The Function package's `metadata.name` corresponds to the `functionRef` in the
 previous example Composition. A Composition specifies which Function to run by
-referencing the package's name. Like any other package, the `Function` type will
-have a corresponding `FunctionRevision` type.
+referencing the package's name.
 
 ### Calling a Function
 
@@ -770,8 +769,16 @@ spec:
   package: xpkg.upbound.io/negz/go-templates:v0.1.0
 ```
 
+Like any other package, the Function type will have a corresponding
+FunctionRevision type. The package manager will reconcile the active revision by
+creating a Deployment - similar to how it installs a Provider.
 
-### Using a Function
+Functions can have and be dependencies, just like a Provider or Configuration.
+For example a Configuration could depend on the Functions its Compositions use,
+and a Function could depend on the Providers and Configurations whose resources
+it will compose.
+
+### Calling a Function
 
 Composition Functions are very flexible, so the user experience could vary a
 lot. However the general pattern is:
@@ -947,7 +954,8 @@ resources, this command would need only to iterate through the Composition's
 
 This isn't quite an end-to-end test of Composition. The composed resources are
 not actually created and reconciled with an external system, so its not possible
-for example to derive XR status from composed resource status. It's also not
+for example to derive XR status from composed resource status. (Though that
+could perhaps be simulated by providing fake observed resources.) It's also not
 possible in isolation to determine whether the rendered composed resources are
 schematically valid. It does however give you a good idea of whether your
 Composition will produce the set of composed resources that you'd expect - just
