@@ -19,6 +19,7 @@ package e2e
 import (
 	"flag"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -116,8 +117,11 @@ func HelmOptions(extra ...helm.Option) []helm.Option {
 	return append(o, extra...)
 }
 
-// The test environment, shared by all E2E test functions.
-var environment env.Environment
+var (
+	// The test environment, shared by all E2E test functions.
+	environment env.Environment
+	clusterName string
+)
 
 func TestMain(m *testing.M) {
 	// TODO(negz): Global loggers are dumb and klog is dumb. Remove this when
@@ -136,7 +140,7 @@ func TestMain(m *testing.M) {
 
 	cfg, _ := envconf.NewFromFlags()
 
-	clusterName := envconf.RandomName("crossplane-e2e", 32)
+	clusterName = envconf.RandomName("crossplane-e2e", 32)
 	if *kindClusterName != "" {
 		clusterName = *kindClusterName
 	}
@@ -144,8 +148,13 @@ func TestMain(m *testing.M) {
 	// we want to create the cluster if it doesn't exist, but only if we're
 	isKindCluster := *create || *kindClusterName != ""
 	if isKindCluster {
+		kindCfg, err := filepath.Abs(filepath.Join("test", "e2e", "testdata", "kindConfig.yaml"))
+		if err != nil {
+			log.Log.Error(err, "error getting kind config file")
+			os.Exit(1)
+		}
 		setup = []env.Func{
-			envfuncs.CreateKindCluster(clusterName),
+			envfuncs.CreateKindClusterWithConfig(clusterName, "kindest/node:v1.27.3", kindCfg),
 		}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())

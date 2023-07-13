@@ -106,24 +106,31 @@ func TestXfnRunnerImagePull(t *testing.T) {
 						))),
 			).
 			WithSetup("CopyFnImageToRegistry", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-				nodes := &corev1.NodeList{}
-				if err := config.Client().Resources().List(ctx, nodes); err != nil {
-					t.Fatal("cannot list nodes", err)
-				}
-				if len(nodes.Items) == 0 {
-					t.Fatalf("no nodes in the cluster")
-				}
-				var addr string
-				for _, a := range nodes.Items[0].Status.Addresses {
-					if a.Type == corev1.NodeInternalIP {
-						addr = a.Address
-						break
+				var reg string
+				_, found := envfuncs.GetKindClusterFromContext(ctx, clusterName)
+				if found {
+					reg = "localhost:3000"
+					t.Logf("Running tests against kind cluster, container registry accessible from host via %s", reg)
+				} else {
+					nodes := &corev1.NodeList{}
+					if err := config.Client().Resources().List(ctx, nodes); err != nil {
+						t.Fatal("cannot list nodes", err)
 					}
+					if len(nodes.Items) == 0 {
+						t.Fatalf("no nodes in the cluster")
+					}
+					var addr string
+					for _, a := range nodes.Items[0].Status.Addresses {
+						if a.Type == corev1.NodeInternalIP {
+							addr = a.Address
+							break
+						}
+					}
+					if addr == "" {
+						t.Fatalf("no nodes with private address")
+					}
+					reg = fmt.Sprintf("%s:32000", addr)
 				}
-				if addr == "" {
-					t.Fatalf("no nodes with private address")
-				}
-
 				srcRef, err := name.ParseReference("crossplane-e2e/fn-labelizer:latest")
 				if err != nil {
 					t.Fatal(err)
@@ -133,7 +140,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 					t.Fatal(err)
 				}
 				err = wait.For(func() (done bool, err error) {
-					err = crane.Push(src, fmt.Sprintf("%s:32000/fn-labelizer:latest", addr), crane.Insecure)
+					err = crane.Push(src, fmt.Sprintf("%s/fn-labelizer:latest", reg), crane.Insecure)
 					if err != nil {
 						return false, nil //nolint:nilerr // we want to retry and to throw error
 					}
