@@ -154,7 +154,7 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 		setup = []env.Func{
-			envfuncs.CreateKindClusterWithConfig(clusterName, "kindest/node:v1.27.3", kindCfg),
+			envfuncs.CreateKindClusterWithConfig(clusterName, "\"\"", kindCfg),
 		}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
