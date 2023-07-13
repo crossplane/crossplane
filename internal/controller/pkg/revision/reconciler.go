@@ -55,6 +55,8 @@ import (
 
 const (
 	reconcileTimeout = 3 * time.Minute
+	// the max size of a package parsed by the parser
+	maxPackageSize = 200 << 20 // 100 MB
 )
 
 const (
@@ -475,7 +477,13 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	}
 
 	// Parse package contents.
-	pkg, err := r.parser.Parse(ctx, rc)
+	pkg, err := r.parser.Parse(ctx, struct {
+		io.Reader
+		io.Closer
+	}{
+		Reader: io.LimitReader(rc, maxPackageSize),
+		Closer: rc,
+	})
 	// Wait until we finish writing to cache. Parser closes the reader.
 	if err := <-cacheWrite; err != nil {
 		// If we failed to cache we want to cleanup, but we don't abort unless
