@@ -51,16 +51,16 @@ I propose a new flag to Crossplane: `--package-runtime`. This flag would have
 two possible values (at least to begin with):
 
 * `--package-runtime=Deployment` (default) - Create a Kubernetes deployment.
-* `--package-runtime=Disabled` - Do nothing.
+* `--package-runtime=External` - Do nothing, defer to an external controller.
 
 When running in Deployment mode the package manager will function as it does
 today. It will create a Kubernetes Deployment for each package runtime, plus any
 additional supporting configuration such as a ServiceAccount, etc.
 
-When running in Disabled mode the package manager won't create a package runtime
+When running in External mode the package manager won't create a package runtime
 at all. It will create a revision (e.g. a ProviderRevision) and deliver the
 package's payload (e.g. a Provider's CustomResourceDefinitions), but do nothing
-else. In Disabled mode it's expected that an external controller will take care
+else. In External mode it's expected that an external controller will take care
 of reconciling the relevant package revision to deploy a package runtime however
 it sees fit.
 
