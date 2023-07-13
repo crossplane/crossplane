@@ -227,3 +227,152 @@ func TestXfnRunnerImagePull(t *testing.T) {
 			Feature(),
 	)
 }
+
+func TestXfnRunnerWriteToTmp(t *testing.T) {
+	manifests := "test/e2e/manifests/xfnrunner/tmp-writer"
+	environment.Test(t,
+		features.New("CreateAFileInTmpFolder").
+			WithLabel(LabelArea, "xfn").
+			WithSetup("InstallRegistry",
+				funcs.AllOf(
+					funcs.AsFeaturesFunc(envfuncs.CreateNamespace("reg")),
+					funcs.AsFeaturesFunc(
+						funcs.HelmRepo(
+							helm.WithArgs("add"),
+							helm.WithArgs("twuni"),
+							helm.WithArgs("https://helm.twun.io"),
+						)),
+					funcs.AsFeaturesFunc(
+						funcs.HelmInstall(
+							helm.WithName("public"),
+							helm.WithNamespace("reg"),
+							helm.WithWait(),
+							helm.WithChart("twuni/docker-registry"),
+							helm.WithVersion("2.2.2"),
+							helm.WithArgs(
+								"--set service.type=NodePort",
+								"--set service.nodePort=32000",
+							),
+						))),
+			).
+			WithSetup("CopyFnImageToRegistry", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+				nodes := &corev1.NodeList{}
+				if err := config.Client().Resources().List(ctx, nodes); err != nil {
+					t.Fatal("cannot list nodes", err)
+				}
+				if len(nodes.Items) == 0 {
+					t.Fatalf("no nodes in the cluster")
+				}
+
+				var addr string
+				for _, a := range nodes.Items[0].Status.Addresses {
+					if a.Type == corev1.NodeInternalIP {
+						addr = a.Address
+						break
+					}
+				}
+				if addr == "" {
+					t.Fatalf("no nodes with private address")
+				}
+
+				srcRef, err := name.ParseReference("crossplane-e2e/fn-tmp-writer:latest")
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				src, err := daemon.Image(srcRef)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				err = wait.For(func() (done bool, err error) {
+					err = crane.Push(src, fmt.Sprintf("%s:32000/fn-tmp-writer:latest", addr), crane.Insecure)
+					if err != nil {
+						return false, nil //nolint:nilerr // we want to retry and to throw error
+					}
+					return true, nil
+				}, wait.WithTimeout(1*time.Minute))
+				if err != nil {
+					t.Fatal("copying image to registry not successful", err)
+				}
+				return ctx
+			}).
+			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
+				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
+					HelmOptions(
+						helm.WithArgs(
+							"--set args={--debug,--enable-composition-functions}",
+							"--set xfn.enabled=true",
+							"--set xfn.args={--debug}",
+							"--set xfn.resources.requests.cpu=100m",
+							"--set xfn.resources.limits.cpu=100m",
+						),
+						helm.WithWait())...)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			WithSetup("ProviderNopDeployed", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/provider.yaml"),
+				funcs.ApplyResources(FieldManager, manifests, "prerequisites/definition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/provider.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "prerequisites/definition.yaml", v1.WatchingComposite()),
+			)).
+			Assess("CompositionWithFunctionIsCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition.yaml"),
+			)).
+			Assess("ClaimIsCreated", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ManagedResourcesProcessedByFunction", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
+				annotationName := "lines"
+				rg := utils.NewResourceGetter(ctx, t, config)
+				claim := rg.Get("fn-tmp-writer", "default", "nop.example.org/v1alpha1", "NopResource")
+				r := utils.ResourceValue(t, claim, "spec", "resourceRef")
+
+				xr := rg.Get(r["name"], "default", r["apiVersion"], r["kind"])
+				mrefs := utils.ResourceSliceValue(t, xr, "spec", "resourceRefs")
+				for _, mref := range mrefs {
+					err := wait.For(func() (done bool, err error) {
+						mr := rg.Get(mref["name"], "default", mref["apiVersion"], mref["kind"])
+						a, found := mr.GetAnnotations()[annotationName]
+						if !found {
+							return false, nil
+						}
+						if a != "finally!" {
+							return false, nil
+						}
+						return true, nil
+					}, wait.WithTimeout(5*time.Minute))
+					if err != nil {
+						t.Fatalf("Expected annottion %v value is `finally!`", annotationName)
+					}
+				}
+				return ctx
+			}).
+			WithTeardown("DeleteClaim", funcs.AllOf(
+				funcs.DeleteResources(manifests, "claim.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
+			)).
+			WithTeardown("DeleteComposition", funcs.AllOf(
+				funcs.DeleteResources(manifests, "composition.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "composition.yaml"),
+			)).
+			WithTeardown("ProviderNopRemoved", funcs.AllOf(
+				funcs.DeleteResources(manifests, "prerequisites/provider.yaml"),
+				funcs.DeleteResources(manifests, "prerequisites/definition.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/provider.yaml"),
+				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
+			)).
+			WithTeardown("RemoveRegistry", funcs.AllOf(
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace("reg")),
+			)).
+			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
+				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+				funcs.ReadyToTestWithin(1*time.Minute, namespace),
+			)).
+			Feature(),
+	)
+}
