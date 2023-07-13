@@ -211,10 +211,10 @@ spec:
     # resources as 'arguments' to the Function call.
     functionRef:
       name: go-templates
-    # A Function call may optionally accept configuration. Think of this like an
-    # additional, optional argument to the Function call. The configuration is a
-    # nested KRM resource - i.e. it has an apiVersion and kind.
-    config:
+    # A Function call may optionally accept input. Think of this like an
+    # additional, optional argument to the Function call. The input is a nested
+    # KRM resource - i.e. it has an apiVersion and kind.
+    input:
       apiVersion: example.org/v1
       kind: GoTemplate
       source: Remote
@@ -293,9 +293,9 @@ message RunFunctionRequest {
   // previous Functions in the pipeline.
   State desired = 3;
 
-  // Configuration specific to this Function invocation. A JSON representation
-  // of the 'config' block of the relevant entry in a Composition's pipeline.
-  optional google.protobuf.Struct config = 4;
+  // Optional input specific to this Function invocation. A JSON representation
+  // of the 'input' block of the relevant entry in a Composition's pipeline.
+  optional google.protobuf.Struct input = 4;
 }
 
 // A RunFunctionResponse contains the result of a Composition Function run.
@@ -653,7 +653,7 @@ The goals of a Composition Function SDK are to:
 * Steer Function authors toward best practices, and away from anti-patterns.
 
 This mockup only touches on very basic functionality. A fully featured SDK would
-cover more use cases - for example reading Function-specific config and working
+cover more use cases - for example reading Function-specific input and working
 with connection details.
 
 Once you’ve written your Function code you can test it using the tooling for
@@ -789,7 +789,7 @@ lot. However the general pattern is:
 1. Find (or build!) a Function you want to use.
 2. Install the Function using the package manager.
 3. Reference the Function in a Composition.
-4. Provide Function configuration in the Composition, where necessary.
+4. Provide Function input in the Composition, where necessary.
 
 Again, consider this section a medium-resolution sketch of the Function
 experience. The generic Functions demonstrates here don't actually exist (yet!).
@@ -817,7 +817,7 @@ spec:
   - step: compose-xr-using-go-templates
     functionRef:
       name: go-templates
-    config:
+    input:
       apiVersion: example.org/v1
       kind: GoTemplate
       source: Inline  # Or Remote, if you want to pull templates from git.
@@ -861,7 +861,7 @@ spec:
   - step: compose-xr-using-go-templates
     functionRef:
       name: starlark
-    config:
+    input:
       apiVersion: example.org/v1
       kind: StarlarkScript
       script: |
@@ -973,10 +973,10 @@ controller than if it were to try to recreate Crossplane's hardcoded P&T logic.
 The following functionality is out-of-scope for the beta implementation, but may
 be added in future.
 
-### Function Config Custom Resources
+### Function Input Custom Resources
 
 In the current alpha implementation of Functions, and this design, Function
-configuration is a custom-resource-like inline resource (i.e. an
+input is a custom-resource-like inline resource (i.e. an
 `x-kubernetes-embedded-resource`):
 
 ```yaml
@@ -984,23 +984,23 @@ configuration is a custom-resource-like inline resource (i.e. an
   - step: compose-xr-using-go-templates
     functionRef:
       name: starlark
-    config:
+    input:
       apiVersion: example.org/v1
       kind: StarlarkScript
       script: ...
 ```
 
 In future it may be useful for a Function to be able to deliver this type as a
-custom resource definition (CRD). This would allow a single configuration to be
-more easily shared by multiple Compositions. A Composition could reference a
-Function configuration custom resource:
+custom resource definition (CRD). This would allow a single input to be more
+easily shared by multiple Compositions. A Composition could reference a Function
+input custom resource:
 
 ```yaml
   pipeline:
   - step: compose-xr-using-go-templates
     functionRef:
       name: starlark
-    configRef:
+    inputRef:
       apiVersion: example.org/v1
       kind: StarlarkScript
       name: make-some-purple-robots
@@ -1101,7 +1101,7 @@ spec:
   - step: patch-and-transform
     functionRef:
       name: patch-and-transform
-    config:
+    input:
       apiVersion: apiextensions.crossplane.io/v1
       kind: Resources
       resources:
