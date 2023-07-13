@@ -1,7 +1,7 @@
 # Package Runtime Config
 
 * Owner: Nic Cope (@negz)
-* Reviewers: TODO
+* Reviewers: Hasan Turken (@turkenh), Dan Mangum (@hasheddan)
 * Status: Accepted
 
 ## Background
