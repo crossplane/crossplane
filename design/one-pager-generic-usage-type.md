@@ -99,16 +99,18 @@ metadata:
   name: release-uses-cluster
 spec:
   of:
-  - apiVersion: eks.upbound.io/v1beta1
+    apiVersion: eks.upbound.io/v1beta1
     kind: Cluster
-    name: my-cluster
+    resourceRef:
+      name: my-cluster
   by:
     apiVersion: helm.crossplane.io/v1beta1
     kind: Release
-    name: my-prometheus-chart
+    resourceRef:
+      name: my-prometheus-chart
 ```
 
-The `spec.by` field will define the resource that will be using the resources
+The `spec.by` field will define the resource that will be using the resource
 defined in `spec.of`. Both will support only cluster-scoped resources, namely
 `Composites` and `Managed Resources`.
 
@@ -127,25 +129,20 @@ metadata:
   name: release-uses-cluster
 spec:
   of:
-  - apiVersion: eks.upbound.io/v1beta1
+    apiVersion: eks.upbound.io/v1beta1
     kind: Cluster
-    selector:
+    resourceSelector:
       matchControllerRef: true
       matchLabels:
         foo: bar
   by:
     apiVersion: helm.crossplane.io/v1beta1
     kind: Release
-    selector:
+    resourceSelector:
       matchControllerRef: true
       matchLabels:
         baz: qux
 ```
-
-While the well-known use cases for this feature are solved with a one-to-one
-usage relationship, we will support one-to-many relationship 
-(i.e. `spec.of` as a list) as well, considering it provides more flexibility
-without introducing additional complexity to the implementation.
 
 ### Implementation
 
@@ -165,18 +162,67 @@ relationship by:
 
 - Resolving selectors, if any.
 - Adding owner reference from the using resource (i.e., `spec.by`) to the `Usage`.
+- Adding/removing owner reference from the `Usage` resource to the used resource (i.e., `spec.of`).
 - Preventing deletion of `Usage` before the using resource is deleted.
-- Adding or removing admission webhook rules to intercept the `DELETE` requests
-  for the used resource(s).
+- Adding/removing `crossplane.io/in-use: true` label to ensure the `DELETE`
+  request intercepted by matching the selector in admission webhook rule.
 
 **Resolving selectors:**
 
-The API will support defining selectors for both the using and used resources.
+The API will support defining selectors for both the using and used resource.
 Initially, we will only support resolving references with the following rules:
 
 - Resolution will be made once when the `Usage` is created.
 - If multiple resources match the selector, a random one will be
   selected.
+
+Once selectors are resolved, the controller will fill `resourceRef.name`.
+
+Example:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Usage
+metadata:
+  name: release-uses-clusters
+spec:
+  of:
+    apiVersion: eks.upbound.io/v1beta1
+    kind: Cluster
+    resourceSelector:
+      matchControllerRef: true
+      matchLabels:
+         foo: bar
+  by:
+    apiVersion: helm.crossplane.io/v1beta1
+    kind: Release
+    resourceRef:
+      name: my-prometheus-chart
+```
+
+to:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Usage
+metadata:
+  name: release-uses-clusters
+spec:
+  of:
+    apiVersion: eks.upbound.io/v1beta1
+    kind: Cluster
+    resourceRef: # added by the controller based on the selectors
+      name: my-cluster # added by the controller based on the selectors
+    resourceSelector:
+      matchControllerRef: true
+      matchLabels:
+         foo: bar
+  by:
+    apiVersion: helm.crossplane.io/v1beta1
+    kind: Release
+    resourceRef:
+      name: my-prometheus-chart
+```
 
 The [existing policies] for resolving Managed Resource references does not
 necessarily apply to the `Usage`. For example, supporting an `optional`
@@ -186,10 +232,19 @@ the `Usage`. However, depending on the feedback, we may consider supporting
 resolve policies to configure whether the resolution should be made once or
 continuously in a future iteration.
 
-**Adding owner reference:**
+**Owner references:**
 
 We want the `Usage` to be deleted when the using resource is deleted. This will
 be achieved by adding an owner reference from the using resource to the `Usage`.
+
+Another owner reference will be added from the `Usage` to the used resource to
+prevent Garbage Collector from attempting to attempt to delete the used resource
+before the `Usage` is deleted. This is mostly a mitigation for the case where
+deletion process of composites, which rely on GC, could take too long because of
+the exponential backoff in the Garbage Collector as a result of failed DELETE
+API calls.
+
+<div style="text-align: center;"><img src="images/usage-owner-ref.png" height="256"></div>
 
 **Preventing early deletion of the `Usage`:**
 
@@ -199,13 +254,30 @@ the delete request when the composite resource is deleted. In this case, the
 controller will prevent the deletion of the `Usage` until the using resource is
 deleted with the help of a finalizer.
 
-**Defining admission webhook rules:**
+**Adding/removing `crossplane.io/in-use: true` label:**
 
 The admission webhook will intercept the `DELETE` requests for the used
-resource(s). To achieve this, the controller will add [webhook rules] for the
-used resource(s) when a `Usage` is created. It is also the controller's job to
-remove these rules when the `Usage` is deleted, and no other `Usage` resources
-reference the same used resource(s).
+resources with the following admission webhook rule:
+
+```yaml
+webhooks:
+- name: nousages.apiextensions.crossplane.io
+  objectSelector:
+    matchLabels:
+      crossplane.io/in-use: true
+  rules:
+  - operations: ["DELETE"]
+    apiGroups: ["*"]
+    apiVersions: ["*"]
+    resources: ["*"]
+    scope: "*"
+```
+
+To ensure any delete request is intercepted by our webhook for a resource that
+is in use, the controller will add the `crossplane.io/in-use: true` label to the
+used resource when a `Usage` is created. It is also the controller's job to
+remove this labels when the `Usage` is deleted, and no other `Usage` resources
+reference the same used resource.
 
 #### Admission Webhook
 
@@ -291,15 +363,6 @@ the Claim or Composite without any error. The deletion of the Claim or Composite
 will be blocked until all Composed Resources are deleted as before. It will take
 longer because deletion of the used resource will be blocked until the used
 resource hence `Usage` is deleted.
-
-> One caveat with the garbage collector is the substantial delay it can cause
-during the deletion of composites. This delay caused by the garbage collector's
-use of an exponential backoff when the DELETE API call is rejected. The maximum
-backoff time is 1000 seconds, which means that after no usage of an object is
-left, it could take up to 1000 seconds before the garbage collector attempts to
-delete the resource that was previously blocked. To mitigate this issue, we
-could introduce a mechanism in the controller to re-trigger the deletion of the
-used resource as soon as the Usage resource is deleted.
 
 #### Directly Deleting a Composite or Managed Resource that is in Use
 
