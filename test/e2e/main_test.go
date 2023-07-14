@@ -154,7 +154,7 @@ func TestMain(m *testing.M) {
 			os.Exit(1)
 		}
 		setup = []env.Func{
-			envfuncs.CreateKindClusterWithConfig(clusterName, "\"\"", kindCfg),
+			funcs.CreateKindClusterWithConfig(clusterName, kindCfg),
 		}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
