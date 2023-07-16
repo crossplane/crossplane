@@ -412,7 +412,7 @@ func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Dura
 		}
 
 		i := strings.Split(srcRef.String(), "/")
-		err = wait.For(func() (done bool, err error) {
+		err = wait.For(func(_ context.Context) (done bool, err error) {
 			err = crane.Push(src, fmt.Sprintf("%s/%s", reg, i[1]), crane.Insecure)
 			if err != nil {
 				return false, nil //nolint:nilerr // we want to retry and to throw error
