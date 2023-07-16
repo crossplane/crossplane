@@ -239,8 +239,9 @@ jobs:
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
     strategy:
+      fail-fast: false
       matrix:
-        area: [lifecycle, pkg, apiextensions, xfn]
+        test-suite: [base, composition-webhook-schema-validation, composition-functions]
 
     steps:
       - name: Setup QEMU
@@ -297,7 +298,7 @@ jobs:
           BUILD_ARGS: "--load"
 
       - name: Run E2E Tests
-        run: make e2e E2E_TEST_FLAGS="-test.v -labels area=${{ matrix.area }}"
+        run: make e2e E2E_TEST_FLAGS="-test.v --test-suite ${{ matrix.test-suite }}"
 
   publish-artifacts:
     runs-on: ubuntu-22.04

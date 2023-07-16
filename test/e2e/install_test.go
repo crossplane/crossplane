@@ -29,6 +29,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
@@ -54,6 +55,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -96,6 +98,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 		features.New("CrossplaneUpgrade").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			// We expect Crossplane to have been uninstalled first
 			Assess("CrossplaneIsNotInstalled", funcs.AllOf(
 				funcs.ResourceDeletedWithin(1*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
@@ -125,7 +128,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			)).
 			Assess("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("UpgradeCrossplane", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+				funcs.AsFeaturesFunc(funcs.HelmUpgrade(E2EConfig.GetSelectedSuiteInstallOpts()...)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Assess("CoreDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).
