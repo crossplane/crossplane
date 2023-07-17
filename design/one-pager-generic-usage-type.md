@@ -98,11 +98,20 @@ kind: Usage
 metadata:
   name: release-uses-cluster
 spec:
+  # Reason is optional when this Usage defines a "Dependency" type relationship,
+  # i.e. when the `spec.by` field is defined.
+  # It is required when the Usage is meant to be used for "Protection" purposes,
+  # i.e. when the `spec.by` is NOT defined.
+  reason: "Release uses Cluster"
+  # Reference to the resource that is being used.
   of:
     apiVersion: eks.upbound.io/v1beta1
     kind: Cluster
     resourceRef:
       name: my-cluster
+  # Reference to the resource that is using the other resource.
+  # This field is optional and can be omitted when the Usage is meant to be used
+  # for "Protection" purposes.
   by:
     apiVersion: helm.crossplane.io/v1beta1
     kind: Release
@@ -142,6 +151,22 @@ spec:
       matchControllerRef: true
       matchLabels:
         baz: qux
+```
+
+Another use case for `Usage` is to protect a resource from being deleted without
+necessarily being used by another resource. For example, a `Usage` that will
+prevent the deletion of a database instance could be defined as follows:
+
+```yaml
+apiVersion: crossplane.io/v1
+kind: Usage
+spec:
+  reason: "Production Database - should never be deleted"
+  of:
+    apiVersion: rds.aws.upbound.io/v1beta1
+    kind: Instance
+    resourceRef:
+      name: my-cluster
 ```
 
 ### Implementation
