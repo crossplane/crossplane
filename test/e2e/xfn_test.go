@@ -16,13 +16,9 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
-	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/name"
-	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/e2e-framework/klient/wait"
@@ -38,6 +34,13 @@ import (
 	"github.com/crossplane/crossplane/test/e2e/utils"
 )
 
+const (
+	regNs = "reg"
+
+	timeoutFive = 5 * time.Minute
+	timeoutOne  = 1 * time.Minute
+)
+
 func TestXfnRunnerImagePull(t *testing.T) {
 
 	manifests := "test/e2e/manifests/xfnrunner/private-registry/pull"
@@ -46,10 +49,9 @@ func TestXfnRunnerImagePull(t *testing.T) {
 			WithLabel(LabelArea, "xfn").
 			WithSetup("InstallRegistryWithCustomTlsCertificate",
 				funcs.AllOf(
-					funcs.AsFeaturesFunc(envfuncs.CreateNamespace("reg")),
+					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(regNs)),
 					func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
 						dnsName := "private-docker-registry.reg.svc.cluster.local"
-						ns := "reg"
 						caPem, keyPem, err := utils.CreateCert(dnsName)
 						if err != nil {
 							t.Fatal(err)
@@ -58,7 +60,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 						secret := &corev1.Secret{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      "reg-cert",
-								Namespace: ns,
+								Namespace: regNs,
 							},
 							Type: corev1.SecretTypeTLS,
 							StringData: map[string]string{
@@ -94,7 +96,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 					funcs.AsFeaturesFunc(
 						funcs.HelmInstall(
 							helm.WithName("private"),
-							helm.WithNamespace("reg"),
+							helm.WithNamespace(regNs),
 							helm.WithWait(),
 							helm.WithChart("twuni/docker-registry"),
 							helm.WithVersion("2.2.2"),
@@ -105,32 +107,8 @@ func TestXfnRunnerImagePull(t *testing.T) {
 							),
 						))),
 			).
-			WithSetup("CopyFnImageToRegistry", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-				reg, err := funcs.ServiceIngressEndPoint(ctx, config, clusterName, "reg", "private-docker-registry")
-				if err != nil {
-					t.Fatal(err)
-				}
-				t.Logf("registry endpoint %s", reg)
-				srcRef, err := name.ParseReference("crossplane-e2e/fn-labelizer:latest")
-				if err != nil {
-					t.Fatal(err)
-				}
-				src, err := daemon.Image(srcRef)
-				if err != nil {
-					t.Fatal(err)
-				}
-				err = wait.For(func() (done bool, err error) {
-					err = crane.Push(src, fmt.Sprintf("%s/fn-labelizer:latest", reg), crane.Insecure)
-					if err != nil {
-						return false, nil //nolint:nilerr // we want to retry and to throw error
-					}
-					return true, nil
-				}, wait.WithTimeout(1*time.Minute))
-				if err != nil {
-					t.Fatal("copying image to registry not successful", err)
-				}
-				return ctx
-			}).
+			WithSetup("CopyFnImageToRegistry", funcs.AllOf(
+				funcs.CopyImageToRegistry(clusterName, regNs, "private-docker-registry", "crossplane-e2e/fn-labelizer:latest", timeoutOne))).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
 					HelmOptions(
@@ -161,7 +139,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ManagedResourcesProcessedByFunction", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
 				labelName := "labelizer.xfn.crossplane.io/processed"
 				rg := utils.NewResourceGetter(ctx, t, config)
@@ -181,11 +159,10 @@ func TestXfnRunnerImagePull(t *testing.T) {
 							return false, nil
 						}
 						return true, nil
-					}, wait.WithTimeout(5*time.Minute))
+					}, wait.WithTimeout(timeoutFive))
 					if err != nil {
 						t.Fatalf("Expected label %v value to be true", labelName)
 					}
-
 				}
 				return ctx
 			}).
@@ -204,7 +181,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
 			)).
 			WithTeardown("RemoveRegistry", funcs.AllOf(
-				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace("reg")),
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(regNs)),
 				func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
 					client := config.Client().Resources(namespace)
 					configMap := &corev1.ConfigMap{
@@ -235,7 +212,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			WithLabel(LabelArea, "xfn").
 			WithSetup("InstallRegistry",
 				funcs.AllOf(
-					funcs.AsFeaturesFunc(envfuncs.CreateNamespace("reg")),
+					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(regNs)),
 					funcs.AsFeaturesFunc(
 						funcs.HelmRepo(
 							helm.WithArgs("add"),
@@ -245,7 +222,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 					funcs.AsFeaturesFunc(
 						funcs.HelmInstall(
 							helm.WithName("public"),
-							helm.WithNamespace("reg"),
+							helm.WithNamespace(regNs),
 							helm.WithWait(),
 							helm.WithChart("twuni/docker-registry"),
 							helm.WithVersion("2.2.2"),
@@ -255,48 +232,8 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 							),
 						))),
 			).
-			WithSetup("CopyFnImageToRegistry", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-				nodes := &corev1.NodeList{}
-				if err := config.Client().Resources().List(ctx, nodes); err != nil {
-					t.Fatal("cannot list nodes", err)
-				}
-				if len(nodes.Items) == 0 {
-					t.Fatalf("no nodes in the cluster")
-				}
-
-				var addr string
-				for _, a := range nodes.Items[0].Status.Addresses {
-					if a.Type == corev1.NodeInternalIP {
-						addr = a.Address
-						break
-					}
-				}
-				if addr == "" {
-					t.Fatalf("no nodes with private address")
-				}
-
-				srcRef, err := name.ParseReference("crossplane-e2e/fn-tmp-writer:latest")
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				src, err := daemon.Image(srcRef)
-				if err != nil {
-					t.Fatal(err)
-				}
-
-				err = wait.For(func() (done bool, err error) {
-					err = crane.Push(src, fmt.Sprintf("%s:32000/fn-tmp-writer:latest", addr), crane.Insecure)
-					if err != nil {
-						return false, nil //nolint:nilerr // we want to retry and to throw error
-					}
-					return true, nil
-				}, wait.WithTimeout(1*time.Minute))
-				if err != nil {
-					t.Fatal("copying image to registry not successful", err)
-				}
-				return ctx
-			}).
+			WithSetup("CopyFnImageToRegistry", funcs.AllOf(
+				funcs.CopyImageToRegistry(clusterName, regNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne))).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
 					HelmOptions(
@@ -325,9 +262,9 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ManagedResourcesProcessedByFunction", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-				annotationName := "lines"
+				annotationName := "tmp-write-access"
 				rg := utils.NewResourceGetter(ctx, t, config)
 				claim := rg.Get("fn-tmp-writer", "default", "nop.example.org/v1alpha1", "NopResource")
 				r := utils.ResourceValue(t, claim, "spec", "resourceRef")
@@ -341,13 +278,13 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 						if !found {
 							return false, nil
 						}
-						if a != "finally!" {
+						if a != "true" {
 							return false, nil
 						}
 						return true, nil
 					}, wait.WithTimeout(5*time.Minute))
 					if err != nil {
-						t.Fatalf("Expected annottion %v value is `finally!`", annotationName)
+						t.Fatalf("Expected annottion %v value is `true`", annotationName)
 					}
 				}
 				return ctx
@@ -367,7 +304,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
 			)).
 			WithTeardown("RemoveRegistry", funcs.AllOf(
-				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace("reg")),
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(regNs)),
 			)).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
