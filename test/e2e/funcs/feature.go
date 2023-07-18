@@ -49,6 +49,8 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+
+	"github.com/crossplane/crossplane/test/e2e/utils"
 )
 
 // AllOf runs the supplied functions in order.
@@ -419,6 +421,37 @@ func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Dura
 			t.Fatalf("copying image `%s` to registry `%s` not successful: %v", image, reg, err)
 		}
 
+		return ctx
+	}
+}
+
+// ClaimsManagedResourcesHaveLabel fails a test if the managed resources
+// created by the claim does not have the supplied value at the supplied label
+// path within the supplied duration.
+func ClaimsManagedResourcesHaveLabel(ns, apiVersion, kind, name, label, want string, timeout time.Duration) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		rg := utils.NewResourceGetter(ctx, t, c)
+		claim := rg.Get(name, ns, apiVersion, kind)
+		r := utils.ResourceValue(t, claim, "spec", "resourceRef")
+
+		xr := rg.Get(r["name"], ns, r["apiVersion"], r["kind"])
+		mrefs := utils.ResourceSliceValue(t, xr, "spec", "resourceRefs")
+		for _, mref := range mrefs {
+			err := wait.For(func() (done bool, err error) {
+				mr := rg.Get(mref["name"], ns, mref["apiVersion"], mref["kind"])
+				a, found := mr.GetLabels()[label]
+				if !found {
+					return false, nil
+				}
+				if a != want {
+					return false, nil
+				}
+				return true, nil
+			}, wait.WithTimeout(timeout))
+			if err != nil {
+				t.Fatalf("Expected label %s value is `%s`", label, want)
+			}
+		}
 		return ctx
 	}
 }

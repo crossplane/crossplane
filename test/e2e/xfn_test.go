@@ -21,7 +21,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/e2e-framework/klient/wait"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -140,32 +139,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
-			Assess("ManagedResourcesProcessedByFunction", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-				labelName := "labelizer.xfn.crossplane.io/processed"
-				rg := utils.NewResourceGetter(ctx, t, config)
-				claim := rg.Get("fn-labelizer", "default", "nop.example.org/v1alpha1", "NopResource")
-				r := utils.ResourceValue(t, claim, "spec", "resourceRef")
-
-				xr := rg.Get(r["name"], "default", r["apiVersion"], r["kind"])
-				mrefs := utils.ResourceSliceValue(t, xr, "spec", "resourceRefs")
-				for _, mref := range mrefs {
-					err := wait.For(func() (done bool, err error) {
-						mr := rg.Get(mref["name"], "default", mref["apiVersion"], mref["kind"])
-						l, found := mr.GetLabels()[labelName]
-						if !found {
-							return false, nil
-						}
-						if l != "true" {
-							return false, nil
-						}
-						return true, nil
-					}, wait.WithTimeout(timeoutFive))
-					if err != nil {
-						t.Fatalf("Expected label %v value to be true", labelName)
-					}
-				}
-				return ctx
-			}).
+			Assess("ManagedResourcesProcessedByFunction", funcs.ClaimsManagedResourcesHaveLabel("default", "nop.example.org/v1alpha1", "NopResource", "fn-labelizer", "labelizer.xfn.crossplane.io/processed", "true", timeoutFive)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -263,32 +237,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
-			Assess("ManagedResourcesProcessedByFunction", func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-				annotationName := "tmp-write-access"
-				rg := utils.NewResourceGetter(ctx, t, config)
-				claim := rg.Get("fn-tmp-writer", "default", "nop.example.org/v1alpha1", "NopResource")
-				r := utils.ResourceValue(t, claim, "spec", "resourceRef")
-
-				xr := rg.Get(r["name"], "default", r["apiVersion"], r["kind"])
-				mrefs := utils.ResourceSliceValue(t, xr, "spec", "resourceRefs")
-				for _, mref := range mrefs {
-					err := wait.For(func() (done bool, err error) {
-						mr := rg.Get(mref["name"], "default", mref["apiVersion"], mref["kind"])
-						a, found := mr.GetAnnotations()[annotationName]
-						if !found {
-							return false, nil
-						}
-						if a != "true" {
-							return false, nil
-						}
-						return true, nil
-					}, wait.WithTimeout(5*time.Minute))
-					if err != nil {
-						t.Fatalf("Expected annottion %v value is `true`", annotationName)
-					}
-				}
-				return ctx
-			}).
+			Assess("ManagedResourcesProcessedByFunction", funcs.ClaimsManagedResourcesHaveLabel("default", "nop.example.org/v1alpha1", "NopResource", "fn-tmp-writer", "tmp-writer.xfn.crossplane.io", "true", timeoutFive)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
