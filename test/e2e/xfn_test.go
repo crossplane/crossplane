@@ -139,7 +139,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
-			Assess("ManagedResourcesProcessedByFunction", funcs.ClaimsManagedResourcesHaveLabel("default", "nop.example.org/v1alpha1", "NopResource", "fn-labelizer", "labelizer.xfn.crossplane.io/processed", "true", timeoutFive)).
+			Assess("ManagedResourcesProcessedByFunction", funcs.ManagedResourcesOfClaimHaveFieldValueWithin(timeoutFive, manifests, "claim.yaml", "metadata.labels[labelizer.xfn.crossplane.io/processed]", "true")).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -206,8 +206,8 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 							),
 						))),
 			).
-			WithSetup("CopyFnImageToRegistry", funcs.AllOf(
-				funcs.CopyImageToRegistry(clusterName, regNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne))).
+			WithSetup("CopyFnImageToRegistry",
+				funcs.CopyImageToRegistry(clusterName, regNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
 					HelmOptions(
@@ -236,8 +236,10 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
-			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
-			Assess("ManagedResourcesProcessedByFunction", funcs.ClaimsManagedResourcesHaveLabel("default", "nop.example.org/v1alpha1", "NopResource", "fn-tmp-writer", "tmp-writer.xfn.crossplane.io", "true", timeoutFive)).
+			Assess("ClaimBecomesAvailable",
+				funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
+			Assess("ManagedResourcesProcessedByFunction",
+				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(timeoutFive, manifests, "claim.yaml", "metadata.labels[tmp-writer.xfn.crossplane.io]", "true")).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -252,9 +254,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/provider.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
 			)).
-			WithTeardown("RemoveRegistry", funcs.AllOf(
-				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(regNs)),
-			)).
+			WithTeardown("RemoveRegistry", funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(regNs))).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),

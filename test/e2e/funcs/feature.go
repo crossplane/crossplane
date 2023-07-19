@@ -49,8 +49,8 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
-
-	"github.com/crossplane/crossplane/test/e2e/utils"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
 // AllOf runs the supplied functions in order.
@@ -425,33 +425,59 @@ func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Dura
 	}
 }
 
-// ClaimsManagedResourcesHaveLabel fails a test if the managed resources
-// created by the claim does not have the supplied value at the supplied label
-// path within the supplied duration.
-func ClaimsManagedResourcesHaveLabel(ns, apiVersion, kind, name, label, want string, timeout time.Duration) features.Func {
+// ManagedResourcesOfClaimHaveFieldValueWithin fails a test if the managed resources
+// created by the claim does not have the supplied value at the supplied path
+// within the supplied duration.
+func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, path string, want any) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		rg := utils.NewResourceGetter(ctx, t, c)
-		claim := rg.Get(name, ns, apiVersion, kind)
-		r := utils.ResourceValue(t, claim, "spec", "resourceRef")
-
-		xr := rg.Get(r["name"], ns, r["apiVersion"], r["kind"])
-		mrefs := utils.ResourceSliceValue(t, xr, "spec", "resourceRefs")
-		for _, mref := range mrefs {
-			err := wait.For(func() (done bool, err error) {
-				mr := rg.Get(mref["name"], ns, mref["apiVersion"], mref["kind"])
-				a, found := mr.GetLabels()[label]
-				if !found {
-					return false, nil
-				}
-				if a != want {
-					return false, nil
-				}
-				return true, nil
-			}, wait.WithTimeout(timeout))
-			if err != nil {
-				t.Fatalf("Expected label %s value is `%s`", label, want)
-			}
+		cm := &claim.Unstructured{}
+		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
+			t.Error(err)
+			return ctx
 		}
+
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+			return ctx
+		}
+
+		xrRef := cm.GetResourceReference()
+		uxr := &composite.Unstructured{}
+
+		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
+		if err := c.Client().Resources().Get(ctx, xrRef.Name, xrRef.Namespace, uxr); err != nil {
+			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
+			return ctx
+		}
+
+		mrRefs := uxr.GetResourceReferences()
+
+		list := &unstructured.UnstructuredList{}
+		for _, ref := range mrRefs {
+			mr := &unstructured.Unstructured{}
+			mr.SetName(ref.Name)
+			mr.SetNamespace(ref.Namespace)
+			mr.SetGroupVersionKind(ref.GroupVersionKind())
+			list.Items = append(list.Items, *mr)
+		}
+
+		match := func(o k8s.Object) bool {
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if err != nil {
+				return false
+			}
+
+			return cmp.Equal(want, got)
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
+			y, _ := yaml.Marshal(list.Items)
+			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", want, err, y)
+			return ctx
+		}
+
+		t.Logf("%d resources have desired value %q at field path %s", len(list.Items), want, path)
 		return ctx
 	}
 }
