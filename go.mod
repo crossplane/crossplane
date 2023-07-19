@@ -8,7 +8,7 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/alecthomas/kong v0.8.0
 	github.com/bufbuild/buf v1.24.0
-	github.com/crossplane/crossplane-runtime v0.20.0-rc.0.0.20230622044456-2dfb8bc6bfbc
+	github.com/crossplane/crossplane-runtime v0.20.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/go-cmp v0.5.9
 	github.com/google/go-containerregistry v0.15.2
@@ -32,7 +32,7 @@ require (
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
 	kernel.org/pub/linux/libs/security/libcap/cap v1.2.69
 	sigs.k8s.io/controller-runtime v0.15.0
-	sigs.k8s.io/controller-tools v0.12.0
+	sigs.k8s.io/controller-tools v0.12.1
 	sigs.k8s.io/e2e-framework v0.2.0
 	sigs.k8s.io/kind v0.20.0
 	sigs.k8s.io/yaml v1.3.0
