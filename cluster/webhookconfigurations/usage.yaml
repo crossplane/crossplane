@@ -2,7 +2,7 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: usage-webhook-configuration
+  name: crossplane-no-usages
 webhooks:
   - admissionReviewVersions:
       - v1
