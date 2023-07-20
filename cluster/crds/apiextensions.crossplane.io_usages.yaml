@@ -16,6 +16,18 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
+    - jsonPath: .spec.of.resourceRef.name
+      name: OF
+      type: string
+    - jsonPath: .spec.by.resourceRef.name
+      name: BY
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Synced')].status
+      name: SYNCED
+      type: string
+    - jsonPath: .status.conditions[?(@.type=='Ready')].status
+      name: READY
+      type: string
     - jsonPath: .metadata.creationTimestamp
       name: AGE
       type: date
@@ -38,10 +50,10 @@ spec:
           metadata:
             type: object
           spec:
-            description: The data of this Usage. This may contain any kind of structure
-              that can be serialized into JSON.
+            description: UsageSpec defines the desired state of Usage.
             properties:
               by:
+                description: By is the resource that is "using the other resource".
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -55,6 +67,8 @@ spec:
                       name:
                         description: Name of the referent.
                         type: string
+                    required:
+                    - name
                     type: object
                   resourceSelector:
                     description: Selector to the resource.
@@ -70,11 +84,9 @@ spec:
                           is selected.
                         type: object
                     type: object
-                  uid:
-                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                    type: string
                 type: object
               of:
+                description: Of is the resource that is "being used".
                 properties:
                   apiVersion:
                     description: API version of the referent.
@@ -88,6 +100,8 @@ spec:
                       name:
                         description: Name of the referent.
                         type: string
+                    required:
+                    - name
                     type: object
                   resourceSelector:
                     description: Selector to the resource.
@@ -103,15 +117,57 @@ spec:
                           is selected.
                         type: object
                     type: object
-                  uid:
-                    description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                    type: string
                 type: object
+              reason:
+                description: Reason is the reason for blocking deletion of the resource.
+                type: string
             required:
-            - by
             - of
             type: object
+            x-kubernetes-validations:
+            - message: either "spec.by" or "spec.reason" must be specified.
+              rule: has(self.by) || has(self.reason)
+          status:
+            description: UsageStatus defines the observed state of Usage.
+            properties:
+              conditions:
+                description: Conditions of the resource.
+                items:
+                  description: A Condition that may apply to a resource.
+                  properties:
+                    lastTransitionTime:
+                      description: LastTransitionTime is the last time this condition
+                        transitioned from one status to another.
+                      format: date-time
+                      type: string
+                    message:
+                      description: A Message containing details about this condition's
+                        last transition from one status to another, if any.
+                      type: string
+                    reason:
+                      description: A Reason for this condition's last transition from
+                        one status to another.
+                      type: string
+                    status:
+                      description: Status of this condition; is it currently True,
+                        False, or Unknown?
+                      type: string
+                    type:
+                      description: Type of this condition. At most one of each condition
+                        type may apply to a resource at any point in time.
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+            type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}

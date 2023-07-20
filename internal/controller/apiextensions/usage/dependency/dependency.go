@@ -24,7 +24,7 @@ import (
 )
 
 // An Option modifies an unstructured composed resource.
-type Option func(resource *Unstructured)
+type Option func(*Unstructured)
 
 // FromReference returns an Option that propagates the metadata in the supplied
 // reference to an unstructured composed resource.
@@ -56,6 +56,7 @@ func (cr *Unstructured) GetUnstructured() *unstructured.Unstructured {
 	return &cr.Unstructured
 }
 
+// OwnedBy returns true if the supplied UID is an owner of the composed
 func (cr *Unstructured) OwnedBy(u types.UID) bool {
 	for _, owner := range cr.GetOwnerReferences() {
 		if owner.UID == u {
@@ -63,4 +64,46 @@ func (cr *Unstructured) OwnedBy(u types.UID) bool {
 		}
 	}
 	return false
+}
+
+// RemoveOwnerRef removes the supplied UID from the composed resource's owner
+func (cr *Unstructured) RemoveOwnerRef(u types.UID) {
+	refs := cr.GetOwnerReferences()
+	for i := range refs {
+		if refs[i].UID == u {
+			cr.SetOwnerReferences(append(refs[:i], refs[i+1:]...))
+			return
+		}
+	}
+}
+
+// An ListOption modifies an unstructured list of composed resource.
+type ListOption func(*UnstructuredList)
+
+// FromReferenceToList returns a ListOption that propagates the metadata in the
+// supplied reference to an unstructured list composed resource.
+func FromReferenceToList(ref corev1.ObjectReference) ListOption {
+	return func(list *UnstructuredList) {
+		list.SetAPIVersion(ref.APIVersion)
+		list.SetKind(ref.Kind + "List")
+	}
+}
+
+// NewList returns a new unstructured list of composed resources.
+func NewList(opts ...ListOption) *UnstructuredList {
+	cr := &UnstructuredList{unstructured.UnstructuredList{Object: make(map[string]any)}}
+	for _, f := range opts {
+		f(cr)
+	}
+	return cr
+}
+
+// An UnstructuredList of composed resources.
+type UnstructuredList struct {
+	unstructured.UnstructuredList
+}
+
+// GetUnstructuredList returns the underlying *unstructured.Unstructured.
+func (cr *UnstructuredList) GetUnstructuredList() *unstructured.UnstructuredList {
+	return &cr.UnstructuredList
 }

@@ -18,7 +18,6 @@ package funcs
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -532,7 +531,7 @@ func DeleteResourcesBlocked(dir, pattern string) features.Func {
 		dfs := os.DirFS(dir)
 
 		if err := decoder.DecodeEachFile(ctx, dfs, pattern, decoder.DeleteHandler(c.Client().Resources())); !strings.HasPrefix(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
-			t.Fatal(errors.New(fmt.Sprintf("expected admission webhook to deny the request but it did not, err: %s", err.Error())))
+			t.Fatal(fmt.Errorf("expected admission webhook to deny the request but it did not, err: %s", err.Error()))
 			return ctx
 		}
 

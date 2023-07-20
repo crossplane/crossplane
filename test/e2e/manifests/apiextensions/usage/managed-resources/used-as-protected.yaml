@@ -1,7 +1,9 @@
 apiVersion: nop.crossplane.io/v1alpha1
 kind: NopResource
 metadata:
-  name: using-resource
+  name: protected-resource
+  labels:
+    tier: critical
 spec:
   forProvider:
     conditionAfter:

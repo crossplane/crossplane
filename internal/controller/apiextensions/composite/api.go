@@ -214,7 +214,7 @@ func (r *CompositionSelectorChain) SelectComposition(ctx context.Context, cp res
 	return nil
 }
 
-// NewAPILabelSelectorResolver returns a SelectorResolver for composite resource.
+// NewAPILabelSelectorResolver returns a selectorResolver for composite resource.
 func NewAPILabelSelectorResolver(c client.Client) *APILabelSelectorResolver {
 	return &APILabelSelectorResolver{client: c}
 }

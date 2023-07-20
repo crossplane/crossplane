@@ -18,47 +18,17 @@ package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 )
 
-// +kubebuilder:object:root=true
-// +kubebuilder:storageversion
-// +genclient
-// +genclient:nonNamespaced
-
-// A Usage defines a deletion blocking relationship between two resources.
-// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
-// +kubebuilder:resource:scope=Cluster,categories=crossplane
-type Usage struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	// The data of this Usage.
-	// This may contain any kind of structure that can be serialized into JSON.
-	// +optional
-	Spec UsageSpec `json:"spec"`
-}
-
-// +kubebuilder:object:root=true
-
-// UsageList contains a list of Usage.
-type UsageList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []Usage `json:"items"`
-}
-
-type UsageSpec struct {
-	Of Resource `json:"of"`
-	By Resource `json:"by"`
-}
-
+// ResourceRef is a reference to a resource.
 type ResourceRef struct {
 	// Name of the referent.
-	// +optional
-	Name string `json:"name,omitempty"`
+	Name string `json:"name"`
 }
 
+// ResourceSelector is a selector to a resource.
 type ResourceSelector struct {
 	// MatchLabels ensures an object with matching labels is selected.
 	MatchLabels map[string]string `json:"matchLabels,omitempty"`
@@ -68,6 +38,7 @@ type ResourceSelector struct {
 	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
 }
 
+// Resource defines a cluster-scoped resource.
 type Resource struct {
 	// API version of the referent.
 	// +optional
@@ -76,14 +47,54 @@ type Resource struct {
 	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
 	// +optional
 	Kind string `json:"kind,omitempty"`
-	// UID of the referent.
-	// More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids
-	// +optional
-	UID types.UID `json:"uid,omitempty"`
 	// Reference to the resource.
 	// +optional
-	ResourceRef ResourceRef `json:"resourceRef,omitempty"`
+	ResourceRef *ResourceRef `json:"resourceRef,omitempty"`
 	// Selector to the resource.
 	// +optional
-	ResourceSelector ResourceSelector `json:"resourceSelector,omitempty"`
+	ResourceSelector *ResourceSelector `json:"resourceSelector,omitempty"`
+}
+
+// UsageSpec defines the desired state of Usage.
+type UsageSpec struct {
+	// Of is the resource that is "being used".
+	Of Resource `json:"of"`
+	// By is the resource that is "using the other resource".
+	// +optional
+	By *Resource `json:"by,omitempty"`
+	// Reason is the reason for blocking deletion of the resource.
+	// +optional
+	Reason *string `json:"reason,omitempty"`
+}
+
+// UsageStatus defines the observed state of Usage.
+type UsageStatus struct {
+	xpv1.ConditionedStatus `json:",inline"`
+}
+
+// A Usage defines a deletion blocking relationship between two resources.
+// +kubebuilder:object:root=true
+// +kubebuilder:storageversion
+// +kubebuilder:printcolumn:name="OF",type="string",JSONPath=".spec.of.resourceRef.name"
+// +kubebuilder:printcolumn:name="BY",type="string",JSONPath=".spec.by.resourceRef.name"
+// +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
+// +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:resource:scope=Cluster,categories=crossplane
+// +kubebuilder:subresource:status
+type Usage struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+	// +kubebuilder:validation:XValidation:rule="has(self.by) || has(self.reason)",message="either \"spec.by\" or \"spec.reason\" must be specified."
+	Spec   UsageSpec   `json:"spec"`
+	Status UsageStatus `json:"status,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+
+// UsageList contains a list of Usage.
+type UsageList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []Usage `json:"items"`
 }
