@@ -35,5 +35,5 @@ spec:
     - name: labelizer
       type: Container
       container:
-        image: private-docker-registry.reg.svc.cluster.local:5000/fn-labelizer:latest
+        image: private-docker-registry.xfn-registry.svc.cluster.local:5000/fn-labelizer:latest
         imagePullPolicy: Always

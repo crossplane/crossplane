@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -36,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
@@ -428,7 +430,7 @@ func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Dura
 // ManagedResourcesOfClaimHaveFieldValueWithin fails a test if the managed resources
 // created by the claim does not have the supplied value at the supplied path
 // within the supplied duration.
-func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, path string, want any) features.Func {
+func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		cm := &claim.Unstructured{}
 		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
@@ -461,7 +463,15 @@ func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pat
 			list.Items = append(list.Items, *mr)
 		}
 
+		count := atomic.Int32{}
 		match := func(o k8s.Object) bool {
+			// filter function should return true if the object needs to be checked. e.g., if you want to check the field
+			// path of a VPC object, filter function should return true for VPC objects only.
+			if filter != nil && !filter(o) {
+				t.Logf("skipping resource %s/%s/%s due to filtering", o.GetNamespace(), o.GetName(), o.GetObjectKind().GroupVersionKind().String())
+				return true
+			}
+			count.Add(1)
 			u := asUnstructured(o)
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
 			if err != nil {
@@ -474,6 +484,11 @@ func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pat
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
 			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", want, err, y)
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("there are no unfiltered referred managed resources to check")
 			return ctx
 		}
 
@@ -509,4 +524,14 @@ func identifier(o k8s.Object) string {
 		return fmt.Sprintf("%s %s", k, o.GetName())
 	}
 	return fmt.Sprintf("%s %s/%s", k, o.GetNamespace(), o.GetName())
+}
+
+// FilterByGK returns a filter function that returns true if the supplied object is of the supplied GroupKind.
+func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
+	return func(o k8s.Object) bool {
+		if o.GetObjectKind() == nil {
+			return false
+		}
+		return o.GetObjectKind().GroupVersionKind().Group == gk.Group && o.GetObjectKind().GroupVersionKind().Kind == gk.Kind
+	}
 }

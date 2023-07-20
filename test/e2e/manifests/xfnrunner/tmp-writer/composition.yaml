@@ -35,5 +35,5 @@ spec:
     - name: tmp-writer
       type: Container
       container:
-        image: public-docker-registry.reg.svc.cluster.local:5000/fn-tmp-writer:latest
+        image: public-docker-registry.xfn-registry.svc.cluster.local:5000/fn-tmp-writer:latest
         imagePullPolicy: Always

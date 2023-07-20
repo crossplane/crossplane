@@ -141,7 +141,7 @@ func ServiceIngressEndPoint(ctx context.Context, cfg *envconf.Config, clusterNam
 	service := &corev1.Service{}
 	err := client.Resources().Get(ctx, serviceName, namespace, service)
 	if err != nil {
-		return "", err
+		return "", errors.Errorf("cannot get service %s/%s at cluster %s: %w", namespace, serviceName, clusterName, err)
 	}
 
 	var nodePort int32
@@ -157,21 +157,21 @@ func ServiceIngressEndPoint(ctx context.Context, cfg *envconf.Config, clusterNam
 	if found {
 		kindCfg, err := kindConfig(ctx, clusterName)
 		if err != nil {
-			return "", err
+			return "", errors.Errorf("cannot get kind config for cluster %s: %w", clusterName, err)
 		}
 		hostPort, err := findHostPort(kindCfg, nodePort)
 		if err != nil {
-			return "", err
+			return "", errors.Errorf("cannot find hostPort for nodePort %d in kind config for cluster %s: %w", nodePort, clusterName, err)
 		}
 		return fmt.Sprintf("localhost:%v", hostPort), nil
 	}
 	nodes := &corev1.NodeList{}
 	if err := client.Resources().List(ctx, nodes); err != nil {
-		return "", errors.Wrap(err, "cannot list nodes")
+		return "", errors.Errorf("cannot list nodes for cluster %s: %w", clusterName, err)
 	}
 	addr, err := findAnyNodeIPAddress(nodes)
 	if err != nil {
-		return "", err
+		return "", errors.Errorf("cannot find any node IP address for cluster %s: %w", clusterName, err)
 	}
 	return fmt.Sprintf("%s:%v", addr, nodePort), nil
 }

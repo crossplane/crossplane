@@ -21,6 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
@@ -34,7 +35,7 @@ import (
 )
 
 const (
-	regNs = "reg"
+	registryNs = "xfn-registry"
 
 	timeoutFive = 5 * time.Minute
 	timeoutOne  = 1 * time.Minute
@@ -48,9 +49,9 @@ func TestXfnRunnerImagePull(t *testing.T) {
 			WithLabel(LabelArea, "xfn").
 			WithSetup("InstallRegistryWithCustomTlsCertificate",
 				funcs.AllOf(
-					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(regNs)),
+					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(registryNs)),
 					func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
-						dnsName := "private-docker-registry.reg.svc.cluster.local"
+						dnsName := "private-docker-registry.xfn-registry.svc.cluster.local"
 						caPem, keyPem, err := utils.CreateCert(dnsName)
 						if err != nil {
 							t.Fatal(err)
@@ -59,7 +60,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 						secret := &corev1.Secret{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:      "reg-cert",
-								Namespace: regNs,
+								Namespace: registryNs,
 							},
 							Type: corev1.SecretTypeTLS,
 							StringData: map[string]string{
@@ -95,7 +96,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 					funcs.AsFeaturesFunc(
 						funcs.HelmInstall(
 							helm.WithName("private"),
-							helm.WithNamespace(regNs),
+							helm.WithNamespace(registryNs),
 							helm.WithWait(),
 							helm.WithChart("twuni/docker-registry"),
 							helm.WithVersion("2.2.2"),
@@ -106,8 +107,8 @@ func TestXfnRunnerImagePull(t *testing.T) {
 							),
 						))),
 			).
-			WithSetup("CopyFnImageToRegistry", funcs.AllOf(
-				funcs.CopyImageToRegistry(clusterName, regNs, "private-docker-registry", "crossplane-e2e/fn-labelizer:latest", timeoutOne))).
+			WithSetup("CopyFnImageToRegistry",
+				funcs.CopyImageToRegistry(clusterName, registryNs, "private-docker-registry", "crossplane-e2e/fn-labelizer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
 					HelmOptions(
@@ -139,7 +140,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
 			)).
 			Assess("ClaimBecomesAvailable", funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
-			Assess("ManagedResourcesProcessedByFunction", funcs.ManagedResourcesOfClaimHaveFieldValueWithin(timeoutFive, manifests, "claim.yaml", "metadata.labels[labelizer.xfn.crossplane.io/processed]", "true")).
+			Assess("ManagedResourcesProcessedByFunction", funcs.ManagedResourcesOfClaimHaveFieldValueWithin(timeoutFive, manifests, "claim.yaml", "metadata.labels[labelizer.xfn.crossplane.io/processed]", "true", nil)).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -155,7 +156,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
 			)).
 			WithTeardown("RemoveRegistry", funcs.AllOf(
-				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(regNs)),
+				funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(registryNs)),
 				func(ctx context.Context, t *testing.T, config *envconf.Config) context.Context {
 					client := config.Client().Resources(namespace)
 					configMap := &corev1.ConfigMap{
@@ -186,7 +187,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			WithLabel(LabelArea, "xfn").
 			WithSetup("InstallRegistry",
 				funcs.AllOf(
-					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(regNs)),
+					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(registryNs)),
 					funcs.AsFeaturesFunc(
 						funcs.HelmRepo(
 							helm.WithArgs("add"),
@@ -196,7 +197,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 					funcs.AsFeaturesFunc(
 						funcs.HelmInstall(
 							helm.WithName("public"),
-							helm.WithNamespace(regNs),
+							helm.WithNamespace(registryNs),
 							helm.WithWait(),
 							helm.WithChart("twuni/docker-registry"),
 							helm.WithVersion("2.2.2"),
@@ -207,7 +208,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 						))),
 			).
 			WithSetup("CopyFnImageToRegistry",
-				funcs.CopyImageToRegistry(clusterName, regNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne)).
+				funcs.CopyImageToRegistry(clusterName, registryNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
 					HelmOptions(
@@ -239,7 +240,8 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			Assess("ClaimBecomesAvailable",
 				funcs.ResourcesHaveConditionWithin(timeoutFive, manifests, "claim.yaml", xpv1.Available())).
 			Assess("ManagedResourcesProcessedByFunction",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(timeoutFive, manifests, "claim.yaml", "metadata.labels[tmp-writer.xfn.crossplane.io]", "true")).
+				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(timeoutFive, manifests, "claim.yaml", "metadata.labels[tmp-writer.xfn.crossplane.io]", "true",
+					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteClaim", funcs.AllOf(
 				funcs.DeleteResources(manifests, "claim.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "claim.yaml"),
@@ -254,7 +256,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/provider.yaml"),
 				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "prerequisites/definition.yaml"),
 			)).
-			WithTeardown("RemoveRegistry", funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(regNs))).
+			WithTeardown("RemoveRegistry", funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(registryNs))).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
 				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
