@@ -29,7 +29,9 @@ import (
 
 // Error strings.
 const (
-	errGetClusterRole = "cannot get ClusterRole"
+	errGetClusterRole           = "cannot get ClusterRole"
+	errExpandClusterRoleRules   = "cannot expand ClusterRole rules"
+	errExpandPermissionRequests = "cannot expand PermissionRequests"
 )
 
 const (
@@ -126,11 +128,17 @@ func (r Rule) path() path {
 }
 
 // Expand RBAC policy rules into our granular rules.
-func Expand(rs ...rbacv1.PolicyRule) []Rule {
+func Expand(ctx context.Context, rs ...rbacv1.PolicyRule) ([]Rule, error) { //nolint:gocyclo // Granular rules are inherently complex.
 	out := make([]Rule, 0, len(rs))
 	for _, r := range rs {
 		for _, u := range r.NonResourceURLs {
 			for _, v := range r.Verbs {
+				// exit if ctx is done
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				default:
+				}
 				out = append(out, Rule{NonResourceURL: u, Verb: v})
 			}
 		}
@@ -147,13 +155,18 @@ func Expand(rs ...rbacv1.PolicyRule) []Rule {
 			for _, rsc := range r.Resources {
 				for _, n := range names {
 					for _, v := range r.Verbs {
+						select {
+						case <-ctx.Done():
+							return nil, ctx.Err()
+						default:
+						}
 						out = append(out, Rule{APIGroup: g, Resource: rsc, ResourceName: n, Verb: v})
 					}
 				}
 			}
 		}
 	}
-	return out
+	return out, nil
 }
 
 // A ClusterRoleBackedValidator is a PermissionRequestsValidator that validates
@@ -170,7 +183,7 @@ func NewClusterRoleBackedValidator(c client.Client, roleName string) *ClusterRol
 	return &ClusterRoleBackedValidator{client: c, name: roleName}
 }
 
-// ValidatePermissionRequests against the ClusterRole.
+// ValidatePermissionRequests against the ClusterRole, returning the list of rejected rules.
 func (v *ClusterRoleBackedValidator) ValidatePermissionRequests(ctx context.Context, requests ...rbacv1.PolicyRule) ([]Rule, error) {
 	cr := &rbacv1.ClusterRole{}
 	if err := v.client.Get(ctx, types.NamespacedName{Name: v.name}, cr); err != nil {
@@ -178,12 +191,20 @@ func (v *ClusterRoleBackedValidator) ValidatePermissionRequests(ctx context.Cont
 	}
 
 	t := newNode()
-	for _, rule := range Expand(cr.Rules...) {
+	expandedCrRules, err := Expand(ctx, cr.Rules...)
+	if err != nil {
+		return nil, errors.Wrap(err, errExpandClusterRoleRules)
+	}
+	for _, rule := range expandedCrRules {
 		t.Allow(rule.path())
 	}
 
 	rejected := make([]Rule, 0)
-	for _, rule := range Expand(requests...) {
+	expandedRequests, err := Expand(ctx, requests...)
+	if err != nil {
+		return nil, errors.Wrap(err, errExpandPermissionRequests)
+	}
+	for _, rule := range expandedRequests {
 		if !t.Allowed(rule.path()) {
 			rejected = append(rejected, rule)
 		}
@@ -195,5 +216,5 @@ func (v *ClusterRoleBackedValidator) ValidatePermissionRequests(ctx context.Cont
 // VerySecureValidator is a PermissionRequestsValidatorFn that rejects all
 // requested permissions.
 func VerySecureValidator(ctx context.Context, requests ...rbacv1.PolicyRule) ([]Rule, error) {
-	return Expand(requests...), nil
+	return Expand(ctx, requests...)
 }
