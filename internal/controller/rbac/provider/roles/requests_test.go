@@ -83,79 +83,129 @@ func TestAllowed(t *testing.T) {
 }
 
 func TestExpand(t *testing.T) {
+	type args struct {
+		rs  []rbacv1.PolicyRule
+		ctx context.Context
+	}
+	type want struct {
+		err   error
+		rules []Rule
+	}
 	cases := map[string]struct {
 		reason string
-		rs     []rbacv1.PolicyRule
-		want   []Rule
+		args
+		want
 	}{
 		"SimpleURL": {
 			reason: "It should be possible to expand a simple, granular non-resource RBAC rule.",
-			rs: []rbacv1.PolicyRule{{
-				NonResourceURLs: []string{"/api"},
-				Verbs:           []string{"get"},
-			}},
-			want: []Rule{{
-				NonResourceURL: "/api",
-				Verb:           "get",
-			}},
+			args: args{
+				rs: []rbacv1.PolicyRule{{
+					NonResourceURLs: []string{"/api"},
+					Verbs:           []string{"get"},
+				}},
+			},
+			want: want{
+				rules: []Rule{{
+					NonResourceURL: "/api",
+					Verb:           "get",
+				}},
+			},
 		},
 		"SimpleResource": {
 			reason: "It should be possible to expand a simple, granular resource RBAC rule.",
-			rs: []rbacv1.PolicyRule{{
-				APIGroups: []string{""},
-				Resources: []string{"*"},
-				Verbs:     []string{"get"},
-			}},
-			want: []Rule{{
-				APIGroup:     "",
-				Resource:     "*",
-				ResourceName: "*",
-				Verb:         "get",
-			}},
-		},
-		"ComplexResource": {
-			reason: "It should be possible to expand a more complex resource RBAC rule.",
-			rs: []rbacv1.PolicyRule{
-				{APIGroups: []string{""}, Resources: []string{"*"}, Verbs: []string{"get", "list", "watch"}},
-				{APIGroups: []string{"example"}, Resources: []string{"examples", "others"}, ResourceNames: []string{"barry", "hank"}, Verbs: []string{"get"}},
+			args: args{
+				rs: []rbacv1.PolicyRule{{
+					APIGroups: []string{""},
+					Resources: []string{"*"},
+					Verbs:     []string{"get"},
+				}},
 			},
-			want: []Rule{
-				{APIGroup: "", Resource: "*", ResourceName: "*", Verb: "get"},
-				{APIGroup: "", Resource: "*", ResourceName: "*", Verb: "list"},
-				{APIGroup: "", Resource: "*", ResourceName: "*", Verb: "watch"},
-				{APIGroup: "example", Resource: "examples", ResourceName: "barry", Verb: "get"},
-				{APIGroup: "example", Resource: "examples", ResourceName: "hank", Verb: "get"},
-				{APIGroup: "example", Resource: "others", ResourceName: "barry", Verb: "get"},
-				{APIGroup: "example", Resource: "others", ResourceName: "hank", Verb: "get"},
-			},
-		},
-		"Combo": {
-			reason: "We should faithfully expand a rule with both URLs and resources. This is invalid, but we let Kubernetes police that.",
-			rs: []rbacv1.PolicyRule{{
-				APIGroups:       []string{""},
-				Resources:       []string{"*"},
-				NonResourceURLs: []string{"/api"},
-				Verbs:           []string{"get"},
-			}},
-			want: []Rule{
-				{
-					NonResourceURL: "/api",
-					Verb:           "get",
-				},
-				{
+			want: want{
+				rules: []Rule{{
 					APIGroup:     "",
 					Resource:     "*",
 					ResourceName: "*",
 					Verb:         "get",
+				}},
+			},
+		},
+		"ComplexResource": {
+			reason: "It should be possible to expand a more complex resource RBAC rule.",
+			args: args{
+				rs: []rbacv1.PolicyRule{
+					{APIGroups: []string{""}, Resources: []string{"*"}, Verbs: []string{"get", "list", "watch"}},
+					{APIGroups: []string{"example"}, Resources: []string{"examples", "others"}, ResourceNames: []string{"barry", "hank"}, Verbs: []string{"get"}},
 				},
+			},
+			want: want{
+				rules: []Rule{
+					{APIGroup: "", Resource: "*", ResourceName: "*", Verb: "get"},
+					{APIGroup: "", Resource: "*", ResourceName: "*", Verb: "list"},
+					{APIGroup: "", Resource: "*", ResourceName: "*", Verb: "watch"},
+					{APIGroup: "example", Resource: "examples", ResourceName: "barry", Verb: "get"},
+					{APIGroup: "example", Resource: "examples", ResourceName: "hank", Verb: "get"},
+					{APIGroup: "example", Resource: "others", ResourceName: "barry", Verb: "get"},
+					{APIGroup: "example", Resource: "others", ResourceName: "hank", Verb: "get"},
+				},
+			},
+		},
+		"Combo": {
+			reason: "We should faithfully expand a rule with both URLs and resources. This is invalid, but we let Kubernetes police that.",
+			args: args{
+				rs: []rbacv1.PolicyRule{{
+					APIGroups:       []string{""},
+					Resources:       []string{"*"},
+					NonResourceURLs: []string{"/api"},
+					Verbs:           []string{"get"},
+				}},
+			},
+			want: want{
+				rules: []Rule{
+					{
+						NonResourceURL: "/api",
+						Verb:           "get",
+					},
+					{
+						APIGroup:     "",
+						Resource:     "*",
+						ResourceName: "*",
+						Verb:         "get",
+					},
+				},
+			},
+		},
+		"ComboCtxCancelled": {
+			reason: "We should return an error if the context is cancelled.",
+			args: args{
+				rs: []rbacv1.PolicyRule{{
+					APIGroups:       []string{""},
+					Resources:       []string{"*"},
+					NonResourceURLs: []string{"/api"},
+					Verbs:           []string{"get"},
+				}},
+				ctx: func() context.Context {
+					ctx, cancel := context.WithCancel(context.Background())
+					cancel()
+					return ctx
+				}(),
+			},
+			want: want{
+				err: context.Canceled,
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := Expand(tc.rs...)
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			ctx := tc.args.ctx
+			if ctx == nil {
+				ctx = context.Background()
+			}
+			got, err := Expand(ctx, tc.rs...)
+			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
+				t.Errorf("\n%s\nExpand(...): -want error, +got error:\n%s", tc.reason, diff)
+			}
+			if diff := cmp.Diff(tc.want.rules, got); diff != "" {
 				t.Errorf("\n%s\nExpand(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
@@ -229,6 +279,7 @@ func TestValidatePermissionRequests(t *testing.T) {
 				},
 			},
 			args: args{
+				ctx: context.Background(),
 				requests: []rbacv1.PolicyRule{
 					// Allowed - we allow * on secrets.
 					{
@@ -268,6 +319,81 @@ func TestValidatePermissionRequests(t *testing.T) {
 					{APIGroup: "", Resource: "pods", ResourceName: "*", Verb: "get"},
 					{APIGroup: "", Resource: "pods", ResourceName: "*", Verb: "list"},
 				},
+			},
+		},
+		"SuccessfulRejectEvenWithTimeout": {
+			fields: fields{
+				c: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						cr := obj.(*rbacv1.ClusterRole)
+						cr.Rules = []rbacv1.PolicyRule{
+							{
+								APIGroups: []string{""},
+								Resources: []string{"secrets", "configmaps", "events"},
+								Verbs:     []string{"*"},
+							},
+							{
+								APIGroups: []string{"apps", "extensions"},
+								Resources: []string{"deployments"},
+								Verbs:     []string{"get"},
+							},
+							{
+								APIGroups: []string{"apps"},
+								Resources: []string{"deployments"},
+								Verbs:     []string{"list"},
+							},
+							{
+								APIGroups:     []string{""},
+								Resources:     []string{"pods"},
+								ResourceNames: []string{"this-one-really-cool-pod"},
+								Verbs:         []string{"*"},
+							},
+						}
+						return nil
+					}),
+				},
+			},
+			args: args{
+				ctx: func() context.Context {
+					ctx, cancel := context.WithCancel(context.Background())
+					cancel()
+					return ctx
+				}(),
+				requests: []rbacv1.PolicyRule{
+					// Allowed - we allow * on secrets.
+					{
+						APIGroups: []string{""},
+						Resources: []string{"secrets"},
+						Verbs:     []string{"*"},
+					},
+					// Allowed - we allow * on configmaps.
+					{
+						APIGroups: []string{""},
+						Resources: []string{"configmaps"},
+						Verbs:     []string{"get", "list", "watch"},
+					},
+					// Rejected - we don't allow get on extensions/deployments.
+					{
+						APIGroups: []string{"extensions"},
+						Resources: []string{"deployments"},
+						Verbs:     []string{"get", "list"},
+					},
+					// Allowed - we allow get and list on apps/deployments.
+					{
+						APIGroups: []string{"apps"},
+						Resources: []string{"deployments"},
+						Verbs:     []string{"get", "list"},
+					},
+					// Rejected - we only allow access to really cool pods.
+					{
+						APIGroups: []string{""},
+						Resources: []string{"pods"},
+						Verbs:     []string{"get", "list"},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(context.Canceled, errExpandClusterRoleRules),
 			},
 		},
 	}
