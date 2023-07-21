@@ -182,14 +182,14 @@ type EnvironmentSourceSelector struct {
 	// Mode specifies retrieval strategy: "Single" or "Multiple".
 	// +kubebuilder:validation:Enum=Single;Multiple
 	// +kubebuilder:default=Single
-	Mode EnvironmentSourceSelectorModeType `json:"mode"`
+	Mode EnvironmentSourceSelectorModeType `json:"mode,omitempty"`
 
 	// MaxMatch specifies the number of extracted EnvironmentConfigs in Multiple mode, extracts all if nil.
 	MaxMatch *uint64 `json:"maxMatch,omitempty"`
 
 	// SortByFieldPath is the path to the field based on which list of EnvironmentConfigs is alphabetically sorted.
 	// +kubebuilder:default="metadata.name"
-	SortByFieldPath string `json:"sortByFieldPath"`
+	SortByFieldPath string `json:"sortByFieldPath,omitempty"`
 
 	// MatchLabels ensures an object with matching labels is selected.
 	MatchLabels []EnvironmentSourceSelectorLabelMatcher `json:"matchLabels,omitempty"`
@@ -231,7 +231,7 @@ type EnvironmentSourceSelectorLabelMatcher struct {
 	// +optional
 	// +kubebuilder:validation:Enum=FromCompositeFieldPath;Value
 	// +kubebuilder:default=FromCompositeFieldPath
-	Type EnvironmentSourceSelectorLabelMatcherType `json:"type"`
+	Type EnvironmentSourceSelectorLabelMatcherType `json:"type,omitempty"`
 
 	// Key of the label to match.
 	Key string `json:"key"`
