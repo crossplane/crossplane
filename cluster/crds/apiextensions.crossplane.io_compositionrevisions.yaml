@@ -147,9 +147,6 @@ spec:
                                 based on which list of EnvironmentConfigs is alphabetically
                                 sorted.
                               type: string
-                          required:
-                          - mode
-                          - sortByFieldPath
                           type: object
                         type:
                           default: Reference
@@ -1628,9 +1625,6 @@ spec:
                                 based on which list of EnvironmentConfigs is alphabetically
                                 sorted.
                               type: string
-                          required:
-                          - mode
-                          - sortByFieldPath
                           type: object
                         type:
                           default: Reference
