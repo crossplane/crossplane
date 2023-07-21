@@ -105,6 +105,7 @@ type startCommand struct {
 	EnableExternalSecretStores               bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
 	EnableCompositionFunctions               bool `group:"Alpha Features:" help:"Enable support for Composition Functions."`
 	EnableCompositionWebhookSchemaValidation bool `group:"Alpha Features:" help:"Enable support for Composition validation using schemas."`
+	EnableUsages                             bool `group:"Alpha Features:" help:"Enable support for deletion ordering and resource protection with Usages."`
 
 	// These are GA features that previously had alpha or beta feature flags.
 	// You can't turn off a GA feature. We maintain the flags to avoid breaking
@@ -195,6 +196,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	if c.EnableCompositionWebhookSchemaValidation {
 		feats.Enable(features.EnableAlphaCompositionWebhookSchemaValidation)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionWebhookSchemaValidation)
+	}
+	if c.EnableUsages {
+		feats.Enable(features.EnableAlphaUsages)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaUsages)
 	}
 	if !c.EnableCompositionRevisions {
 		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")

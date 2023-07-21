@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/crossplane/crossplane/internal/features"
 	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -51,6 +52,9 @@ func IndexValueForObject(u *unstructured.Unstructured) string {
 
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
+	if !options.Features.Enabled(features.EnableAlphaUsages) {
+		return nil
+	}
 	indexer := mgr.GetFieldIndexer()
 	if err := indexer.IndexField(context.Background(), &v1alpha1.Usage{}, InUseIndexKey, func(obj client.Object) []string {
 		u := obj.(*v1alpha1.Usage)

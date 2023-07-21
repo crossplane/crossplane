@@ -18,6 +18,7 @@ limitations under the License.
 package apiextensions
 
 import (
+	"github.com/crossplane/crossplane/internal/features"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composition"
@@ -37,8 +38,10 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 		return err
 	}
 
-	if err := usage.Setup(mgr, o); err != nil {
-		return err
+	if o.Features.Enabled(features.EnableAlphaUsages) {
+		if err := usage.Setup(mgr, o); err != nil {
+			return err
+		}
 	}
 
 	return offered.Setup(mgr, o)
