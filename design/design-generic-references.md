@@ -12,7 +12,7 @@ resources. Very often, creation of these objects cannot happen in parallel, i.e.
 fields can be set only after a given dependency is created.
 
 [Cross resource referencing] solves this problem for majority of cases by
-following [Kuberentes API object referemce] convention:
+following [Kubernetes API object reference] convention:
 
 ```yaml
 spec:
@@ -20,14 +20,14 @@ spec:
     name: bar
 ```
 
-Field `spec.fooRef` contains the name of resource where the value for `spec.foo` is to
+Field `spec.fooRef` contains the name of the resource where the value for `spec.foo` is to
 be found. The kind of referred resource and the field containing the value used later for
 setting `spec.foo` is determined during compile time.
 
 Although the used convention covers the majority of use cases, it lacks the
 following properties:
 
-* The referred object kind and the source field cannot be tuned/changed at 
+* The referred object kind and the source field cannot be changed at 
   runtime for a given object
 * The referencer field may not always target a single referred kind. For
   example, a URL field in Route53 could get populated by a URL of an S3 bucket
@@ -38,22 +38,21 @@ following properties:
   transformation
 
 Some of the above issues can be solved by defining a composition. However, there
-are cases where one would like to use and refer a resource not bound by a 
+are cases where one would like to use and refer to a resource not bound by a 
 composite instance.
 
-__**NOTE**__: there is 
-[a previous work on this topic](https://github.com/crossplane/crossplane/pull/2385).
+__**NOTE**__: [a prior design exists on this topic](https://github.com/crossplane/crossplane/pull/2385).
 
 ## Goals
 
 The generic cross-reference should be able to:
 
-* be configurable at the runtime
-* use the existing [Kuberentes API object referemce] convention 
+* be configurable at runtime
+* use the existing [Kubernetes API object reference] convention 
   as much as possible
-* provide alternative convention in cases where [Kuberentes API object referemce]
+* provide alternative convention in cases where [Kubernetes API object reference]
   convention is not suitable
-* be implemented without or light changes in RBAC
+* be implemented without or requiring only light changes in RBAC
 * support referring multiple objects (namespaced and cluster-scoped) and their
   fields
 * support value transformation before assignment
@@ -62,7 +61,7 @@ The generic cross-reference should be able to:
 
 We would like to introduce a new cluster-scoped `Referable` (alternative name
 could be `InjectableValue`) type whose instances declare values that can be
-assigned to object field:
+assigned to an object field:
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -77,8 +76,8 @@ spec:
       fieldPath: status.atProvider.id
 ```
 
-The syntax of `fieldPath` field is similar to what we
-use in Composition, in line with [Kubernetes API Conventions on field selection].
+The syntax of the `fieldPath` field is similar to what we
+use in Composition, in line with the [Kubernetes API Conventions on field selection].
 
 After deploying the above instance to the cluster, its reconciliation gets 
 triggered and once the referred object exists and the field is set, 
@@ -110,14 +109,15 @@ spec:
   vpcIdRef: referable-vpc-id
 ```
 
-The reference resolver could first try to find `referable-vpc-id` `VPC` instance, 
+The reference resolver could first try to find the `referable-vpc-id` `VPC` instance, 
 and fallback to `referable-vpc-id` `Referable` if the former does not exist. 
 If the instance is ready, the value is read from `status.value` and 
-set to `spec.vpcId` of the managed resource. Ofcourse, if needed, and if it 
+set to `spec.vpcId` of the managed resource. Of course, if needed, and if it 
 makes more sense, the resolver could first look for the existence of `Referable` 
-object first.
+object first. With that strategy, we would be able to overwrite the referencing
+mechanism set at the compile-time.
 
-Referring a namespaced object would be possible as well:
+Referring to a namespaced object would be possible as well:
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
@@ -133,7 +133,7 @@ spec:
       fieldPath: data.region
 ```
 
-or we could match an object with a label selector, if its name is unknown or not
+or we could match an object with a label selector if its name is unknown or not
 static:
 
 ```yaml
@@ -152,7 +152,7 @@ spec:
 
 ### Value Assigning Without Counterpart Ref Field
 
-If a value needs to be assigned to a field that does not have
+If a value needs to be assigned to a field that does not have a
 corresponding `Ref` field, the reference can be expressed using `spec.refs` block:
 
 ```yaml
@@ -162,10 +162,10 @@ spec:
       toFieldPath: spec.myVPCId
 ```
 
-The syntax of `toFieldPath` field is similar to what we
-use in Composition, in line [Kubernetes API Conventions on field selection].
+The syntax of the `toFieldPath` field is similar to what we
+use in Composition, in line with the [Kubernetes API Conventions on field selection].
 
-Alternatively, if we would like to avoid changing managed resource schema, the
+Alternatively, if we would like to avoid changing the managed resource schema, the
 above can be stated using annotations as well:
 
 ```yaml
@@ -236,8 +236,8 @@ A number of useful transformation functions could be made available to that cont
 
 * All referred values are declared on managed resources using already familiar
   mechanism, keeping their discovery simple
-* Value extraction is detached from its consumption, same `Referable` can be
-  used by many multiple manged resources
+* Value extraction is detached from its consumption. The same `Referable` can be
+  used by multiple managed resources
 * `Referable` instances can be watched and used by non-Crossplane controllers as
   well
 * `Referable` instances can be properly garbage collected if owner
@@ -248,14 +248,15 @@ A number of useful transformation functions could be made available to that cont
 
 ### Disadvantages
 
-* Providers might need to get read access to `Referable` type
+* Providers might need to get read access to `Referable` type 
+  in order to resolve generic cross-resource references
 
 ### Implementation
 
 It consists of two parts:
 
-* Adding new Crossplane controller for `Referable` type
-* Update [controller-runtime](https://github.com/crossplane/crossplane-runtime/)
+* Adding new Crossplane controller for the `Referable` type
+* Update [crossplane-runtime](https://github.com/crossplane/crossplane-runtime/)
   to support usage of `Referable` instances
 
 #### Referable Controller
@@ -270,36 +271,40 @@ The controller is responsible for:
 * Marking the instance as ready
 
 We assume currently that the value does not change after it gets exposed.
+Allowing updates and propagating them to the managed resources is out
+of the scope for this proposal version.
 
 No additional RBAC rules are needed, since Crossplane already poses very broad
 permissions within the cluster.
 
-#### Controller-runtime Changes
+#### Crossplane-runtime Changes
 
 * [APIResolver](https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reference/reference.go#L280)
   should be enriched to support `Referable` instances
-* If additional references need to be declared via `spec.refs` block or
-  annotations, [ResolveReferences function generator](https://github.com/crossplane/crossplane-tools/blob/master/internal/method/resolver.go#L33)
+* If additional references need to be declared via the `spec.refs` block or
+  annotations, the [ResolveReferences function generator](https://github.com/crossplane/crossplane-tools/blob/master/internal/method/resolver.go#L33)
   should be enriched to support them
 * After fetching values, proper `Usage` instance need to be defined to guard
   against improper deletion
 
-Finally, providers need to be upgraded to use the new version of controller-runtime 
-and each type `ResolveReference` function needs to be regenerated.
+Finally, providers need to be upgraded to use the new version of crossplane-runtime 
+and for each type, the `ResolveReference` function needs to be regenerated.
 
 ## Alternatives Considered
 
-* There is [a previous work on this topic](https://github.com/crossplane/crossplane/pull/2385)  
+* [A previous design](https://github.com/crossplane/crossplane/pull/2385) was
+  proposed for this topic.
+
   It embeds the schema similar `Referable` type into a number of `spec.patches.fromObject`
-  fields in managed resource. Such approach would require that each provider 
-  has access to broad set of resources (even from other providers), demanding
+  fields in managed resources. Such an approach would require that each provider 
+  has access to a broad set of resources (even from other providers), demanding
   a broad set of RBAC rules. Furthermore, if a certain value transformation is
   needed on multiple managed resources, it would be required to repeat its 
   declaration on every MR.
 
 * `Referable` instances could also contain the reference 
-   to destination managed resource and its field.
-    - Such approach would make the discovery of references for a given manage
+   to the destination managed resource and its field.
+    - Such approach would make the discovery of references for a given managed
       resource harder
     - Referable controller logic becomes more complex, because the destination
       managed resource might not exist
@@ -309,6 +314,6 @@ and each type `ResolveReference` function needs to be regenerated.
     - However, providers would not need the read access to `Referable` instances
 
 [Cross resource referencing]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
-[Kuberentes API object referemce]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#object-references
+[Kubernetes API object reference]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#object-references
 [Kubernetes API Conventions on field selection]: https://github.com/kubernetes/community/blob/744e270/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
 [Go templates]: https://pkg.go.dev/text/template
