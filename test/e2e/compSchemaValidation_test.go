@@ -37,7 +37,8 @@ func TestCompositionValidation(t *testing.T) {
 	cases := features.Table{
 		{
 			// A valid Composition should be created when validated in strict mode.
-			Name: "ValidCompositionIsAccepted",
+			Name:        "ValidCompositionIsAcceptedStrictMode",
+			Description: "A valid Composition should be created when validated in strict mode.",
 			Assessment: funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "composition-valid.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-valid.yaml"),
@@ -45,7 +46,7 @@ func TestCompositionValidation(t *testing.T) {
 		},
 		{
 			// An invalid Composition should be rejected when validated in strict mode.
-			Name:       "InvalidCompositionIsRejected",
+			Name:       "InvalidCompositionIsRejectedStrictMode",
 			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid.yaml"),
 		},
 	}
