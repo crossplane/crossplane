@@ -460,6 +460,13 @@ func TestValidateFieldPath(t *testing.T) {
 							},
 						}}}},
 		},
+		"AcceptAnnotations": {
+			want: want{err: nil, fieldType: "string"},
+			args: args{
+				fieldPath: "metadata.annotations[cooler-field]",
+				schema:    getDefaultSchema(),
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
