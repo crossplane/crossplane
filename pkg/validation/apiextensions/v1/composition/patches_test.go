@@ -444,6 +444,22 @@ func TestValidateFieldPath(t *testing.T) {
 				schema:    &apiextensions.JSONSchemaProps{Properties: map[string]apiextensions.JSONSchemaProps{"metadata": {Type: "object"}}},
 			},
 		},
+		"AcceptXPreserveUnknownFieldsInAdditionalProperties": {
+			reason: "Should properly handle x-preserve-unknown-fields even if defined in a nested schema",
+			want:   want{err: nil, fieldType: ""},
+			args: args{
+				fieldPath: "data.someField",
+				schema: &apiextensions.JSONSchemaProps{
+					Properties: map[string]apiextensions.JSONSchemaProps{
+						"data": {
+							Type: "object",
+							AdditionalProperties: &apiextensions.JSONSchemaPropsOrBool{
+								Schema: &apiextensions.JSONSchemaProps{
+									XPreserveUnknownFields: &[]bool{true}[0],
+								},
+							},
+						}}}},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
