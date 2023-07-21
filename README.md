@@ -65,7 +65,8 @@ with the broader community is encouraged to join.
 * [Community Calendar][community calendar]
 
 ### Special Interest Groups (SIG)
-Each SIG collaborates in Slack and some groups have regular meetings, you can find the meetings in the [Community Calendar][community calendar].
+Each SIG collaborates in Slack and some groups have regular meetings, you can
+find the meetings in the [Community Calendar][community calendar].
 - [#sig-composition-environments][sig-composition-environments-slack]
 - [#sig-composition-functions][sig-composition-functions-slack]
 - [#sig-e2e-testing][sig-e2e-testing-slack]
