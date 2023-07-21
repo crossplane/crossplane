@@ -121,6 +121,7 @@ cobertura:
 e2e.test.images:
 	@$(INFO) Building E2E test images
 	@docker build --load -t $(BUILD_REGISTRY)/fn-labelizer-$(TARGETARCH) test/e2e/testdata/images/labelizer
+	@docker build --load -t $(BUILD_REGISTRY)/fn-tmp-writer-$(TARGETARCH) test/e2e/testdata/images/tmp-writer
 	@$(OK) Built E2E test images
 
 e2e-tag-images: e2e.test.images
@@ -128,6 +129,7 @@ e2e-tag-images: e2e.test.images
 	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
 	@docker tag $(BUILD_REGISTRY)/xfn-$(TARGETARCH) crossplane-e2e/xfn:latest || $(FAIL)
 	@docker tag $(BUILD_REGISTRY)/fn-labelizer-$(TARGETARCH) crossplane-e2e/fn-labelizer:latest || $(FAIL)
+	@docker tag $(BUILD_REGISTRY)/fn-tmp-writer-$(TARGETARCH) crossplane-e2e/fn-tmp-writer:latest || $(FAIL)
 	@$(OK) Tagged E2E test images
 
 # NOTE(negz): There's already a go.test.integration target, but it's weird.

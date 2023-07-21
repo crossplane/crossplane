@@ -24,15 +24,20 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/daemon"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/e2e-framework/klient/decoder"
@@ -46,6 +51,8 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/fieldpath"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
 
 // AllOf runs the supplied functions in order.
@@ -385,6 +392,111 @@ func DeleteResources(dir, pattern string) features.Func {
 	}
 }
 
+// CopyImageToRegistry tries to copy the supplied image to the supplied registry within the timeout
+func CopyImageToRegistry(clusterName, ns, sName, image string, timeout time.Duration) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		reg, err := ServiceIngressEndPoint(ctx, c, clusterName, ns, sName)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		t.Logf("registry endpoint %s", reg)
+		srcRef, err := name.ParseReference(image)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		src, err := daemon.Image(srcRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		i := strings.Split(srcRef.String(), "/")
+		err = wait.For(func() (done bool, err error) {
+			err = crane.Push(src, fmt.Sprintf("%s/%s", reg, i[1]), crane.Insecure)
+			if err != nil {
+				return false, nil //nolint:nilerr // we want to retry and to throw error
+			}
+			return true, nil
+		}, wait.WithTimeout(timeout))
+		if err != nil {
+			t.Fatalf("copying image `%s` to registry `%s` not successful: %v", image, reg, err)
+		}
+
+		return ctx
+	}
+}
+
+// ManagedResourcesOfClaimHaveFieldValueWithin fails a test if the managed resources
+// created by the claim does not have the supplied value at the supplied path
+// within the supplied duration.
+func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, path string, want any, filter func(object k8s.Object) bool) features.Func {
+	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
+		cm := &claim.Unstructured{}
+		if err := decoder.DecodeFile(os.DirFS(dir), file, cm); err != nil {
+			t.Error(err)
+			return ctx
+		}
+
+		if err := c.Client().Resources().Get(ctx, cm.GetName(), cm.GetNamespace(), cm); err != nil {
+			t.Errorf("cannot get claim %s: %v", cm.GetName(), err)
+			return ctx
+		}
+
+		xrRef := cm.GetResourceReference()
+		uxr := &composite.Unstructured{}
+
+		uxr.SetGroupVersionKind(xrRef.GroupVersionKind())
+		if err := c.Client().Resources().Get(ctx, xrRef.Name, xrRef.Namespace, uxr); err != nil {
+			t.Errorf("cannot get composite %s: %v", xrRef.Name, err)
+			return ctx
+		}
+
+		mrRefs := uxr.GetResourceReferences()
+
+		list := &unstructured.UnstructuredList{}
+		for _, ref := range mrRefs {
+			mr := &unstructured.Unstructured{}
+			mr.SetName(ref.Name)
+			mr.SetNamespace(ref.Namespace)
+			mr.SetGroupVersionKind(ref.GroupVersionKind())
+			list.Items = append(list.Items, *mr)
+		}
+
+		count := atomic.Int32{}
+		match := func(o k8s.Object) bool {
+			// filter function should return true if the object needs to be checked. e.g., if you want to check the field
+			// path of a VPC object, filter function should return true for VPC objects only.
+			if filter != nil && !filter(o) {
+				t.Logf("skipping resource %s/%s/%s due to filtering", o.GetNamespace(), o.GetName(), o.GetObjectKind().GroupVersionKind().String())
+				return true
+			}
+			count.Add(1)
+			u := asUnstructured(o)
+			got, err := fieldpath.Pave(u.Object).GetValue(path)
+			if err != nil {
+				return false
+			}
+
+			return cmp.Equal(want, got)
+		}
+
+		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
+			y, _ := yaml.Marshal(list.Items)
+			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", want, err, y)
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("there are no unfiltered referred managed resources to check")
+			return ctx
+		}
+
+		t.Logf("%d resources have desired value %q at field path %s", len(list.Items), want, path)
+		return ctx
+	}
+}
+
 // asUnstructured turns an arbitrary runtime.Object into an *Unstructured. If
 // it's already a concrete *Unstructured it just returns it, otherwise it
 // round-trips it through JSON encoding. This is necessary because types that
@@ -412,4 +524,14 @@ func identifier(o k8s.Object) string {
 		return fmt.Sprintf("%s %s", k, o.GetName())
 	}
 	return fmt.Sprintf("%s %s/%s", k, o.GetNamespace(), o.GetName())
+}
+
+// FilterByGK returns a filter function that returns true if the supplied object is of the supplied GroupKind.
+func FilterByGK(gk schema.GroupKind) func(o k8s.Object) bool {
+	return func(o k8s.Object) bool {
+		if o.GetObjectKind() == nil {
+			return false
+		}
+		return o.GetObjectKind().GroupVersionKind().Group == gk.Group && o.GetObjectKind().GroupVersionKind().Kind == gk.Kind
+	}
 }
