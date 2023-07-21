@@ -399,7 +399,7 @@ func validateFieldPathSegment(parent *apiextensions.JSONSchemaProps, segment fie
 	return nil, nil
 }
 
-func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) {
+func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segment fieldpath.Segment) (*apiextensions.JSONSchemaProps, error) { //nolint:gocyclo // inherently complex
 	if parent == nil {
 		return nil, nil
 	}
@@ -420,6 +420,9 @@ func validateFieldPathSegmentField(parent *apiextensions.JSONSchemaProps, segmen
 		// Schema is not nil.
 		// See https://github.com/kubernetes/kubernetes/blob/ff4eff24ac4fad5431aa89681717d6c4fe5733a4/staging/src/k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/validation/validation.go#L828
 		if parent.AdditionalProperties != nil && (parent.AdditionalProperties.Allows || parent.AdditionalProperties.Schema != nil) {
+			if parent.AdditionalProperties.Schema != nil && parent.AdditionalProperties.Schema.Type != "" {
+				return parent.AdditionalProperties.Schema, nil
+			}
 			// re-evaluate the segment against the additional properties schema
 			return validateFieldPathSegmentField(parent.AdditionalProperties.Schema, segment)
 		}
