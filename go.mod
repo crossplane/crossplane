@@ -15,7 +15,7 @@ require (
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230617045147-2472cbbbf289
 	github.com/google/uuid v1.3.0
 	github.com/jmattheis/goverter v0.17.4
-	github.com/opencontainers/runtime-spec v1.1.0-rc.3.0.20230610073135-48415de180cf
+	github.com/opencontainers/runtime-spec v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/afero v1.9.5
