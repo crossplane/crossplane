@@ -82,43 +82,43 @@ func TestForCompositeResource(t *testing.T) {
 
 	schema := `
 {
-  "required": [
-    "spec"
-  ],
-  "properties": {
-    "spec": {
-      "description": "Specification of the resource.",
-      "required": [
-        "storageGB",
-        "engineVersion"
-      ],
-      "properties": {
-        "engineVersion": {
-          "enum": [
-            "5.6",
-            "5.7"
-          ],
-          "type": "string"
-        },
-        "storageGB": {
-          "type": "integer",
-          "description": "Pretend this is useful."
-        }
-      },
-      "type": "object"
-    },
-    "status": {
-      "properties": {
-        "phase": {
-          "type": "string"
-        }
-      },
-      "type": "object",
-	  "description": "Status of the resource."
-    }
-  },
-  "type": "object",
-  "description": "What the resource is for."
+	"required": [
+		"spec"
+	],
+	"properties": {
+		"spec": {
+			"description": "Specification of the resource.",
+			"required": [
+				"storageGB",
+				"engineVersion"
+			],
+			"properties": {
+				"engineVersion": {
+					"enum": [
+						"5.6",
+						"5.7"
+					],
+					"type": "string"
+				},
+				"storageGB": {
+					"type": "integer",
+					"description": "Pretend this is useful."
+				}
+			},
+			"type": "object"
+		},
+		"status": {
+			"properties": {
+				"phase": {
+					"type": "string"
+				}
+			},
+			"type": "object",
+			"description": "Status of the resource."
+		}
+	},
+	"type": "object",
+	"description": "What the resource is for."
 }`
 
 	d := &v1.CompositeResourceDefinition{
@@ -196,9 +196,9 @@ func TestForCompositeResource(t *testing.T) {
 				},
 				Schema: &extv1.CustomResourceValidation{
 					OpenAPIV3Schema: &extv1.JSONSchemaProps{
-						Type:     "object",
+						Type:        "object",
 						Description: "What the resource is for.",
-						Required: []string{"spec"},
+						Required:    []string{"spec"},
 						Properties: map[string]extv1.JSONSchemaProps{
 							"apiVersion": {
 								Type: "string",
@@ -212,8 +212,8 @@ func TestForCompositeResource(t *testing.T) {
 								Type: "object",
 							},
 							"spec": {
-								Type:     "object",
-								Required: []string{"storageGB", "engineVersion"},
+								Type:        "object",
+								Required:    []string{"storageGB", "engineVersion"},
 								Description: "Specification of the resource.",
 								Properties: map[string]extv1.JSONSchemaProps{
 									// From CRDSpecTemplate.Validation
@@ -362,7 +362,7 @@ func TestForCompositeResource(t *testing.T) {
 								},
 							},
 							"status": {
-								Type: "object",
+								Type:        "object",
 								Description: "Status of the resource.",
 								Properties: map[string]extv1.JSONSchemaProps{
 									"phase": {Type: "string"},
@@ -937,8 +937,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					},
 					Schema: &extv1.CustomResourceValidation{
 						OpenAPIV3Schema: &extv1.JSONSchemaProps{
-							Type:     "object",
-							Required: []string{"spec"},
+							Type:        "object",
+							Required:    []string{"spec"},
 							Description: "Description of the resource.",
 							Properties: map[string]extv1.JSONSchemaProps{
 								"apiVersion": {
@@ -953,8 +953,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 									Type: "object",
 								},
 								"spec": {
-									Type:     "object",
-									Required: []string{"storageGB", "engineVersion"},
+									Type:        "object",
+									Required:    []string{"storageGB", "engineVersion"},
 									Description: "Specification of the resource.",
 									Properties: map[string]extv1.JSONSchemaProps{
 										// From CRDSpecTemplate.Validation
@@ -1078,7 +1078,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 									},
 								},
 								"status": {
-									Type: "object",
+									Type:        "object",
 									Description: "Status of the resource.",
 									Properties: map[string]extv1.JSONSchemaProps{
 										"phase": {Type: "string"},
