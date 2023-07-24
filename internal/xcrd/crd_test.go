@@ -87,6 +87,7 @@ func TestForCompositeResource(t *testing.T) {
   ],
   "properties": {
     "spec": {
+      "description": "Specification of the resource.",
       "required": [
         "storageGB",
         "engineVersion"
@@ -100,7 +101,8 @@ func TestForCompositeResource(t *testing.T) {
           "type": "string"
         },
         "storageGB": {
-          "type": "integer"
+          "type": "integer",
+          "description": "Pretend this is useful."
         }
       },
       "type": "object"
@@ -111,10 +113,12 @@ func TestForCompositeResource(t *testing.T) {
           "type": "string"
         }
       },
-      "type": "object"
+      "type": "object",
+	  "description": "Status of the resource."
     }
   },
-  "type": "object"
+  "type": "object",
+  "description": "What the resource is for."
 }`
 
 	d := &v1.CompositeResourceDefinition{
@@ -193,6 +197,7 @@ func TestForCompositeResource(t *testing.T) {
 				Schema: &extv1.CustomResourceValidation{
 					OpenAPIV3Schema: &extv1.JSONSchemaProps{
 						Type:     "object",
+						Description: "What the resource is for.",
 						Required: []string{"spec"},
 						Properties: map[string]extv1.JSONSchemaProps{
 							"apiVersion": {
@@ -209,9 +214,10 @@ func TestForCompositeResource(t *testing.T) {
 							"spec": {
 								Type:     "object",
 								Required: []string{"storageGB", "engineVersion"},
+								Description: "Specification of the resource.",
 								Properties: map[string]extv1.JSONSchemaProps{
 									// From CRDSpecTemplate.Validation
-									"storageGB": {Type: "integer"},
+									"storageGB": {Type: "integer", Description: "Pretend this is useful."},
 									"engineVersion": {
 										Type: "string",
 										Enum: []extv1.JSON{
@@ -356,6 +362,7 @@ func TestForCompositeResource(t *testing.T) {
 							},
 							"status": {
 								Type: "object",
+								Description: "Status of the resource.",
 								Properties: map[string]extv1.JSONSchemaProps{
 									"phase": {Type: "string"},
 
@@ -522,6 +529,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 {
 	"properties": {
 		"spec": {
+			"description": "Specification of the resource.",
 			"required": [
 				"storageGB",
 				"engineVersion"
@@ -535,21 +543,24 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					"type": "string"
 				},
 				"storageGB": {
-					"type": "integer"
+					"type": "integer",
+					"description": "Pretend this is useful."
 				}
 			},
 			"type": "object"
 		},
 		"status": {
-      "properties": {
-        "phase": {
-          "type": "string"
-        }
-      },
-      "type": "object"
-    }
+			"properties": {
+				"phase": {
+					"type": "string"
+				}
+			},
+			"type": "object",
+			"description": "Status of the resource."
+		}
 	},
-	"type": "object"
+	"type": "object",
+	"description": "Description of the resource."
 }`
 
 	d := &v1.CompositeResourceDefinition{
@@ -636,6 +647,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 						OpenAPIV3Schema: &extv1.JSONSchemaProps{
 							Type:     "object",
 							Required: []string{"spec"},
+							Description: "Description of the resource.",
 							Properties: map[string]extv1.JSONSchemaProps{
 								"apiVersion": {
 									Type: "string",
@@ -651,9 +663,10 @@ func TestForCompositeResourceClaim(t *testing.T) {
 								"spec": {
 									Type:     "object",
 									Required: []string{"storageGB", "engineVersion"},
+									Description: "Specification of the resource.",
 									Properties: map[string]extv1.JSONSchemaProps{
 										// From CRDSpecTemplate.Validation
-										"storageGB": {Type: "integer"},
+										"storageGB": {Type: "integer", Description: "Pretend this is useful."},
 										"engineVersion": {
 											Type: "string",
 											Enum: []extv1.JSON{
@@ -772,6 +785,7 @@ func TestForCompositeResourceClaim(t *testing.T) {
 								},
 								"status": {
 									Type: "object",
+									Description: "Status of the resource.",
 									Properties: map[string]extv1.JSONSchemaProps{
 										"phase": {Type: "string"},
 
