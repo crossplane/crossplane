@@ -1,0 +1,22 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: example-environment-1
+data:
+  complex:
+    a: b
+    c:
+      d: e
+      f: "1"
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: example-environment-2
+  labels:
+    stage: prod
+data:
+  complex:
+    c:
+      f: "2"

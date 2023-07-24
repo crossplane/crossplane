@@ -270,7 +270,9 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 			t.Logf("Waiting %s for %s to have value %q at field path %s...", d, identifier(u), want, path)
 		}
 
+		count := atomic.Int32{}
 		match := func(o k8s.Object) bool {
+			count.Add(1)
 			u := asUnstructured(o)
 			got, err := fieldpath.Pave(u.Object).GetValue(path)
 			if err != nil {
@@ -283,6 +285,11 @@ func ResourcesHaveFieldValueWithin(d time.Duration, dir, pattern, path string, w
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
 			t.Errorf("resources did not have desired value %q at field path %s: %v:\n\n%s\n\n", want, path, err, y)
+			return ctx
+		}
+
+		if count.Load() == 0 {
+			t.Errorf("no resources matched pattern %s", filepath.Join(dir, pattern))
 			return ctx
 		}
 
@@ -323,19 +330,37 @@ func ResourceHasFieldValueWithin(d time.Duration, o k8s.Object, path string, wan
 // the supplied glob pattern (e.g. *.yaml). It uses server-side apply - fields
 // are managed by the supplied field manager. It fails the test if any supplied
 // resource cannot be applied successfully.
-func ApplyResources(manager, dir, pattern string) features.Func {
+func ApplyResources(manager, dir, pattern string, options ...decoder.DecodeOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		dfs := os.DirFS(dir)
 
-		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager)); err != nil {
+		if err := decoder.DecodeEachFile(ctx, dfs, pattern, ApplyHandler(c.Client().Resources(), manager), options...); err != nil {
 			t.Fatal(err)
 			return ctx
 		}
 
 		files, _ := fs.Glob(dfs, pattern)
+		if len(files) == 0 {
+			t.Errorf("No resources found in %s", filepath.Join(dir, pattern))
+			return ctx
+		}
 		t.Logf("Applied resources from %s (matched %d manifests)", filepath.Join(dir, pattern), len(files))
 		return ctx
 	}
+}
+
+// SetAnnotationMutateOption returns a DecodeOption that sets the supplied
+// annotation on the decoded object.
+func SetAnnotationMutateOption(key, value string) decoder.DecodeOption {
+	return decoder.MutateOption(func(o k8s.Object) error {
+		a := o.GetAnnotations()
+		if a == nil {
+			a = map[string]string{}
+		}
+		a[key] = value
+		o.SetAnnotations(a)
+		return nil
+	})
 }
 
 // ResourcesFailToApply applies all manifests under the supplied directory that
@@ -483,16 +508,17 @@ func ManagedResourcesOfClaimHaveFieldValueWithin(d time.Duration, dir, file, pat
 
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesMatch(list, match), wait.WithTimeout(d)); err != nil {
 			y, _ := yaml.Marshal(list.Items)
-			t.Errorf("resources did not have desired conditions: %s: %v:\n\n%s\n\n", want, err, y)
+			t.Errorf("resources did not have desired value %q at field path %q before timeout (%s): %s\n\n%s\n\n", want, path, d.String(), err, y)
+
 			return ctx
 		}
 
 		if count.Load() == 0 {
-			t.Errorf("there are no unfiltered referred managed resources to check")
+			t.Errorf("there were no unfiltered referred managed resources to check")
 			return ctx
 		}
 
-		t.Logf("%d resources have desired value %q at field path %s", len(list.Items), want, path)
+		t.Logf("matching resources had desired value %q at field path %s", want, path)
 		return ctx
 	}
 }

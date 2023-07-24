@@ -1,0 +1,43 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xsqlinstances.example.org
+spec:
+  group: example.org
+  names:
+    kind: XSQLInstance
+    plural: xsqlinstances
+  claimNames:
+    kind: SQLInstance
+    plural: sqlinstances
+  defaultCompositionRef:
+    name: nop.sqlinstances.example.org
+  defaultCompositeDeletePolicy: Background
+  defaultCompositionUpdatePolicy: Automatic
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    storageGB:
+                      type: integer
+                  required:
+                    - storageGB
+              required:
+                - parameters
+            status:
+              type: object
+              properties:
+                address:
+                  description: Address of this MySQL server.
+                  type: string

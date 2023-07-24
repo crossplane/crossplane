@@ -1,0 +1,35 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: nop.sqlinstances.example.org
+spec:
+  writeConnectionSecretsToNamespace: crossplane-system
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XSQLInstance
+  environment:
+    policy:
+      resolution: Optional       # <==
+    environmentConfigs:
+      - ref:
+          name: example-environment-1
+      - ref:
+          name: example-environment-2
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - time: 10s
+                conditionType: Ready
+                conditionStatus: "True"
+          providerConfigRef:
+            name: default
+      patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: complex.c.f
+          toFieldPath: metadata.annotations[valueFromEnv]
