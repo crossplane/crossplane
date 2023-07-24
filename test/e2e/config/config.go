@@ -58,14 +58,13 @@ type selectedTestSuite struct {
 
 func (s *selectedTestSuite) String() string {
 	if !s.set {
-		fmt.Println("HERE: No test suite selected, using default")
 		return TestSuiteDefault
 	}
 	return s.name
 }
 
 func (s *selectedTestSuite) Set(v string) error {
-	fmt.Printf("HERE: Setting test suite to %s\n", v)
+	fmt.Printf("Setting test suite to %s\n", v)
 	s.name = v
 	s.set = true
 	return nil
