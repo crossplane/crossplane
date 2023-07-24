@@ -21,9 +21,13 @@ import (
 	"testing"
 
 	fuzz "github.com/AdaLogics/go-fuzz-headers"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/yaml"
 
+	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
@@ -143,5 +147,42 @@ func FuzzTransform(f *testing.F) {
 		}
 
 		_, _ = Resolve(*t, i)
+	})
+}
+
+func YamlToUnstructured(yamlStr string) (*unstructured.Unstructured, error) {
+	obj := make(map[string]interface{})
+	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+	if err != nil {
+		return nil, err
+	}
+	return &unstructured.Unstructured{Object: obj}, nil
+}
+
+func FuzzPTFComposer(f *testing.F) {
+	f.Fuzz(func(t *testing.T, data []byte, yamlData string) {
+		ff := fuzz.NewConsumer(data)
+		state := &PTFCompositionState{}
+		unstr, err := YamlToUnstructured(yamlData)
+		if err != nil {
+			return
+		}
+		if unstr.Object == nil {
+			return
+		}
+		state.Composite = &composite.Unstructured{Unstructured: *unstr}
+		cd := &managed.ConnectionDetails{}
+		ff.GenerateStruct(cd)
+		state.ConnectionDetails = *cd
+		_, err = FunctionIOObserved(state)
+		if err != nil {
+			return
+		}
+
+		_, err = FunctionIODesired(state)
+		if err != nil {
+			return
+		}
+		UpdateResourceRefs(state)
 	})
 }
