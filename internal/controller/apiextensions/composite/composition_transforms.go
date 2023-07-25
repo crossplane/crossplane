@@ -146,7 +146,14 @@ func ResolveMap(t v1.MapTransform, input any) (any, error) {
 		}
 		return val, nil
 	default:
-		return nil, errors.Errorf(errFmtMapTypeNotSupported, reflect.TypeOf(input).String())
+		var inputType string
+		if input == nil {
+			inputType = "nil"
+		} else {
+			inputType = reflect.TypeOf(input).String()
+		}
+
+		return nil, errors.Errorf(errFmtMapTypeNotSupported, inputType)
 	}
 }
 
