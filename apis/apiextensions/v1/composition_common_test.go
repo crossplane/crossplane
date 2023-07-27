@@ -55,6 +55,37 @@ func TestReadinessCheckValidate(t *testing.T) {
 				},
 			},
 		},
+		"ValidTypeMatchCondition": {
+			reason: "Type matchCondition should be valid",
+			args: args{
+				r: &ReadinessCheck{
+					Type: ReadinessCheckTypeMatchCondition,
+					MatchCondition: &MatchConditionReadinessCheck{
+						Type:   "someType",
+						Status: "someStatus",
+					},
+					FieldPath: "spec.foo",
+				},
+			},
+		},
+		"ValidTypeIsTrue": {
+			reason: "Type isTrue should be valid",
+			args: args{
+				r: &ReadinessCheck{
+					Type:      ReadinessCheckTypeIsTrue,
+					FieldPath: "spec.foo",
+				},
+			},
+		},
+		"ValidTypeIsFalse": {
+			reason: "Type isFalse should be valid",
+			args: args{
+				r: &ReadinessCheck{
+					Type:      ReadinessCheckTypeIsFalse,
+					FieldPath: "spec.foo",
+				},
+			},
+		},
 		"InvalidType": {
 			reason: "Invalid type",
 			args: args{
