@@ -11,6 +11,9 @@ The following security related audits have been performed in the Crossplane
 project and are available for download from the [security folder](./security)
 and from the direct links below:
 
+* A security audit was completed in July 2023 by [Ada
+  Logics](https://adalogics.com/). The full report is available
+  [here](./security/ADA-security-audit-23.pdf).
 * A fuzzing security audit was completed in March 2023 by [Ada
   Logics](https://adalogics.com/). The full report is available
   [here](./security/ADA-fuzzing-audit-22.pdf).
