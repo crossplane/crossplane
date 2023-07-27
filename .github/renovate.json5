@@ -11,7 +11,7 @@
   "prConcurrentLimit": 5,
 // The branches renovate should target
 // PLEASE UPDATE THIS WHEN RELEASING.
-  "baseBranches": ["master","release-1.10","release-1.11","release-1.12"],
+  "baseBranches": ["master","release-1.11","release-1.12","release-1.13"],
   "ignorePaths": ["design/**"],
   "postUpdateOptions": ["gomodTidy"],
 // By default renovate will auto detect whether semantic commits have been used
