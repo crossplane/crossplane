@@ -285,6 +285,116 @@ func TestIsReady(t *testing.T) {
 				ready: true,
 			},
 		},
+		"IsTrueIsMissing": {
+			reason: "If the field is missing, it should return false",
+			args: args{
+				o: composed.New(func(r *composed.Unstructured) {
+					r.Object = map[string]any{
+						"spec": map[string]any{},
+					}
+				}),
+				rc: []ReadinessCheck{{
+					Type:      ReadinessCheckTypeIsTrue,
+					FieldPath: pointer.String("spec.someBool"),
+				}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"IsTrueAndIsReady": {
+			reason: "If the value of the field is true, it should return true",
+			args: args{
+				o: composed.New(func(r *composed.Unstructured) {
+					r.Object = map[string]any{
+						"spec": map[string]any{
+							"someBool": true,
+						},
+					}
+				}),
+				rc: []ReadinessCheck{{
+					Type:      ReadinessCheckTypeIsTrue,
+					FieldPath: pointer.String("spec.someBool"),
+				}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"IsTrueAndIsNotReady": {
+			reason: "If the value of the field is false, it should return false",
+			args: args{
+				o: composed.New(func(r *composed.Unstructured) {
+					r.Object = map[string]any{
+						"spec": map[string]any{
+							"someBool": false,
+						},
+					}
+				}),
+				rc: []ReadinessCheck{{
+					Type:      ReadinessCheckTypeIsTrue,
+					FieldPath: pointer.String("spec.someBool"),
+				}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"IsFalseIsMissing": {
+			reason: "If the field is missing, it should return false",
+			args: args{
+				o: composed.New(func(r *composed.Unstructured) {
+					r.Object = map[string]any{
+						"spec": map[string]any{},
+					}
+				}),
+				rc: []ReadinessCheck{{
+					Type:      ReadinessCheckTypeIsFalse,
+					FieldPath: pointer.String("spec.someBool"),
+				}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
+		"IsFalseAndIsReady": {
+			reason: "If the value of the field is false, it should return true",
+			args: args{
+				o: composed.New(func(r *composed.Unstructured) {
+					r.Object = map[string]any{
+						"spec": map[string]any{
+							"someBool": false,
+						},
+					}
+				}),
+				rc: []ReadinessCheck{{
+					Type:      ReadinessCheckTypeIsFalse,
+					FieldPath: pointer.String("spec.someBool"),
+				}},
+			},
+			want: want{
+				ready: true,
+			},
+		},
+		"IsFalseAndIsNotReady": {
+			reason: "If the value of the field is true, it should return false",
+			args: args{
+				o: composed.New(func(r *composed.Unstructured) {
+					r.Object = map[string]any{
+						"spec": map[string]any{
+							"someBool": true,
+						},
+					}
+				}),
+				rc: []ReadinessCheck{{
+					Type:      ReadinessCheckTypeIsFalse,
+					FieldPath: pointer.String("spec.someBool"),
+				}},
+			},
+			want: want{
+				ready: false,
+			},
+		},
 		"UnknownType": {
 			reason: "If unknown type is chosen, it should return an error",
 			args: args{

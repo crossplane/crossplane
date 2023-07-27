@@ -88,6 +88,38 @@ func TestValidateReadinessCheck(t *testing.T) {
 			},
 		},
 		{
+			name: "should accept valid readiness check - isTrue type",
+			args: args{
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+					0,
+					v1.ReadinessCheck{
+						Type:      v1.ReadinessCheckTypeIsTrue,
+						FieldPath: "spec.someOtherField",
+					},
+				)),
+				gkToCRD: defaultGKToCRDs(),
+			},
+			want: want{
+				errs: nil,
+			},
+		},
+		{
+			name: "should accept valid readiness check - isFalse type",
+			args: args{
+				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(
+					0,
+					v1.ReadinessCheck{
+						Type:      v1.ReadinessCheckTypeIsFalse,
+						FieldPath: "spec.someOtherField",
+					},
+				)),
+				gkToCRD: defaultGKToCRDs(),
+			},
+			want: want{
+				errs: nil,
+			},
+		},
+		{
 			name: "should accept valid readiness check - matchString type",
 			args: args{
 				comp: buildDefaultComposition(t, v1.CompositionValidationModeLoose, nil, withReadinessChecks(

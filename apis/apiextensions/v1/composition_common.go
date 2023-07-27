@@ -113,6 +113,8 @@ const (
 	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeIsTrue         ReadinessCheckType = "IsTrue"
+	ReadinessCheckTypeIsFalse        ReadinessCheckType = "IsFalse"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -120,7 +122,7 @@ const (
 // IsValid returns nil if the readiness check type is valid, or an error otherwise.
 func (t *ReadinessCheckType) IsValid() bool {
 	switch *t {
-	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeIsTrue, ReadinessCheckTypeIsFalse, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
 		return true
 	}
 	return false
@@ -203,7 +205,7 @@ func (r *ReadinessCheck) Validate() *field.Error { //nolint:gocyclo // This func
 			return errors.WrapFieldError(err, field.NewPath("matchCondition"))
 		}
 		return nil
-	case ReadinessCheckTypeNonEmpty:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeIsFalse, ReadinessCheckTypeIsTrue:
 		// No specific validation required.
 	}
 	if r.FieldPath == "" {
