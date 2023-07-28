@@ -121,9 +121,10 @@ func (c *APIDryRunCompositeConfigurator) Configure(ctx context.Context, cm resou
 
 	// CompositionRevision is a special field which needs to be propagated
 	// based on the Update policy. If the policy is `Manual`, we need to
-	// overwrite the composite's value with the claim's
+	// remove CompositionRevisionRef from wellKnownClaimFields, so it
+	// does not get filtered out and is set correctly in composite
 	if cp.GetCompositionUpdatePolicy() != nil && *cp.GetCompositionUpdatePolicy() == xpv1.UpdateManual {
-		cp.SetCompositionRevisionReference(cm.GetCompositionRevisionReference())
+		delete(wellKnownClaimFields, xcrd.CompositionRevisionRef)
 	}
 
 	claimSpecFilter := xcrd.GetPropFields(wellKnownClaimFields)
