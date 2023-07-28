@@ -371,6 +371,222 @@ func TestCompositeConfigure(t *testing.T) {
 				},
 			},
 		},
+		"UpdatePolicyAutomatic": {
+			reason: "CompositionRevision of composite should NOT be set by the claim",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+								"compositionUpdatePolicy":    "Automatic",
+								"compositionRevisionRef": map[string]any{
+									"name": "newref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 23,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"compositionUpdatePolicy": "Automatic",
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"compositionUpdatePolicy": "Automatic",
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		"UpdatePolicyManual": {
+			reason: "CompositionRevision of composite should be overwritten by the claim",
+			args: args{
+				cm: &claim.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"apiVersion": apiVersion,
+							"kind":       kind,
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name,
+							},
+							"spec": map[string]any{
+								"resourceRef":                "ref",
+								"writeConnectionSecretToRef": "ref",
+								"compositionUpdatePolicy":    "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "newref",
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 23,
+								"conditions": []map[string]any{
+									{
+										"type": "someCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"compositionUpdatePolicy": "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "oldref",
+								},
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cp: &composite.Unstructured{
+					Unstructured: unstructured.Unstructured{
+						Object: map[string]any{
+							"metadata": map[string]any{
+								"namespace": ns,
+								"name":      name + "-12345",
+								"creationTimestamp": func() string {
+									b, _ := now.MarshalJSON()
+									return strings.Trim(string(b), "\"")
+								}(),
+								"labels": map[string]any{
+									xcrd.LabelKeyClaimNamespace: ns,
+									xcrd.LabelKeyClaimName:      name,
+								},
+							},
+							"spec": map[string]any{
+								"compositionUpdatePolicy": "Manual",
+								"compositionRevisionRef": map[string]any{
+									"name": "newref",
+								},
+								"claimRef": map[string]any{
+									"apiVersion": apiVersion,
+									"kind":       kind,
+									"namespace":  ns,
+									"name":       name,
+								},
+							},
+							"status": map[string]any{
+								"previousCoolness": 28,
+								"conditions": []map[string]any{
+									{
+										"type": "otherCondition",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for name, tc := range cases {
@@ -402,7 +618,6 @@ func TestClaimConfigure(t *testing.T) {
 	type want struct {
 		cm  resource.CompositeClaim
 		err error
-		cp  resource.Composite
 	}
 
 	cases := map[string]struct {
@@ -726,7 +941,7 @@ func TestClaimConfigure(t *testing.T) {
 			},
 		},
 		"UpdatePolicyManual": {
-			reason: "CompositionRevision of composite should be overwritten by the claim",
+			reason: "CompositionRevision of claim should NOT overwritten by the composite",
 			args: args{
 				client: test.NewMockClient(),
 				cm: &claim.Unstructured{
@@ -803,32 +1018,6 @@ func TestClaimConfigure(t *testing.T) {
 								"conditions": []map[string]any{
 									{
 										"type": "someCondition",
-									},
-								},
-							},
-						},
-					},
-				},
-				cp: &composite.Unstructured{
-					Unstructured: unstructured.Unstructured{
-						Object: map[string]any{
-							"metadata": map[string]any{
-								"namespace": ns,
-								"name":      name + "-12345",
-							},
-							"spec": map[string]any{
-								"resourceRefs":            "ref",
-								"claimRef":                "ref",
-								"compositionUpdatePolicy": "Manual",
-								"compositionRevisionRef": map[string]any{
-									"name": "oldref",
-								},
-							},
-							"status": map[string]any{
-								"previousCoolness": 28,
-								"conditions": []map[string]any{
-									{
-										"type": "otherCondition",
 									},
 								},
 							},
