@@ -70,10 +70,14 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		steps = append(steps,
 			initializer.NewWebhookCertificateGenerator(nn, c.Namespace,
 				log.WithValues("Step", "WebhookCertificateGenerator")),
+			initializer.NewCoreCRDsMigrator("compositionrevisions.apiextensions.crossplane.io", "v1alpha1"),
 			initializer.NewCoreCRDs("/crds", s, initializer.WithWebhookTLSSecretRef(nn)),
 			initializer.NewWebhookConfigurations("/webhookconfigurations", s, nn, svc))
 	} else {
-		steps = append(steps, initializer.NewCoreCRDs("/crds", s))
+		steps = append(steps,
+			initializer.NewCoreCRDsMigrator("compositionrevisions.apiextensions.crossplane.io", "v1alpha1"),
+			initializer.NewCoreCRDs("/crds", s),
+		)
 	}
 
 	if c.ESSTLSClientSecretName != "" && c.ESSTLSServerSecretName != "" {
