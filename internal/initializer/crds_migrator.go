@@ -104,8 +104,8 @@ func (c *CoreCRDsMigrator) Run(ctx context.Context, kube client.Client) error { 
 	if err := kube.Get(ctx, client.ObjectKey{Name: c.crdName}, &crd); err != nil {
 		return errors.Wrapf(err, "cannot get %s crd to check", c.crdName)
 	}
-	if !sets.NewString(crd.Status.StoredVersions...).Has(storageVersion) {
-		return errors.Errorf("couldn't update %s crd", c.crdName)
+	if len(crd.Status.StoredVersions) != 1 || crd.Status.StoredVersions[0] != storageVersion {
+		return errors.Errorf("was expecting CRD %q to only have %s, got instead: %v", c.crdName, storageVersion, crd.Status.StoredVersions)
 	}
 
 	return nil
