@@ -285,7 +285,7 @@ func TestIsReady(t *testing.T) {
 				ready: true,
 			},
 		},
-		"IsTrueIsMissing": {
+		"MatchBoolMissing": {
 			reason: "If the field is missing, it should return false",
 			args: args{
 				o: composed.New(func(r *composed.Unstructured) {
@@ -294,7 +294,7 @@ func TestIsReady(t *testing.T) {
 					}
 				}),
 				rc: []ReadinessCheck{{
-					Type:      ReadinessCheckTypeIsTrue,
+					Type:      ReadinessCheckTypeMatchBool,
 					FieldPath: pointer.String("spec.someBool"),
 				}},
 			},
@@ -302,8 +302,8 @@ func TestIsReady(t *testing.T) {
 				ready: false,
 			},
 		},
-		"IsTrueAndIsReady": {
-			reason: "If the value of the field is true, it should return true",
+		"MatchBoolTrueMatch": {
+			reason: "If the value of the field is true and we expect true, it should return true",
 			args: args{
 				o: composed.New(func(r *composed.Unstructured) {
 					r.Object = map[string]any{
@@ -313,7 +313,7 @@ func TestIsReady(t *testing.T) {
 					}
 				}),
 				rc: []ReadinessCheck{{
-					Type:      ReadinessCheckTypeIsTrue,
+					Type:      ReadinessCheckTypeMatchBool,
 					FieldPath: pointer.String("spec.someBool"),
 				}},
 			},
@@ -321,8 +321,8 @@ func TestIsReady(t *testing.T) {
 				ready: true,
 			},
 		},
-		"IsTrueAndIsNotReady": {
-			reason: "If the value of the field is false, it should return false",
+		"MatchBoolTrueNoMatch": {
+			reason: "If the value of the field is false and expected true, it should return false",
 			args: args{
 				o: composed.New(func(r *composed.Unstructured) {
 					r.Object = map[string]any{
@@ -332,7 +332,7 @@ func TestIsReady(t *testing.T) {
 					}
 				}),
 				rc: []ReadinessCheck{{
-					Type:      ReadinessCheckTypeIsTrue,
+					Type:      ReadinessCheckTypeMatchBool,
 					FieldPath: pointer.String("spec.someBool"),
 				}},
 			},
@@ -340,25 +340,8 @@ func TestIsReady(t *testing.T) {
 				ready: false,
 			},
 		},
-		"IsFalseIsMissing": {
-			reason: "If the field is missing, it should return false",
-			args: args{
-				o: composed.New(func(r *composed.Unstructured) {
-					r.Object = map[string]any{
-						"spec": map[string]any{},
-					}
-				}),
-				rc: []ReadinessCheck{{
-					Type:      ReadinessCheckTypeIsFalse,
-					FieldPath: pointer.String("spec.someBool"),
-				}},
-			},
-			want: want{
-				ready: false,
-			},
-		},
-		"IsFalseAndIsReady": {
-			reason: "If the value of the field is false, it should return true",
+		"MatchBoolFalseMatch": {
+			reason: "If the value of the field is false and we expect false, it should return true",
 			args: args{
 				o: composed.New(func(r *composed.Unstructured) {
 					r.Object = map[string]any{
@@ -368,16 +351,19 @@ func TestIsReady(t *testing.T) {
 					}
 				}),
 				rc: []ReadinessCheck{{
-					Type:      ReadinessCheckTypeIsFalse,
+					Type:      ReadinessCheckTypeMatchBool,
 					FieldPath: pointer.String("spec.someBool"),
+					MatchBool: &MatchBoolReadinessCheck{
+						MatchFalse: true,
+					},
 				}},
 			},
 			want: want{
 				ready: true,
 			},
 		},
-		"IsFalseAndIsNotReady": {
-			reason: "If the value of the field is true, it should return false",
+		"MatchBoolFalseNoMatch": {
+			reason: "If the value of the field is true and expected false, it should return false",
 			args: args{
 				o: composed.New(func(r *composed.Unstructured) {
 					r.Object = map[string]any{
@@ -387,8 +373,11 @@ func TestIsReady(t *testing.T) {
 					}
 				}),
 				rc: []ReadinessCheck{{
-					Type:      ReadinessCheckTypeIsFalse,
+					Type:      ReadinessCheckTypeMatchBool,
 					FieldPath: pointer.String("spec.someBool"),
+					MatchBool: &MatchBoolReadinessCheck{
+						MatchFalse: true,
+					},
 				}},
 			},
 			want: want{
