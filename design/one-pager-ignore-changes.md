@@ -2,7 +2,7 @@
 
 * Owners: Lovro Sviben (@lsviben)
 * Reviewers: @turkenh, @negz
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
