@@ -10,12 +10,17 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/dependency"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/resource"
 )
 
-type selectorResolver interface {
-	resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error
-}
+const (
+	errUpdateAfterResolveSelector            = "cannot update usage after resolving selector"
+	errResolveSelectorForUsingResource       = "cannot resolve selector for using resource"
+	errResolveSelectorForUsedResource        = "cannot resolve selector for used resource"
+	errListResourceMatchingLabels            = "cannot list resources matching labels"
+	errFmtResourcesNotFound                  = "no %q found matching labels: %q"
+	errFmtResourcesNotFoundWithControllerRef = "no %q found matching labels: %q and with same controller reference"
+)
 
 type apiSelectorResolver struct {
 	client client.Client
@@ -31,11 +36,11 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 
 	if of.ResourceRef == nil || len(of.ResourceRef.Name) == 0 {
 		if err := r.resolveSelector(ctx, u, &of); err != nil {
-			return errors.Wrap(err, "cannot resolve selector for used resource")
+			return errors.Wrap(err, errResolveSelectorForUsedResource)
 		}
 		u.Spec.Of = of
 		if err := r.client.Update(ctx, u); err != nil {
-			return errors.Wrap(err, "cannot update usage after resolving selector for used resource")
+			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
 	}
 
@@ -45,11 +50,11 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 
 	if by.ResourceRef == nil || len(by.ResourceRef.Name) == 0 {
 		if err := r.resolveSelector(ctx, u, by); err != nil {
-			return errors.Wrap(err, "cannot resolve selector for using resource")
+			return errors.Wrap(err, errResolveSelectorForUsingResource)
 		}
 		u.Spec.By = by
 		if err := r.client.Update(ctx, u); err != nil {
-			return errors.Wrap(err, "cannot update usage after resolving selector for using resource")
+			return errors.Wrap(err, errUpdateAfterResolveSelector)
 		}
 	}
 
@@ -57,17 +62,17 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 }
 
 func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1alpha1.Usage, rs *v1alpha1.Resource) error {
-	l := dependency.NewList(dependency.FromReferenceToList(v1.ObjectReference{
+	l := resource.NewList(resource.FromReferenceToList(v1.ObjectReference{
 		APIVersion: rs.APIVersion,
 		Kind:       rs.Kind,
 	}))
 
 	if err := r.client.List(ctx, l, client.MatchingLabels(rs.ResourceSelector.MatchLabels)); err != nil {
-		return errors.Wrap(err, "cannot list resources matching labels")
+		return errors.Wrap(err, errListResourceMatchingLabels)
 	}
 
 	if len(l.Items) == 0 {
-		return errors.Errorf("no %q found matching labels: %q", rs.Kind, rs.ResourceSelector.MatchLabels)
+		return errors.Errorf(errFmtResourcesNotFound, rs.Kind, rs.ResourceSelector.MatchLabels)
 	}
 
 	for i := range l.Items {
@@ -79,6 +84,10 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1alpha1.U
 			Name: o.GetName(),
 		}
 		break
+	}
+
+	if rs.ResourceRef == nil {
+		return errors.Errorf(errFmtResourcesNotFoundWithControllerRef, rs.Kind, rs.ResourceSelector.MatchLabels)
 	}
 
 	return nil

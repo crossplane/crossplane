@@ -34,52 +34,59 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
+	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/dependency"
+	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/resource"
 	"github.com/crossplane/crossplane/internal/usage"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 const (
-	timeout       = 2 * time.Minute
-	finalizer     = "usage.apiextensions.crossplane.io"
+	timeout   = 2 * time.Minute
+	finalizer = "usage.apiextensions.crossplane.io"
+	// Note(turkenh): In-use label enables the "DELETE" requests on resources
+	// with this label to be intercepted by the webhook and rejected if the
+	// xpresource is in use.
 	inUseLabelKey = "crossplane.io/in-use"
 
-	errGetUsage                = "cannot get usage"
-	errResolveSelectors        = "cannot resolve selectors"
-	errListUsages              = "cannot list usages"
-	errGetUsing                = "cannot get using"
-	errGetUsed                 = "cannot get used"
-	errAddOwnerToUsage         = "cannot update usage resource with owner ref"
-	errAddLabelAndOwnersToUsed = "cannot update used resource with added label and owners"
-	errRemoveOwnerFromUsed     = "cannot update used resource with owner ref removed"
-	errAddFinalizer            = "cannot add finalizer"
-	errRemoveFinalizer         = "cannot remove finalizer"
-	errUpdateStatus            = "cannot update status of usage"
+	errGetUsage         = "cannot get usage"
+	errResolveSelectors = "cannot resolve selectors"
+	errListUsages       = "cannot list usages"
+	errGetUsing         = "cannot get using"
+	errGetUsed          = "cannot get used"
+	errAddOwnerToUsage  = "cannot update usage xpresource with owner ref"
+	errAddInUseLabel    = "cannot add in use use label to the used xpresource"
+	errRemoveInUseLabel = "cannot remove in use label from the used xpresource"
+	errAddFinalizer     = "cannot add finalizer"
+	errRemoveFinalizer  = "cannot remove finalizer"
+	errUpdateStatus     = "cannot update status of usage"
 )
 
 // Event reasons.
 const (
-	reasonResolveSelectors       event.Reason = "ResolveSelectors"
-	reasonListUsages             event.Reason = "ListUsages"
-	reasonGetUsed                event.Reason = "GetUsedResource"
-	reasonGetUsing               event.Reason = "GetUsingResource"
-	reasonOwnerRefToUsage        event.Reason = "AddOwnerRefToUsage"
-	reasonOwnerRefToUsed         event.Reason = "AddOwnerRefToUsed"
-	reasonRemoveOwnerRefFromUsed event.Reason = "RemoveOwnerRefFromUsed"
-	reasonAddFinalizer           event.Reason = "AddFinalizer"
-	reasonRemoveFinalizer        event.Reason = "RemoveFinalizer"
+	reasonResolveSelectors event.Reason = "ResolveSelectors"
+	reasonListUsages       event.Reason = "ListUsages"
+	reasonGetUsed          event.Reason = "GetUsedResource"
+	reasonGetUsing         event.Reason = "GetUsingResource"
+	reasonOwnerRefToUsage  event.Reason = "AddOwnerRefToUsage"
+	reasonAddInUseLabel    event.Reason = "AddInUseLabel"
+	reasonRemoveInUseLabel event.Reason = "RemoveInUseLabel"
+	reasonAddFinalizer     event.Reason = "AddFinalizer"
+	reasonRemoveFinalizer  event.Reason = "RemoveFinalizer"
 
 	reasonUsageConfigured event.Reason = "UsageConfigured"
 	reasonWaitUsing       event.Reason = "WaitingUsingDeleted"
 )
 
+type selectorResolver interface {
+	resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error
+}
+
 // Setup adds a controller that reconciles Usages by
-// defining a composite resource and starting a controller to reconcile it.
+// defining a composite xpresource and starting a controller to reconcile it.
 func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "usage/" + strings.ToLower(v1alpha1.UsageGroupKind)
 	r := NewReconciler(mgr,
@@ -110,8 +117,32 @@ func WithRecorder(er event.Recorder) ReconcilerOption {
 	}
 }
 
+// WithClientApplicator specifies how the Reconciler should interact with the
+// Kubernetes API.
+func WithClientApplicator(c xpresource.ClientApplicator) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.client = c
+	}
+}
+
+// WithFinalizer specifies how the Reconciler should add and remove
+// finalizers to and from the managed resource.
+func WithFinalizer(f xpresource.Finalizer) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.usage.Finalizer = f
+	}
+}
+
+// WithSelectorResolver specifies how the Reconciler should resolve any
+// resource references it encounters while reconciling Usages.
+func WithSelectorResolver(sr selectorResolver) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.usage.selectorResolver = sr
+	}
+}
+
 type usageResource struct {
-	resource.Finalizer
+	xpresource.Finalizer
 	selectorResolver
 }
 
@@ -120,15 +151,13 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 	kube := unstructured.NewClient(mgr.GetClient())
 
 	r := &Reconciler{
-		mgr: mgr,
-
-		client: resource.ClientApplicator{
+		client: xpresource.ClientApplicator{
 			Client:     kube,
-			Applicator: resource.NewAPIUpdatingApplicator(kube),
+			Applicator: xpresource.NewAPIUpdatingApplicator(kube),
 		},
 
 		usage: usageResource{
-			Finalizer:        resource.NewAPIFinalizer(kube, finalizer),
+			Finalizer:        xpresource.NewAPIFinalizer(kube, finalizer),
 			selectorResolver: newAPISelectorResolver(kube),
 		},
 
@@ -146,8 +175,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 // A Reconciler reconciles Usages.
 type Reconciler struct {
-	client resource.ClientApplicator
-	mgr    manager.Manager
+	client xpresource.ClientApplicator
 
 	usage usageResource
 
@@ -158,17 +186,17 @@ type Reconciler struct {
 }
 
 // Reconcile a usageResource by defining a new kind of composite
-// resource and starting a controller to reconcile it.
+// xpresource and starting a controller to reconcile it.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are typically complex.
 	log := r.log.WithValues("request", req)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Get the usageResource resource for this request.
+	// Get the usageResource xpresource for this request.
 	u := &v1alpha1.Usage{}
 	if err := r.client.Get(ctx, req.NamespacedName, u); err != nil {
 		log.Debug(errGetUsage, "error", err)
-		return reconcile.Result{}, errors.Wrap(resource.IgnoreNotFound(err), errGetUsage)
+		return reconcile.Result{}, errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsage)
 	}
 
 	if err := r.usage.resolveSelectors(ctx, u); err != nil {
@@ -183,8 +211,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	of := u.Spec.Of
 	by := u.Spec.By
 
-	// Identify used resource as an unstructured object.
-	used := dependency.New(dependency.FromReference(v1.ObjectReference{
+	// Identify used xp resource as an unstructured object.
+	used := resource.New(resource.FromReference(v1.ObjectReference{
 		Kind:       of.Kind,
 		Name:       of.ResourceRef.Name,
 		APIVersion: of.APIVersion,
@@ -192,17 +220,17 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if meta.WasDeleted(u) {
 		if by != nil {
-			// Identify using resource as an unstructured object.
-			using := dependency.New(dependency.FromReference(v1.ObjectReference{
+			// Identify using xpresource as an unstructured object.
+			using := resource.New(resource.FromReference(v1.ObjectReference{
 				Kind:       by.Kind,
 				Name:       by.ResourceRef.Name,
 				APIVersion: by.APIVersion,
 			}))
-			// Get the using resource
+			// Get the using xpresource
 			err := r.client.Get(ctx, client.ObjectKey{Name: by.ResourceRef.Name}, using)
-			if resource.IgnoreNotFound(err) != nil {
+			if xpresource.IgnoreNotFound(err) != nil {
 				log.Debug(errGetUsing, "error", err)
-				err = errors.Wrap(resource.IgnoreNotFound(err), errGetUsing)
+				err = errors.Wrap(xpresource.IgnoreNotFound(err), errGetUsing)
 				r.record.Event(u, event.Warning(reasonGetUsing, err))
 				return reconcile.Result{}, err
 			}
@@ -215,41 +243,41 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
 			}
 		}
-		// At this point using resource is either:
+		// At this point using xpresource is either:
 		// - not defined
 		// - not found (deleted)
-		// - not part of the same composite resource
+		// - not part of the same composite xpresource
 		// So, we can proceed with the deletion of the usage.
 
-		// Get the used resource
+		// Get the used xpresource
 		var err error
-		if err = r.client.Get(ctx, client.ObjectKey{Name: of.ResourceRef.Name}, used); resource.IgnoreNotFound(err) != nil {
+		if err = r.client.Get(ctx, client.ObjectKey{Name: of.ResourceRef.Name}, used); xpresource.IgnoreNotFound(err) != nil {
 			log.Debug(errGetUsed, "error", err)
 			err = errors.Wrap(err, errGetUsed)
 			r.record.Event(u, event.Warning(reasonGetUsed, err))
 			return reconcile.Result{}, err
 		}
 
-		// Remove the owner reference from the used resource if it exists
-		if err == nil && used.OwnedBy(u.GetUID()) {
-			used.RemoveOwnerRef(u.GetUID())
+		// Remove the in-use label from the used xpresource if no other usages
+		// exists.
+		if err == nil {
 			usageList := &v1alpha1.UsageList{}
 			if err = r.client.List(ctx, usageList, client.MatchingFields{usage.InUseIndexKey: usage.IndexValueForObject(used.GetUnstructured())}); err != nil {
 				log.Debug(errListUsages, "error", err)
 				err = errors.Wrap(err, errListUsages)
 				r.record.Event(u, event.Warning(reasonListUsages, err))
-				return reconcile.Result{}, errors.Wrap(err, errListUsages)
+				return reconcile.Result{}, err
 			}
-			// There are no "other" usageResource's referencing the used resource,
-			// so we can remove the in-use label from the used resource
+			// There are no "other" usageResource's referencing the used xpresource,
+			// so we can remove the in-use label from the used xpresource
 			if len(usageList.Items) < 2 {
 				meta.RemoveLabels(used, inUseLabelKey)
-			}
-			if err = r.client.Update(ctx, used); err != nil {
-				log.Debug(errRemoveOwnerFromUsed, "error", err)
-				err = errors.Wrap(err, errRemoveOwnerFromUsed)
-				r.record.Event(u, event.Warning(reasonRemoveOwnerRefFromUsed, err))
-				return reconcile.Result{}, err
+				if err = r.client.Update(ctx, used); err != nil {
+					log.Debug(errRemoveInUseLabel, "error", err)
+					err = errors.Wrap(err, errRemoveInUseLabel)
+					r.record.Event(u, event.Warning(reasonRemoveInUseLabel, err))
+					return reconcile.Result{}, err
+				}
 			}
 		}
 
@@ -264,15 +292,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, nil
 	}
 
-	// Add finalizer for Usage resource.
+	// Add finalizer for Usage xpresource.
 	if err := r.usage.AddFinalizer(ctx, u); err != nil {
 		log.Debug(errAddFinalizer, "error", err)
 		err = errors.Wrap(err, errAddFinalizer)
 		r.record.Event(u, event.Warning(reasonAddFinalizer, err))
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, err
 	}
 
-	// Get the used resource
+	// Get the used xpresource
 	if err := r.client.Get(ctx, client.ObjectKey{Name: of.ResourceRef.Name}, used); err != nil {
 		log.Debug(errGetUsed, "error", err)
 		err = errors.Wrap(err, errGetUsed)
@@ -280,29 +308,29 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	// Used resource should have in-use label and be owned by the usageResource resource.
+	// Used xpresource should have in-use label.
 	if used.GetLabels()[inUseLabelKey] != "true" || !used.OwnedBy(u.GetUID()) {
+		// Note(turkenh): Composite controller will not remove this label with
+		// new reconciles since it uses a patching applicator to update the
+		// xpresource.
 		meta.AddLabels(used, map[string]string{inUseLabelKey: "true"})
-		meta.AddOwnerReference(used, meta.AsOwner(
-			meta.TypedReferenceTo(u, u.GetObjectKind().GroupVersionKind()),
-		))
 		if err := r.client.Update(ctx, used); err != nil {
-			log.Debug(errAddLabelAndOwnersToUsed, "error", err)
-			err = errors.Wrap(err, errAddLabelAndOwnersToUsed)
-			r.record.Event(u, event.Warning(reasonOwnerRefToUsed, err))
+			log.Debug(errAddInUseLabel, "error", err)
+			err = errors.Wrap(err, errAddInUseLabel)
+			r.record.Event(u, event.Warning(reasonAddInUseLabel, err))
 			return reconcile.Result{}, err
 		}
 	}
 
 	if by != nil {
-		// Identify using resource as an unstructured object.
-		using := dependency.New(dependency.FromReference(v1.ObjectReference{
+		// Identify using xpresource as an unstructured object.
+		using := resource.New(resource.FromReference(v1.ObjectReference{
 			Kind:       by.Kind,
 			Name:       by.ResourceRef.Name,
 			APIVersion: by.APIVersion,
 		}))
 
-		// Get the using resource
+		// Get the using xpresource
 		if err := r.client.Get(ctx, client.ObjectKey{Name: by.ResourceRef.Name}, using); err != nil {
 			log.Debug(errGetUsing, "error", err)
 			err = errors.Wrap(err, errGetUsing)
@@ -310,7 +338,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 
-		// usageResource should have a finalizer and be owned by the using resource.
+		// usageResource should have a finalizer and be owned by the using xpresource.
 		if owners := u.GetOwnerReferences(); len(owners) == 0 || owners[0].UID != using.GetUID() {
 			meta.AddOwnerReference(u, meta.AsOwner(
 				meta.TypedReferenceTo(using, using.GetObjectKind().GroupVersionKind()),

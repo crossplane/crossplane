@@ -17,12 +17,12 @@ spec:
       spec:
         forProvider:
           conditionAfter:
-          - conditionType: Ready
-            conditionStatus: "False"
-            time: 0s
-          - conditionType: Ready
+          - conditionType: "Synced"
             conditionStatus: "True"
-            time: 10s
+            time: "5s"
+          - conditionType: "Ready"
+            conditionStatus: "True"
+            time: "10s"
   - name: using-resource
     base:
       apiVersion: nop.crossplane.io/v1alpha1
@@ -33,12 +33,12 @@ spec:
       spec:
         forProvider:
           conditionAfter:
-            - conditionType: Ready
-              conditionStatus: "False"
-              time: 0s
-            - conditionType: Ready
-              conditionStatus: "True"
-              time: 10s
+          - conditionType: "Synced"
+            conditionStatus: "True"
+            time: "5s"
+          - conditionType: "Ready"
+            conditionStatus: "True"
+            time: "10s"
   - name: usage-resource
     base:
       apiVersion: apiextensions.crossplane.io/v1alpha1

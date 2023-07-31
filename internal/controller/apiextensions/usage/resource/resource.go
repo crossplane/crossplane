@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package dependency contains an unstructured dependency resource.
-package dependency
+// Package resource contains an unstructured resource.
+package resource
 
 import (
 	corev1 "k8s.io/api/core/v1"

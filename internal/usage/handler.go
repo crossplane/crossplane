@@ -21,7 +21,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/crossplane/crossplane/internal/features"
 	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
@@ -37,12 +36,16 @@ import (
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
+	"github.com/crossplane/crossplane/internal/features"
 )
 
 const (
 	// InUseIndexKey used to index CRDs by "Kind" and "group", to be used when
 	// indexing and retrieving needed CRDs
 	InUseIndexKey = "inuse.apiversion.kind.name"
+
+	// Error strings.
+	errUnexpectedOp = "unexpected operation"
 )
 
 // IndexValueForObject returns the index value for the given object.
@@ -109,7 +112,7 @@ func NewHandler(reader client.Reader, opts ...HandlerOption) *Handler {
 func (h *Handler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	switch request.Operation {
 	case admissionv1.Create, admissionv1.Update, admissionv1.Connect:
-		return admission.Errored(http.StatusBadRequest, errors.New("unexpected operation"))
+		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
 	case admissionv1.Delete:
 		u := &unstructured.Unstructured{}
 		if err := u.UnmarshalJSON(request.OldObject.Raw); err != nil {
@@ -117,7 +120,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 		}
 		return h.validateNoUsages(ctx, u)
 	default:
-		return admission.Errored(http.StatusBadRequest, errors.New("unexpected operation"))
+		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
 	}
 }
 
