@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash/adler32"
 	"regexp"
 	"strconv"
 	"strings"
@@ -72,6 +73,7 @@ const (
 	errDecodeString = "string is not valid base64"
 	errMarshalJSON  = "cannot marshal to JSON"
 	errHash         = "cannot generate hash"
+	errAdler        = "unable to generate Adler checksum"
 )
 
 // Resolve the supplied Transform.
@@ -330,6 +332,9 @@ func stringConvertTransform(t *v1.StringConversionType, input any) (string, erro
 	case v1.StringConversionTypeToSHA512:
 		hash, err := stringGenerateHash(input, sha512.Sum512)
 		return hex.EncodeToString(hash[:]), errors.Wrap(err, errHash)
+	case v1.StringConversionTypeToAdler32:
+		checksum, err := stringGenerateHash(input, adler32.Checksum)
+		return strconv.FormatUint(uint64(checksum), 10), errors.Wrap(err, errAdler)
 	default:
 		return "", errors.Errorf(errStringConvertTypeFailed, *t)
 	}
