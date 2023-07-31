@@ -115,8 +115,7 @@ const (
 	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeIsTrue         ReadinessCheckType = "IsTrue"
-	ReadinessCheckTypeIsFalse        ReadinessCheckType = "IsFalse"
+	ReadinessCheckTypeMatchBool      ReadinessCheckType = "MatchBool"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -124,7 +123,7 @@ const (
 // IsValid returns nil if the readiness check type is valid, or an error otherwise.
 func (t *ReadinessCheckType) IsValid() bool {
 	switch *t {
-	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeIsTrue, ReadinessCheckTypeIsFalse, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeMatchBool, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
 		return true
 	}
 	return false
@@ -153,9 +152,21 @@ type ReadinessCheck struct {
 	// +optional
 	MatchInteger int64 `json:"matchInteger,omitempty"`
 
+	// MatchBool is the value you'd like to match if you're using "MatchBool" type.
+	// +optional
+	MatchBool *MatchBoolReadinessCheck `json:"matchBool,omitempty"`
+
 	// MatchCondition specifies the condition you'd like to match if you're using "MatchCondition" type.
 	// +optional
 	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
+}
+
+// MatchBoolReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption based on a boolean field
+type MatchBoolReadinessCheck struct {
+	// MatchFalse controls whether the target field should be false in order to be ready
+	// +optional
+	MatchFalse bool `json:"matchFalse,omitempty"`
 }
 
 // MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
@@ -207,7 +218,7 @@ func (r *ReadinessCheck) Validate() *field.Error { //nolint:gocyclo // This func
 			return errors.WrapFieldError(err, field.NewPath("matchCondition"))
 		}
 		return nil
-	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeIsFalse, ReadinessCheckTypeIsTrue:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchBool:
 		// No specific validation required.
 	}
 	if r.FieldPath == "" {

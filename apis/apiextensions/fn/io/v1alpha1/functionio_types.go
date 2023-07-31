@@ -207,8 +207,7 @@ const (
 	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeIsTrue         ReadinessCheckType = "IsTrue"
-	ReadinessCheckTypeIsFalse        ReadinessCheckType = "IsFalse"
+	ReadinessCheckTypeMatchBool      ReadinessCheckType = "MatchBool"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -217,7 +216,7 @@ const (
 // ready for consumption
 type DesiredReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"IsTrue";"IsFalse";"MatchCondition";"None"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchBool";"MatchCondition";"None"
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
@@ -234,9 +233,21 @@ type DesiredReadinessCheck struct {
 	// +optional
 	MatchInteger *int64 `json:"matchInteger,omitempty"`
 
+	// MatchBool is the value you'd like to match if you're using "MatchBool" type.
+	// +optional
+	MatchBool *MatchBoolReadinessCheck `json:"matchBool,omitempty"`
+
 	// MatchCondition specifies the condition you'd like to match if you're using "MatchCondition" type.
 	// +optional
 	MatchCondition *MatchConditionReadinessCheck `json:"matchCondition,omitempty"`
+}
+
+// MatchBoolReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption based on a boolean field
+type MatchBoolReadinessCheck struct {
+	// MatchFalse controls whether the target field should be false in order to be ready
+	// +optional
+	MatchFalse bool `json:"matchFalse,omitempty"`
 }
 
 // MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready

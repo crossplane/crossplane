@@ -52,8 +52,7 @@ const (
 	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
-	ReadinessCheckTypeIsTrue         ReadinessCheckType = "IsTrue"
-	ReadinessCheckTypeIsFalse        ReadinessCheckType = "IsFalse"
+	ReadinessCheckTypeMatchBool      ReadinessCheckType = "MatchBool"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -73,8 +72,20 @@ type ReadinessCheck struct {
 	// MatchInt is the value you'd like to match if you're using "MatchInt" type.
 	MatchInteger *int64
 
+	// MatchBool is the value you'd like to match if you're using "MatchBool" type.
+	// +optional
+	MatchBool *MatchBoolReadinessCheck `json:"matchBool,omitempty"`
+
 	// MatchCondition is the condition you'd like to match if you're using "MatchCondition" type.
 	MatchCondition *MatchConditionReadinessCheck
+}
+
+// MatchBoolReadinessCheck is used to indicate how to tell whether a resource is ready
+// for consumption based on a boolean field
+type MatchBoolReadinessCheck struct {
+	// MatchFalse controls whether the target field should be false in order to be ready
+	// +optional
+	MatchFalse bool `json:"matchFalse,omitempty"`
 }
 
 // MatchConditionReadinessCheck is used to indicate how to tell whether a resource is ready
@@ -173,7 +184,7 @@ func (c ReadinessCheck) Validate() error {
 	case ReadinessCheckTypeNone:
 		// This type has no dependencies.
 		return nil
-	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeIsTrue, ReadinessCheckTypeIsFalse:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchBool:
 		// This type only needs a field path.
 	case ReadinessCheckTypeMatchString:
 		if c.MatchString == nil {
@@ -229,21 +240,23 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, 
 	case ReadinessCheckTypeMatchCondition:
 		val := o.GetCondition(c.MatchCondition.Type)
 		return val.Status == c.MatchCondition.Status, nil
-	case ReadinessCheckTypeIsFalse:
+	case ReadinessCheckTypeMatchBool:
 		val, err := p.GetBool(*c.FieldPath)
 		if err != nil {
 			return false, resource.Ignore(fieldpath.IsNotFound, err)
 		}
-		return val == false, nil //nolint:gosimple // returning '!val' here as suggested hurts readability
-	case ReadinessCheckTypeIsTrue:
-		val, err := p.GetBool(*c.FieldPath)
-		if err != nil {
-			return false, resource.Ignore(fieldpath.IsNotFound, err)
-		}
-		return val == true, nil //nolint:gosimple // returning 'val' here as suggested hurts readability
+		return val == c.expectedBool(), nil
 	}
 
 	return false, nil
+}
+
+// returns true by default, returns false if user explicitly sets config to match false
+func (c ReadinessCheck) expectedBool() bool {
+	if c.MatchBool == nil {
+		return true
+	}
+	return !c.MatchBool.MatchFalse
 }
 
 // A ReadinessChecker checks whether a composed resource is ready or not.
