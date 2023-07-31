@@ -19,12 +19,15 @@ package binding
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -171,6 +174,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// ProviderRevision. Each revision should control at most one, but it's easy
 	// and relatively harmless for us to handle there being many.
 	subjects := make([]rbacv1.Subject, 0)
+	subjectStrings := make([]string, 0)
 	for _, sa := range l.Items {
 		for _, ref := range sa.GetOwnerReferences() {
 			if ref.UID == pr.GetUID() {
@@ -179,6 +183,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 					Namespace: sa.GetNamespace(),
 					Name:      sa.GetName(),
 				})
+				subjectStrings = append(subjectStrings, sa.GetNamespace()+"/"+sa.GetName())
 			}
 		}
 	}
@@ -204,15 +209,30 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		"subjects", subjects,
 	)
 
-	if err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID())); err != nil {
+	err := r.client.Apply(ctx, rb, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRoleBindingsDiffer))
+	if resource.IsNotAllowed(err) {
+		log.Debug("Skipped no-op ClusterRoleBinding apply")
+		return reconcile.Result{}, nil
+	}
+	if err != nil {
 		log.Debug(errApplyBinding, "error", err)
 		err = errors.Wrap(err, errApplyBinding)
 		r.record.Event(pr, event.Warning(reasonBind, err))
 		return reconcile.Result{}, err
 	}
+
+	r.record.Event(pr, event.Normal(reasonBind, fmt.Sprintf("Bound system ClusterRole %q to provider ServiceAccount(s): %s", n, strings.Join(subjectStrings, ", "))))
 	log.Debug("Applied system ClusterRoleBinding")
-	r.record.Event(pr, event.Normal(reasonBind, "Bound system ClusterRole to provider ServiceAccount(s)"))
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
+}
+
+// ClusterRoleBindingsDiffer returns true if the supplied objects are different ClusterRoleBindings. We
+// consider ClusterRoleBindings to be different if the subjects, the roleRefs, or the owner ref
+// is different.
+func ClusterRoleBindingsDiffer(current, desired runtime.Object) bool {
+	c := current.(*rbacv1.ClusterRoleBinding)
+	d := desired.(*rbacv1.ClusterRoleBinding)
+	return !cmp.Equal(c.Subjects, d.Subjects) || !cmp.Equal(c.RoleRef, d.RoleRef) || !cmp.Equal(c.GetOwnerReferences(), d.GetOwnerReferences())
 }

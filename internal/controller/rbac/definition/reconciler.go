@@ -19,6 +19,8 @@ package definition
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -178,9 +180,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	applied := make([]string, 0)
 	for _, cr := range r.rbac.RenderClusterRoles(d) {
 		cr := cr // Pin range variable so we can take its address.
-		log = log.WithValues("role-name", cr.GetName())
+		log := log.WithValues("role-name", cr.GetName())
 		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(d.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
 		if resource.IsNotAllowed(err) {
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
@@ -193,11 +196,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		log.Debug("Applied RBAC ClusterRole")
+		applied = append(applied, cr.GetName())
+	}
+
+	if len(applied) > 0 {
+		sort.Strings(applied)
+		r.record.Event(d, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC ClusterRoles: %s", firstNAndSomeMore(applied))))
 	}
 
 	// TODO(negz): Add a condition that indicates the RBAC manager is managing
 	// cluster roles for this XRD?
-	r.record.Event(d, event.Normal(reasonApplyRoles, "Applied RBAC ClusterRoles"))
 
 	// There's no need to requeue explicitly - we're watching all XRDs.
 	return reconcile.Result{Requeue: false}, nil
@@ -210,4 +218,11 @@ func ClusterRolesDiffer(current, desired runtime.Object) bool {
 	c := current.(*rbacv1.ClusterRole)
 	d := desired.(*rbacv1.ClusterRole)
 	return !cmp.Equal(c.GetLabels(), d.GetLabels()) || !cmp.Equal(c.Rules, d.Rules)
+}
+
+func firstNAndSomeMore(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }

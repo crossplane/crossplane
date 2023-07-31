@@ -19,6 +19,8 @@ package namespace
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -193,8 +195,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
+	var applied []string //nolint:prealloc // We don't know how many roles we'll apply.
 	for _, rl := range r.rbac.RenderRoles(ns, l.Items) {
-		log = log.WithValues("role-name", rl.GetName())
+		log := log.WithValues("role-name", rl.GetName())
 		rl := rl // Pin range variable so we can take its address.
 
 		err := r.client.Apply(ctx, &rl, resource.MustBeControllableBy(ns.GetUID()), resource.AllowUpdateIf(RolesDiffer))
@@ -210,9 +213,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 
 		log.Debug("Applied RBAC Role")
+		applied = append(applied, rl.GetName())
 	}
 
-	r.record.Event(ns, event.Normal(reasonApplyRoles, "Applied RBAC Roles"))
+	if len(applied) > 0 {
+		sort.Strings(applied)
+		r.record.Event(ns, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC Roles: %s", firstNAndSomeMore(applied))))
+	}
+
 	return reconcile.Result{Requeue: false}, nil
 }
 
@@ -241,4 +249,11 @@ func equalRolesAnnotations(current, desired *rbacv1.Role) bool {
 		}
 	}
 	return cmp.Equal(currentFiltered, desiredFiltered)
+}
+
+func firstNAndSomeMore(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }

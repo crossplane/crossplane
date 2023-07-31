@@ -19,6 +19,8 @@ package roles
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -322,9 +324,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{Requeue: false}, nil
 	}
 
+	applied := make([]string, 0)
 	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
 		cr := cr // Pin range variable so we can take its address.
-		log = log.WithValues("role-name", cr.GetName())
+		log := log.WithValues("role-name", cr.GetName())
 		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
 		if resource.IsNotAllowed(err) {
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
@@ -337,11 +340,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			return reconcile.Result{}, err
 		}
 		log.Debug("Applied RBAC ClusterRole")
+		applied = append(applied, cr.GetName())
+	}
+
+	if len(applied) > 0 {
+		sort.Strings(applied)
+		r.record.Event(pr, event.Normal(reasonApplyRoles, fmt.Sprintf("Applied RBAC ClusterRoles: %s", firstNAndSomeMore(applied))))
 	}
 
 	// TODO(negz): Add a condition that indicates the RBAC manager is
 	// managing cluster roles for this ProviderRevision?
-	r.record.Event(pr, event.Normal(reasonApplyRoles, "Applied RBAC ClusterRoles"))
 
 	// There's no need to requeue explicitly - we're watching all PRs.
 	return reconcile.Result{Requeue: false}, nil
@@ -420,4 +428,11 @@ func (d OrgDiffer) Differs(a, b string) bool {
 	ob := strings.Split(cb.RepositoryStr(), "/")[0]
 
 	return oa != ob
+}
+
+func firstNAndSomeMore(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
