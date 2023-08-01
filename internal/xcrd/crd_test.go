@@ -107,8 +107,8 @@ func TestForCompositeResource(t *testing.T) {
 			},
 			"x-kubernetes-validations": [
 				{
-					"message": "Cannot remove engineVersion",
-					"rule": "!has(oldSelf.engineVersion) || has(self.engineVersion)"
+					"message": "Cannot change engine version",
+					"rule": "self.engineVersion == oldSelf.engineVersion"
 				}
 			],
 			"type": "object"
@@ -367,8 +367,8 @@ func TestForCompositeResource(t *testing.T) {
 								},
 								XValidations: extv1.ValidationRules{
 									{
-										Message: "Cannot remove engineVersion",
-										Rule:    "!has(oldSelf.engineVersion) || has(self.engineVersion)",
+										Message: "Cannot change engine version",
+										Rule:    "self.engineVersion == oldSelf.engineVersion",
 									},
 								},
 							},
@@ -851,8 +851,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 			},
 			"x-kubernetes-validations": [
 				{
-					"message": "Cannot remove engineVersion",
-					"rule": "!has(oldSelf.engineVersion) || has(self.engineVersion)"
+					"message": "Cannot change engine version",
+					"rule": "self.engineVersion == oldSelf.engineVersion"
 				}
 			],
 			"type": "object"
@@ -1092,8 +1092,8 @@ func TestForCompositeResourceClaim(t *testing.T) {
 									},
 									XValidations: extv1.ValidationRules{
 										{
-											Message: "Cannot remove engineVersion",
-											Rule:    "!has(oldSelf.engineVersion) || has(self.engineVersion)",
+											Message: "Cannot change engine version",
+											Rule:    "self.engineVersion == oldSelf.engineVersion",
 										},
 									},
 								},
