@@ -1390,15 +1390,6 @@ spec:
                             description: FieldPath shows the path of the field whose
                               value will be used.
                             type: string
-                          matchBool:
-                            description: MatchBool is the value you'd like to match
-                              if you're using "MatchBool" type.
-                            properties:
-                              matchFalse:
-                                description: MatchFalse controls whether the target
-                                  field should be false in order to be ready
-                                type: boolean
-                            type: object
                           matchCondition:
                             description: MatchCondition specifies the condition you'd
                               like to match if you're using "MatchCondition" type.
@@ -1434,6 +1425,8 @@ spec:
                             - MatchInteger
                             - NonEmpty
                             - MatchCondition
+                            - MatchTrue
+                            - MatchFalse
                             - None
                             type: string
                         required:
@@ -2877,15 +2870,6 @@ spec:
                             description: FieldPath shows the path of the field whose
                               value will be used.
                             type: string
-                          matchBool:
-                            description: MatchBool is the value you'd like to match
-                              if you're using "MatchBool" type.
-                            properties:
-                              matchFalse:
-                                description: MatchFalse controls whether the target
-                                  field should be false in order to be ready
-                                type: boolean
-                            type: object
                           matchCondition:
                             description: MatchCondition specifies the condition you'd
                               like to match if you're using "MatchCondition" type.
@@ -2921,6 +2905,8 @@ spec:
                             - MatchInteger
                             - NonEmpty
                             - MatchCondition
+                            - MatchTrue
+                            - MatchFalse
                             - None
                             type: string
                         required:
