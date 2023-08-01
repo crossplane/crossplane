@@ -68,24 +68,21 @@ func TestReadinessCheckValidate(t *testing.T) {
 				},
 			},
 		},
-		"ValidTypeMatchBool": {
-			reason: "Type matchBool should be valid with no additional config",
+		"ValidTypeMatchTrue": {
+			reason: "Type matchTrue should be valid",
 			args: args{
 				r: &ReadinessCheck{
-					Type:      ReadinessCheckTypeMatchBool,
+					Type:      ReadinessCheckTypeMatchTrue,
 					FieldPath: "spec.foo",
 				},
 			},
 		},
-		"ValidTypeMatchBoolWithAdditionalConfig": {
-			reason: "Type matchBool should be valid with additional config",
+		"ValidTypeMatchFalse": {
+			reason: "Type matchFalse should be valid",
 			args: args{
 				r: &ReadinessCheck{
-					Type:      ReadinessCheckTypeMatchBool,
+					Type:      ReadinessCheckTypeMatchFalse,
 					FieldPath: "spec.foo",
-					MatchBool: &MatchBoolReadinessCheck{
-						MatchFalse: true,
-					},
 				},
 			},
 		},

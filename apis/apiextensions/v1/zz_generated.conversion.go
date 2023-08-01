@@ -282,15 +282,6 @@ func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source
 	}
 	return pV1MapTransform
 }
-func (c *GeneratedRevisionSpecConverter) pV1MatchBoolReadinessCheckToPV1MatchBoolReadinessCheck(source *MatchBoolReadinessCheck) *MatchBoolReadinessCheck {
-	var pV1MatchBoolReadinessCheck *MatchBoolReadinessCheck
-	if source != nil {
-		var v1MatchBoolReadinessCheck MatchBoolReadinessCheck
-		v1MatchBoolReadinessCheck.MatchFalse = (*source).MatchFalse
-		pV1MatchBoolReadinessCheck = &v1MatchBoolReadinessCheck
-	}
-	return pV1MatchBoolReadinessCheck
-}
 func (c *GeneratedRevisionSpecConverter) pV1MatchConditionReadinessCheckToPV1MatchConditionReadinessCheck(source *MatchConditionReadinessCheck) *MatchConditionReadinessCheck {
 	var pV1MatchConditionReadinessCheck *MatchConditionReadinessCheck
 	if source != nil {
@@ -683,7 +674,6 @@ func (c *GeneratedRevisionSpecConverter) v1ReadinessCheckToV1ReadinessCheck(sour
 	v1ReadinessCheck.FieldPath = source.FieldPath
 	v1ReadinessCheck.MatchString = source.MatchString
 	v1ReadinessCheck.MatchInteger = source.MatchInteger
-	v1ReadinessCheck.MatchBool = c.pV1MatchBoolReadinessCheckToPV1MatchBoolReadinessCheck(source.MatchBool)
 	v1ReadinessCheck.MatchCondition = c.pV1MatchConditionReadinessCheckToPV1MatchConditionReadinessCheck(source.MatchCondition)
 	return v1ReadinessCheck
 }
