@@ -146,6 +146,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResou
 	xSpec := s.Properties["spec"]
 	cSpec := crdv.Schema.OpenAPIV3Schema.Properties["spec"]
 	cSpec.Required = append(cSpec.Required, xSpec.Required...)
+	cSpec.XValidations = append(cSpec.XValidations, xSpec.XValidations...)
 
 	cSpec.Description = xSpec.Description
 	for k, v := range xSpec.Properties {

@@ -105,6 +105,12 @@ func TestForCompositeResource(t *testing.T) {
 					"description": "Pretend this is useful."
 				}
 			},
+			"x-kubernetes-validations": [
+				{
+					"message": "Cannot remove engineVersion",
+					"rule": "!has(oldSelf.engineVersion) || has(self.engineVersion)"
+				}
+			],
 			"type": "object"
 		},
 		"status": {
@@ -358,6 +364,12 @@ func TestForCompositeResource(t *testing.T) {
 											"name":      {Type: "string"},
 											"namespace": {Type: "string"},
 										},
+									},
+								},
+								XValidations: extv1.ValidationRules{
+									{
+										Message: "Cannot remove engineVersion",
+										Rule:    "!has(oldSelf.engineVersion) || has(self.engineVersion)",
 									},
 								},
 							},
@@ -839,6 +851,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					"description": "Pretend this is useful."
 				}
 			},
+			"x-kubernetes-validations": [
+				{
+					"message": "Cannot remove engineVersion",
+					"rule": "!has(oldSelf.engineVersion) || has(self.engineVersion)"
+				}
+			],
 			"type": "object"
 		},
 		"status": {
@@ -1074,6 +1092,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 											Properties: map[string]extv1.JSONSchemaProps{
 												"name": {Type: "string"},
 											},
+										},
+									},
+									XValidations: extv1.ValidationRules{
+										{
+											Message: "Cannot remove engineVersion",
+											Rule:    "!has(oldSelf.engineVersion) || has(self.engineVersion)",
 										},
 									},
 								},
