@@ -119,6 +119,12 @@ func TestForCompositeResource(t *testing.T) {
 					"type": "string"
 				}
 			},
+			"x-kubernetes-validations": [
+				{
+					"message": "Phase is required once set",
+					"rule": "!has(oldSelf.phase) || has(self.phase)"
+				}
+			],
 			"type": "object",
 			"description": "Status of the resource."
 		}
@@ -402,6 +408,12 @@ func TestForCompositeResource(t *testing.T) {
 										Properties: map[string]extv1.JSONSchemaProps{
 											"lastPublishedTime": {Type: "string", Format: "date-time"},
 										},
+									},
+								},
+								XValidations: extv1.ValidationRules{
+									{
+										Message: "Phase is required once set",
+										Rule:    "!has(oldSelf.phase) || has(self.phase)",
 									},
 								},
 							},
@@ -865,6 +877,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 					"type": "string"
 				}
 			},
+			"x-kubernetes-validations": [
+				{
+					"message": "Phase is required once set",
+					"rule": "!has(oldSelf.phase) || has(self.phase)"
+				}
+			],
 			"type": "object",
 			"description": "Status of the resource."
 		}
@@ -1130,6 +1148,12 @@ func TestForCompositeResourceClaim(t *testing.T) {
 											Properties: map[string]extv1.JSONSchemaProps{
 												"lastPublishedTime": {Type: "string", Format: "date-time"},
 											},
+										},
+									},
+									XValidations: extv1.ValidationRules{
+										{
+											Message: "Phase is required once set",
+											Rule:    "!has(oldSelf.phase) || has(self.phase)",
 										},
 									},
 								},
