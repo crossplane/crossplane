@@ -302,6 +302,7 @@ func WithClaimFinalizer(f resource.Finalizer) ReconcilerOption {
 func WithLogger(l logging.Logger) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.log = l
+		r.client.Applicator = resource.NewAPIPatchingApplicator(r.client.Client).WithLogger(l)
 	}
 }
 

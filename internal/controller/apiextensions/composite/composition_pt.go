@@ -30,6 +30,7 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -116,6 +117,13 @@ func WithComposedConnectionDetailsExtractor(e ConnectionDetailsExtractor) PTComp
 	}
 }
 
+// WithPTComposerLogger sets the logger on the PTComposer.
+func WithPTComposerLogger(l logging.Logger) PTComposerOption {
+	return func(c *PTComposer) {
+		c.log = l
+	}
+}
+
 type composedResource struct {
 	Renderer
 	managed.ConnectionDetailsFetcher
@@ -133,6 +141,7 @@ type PTComposer struct {
 	composite   Renderer
 	composition CompositionTemplateAssociator
 	composed    composedResource
+	log         logging.Logger
 }
 
 // NewPTComposer returns a Composer that composes resources using Patch and
@@ -143,8 +152,6 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	kube = unstructured.NewClient(kube)
 
 	c := &PTComposer{
-		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
-
 		// TODO(negz): Once Composition Functions are GA this Composer will only
 		// need to handle legacy Compositions that use anonymous templates. This
 		// means we will be able to delete the GarbageCollectingAssociator and
@@ -158,11 +165,14 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 			ConnectionDetailsFetcher:   NewSecretConnectionDetailsFetcher(kube),
 			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
 		},
+		log: logging.NewNopLogger(),
 	}
 
 	for _, fn := range o {
 		fn(c)
 	}
+
+	c.client = resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube).WithLogger(c.log)}
 
 	return c
 }

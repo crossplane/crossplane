@@ -408,8 +408,6 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 			ConnectionPublisher: NewAPIFilteredSecretPublisher(kube, []string{}),
 		},
 
-		resource: NewPTComposer(kube),
-
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
 
@@ -419,6 +417,9 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 	for _, f := range opts {
 		f(r)
 	}
+
+	r.resource = NewPTComposer(kube, WithPTComposerLogger(r.log))
+
 	return r
 }
 

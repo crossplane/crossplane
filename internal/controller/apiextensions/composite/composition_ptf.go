@@ -247,8 +247,6 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 	f := NewSecretConnectionDetailsFetcher(kube)
 
 	c := &PTFComposer{
-		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
-
 		composite: ptfComposite{
 			ConnectionDetailsFetcher: f,
 			ComposedResourceGetter:   NewExistingComposedResourceGetter(kube, f),
@@ -267,6 +265,8 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 	for _, fn := range o {
 		fn(c)
 	}
+
+	c.client = resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube).WithLogger(c.log)}
 
 	return c
 }
