@@ -40,7 +40,7 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Composition type metadata.
+// EnvironmentConfig type metadata.
 var (
 	EnvironmentConfigKind             = reflect.TypeOf(EnvironmentConfig{}).Name()
 	EnvironmentConfigGroupKind        = schema.GroupKind{Group: Group, Kind: EnvironmentConfigKind}.String()

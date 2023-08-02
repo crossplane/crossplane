@@ -8,6 +8,8 @@ resources:
 - crds/pkg.crossplane.io_configurationrevisions.yaml
 - crds/pkg.crossplane.io_configurations.yaml
 - crds/pkg.crossplane.io_controllerconfigs.yaml
+- crds/pkg.crossplane.io_functionrevisions.yaml
+- crds/pkg.crossplane.io_functions.yaml
 - crds/pkg.crossplane.io_locks.yaml
 - crds/pkg.crossplane.io_providerrevisions.yaml
 - crds/pkg.crossplane.io_providers.yaml
