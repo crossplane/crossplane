@@ -2,7 +2,7 @@
 
 * Owners: Hasan Turken (@turkenh)
 * Reviewers: Crossplane Maintainers
-* Status: Draft
+* Status: Accepted
 
 ## Background
 
@@ -82,6 +82,10 @@ the desired state and the observed state of the resource and when the
 updated with the latest observation of the resource.
 
 ### Management Policy
+> [!NOTE]
+> The management policy was significantly changed in a
+subsequent design for [ignore changes]. Keeping this section for historical
+purposes.
 
 To support observing resources without taking ownership, we will introduce a new
 spec named `managementPolicy` to the Managed Resources. We will also deprecate
@@ -713,3 +717,4 @@ it as a migration path to Crossplane.
 [desired tags]: https://registry.terraform.io/providers/hashicorp/aws/latest/docs/data-sources/vpc#tags
 [passing sensitive configuration]: https://github.com/crossplane/crossplane/pull/2886#discussion_r862615416
 [`type: Webhook` composition function]: https://github.com/crossplane/crossplane/blob/master/design/design-doc-composition-functions.md#using-webhooks-to-run-functions
+[ignore changes]: https://github.com/crossplane/crossplane/blob/ad0ff7d6d0e4850168883905ed8e1509089cea15/design/one-pager-ignore-changes.md
