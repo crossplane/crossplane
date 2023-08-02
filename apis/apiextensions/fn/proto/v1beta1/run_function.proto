@@ -1,0 +1,131 @@
+/*
+Copyright 2022 The Crossplane Authors.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+syntax = "proto3";
+
+import "google/protobuf/struct.proto";
+import "google/protobuf/duration.proto";
+
+package apiextensions.fn.proto.v1beta1;
+
+option go_package = "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1";
+
+// A FunctionRunnerService is a Composition Function.
+service FunctionRunnerService {
+  // RunFunction runs the Composition Function.
+  rpc RunFunction(RunFunctionRequest) returns (RunFunctionResponse) {}
+}
+
+// A RunFunctionRequest requests that the Composition Function be run.
+message RunFunctionRequest {
+  // Metadata pertaining to this request.
+  RequestMeta meta = 1;
+
+  // The observed state prior to invocation of a Function pipeline. State passed
+  // to each Function is fresh as of the time the pipeline was invoked, not as
+  // of the time each Function was invoked.
+  State observed = 2;
+
+  // Desired state according to a Function pipeline. The state passed to a
+  // particular Function may have been accumulated by processing a Composition's
+  // patch-and-transform resources array. It may also have been accumulated by
+  // previous Functions in the pipeline.
+  State desired = 3;
+
+  // Optional input specific to this Function invocation. A JSON representation
+  // of the 'input' block of the relevant entry in a Composition's pipeline.
+  optional google.protobuf.Struct input = 4;
+}
+
+// A RunFunctionResponse contains the result of a Composition Function run.
+message RunFunctionResponse {
+  // Metadata pertaining to this response.
+  ResponseMeta meta = 1;
+
+  // Desired state according to a Function pipeline. Functions may add desired
+  // state, and may mutate or delete any part of the desired state they are
+  // concerned with. A Function must pass through any part of the desired state
+  // that it is not concerned with.
+  State desired = 2;
+
+  // Results of the Function run. Results are used for observability purposes.
+  repeated Result results = 3;
+}
+
+// RequestMeta contains metadata pertaining to a RunFunctionRequest.
+message RequestMeta {
+  // An opaque string identifying the content of the request. Two identical
+  // requests should have the same tag.
+  string tag = 1;
+}
+
+// ResponseMeta contains metadata pertaining to a RunFunctionResponse.
+message ResponseMeta {
+  // An opaque string identifying the content of the request. Must match the
+  // meta.tag of the corresponding RunFunctionRequest.
+  string tag = 1;
+
+  // Time-to-live of this response. Deterministic Functions with no side-effects
+  // (e.g. simple templating Functions) may specify a TTL. Crossplane may choose
+  // to cache responses until the TTL expires.
+  optional google.protobuf.Duration ttl = 2;
+}
+
+// State of the composite resource (XR) and any composed resources.
+message State {
+  // The state of the composite resource (XR).
+  Resource composite = 1;
+
+  // The state of any composed resources.
+  map<string, Resource> resources = 2;
+}
+
+// A Resource represents the state of a resource.
+message Resource {
+  // The JSON representation of the resource.
+  google.protobuf.Struct resource = 1;
+
+  // The resource's connection details.
+  map<string, bytes> connection_details = 2;
+}
+
+// A Result of running a Function.
+message Result {
+  // Severity of this result.
+  Severity severity = 1;
+
+  // Human-readable details about the result.
+  string message = 2;
+}
+
+// Severity of Function results.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+
+  // Fatal results are fatal; subsequent Composition Functions may run, but
+  // the Composition Function pipeline run will be considered a failure and
+  // the first fatal result will be returned as an error.
+  SEVERITY_FATAL = 1;
+
+  // Warning results are non-fatal; the entire Composition will run to
+  // completion but warning events and debug logs associated with the
+  // composite resource will be emitted.
+  SEVERITY_WARNING = 2;
+
+  // Normal results are emitted as normal events and debug logs associated
+  // with the composite resource.
+  SEVERITY_NORMAL = 3;
+}
