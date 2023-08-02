@@ -155,7 +155,7 @@ func TestMain(m *testing.M) {
 	// Check that all features are specifying a suite they belong to via LabelTestSuite.
 	environment.BeforeEachFeature(func(ctx context.Context, _ *envconf.Config, t *testing.T, feature features.Feature) (context.Context, error) {
 		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
-			t.Fatalf("Feature %s does not have a %s label, setting it to %s", feature.Name(), config.LabelTestSuite, config.TestSuiteDefault)
+			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
 		}
 		return ctx, nil
 	})
