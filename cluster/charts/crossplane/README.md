@@ -122,26 +122,6 @@ and their default values.
 | `serviceAccount.customAnnotations` | Add custom `annotations` to the Crossplane ServiceAccount. | `{}` |
 | `tolerations` | Add `tolerations` to the Crossplane pod deployment. | `[]` |
 | `webhooks.enabled` | Enable webhooks for Crossplane and installed Provider packages. | `true` |
-| `xfn.args` | Add custom arguments to the Composite functions runner container. | `[]` |
-| `xfn.cache.configMap` | The name of a ConfigMap to use as the Composite function runner package cache. Disables the default Composite function runner package cache `emptyDir` Volume. | `""` |
-| `xfn.cache.medium` | Set to `Memory` to hold the Composite function runner package cache in a RAM-backed file system. Useful for Crossplane development. | `""` |
-| `xfn.cache.pvc` | The name of a PersistentVolumeClaim to use as the Composite function runner package cache. Disables the default Composite function runner package cache `emptyDir` Volume. | `""` |
-| `xfn.cache.sizeLimit` | The size limit for the Composite function runner package cache. If medium is `Memory` the `sizeLimit` can't exceed Node memory. | `"1Gi"` |
-| `xfn.enabled` | Enable the alpha Composition functions (`xfn`) sidecar container. Also requires Crossplane `args` value `--enable-composition-functions` set. | `false` |
-| `xfn.extraEnvVars` | Add custom environmental variables to the Composite function runner container. Replaces any `.` in a variable name with `_`. For example, `SAMPLE.KEY=value1` becomes `SAMPLE_KEY=value1`. | `{}` |
-| `xfn.image.pullPolicy` | Composite function runner container image pull policy. | `"IfNotPresent"` |
-| `xfn.image.repository` | Composite function runner container image. | `"crossplane/xfn"` |
-| `xfn.image.tag` | Composite function runner container image tag. Defaults to the value of `appVersion` in Chart.yaml. | `""` |
-| `xfn.resources.limits.cpu` | CPU resource limits for the Composite function runner container. | `"2000m"` |
-| `xfn.resources.limits.memory` | Memory resource limits for the Composite function runner container. | `"2Gi"` |
-| `xfn.resources.requests.cpu` | CPU resource requests for the Composite function runner container. | `"1000m"` |
-| `xfn.resources.requests.memory` | Memory resource requests for the Composite function runner container. | `"1Gi"` |
-| `xfn.securityContext.allowPrivilegeEscalation` | Enable `allowPrivilegeEscalation` for the Composite function runner container. | `false` |
-| `xfn.securityContext.capabilities.add` | Set Linux capabilities for the Composite function runner container. The default values allow the container to create an unprivileged user namespace for running Composite function containers. | `["SETUID","SETGID"]` |
-| `xfn.securityContext.readOnlyRootFilesystem` | Set the Composite function runner container root file system as read-only. | `true` |
-| `xfn.securityContext.runAsGroup` | The group ID used by the Composite function runner container. | `65532` |
-| `xfn.securityContext.runAsUser` | The user ID used by the Composite function runner container. | `65532` |
-| `xfn.securityContext.seccompProfile.type` | Apply a `seccompProfile` to the Composite function runner container. The default value allows the Composite function runner container permissions to use the `unshare` syscall. | `"Unconfined"` |
 
 ### Command Line
 

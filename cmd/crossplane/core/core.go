@@ -47,7 +47,6 @@ import (
 	pkgcontroller "github.com/crossplane/crossplane/internal/controller/pkg/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/initializer"
-	"github.com/crossplane/crossplane/internal/oci"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
 	"github.com/crossplane/crossplane/internal/xpkg"
@@ -78,7 +77,7 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `placeholder:"host:port" help:"Serve runtime profiling data via HTTP at /debug/pprof."`
 
-	Namespace            string `short:"n" help:"Namespace used to unpack, run packages and for xfn private registry credentials extraction." default:"crossplane-system" env:"POD_NAMESPACE"`
+	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
 	ServiceAccount       string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
 	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
 	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
@@ -234,7 +233,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	if c.CABundlePath != "" {
-		rootCAs, err := oci.ParseCertificatesFromPath(c.CABundlePath)
+		rootCAs, err := ParseCertificatesFromPath(c.CABundlePath)
 		if err != nil {
 			return errors.Wrap(err, "Cannot parse CA bundle")
 		}
