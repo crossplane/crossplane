@@ -29,7 +29,7 @@ NPROCS ?= 1
 # to half the number of CPU cores.
 GO_TEST_PARALLEL := $(shell echo $$(( $(NPROCS) / 2 )))
 
-GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank $(GO_PROJECT)/cmd/xfn
+GO_STATIC_PACKAGES = $(GO_PROJECT)/cmd/crossplane $(GO_PROJECT)/cmd/crank
 GO_TEST_PACKAGES = $(GO_PROJECT)/test/e2e
 GO_LDFLAGS += -X $(GO_PROJECT)/internal/version.version=$(VERSION)
 GO_SUBDIRS += cmd internal apis
@@ -62,7 +62,7 @@ HELM_VALUES_TEMPLATE_SKIPPED = true
 # all be in folders at the same level (no additional levels of nesting).
 
 REGISTRY_ORGS = docker.io/crossplane xpkg.upbound.io/crossplane
-IMAGES = crossplane xfn
+IMAGES = crossplane
 -include build/makelib/imagelight.mk
 
 # ====================================================================================
@@ -127,9 +127,6 @@ e2e.test.images:
 e2e-tag-images: e2e.test.images
 	@$(INFO) Tagging E2E test images
 	@docker tag $(BUILD_REGISTRY)/$(PROJECT_NAME)-$(TARGETARCH) crossplane-e2e/$(PROJECT_NAME):latest || $(FAIL)
-	@docker tag $(BUILD_REGISTRY)/xfn-$(TARGETARCH) crossplane-e2e/xfn:latest || $(FAIL)
-	@docker tag $(BUILD_REGISTRY)/fn-labelizer-$(TARGETARCH) crossplane-e2e/fn-labelizer:latest || $(FAIL)
-	@docker tag $(BUILD_REGISTRY)/fn-tmp-writer-$(TARGETARCH) crossplane-e2e/fn-tmp-writer:latest || $(FAIL)
 	@$(OK) Tagged E2E test images
 
 # NOTE(negz): There's already a go.test.integration target, but it's weird.

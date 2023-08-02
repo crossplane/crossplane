@@ -1,9 +1,0 @@
-apiVersion: nop.example.org/v1alpha1
-kind: NopResource
-metadata:
-  name: fn-labelizer
-  namespace: default
-spec:
-  coolField: example
-  compositionRef:
-    name: fn.xnopresources.nop.example.org

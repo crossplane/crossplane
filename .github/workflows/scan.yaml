@@ -87,13 +87,6 @@ jobs:
         release: ${{ fromJSON(needs.generate-matrix.outputs.supported_releases) }}
         image:
           - crossplane/crossplane
-          - crossplane/xfn
-        exclude:
-          # excluded because xfn was introduced only in v1.11
-          - image: crossplane/xfn
-            release: v1.9
-          - image: crossplane/xfn
-            release: v1.10
 
     runs-on: ubuntu-latest
     steps:

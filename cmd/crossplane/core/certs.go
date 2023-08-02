@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package oci
+package core
 
 import (
 	"crypto/x509"

@@ -21,16 +21,13 @@ spec:
     type: {{ .Values.deploymentStrategy }}
   template:
     metadata:
-      {{- if or .Values.metrics.enabled .Values.xfn.enabled .Values.customAnnotations }}
+      {{- if or .Values.metrics.enabled .Values.customAnnotations }}
       annotations:
       {{- end }}
       {{- if .Values.metrics.enabled }}
         prometheus.io/path: /metrics
         prometheus.io/port: "8080"
         prometheus.io/scrape: "true"
-      {{- end }}
-      {{- if .Values.xfn.enabled }}
-        container.apparmor.security.beta.kubernetes.io/{{ .Chart.Name }}-xfn: unconfined
       {{- end }}
       {{- with .Values.customAnnotations }}
         {{- toYaml . | nindent 8 }}
@@ -187,50 +184,6 @@ spec:
           {{- if .Values.extraVolumeMountsCrossplane }}
           {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
           {{- end }}
-      {{- if .Values.xfn.enabled }}
-      - image: "{{ .Values.xfn.image.repository }}:{{ .Values.xfn.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
-        args:
-        - start
-        {{- range $arg := .Values.xfn.args }}
-        - {{ $arg }}
-        {{- end }}
-        imagePullPolicy: {{ .Values.xfn.image.pullPolicy }}
-        name: {{ .Chart.Name }}-xfn
-        resources:
-          {{- toYaml .Values.xfn.resources | nindent 12 }}
-        securityContext:
-          {{- toYaml .Values.xfn.securityContext | nindent 12 }}
-        env:
-          - name: GOMAXPROCS
-            valueFrom:
-              resourceFieldRef:
-                containerName: {{ .Chart.Name }}
-                resource: limits.cpu
-          - name: GOMEMLIMIT
-            valueFrom:
-              resourceFieldRef:
-                containerName: {{ .Chart.Name }}
-                resource: limits.memory
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          {{- if .Values.registryCaBundleConfig.key }}
-          - name: CA_BUNDLE_PATH
-            value: "/certs/{{ .Values.registryCaBundleConfig.key }}"
-          {{- end}}
-        {{- range $key, $value := .Values.xfn.extraEnvVars }}
-          - name: {{ $key | replace "." "_" }}
-            value: {{ $value | quote }}
-        {{- end }}
-        volumeMounts:
-          - mountPath: /xfn
-            name: xfn-cache
-        {{- if .Values.registryCaBundleConfig.name }}
-          - mountPath: /certs
-            name: ca-certs
-        {{- end }}
-      {{- end }}
       volumes:
       - name: package-cache
         {{- if .Values.packageCache.pvc }}
@@ -244,17 +197,6 @@ spec:
           medium: {{ .Values.packageCache.medium }}
           sizeLimit: {{ .Values.packageCache.sizeLimit }}
         {{- end }}
-      {{- if .Values.xfn.enabled }}
-      - name: xfn-cache
-        {{- if .Values.xfn.cache.pvc }}
-        persistentVolumeClaim:
-          claimName: {{ .Values.xfn.cache.pvc }}
-        {{- else }}
-        emptyDir:
-          medium: {{ .Values.xfn.cache.medium }}
-          sizeLimit: {{ .Values.xfn.cache.sizeLimit }}
-        {{- end }}
-      {{- end }}
       {{- if .Values.registryCaBundleConfig.name }}
       - name: ca-certs
         configMap:
