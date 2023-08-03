@@ -11,7 +11,7 @@ require (
 	github.com/crossplane/crossplane-runtime v0.20.0
 	github.com/cyphar/filepath-securejoin v0.2.3
 	github.com/google/go-cmp v0.5.9
-	github.com/google/go-containerregistry v0.15.3-0.20230625233257-b8504803389b
+	github.com/google/go-containerregistry v0.16.1
 	github.com/google/go-containerregistry/pkg/authn/k8schain v0.0.0-20230617045147-2472cbbbf289
 	github.com/google/uuid v1.3.0
 	github.com/jmattheis/goverter v0.17.4
