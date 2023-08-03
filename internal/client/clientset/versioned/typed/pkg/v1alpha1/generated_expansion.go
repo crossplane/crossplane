@@ -19,3 +19,7 @@ limitations under the License.
 package v1alpha1
 
 type ControllerConfigExpansion interface{}
+
+type FunctionExpansion interface{}
+
+type FunctionRevisionExpansion interface{}
