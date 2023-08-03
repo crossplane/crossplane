@@ -73,7 +73,7 @@ func TestEnvironmentConfigDefault(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
@@ -127,7 +127,7 @@ func TestEnvironmentResolutionOptional(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "1",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
@@ -181,7 +181,7 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			Assess("CreateAdditionalEnvironmentConfigMatchingSelector", funcs.AllOf(
@@ -191,7 +191,7 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 			Assess("SetAnnotationOnClaimToForceReconcile",
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), funcs.SetAnnotationMutateOption("e2e-reconcile-plz", time.Now().String()))).
 			Assess("MRHasStillAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
@@ -245,7 +245,7 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			Assess("CreateAdditionalEnvironmentConfigMatchingSelector", funcs.AllOf(
@@ -255,7 +255,7 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 			Assess("SetAnnotationOnClaimToForceReconcile",
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"), funcs.SetAnnotationMutateOption("e2e-reconcile-plz", time.Now().String()))).
 			Assess("MRHasUpdatedAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "3",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
@@ -309,7 +309,7 @@ func TestEnvironmentConfigMultipleMaxMatchNil(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "3",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(
@@ -362,7 +362,7 @@ func TestEnvironmentConfigMultipleMaxMatch1(t *testing.T) {
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml")),
 			)).
 			Assess("MRHasAnnotation",
-				funcs.ManagedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
+				funcs.ComposedResourcesOfClaimHaveFieldValueWithin(5*time.Minute, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "00-claim.yaml"),
 					"metadata.annotations[valueFromEnv]", "2",
 					funcs.FilterByGK(schema.GroupKind{Group: "nop.crossplane.io", Kind: "NopResource"}))).
 			WithTeardown("DeleteCreatedResources", funcs.AllOf(

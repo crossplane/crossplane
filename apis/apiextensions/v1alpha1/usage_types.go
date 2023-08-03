@@ -75,9 +75,7 @@ type UsageStatus struct {
 // A Usage defines a deletion blocking relationship between two resources.
 // +kubebuilder:object:root=true
 // +kubebuilder:storageversion
-// +kubebuilder:printcolumn:name="OF",type="string",JSONPath=".spec.of.resourceRef.name"
-// +kubebuilder:printcolumn:name="BY",type="string",JSONPath=".spec.by.resourceRef.name"
-// +kubebuilder:printcolumn:name="SYNCED",type="string",JSONPath=".status.conditions[?(@.type=='Synced')].status"
+// +kubebuilder:printcolumn:name="DETAILS",type="string",JSONPath=".metadata.annotations.crossplane\\.io/usage-details"
 // +kubebuilder:printcolumn:name="READY",type="string",JSONPath=".status.conditions[?(@.type=='Ready')].status"
 // +kubebuilder:printcolumn:name="AGE",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:scope=Cluster,categories=crossplane

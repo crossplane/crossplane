@@ -35,6 +35,7 @@ func (f fakeSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 
 func TestReconcile(t *testing.T) {
 	now := metav1.Now()
+	reason := "protected"
 	type args struct {
 		mgr  manager.Manager
 		opts []ReconcilerOption
@@ -118,6 +119,35 @@ func TestReconcile(t *testing.T) {
 				err: errors.Wrap(errBoom, errAddFinalizer),
 			},
 		},
+		"CannotAddDetailsAnnotation": {
+			reason: "We should return an error if we cannot add details annotation.",
+			args: args{
+				mgr: &fake.Manager{},
+				opts: []ReconcilerOption{
+					WithClientApplicator(xpresource.ClientApplicator{
+						Client: &test.MockClient{
+							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+								o := obj.(*v1alpha1.Usage)
+								o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(errBoom),
+						},
+					}),
+					WithSelectorResolver(fakeSelectorResolver{
+						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
+							return nil
+						},
+					}),
+					WithFinalizer(xpresource.FinalizerFns{AddFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
+						return nil
+					}}),
+				},
+			},
+			want: want{
+				err: errors.Wrap(errBoom, errAddDetailsAnnotation),
+			},
+		},
 		"CannotGetUsedResource": {
 			reason: "We should return an error if we cannot get used resource.",
 			args: args{
@@ -132,6 +162,9 @@ func TestReconcile(t *testing.T) {
 								case *resource.Unstructured:
 									return errBoom
 								}
+								return nil
+							}),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								return nil
 							}),
 						},
@@ -166,7 +199,12 @@ func TestReconcile(t *testing.T) {
 								}
 								return nil
 							}),
-							MockUpdate: test.NewMockUpdateFn(errBoom),
+							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+								if _, ok := obj.(*resource.Unstructured); ok {
+									return errBoom
+								}
+								return nil
+							}),
 						},
 					}),
 					WithSelectorResolver(fakeSelectorResolver{
@@ -247,8 +285,10 @@ func TestReconcile(t *testing.T) {
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if _, ok := obj.(*v1alpha1.Usage); ok {
-									return errBoom
+								if u, ok := obj.(*v1alpha1.Usage); ok {
+									if u.GetOwnerReferences() != nil {
+										return errBoom
+									}
 								}
 								return nil
 							}),
@@ -295,9 +335,11 @@ func TestReconcile(t *testing.T) {
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1alpha1.Usage); ok {
-									owner := o.GetOwnerReferences()[0]
-									if owner.APIVersion != "v1" || owner.Kind != "AnotherKind" || owner.UID != "some-uid" {
-										t.Errorf("expected owner reference to be set on usage properly")
+									if o.GetOwnerReferences() != nil {
+										owner := o.GetOwnerReferences()[0]
+										if owner.APIVersion != "v1" || owner.Kind != "AnotherKind" || owner.UID != "some-uid" {
+											t.Errorf("expected owner reference to be set on usage properly")
+										}
 									}
 								}
 								return nil
@@ -335,6 +377,7 @@ func TestReconcile(t *testing.T) {
 							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 								if o, ok := obj.(*v1alpha1.Usage); ok {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
+									o.Spec.Reason = &reason
 									return nil
 								}
 								if _, ok := obj.(*resource.Unstructured); ok {
@@ -343,9 +386,10 @@ func TestReconcile(t *testing.T) {
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								o := obj.(*resource.Unstructured)
-								if o.GetLabels()[inUseLabelKey] != "true" {
-									t.Fatalf("expected %s label to be true", inUseLabelKey)
+								if o, ok := obj.(*resource.Unstructured); ok {
+									if o.GetLabels()[inUseLabelKey] != "true" {
+										t.Fatalf("expected %s label to be true", inUseLabelKey)
+									}
 								}
 								return nil
 							}),

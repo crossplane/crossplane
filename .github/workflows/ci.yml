@@ -244,7 +244,8 @@ jobs:
         test-suite:
           - base
           - composition-webhook-schema-validation
-          - environment-configs
+          - environment-config
+          - usage
 
     steps:
       - name: Setup QEMU

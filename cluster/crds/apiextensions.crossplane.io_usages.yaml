@@ -2,7 +2,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.12.0
+    controller-gen.kubebuilder.io/version: v0.12.1
   name: usages.apiextensions.crossplane.io
 spec:
   group: apiextensions.crossplane.io
@@ -16,14 +16,8 @@ spec:
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.of.resourceRef.name
-      name: OF
-      type: string
-    - jsonPath: .spec.by.resourceRef.name
-      name: BY
-      type: string
-    - jsonPath: .status.conditions[?(@.type=='Synced')].status
-      name: SYNCED
+    - jsonPath: .metadata.annotations.crossplane\.io/usage-details
+      name: DETAILS
       type: string
     - jsonPath: .status.conditions[?(@.type=='Ready')].status
       name: READY
