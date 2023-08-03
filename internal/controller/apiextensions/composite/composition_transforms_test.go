@@ -794,7 +794,7 @@ func TestStringResolve(t *testing.T) {
 				i:       "Crossplane",
 			},
 			want: want{
-				o: "f9fd1da3c0cc298643ff098a0c59febf1d8b7b84",
+				o: "3b683dc8ff44122b331a5e4f253dd69d90726d75",
 			},
 		},
 		"ConvertToSha1Error": {
@@ -815,7 +815,7 @@ func TestStringResolve(t *testing.T) {
 				i:       "Crossplane",
 			},
 			want: want{
-				o: "e84ae541a0725d73154ee76b7ac3fec4b007dd01ed701d506cd7e7a45bb48935",
+				o: "19c8a7c24ed0067f606815b59e5b82d92935ff69deed04171457a55018e31224",
 			},
 		},
 		"ConvertToSha256Error": {
@@ -836,7 +836,27 @@ func TestStringResolve(t *testing.T) {
 				i:       "Crossplane",
 			},
 			want: want{
-				o: "b48622a3f487b8cb7748b356c9531cf54d9125c1456689c115744821f3dafd59c8c7d4dc5627c4a1e4082c67ee9f4528365a644a01a0c46d6dd0a6d979c8f51f",
+				o: "0016037c62c92b5cc4a282fbe30cdd228fa001624b26fd31baa9fcb76a9c60d48e2e7a16cf8729a2d9cba3d23e1d846e7721a5381b9a92dd813178e9a6686205",
+			},
+		},
+		"ConvertToSha512Int": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha512,
+				i:       1234,
+			},
+			want: want{
+				o: "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db",
+			},
+		},
+		"ConvertToSha512IntStr": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toSha512,
+				i:       "1234",
+			},
+			want: want{
+				o: "d404559f602eab6fd602ac7680dacbfaadd13630335e951f097af3900e9de176b6db28512f2e000b9d04fba5133e8b1c6e8df59db3a8ab9d60be4b97cc9e81db",
 			},
 		},
 		"ConvertToSha512Error": {
