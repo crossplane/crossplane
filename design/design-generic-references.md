@@ -7,9 +7,9 @@
 ## Background
 
 Crossplane providers provision and monitor external resources in third party
-cloud providers, following the declared specification in the corresponding managed
-resources. Very often, creation of these objects cannot happen in parallel, i.e. some
-fields can be set only after a given dependency is created.
+cloud providers, following the declared specification in the corresponding
+managed resources. Very often, creation of these objects cannot happen in
+parallel, i.e. some fields can be set only after a given dependency is created.
 
 [Cross resource referencing] solves this problem for majority of cases by
 following [Kubernetes API object reference] convention:
@@ -20,26 +20,48 @@ spec:
     name: bar
 ```
 
-Field `spec.fooRef` contains the name of the resource where the value for `spec.foo` is to
-be found. The kind of referred resource and the field containing the value used later for
-setting `spec.foo` is determined during compile time.
+Field `spec.fooRef` contains the name of the resource where the value
+for `spec.foo` is to be found. The kind of referred resource and the path to the
+field containing the value used later for setting `spec.foo` is fixed, i.e. it
+is embedded in the resolving mechanism used by the provider.
 
-Although the used convention covers the majority of use cases, it lacks the
-following properties:
+Although the used convention covers the majority of use cases, user experience
+shows that there is still a need to refer a value on an arbitrary path within an
+object of arbitrary kind. For example, 
+[`datasync.aws.upbound.io` `Task`](https://github.com/upbound/provider-aws/blob/main/apis/datasync/v1beta1/zz_task_types.go#L375)
+has [`spec.forProvider.sourceLocationArn`](https://github.com/upbound/provider-aws/blob/main/apis/datasync/v1beta1/zz_task_types.go#L359)
+field that can obtain value from an instance of the following object types:
 
-* The referred object kind and the source field cannot be changed at 
-  runtime for a given object
-* The referencer field may not always target a single referred kind. For
-  example, a URL field in Route53 could get populated by a URL of an S3 bucket
-  or access endpoint of an RDS Instance
-* The referencer field may not always target a single field in the referred
-  object
-* The value that is about to be assigned to the field require some sort of
-  transformation
+* LocationS3
+* LocationSmb
+* LocationObjectStorage
+* LocationNfs
+* LocationHdfs
+* LocationFsxWindowsFileSystem
+* LocationFsxOpenzfsFileSytem
+* LocationFsxLustreFileSystem
+* LocationEfs
 
-Some of the above issues can be solved by defining a composition. However, there
-are cases where one would like to use and refer to a resource not bound by a 
-composite instance.
+However, [the implemented provider resolving mechanism](https://github.com/upbound/provider-aws/blob/main/apis/datasync/v1beta1/zz_generated.resolvers.go#L104-L112)
+looks only for the value in `LocationS3` instance named
+by `spec.forProvider.sourceLocationArnRef` field.
+
+Currently, the issue can be solved by defining the following composition:
+
+* Declare under managed resources the needed source object (one of `Location*`)
+  types with [observe only management policy]
+* Patch composite object with the value from the source object
+* Patch Task's `spec.forProvider.sourceLocationArn` field with the composite
+  value
+
+The proposed solution has the following drawbacks:
+
+* For each claim, additional observe only resource gets created, just to be able
+  to work around the limitations of the current reference mechanism on certain
+  fields. In a system with a high number of claims, that would put additional
+  pressure on k8s API and etcd.
+* Composite object needs to expose the patched value, although fully unneeded
+  from API design perspective
 
 __**NOTE**__: [a prior design exists on this topic](https://github.com/crossplane/crossplane/pull/2385).
 
@@ -47,273 +69,409 @@ __**NOTE**__: [a prior design exists on this topic](https://github.com/crossplan
 
 The generic cross-reference should be able to:
 
-* be configurable at runtime
-* use the existing [Kubernetes API object reference] convention 
-  as much as possible
-* provide alternative convention in cases where [Kubernetes API object reference]
-  convention is not suitable
-* be implemented without or requiring only light changes in RBAC
-* support referring multiple objects (namespaced and cluster-scoped) and their
-  fields
-* support value transformation before assignment
+* Refer a value on an arbitrary path within an object of arbitrary kind
+* Use the existing [Kubernetes API object reference] convention as much as
+  possible
+* Be implementable without or requiring only light changes in RBAC
+
+In cases when the generic cross-references are unavailable for a given managed
+resource field, our compositions should not require declaring observe-only
+resource, for sole purpose of referring a value.
 
 ## Proposal
 
-We would like to introduce a new cluster-scoped `Referable` (alternative name
-could be `InjectableValue`) type whose instances declare values that can be
-assigned to an object field:
+Until now, providers were supporting only reference fields of
+type [`Reference`](https://github.com/pedjak/crossplane-runtime/blob/master/apis/common/v1/resource.go#L116-L123):
 
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Referable
-metadata:
-  name: referable-vpc-id
-spec:
-  objects:
-    - apiVersion: ec2.aws.crossplane.io/v1alpha1
-      kind: VPC
-      name: main-vpc
-      fieldPath: status.atProvider.id
+```go
+type Reference struct {
+// Name of the referenced object.
+Name string `json:"name"`
+
+// Policies for referencing.
+// +optional
+Policy *Policy `json:"policy,omitempty"`
+}
 ```
 
-The syntax of the `fieldPath` field is similar to what we
-use in Composition, in line with the [Kubernetes API Conventions on field selection].
+### GenericReference Type
 
-After deploying the above instance to the cluster, its reconciliation gets 
-triggered and once the referred object exists and the field is set, 
-the referable value is emitted in the object status part:
+We would like to introduce `GenericReference` field type:
+
+```go
+type GenericReference struct {
+  Reference
+  
+  // ApiVersion of the referenced object.
+  ApiVersion string `json:"apiVersion"`
+  
+  // Kind of the referenced object.
+  Kind string `json:"kind"`
+  
+  // FieldPath of the value within the referenced object.
+  FieldPath string `json:"fieldPath"`
+}
+```
+
+The syntax of the `fieldPath` field is the one used in Composition, in line with
+the [Kubernetes API Conventions on field selection].
+
+Reference fields of the above type describe completely the location of 
+the value that is about to be set on the counterpart field. In case of 
+`datasync.aws.upbound.io` `Task`, an instance might look like:
+
+```yaml
+apiVersion: datasync.aws.upbound.io/v1beta1
+kind: Task
+metadata:
+  name: datasync-task-example
+spec:
+  forProvider:
+    .
+    .
+    sourceLocationArnRef:
+      name: source-location
+      apiVersion: datasync.aws.upbound.io/v1beta1
+      kind: LocationS3
+      fieldPath: metadata.annotations[crossplane.io/external-name]
+```
+
+Such approach lets a user to point the `sourceLocationArnRef` field to a different
+resource at the runtime.
+
+### GenericSelector Type
+
+Similar to `GenericReference`, we are going to introduce `GenericSelector` type:
+
+```go
+type GenericSelector struct {
+  // MatchLabels ensures an object with matching labels is selected.
+  MatchLabels map[string]string `json:"matchLabels,omitempty"`
+  
+  // Policies for selection.
+  // +optional
+  Policy *Policy `json:"policy,omitempty"`
+  
+  // ApiVersion of the referenced object.
+  ApiVersion string `json:"apiVersion"`
+  
+  // Kind of the referenced object.
+  Kind string `json:"kind"`
+  
+  // FieldPath of the value within the referenced object.
+  FieldPath string `json:"fieldPath"`
+}
+```
+
+so that one can reference the external object when its name is
+unknown/irrelevant:
+
+```yaml
+apiVersion: datasync.aws.upbound.io/v1beta1
+kind: Task
+metadata:
+  name: datasync-task-example
+spec:
+  forProvider:
+    .
+    .
+    sourceLocationArnSelector:
+      matchLabels:
+        foo: bar
+      apiVersion: datasync.aws.upbound.io/v1beta1
+      kind: LocationS3
+      fieldPath: metadata.annotations[crossplane.io/external-name]
+```
+
+Although the proposed solution sounds like a natural evolution of the existing
+reference mechanism, its adoption would require that:
+
+* Providers implement the support for it.
+* RBAC permissions need to be relaxed, if provider `A` needs to refer values from
+  instances owned by provider `B`. In case of provider families, each provider has
+  enough rights to access all resources within the family, requiring no changes
+  in RBAC rules. Adding new rules should be done at deployment, by tweaking RBAC
+  rules for the given provider service account.
+
+### Referable Type
+
+If adding a number of RBAC rules is not an option for users, cross-provider
+referencing could be supported by introducing a new cluster-scoped `Referable` 
+(alternative name could be `InjectableValue`) type whose instances declare values
+that can be assigned to an object field:
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Referable
 metadata:
-  name: referable-vpc-id
+  name: ref-source-location
 spec:
-  objects:
-    - apiVersion: ec2.aws.crossplane.io/v1alpha1
-      kind: VPC
-      name: main-vpc
-      fieldPath: status.atProvider.id
+  source:
+    name: source-location
+    apiVersion: datasync.aws.upbound.io/v1beta1
+    kind: LocationS3
+    fieldPath: metadata.annotations[crossplane.io/external-name]
+```
+
+The syntax of the `fieldPath` field is the one used in Composition, in line with
+the [Kubernetes API Conventions on field selection].
+
+The change in RBAC rules is very limited - only the read permission for `Referable`
+type needs to be added for a given provider.
+
+After deploying the above instance to the cluster, its reconciliation gets
+triggered and once the referred object exists and the field is set, the
+referable value is emitted in the object status part:
+
+```yaml
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: Referable
+metadata:
+  name: ref-source-location
+spec:
+  source:
+    name: source-location
+    apiVersion: datasync.aws.upbound.io/v1beta1
+    kind: LocationS3
+    fieldPath: metadata.annotations[crossplane.io/external-name]
 status:
-  value: foo-vpc-id # the value found in the requested field
+  value: arn:aws:datasync:us-east-2:111222333444:location/loc-07db7abfc326c50aa # the value found in the requested field
   conditions:
     - type: Ready
       status: True
       reason: Available
 ```
 
-Now, the value can be referred in the usual way within a managed resource:
+Now, the value can be referred within a managed resource:
 
 ```yaml
+apiVersion: datasync.aws.upbound.io/v1beta1
+kind: Task
+metadata:
+  name: datasync-task-example
 spec:
-  vpcIdRef: referable-vpc-id
+  forProvider:
+    .
+    .
+    sourceLocationArnRef:
+      name: ref-source-location
+      apiVersion: apiextensions.crossplane.io/v1alpha1
+      kind: Referable
+      fieldPath: status.value
 ```
 
-The reference resolver could first try to find the `referable-vpc-id` `VPC` instance, 
-and fallback to `referable-vpc-id` `Referable` if the former does not exist. 
-If the instance is ready, the value is read from `status.value` and 
-set to `spec.vpcId` of the managed resource. Of course, if needed, and if it 
-makes more sense, the resolver could first look for the existence of `Referable` 
-object first. With that strategy, we would be able to overwrite the referencing
-mechanism set at the compile-time.
-
-Referring to a namespaced object would be possible as well:
+Of course, it should be possible to declare a source for the `Referable` 
+using labels:
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v1alpha1
 kind: Referable
 metadata:
-  name: region
+  name: ref-source-location
 spec:
-  objects:
-    - apiVersion: v1
-      kind: ConfigMap
-      name: common-settings
-      namespace: crossplane-system
-      fieldPath: data.region
+  source:
+    matchingLabels:
+      foo: bar
+    apiVersion: datasync.aws.upbound.io/v1beta1
+    kind: LocationS3
+    fieldPath: metadata.annotations[crossplane.io/external-name]
 ```
 
-or we could match an object with a label selector if its name is unknown or not
-static:
+### Composition
+
+Instead of declaring resources with [observe only management policy], we would
+like to enable adding values from external resources to the environments,
+similar to how environment configs are referred.
 
 ```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Referable
-metadata:
-  name: referable-vpc-id
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+# Removed for Brevity
 spec:
-  objects:
-    - apiVersion: ec2.aws.crossplane.io/v1alpha1
-      kind: VPC
-      matchingLabels:
-        class: main-vpc
-      fieldPath: status.atProvider.id
+  environment:
+    environmentConfigs:
+      - type: Reference
+        ref:
+          name: source-location
+          apiVersion: datasync.aws.upbound.io/v1beta1
+          kind: LocationS3
+          fromFieldPath: metadata.annotations[crossplane.io/external-name]
+          toFieldPath: source.location # path where the value is inserted into the environment
+
+  resources:
+  # Removed for Brevity
 ```
 
-### Value Assigning Without Counterpart Ref Field
-
-If a value needs to be assigned to a field that does not have a
-corresponding `Ref` field, the reference can be expressed using `spec.refs` block:
+or if the name of resource is unknown/irrelevant, we can use selectors:
 
 ```yaml
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+# Removed for Brevity
 spec:
-  refs:
-    - name: referable-vpc-id
-      toFieldPath: spec.myVPCId
+  environment:
+    environmentConfigs:
+      - type: Selector
+        selector:
+          matchLabels:
+            foo: bar
+          apiVersion: datasync.aws.upbound.io/v1beta1
+          kind: LocationS3
+          fromFieldPath: metadata.annotations[crossplane.io/external-name]
+          toFieldPath: source.location # path where the value is inserted into the environment
+
+  resources:
+  # Removed for Brevity
 ```
 
-The syntax of the `toFieldPath` field is similar to what we
-use in Composition, in line with the [Kubernetes API Conventions on field selection].
+After initializing the environment, an appropriate patch & transformation
+strategy can be applied to set managed resource fields.
 
-Alternatively, if we would like to avoid changing the managed resource schema, the
-above can be stated using annotations as well:
-
-```yaml
-metadata:
-  annotations:
-    "referable.upbound.io/referable-vpc-id": "spec.myVPCId"
-```
-
-### Referring Value Existing Potentially in Multiple Source
-
-If a value could be found in multiple objects of different kinds, we can mark
-them as optional and pick the value from the first one found:
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Referable
-metadata:
-  name: multi-ref
-spec:
-  objects:
-    - apiVersion: example.com/v1
-      kind: Foo
-      name: foo
-      optional: true
-      fieldPath: spec.id
-    - apiVersion: example.com/v1
-      kind: Bar
-      name: bar
-      optional: true
-      fieldPath: spec.myId
-```
-
-The above syntax can be used as well when a value might appear in a several
-places within single object.
-
-### Value Transformation
-
-Sometimes the referable value needs to be transformed or constructed from
-several other values. `Referable` type can be enriched to support that 
-by adding `spec.mapping` block:
-
-```yaml
-apiVersion: apiextensions.crossplane.io/v1alpha1
-kind: Referable
-metadata:
-  name: service-url
-spec:
-  objects:
-    - apiVersion: example.com/v1
-      kind: Foo
-      name: foo
-      fieldPath: spec.host
-      id: host # optional variable name in template context
-    - apiVersion: example.com/v1
-      kind: Foo
-      name: foo
-      fieldPath: spec.port
-      id: port # optional variable name in template context
-  mapping:
-    value: "https://{{ .host }}:{{ .port }}"
-```
-
-The used templating engine in `mapping.value` is [Go templates]. Each object 
-reference with assigned `id` becomes available under that name in the template context.
-A number of useful transformation functions could be made available to that context.
+__**Out of proposal scope**__: renaming `environmentConfigs` field to something
+more generic, e.g. `sources`.
 
 ### Advantages
 
-* All referred values are declared on managed resources using already familiar
-  mechanism, keeping their discovery simple
-* Value extraction is detached from its consumption. The same `Referable` can be
-  used by multiple managed resources
-* `Referable` instances can be watched and used by non-Crossplane controllers as
+* All referred values are still declared on managed resources using already
+  familiar mechanism
+* Optional `Referable` instances can be watched and used by non-Crossplane controllers as
   well
-* `Referable` instances can be properly garbage collected if owner
-  or [`Usage`](https://github.com/crossplane/crossplane/blob/master/design/one-pager-generic-usage-type.md)
-  instances are declared
-* Multiple objects/fields can be referred as value sources
-* Value can be transformed using a Go template
+* Avoid system pollution with [observe only management policy] objects
+* Using compositions, reference could be set even if provider does not support
+  the proposed reference mechanism
 
 ### Disadvantages
 
-* Providers might need to get read access to `Referable` type 
-  in order to resolve generic cross-resource references
+* Support for `Referable` type requires new controller on Crossplane side
+* Provider RBAC rules should be extended to include read permission 
+  for `Referable` type
+* Providers needs to support the new reference mechanism on their side
 
 ### Implementation
 
-It consists of two parts:
-
-* Adding new Crossplane controller for the `Referable` type
 * Update [crossplane-runtime](https://github.com/crossplane/crossplane-runtime/)
-  to support usage of `Referable` instances
-
-#### Referable Controller
-
-The controller is responsible for:
-
-* Defining proper `Usage` instance to guard against improper deletion
-  of `Referable` instances
-* Retrieving the declared objects and the field value, based on the provided
-  references
-* Transforming the value (if requested) and exposing it under `status.value`
-* Marking the instance as ready
-
-We assume currently that the value does not change after it gets exposed.
-Allowing updates and propagating them to the managed resources is out
-of the scope for this proposal version.
-
-No additional RBAC rules are needed, since Crossplane already poses very broad
-permissions within the cluster.
+  to support `GenericReference` and `GenericSelector` types
+* Extend [`EnvironmentConfigs`](https://github.com/crossplane/crossplane/blob/master/apis/apiextensions/v1/composition_environment.go#L107-L123)
+  to support referencing an arbitrary k8s object
+* Adding new Crossplane controller for the `Referable` type
 
 #### Crossplane-runtime Changes
 
 * [APIResolver](https://github.com/crossplane/crossplane-runtime/blob/master/pkg/reference/reference.go#L280)
-  should be enriched to support `Referable` instances
-* If additional references need to be declared via the `spec.refs` block or
-  annotations, the [ResolveReferences function generator](https://github.com/crossplane/crossplane-tools/blob/master/internal/method/resolver.go#L33)
-  should be enriched to support them
-* After fetching values, proper `Usage` instance need to be defined to guard
-  against improper deletion
+  should be enriched to support `GenericReference` and `GenericSelector`
+  instances
+* [ResolveReferences function generator](https://github.com/crossplane/crossplane-tools/blob/master/internal/method/resolver.go#L33)
+  should be enriched to support generic references
+* Patch [Upjet](https://github.com/upbound/upjet) to support `GenericReference`
+  and `GenericSelector` field types
 
-Finally, providers need to be upgraded to use the new version of crossplane-runtime 
-and for each type, the `ResolveReference` function needs to be regenerated.
+Finally, providers based on Upjet need to be regenerated so that they can expose
+generic references to users for the fields where `1:N` relationships exist.
+
+#### Composition Changes
+
+`EnvironmentSourceReference` should be upgraded to:
+
+```go
+type EnvironmentSourceReference struct {
+  // The name of the object.
+  Name string `json:"name"`
+  
+  // ApiVersion of the referenced object.
+  ApiVersion *string `json:"apiVersion"`
+  
+  // Kind of the referenced object.
+  Kind *string `json:"kind"`
+  
+  // FieldPath of the value within the referenced object.
+  FromFieldPath *string `json:"fromFieldPath"`
+  
+  // ToFieldPath of the value within the referenced object.
+  ToFieldPath *string `json:"toFieldPath"`
+}
+```
+
+Similar goes for `EnvironmentSourceSelector`:
+
+```go
+type EnvironmentSourceSelector struct {
+
+  // Mode specifies retrieval strategy: "Single" or "Multiple".
+  // +kubebuilder:validation:Enum=Single;Multiple
+  // +kubebuilder:default=Single
+  Mode EnvironmentSourceSelectorModeType `json:"mode"`
+  
+  // MaxMatch specifies the number of extracted EnvironmentConfigs in Multiple mode, extracts all if nil.
+  MaxMatch *uint64 `json:"maxMatch,omitempty"`
+  
+  // SortByFieldPath is the path to the field based on which list of EnvironmentConfigs is alphabetically sorted.
+  // +kubebuilder:default="metadata.name"
+  SortByFieldPath string `json:"sortByFieldPath"`
+  
+  // MatchLabels ensures an object with matching labels is selected.
+  MatchLabels []EnvironmentSourceSelectorLabelMatcher `json:"matchLabels,omitempty"`
+  
+  // ApiVersion of the referenced object.
+  ApiVersion *string `json:"apiVersion"`
+  
+  // Kind of the referenced object.
+  Kind *string `json:"kind"`
+  
+  // FieldPath of the value within the referenced object.
+  FromFieldPath *string `json:"fromFieldPath"`
+  
+  // ToFieldPath of the value within the referenced object.
+  ToFieldPath *string `json:"toFieldPath"`
+}
+```
+
+Finally, the logic for constructing the environment should be updated.
+
+#### `Referable` Controller
+
+The controller is responsible for:
+
+* Retrieving the declared object and the field value, based on the provided
+  reference
+* Exposing the retrieved value under `status.value`
+* Marking the instance as ready
+
+No additional RBAC rules are needed, since Crossplane already poses very broad
+permissions within the cluster.
 
 ## Alternatives Considered
 
 * [A previous design](https://github.com/crossplane/crossplane/pull/2385) was
   proposed for this topic.
 
-  It embeds the schema similar `Referable` type into a number of `spec.patches.fromObject`
-  fields in managed resources. Such an approach would require that each provider 
-  has access to a broad set of resources (even from other providers), demanding
-  a broad set of RBAC rules. Furthermore, if a certain value transformation is
-  needed on multiple managed resources, it would be required to repeat its 
-  declaration on every MR.
+  It embeds the schema similar to `GenericReference` type into a number of
+  new `spec.patches.fromObject` fields in managed resources. The existing 
+  ref and selector fields remains available in the schema, although they 
+  cannot be used for usecases referred throughout this proposal. 
+  The proposed reference mechanism enables patching any field, even if it 
+  does not have counterpart ref and selector fields. Although powerful,
+  it overlaps significantly with compositions.
 
-* `Referable` instances could also contain the reference 
-   to the destination managed resource and its field.
+
+* `Referable` instances could also contain the reference to the destination
+  managed resource and its field.
     - Such approach would make the discovery of references for a given managed
-      resource harder
-    - Referable controller logic becomes more complex, because the destination
-      managed resource might not exist
+      resource harder, i.e. some would be declared on MR itself, but some 
+      other would be spread across of number `Referable` instances
+    - Referable controller logic becomes more complex
+    - It starts to look like an alternative to compositions, potentially
+      confusing users
     - One more controller can now update a managed resource, increasing
       potential conflict rate
     - `Referable` instance could not be consumed by multiple managed resources
     - However, providers would not need the read access to `Referable` instances
 
 [Cross resource referencing]: https://github.com/crossplane/crossplane/blob/master/design/one-pager-cross-resource-referencing.md
+
 [Kubernetes API object reference]: https://github.com/kubernetes/community/blob/master/contributors/devel/sig-architecture/api-conventions.md#object-references
+
 [Kubernetes API Conventions on field selection]: https://github.com/kubernetes/community/blob/744e270/contributors/devel/sig-architecture/api-conventions.md#selecting-fields
-[Go templates]: https://pkg.go.dev/text/template
+
+[observe only management policy]: https://docs.crossplane.io/knowledge-base/guides/import-existing-resources/#apply-the-observeonly-managementpolicy
+
+[crossplane-runtime]: https://github.com/crossplane/crossplane-runtime/
