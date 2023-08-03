@@ -26,13 +26,6 @@ import (
 )
 
 const (
-	errUnexpectedType = "unexpected type"
-
-	errGroupImmutable                  = "spec.group is immutable"
-	errPluralImmutable                 = "spec.names.plural is immutable"
-	errKindImmutable                   = "spec.names.kind is immutable"
-	errClaimPluralImmutable            = "spec.claimNames.plural is immutable"
-	errClaimKindImmutable              = "spec.claimNames.kind is immutable"
 	errConversionWebhookConfigRequired = "spec.conversion.webhook is required when spec.conversion.strategy is 'Webhook'"
 )
 
@@ -40,7 +33,7 @@ const (
 // webhook to enforce a few immutable fields. We should look into using CEL per
 // https://github.com/crossplane/crossplane/issues/4128 instead.
 
-// +kubebuilder:webhook:verbs=update,path=/validate-apiextensions-crossplane-io-v1-compositeresourcedefinition,mutating=false,failurePolicy=fail,groups=apiextensions.crossplane.io,resources=compositeresourcedefinitions,versions=v1,name=compositeresourcedefinitions.apiextensions.crossplane.io,sideEffects=None,admissionReviewVersions=v1
+// +kubebuilder:webhook:verbs=create;update,path=/validate-apiextensions-crossplane-io-v1-compositeresourcedefinition,mutating=false,failurePolicy=fail,groups=apiextensions.crossplane.io,resources=compositeresourcedefinitions,versions=v1,name=compositeresourcedefinitions.apiextensions.crossplane.io,sideEffects=None,admissionReviewVersions=v1
 
 // ValidateCreate is run for creation actions.
 func (in *CompositeResourceDefinition) ValidateCreate() (admission.Warnings, error) {
@@ -53,27 +46,7 @@ func (in *CompositeResourceDefinition) ValidateCreate() (admission.Warnings, err
 }
 
 // ValidateUpdate is run for update actions.
-func (in *CompositeResourceDefinition) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	oldObj, ok := old.(*CompositeResourceDefinition)
-	if !ok {
-		return nil, errors.New(errUnexpectedType)
-	}
-	switch {
-	case in.Spec.Group != oldObj.Spec.Group:
-		return nil, errors.New(errGroupImmutable)
-	case in.Spec.Names.Plural != oldObj.Spec.Names.Plural:
-		return nil, errors.New(errPluralImmutable)
-	case in.Spec.Names.Kind != oldObj.Spec.Names.Kind:
-		return nil, errors.New(errKindImmutable)
-	}
-	if in.Spec.ClaimNames != nil && oldObj.Spec.ClaimNames != nil {
-		switch {
-		case in.Spec.ClaimNames.Plural != oldObj.Spec.ClaimNames.Plural:
-			return nil, errors.New(errClaimPluralImmutable)
-		case in.Spec.ClaimNames.Kind != oldObj.Spec.ClaimNames.Kind:
-			return nil, errors.New(errClaimKindImmutable)
-		}
-	}
+func (in *CompositeResourceDefinition) ValidateUpdate(_ runtime.Object) (admission.Warnings, error) {
 	return nil, nil
 }
 
