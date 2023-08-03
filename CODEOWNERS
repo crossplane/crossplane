@@ -37,10 +37,10 @@
 /design/                             @crossplane/crossplane-maintainers @negz
 
 # Package manager
-/apis/pkg/                           @crossplane/crossplane-reviewers @hasheddan
-/internal/xpkg/                      @crossplane/crossplane-reviewers @hasheddan
-/internal/dag/                       @crossplane/crossplane-reviewers @hasheddan
-/internal/controller/pkg/            @crossplane/crossplane-reviewers @hasheddan
+/apis/pkg/                           @crossplane/crossplane-reviewers @turkenh
+/internal/xpkg/                      @crossplane/crossplane-reviewers @turkenh
+/internal/dag/                       @crossplane/crossplane-reviewers @turkenh
+/internal/controller/pkg/            @crossplane/crossplane-reviewers @turkenh
 
 # Composition
 /apis/apiextensions/                 @crossplane/crossplane-reviewers @muvaf
@@ -53,6 +53,6 @@
 
 # Misc
 /apis/secrets/                       @crossplane/crossplane-reviewers @turkenh
-/cmd/crank/                          @crossplane/crossplane-reviewers @hasheddan
+/cmd/crank/                          @crossplane/crossplane-reviewers @negz
 /internal/initializer/               @crossplane/crossplane-reviewers @muvaf
 /internal/features/                  @crossplane/crossplane-reviewers @negz
