@@ -99,11 +99,6 @@ spec:
                 - kind
                 - plural
                 type: object
-                x-kubernetes-validations:
-                - message: claimNames.plural is immutable
-                  rule: self.plural == oldSelf.plural
-                - message: claimNames.kind is immutable
-                  rule: self.kind == oldSelf.kind
               connectionSecretKeys:
                 description: ConnectionSecretKeys is the list of keys that will be
                   exposed to the end user of the defined kind. If the list is empty,
@@ -253,9 +248,6 @@ spec:
                   resource. Composite resources are served under `/apis/<group>/...`.
                   Must match the name of the XRD (in the form `<names.plural>.<group>`).
                 type: string
-                x-kubernetes-validations:
-                - message: group is immutable
-                  rule: self == oldSelf
               metadata:
                 description: Metadata specifies the desired metadata for the defined
                   composite resource and claim CRD's.
@@ -321,11 +313,6 @@ spec:
                 - kind
                 - plural
                 type: object
-                x-kubernetes-validations:
-                - message: names.plural is immutable
-                  rule: self.plural == oldSelf.plural
-                - message: names.kind is immutable
-                  rule: self.kind == oldSelf.kind
               versions:
                 description: 'Versions is the list of all API versions of the defined
                   composite resource. Version names are used to compute the order

@@ -47,7 +47,6 @@ const (
 // Error strings.
 const (
 	errNotComposition = "supplied object was not a Composition"
-	errUnexpectedOp   = "unexpected operation"
 	errValidationMode = "cannot get validation mode"
 
 	errFmtTooManyCRDs = "more than one CRD found for %s.%s: %v"
