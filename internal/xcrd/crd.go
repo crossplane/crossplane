@@ -149,6 +149,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResou
 	xSpec := s.Properties["spec"]
 	cSpec := crdv.Schema.OpenAPIV3Schema.Properties["spec"]
 	cSpec.Required = append(cSpec.Required, xSpec.Required...)
+	cSpec.XValidations = append(cSpec.XValidations, xSpec.XValidations...)
 
 	cSpec.Description = xSpec.Description
 	for k, v := range xSpec.Properties {
@@ -159,6 +160,7 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResou
 	xStatus := s.Properties["status"]
 	cStatus := crdv.Schema.OpenAPIV3Schema.Properties["status"]
 	cStatus.Required = xStatus.Required
+	cStatus.XValidations = xStatus.XValidations
 	cStatus.Description = xStatus.Description
 	for k, v := range xStatus.Properties {
 		cStatus.Properties[k] = v
