@@ -18,7 +18,6 @@ package initializer
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/spf13/afero"
 	admv1 "k8s.io/api/admissionregistration/v1"
@@ -124,7 +123,7 @@ func (c *WebhookConfigurations) Run(ctx context.Context, kube client.Client) err
 			// See https://github.com/kubernetes-sigs/controller-tools/issues/658
 			conf.SetName("crossplane")
 		default:
-			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %s", reflect.TypeOf(obj).String())
+			return errors.Errorf("only MutatingWebhookConfiguration and ValidatingWebhookConfiguration kinds are accepted, got %T", obj)
 		}
 		if err := pa.Apply(ctx, obj.(client.Object)); err != nil {
 			return errors.Wrap(err, errApplyWebhookConfiguration)

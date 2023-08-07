@@ -191,7 +191,10 @@ func sortConfigs(ec []v1alpha1.EnvironmentConfig, f string) error { //nolint:goc
 			return err
 		}
 
-		vt := reflect.TypeOf(val).Kind()
+		var vt reflect.Kind
+		if val != nil {
+			vt = reflect.TypeOf(val).Kind()
+		}
 
 		// check only vt1 as vt1 == vt2
 		switch vt { //nolint:exhaustive // we only support these types

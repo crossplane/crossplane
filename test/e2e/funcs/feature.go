@@ -518,7 +518,15 @@ func asUnstructured(o runtime.Object) *unstructured.Unstructured {
 func identifier(o k8s.Object) string {
 	k := o.GetObjectKind().GroupVersionKind().Kind
 	if k == "" {
-		k = reflect.TypeOf(o).Elem().Name()
+		t := reflect.TypeOf(o)
+		if t != nil {
+			if t.Kind() == reflect.Ptr {
+				t = t.Elem()
+			}
+			k = t.Name()
+		} else {
+			k = fmt.Sprintf("%T", o)
+		}
 	}
 	if o.GetNamespace() == "" {
 		return fmt.Sprintf("%s %s", k, o.GetName())

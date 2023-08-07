@@ -19,6 +19,7 @@ package initializer
 
 import (
 	"context"
+	"fmt"
 	"reflect"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,10 +48,23 @@ type Initializer struct {
 // Init does all operations necessary for controllers and webhooks to work.
 func (c *Initializer) Init(ctx context.Context) error {
 	for _, s := range c.steps {
+		if s == nil {
+			continue
+		}
 		if err := s.Run(ctx, c.kube); err != nil {
 			return err
 		}
-		c.log.Info("Step has been completed", "Name", reflect.TypeOf(s).Elem().Name())
+		t := reflect.TypeOf(s)
+		var name string
+		if t != nil {
+			if t.Kind() == reflect.Ptr {
+				t = t.Elem()
+			}
+			name = t.Name()
+		} else {
+			name = fmt.Sprintf("%T", s)
+		}
+		c.log.Info("Step has been completed", "Name", name)
 	}
 	return nil
 }
