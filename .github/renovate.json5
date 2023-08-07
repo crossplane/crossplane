@@ -2,7 +2,8 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:base",
-    "helpers:pinGitHubActionDigests"
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits"
   ],
 // We only want renovate to rebase PRs when they have conflicts,
 // default "auto" mode is not required.
@@ -14,9 +15,6 @@
   "baseBranches": ["master","release-1.11","release-1.12","release-1.13"],
   "ignorePaths": ["design/**"],
   "postUpdateOptions": ["gomodTidy"],
-// By default renovate will auto detect whether semantic commits have been used
-// in the recent history and comply with that, we explicitly disable it
-  "semanticCommits": "disabled",
 // All PRs should have a label
   "labels": ["automated"],
   "regexManagers": [
