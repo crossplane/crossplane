@@ -22,7 +22,7 @@ this issue for posterity. Refer to this [prior release issue][release-1.11.0] fo
 examples of each step, assuming release vX.Y.0 is being cut.
 
 - [ ] Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
-  - [ ] Created the release branch.
+  - [ ] Created the release branch using the [GitHub UI][create-branch].
   - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] Opened a [docs release issue].
@@ -34,7 +34,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] `xp/getting-started-with-azure`
   - [ ] `xp/getting-started-with-gcp`
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the `release-X.Y` branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel at `stable/vX.Y.0/...`.
-- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.<Y-1>.0`, so the first of the releases for the previous minor.
+- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.<Y-1>.0`, so the first of the releases for the previous minor. Before publishing the release notes, set them as Draft and ask the rest of the team to double check them.
 - [ ] Checked that the [docs release issue] created previously has been completed.
 - [ ] Updated, in a single PR, the following on `master`:
   - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
@@ -49,6 +49,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [Code Freeze]: https://docs.crossplane.io/knowledge-base/guides/release-cycle/#code-freeze
 [ci-workflow]: https://github.com/crossplane/crossplane/actions/workflows/ci.yml
 [configurations-workflow]: https://github.com/crossplane/crossplane/actions/workflows/configurations.yml
+[create-branch]: https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-and-deleting-branches-within-your-repository
 [docs release issue]: https://github.com/crossplane/docs/issues/new?assignees=&labels=release&template=new_release.md&title=Release+Crossplane+version...+
 [new release]: https://github.com/crossplane/crossplane/releases/new
 [owners]: https://github.com/crossplane/crossplane/blob/master/OWNERS.md
