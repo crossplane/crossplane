@@ -11,6 +11,10 @@ control of the schema of the declarative API it offers.
 
 Crossplane is a [Cloud Native Computing Foundation][cncf] project.
 
+## Getting Started
+
+Crossplane's [Getting Started Documentation](https://docs.crossplane.io/v1.13/getting-started/) covers Crossplane installation and cloud provider quickstarts.
+
 ## Releases
 
 Currently maintained releases, as well as the next few upcoming releases are
