@@ -878,8 +878,17 @@ func TestStringResolve(t *testing.T) {
 				i:       "Crossplane",
 			},
 			want: want{
-				o: "471008351",
-				//o: "373097499",
+				o: "373097499",
+			},
+		},
+		"ConvertToAdler32Unicode": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toAdler32,
+				i:       "⡌⠁⠧⠑ ⠼⠁⠒  ⡍⠜⠇⠑⠹⠰⠎ ⡣⠕⠌",
+			},
+			want: want{
+				o: "4110427190",
 			},
 		},
 		"ConvertToAdler32Error": {
