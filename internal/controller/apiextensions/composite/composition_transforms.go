@@ -336,12 +336,19 @@ func stringConvertTransform(t *v1.StringConversionType, input any) (string, erro
 }
 
 func stringGenerateHash[THash any](input any, hashFunc func([]byte) THash) (THash, error) {
-	inputJSON, err := json.Marshal(input)
-	if err != nil {
-		var ret THash
-		return ret, errors.Wrap(err, errMarshalJSON)
+	var b []byte
+	var err error
+	switch v := input.(type) {
+	case string:
+		b = []byte(v)
+	default:
+		b, err = json.Marshal(input)
+		if err != nil {
+			var ret THash
+			return ret, errors.Wrap(err, errMarshalJSON)
+		}
 	}
-	return hashFunc(inputJSON), nil
+	return hashFunc(b), nil
 }
 
 func stringTrimTransform(input any, t v1.StringTransformType, trim string) string {
