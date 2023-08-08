@@ -38,7 +38,7 @@ const LabelAreaPkg = "pkg"
 func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/private"
 
-	environment.Test(t,
+	e2eConfig.Test(t,
 		features.New("ConfigurationPullFromPrivateRegistry").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -60,7 +60,7 @@ func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 func TestConfigurationWithDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/dependency"
 
-	environment.Test(t,
+	e2eConfig.Test(t,
 		features.New("ConfigurationWithDependency").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -90,7 +90,7 @@ func TestProviderUpgrade(t *testing.T) {
 	// resource has been created.
 	manifests := "test/e2e/manifests/pkg/provider"
 
-	environment.Test(t,
+	e2eConfig.Test(t,
 		features.New("ProviderUpgrade").
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).

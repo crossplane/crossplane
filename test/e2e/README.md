@@ -112,7 +112,8 @@ A test suite is currently defined by:
 - A list of additional setup steps to be run before installing Crossplane and
   running the tests. E.g. Loading additional images into the cluster.
 - Whether the suite should include the default suite or not, meaning that
-  install options will be added to the default ones and setup
+  install options will be added to the default ones if not explicitly specified
+  not to do so.
 
 Test suites enable use cases such as installing Crossplane with a specific
 alpha feature enabled and running all the basic tests, plus the ones specific to
@@ -205,10 +206,10 @@ func TestSomeFeature(t *testing.T) {
 		features.New("ConfigurationWithDependency").
 			WithLabel(LabelArea, ...).
 			WithLabel(LabelSize, ...).
-            WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
-            // ...
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			// ...
 			WithSetup("ReadyPrerequisites", ... ).
-            // ... other setup steps ...
+			// ... other setup steps ...
 			Assess("DoSomething", ... ).
 			Assess("SomethingElseIsInSomeState", ... ).
 			// ... other assess steps ...
