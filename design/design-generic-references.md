@@ -1,7 +1,7 @@
 # Generic Resource References
 
 * Owner: Predrag Knezevic (@pedjak)
-* Reviewers: Crossplane Maintainers
+* Reviewers: Nic Cope (@negz), Hasan Türken (@turkenh), Bob Haddleton (@bobh66)
 * Status: Draft
 
 ## Background
