@@ -106,11 +106,12 @@ Automatically setting a default runtime config has two advantages:
 * Administrators can override the configuration all runtimes use by default.
 
 The Crossplane init container will create a default DeploymentRuntimeConfig at
-install time. A Crossplane administrator could then replace it with their own.
-For example Crossplane might install a default DeploymentRuntimeConfig that
-limits all package runtimes to 1 CPU core, but a Crossplane administrator might
-wish to change this to give all runtimes 2 CPU cores by default. Individual
-packages can still be explicitly configured to use a specific runtime config.
+install time if it does not exist. A Crossplane administrator could then replace
+it with their own. For example Crossplane might install a default
+DeploymentRuntimeConfig that limits all package runtimes to 1 CPU core, but a
+Crossplane administrator might wish to change this to give all runtimes 2 CPU
+cores by default. Individual packages can still be explicitly configured to use
+a specific runtime config.
 
 Given that we saw ControllerConfig growing into a template for a Deployment, I
 propose we lean into that and make DeploymentRuntimeConfig exactly that. For
@@ -149,8 +150,10 @@ spec:
             containerPort: 8080
     # A DeploymentRuntimeConfig can also be used to configure the Service and
     # ServiceAccount the package manager creates to support the Deployment.
-    serviceTemplate: {}
-    serviceAccountTemplate: {}
+    serviceTemplate:
+      metadata: {}
+    serviceAccountTemplate:
+      metadata: {}
 ```
 
 The above DeploymentRuntimeConfig matches the values that are currently
