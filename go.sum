@@ -123,8 +123,8 @@ github.com/benbjohnson/clock v1.3.5 h1:VvXlSJBzZpA/zum6Sj74hxwYI2DIxRWuNIoXAzHZz
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bgentry/speakeasy v0.1.0/go.mod h1:+zsyZBPWlz7T6j88CTgSN5bM796AkVf0kBD4zp0CCIs=
-github.com/bufbuild/buf v1.25.1 h1:8ed5AjZ+zPIJf72rxtfsDit/MtaBimaSRn9Y+5G++y0=
-github.com/bufbuild/buf v1.25.1/go.mod h1:UMPncXMWgrmIM+0QpwTEwjNr2SA0z2YIVZZsmNflvB4=
+github.com/bufbuild/buf v1.26.1 h1:+GdU4z2paCmDclnjLv7MqnVi3AGviImlIKhG0MHH9FA=
+github.com/bufbuild/buf v1.26.1/go.mod h1:UMPncXMWgrmIM+0QpwTEwjNr2SA0z2YIVZZsmNflvB4=
 github.com/bufbuild/connect-go v1.9.0 h1:JIgAeNuFpo+SUPfU19Yt5TcWlznsN5Bv10/gI/6Pjoc=
 github.com/bufbuild/connect-go v1.9.0/go.mod h1:CAIePUgkDR5pAFaylSMtNK45ANQjp9JvpluG20rhpV8=
 github.com/bufbuild/connect-opentelemetry-go v0.4.0 h1:6JAn10SNqlQ/URhvRNGrIlczKw1wEXknBUUtmWqOiak=
