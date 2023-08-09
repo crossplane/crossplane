@@ -163,10 +163,19 @@ The above DeploymentRuntimeConfig matches the values that are currently
 The package manager will always be opinionated about some things, and will
 overlay the following settings over the top of the provided template:
 
-* The name and namespace of the deployment, service, and service account.
 * The image, image pull policy, and image pull secrets (set from the package).
 * The label selectors required to make sure the Deployment and Service match.
 * Any volumes, env vars, and ports required by a runtime (e.g. for webhooks).
+
+[Today][#2880] it's possible to specify the name of the desired ServiceAccount
+in a ControllerConfig. If the named ServiceAccount doesn't exist, it's created.
+If it does exist, it's updated (e.g. by propagating annotations). In order to
+maintain compatibility with this behaviour, it will be possible to explicitly
+specify a `metadata.name` for a ServiceAccount. If an existing ServiceAccount is
+named, it will be updated. If a name is not provided, the name of the package
+revision will be used. This pattern will also apply to Deployments and Services,
+simply to make the behaviour of a DeploymentRuntimeConfig more consistent and
+thus less surprising.
 
 ## Future Improvements
 
@@ -223,3 +232,4 @@ controller.
 [functions-beta-design]: https://github.com/crossplane/crossplane/pull/4306
 [hardcoded-pkg-deployment]: https://github.com/crossplane/crossplane/blob/v1.12.2/internal/controller/pkg/revision/deployment.go#L60
 [google-cloud-run]: https://cloud.google.com/run
+[#2880]: https://github.com/crossplane/crossplane/pull/2880
