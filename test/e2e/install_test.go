@@ -48,10 +48,10 @@ const LabelAreaLifecycle = "lifecycle"
 // if not disabled explicitly.
 func TestCrossplaneLifecycle(t *testing.T) {
 	manifests := "test/e2e/manifests/lifecycle/upgrade"
-	e2eConfig.Test(t,
+	environment.Test(t,
 		// Test that it's possible to cleanly uninstall Crossplane, even after
 		// having created and deleted a claim.
-		features.New("CrossplaneUninstall").
+		features.New(t.Name()+"Uninstall").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
@@ -95,7 +95,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 				funcs.ResourceDeletedWithin(3*time.Minute, &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}),
 			)).
 			Feature(),
-		features.New("CrossplaneUpgrade").
+		features.New(t.Name()+"Upgrade").
 			WithLabel(LabelArea, LabelAreaLifecycle).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -128,7 +128,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			)).
 			Assess("ClaimIsAvailable", funcs.ResourcesHaveConditionWithin(2*time.Minute, manifests, "claim.yaml", xpv1.Available())).
 			Assess("UpgradeCrossplane", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToBase()),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Assess("CoreDeploymentIsAvailable", funcs.DeploymentBecomesAvailableWithin(1*time.Minute, namespace, "crossplane")).

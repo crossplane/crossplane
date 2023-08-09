@@ -203,7 +203,7 @@ func TestSomeFeature(t *testing.T) {
 	// ... other variables or constants ...
 
 	environment.Test(t,
-		features.New("ConfigurationWithDependency").
+		features.New(t.Name()).
 			WithLabel(LabelArea, ...).
 			WithLabel(LabelSize, ...).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).

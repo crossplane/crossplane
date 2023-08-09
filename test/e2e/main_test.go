@@ -58,7 +58,7 @@ const (
 )
 
 var (
-	e2eConfig   = config.NewFromFlags()
+	environment = config.NewFromFlags()
 	clusterName string
 )
 
@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 	log.SetLogger(klog.NewKlogr())
 
 	// Set the default suite, to be used as base for all the other suites.
-	e2eConfig.AddDefaultTestSuite(
+	environment.AddDefaultTestSuite(
 		config.WithoutBaseDefaultTestSuite(),
 		config.WithHelmInstallOpts(
 			helm.WithName(helmReleaseName),
@@ -98,10 +98,10 @@ func TestMain(m *testing.M) {
 	var setup []env.Func
 	var finish []env.Func
 
-	// Parse flags, populating Config too.
+	// Parse flags, populating Environment too.
 	// we want to create the cluster if it doesn't exist, but only if we're
-	if e2eConfig.IsKindCluster() {
-		clusterName := e2eConfig.GetKindClusterName()
+	if environment.IsKindCluster() {
+		clusterName := environment.GetKindClusterName()
 		kindCfg, err := filepath.Abs(filepath.Join("test", "e2e", "testdata", "kindConfig.yaml"))
 		if err != nil {
 			panic(fmt.Sprintf("error getting kind config file: %s", err.Error()))
@@ -115,12 +115,12 @@ func TestMain(m *testing.M) {
 
 	// Enrich the selected labels with the ones from the suite.
 	// Not replacing the user provided ones if any.
-	cfg.WithLabels(e2eConfig.EnrichLabels(cfg.Labels()))
+	cfg.WithLabels(environment.EnrichLabels(cfg.Labels()))
 
-	e2eConfig.SetEnvironment(env.NewWithConfig(cfg))
+	environment.SetEnvironment(env.NewWithConfig(cfg))
 
-	if e2eConfig.ShouldLoadImages() {
-		clusterName := e2eConfig.GetKindClusterName()
+	if environment.ShouldLoadImages() {
+		clusterName := environment.GetKindClusterName()
 		setup = append(setup,
 			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
 		)
@@ -128,13 +128,13 @@ func TestMain(m *testing.M) {
 
 	// Add the setup functions defined by the suite being used
 	setup = append(setup,
-		e2eConfig.GetSelectedSuiteAdditionalEnvSetup()...,
+		environment.GetSelectedSuiteAdditionalEnvSetup()...,
 	)
 
-	if e2eConfig.ShouldInstallCrossplane() {
+	if environment.ShouldInstallCrossplane() {
 		setup = append(setup,
 			envfuncs.CreateNamespace(namespace),
-			e2eConfig.HelmInstallBaseCrossplane(),
+			environment.HelmInstallBaseCrossplane(),
 		)
 	}
 
@@ -143,19 +143,19 @@ func TestMain(m *testing.M) {
 
 	// We want to destroy the cluster if we created it, but only if we created it,
 	// otherwise the random name will be meaningless.
-	if e2eConfig.ShouldDestroyKindCluster() {
-		finish = []env.Func{envfuncs.DestroyKindCluster(e2eConfig.GetKindClusterName())}
+	if environment.ShouldDestroyKindCluster() {
+		finish = []env.Func{envfuncs.DestroyKindCluster(environment.GetKindClusterName())}
 	}
 
 	// Check that all features are specifying a suite they belong to via LabelTestSuite.
-	e2eConfig.BeforeEachFeature(func(ctx context.Context, _ *envconf.Config, t *testing.T, feature features.Feature) (context.Context, error) {
+	environment.BeforeEachFeature(func(ctx context.Context, _ *envconf.Config, t *testing.T, feature features.Feature) (context.Context, error) {
 		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
 			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
 		}
 		return ctx, nil
 	})
 
-	e2eConfig.Setup(setup...)
-	e2eConfig.Finish(finish...)
-	os.Exit(e2eConfig.Run(m))
+	environment.Setup(setup...)
+	environment.Finish(finish...)
+	os.Exit(environment.Run(m))
 }
