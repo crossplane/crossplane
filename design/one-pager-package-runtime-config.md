@@ -177,6 +177,34 @@ revision will be used. This pattern will also apply to Deployments and Services,
 simply to make the behaviour of a DeploymentRuntimeConfig more consistent and
 thus less surprising.
 
+## Migration from ControllerConfig
+
+ControllerConfig is an alpha feature. Typically we do not provide an automated
+migration when we drop support for alpha features. ControllerConfig is however a
+special case - it predates our use of feature flags so it's on by default. It's
+also known to be very widely used. Dropping it without a migration story would
+be particularly disruptive.
+
+To ease the migration, we will add a new feature flag, `enable-runtime-config`.
+When true, Crossplane will support `runtimeConfigRef` and __not__
+`controllerConfigRef`. The new `DeploymentRuntimeConfig` type will be introduced
+as an alpha feature, and go through the typical alpha -> beta -> GA lifecycle.
+This means:
+
+1. When first released as alpha, `DeploymentRuntimeConfig` support will be off
+  by default, with `ControllerConfig` support on by default.
+2. When the feature is promoted to beta, `DeploymentRuntimeConfig` support will
+  be on by default, with `ControllerConfig` support off by default. It will
+  still be possible to specify `--enable-runtime-config=false` to force support
+  for `ControllerConfig`.
+3. When the feature is promoted to GA it will no longer be possible to disable
+  support for `DeploymentRuntimeConfig`. Support for `ControllerConfig` will be
+  removed.
+
+To assist with migration, a tool will be provided that automatically creates a
+`DeploymentRuntimeConfig` manifest given a `ControllerConfig` manifest, and
+updates references from a `Provider` manifest accordingly.
+
 ## Future Improvements
 
 The `--package-runtime` flag and `runtimeConfig` API are intentionally designed
