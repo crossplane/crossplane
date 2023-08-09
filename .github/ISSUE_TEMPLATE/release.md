@@ -26,6 +26,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] Opened a [docs release issue].
+- [ ] Checked that the [GitHub milestone] for this release only contains closed issues
 - [ ] Run the [Tag workflow][tag-workflow] on the `release-X.Y` branch with the proper release version, `vX.Y.0`. Message suggested, but not required: `Release vX.Y.0`.
 - [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel, e.g. `build/release-X.Y/vX.Y.0/...` should contain all the relevant binaries.
 - [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
@@ -39,6 +40,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
 - [ ] Updated, in a single PR, the following on `master`:
   - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
   - [ ] The `baseBranches` list in `.github/renovate.json5`, removing the now old unsupported release and adding the new one.
+- [ ] Closed the GitHub milestone for this release.
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
   - [ ] Twitter: reach out to a Crossplane maintainer or steering committee member, see [OWNERS.md][owners].
@@ -59,3 +61,4 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [releases.crossplane.io]: https://releases.crossplane.io
 [tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
 [xpkg.upbound.io]: https://marketplace.upbound.io/configurations?query=getting-started
+[GitHub milestone]: https://github.com/crossplane/crossplane/milestones
