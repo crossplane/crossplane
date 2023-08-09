@@ -40,8 +40,9 @@ const TestSuiteDefault = "base"
 
 const testSuiteFlag = "test-suite"
 
-// Config is these e2e test configuration.
-type Config struct {
+// Environment is these e2e test configuration, wraps the e2e-framework
+// environment.
+type Environment struct {
 	createKindCluster     *bool
 	destroyKindCluster    *bool
 	preinstallCrossplane  *bool
@@ -56,6 +57,8 @@ type Config struct {
 	env.Environment
 }
 
+// selectedTestSuite implements the flag.Value interface. To be able to
+// distinguish between empty string and an unset value.
 type selectedTestSuite struct {
 	name string
 	set  bool
@@ -85,6 +88,8 @@ type testSuite struct {
 	labelsToSelect       features.Labels
 }
 
+// conditionalSetupFunc wraps a list of env.Func and a condition that will be
+// evaluated to decide whether the provided functions should be used or not.
 type conditionalSetupFunc struct {
 	condition func() bool
 	f         []env.Func
@@ -92,8 +97,8 @@ type conditionalSetupFunc struct {
 
 // NewFromFlags creates a new e2e test configuration, setting up the flags, but
 // not parsing them yet, which is left to the caller to do.
-func NewFromFlags() Config {
-	c := Config{
+func NewFromFlags() Environment {
+	c := Environment{
 		suites: map[string]testSuite{},
 	}
 	c.kindClusterName = flag.String("kind-cluster-name", "", "name of the kind cluster to use")
@@ -115,7 +120,7 @@ func NewFromFlags() Config {
 	return c
 }
 
-func (e *Config) getAvailableSuitesOptions() (opts []string) {
+func (e *Environment) getAvailableSuitesOptions() (opts []string) {
 	for s := range e.suites {
 		opts = append(opts, s)
 	}
@@ -125,7 +130,7 @@ func (e *Config) getAvailableSuitesOptions() (opts []string) {
 
 // GetKindClusterName returns the name of the kind cluster, returns empty string
 // if it's not a kind cluster.
-func (e *Config) GetKindClusterName() string {
+func (e *Environment) GetKindClusterName() string {
 	if !e.IsKindCluster() {
 		return ""
 	}
@@ -137,42 +142,42 @@ func (e *Config) GetKindClusterName() string {
 }
 
 // SetEnvironment sets the environment to be used by the e2e test configuration.
-func (e *Config) SetEnvironment(env env.Environment) {
+func (e *Environment) SetEnvironment(env env.Environment) {
 	e.Environment = env
 }
 
 // IsKindCluster returns true if the test is running against a kind cluster.
-func (e *Config) IsKindCluster() bool {
+func (e *Environment) IsKindCluster() bool {
 	return *e.createKindCluster || *e.kindClusterName != ""
 }
 
 // ShouldLoadImages returns true if the test should load images into the kind
 // cluster.
-func (e *Config) ShouldLoadImages() bool {
+func (e *Environment) ShouldLoadImages() bool {
 	return *e.loadImagesKindCluster && e.IsKindCluster()
 }
 
 // HelmUpgradeCrossplaneToSuite returns a features.Func that upgrades crossplane using
 // the specified suite's helm install options.
-func (e *Config) HelmUpgradeCrossplaneToSuite(suite string, extra ...helm.Option) env.Func {
+func (e *Environment) HelmUpgradeCrossplaneToSuite(suite string, extra ...helm.Option) env.Func {
 	return funcs.HelmUpgrade(e.getSuiteInstallOpts(suite, extra...)...)
 }
 
 // HelmUpgradeCrossplaneToBase returns a features.Func that upgrades crossplane using
 // the specified suite's helm install options.
-func (e *Config) HelmUpgradeCrossplaneToBase() env.Func {
+func (e *Environment) HelmUpgradeCrossplaneToBase() env.Func {
 	return e.HelmUpgradeCrossplaneToSuite(e.selectedTestSuite.String())
 }
 
 // HelmInstallBaseCrossplane returns a features.Func that installs crossplane using
 // the default suite's helm install options.
-func (e *Config) HelmInstallBaseCrossplane() env.Func {
+func (e *Environment) HelmInstallBaseCrossplane() env.Func {
 	return funcs.HelmInstall(e.getSuiteInstallOpts(e.selectedTestSuite.String())...)
 }
 
 // getSuiteInstallOpts returns the helm install options for the specified
 // suite, appending additional specified ones
-func (e *Config) getSuiteInstallOpts(suite string, extra ...helm.Option) []helm.Option {
+func (e *Environment) getSuiteInstallOpts(suite string, extra ...helm.Option) []helm.Option {
 	p, ok := e.suites[suite]
 	if !ok {
 		panic(fmt.Sprintf("The selected suite %q does not exist", suite))
@@ -186,12 +191,12 @@ func (e *Config) getSuiteInstallOpts(suite string, extra ...helm.Option) []helm.
 
 // GetSelectedSuiteInstallOpts returns the helm install options for the
 // selected suite, appending additional specified ones.
-func (e *Config) GetSelectedSuiteInstallOpts(extra ...helm.Option) []helm.Option {
+func (e *Environment) GetSelectedSuiteInstallOpts(extra ...helm.Option) []helm.Option {
 	return e.getSuiteInstallOpts(e.selectedTestSuite.String(), extra...)
 }
 
 // AddTestSuite adds a new test suite, panics if already defined.
-func (e *Config) AddTestSuite(name string, opts ...TestSuiteOpt) {
+func (e *Environment) AddTestSuite(name string, opts ...TestSuiteOpt) {
 	if _, ok := e.suites[name]; ok {
 		panic(fmt.Sprintf("suite already defined: %s", name))
 	}
@@ -204,7 +209,7 @@ func (e *Config) AddTestSuite(name string, opts ...TestSuiteOpt) {
 }
 
 // AddDefaultTestSuite adds the default suite, panics if already defined.
-func (e *Config) AddDefaultTestSuite(opts ...TestSuiteOpt) {
+func (e *Environment) AddDefaultTestSuite(opts ...TestSuiteOpt) {
 	e.AddTestSuite(TestSuiteDefault, append([]TestSuiteOpt{WithoutBaseDefaultTestSuite()}, opts...)...)
 }
 
@@ -247,30 +252,30 @@ func WithConditionalEnvSetupFuncs(condition func() bool, funcs ...env.Func) Test
 // Used to install Crossplane before any test starts, but some tests also use
 // these options - for example to reinstall Crossplane with a feature flag
 // enabled.
-func (e *Config) HelmOptions(extra ...helm.Option) []helm.Option {
+func (e *Environment) HelmOptions(extra ...helm.Option) []helm.Option {
 	return append(e.GetSelectedSuiteInstallOpts(), extra...)
 }
 
 // HelmOptionsToSuite returns the Helm options for the specified suite,
 // appending additional specified ones.
-func (e *Config) HelmOptionsToSuite(suite string, extra ...helm.Option) []helm.Option {
+func (e *Environment) HelmOptionsToSuite(suite string, extra ...helm.Option) []helm.Option {
 	return append(e.getSuiteInstallOpts(suite), extra...)
 }
 
 // ShouldInstallCrossplane returns true if the test should install Crossplane
 // before starting.
-func (e *Config) ShouldInstallCrossplane() bool {
+func (e *Environment) ShouldInstallCrossplane() bool {
 	return *e.preinstallCrossplane
 }
 
 // ShouldDestroyKindCluster returns true if the test should destroy the kind
 // cluster after finishing.
-func (e *Config) ShouldDestroyKindCluster() bool {
+func (e *Environment) ShouldDestroyKindCluster() bool {
 	return *e.destroyKindCluster && e.IsKindCluster()
 }
 
 // GetSelectedSuiteLabels returns the labels to select for the selected suite.
-func (e *Config) getSelectedSuiteLabels() features.Labels {
+func (e *Environment) getSelectedSuiteLabels() features.Labels {
 	if !e.selectedTestSuite.set {
 		return nil
 	}
@@ -279,7 +284,7 @@ func (e *Config) getSelectedSuiteLabels() features.Labels {
 
 // GetSelectedSuiteAdditionalEnvSetup returns the additional env setup funcs
 // for the selected suite, to be run before installing Crossplane, if required.
-func (e *Config) GetSelectedSuiteAdditionalEnvSetup() (out []env.Func) {
+func (e *Environment) GetSelectedSuiteAdditionalEnvSetup() (out []env.Func) {
 	selectedTestSuite := e.selectedTestSuite.String()
 	for _, s := range e.suites[selectedTestSuite].additionalSetupFuncs {
 		if s.condition() {
@@ -303,7 +308,7 @@ func (e *Config) GetSelectedSuiteAdditionalEnvSetup() (out []env.Func) {
 
 // EnrichLabels returns the provided labels enriched with the selected suite
 // labels, preserving user-specified ones in case of key conflicts.
-func (e *Config) EnrichLabels(labels features.Labels) features.Labels {
+func (e *Environment) EnrichLabels(labels features.Labels) features.Labels {
 	if e.isSelectingTests() {
 		return labels
 	}
@@ -319,7 +324,7 @@ func (e *Config) EnrichLabels(labels features.Labels) features.Labels {
 	return labels
 }
 
-func (e *Config) isSelectingTests() bool {
+func (e *Environment) isSelectingTests() bool {
 	if e.specificTestSelected == nil {
 		f := flag.Lookup("test.run")
 		e.specificTestSelected = pointer.Bool(f != nil && f.Value.String() != "")

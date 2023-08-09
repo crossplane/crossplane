@@ -59,7 +59,7 @@ const (
 )
 
 func init() {
-	e2eConfig.AddTestSuite(SuiteCompositionFunctions,
+	environment.AddTestSuite(SuiteCompositionFunctions,
 		config.WithHelmInstallOpts(
 			helm.WithArgs(
 				"--set args={--debug,--enable-composition-functions}",
@@ -75,15 +75,15 @@ func init() {
 			config.LabelTestSuite: []string{SuiteCompositionFunctions, config.TestSuiteDefault},
 		}),
 		config.WithConditionalEnvSetupFuncs(
-			e2eConfig.ShouldLoadImages, envfuncs.LoadDockerImageToCluster(e2eConfig.GetKindClusterName(), imgxfn),
+			environment.ShouldLoadImages, envfuncs.LoadDockerImageToCluster(environment.GetKindClusterName(), imgxfn),
 		),
 	)
 }
 
-func TestXfnRunnerImagePull(t *testing.T) {
+func TestXfnRunnerImagePullFromPrivateRegistryWithCustomCert(t *testing.T) {
 	manifests := "test/e2e/manifests/xfnrunner/private-registry/pull"
-	e2eConfig.Test(t,
-		features.New("PullFnImageFromPrivateRegistryWithCustomCert").
+	environment.Test(t,
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaXFN).
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelSize, LabelSizeLarge).
@@ -152,7 +152,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 			WithSetup("CopyFnImageToRegistry",
 				funcs.CopyImageToRegistry(clusterName, registryNs, "private-docker-registry", "crossplane-e2e/fn-labelizer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToSuite(SuiteCompositionFunctions,
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteCompositionFunctions,
 					helm.WithArgs(
 						"--set registryCaBundleConfig.key=domain.crt",
 						"--set registryCaBundleConfig.name=reg-ca",
@@ -208,7 +208,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				},
 			)).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToBase()),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),
@@ -217,8 +217,8 @@ func TestXfnRunnerImagePull(t *testing.T) {
 
 func TestXfnRunnerWriteToTmp(t *testing.T) {
 	manifests := "test/e2e/manifests/xfnrunner/tmp-writer"
-	e2eConfig.Test(t,
-		features.New("CreateAFileInTmpFolder").
+	environment.Test(t,
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaXFN).
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelSize, LabelSizeLarge).
@@ -249,7 +249,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			WithSetup("CopyFnImageToRegistry",
 				funcs.CopyImageToRegistry(clusterName, registryNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToSuite(SuiteCompositionFunctions)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteCompositionFunctions)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			WithSetup("ProviderNopDeployed", funcs.AllOf(
@@ -288,7 +288,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			)).
 			WithTeardown("RemoveRegistry", funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(registryNs))).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToBase()),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),

@@ -21,7 +21,7 @@ const (
 )
 
 func init() {
-	e2eConfig.AddTestSuite(SuiteCompositionWebhookSchemaValidation,
+	environment.AddTestSuite(SuiteCompositionWebhookSchemaValidation,
 		config.WithHelmInstallOpts(
 			helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"),
 		),
@@ -50,8 +50,8 @@ func TestCompositionValidation(t *testing.T) {
 			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid.yaml"),
 		},
 	}
-	e2eConfig.Test(t,
-		cases.Build("CompositionValidation").
+	environment.Test(t,
+		cases.Build(t.Name()).
 			WithLabel(LabelStage, LabelStageAlpha).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
@@ -59,7 +59,7 @@ func TestCompositionValidation(t *testing.T) {
 			WithLabel(config.LabelTestSuite, SuiteCompositionWebhookSchemaValidation).
 			// Enable our feature flag.
 			WithSetup("EnableAlphaCompositionValidation", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToSuite(SuiteCompositionWebhookSchemaValidation)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteCompositionWebhookSchemaValidation)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
@@ -78,7 +78,7 @@ func TestCompositionValidation(t *testing.T) {
 			)).
 			// Disable our feature flag.
 			WithTeardown("DisableAlphaCompositionValidation", funcs.AllOf(
-				funcs.AsFeaturesFunc(e2eConfig.HelmUpgradeCrossplaneToBase()),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),

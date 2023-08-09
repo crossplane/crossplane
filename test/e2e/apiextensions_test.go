@@ -40,8 +40,8 @@ const LabelAreaAPIExtensions = "apiextensions"
 func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
 
-	e2eConfig.Test(t,
-		features.New("CompositionMinimal").
+	environment.Test(t,
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
@@ -74,8 +74,8 @@ func TestCompositionMinimal(t *testing.T) {
 func TestCompositionPatchAndTransform(t *testing.T) {
 
 	manifests := "test/e2e/manifests/apiextensions/composition/patch-and-transform"
-	e2eConfig.Test(t,
-		features.New("CompositionPatchAndTransform").
+	environment.Test(t,
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
