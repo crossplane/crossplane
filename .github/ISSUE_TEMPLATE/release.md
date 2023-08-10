@@ -41,10 +41,13 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
   - [ ] The `baseBranches` list in `.github/renovate.json5`, removing the now old unsupported release and adding the new one.
 - [ ] Closed the GitHub milestone for this release.
+- [ ] Publish a blog post about the release to the [crossplane blog]
 - [ ] Ensured that users have been notified of the release on all communication channels:
   - [ ] Slack: `#announcements` channel on Crossplane's Slack workspace.
   - [ ] Twitter: reach out to a Crossplane maintainer or steering committee member, see [OWNERS.md][owners].
-- [ ] Request @jbw976 to remove the EOL docs version from Google Search
+  - [ ] LinkedIn: same as Twitter
+- [ ] Request @jbw976 to remove all old docs versions from Google Search
+- [ ] Remove any extra permissions given to release team members for this release
 
 
 <!-- Named Links -->
@@ -62,3 +65,4 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [tag-workflow]: https://github.com/crossplane/crossplane/actions/workflows/tag.yml
 [xpkg.upbound.io]: https://marketplace.upbound.io/configurations?query=getting-started
 [GitHub milestone]: https://github.com/crossplane/crossplane/milestones
+[crossplane blog]: https://blog.crossplane.io
