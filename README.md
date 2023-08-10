@@ -1,7 +1,6 @@
-![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://slack.crossplane.io/badge.svg)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
+![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://img.shields.io/badge/Slack-blue?logo=slack&style=flat-square)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
-![Crossplane](banner.png)
-
+<img src="https://github.com/Rohit312001/GitDemo/assets/76991475/2b80c81c-455b-4e72-8b29-2d4c5f60592f" >
 
 Crossplane is a framework for building cloud native control planes without
 needing to write code. It has a highly extensible backend that enables you to
@@ -18,7 +17,7 @@ listed below. For more information take a look at the Crossplane [release cycle
 documentation].
 
 | Release | Release Date |   EOL    |
-|:-------:|:------------:|:--------:|
+| :-----: | :----------: | :------: |
 |  v1.11  | Jan 31, 2023 | Oct 2023 |
 |  v1.12  | Apr 25, 2023 | Jan 2024 |
 |  v1.13  | Jul 27, 2023 | Apr 2024 |
@@ -49,24 +48,26 @@ a bug, suggest an improvement, or request a new feature please open an [issue
 against Crossplane] or the relevant provider. Refer to our [contributing guide]
 for more information on how you can help.
 
-* Discuss Crossplane on [Slack] or our [developer mailing list].
-* Follow us on [Twitter], or contact us via [Email].
-* Join our regular community meetings.
-* Provide feedback on our [roadmap and releases board].
+- Discuss Crossplane on [Slack] or our [developer mailing list].
+- Follow us on [Twitter], or contact us via [Email].
+- Join our regular community meetings.
+- Provide feedback on our [roadmap and releases board].
 
 The Crossplane community meeting takes place every other [Thursday at 10:00am
 Pacific Time][community meeting time]. Anyone who wants to discuss the direction
 of the project, design and implementation reviews, or raise general questions
 with the broader community is encouraged to join.
 
-* Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
-* [Current agenda and past meeting notes]
-* [Past meeting recordings]
-* [Community Calendar][community calendar]
+- Meeting link: <https://zoom.us/j/425148449?pwd=NEk4N0tHWGpEazhuam1yR28yWHY5QT09>
+- [Current agenda and past meeting notes]
+- [Past meeting recordings]
+- [Community Calendar][community calendar]
 
 ### Special Interest Groups (SIG)
+
 Each SIG collaborates in Slack and some groups have regular meetings, you can
 find the meetings in the [Community Calendar][community calendar].
+
 - [#sig-composition-environments][sig-composition-environments-slack]
 - [#sig-composition-functions][sig-composition-functions-slack]
 - [#sig-e2e-testing][sig-e2e-testing-slack]
@@ -76,10 +77,9 @@ find the meetings in the [Community Calendar][community calendar].
 - [#sig-deletion-ordering][sig-deletion-ordering-slack]
 - [#sig-upjet-provider-resource-utilization][sig-upjet-provider-resource-utilization-slack]
 
-
 ## Adopters
 
-A list of publicly known users of the Crossplane project can be found in [ADOPTERS.md].  We
+A list of publicly known users of the Crossplane project can be found in [ADOPTERS.md]. We
 encourage all users of Crossplane to add themselves to this list - we want to see the community's
 growing success!
 
