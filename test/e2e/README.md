@@ -121,7 +121,7 @@ that feature, to make sure the feature is not breaking any default behavior.
 
 In case a test needs a specific Crossplane configuration, it must still take
 care of upgrading the installation to the desired configuration, but should then
-use `E2EConfig.GetSelectedSuiteInstallOpts` to retrieve at runtime the baseline
+use `environment.GetSelectedSuiteInstallOpts` to retrieve at runtime the baseline
 installation options to be sure to restore the previous state. This allows tests
 to run against any suite if needed.
 
