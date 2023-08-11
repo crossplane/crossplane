@@ -49,9 +49,13 @@ type ReadinessCheckType string
 
 // The possible values for readiness check type.
 const (
-	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
-	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
-	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeNonEmpty     ReadinessCheckType = "NonEmpty"
+	ReadinessCheckTypeMatchString  ReadinessCheckType = "MatchString"
+	ReadinessCheckTypeMatchInteger ReadinessCheckType = "MatchInteger"
+	// discussion regarding MatchBool vs MatchTrue/MatchFalse:
+	// https://github.com/crossplane/crossplane/pull/4399#discussion_r1277225375
+	ReadinessCheckTypeMatchTrue      ReadinessCheckType = "MatchTrue"
+	ReadinessCheckTypeMatchFalse     ReadinessCheckType = "MatchFalse"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -171,7 +175,7 @@ func (c ReadinessCheck) Validate() error {
 	case ReadinessCheckTypeNone:
 		// This type has no dependencies.
 		return nil
-	case ReadinessCheckTypeNonEmpty:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchTrue, ReadinessCheckTypeMatchFalse:
 		// This type only needs a field path.
 	case ReadinessCheckTypeMatchString:
 		if c.MatchString == nil {
@@ -198,6 +202,8 @@ func (c ReadinessCheck) Validate() error {
 }
 
 // IsReady runs the readiness check against the supplied object.
+//
+//nolint:gocyclo // just a switch
 func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, error) {
 	if err := c.Validate(); err != nil {
 		return false, errors.Wrap(err, errInvalidCheck)
@@ -225,6 +231,18 @@ func (c ReadinessCheck) IsReady(p *fieldpath.Paved, o ConditionedObject) (bool, 
 	case ReadinessCheckTypeMatchCondition:
 		val := o.GetCondition(c.MatchCondition.Type)
 		return val.Status == c.MatchCondition.Status, nil
+	case ReadinessCheckTypeMatchFalse:
+		val, err := p.GetBool(*c.FieldPath)
+		if err != nil {
+			return false, resource.Ignore(fieldpath.IsNotFound, err)
+		}
+		return val == false, nil //nolint:gosimple // returning '!val' here as suggested hurts readability
+	case ReadinessCheckTypeMatchTrue:
+		val, err := p.GetBool(*c.FieldPath)
+		if err != nil {
+			return false, resource.Ignore(fieldpath.IsNotFound, err)
+		}
+		return val == true, nil //nolint:gosimple // returning 'val' here as suggested hurts readability
 	}
 
 	return false, nil

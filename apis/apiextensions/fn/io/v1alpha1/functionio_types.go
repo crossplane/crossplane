@@ -207,6 +207,8 @@ const (
 	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeMatchTrue      ReadinessCheckType = "MatchTrue"
+	ReadinessCheckTypeMatchFalse     ReadinessCheckType = "MatchFalse"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -215,7 +217,7 @@ const (
 // ready for consumption
 type DesiredReadinessCheck struct {
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchCondition";"None"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchTrue";"MatchFalse";"MatchCondition";"None"
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.

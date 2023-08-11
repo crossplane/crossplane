@@ -113,6 +113,8 @@ const (
 	ReadinessCheckTypeNonEmpty       ReadinessCheckType = "NonEmpty"
 	ReadinessCheckTypeMatchString    ReadinessCheckType = "MatchString"
 	ReadinessCheckTypeMatchInteger   ReadinessCheckType = "MatchInteger"
+	ReadinessCheckTypeMatchTrue      ReadinessCheckType = "MatchTrue"
+	ReadinessCheckTypeMatchFalse     ReadinessCheckType = "MatchFalse"
 	ReadinessCheckTypeMatchCondition ReadinessCheckType = "MatchCondition"
 	ReadinessCheckTypeNone           ReadinessCheckType = "None"
 )
@@ -120,7 +122,7 @@ const (
 // IsValid returns nil if the readiness check type is valid, or an error otherwise.
 func (t *ReadinessCheckType) IsValid() bool {
 	switch *t {
-	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchString, ReadinessCheckTypeMatchInteger, ReadinessCheckTypeMatchTrue, ReadinessCheckTypeMatchFalse, ReadinessCheckTypeMatchCondition, ReadinessCheckTypeNone:
 		return true
 	}
 	return false
@@ -134,7 +136,7 @@ type ReadinessCheck struct {
 	// or 0?
 
 	// Type indicates the type of probe you'd like to use.
-	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchCondition";"None"
+	// +kubebuilder:validation:Enum="MatchString";"MatchInteger";"NonEmpty";"MatchCondition";"MatchTrue";"MatchFalse";"None"
 	Type ReadinessCheckType `json:"type"`
 
 	// FieldPath shows the path of the field whose value will be used.
@@ -203,7 +205,7 @@ func (r *ReadinessCheck) Validate() *field.Error { //nolint:gocyclo // This func
 			return errors.WrapFieldError(err, field.NewPath("matchCondition"))
 		}
 		return nil
-	case ReadinessCheckTypeNonEmpty:
+	case ReadinessCheckTypeNonEmpty, ReadinessCheckTypeMatchFalse, ReadinessCheckTypeMatchTrue:
 		// No specific validation required.
 	}
 	if r.FieldPath == "" {
