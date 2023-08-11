@@ -95,9 +95,9 @@ type conditionalSetupFunc struct {
 	f         []env.Func
 }
 
-// NewFromFlags creates a new e2e test configuration, setting up the flags, but
+// NewEnvironmentFromFlags creates a new e2e test configuration, setting up the flags, but
 // not parsing them yet, which is left to the caller to do.
-func NewFromFlags() Environment {
+func NewEnvironmentFromFlags() Environment {
 	c := Environment{
 		suites: map[string]testSuite{},
 	}

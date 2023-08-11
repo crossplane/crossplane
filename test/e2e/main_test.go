@@ -58,7 +58,7 @@ const (
 )
 
 var (
-	environment = config.NewFromFlags()
+	environment = config.NewEnvironmentFromFlags()
 	clusterName string
 )
 
