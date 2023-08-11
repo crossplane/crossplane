@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+// Package e2e implements end-to-end tests for Crossplane.
 package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -59,7 +58,6 @@ const (
 
 var (
 	environment = config.NewEnvironmentFromFlags()
-	clusterName string
 )
 
 func TestMain(m *testing.M) {
@@ -98,17 +96,8 @@ func TestMain(m *testing.M) {
 	var setup []env.Func
 	var finish []env.Func
 
-	// Parse flags, populating Environment too.
-	// we want to create the cluster if it doesn't exist, but only if we're
 	if environment.IsKindCluster() {
-		clusterName := environment.GetKindClusterName()
-		kindCfg, err := filepath.Abs(filepath.Join("test", "e2e", "testdata", "kindConfig.yaml"))
-		if err != nil {
-			panic(fmt.Sprintf("error getting kind config file: %s", err.Error()))
-		}
-		setup = []env.Func{
-			funcs.CreateKindClusterWithConfig(clusterName, kindCfg),
-		}
+		setup = []env.Func{envfuncs.CreateKindCluster(environment.GetKindClusterName())}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
 	}

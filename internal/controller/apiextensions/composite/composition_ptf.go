@@ -53,7 +53,6 @@ import (
 const (
 	errFetchXRConnectionDetails = "cannot fetch composite resource connection details"
 	errGetExistingCDs           = "cannot get existing composed resources"
-	errImgPullCfg               = "cannot get xfn image pull config"
 	errBuildFunctionIOObserved  = "cannot build FunctionIO observed state"
 	errBuildFunctionIODesired   = "cannot build initial FunctionIO desired state"
 	errMarshalXR                = "cannot marshal composite resource"
