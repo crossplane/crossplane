@@ -3,7 +3,6 @@ package initializer
 import (
 	"context"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"math/big"
 	"time"
@@ -19,19 +18,10 @@ import (
 )
 
 const (
-	errGenerateCA              = "cannot generate ca certificate"
-	errParseCACertificate      = "cannot parse ca certificate"
-	errParseCAKey              = "cannot parse ca key"
-	errLoadOrGenerateSigner    = "cannot load or generate certificate signer"
-	errDecodeKey               = "cannot decode key"
-	errDecodeCert              = "cannot decode cert"
-	errFmtGetESSSecret         = "cannot get ess secret: %s"
-	errFmtCannotCreateOrUpdate = "cannot create or update secret: %s"
-)
-
-const (
 	// ESSCACertSecretName is the name of the secret that will store CA certificates
 	ESSCACertSecretName = "ess-ca-certs"
+
+	errFmtGetESSSecret = "cannot get ess secret: %s"
 )
 
 const (
@@ -207,32 +197,4 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 	}, signer)
-}
-
-func parseCertificateSigner(key, cert []byte) (*CertificateSigner, error) {
-	block, _ := pem.Decode(key)
-	if block == nil {
-		return nil, errors.New(errDecodeKey)
-	}
-
-	sKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, errors.Wrap(err, errParseCAKey)
-	}
-
-	block, _ = pem.Decode(cert)
-	if block == nil {
-		return nil, errors.New(errDecodeCert)
-	}
-
-	sCert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, errors.Wrap(err, errParseCACertificate)
-	}
-
-	return &CertificateSigner{
-		key:            sKey,
-		certificate:    sCert,
-		certificatePEM: cert,
-	}, nil
 }
