@@ -396,6 +396,12 @@ type PackageRevision interface {
 
 	GetESSTLSSecretName() *string
 	SetESSTLSSecretName(s *string)
+
+	GetTLSServerSecretName() *string
+	SetTLSServerSecretName(n *string)
+
+	GetTLSClientSecretName() *string
+	SetTLSClientSecretName(n *string)
 }
 
 // GetCondition of this ProviderRevision.
@@ -533,6 +539,26 @@ func (p *ProviderRevision) SetWebhookTLSSecretName(b *string) {
 // GetESSTLSSecretName of this ProviderRevision.
 func (p *ProviderRevision) GetESSTLSSecretName() *string {
 	return p.Spec.ESSTLSSecretName
+}
+
+// GetTLSServerSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetTLSServerSecretName() *string {
+	return p.Spec.TLSServerSecretName
+}
+
+// SetTLSServerSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetTLSServerSecretName(s *string) {
+	p.Spec.TLSServerSecretName = s
+}
+
+// GetTLSClientSecretName of this ProviderRevision.
+func (p *ProviderRevision) GetTLSClientSecretName() *string {
+	return p.Spec.TLSClientSecretName
+}
+
+// SetTLSClientSecretName of this ProviderRevision.
+func (p *ProviderRevision) SetTLSClientSecretName(s *string) {
+	p.Spec.TLSClientSecretName = s
 }
 
 // SetESSTLSSecretName of this ProviderRevision.
@@ -690,6 +716,26 @@ func (p *ConfigurationRevision) GetESSTLSSecretName() *string {
 // SetESSTLSSecretName of this ConfigurationRevision.
 func (p *ConfigurationRevision) SetESSTLSSecretName(s *string) {
 	p.Spec.ESSTLSSecretName = s
+}
+
+// GetTLSServerSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetTLSServerSecretName() *string {
+	return p.Spec.TLSServerSecretName
+}
+
+// SetTLSServerSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetTLSServerSecretName(s *string) {
+	p.Spec.TLSServerSecretName = s
+}
+
+// GetTLSClientSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) GetTLSClientSecretName() *string {
+	return p.Spec.TLSClientSecretName
+}
+
+// SetTLSClientSecretName of this ConfigurationRevision.
+func (p *ConfigurationRevision) SetTLSClientSecretName(s *string) {
+	p.Spec.TLSClientSecretName = s
 }
 
 // GetCommonLabels of this ConfigurationRevision.

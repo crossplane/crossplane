@@ -100,6 +100,24 @@ func service(provider *pkgmetav1.Provider, rev v1.PackageRevision) *corev1.Servi
 	}
 }
 
+func secretServer(rev v1.PackageRevision) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *rev.GetTLSServerSecretName(),
+			Namespace: namespace,
+		},
+	}
+}
+
+func secretClient(rev v1.PackageRevision) *corev1.Secret {
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      *rev.GetTLSClientSecretName(),
+			Namespace: namespace,
+		},
+	}
+}
+
 func deployment(provider *pkgmetav1.Provider, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
 	var (
 		replicas = int32(1)
@@ -149,6 +167,64 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 										},
 									},
 								},
+								{
+									Name:  "TLS_SERVER_CERTS_DIR",
+									Value: "/tls/server",
+								},
+								{
+									Name:  "TLS_CLIENT_CERTS_DIR",
+									Value: "/tls/client",
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "tls-server-certs",
+									ReadOnly:  true,
+									MountPath: "/tls/server",
+								},
+								{
+									Name:      "tls-client-certs",
+									ReadOnly:  true,
+									MountPath: "/tls/client",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "tls-server-certs",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "server-secret-name",
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "tls.crt",
+											Path: "tls.crt",
+										},
+										{
+											Key:  "tls.key",
+											Path: "tls.key",
+										},
+									},
+								},
+							},
+						},
+						{
+							Name: "tls-client-certs",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "client-secret-name",
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "tls.crt",
+											Path: "tls.crt",
+										},
+										{
+											Key:  "tls.key",
+											Path: "tls.key",
+										},
+									},
+								},
 							},
 						},
 					},
@@ -174,12 +250,16 @@ func TestBuildProviderDeployment(t *testing.T) {
 		sa  *corev1.ServiceAccount
 		d   *appsv1.Deployment
 		svc *corev1.Service
+		ss  *corev1.Secret
+		cs  *corev1.Secret
 	}
 
 	img := "img:tag"
 	pkgImg := "pkg-img:tag"
 	ccImg := "cc-img:tag"
 	webhookTLSSecretName := "secret-name"
+	tlsServerSecretName := "server-secret-name"
+	tlsClientSecretName := "client-secret-name"
 
 	providerWithoutImage := &pkgmetav1.Provider{
 		ObjectMeta: metav1.ObjectMeta{
@@ -209,6 +289,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 			ControllerConfigReference: nil,
 			Package:                   pkgImg,
 			Revision:                  3,
+			TLSServerSecretName:       &tlsServerSecretName,
+			TLSClientSecretName:       &tlsClientSecretName,
 		},
 	}
 
@@ -221,6 +303,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 			Package:                   pkgImg,
 			Revision:                  3,
 			WebhookTLSSecretName:      &webhookTLSSecretName,
+			TLSServerSecretName:       &tlsServerSecretName,
+			TLSClientSecretName:       &tlsClientSecretName,
 		},
 	}
 
@@ -232,6 +316,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 			ControllerConfigReference: &v1.ControllerConfigReference{Name: "cc"},
 			Package:                   pkgImg,
 			Revision:                  3,
+			TLSServerSecretName:       &tlsServerSecretName,
+			TLSClientSecretName:       &tlsClientSecretName,
 		},
 	}
 
@@ -287,6 +373,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 				sa:  serviceaccount(revisionWithoutCC),
 				d:   deployment(providerWithoutImage, revisionWithCC.GetName(), pkgImg),
 				svc: service(providerWithoutImage, revisionWithoutCC),
+				ss:  secretServer(revisionWithoutCC),
+				cs:  secretClient(revisionWithoutCC),
 			},
 		},
 		"ImgNoCCWithWebhookTLS": {
@@ -320,6 +408,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: webhookPort}),
 				),
 				svc: service(providerWithImage, revisionWithoutCCWithWebhook),
+				ss:  secretServer(revisionWithoutCC),
+				cs:  secretClient(revisionWithoutCC),
 			},
 		},
 		"ImgNoCC": {
@@ -333,6 +423,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 				sa:  serviceaccount(revisionWithoutCC),
 				d:   deployment(providerWithoutImage, revisionWithoutCC.GetName(), img),
 				svc: service(providerWithoutImage, revisionWithoutCC),
+				ss:  secretServer(revisionWithoutCC),
+				cs:  secretClient(revisionWithoutCC),
 			},
 		},
 		"ImgCC": {
@@ -350,6 +442,8 @@ func TestBuildProviderDeployment(t *testing.T) {
 					"k":                          "v",
 				})),
 				svc: service(providerWithImage, revisionWithCC),
+				ss:  secretServer(revisionWithoutCC),
+				cs:  secretClient(revisionWithoutCC),
 			},
 		},
 		"WithVolumes": {
@@ -371,13 +465,15 @@ func TestBuildProviderDeployment(t *testing.T) {
 					withAdditionalVolumeMount(corev1.VolumeMount{Name: "vm-b"}),
 				),
 				svc: service(providerWithImage, revisionWithCC),
+				ss:  secretServer(revisionWithoutCC),
+				cs:  secretClient(revisionWithoutCC),
 			},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			sa, d, svc := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace, nil)
+			sa, d, svc, ss, cs := buildProviderDeployment(tc.fields.provider, tc.fields.revision, tc.fields.cc, namespace, nil)
 
 			if diff := cmp.Diff(tc.want.sa, sa, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
@@ -386,6 +482,12 @@ func TestBuildProviderDeployment(t *testing.T) {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
 			if diff := cmp.Diff(tc.want.svc, svc, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.ss, ss, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.cs, cs, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
 		})
