@@ -19,9 +19,7 @@ package e2e
 
 import (
 	"context"
-	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -98,17 +96,8 @@ func TestMain(m *testing.M) {
 	var setup []env.Func
 	var finish []env.Func
 
-	// Parse flags, populating Environment too.
-	// we want to create the cluster if it doesn't exist, but only if we're
 	if environment.IsKindCluster() {
-		clusterName := environment.GetKindClusterName()
-		kindCfg, err := filepath.Abs(filepath.Join("test", "e2e", "testdata", "kindConfig.yaml"))
-		if err != nil {
-			panic(fmt.Sprintf("error getting kind config file: %s", err.Error()))
-		}
-		setup = []env.Func{
-			funcs.CreateKindClusterWithConfig(clusterName, kindCfg),
-		}
+		setup = []env.Func{envfuncs.CreateKindCluster(environment.GetKindClusterName())}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
 	}
