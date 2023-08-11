@@ -45,12 +45,12 @@ E2E_TEST_FLAGS="-test.v -test.failfast -destroy-kind-cluster=false"
 
 # Use an existing Kubernetes cluster. Note that the E2E tests can't deploy your
 # local build of Crossplane in this scenario, so you'll have to do it yourself.
-E2E_TEST_FLAGS="-create-kind-cluster=false -destroy-kind-cluster=false -kubeconfig=$HOME/.kube/config"
+E2E_TEST_FLAGS="-create-kind-cluster=false -destroy-kind-cluster=false -kubeconfig=$HOME/.kube/config" make e2e
 
 # Run the CrossplaneUpgrade feature, against an existing kind cluster named
 # "kind" (or creating it if it doesn't exist), # without installing Crossplane
 # first, as the feature expects the cluster to be empty, but still loading the
-# images to # it. Setting the tests to fail fast and not destroying the cluster
+# images to it. Setting the tests to fail fast and not destroying the cluster
 # afterward in order to allow debugging it.
 E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
   -destroy-kind-cluster=false \
@@ -58,13 +58,21 @@ E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
   -install-crossplane=false \
   -feature=CrossplaneUpgrade" make e2e
 
-# Run the all tests not installing or upgrading Crossplane against the currently
+# Run all the tests not installing or upgrading Crossplane against the currently
 # selected cluster where Crossplane has already been installed.
 E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
   -kubeconfig=$HOME/.kube/config \
   -skip-labels modify-crossplane-installation=true \
   -create-kind-cluster=false \
   -install-crossplane=false" make go.build e2e-run-tests
+
+# Run the composition-webhook-schema-validation suite of tests, which will
+# result in all tests marked as "test-suite=base" or
+# "test-suite=composition-webhook-schema-validation" being run against a kind
+# cluster with Crossplane installed with composition-webhook-schema-validation
+# enabled
+E2E_TEST_FLAGS="-test.v -v 4 -test.failfast \
+  -test-suite=composition-webhook-schema-validation " make e2e
 ```
 
 ## Test Parallelism
@@ -76,9 +84,50 @@ and less error-prone to write tests when you don't have to worry about one test
 potentially conflicting with another - for example by installing the same
 provider another test would install.
 
-In order to achieve some parallelism at the CI level all tests are labelled with
-an area (e.g. `pkg`, `install`, `apiextensions`, etc). The [CI GitHub workflow]
-uses a matrix strategy to invoke each area as its own job, running in parallel.
+The [CI GitHub workflow] uses a matrix strategy to run multiple jobs in parallel, 
+each running a test suite, see the dedicated section for more details.
+
+We are currently splitting the tests to be able to run all basic tests against
+the default installation of Crossplane, and for each alpha feature covered we
+run all basic tests plus the feature specific ones against a Crossplane
+installation with the feature enabled.
+
+In the future we could think of improving parallelism by, for example, adding
+the area to the matrix or spinning multiple kind clusters for each job.
+
+## Test Suite
+
+In order to be able to run specific subsets of tests, we introduced the concept
+of test suites. To run a specific test suite use the `-test-suite` flag. 
+
+A test suite is currently defined by:
+- A key to be used as value of the `-test-suite` flag.
+- A set of labels that will be used to filter the tests to run, which will be
+  added to the user-provided ones, preserving the latter ones in case of key
+  conflicts.
+- A list of Helm install options defining the initial Crossplane installation
+  for the given test suite, which will be used to install Crossplane before
+  running the tests. E.g. adding flags to enable alpha features and feature
+  specific flags.
+- A list of additional setup steps to be run before installing Crossplane and
+  running the tests. E.g. Loading additional images into the cluster.
+- Whether the suite should include the default suite or not, meaning that
+  install options will be added to the default ones if not explicitly specified
+  not to do so.
+
+Test suites enable use cases such as installing Crossplane with a specific
+alpha feature enabled and running all the basic tests, plus the ones specific to
+that feature, to make sure the feature is not breaking any default behavior.
+
+In case a test needs a specific Crossplane configuration, it must still take
+care of upgrading the installation to the desired configuration, but should then
+use `environment.GetSelectedSuiteInstallOpts` to retrieve at runtime the baseline
+installation options to be sure to restore the previous state. This allows tests
+to run against any suite if needed.
+
+Test suites can be combined with labels to run a subset of tests, e.g.
+splitting by area, or with the usual Go `-run <regexp>` flag to run only
+specific tests, in such case, suite labels will be ignored altogether.
 
 ## Adding a Test
 
@@ -154,12 +203,13 @@ func TestSomeFeature(t *testing.T) {
 	// ... other variables or constants ...
 
 	environment.Test(t,
-		features.New("ConfigurationWithDependency").
+		features.New(t.Name()).
 			WithLabel(LabelArea, ...).
 			WithLabel(LabelSize, ...).
-            // ...
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			// ...
 			WithSetup("ReadyPrerequisites", ... ).
-            // ... other setup steps ...
+			// ... other setup steps ...
 			Assess("DoSomething", ... ).
 			Assess("SomethingElseIsInSomeState", ... ).
 			// ... other assess steps ...

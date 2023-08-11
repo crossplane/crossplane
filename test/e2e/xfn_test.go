@@ -16,6 +16,7 @@ package e2e
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -30,23 +31,64 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 	"github.com/crossplane/crossplane/test/e2e/utils"
 )
 
 const (
+
+	// LabelAreaXFN is the label used to select tests that are part of the XFN
+	// area.
+	LabelAreaXFN = "xfn"
+
+	// SuiteCompositionFunctions is the value for the
+	// config.LabelTestSuite label to be assigned to tests that should be part
+	// of the Composition functions test suite.
+	SuiteCompositionFunctions = "composition-functions"
+
+	// The caller (e.g. make e2e) must ensure these exist.
+	// Run `make build e2e-tag-images` to produce them
+	// TODO(phisco): make it configurable
+	imgxfn = "crossplane-e2e/xfn:latest"
+
 	registryNs = "xfn-registry"
 
 	timeoutFive = 5 * time.Minute
 	timeoutOne  = 1 * time.Minute
 )
 
-func TestXfnRunnerImagePull(t *testing.T) {
+func init() {
+	environment.AddTestSuite(SuiteCompositionFunctions,
+		config.WithHelmInstallOpts(
+			helm.WithArgs(
+				"--set args={--debug,--enable-composition-functions}",
+				"--set xfn.args={--debug}",
+				"--set xfn.enabled=true",
+				"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
+				"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
+				"--set xfn.resources.limits.cpu=100m",
+				"--set xfn.resources.requests.cpu=100m",
+			),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{SuiteCompositionFunctions, config.TestSuiteDefault},
+		}),
+		config.WithConditionalEnvSetupFuncs(
+			environment.ShouldLoadImages, envfuncs.LoadDockerImageToCluster(environment.GetKindClusterName(), imgxfn),
+		),
+	)
+}
 
+func TestXfnRunnerImagePullFromPrivateRegistryWithCustomCert(t *testing.T) {
 	manifests := "test/e2e/manifests/xfnrunner/private-registry/pull"
 	environment.Test(t,
-		features.New("PullFnImageFromPrivateRegistryWithCustomCert").
-			WithLabel(LabelArea, "xfn").
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaXFN).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelSize, LabelSizeLarge).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteCompositionFunctions).
 			WithSetup("InstallRegistryWithCustomTlsCertificate",
 				funcs.AllOf(
 					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(registryNs)),
@@ -110,18 +152,11 @@ func TestXfnRunnerImagePull(t *testing.T) {
 			WithSetup("CopyFnImageToRegistry",
 				funcs.CopyImageToRegistry(clusterName, registryNs, "private-docker-registry", "crossplane-e2e/fn-labelizer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
-					HelmOptions(
-						helm.WithArgs(
-							"--set args={--debug,--enable-composition-functions}",
-							"--set xfn.enabled=true",
-							"--set xfn.args={--debug}",
-							"--set registryCaBundleConfig.name=reg-ca",
-							"--set registryCaBundleConfig.key=domain.crt",
-							"--set xfn.resources.requests.cpu=100m",
-							"--set xfn.resources.limits.cpu=100m",
-						),
-						helm.WithWait())...)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteCompositionFunctions,
+					helm.WithArgs(
+						"--set registryCaBundleConfig.key=domain.crt",
+						"--set registryCaBundleConfig.name=reg-ca",
+					))),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			WithSetup("ProviderNopDeployed", funcs.AllOf(
@@ -173,7 +208,7 @@ func TestXfnRunnerImagePull(t *testing.T) {
 				},
 			)).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),
@@ -183,8 +218,12 @@ func TestXfnRunnerImagePull(t *testing.T) {
 func TestXfnRunnerWriteToTmp(t *testing.T) {
 	manifests := "test/e2e/manifests/xfnrunner/tmp-writer"
 	environment.Test(t,
-		features.New("CreateAFileInTmpFolder").
-			WithLabel(LabelArea, "xfn").
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaXFN).
+			WithLabel(LabelStage, LabelStageAlpha).
+			WithLabel(LabelSize, LabelSizeLarge).
+			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
+			WithLabel(config.LabelTestSuite, SuiteCompositionFunctions).
 			WithSetup("InstallRegistry",
 				funcs.AllOf(
 					funcs.AsFeaturesFunc(envfuncs.CreateNamespace(registryNs)),
@@ -210,16 +249,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			WithSetup("CopyFnImageToRegistry",
 				funcs.CopyImageToRegistry(clusterName, registryNs, "public-docker-registry", "crossplane-e2e/fn-tmp-writer:latest", timeoutOne)).
 			WithSetup("CrossplaneDeployedWithFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(
-					HelmOptions(
-						helm.WithArgs(
-							"--set args={--debug,--enable-composition-functions}",
-							"--set xfn.enabled=true",
-							"--set xfn.args={--debug}",
-							"--set xfn.resources.requests.cpu=100m",
-							"--set xfn.resources.limits.cpu=100m",
-						),
-						helm.WithWait())...)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToSuite(SuiteCompositionFunctions)),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			WithSetup("ProviderNopDeployed", funcs.AllOf(
@@ -258,7 +288,7 @@ func TestXfnRunnerWriteToTmp(t *testing.T) {
 			)).
 			WithTeardown("RemoveRegistry", funcs.AsFeaturesFunc(envfuncs.DeleteNamespace(registryNs))).
 			WithTeardown("CrossplaneDeployedWithoutFunctionsEnabled", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
+				funcs.AsFeaturesFunc(environment.HelmUpgradeCrossplaneToBase()),
 				funcs.ReadyToTestWithin(1*time.Minute, namespace),
 			)).
 			Feature(),

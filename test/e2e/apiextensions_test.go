@@ -21,12 +21,11 @@ import (
 	"time"
 
 	"sigs.k8s.io/e2e-framework/pkg/features"
-	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
@@ -42,9 +41,10 @@ func TestCompositionMinimal(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/composition/minimal"
 
 	environment.Test(t,
-		features.New("CompositionMinimal").
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("PrerequisitesAreCreated", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -75,9 +75,10 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 
 	manifests := "test/e2e/manifests/apiextensions/composition/patch-and-transform"
 	environment.Test(t,
-		features.New("CompositionPatchAndTransform").
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaAPIExtensions).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
@@ -103,56 +104,4 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 			Feature(),
 	)
 
-}
-
-func TestCompositionValidation(t *testing.T) {
-	manifests := "test/e2e/manifests/apiextensions/composition/validation"
-
-	cases := features.Table{
-		{
-			// A valid Composition should be created when validated in strict mode.
-			Name: "ValidCompositionIsAccepted",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "composition-valid.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-valid.yaml"),
-			),
-		},
-		{
-			// An invalid Composition should be rejected when validated in strict mode.
-			Name:       "InvalidCompositionIsRejected",
-			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid.yaml"),
-		},
-	}
-	environment.Test(t,
-		cases.Build("CompositionValidation").
-			WithLabel(LabelStage, LabelStageAlpha).
-			WithLabel(LabelArea, LabelAreaAPIExtensions).
-			WithLabel(LabelSize, LabelSizeSmall).
-			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
-			// Enable our feature flag.
-			WithSetup("EnableAlphaCompositionValidation", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions(helm.WithArgs("--set args={--debug,--enable-composition-webhook-schema-validation}"))...)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
-			WithSetup("CreatePrerequisites", funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
-				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
-			)).
-			WithTeardown("DeleteValidComposition", funcs.AllOf(
-				funcs.DeleteResources(manifests, "*-valid.yaml"),
-				funcs.ResourcesDeletedWithin(30*time.Second, manifests, "*-valid.yaml"),
-			)).
-			WithTeardown("DeletePrerequisites", funcs.AllOf(
-				funcs.DeleteResources(manifests, "setup/*.yaml"),
-				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
-			)).
-			// Disable our feature flag.
-			WithTeardown("DisableAlphaCompositionValidation", funcs.AllOf(
-				funcs.AsFeaturesFunc(funcs.HelmUpgrade(HelmOptions()...)),
-				funcs.ReadyToTestWithin(1*time.Minute, namespace),
-			)).
-			Feature(),
-	)
 }

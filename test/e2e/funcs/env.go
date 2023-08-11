@@ -117,7 +117,7 @@ func EnvFuncs(fns ...env.Func) env.Func {
 // The configuration is placed in test context afterward
 func CreateKindClusterWithConfig(clusterName, configFilePath string) env.Func {
 	return EnvFuncs(
-		envfuncs.CreateKindClusterWithConfig(clusterName, "\"\"", configFilePath),
+		envfuncs.CreateKindClusterWithConfig(clusterName, "", configFilePath),
 		func(ctx context.Context, config *envconf.Config) (context.Context, error) {
 			b, err := os.ReadFile(filepath.Clean(configFilePath))
 			if err != nil {

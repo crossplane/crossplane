@@ -25,6 +25,7 @@ import (
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
+	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
@@ -38,9 +39,10 @@ func TestConfigurationPullFromPrivateRegistry(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/private"
 
 	environment.Test(t,
-		features.New("ConfigurationPullFromPrivateRegistry").
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("CreateConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "*.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "*.yaml"),
@@ -59,9 +61,10 @@ func TestConfigurationWithDependency(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/configuration/dependency"
 
 	environment.Test(t,
-		features.New("ConfigurationWithDependency").
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("ApplyConfiguration", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "configuration.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "configuration.yaml"),
@@ -88,9 +91,10 @@ func TestProviderUpgrade(t *testing.T) {
 	manifests := "test/e2e/manifests/pkg/provider"
 
 	environment.Test(t,
-		features.New("ProviderUpgrade").
+		features.New(t.Name()).
 			WithLabel(LabelArea, LabelAreaPkg).
 			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
 			WithSetup("ApplyInitialProvider", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "provider-initial.yaml"),
 				funcs.ResourcesCreatedWithin(1*time.Minute, manifests, "provider-initial.yaml"),

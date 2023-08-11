@@ -17,7 +17,8 @@ limitations under the License.
 package e2e
 
 import (
-	"flag"
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,97 +30,35 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/env"
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
+	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
+	"github.com/crossplane/crossplane/test/e2e/config"
 	"github.com/crossplane/crossplane/test/e2e/funcs"
 )
 
-// LabelArea represents the 'area' of a feature. For example 'apiextensions',
-// 'pkg', etc. Assessments roll up to features, which roll up to feature areas.
-// Features within an area may be split across different test functions.
-const LabelArea = "area"
-
-// LabelModifyCrossplaneInstallation is used to mark tests that are going to
-// modify Crossplane's installation, e.g. installing, uninstalling or upgrading
-// it.
-const LabelModifyCrossplaneInstallation = "modify-crossplane-installation"
-
-// LabelModifyCrossplaneInstallationTrue is used to mark tests that are going to
-// modify Crossplane's installation.
-const LabelModifyCrossplaneInstallationTrue = "true"
-
-// LabelStage represents the 'stage' of a feature - alpha, beta, etc. Generally
-// available features have no stage label.
-const LabelStage = "stage"
-
-const (
-	// LabelStageAlpha is used for tests of alpha features.
-	LabelStageAlpha = "alpha"
-
-	// LabelStageBeta is used for tests of beta features.
-	LabelStageBeta = "beta"
-)
-
-// LabelSize represents the 'size' (i.e. duration) of a test.
-const LabelSize = "size"
-
-const (
-	// LabelSizeSmall is used for tests that usually complete in a minute.
-	LabelSizeSmall = "small"
-
-	// LabelSizeLarge is used for test that usually complete in over a minute.
-	LabelSizeLarge = "large"
-)
-
+// TODO(phisco): make it configurable
 const namespace = "crossplane-system"
 
+// TODO(phisco): make it configurable
 const crdsDir = "cluster/crds"
 
-// The caller (e.g. make e2e) must ensure these exists.
+// The caller (e.g. make e2e) must ensure these exist.
 // Run `make build e2e-tag-images` to produce them
 const (
+	// TODO(phisco): make it configurable
 	imgcore = "crossplane-e2e/crossplane:latest"
-	imgxfn  = "crossplane-e2e/xfn:latest"
 )
 
 const (
-	helmChartDir    = "cluster/charts/crossplane"
+	// TODO(phisco): make it configurable
+	helmChartDir = "cluster/charts/crossplane"
+	// TODO(phisco): make it configurable
 	helmReleaseName = "crossplane"
 )
 
-// FieldManager is the server-side apply field manager used when applying
-// manifests.
-const FieldManager = "crossplane-e2e-tests"
-
-// HelmOptions valid for installing and upgrading the Crossplane Helm chart.
-// Used to install Crossplane before any test starts, but some tests also use
-// these options - for example to reinstall Crossplane with a feature flag
-// enabled.
-func HelmOptions(extra ...helm.Option) []helm.Option {
-	o := []helm.Option{
-		helm.WithName(helmReleaseName),
-		helm.WithNamespace(namespace),
-		helm.WithChart(helmChartDir),
-		// wait for the deployment to be ready for up to 5 minutes before returning
-		helm.WithWait(),
-		helm.WithTimeout("5m"),
-		helm.WithArgs(
-			// Run with debug logging to ensure all log statements are run.
-			"--set args={--debug}",
-			"--set image.repository="+strings.Split(imgcore, ":")[0],
-			"--set image.tag="+strings.Split(imgcore, ":")[1],
-
-			"--set xfn.args={--debug}",
-			"--set xfn.image.repository="+strings.Split(imgxfn, ":")[0],
-			"--set xfn.image.tag="+strings.Split(imgxfn, ":")[1],
-		),
-	}
-	return append(o, extra...)
-}
-
 var (
-	// The test environment, shared by all E2E test functions.
-	environment env.Environment
+	environment = config.NewEnvironmentFromFlags()
 	clusterName string
 )
 
@@ -129,29 +68,43 @@ func TestMain(m *testing.M) {
 	// https://github.com/kubernetes-sigs/e2e-framework/issues/270
 	log.SetLogger(klog.NewKlogr())
 
-	kindClusterName := flag.String("kind-cluster-name", "", "name of the kind cluster to use")
-	create := flag.Bool("create-kind-cluster", true, "create a kind cluster (and deploy Crossplane) before running tests, if the cluster does not already exist with the same name")
-	destroy := flag.Bool("destroy-kind-cluster", true, "destroy the kind cluster when tests complete")
-	install := flag.Bool("install-crossplane", true, "install Crossplane before running tests")
-	load := flag.Bool("load-images-kind-cluster", true, "load Crossplane images into the kind cluster before running tests")
+	// Set the default suite, to be used as base for all the other suites.
+	environment.AddDefaultTestSuite(
+		config.WithoutBaseDefaultTestSuite(),
+		config.WithHelmInstallOpts(
+			helm.WithName(helmReleaseName),
+			helm.WithNamespace(namespace),
+			helm.WithChart(helmChartDir),
+			// wait for the deployment to be ready for up to 5 minutes before returning
+			helm.WithWait(),
+			helm.WithTimeout("5m"),
+			helm.WithArgs(
+				// Run with debug logging to ensure all log statements are run.
+				"--set args={--debug}",
+				"--set image.repository="+strings.Split(imgcore, ":")[0],
+				"--set image.tag="+strings.Split(imgcore, ":")[1],
+			),
+		),
+		config.WithLabelsToSelect(features.Labels{
+			config.LabelTestSuite: []string{config.TestSuiteDefault},
+		}),
+	)
+
+	cfg, err := envconf.NewFromFlags()
+	if err != nil {
+		panic(err)
+	}
 
 	var setup []env.Func
 	var finish []env.Func
 
-	cfg, _ := envconf.NewFromFlags()
-
-	clusterName = envconf.RandomName("crossplane-e2e", 32)
-	if *kindClusterName != "" {
-		clusterName = *kindClusterName
-	}
-
+	// Parse flags, populating Environment too.
 	// we want to create the cluster if it doesn't exist, but only if we're
-	isKindCluster := *create || *kindClusterName != ""
-	if isKindCluster {
+	if environment.IsKindCluster() {
+		clusterName := environment.GetKindClusterName()
 		kindCfg, err := filepath.Abs(filepath.Join("test", "e2e", "testdata", "kindConfig.yaml"))
 		if err != nil {
-			log.Log.Error(err, "error getting kind config file")
-			os.Exit(1)
+			panic(fmt.Sprintf("error getting kind config file: %s", err.Error()))
 		}
 		setup = []env.Func{
 			funcs.CreateKindClusterWithConfig(clusterName, kindCfg),
@@ -159,18 +112,29 @@ func TestMain(m *testing.M) {
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
 	}
-	environment = env.NewWithConfig(cfg)
 
-	if *load && isKindCluster {
+	// Enrich the selected labels with the ones from the suite.
+	// Not replacing the user provided ones if any.
+	cfg.WithLabels(environment.EnrichLabels(cfg.Labels()))
+
+	environment.SetEnvironment(env.NewWithConfig(cfg))
+
+	if environment.ShouldLoadImages() {
+		clusterName := environment.GetKindClusterName()
 		setup = append(setup,
 			envfuncs.LoadDockerImageToCluster(clusterName, imgcore),
-			envfuncs.LoadDockerImageToCluster(clusterName, imgxfn),
 		)
 	}
-	if *install {
+
+	// Add the setup functions defined by the suite being used
+	setup = append(setup,
+		environment.GetSelectedSuiteAdditionalEnvSetup()...,
+	)
+
+	if environment.ShouldInstallCrossplane() {
 		setup = append(setup,
 			envfuncs.CreateNamespace(namespace),
-			funcs.HelmInstall(HelmOptions()...),
+			environment.HelmInstallBaseCrossplane(),
 		)
 	}
 
@@ -179,9 +143,17 @@ func TestMain(m *testing.M) {
 
 	// We want to destroy the cluster if we created it, but only if we created it,
 	// otherwise the random name will be meaningless.
-	if *destroy && isKindCluster {
-		finish = []env.Func{envfuncs.DestroyKindCluster(clusterName)}
+	if environment.ShouldDestroyKindCluster() {
+		finish = []env.Func{envfuncs.DestroyKindCluster(environment.GetKindClusterName())}
 	}
+
+	// Check that all features are specifying a suite they belong to via LabelTestSuite.
+	environment.BeforeEachFeature(func(ctx context.Context, _ *envconf.Config, t *testing.T, feature features.Feature) (context.Context, error) {
+		if _, exists := feature.Labels()[config.LabelTestSuite]; !exists {
+			t.Fatalf("Feature %q does not have the required %q label set", feature.Name(), config.LabelTestSuite)
+		}
+		return ctx, nil
+	})
 
 	environment.Setup(setup...)
 	environment.Finish(finish...)
