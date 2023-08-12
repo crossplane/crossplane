@@ -1,6 +1,6 @@
 ![CI](https://github.com/crossplane/crossplane/workflows/CI/badge.svg) [![GitHub release](https://img.shields.io/github/release/crossplane/crossplane/all.svg?style=flat-square)](https://github.com/crossplane/crossplane/releases) [![Docker Pulls](https://img.shields.io/docker/pulls/crossplane/crossplane.svg)](https://hub.docker.com/r/crossplane/crossplane) [![Go Report Card](https://goreportcard.com/badge/github.com/crossplane/crossplane)](https://goreportcard.com/report/github.com/crossplane/crossplane) [![Slack](https://img.shields.io/badge/Slack-blue?logo=slack&style=flat-square)](https://slack.crossplane.io) [![Twitter Follow](https://img.shields.io/twitter/follow/crossplane_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=crossplane_io&user_id=788180534543339520)
 
-<img src="https://github.com/Rohit312001/GitDemo/assets/76991475/2b80c81c-455b-4e72-8b29-2d4c5f60592f" >
+![Crossplane](banner.png)
 
 Crossplane is a framework for building cloud native control planes without
 needing to write code. It has a highly extensible backend that enables you to
