@@ -44,7 +44,7 @@ const (
 	errFmtRequiredField                 = "%s is required by type %s"
 	errFmtConvertInputTypeNotSupported  = "invalid input type %T"
 	errFmtConvertFormatPairNotSupported = "conversion from %s to %s is not supported with format %s"
-	errFmtTransformAtIndex              = "transform at index %d returned error"
+	errFmtTransformAtIndex              = "transform %s at index %d returned error"
 	errFmtTypeNotSupported              = "transform type %s is not supported"
 	errFmtTransformConfigMissing        = "given transform type %s requires configuration"
 	errFmtTransformTypeFailed           = "%s transform could not resolve"
@@ -52,8 +52,8 @@ const (
 	errFmtMapNotFound                   = "key %s is not found in map"
 	errFmtMapInvalidJSON                = "value for key %s is not valid JSON"
 
-	errFmtMatchPattern            = "cannot match pattern at index %d"
-	errFmtMatchParseResult        = "cannot parse result of pattern at index %d"
+	errFmtMatchPattern            = "cannot match pattern with type %s at index %d"
+	errFmtMatchParseResult        = "cannot parse result of pattern type %s at index %d for match transform"
 	errMatchParseFallbackValue    = "cannot parse fallback value"
 	errMatchFallbackBoth          = "cannot set both a fallback value and the fallback to input flag"
 	errFmtMatchPatternTypeInvalid = "unsupported pattern type '%s'"
@@ -203,11 +203,11 @@ func ResolveMatch(t v1.MatchTransform, input any) (any, error) {
 	for i, p := range t.Patterns {
 		matches, err := Matches(p, input)
 		if err != nil {
-			return nil, errors.Wrapf(err, errFmtMatchPattern, i)
+			return nil, errors.Wrapf(err, errFmtMatchPattern, p.Type, i)
 		}
 		if matches {
 			if err := unmarshalJSON(p.Result, &output); err != nil {
-				return nil, errors.Wrapf(err, errFmtMatchParseResult, i)
+				return nil, errors.Wrapf(err, errFmtMatchParseResult, p.Type, i)
 			}
 			return output, nil
 		}
