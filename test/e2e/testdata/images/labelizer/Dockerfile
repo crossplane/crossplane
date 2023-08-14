@@ -1,4 +1,4 @@
-FROM mikefarah/yq:4.34.2
+FROM mikefarah/yq:4.35.1
 
 COPY labelizer.sh /bin
 USER root
