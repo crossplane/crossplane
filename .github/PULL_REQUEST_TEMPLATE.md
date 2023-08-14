@@ -26,7 +26,8 @@ I have:
 - [ ] Read and followed Crossplane's [contribution process].
 - [ ] Added or updated unit **and** E2E tests for my change.
 - [ ] Run `make reviewable` to ensure this PR is ready for review.
-- [ ] Added `backport release-x.y` labels to auto-backport this PR if necessary.
-- [ ] Opened a PR updating the [docs](https://docs.crossplane.io/contribute/contribute/), if necessary.
+- [ ] Added `backport release-x.y` labels to auto-backport this PR, if necessary.
+- [ ] Opened a PR updating the [docs], if necessary.
 
 [contribution process]: https://git.io/fj2m9
+[docs]: https://docs.crossplane.io/contribute/contribute
