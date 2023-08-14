@@ -21,12 +21,19 @@ Please ensure all artifacts (PRs, workflow runs, Tweets, etc) are linked from
 this issue for posterity. Refer to this [prior release issue][release-1.11.0] for
 examples of each step, assuming release vX.Y.0 is being cut.
 
-- [ ] Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
+- [ ] **[In Crossplane Runtime]**: Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
+  - [ ] Created the release branch using the [GitHub UI][create-branch].
+  - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
+  - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
+- [ ] **[In Core Crossplane]:** Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
   - [ ] Created the release branch using the [GitHub UI][create-branch].
   - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] Opened a [docs release issue].
-- [ ] Checked that the [GitHub milestone] for this release only contains closed issues
+- [ ] Checked that the [GitHub milestone] for this release only contains closed issues.
+- [ ] Cut a Crossplane Runtime version and consume it from Crossplane.
+  - [ ] **[In Crossplane Runtime]**: Run the [Tag workflow][tag-workflow] on the `release-X.Y` branch with the proper release version, `vX.Y.0`. Message suggested, but not required: `Release vX.Y.0`.
+  - [ ] **[In Core Crossplane]:** Update the Crossplane Runtime dependency on master and backport it to `release-X.Y` branch.
 - [ ] Run the [Tag workflow][tag-workflow] on the `release-X.Y` branch with the proper release version, `vX.Y.0`. Message suggested, but not required: `Release vX.Y.0`.
 - [ ] Run the [CI workflow][ci-workflow] on the release branch and verified that the tagged build version exists on the [releases.crossplane.io] `build` channel, e.g. `build/release-X.Y/vX.Y.0/...` should contain all the relevant binaries.
 - [ ] Run the [Configurations workflow][configurations-workflow] on the release branch and verified  that version exists on [xpkg.upbound.io] for all getting started packages.
