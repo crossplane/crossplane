@@ -36,7 +36,7 @@ import (
 
 const (
 	errFmtReferenceEnvironmentConfig   = "cannot build reference for environment at index %d for type:Selector with matchLabels %s"
-	errFmtResolveLabelValue            = "cannot resolve value for label with key %s at index %d"
+	errFmtResolveLabelValue            = "cannot resolve value for label with key %q at index %d"
 	errListEnvironmentConfigs          = "cannot list environments"
 	errFmtInvalidEnvironmentSourceType = "invalid source type '%s'"
 	errFmtInvalidLabelMatcherType      = "invalid label matcher type '%s'"

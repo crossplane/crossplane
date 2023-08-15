@@ -59,7 +59,7 @@ const (
 	errSetControllerRef = "cannot set controller reference"
 
 	errFmtResourceName = "composed resource %q"
-	errFmtPatch        = "cannot apply the %s patch at index %d for field %s"
+	errFmtPatch        = "cannot apply the %q patch at index %d for field %q"
 )
 
 // TODO(negz): Move P&T Composition logic into its own package?
