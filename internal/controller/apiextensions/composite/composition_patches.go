@@ -115,7 +115,6 @@ func ResolveTransforms(c v1.Patch, input any) (any, error) {
 	var err error
 	for i, t := range c.Transforms {
 		if input, err = Resolve(t, input); err != nil {
-			// TODO(negz): Including the type might help find the offending transform faster.
 			return nil, errors.Wrapf(err, errFmtTransformAtIndex, t.Type, i)
 		}
 	}
