@@ -27,7 +27,7 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] **[In Core Crossplane]:** Prepared the release branch `release-X.Y` at the beginning of [Code Freeze]:
   - [ ] Created the release branch using the [GitHub UI][create-branch].
-  - [ ] Created and merged an empty commit to the `master` branch, if required to have it at least one commit ahead of the release branch.
+  - [ ] Created and merged a PR cleaning up the [DRAFT_RELEASE.md][draft-release] file, preparing it for the next release version, `vX.Y+1.0`.
   - [ ] Run the [Tag workflow][tag-workflow] on the `master` branch with the release candidate tag for the next release `vX.Y+1.0-rc.0`.
 - [ ] Opened a [docs release issue].
 - [ ] Checked that the [GitHub milestone] for this release only contains closed issues.
@@ -42,7 +42,8 @@ examples of each step, assuming release vX.Y.0 is being cut.
   - [ ] `xp/getting-started-with-azure`
   - [ ] `xp/getting-started-with-gcp`
 - [ ] Run the [Promote workflow][promote-workflow] with channel `stable` on the `release-X.Y` branch and verified that the tagged build version exists on the [releases.crossplane.io] `stable` channel at `stable/vX.Y.0/...`.
-- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes, taking care of generating the changes list selecting as "Previous tag" `vX.<Y-1>.0`, so the first of the releases for the previous minor. Before publishing the release notes, set them as Draft and ask the rest of the team to double check them.
+- [ ] Published a [new release] for the tagged version, with the same name as the version and descriptive release notes. Start from the [DRAFT_RELEASE.md][draft-release] file on the `release-X.Y` branch, filling in all the missing sections, ane taking care of generating the changes list selecting as "Previous tag" `vX.<Y-1>.0`, so the first of the releases for the previous minor. Before publishing the release notes, set them as Draft and ask the rest of the team to double check them.
+- [ ] Created and merged a PR cleaning up the [DRAFT_RELEASE.md][draft-release] file on the `release-X.Y` branch, preparing it for the next patch version, `vX.Y.1`.
 - [ ] Checked that the [docs release issue] created previously has been completed.
 - [ ] Updated, in a single PR, the following on `master`:
   - [ ] The [releases table] in the `README.md`, removing the now old unsupported release and adding the new one.
@@ -73,3 +74,4 @@ examples of each step, assuming release vX.Y.0 is being cut.
 [xpkg.upbound.io]: https://marketplace.upbound.io/configurations?query=getting-started
 [GitHub milestone]: https://github.com/crossplane/crossplane/milestones
 [crossplane blog]: https://blog.crossplane.io
+[draft-release]: https://github.com/crossplane/crossplane/blob/master/DRAFT_RELEASE.md
