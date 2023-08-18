@@ -336,8 +336,8 @@ github.com/jdxcode/netrc v0.0.0-20221124155335-4616370d1a84 h1:2uT3aivO7NVpUPGcQ
 github.com/jdxcode/netrc v0.0.0-20221124155335-4616370d1a84/go.mod h1:Zi/ZFkEqFHTm7qkjyNJjaWH4LQA9LQhGJyF0lTYGpxw=
 github.com/jessevdk/go-flags v1.4.0/go.mod h1:4FA24M0QyGHXBuZZK/XkWh8h0e1EYbRYJSGM75WSRxI=
 github.com/jhump/protoreflect v1.15.1 h1:HUMERORf3I3ZdX05WaQ6MIpd/NJ434hTp5YiKgfCL6c=
-github.com/jmattheis/goverter v0.17.4 h1:h2A8HNudoQ1JJCX17DgBlNHw3hmTSCmlyMmdxkofFc0=
-github.com/jmattheis/goverter v0.17.4/go.mod h1:cKOfZ0hADOS3Ef0+raoD3uBEgs2Qzbd3DhE3JXEnqJo=
+github.com/jmattheis/goverter v0.17.5 h1:u1vyRdtpWKJalE0l7hReEw0QaYGgpjY4D58ir/vEqcg=
+github.com/jmattheis/goverter v0.17.5/go.mod h1:cKOfZ0hADOS3Ef0+raoD3uBEgs2Qzbd3DhE3JXEnqJo=
 github.com/jmespath/go-jmespath v0.4.0 h1:BEgLn5cpjn8UN1mAw4NjwDrS35OdebyEtFe+9YPoQUg=
 github.com/jmespath/go-jmespath v0.4.0/go.mod h1:T8mJZnbsbmF+m6zOOFylbeCJqk5+pHWvzYPziyZiYoo=
 github.com/jmespath/go-jmespath/internal/testify v1.5.1 h1:shLQSRRSCCPj3f2gpwzGwWFoC7ycTf1rcQZHOlsJ6N8=
