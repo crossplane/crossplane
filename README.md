@@ -13,7 +13,7 @@ Crossplane is a [Cloud Native Computing Foundation][cncf] project.
 
 ## Get Started
 
-Crossplane's [Getting Started Documentation](https://docs.crossplane.io/latest/getting-started/) covers Crossplane installation and cloud provider quickstarts.
+Crossplane's [Getting Started Docs](https://docs.crossplane.io/latest/getting-started/) cover install and cloud provider quickstarts.
 
 ## Releases
 
