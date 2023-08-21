@@ -671,6 +671,7 @@ func TestStringResolve(t *testing.T) {
 	toSha1 := v1.StringConversionTypeToSHA1
 	toSha256 := v1.StringConversionTypeToSHA256
 	toSha512 := v1.StringConversionTypeToSHA512
+	toAdler32 := v1.StringConversionTypeToAdler32
 
 	prefix := "https://"
 	suffix := "-test"
@@ -868,6 +869,37 @@ func TestStringResolve(t *testing.T) {
 			want: want{
 				o:   "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 				err: errors.Wrap(errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON), errHash),
+			},
+		},
+		"ConvertToAdler32": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toAdler32,
+				i:       "Crossplane",
+			},
+			want: want{
+				o: "373097499",
+			},
+		},
+		"ConvertToAdler32Unicode": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toAdler32,
+				i:       "⡌⠁⠧⠑ ⠼⠁⠒  ⡍⠜⠇⠑⠹⠰⠎ ⡣⠕⠌",
+			},
+			want: want{
+				o: "4110427190",
+			},
+		},
+		"ConvertToAdler32Error": {
+			args: args{
+				stype:   v1.StringTransformTypeConvert,
+				convert: &toAdler32,
+				i:       func() {},
+			},
+			want: want{
+				o:   "0",
+				err: errors.Wrap(errors.Wrap(errors.New("json: unsupported type: func()"), errMarshalJSON), errAdler),
 			},
 		},
 		"TrimPrefix": {

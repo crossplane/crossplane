@@ -354,6 +354,7 @@ const (
 	StringConversionTypeToSHA1     StringConversionType = "ToSha1"
 	StringConversionTypeToSHA256   StringConversionType = "ToSha256"
 	StringConversionTypeToSHA512   StringConversionType = "ToSha512"
+	StringConversionTypeToAdler32  StringConversionType = "ToAdler32"
 )
 
 // A StringTransform returns a string given the supplied input.
