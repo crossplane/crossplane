@@ -39,10 +39,7 @@ func TestXRDValidation(t *testing.T) {
 			// An update to an invalid XRD should be rejected.
 			Name:        "InvalidXRDUpdateIsRejected",
 			Description: "An invalid update to an XRD should be rejected.",
-			Assessment: funcs.AllOf(
-				funcs.ApplyResources(FieldManager, manifests, "xrd-valid-updated-invalid.yaml"),
-				funcs.ResourcesFailToApply(FieldManager, manifests, "xrd-valid-updated-invalid.yaml"),
-			),
+			Assessment:  funcs.ResourcesFailToApply(FieldManager, manifests, "xrd-valid-updated-invalid.yaml"),
 		},
 		{
 			// An invalid XRD should be rejected.
