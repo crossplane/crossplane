@@ -27,3 +27,28 @@ func (c *CompositeResourceDefinition) validateConversion() (errs field.ErrorList
 	}
 	return errs
 }
+
+// ValidateUpdate checks that the supplied CompositeResourceDefinition update is valid w.r.t. the old one.
+func (c *CompositeResourceDefinition) ValidateUpdate(old *CompositeResourceDefinition) (warns []string, errs field.ErrorList) {
+	// Validate the update
+	if c.Spec.Group != old.Spec.Group {
+		errs = append(errs, field.Invalid(field.NewPath("spec", "group"), c.Spec.Group, "field is immutable"))
+	}
+	if c.Spec.Names.Plural != old.Spec.Names.Plural {
+		errs = append(errs, field.Invalid(field.NewPath("spec", "names", "plural"), c.Spec.Names.Plural, "field is immutable"))
+	}
+	if c.Spec.Names.Kind != old.Spec.Names.Kind {
+		errs = append(errs, field.Invalid(field.NewPath("spec", "names", "kind"), c.Spec.Names.Kind, "field is immutable"))
+	}
+	if c.Spec.ClaimNames != nil && old.Spec.ClaimNames != nil {
+		if c.Spec.ClaimNames.Plural != old.Spec.ClaimNames.Plural {
+			errs = append(errs, field.Invalid(field.NewPath("spec", "claimNames", "plural"), c.Spec.ClaimNames.Plural, "field is immutable"))
+		}
+		if c.Spec.ClaimNames.Kind != old.Spec.ClaimNames.Kind {
+			errs = append(errs, field.Invalid(field.NewPath("spec", "claimNames", "kind"), c.Spec.ClaimNames.Kind, "field is immutable"))
+		}
+	}
+	warns, newErr := c.Validate()
+	errs = append(errs, newErr...)
+	return warns, errs
+}

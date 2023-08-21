@@ -24,10 +24,10 @@ import (
 // +kubebuilder:webhook:verbs=create;update,path=/validate-apiextensions-crossplane-io-v1-compositeresourcedefinition,mutating=false,failurePolicy=fail,groups=apiextensions.crossplane.io,resources=compositeresourcedefinitions,versions=v1,name=compositeresourcedefinitions.apiextensions.crossplane.io,sideEffects=None,admissionReviewVersions=v1
 
 // SetupWebhookWithManager sets up the Composition webhook with the provided manager and CustomValidator.
-func (in *CompositeResourceDefinition) SetupWebhookWithManager(mgr ctrl.Manager, validator admission.CustomValidator) error {
+func (c *CompositeResourceDefinition) SetupWebhookWithManager(mgr ctrl.Manager, validator admission.CustomValidator) error {
 	// Needed to inject validator in order to avoid dependency cycles.
 	return ctrl.NewWebhookManagedBy(mgr).
 		WithValidator(validator).
-		For(in).
+		For(c).
 		Complete()
 }

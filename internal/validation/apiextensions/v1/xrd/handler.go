@@ -19,8 +19,10 @@ package xrd
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
-	v12 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	xperrors "github.com/crossplane/crossplane-runtime/pkg/errors"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -39,13 +41,6 @@ const (
 	errNotCompositeResourceDefinition = "supplied object was not a CompositeResourceDefinition"
 
 	errUnexpectedType = "unexpected type"
-
-	errGroupImmutable                  = "spec.group is immutable"
-	errPluralImmutable                 = "spec.names.plural is immutable"
-	errKindImmutable                   = "spec.names.kind is immutable"
-	errClaimPluralImmutable            = "spec.claimNames.plural is immutable"
-	errClaimKindImmutable              = "spec.claimNames.kind is immutable"
-	errConversionWebhookConfigRequired = "spec.conversion.webhook is required when spec.conversion.strategy is 'Webhook'"
 )
 
 // SetupWebhookWithManager sets up the webhook with the manager.
@@ -61,10 +56,10 @@ type validator struct {
 	client client.Client
 }
 
-func getAllCRDsForXRD(in *v1.CompositeResourceDefinition) (out []*v12.CustomResourceDefinition, err error) {
+func getAllCRDsForXRD(in *v1.CompositeResourceDefinition) (out []*apiextv1.CustomResourceDefinition, err error) {
 	crd, err := xcrd.ForCompositeResource(in)
 	if err != nil {
-		return out, errors.Wrap(err, "cannot get CRD for Composite Resource")
+		return out, xperrors.Wrap(err, "cannot get CRD for Composite Resource")
 	}
 	out = append(out, crd)
 	// if claim enabled, validate claim CRD
@@ -73,7 +68,7 @@ func getAllCRDsForXRD(in *v1.CompositeResourceDefinition) (out []*v12.CustomReso
 	}
 	crdClaim, err := xcrd.ForCompositeResourceClaim(in)
 	if err != nil {
-		return out, errors.Wrap(err, "cannot get Claim CRD for Composite Claim")
+		return out, xperrors.Wrap(err, "cannot get Claim CRD for Composite Claim")
 	}
 	out = append(out, crdClaim)
 	return out, nil
@@ -92,7 +87,7 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (war
 	}
 	crds, err := getAllCRDsForXRD(in)
 	if err != nil {
-		return warns, errors.Wrap(err, "cannot get CRDs for CompositeResourceDefinition")
+		return warns, xperrors.Wrap(err, "cannot get CRDs for CompositeResourceDefinition")
 	}
 	for _, crd := range crds {
 		// Can't use validation.ValidateCustomResourceDefinition because it leads to dependency errors,
@@ -100,20 +95,8 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (war
 		// if errs := validation.ValidateCustomResourceDefinition(ctx, crd); len(errs) != 0 {
 		//	return warns, errors.Wrap(errs.ToAggregate(), "invalid CRD generated for CompositeResourceDefinition")
 		//}
-		got := crd.DeepCopy()
-		err := v.client.Get(ctx, client.ObjectKey{Name: crd.Name}, got)
-		switch {
-		case err == nil:
-			got.Spec = crd.Spec
-			if err := v.client.Update(ctx, got, client.DryRunAll); err != nil {
-				return warns, errors.Wrap(err, "cannot dry run update CRD for CompositeResourceDefinition")
-			}
-		case apierrors.IsNotFound(err):
-			if err := v.client.Create(ctx, crd, client.DryRunAll); err != nil {
-				return warns, errors.Wrap(err, "cannot dry run create CRD for CompositeResourceDefinition")
-			}
-		default:
-			return warns, errors.Wrap(err, "cannot dry run get CRD for CompositeResourceDefinition")
+		if err := v.client.Create(ctx, crd, client.DryRunAll); err != nil {
+			return warns, v.rewriteError(err, in, crd)
 		}
 	}
 
@@ -121,7 +104,8 @@ func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (war
 }
 
 // ValidateUpdate implements the same logic as ValidateCreate.
-func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object) (admission.Warnings, error) {
+func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object) (warns admission.Warnings, err error) {
+	// Validate the update
 	oldObj, ok := old.(*v1.CompositeResourceDefinition)
 	if !ok {
 		return nil, errors.New(errUnexpectedType)
@@ -130,26 +114,72 @@ func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object)
 	if !ok {
 		return nil, errors.New(errUnexpectedType)
 	}
-	switch {
-	case newObj.Spec.Group != oldObj.Spec.Group:
-		return nil, errors.New(errGroupImmutable)
-	case newObj.Spec.Names.Plural != oldObj.Spec.Names.Plural:
-		return nil, errors.New(errPluralImmutable)
-	case newObj.Spec.Names.Kind != oldObj.Spec.Names.Kind:
-		return nil, errors.New(errKindImmutable)
+	// Validate the update
+	validationWarns, validationErr := newObj.ValidateUpdate(oldObj)
+	warns = append(warns, validationWarns...)
+	if validationErr != nil {
+		return validationWarns, validationErr.ToAggregate()
 	}
-	if newObj.Spec.ClaimNames != nil && oldObj.Spec.ClaimNames != nil {
-		switch {
-		case newObj.Spec.ClaimNames.Plural != oldObj.Spec.ClaimNames.Plural:
-			return nil, errors.New(errClaimPluralImmutable)
-		case newObj.Spec.ClaimNames.Kind != oldObj.Spec.ClaimNames.Kind:
-			return nil, errors.New(errClaimKindImmutable)
+	crds, err := getAllCRDsForXRD(newObj)
+	if err != nil {
+		return warns, xperrors.Wrap(err, "cannot get CRDs for CompositeResourceDefinition")
+	}
+	for _, crd := range crds {
+		// Can't use validation.ValidateCustomResourceDefinition because it leads to dependency errors,
+		// see https://github.com/kubernetes/apiextensions-apiserver/issues/59
+		// if errs := validation.ValidateCustomResourceDefinition(ctx, crd); len(errs) != 0 {
+		//	return warns, errors.Wrap(errs.ToAggregate(), "invalid CRD generated for CompositeResourceDefinition")
+		//}
+		//
+		// We need to be able to handle both cases:
+		// 1. both CRDs exists already, which should be most of the time
+		// 2. Claim's CRD does not exist yet, e.g. the user updated the XRD spec
+		// which previously did not specify a claim.
+		err := v.updateOrCreateIfNotFound(ctx, crd)
+		if err != nil {
+			return warns, v.rewriteError(err, newObj, crd)
 		}
 	}
-	return v.ValidateCreate(ctx, newObj)
+
+	return warns, nil
+}
+
+func (v *validator) updateOrCreateIfNotFound(ctx context.Context, crd *apiextv1.CustomResourceDefinition) error {
+	got := crd.DeepCopy()
+	err := v.client.Get(ctx, client.ObjectKey{Name: crd.Name}, got)
+	if err == nil {
+		got.Spec = crd.Spec
+		return v.client.Update(ctx, got, client.DryRunAll)
+	}
+	if apierrors.IsNotFound(err) {
+		return v.client.Create(ctx, crd, client.DryRunAll)
+	}
+	return err
 }
 
 // ValidateDelete always allows delete requests.
 func (v *validator) ValidateDelete(_ context.Context, _ runtime.Object) (admission.Warnings, error) {
 	return nil, nil
+}
+
+func (v *validator) rewriteError(err error, in *v1.CompositeResourceDefinition, crd *apiextv1.CustomResourceDefinition) error {
+	// the handler is just discarding wrapping errors unfortunately, so
+	// we need to unwrap it here, modify its content and return that
+	// instead
+	if err == nil {
+		return nil
+	}
+	var apiErr *apierrors.StatusError
+	if errors.As(err, &apiErr) {
+		apiErr.ErrStatus.Message = "invalid CRD generated for CompositeResourceDefinition: " + apiErr.ErrStatus.Message
+		apiErr.ErrStatus.Details.Kind = v1.CompositeResourceDefinitionKind
+		apiErr.ErrStatus.Details.Group = v1.Group
+		apiErr.ErrStatus.Details.Name = in.GetName()
+		for i, cause := range apiErr.ErrStatus.Details.Causes {
+			cause.Field = fmt.Sprintf("<generated_CRD_%q>.%s", crd.GetName(), cause.Field)
+			apiErr.ErrStatus.Details.Causes[i] = cause
+		}
+		return apiErr
+	}
+	return err
 }
