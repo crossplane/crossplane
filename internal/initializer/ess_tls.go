@@ -24,15 +24,6 @@ const (
 	errFmtGetESSSecret = "cannot get ess secret: %s"
 )
 
-const (
-	// SecretKeyCACert is the secret key of CA certificate
-	SecretKeyCACert = "ca.crt"
-	// SecretKeyTLSCert is the secret key of TLS certificate
-	SecretKeyTLSCert = "tls.crt"
-	// SecretKeyTLSKey is the secret key of TLS key
-	SecretKeyTLSKey = "tls.key"
-)
-
 // ESSCertificateGenerator is an initializer step that will find the given secret
 // and fill its tls.crt, tls.key and ca.crt fields to be used for External Secret
 // Store plugins
@@ -79,8 +70,8 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	}
 
 	if err == nil {
-		kd := caSecret.Data[SecretKeyTLSKey]
-		cd := caSecret.Data[SecretKeyTLSCert]
+		kd := caSecret.Data[corev1.TLSPrivateKeyKey]
+		cd := caSecret.Data[corev1.TLSCertKey]
 		if len(kd) != 0 && len(cd) != 0 {
 			e.log.Info("ESS CA secret is complete.")
 			return parseCertificateSigner(kd, cd)
@@ -109,8 +100,8 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	caSecret.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, caSecret, func() error {
 		caSecret.Data = map[string][]byte{
-			SecretKeyTLSCert: caCrtByte,
-			SecretKeyTLSKey:  caKeyByte,
+			corev1.TLSCertKey:       caCrtByte,
+			corev1.TLSPrivateKeyKey: caKeyByte,
 		}
 		return nil
 	})
@@ -130,7 +121,7 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 	}
 
 	if err == nil {
-		if len(sec.Data[SecretKeyCACert]) != 0 && len(sec.Data[SecretKeyTLSKey]) != 0 && len(sec.Data[SecretKeyTLSCert]) != 0 {
+		if len(sec.Data[SecretKeyCACert]) != 0 && len(sec.Data[corev1.TLSCertKey]) != 0 && len(sec.Data[corev1.TLSPrivateKeyKey]) != 0 {
 			e.log.Info("ESS secret is complete.", "secret", nn.Name)
 			return nil
 		}
@@ -146,9 +137,9 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 	sec.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, sec, func() error {
 		sec.Data = map[string][]byte{
-			SecretKeyTLSCert: certData,
-			SecretKeyTLSKey:  keyData,
-			SecretKeyCACert:  signer.certificatePEM,
+			corev1.TLSCertKey:       certData,
+			corev1.TLSPrivateKeyKey: keyData,
+			SecretKeyCACert:         signer.certificatePEM,
 		}
 		return nil
 	})

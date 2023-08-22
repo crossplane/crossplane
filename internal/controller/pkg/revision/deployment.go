@@ -172,8 +172,8 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 					SecretName: *revision.GetTLSServerSecretName(),
 					Items: []corev1.KeyToPath{
 						// These are known and validated keys in TLS secrets.
-						{Key: initializer.SecretKeyTLSCert, Path: initializer.SecretKeyTLSCert},
-						{Key: initializer.SecretKeyTLSKey, Path: initializer.SecretKeyTLSKey},
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
 					},
 				},
 			},
@@ -203,8 +203,8 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 					SecretName: *revision.GetTLSClientSecretName(),
 					Items: []corev1.KeyToPath{
 						// These are known and validated keys in TLS secrets.
-						{Key: initializer.SecretKeyTLSCert, Path: initializer.SecretKeyTLSCert},
-						{Key: initializer.SecretKeyTLSKey, Path: initializer.SecretKeyTLSKey},
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
 					},
 				},
 			},
@@ -272,8 +272,8 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 					SecretName: *revision.GetESSTLSSecretName(),
 					Items: []corev1.KeyToPath{
 						// These are known and validated keys in TLS secrets.
-						{Key: initializer.SecretKeyTLSCert, Path: initializer.SecretKeyTLSCert},
-						{Key: initializer.SecretKeyTLSKey, Path: initializer.SecretKeyTLSKey},
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
 						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
 					},
 				},

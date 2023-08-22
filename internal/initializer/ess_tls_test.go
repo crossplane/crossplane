@@ -117,7 +117,7 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 								Namespace: "crossplane-system",
 							},
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte(caCert),
+								corev1.TLSCertKey: []byte(caCert),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -141,8 +141,8 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 						}
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte(caCert),
-								SecretKeyTLSKey:  []byte(caKey),
+								corev1.TLSCertKey:       []byte(caCert),
+								corev1.TLSPrivateKeyKey: []byte(caKey),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -167,8 +167,8 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 						}
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte("invalid"),
-								SecretKeyTLSKey:  []byte(caKey),
+								corev1.TLSCertKey:       []byte("invalid"),
+								corev1.TLSPrivateKeyKey: []byte(caKey),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -188,8 +188,8 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == ESSCACertSecretName {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -211,8 +211,8 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == ESSCACertSecretName {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -221,9 +221,9 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == "ess-server-certs" {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("test-cert"),
-									SecretKeyTLSKey:  []byte("test-key"),
-									SecretKeyCACert:  []byte(caCert),
+									corev1.TLSCertKey:       []byte("test-cert"),
+									corev1.TLSPrivateKeyKey: []byte("test-key"),
+									SecretKeyCACert:         []byte(caCert),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -258,9 +258,9 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte(caCert),
-								SecretKeyTLSKey:  []byte(caKey),
-								SecretKeyCACert:  []byte(caCert),
+								corev1.TLSCertKey:       []byte(caCert),
+								corev1.TLSPrivateKeyKey: []byte(caKey),
+								SecretKeyCACert:         []byte(caCert),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -294,8 +294,8 @@ func TestESSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == ESSCACertSecretName {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))

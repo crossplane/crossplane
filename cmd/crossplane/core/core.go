@@ -27,6 +27,7 @@ import (
 	"github.com/alecthomas/kong"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/spf13/afero"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
@@ -203,7 +204,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 
 		tlsConfig, err := certificates.LoadMTLSConfig(filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyTLSCert), filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyTLSKey), false)
+			filepath.Join(c.ESSTLSCertsDir, corev1.TLSCertKey), filepath.Join(c.ESSTLSCertsDir, corev1.TLSPrivateKeyKey), false)
 		if err != nil {
 			return errors.Wrap(err, "Cannot load TLS certificates for ESS")
 		}

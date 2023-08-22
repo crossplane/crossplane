@@ -90,7 +90,7 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 								Namespace: secretNS,
 							},
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte(caCert),
+								corev1.TLSCertKey: []byte(caCert),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -114,8 +114,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						}
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte(caCert),
-								SecretKeyTLSKey:  []byte(caKey),
+								corev1.TLSCertKey:       []byte(caCert),
+								corev1.TLSPrivateKeyKey: []byte(caKey),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -140,8 +140,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						}
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte("invalid"),
-								SecretKeyTLSKey:  []byte(caKey),
+								corev1.TLSCertKey:       []byte("invalid"),
+								corev1.TLSPrivateKeyKey: []byte(caKey),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -161,8 +161,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -189,8 +189,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -199,8 +199,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == tlsServerSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("test-cert"),
-									SecretKeyTLSKey:  []byte("test-key"),
+									corev1.TLSCertKey:       []byte("test-cert"),
+									corev1.TLSPrivateKeyKey: []byte("test-key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -226,8 +226,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -262,8 +262,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if obj.GetName() == tlsServerSecretName && obj.GetNamespace() == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("cert"),
-									SecretKeyTLSKey:  []byte("key"),
+									corev1.TLSCertKey:       []byte("cert"),
+									corev1.TLSPrivateKeyKey: []byte("key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -276,8 +276,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 									Namespace: secretNS,
 								},
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("cert"),
-									SecretKeyTLSKey:  []byte("key"),
+									corev1.TLSCertKey:       []byte("cert"),
+									corev1.TLSPrivateKeyKey: []byte("key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -301,8 +301,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -311,8 +311,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == tlsServerSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("cert"),
-									SecretKeyTLSKey:  []byte("key"),
+									corev1.TLSCertKey:       []byte("cert"),
+									corev1.TLSPrivateKeyKey: []byte("key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -321,8 +321,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == tlsClientSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("cert"),
-									SecretKeyTLSKey:  []byte("key"),
+									corev1.TLSCertKey:       []byte("cert"),
+									corev1.TLSPrivateKeyKey: []byte("key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -358,8 +358,8 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -430,8 +430,8 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -458,8 +458,8 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -472,8 +472,8 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte("cert"),
-								SecretKeyTLSKey:  []byte("key"),
+								corev1.TLSCertKey:       []byte("cert"),
+								corev1.TLSPrivateKeyKey: []byte("key"),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -492,8 +492,8 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -517,8 +517,8 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 						if obj.GetName() == tlsServerSecretName && obj.GetNamespace() == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("cert"),
-									SecretKeyTLSKey:  []byte("key"),
+									corev1.TLSCertKey:       []byte("cert"),
+									corev1.TLSPrivateKeyKey: []byte("key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -589,8 +589,8 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -617,8 +617,8 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -631,8 +631,8 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 
 						s := &corev1.Secret{
 							Data: map[string][]byte{
-								SecretKeyTLSCert: []byte("cert"),
-								SecretKeyTLSKey:  []byte("key"),
+								corev1.TLSCertKey:       []byte("cert"),
+								corev1.TLSPrivateKeyKey: []byte("key"),
 							},
 						}
 						s.DeepCopyInto(obj.(*corev1.Secret))
@@ -651,8 +651,8 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						if key.Name == caCertSecretName && key.Namespace == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte(caCert),
-									SecretKeyTLSKey:  []byte(caKey),
+									corev1.TLSCertKey:       []byte(caCert),
+									corev1.TLSPrivateKeyKey: []byte(caKey),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))
@@ -676,8 +676,8 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 						if obj.GetName() == tlsClientSecretName && obj.GetNamespace() == secretNS {
 							s := &corev1.Secret{
 								Data: map[string][]byte{
-									SecretKeyTLSCert: []byte("cert"),
-									SecretKeyTLSKey:  []byte("key"),
+									corev1.TLSCertKey:       []byte("cert"),
+									corev1.TLSPrivateKeyKey: []byte("key"),
 								},
 							}
 							s.DeepCopyInto(obj.(*corev1.Secret))

@@ -388,12 +388,14 @@ type PackageRevision interface {
 	GetDependencyStatus() (found, installed, invalid int64)
 	SetDependencyStatus(found, installed, invalid int64)
 
+	// These methods will be removed once we start to consume certificates generated per entities
 	GetWebhookTLSSecretName() *string
 	SetWebhookTLSSecretName(n *string)
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
 
+	// These methods will be removed once we start to consume certificates generated per entities
 	GetESSTLSSecretName() *string
 	SetESSTLSSecretName(s *string)
 

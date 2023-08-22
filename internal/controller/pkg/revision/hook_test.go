@@ -33,7 +33,6 @@ import (
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
-	"github.com/crossplane/crossplane/internal/initializer"
 )
 
 var (
@@ -661,8 +660,8 @@ func TestHookPost(t *testing.T) {
 									}
 									*o = corev1.Secret{
 										Data: map[string][]byte{
-											initializer.SecretKeyTLSCert: []byte(caCert),
-											initializer.SecretKeyTLSKey:  []byte(caKey),
+											corev1.TLSCertKey:       []byte(caCert),
+											corev1.TLSPrivateKeyKey: []byte(caKey),
 										},
 									}
 									return nil
@@ -726,8 +725,8 @@ func TestHookPost(t *testing.T) {
 									}
 									*o = corev1.Secret{
 										Data: map[string][]byte{
-											initializer.SecretKeyTLSCert: []byte(caCert),
-											initializer.SecretKeyTLSKey:  []byte(caKey),
+											corev1.TLSCertKey:       []byte(caCert),
+											corev1.TLSPrivateKeyKey: []byte(caKey),
 										},
 									}
 									return nil

@@ -50,6 +50,9 @@ const (
 	// RootCACertSecretName is the name of the secret that will store CA certificates and rest of the
 	// certificates created per entities will be signed by this CA
 	RootCACertSecretName = "xp-root-ca"
+
+	// SecretKeyCACert is the secret key of CA certificate
+	SecretKeyCACert = "ca.crt"
 )
 
 // TLSCertificateGenerator is an initializer step that will find the given secret
@@ -110,8 +113,8 @@ func (e *TLSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	}
 
 	if err == nil {
-		kd := caSecret.Data[SecretKeyTLSKey]
-		cd := caSecret.Data[SecretKeyTLSCert]
+		kd := caSecret.Data[corev1.TLSPrivateKeyKey]
+		cd := caSecret.Data[corev1.TLSCertKey]
 		if len(kd) != 0 && len(cd) != 0 {
 			e.log.Info("TLS CA secret is complete.")
 			return parseCertificateSigner(kd, cd)
@@ -140,8 +143,8 @@ func (e *TLSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	caSecret.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, caSecret, func() error {
 		caSecret.Data = map[string][]byte{
-			SecretKeyTLSCert: caCrtByte,
-			SecretKeyTLSKey:  caKeyByte,
+			corev1.TLSCertKey:       caCrtByte,
+			corev1.TLSPrivateKeyKey: caKeyByte,
 		}
 		return nil
 	})
@@ -161,7 +164,7 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 	}
 
 	if err == nil {
-		if len(sec.Data[SecretKeyTLSKey]) != 0 || len(sec.Data[SecretKeyTLSCert]) != 0 {
+		if len(sec.Data[corev1.TLSPrivateKeyKey]) != 0 || len(sec.Data[corev1.TLSCertKey]) != 0 {
 			e.log.Info("TLS secret contains client certificate.", "secret", nn.Name)
 			return nil
 		}
@@ -194,8 +197,8 @@ func (e *TLSCertificateGenerator) ensureClientCertificate(ctx context.Context, k
 		if sec.Data == nil {
 			sec.Data = make(map[string][]byte)
 		}
-		sec.Data[SecretKeyTLSCert] = certData
-		sec.Data[SecretKeyTLSKey] = keyData
+		sec.Data[corev1.TLSCertKey] = certData
+		sec.Data[corev1.TLSPrivateKeyKey] = keyData
 
 		return nil
 	})
@@ -212,7 +215,7 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 	}
 
 	if err == nil {
-		if len(sec.Data[SecretKeyTLSCert]) != 0 || len(sec.Data[SecretKeyTLSKey]) != 0 {
+		if len(sec.Data[corev1.TLSCertKey]) != 0 || len(sec.Data[corev1.TLSPrivateKeyKey]) != 0 {
 			e.log.Info("TLS secret contains server certificate.", "secret", nn.Name)
 			return nil
 		}
@@ -245,8 +248,8 @@ func (e *TLSCertificateGenerator) ensureServerCertificate(ctx context.Context, k
 		if sec.Data == nil {
 			sec.Data = make(map[string][]byte)
 		}
-		sec.Data[SecretKeyTLSCert] = certData
-		sec.Data[SecretKeyTLSKey] = keyData
+		sec.Data[corev1.TLSCertKey] = certData
+		sec.Data[corev1.TLSPrivateKeyKey] = keyData
 
 		return nil
 	})
