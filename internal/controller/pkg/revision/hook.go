@@ -155,7 +155,7 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err := h.client.Apply(ctx, secCli); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
-	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgProvider.Name, owner).Run(ctx, h.client); err != nil {
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgProvider.Name, initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgProvider.Name)
 	}
 	if pr.GetWebhookTLSSecretName() != nil {

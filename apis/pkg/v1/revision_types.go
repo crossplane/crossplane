@@ -108,7 +108,7 @@ type PackageRevisionSpec struct {
 	TLSServerSecretName *string `json:"tlsServerSecretName,omitempty"`
 
 	// TLSClientSecretName is the name of the TLS Secret that stores client
-	// certificates of the Provider to call Functions.
+	// certificates of the Provider.
 	// +optional
 	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
 }

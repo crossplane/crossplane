@@ -49,7 +49,8 @@ type Options struct {
 	// injected to CRDs so that API server can make calls to the providers.
 	WebhookTLSSecretName string
 
-	// TLSServerSecretName is the Secret that will be mounted to provider Pods.
+	// TLSServerSecretName is the Secret that will be mounted to provider Pods
+	// for webhooks.
 	TLSServerSecretName string
 
 	// TLSClientSecretName is the Secret that will be mounted to provider Pods

@@ -41,7 +41,7 @@ var (
 	providerDep = "crossplane/provider-aws"
 	versionDep  = "v0.1.1"
 
-	caSecret           = "root-ca-certs"
+	caSecret           = "xp-root-ca"
 	tlsServerSecret    = "server-secret"
 	tlsClientSecret    = "client-secret"
 	tlsSecretNamespace = "crossplane-system"

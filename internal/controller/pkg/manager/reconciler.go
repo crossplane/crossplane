@@ -471,8 +471,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 // a k8s secret name can be at most 253 characters long
 func getSecretName(name, suffix string) *string {
-	if len(name) > 253-len(suffix) {
-		name = name[0 : 253-len(suffix)]
+	// 2 chars for '%s' in suffix
+	if len(name) > 251-len(suffix) {
+		name = name[0 : 251-len(suffix)]
 	}
 	s := fmt.Sprintf(suffix, name)
 

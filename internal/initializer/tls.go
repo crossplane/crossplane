@@ -49,7 +49,7 @@ const (
 const (
 	// RootCACertSecretName is the name of the secret that will store CA certificates and rest of the
 	// certificates created per entities will be signed by this CA
-	RootCACertSecretName = "root-ca-certs"
+	RootCACertSecretName = "xp-root-ca"
 )
 
 // TLSCertificateGenerator is an initializer step that will find the given secret
@@ -76,15 +76,21 @@ func TLSCertificateGeneratorWithLogger(log logging.Logger) TLSCertificateGenerat
 	}
 }
 
+// TLSCertificateGeneratorWithOwner returns an TLSCertificateGeneratorOption that sets owner reference
+func TLSCertificateGeneratorWithOwner(owner []metav1.OwnerReference) TLSCertificateGeneratorOption {
+	return func(g *TLSCertificateGenerator) {
+		g.owner = owner
+	}
+}
+
 // NewTLSCertificateGenerator returns a new TLSCertificateGenerator.
-func NewTLSCertificateGenerator(ns, caSecret, tlsServerSecret, tlsClientSecret, subject string, owner []metav1.OwnerReference, opts ...TLSCertificateGeneratorOption) *TLSCertificateGenerator {
+func NewTLSCertificateGenerator(ns, caSecret, tlsServerSecret, tlsClientSecret, subject string, opts ...TLSCertificateGeneratorOption) *TLSCertificateGenerator {
 	e := &TLSCertificateGenerator{
 		namespace:           ns,
 		caSecretName:        caSecret,
 		tlsServerSecretName: tlsServerSecret,
 		tlsClientSecretName: tlsClientSecret,
 		subject:             subject,
-		owner:               owner,
 		certificate:         NewCertGenerator(),
 		log:                 logging.NewNopLogger(),
 	}

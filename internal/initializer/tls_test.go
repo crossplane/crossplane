@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	caCertSecretName    = "root-ca-certs"
+	caCertSecretName    = "xp-root-ca"
 	tlsServerSecretName = "tls-server-certs"
 	tlsClientSecretName = "tls-client-certs"
 	secretNS            = "crossplane-system"
@@ -381,7 +381,7 @@ func TestTLSCertificateGenerator_Run(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, tlsServerSecretName, tlsClientSecretName, subject, nil)
+			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, tlsServerSecretName, tlsClientSecretName, subject)
 			e.certificate = tc.args.certificate
 
 			err := e.Run(context.Background(), tc.args.kube)
@@ -540,7 +540,7 @@ func TestTLSCertificateGenerator_GenerateServerCertificate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, tlsServerSecretName, tlsClientSecretName, subject, owner)
+			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, tlsServerSecretName, tlsClientSecretName, subject, TLSCertificateGeneratorWithOwner(owner))
 			e.certificate = tc.args.certificate
 
 			err := e.GenerateServerCertificate(context.Background(), tc.args.kube)
@@ -699,7 +699,7 @@ func TestTLSCertificateGenerator_GenerateClientCertificate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, tlsServerSecretName, tlsClientSecretName, subject, owner)
+			e := NewTLSCertificateGenerator(secretNS, caCertSecretName, tlsServerSecretName, tlsClientSecretName, subject, TLSCertificateGeneratorWithOwner(owner))
 			e.certificate = tc.args.certificate
 
 			err := e.GenerateClientCertificate(context.Background(), tc.args.kube)

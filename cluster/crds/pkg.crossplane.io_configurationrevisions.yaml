@@ -128,7 +128,7 @@ spec:
                 type: boolean
               tlsClientSecretName:
                 description: TLSClientSecretName is the name of the TLS Secret that
-                  stores client certificates of the Provider to call Functions.
+                  stores client certificates of the Provider.
                 type: string
               tlsServerSecretName:
                 description: TLSServerSecretName is the name of the TLS Secret that

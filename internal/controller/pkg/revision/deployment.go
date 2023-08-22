@@ -64,6 +64,8 @@ const (
 	tlsClientCertsDir        = "/tls/client"
 )
 
+// Returns the service account, deployment, service, server and client TLS secrets of the provider.
+//
 //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret, *corev1.Secret) {
 	s := &corev1.ServiceAccount{

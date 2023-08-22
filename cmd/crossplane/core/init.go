@@ -94,7 +94,7 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
 		initializer.NewStoreConfigObject(c.Namespace),
-		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, c.TLSServerSecretName, c.TLSClientSecretName, "crossplane", nil, initializer.TLSCertificateGeneratorWithLogger(log.WithValues("Step", "TLSCertificateGenerator"))),
+		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, c.TLSServerSecretName, c.TLSClientSecretName, "crossplane", initializer.TLSCertificateGeneratorWithLogger(log.WithValues("Step", "TLSCertificateGenerator"))),
 	)
 
 	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
