@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	caCertSecretName    = "xp-root-ca"
+	caCertSecretName    = "crossplane-root-ca"
 	tlsServerSecretName = "tls-server-certs"
 	tlsClientSecretName = "tls-client-certs"
 	secretNS            = "crossplane-system"

@@ -101,7 +101,7 @@ spec:
             value: ess-server-certs
           {{- end }}
           - name: "TLS_CA_SECRET_NAME"
-            value: xp-root-ca
+            value: crossplane-root-ca
           - name: "TLS_SERVER_SECRET_NAME"
             value: crossplane-tls-server
           - name: "TLS_CLIENT_SECRET_NAME"

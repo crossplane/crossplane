@@ -49,7 +49,7 @@ const (
 const (
 	// RootCACertSecretName is the name of the secret that will store CA certificates and rest of the
 	// certificates created per entities will be signed by this CA
-	RootCACertSecretName = "xp-root-ca"
+	RootCACertSecretName = "crossplane-root-ca"
 
 	// SecretKeyCACert is the secret key of CA certificate
 	SecretKeyCACert = "ca.crt"
