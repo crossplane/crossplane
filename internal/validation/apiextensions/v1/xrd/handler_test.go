@@ -26,6 +26,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -39,6 +40,8 @@ import (
 var _ admission.CustomValidator = &validator{}
 
 func TestValidateUpdate(t *testing.T) {
+	errBoom := errors.New("boom")
+
 	type args struct {
 		old    runtime.Object
 		new    *v1.CompositeResourceDefinition
@@ -180,6 +183,267 @@ func TestValidateUpdate(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 				},
 			},
+		},
+		"FailChangeClaimKind": {
+			args: args{
+				old: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				new: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "C",
+							Plural:   "cs",
+							Singular: "c",
+							ListKind: "CList",
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet:    test.NewMockGetFn(nil),
+					MockUpdate: test.NewMockUpdateFn(nil),
+				},
+			},
+			// WARN: brittle test, depends on the sorting of the field.ErrorList
+			err: field.ErrorList{
+				field.Invalid(field.NewPath("spec", "claimNames", "plural"), "cs", "field is immutable"),
+				field.Invalid(field.NewPath("spec", "claimNames", "kind"), "C", "field is immutable"),
+			}.ToAggregate(),
+		},
+		"FailOnClaimNotFound": {
+			args: args{
+				old: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				new: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+						p, err := fieldpath.PaveObject(obj)
+						if err != nil {
+							return err
+						}
+						s, err := p.GetString("spec.names.kind")
+						if err != nil {
+							return err
+						}
+						if s == "B" {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			err: errBoom,
+		},
+		"FailOnClaimFound": {
+			args: args{
+				old: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				new: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+						p, err := fieldpath.PaveObject(obj)
+						if err != nil {
+							return err
+						}
+						s, err := p.GetString("spec.names.kind")
+						if err != nil {
+							return err
+						}
+						if s == "B" {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			err: errBoom,
+		},
+		"FailOnCompositeNotFound": {
+			args: args{
+				old: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				new: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(apierrors.NewNotFound(schema.GroupResource{}, "")),
+					MockCreate: test.NewMockCreateFn(nil, func(obj client.Object) error {
+						p, err := fieldpath.PaveObject(obj)
+						if err != nil {
+							return err
+						}
+						s, err := p.GetString("spec.names.kind")
+						if err != nil {
+							return err
+						}
+						if s == "A" {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			err: errBoom,
+		},
+		"FailOnCompositeFound": {
+			args: args{
+				old: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				new: &v1.CompositeResourceDefinition{
+					Spec: v1.CompositeResourceDefinitionSpec{
+						Names: extv1.CustomResourceDefinitionNames{
+							Kind:     "A",
+							Plural:   "as",
+							Singular: "a",
+							ListKind: "AList",
+						},
+						ClaimNames: &extv1.CustomResourceDefinitionNames{
+							Kind:     "B",
+							Plural:   "bs",
+							Singular: "b",
+							ListKind: "BList",
+						},
+					},
+				},
+				client: &test.MockClient{
+					MockGet: test.NewMockGetFn(nil),
+					MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
+						p, err := fieldpath.PaveObject(obj)
+						if err != nil {
+							return err
+						}
+						s, err := p.GetString("spec.names.kind")
+						if err != nil {
+							return err
+						}
+						if s == "A" {
+							return errBoom
+						}
+						return nil
+					}),
+				},
+			},
+			err: errBoom,
 		},
 	}
 

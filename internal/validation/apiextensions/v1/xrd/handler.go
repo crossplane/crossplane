@@ -135,7 +135,7 @@ func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object)
 		// 1. both CRDs exists already, which should be most of the time
 		// 2. Claim's CRD does not exist yet, e.g. the user updated the XRD spec
 		// which previously did not specify a claim.
-		err := v.updateOrCreateIfNotFound(ctx, crd)
+		err := v.dryRunUpdateOrCreateIfNotFound(ctx, crd)
 		if err != nil {
 			return warns, v.rewriteError(err, newObj, crd)
 		}
@@ -144,7 +144,7 @@ func (v *validator) ValidateUpdate(ctx context.Context, old, new runtime.Object)
 	return warns, nil
 }
 
-func (v *validator) updateOrCreateIfNotFound(ctx context.Context, crd *apiextv1.CustomResourceDefinition) error {
+func (v *validator) dryRunUpdateOrCreateIfNotFound(ctx context.Context, crd *apiextv1.CustomResourceDefinition) error {
 	got := crd.DeepCopy()
 	err := v.client.Get(ctx, client.ObjectKey{Name: crd.Name}, got)
 	if err == nil {

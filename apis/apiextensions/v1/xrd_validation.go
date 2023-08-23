@@ -20,6 +20,7 @@ func (c *CompositeResourceDefinition) Validate() (warns []string, errs field.Err
 }
 
 // validateConversion checks that the supplied CompositeResourceDefinition spec
+// is valid w.r.t. conversion.
 func (c *CompositeResourceDefinition) validateConversion() (errs field.ErrorList) {
 	if conv := c.Spec.Conversion; conv != nil && conv.Strategy == extv1.WebhookConverter &&
 		(conv.Webhook == nil || conv.Webhook.ClientConfig == nil) {

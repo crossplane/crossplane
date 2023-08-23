@@ -19,9 +19,6 @@ limitations under the License.
 package v1
 
 import (
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 )
 
@@ -47,15 +44,6 @@ var (
 	// in case of missing referenced resources, e.g. Managed Resources or Composite Resources.
 	CompositionValidationModeStrict CompositionValidationMode = "strict"
 )
-
-// SetupWebhookWithManager sets up the Composition webhook with the provided manager and CustomValidator.
-func (in *Composition) SetupWebhookWithManager(mgr ctrl.Manager, validator admission.CustomValidator) error {
-	// Needed to inject validator in order to avoid dependency cycles.
-	return ctrl.NewWebhookManagedBy(mgr).
-		WithValidator(validator).
-		For(in).
-		Complete()
-}
 
 // GetValidationMode returns the validation mode set for the composition.
 func (in *Composition) GetValidationMode() (CompositionValidationMode, error) {
