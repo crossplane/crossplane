@@ -37,8 +37,10 @@ spec:
         release: {{ .Release.Name }}
         {{- include "crossplane.labels" . | indent 8 }}
     spec:
+      {{- with .Values.podSecurityContextCrossplane }}
       securityContext:
-        {{- toYaml .Values.podSecurityContextCrossplane | nindent 8 }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName  | quote }}
       {{- end }}
@@ -61,8 +63,10 @@ spec:
           name: {{ .Chart.Name }}-init
           resources:
             {{- toYaml .Values.resourcesCrossplane | nindent 12 }}
+          {{- with .Values.securityContextCrossplane }}
           securityContext:
-            {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
           - name: GOMAXPROCS
             valueFrom:
@@ -123,8 +127,10 @@ spec:
         - name: webhooks
           containerPort: 9443
         {{- end }}
+        {{- with .Values.securityContextCrossplane }}
         securityContext:
-          {{- toYaml .Values.securityContextCrossplane | nindent 12 }}
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
         env:
           - name: GOMAXPROCS
             valueFrom:
