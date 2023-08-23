@@ -54,10 +54,20 @@ const (
 	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
 	essCertsVolumeName  = "ess-client-certs"
 	essCertsDir         = "/ess/tls"
+
+	tlsServerCertDirEnvVar   = "TLS_SERVER_CERTS_DIR"
+	tlsServerCertsVolumeName = "tls-server-certs"
+	tlsServerCertsDir        = "/tls/server"
+
+	tlsClientCertDirEnvVar   = "TLS_CLIENT_CERTS_DIR"
+	tlsClientCertsVolumeName = "tls-client-certs"
+	tlsClientCertsDir        = "/tls/client"
 )
 
+// Returns the service account, deployment, service, server and client TLS secrets of the provider.
+//
 //nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service) {
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret, *corev1.Secret) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -65,6 +75,21 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
 		},
 		ImagePullSecrets: pullSecrets,
+	}
+	secSer := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *revision.GetTLSServerSecretName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+		},
+	}
+
+	secCli := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *revision.GetTLSClientSecretName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+		},
 	}
 	pullPolicy := corev1.PullIfNotPresent
 	if revision.GetPackagePullPolicy() != nil {
@@ -139,6 +164,68 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			},
 		},
 	}
+	if revision.GetTLSServerSecretName() != nil {
+		v := corev1.Volume{
+			Name: tlsServerCertsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: *revision.GetTLSServerSecretName(),
+					Items: []corev1.KeyToPath{
+						// These are known and validated keys in TLS secrets.
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
+					},
+				},
+			},
+		}
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+
+		vm := corev1.VolumeMount{
+			Name:      tlsServerCertsVolumeName,
+			ReadOnly:  true,
+			MountPath: tlsServerCertsDir,
+		}
+		d.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+		envs := []corev1.EnvVar{
+			{Name: tlsServerCertDirEnvVar, Value: tlsServerCertsDir},
+		}
+		d.Spec.Template.Spec.Containers[0].Env =
+			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+	}
+
+	if revision.GetTLSClientSecretName() != nil {
+		v := corev1.Volume{
+			Name: tlsClientCertsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: *revision.GetTLSClientSecretName(),
+					Items: []corev1.KeyToPath{
+						// These are known and validated keys in TLS secrets.
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
+					},
+				},
+			},
+		}
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+
+		vm := corev1.VolumeMount{
+			Name:      tlsClientCertsVolumeName,
+			ReadOnly:  true,
+			MountPath: tlsClientCertsDir,
+		}
+		d.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+		envs := []corev1.EnvVar{
+			{Name: tlsClientCertDirEnvVar, Value: tlsClientCertsDir},
+		}
+		d.Spec.Template.Spec.Containers[0].Env =
+			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+	}
+
 	if revision.GetWebhookTLSSecretName() != nil {
 		v := corev1.Volume{
 			Name: webhookVolumeName,
@@ -185,8 +272,8 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 					SecretName: *revision.GetESSTLSSecretName(),
 					Items: []corev1.KeyToPath{
 						// These are known and validated keys in TLS secrets.
-						{Key: initializer.SecretKeyTLSCert, Path: initializer.SecretKeyTLSCert},
-						{Key: initializer.SecretKeyTLSKey, Path: initializer.SecretKeyTLSKey},
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
 						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
 					},
 				},
@@ -317,5 +404,5 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 			},
 		},
 	}
-	return s, d, svc
+	return s, d, svc, secSer, secCli
 }

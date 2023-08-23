@@ -42,6 +42,11 @@ import (
 
 var _ Revisioner = &MockRevisioner{}
 
+var (
+	tlsServerSecret = "test-tls-server"
+	tlsClientSecret = "test-tls-client"
+)
+
 type MockRevisioner struct {
 	MockRevision func() (string, error)
 }
@@ -329,6 +334,10 @@ func TestReconcile(t *testing.T) {
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
 									},
+									Spec: v1.PackageRevisionSpec{
+										TLSServerSecretName: &tlsServerSecret,
+										TLSClientSecretName: &tlsClientSecret,
+									},
 								}
 								cr.SetConditions(v1.Healthy())
 								c := v1.ConfigurationRevisionList{
@@ -387,6 +396,10 @@ func TestReconcile(t *testing.T) {
 									ObjectMeta: metav1.ObjectMeta{
 										Name: "test-1234567",
 									},
+									Spec: v1.PackageRevisionSpec{
+										TLSServerSecretName: &tlsServerSecret,
+										TLSClientSecretName: &tlsClientSecret,
+									},
 								}
 								cr.SetGroupVersionKind(v1.ConfigurationRevisionGroupVersionKind)
 								cr.SetConditions(v1.Healthy())
@@ -426,6 +439,8 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetConditions(v1.Healthy())
 							want.SetRevision(1)
+							want.SetTLSServerSecretName(&tlsServerSecret)
+							want.SetTLSClientSecretName(&tlsClientSecret)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -642,6 +657,8 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetConditions(v1.Healthy())
 							want.SetRevision(3)
+							want.SetTLSServerSecretName(&tlsServerSecret)
+							want.SetTLSClientSecretName(&tlsClientSecret)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}

@@ -49,6 +49,15 @@ type Options struct {
 	// injected to CRDs so that API server can make calls to the providers.
 	WebhookTLSSecretName string
 
+	// TLSServerSecretName is the Secret that will be mounted to provider Pods
+	// for webhooks.
+	TLSServerSecretName string
+
+	// TLSClientSecretName is the Secret that will be mounted to provider Pods
+	// so that they can use it as client certificate to make calls to Functions
+	// and ESS plugins.
+	TLSClientSecretName string
+
 	// Features that should be enabled.
 	Features *feature.Flags
 }

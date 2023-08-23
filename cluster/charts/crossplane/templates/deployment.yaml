@@ -100,6 +100,12 @@ spec:
           - name: "ESS_TLS_SERVER_SECRET_NAME"
             value: ess-server-certs
           {{- end }}
+          - name: "TLS_CA_SECRET_NAME"
+            value: crossplane-root-ca
+          - name: "TLS_SERVER_SECRET_NAME"
+            value: crossplane-tls-server
+          - name: "TLS_CLIENT_SECRET_NAME"
+            value: crossplane-tls-client
       containers:
       - image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default (printf "v%s" .Chart.AppVersion) }}"
         args:
@@ -162,6 +168,14 @@ spec:
           - name: "ESS_TLS_CERTS_DIR"
             value: /ess/tls
           {{- end }}
+          - name: "TLS_SERVER_SECRET_NAME"
+            value: crossplane-tls-server
+          - name: "TLS_SERVER_CERTS_DIR"
+            value: /tls/server
+          - name: "TLS_CLIENT_SECRET_NAME"
+            value: crossplane-tls-client
+          - name: "TLS_CLIENT_CERTS_DIR"
+            value: /tls/client
         {{- range $key, $value := .Values.extraEnvVarsCrossplane }}
           - name: {{ $key | replace "." "_" }}
             value: {{ $value | quote }}
@@ -184,6 +198,10 @@ spec:
           {{- if .Values.extraVolumeMountsCrossplane }}
           {{- toYaml .Values.extraVolumeMountsCrossplane | nindent 10 }}
           {{- end }}
+          - mountPath: /tls/server
+            name: tls-server-certs
+          - mountPath: /tls/client
+            name: tls-client-certs
       volumes:
       - name: package-cache
         {{- if .Values.packageCache.pvc }}
@@ -222,6 +240,12 @@ spec:
         secret:
           secretName: ess-client-certs
       {{- end }}
+      - name: tls-server-certs
+        secret:
+          secretName: crossplane-tls-server
+      - name: tls-client-certs
+        secret:
+          secretName: crossplane-tls-client
       {{- if .Values.extraVolumesCrossplane }}
       {{- toYaml .Values.extraVolumesCrossplane | nindent 6 }}
       {{- end }}

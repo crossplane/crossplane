@@ -101,6 +101,16 @@ type PackageRevisionSpec struct {
 	// by the provider for External Secret Stores.
 	// +optional
 	ESSTLSSecretName *string `json:"essTLSSecretName,omitempty"`
+
+	// TLSServerSecretName is the name of the TLS Secret that stores server
+	// certificates of the Provider.
+	// +optional
+	TLSServerSecretName *string `json:"tlsServerSecretName,omitempty"`
+
+	// TLSClientSecretName is the name of the TLS Secret that stores client
+	// certificates of the Provider.
+	// +optional
+	TLSClientSecretName *string `json:"tlsClientSecretName,omitempty"`
 }
 
 // PackageRevisionStatus represents the observed state of a PackageRevision.

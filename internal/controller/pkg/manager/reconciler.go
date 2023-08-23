@@ -19,6 +19,7 @@ package manager
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"reflect"
 	"strings"
@@ -85,6 +86,11 @@ const (
 	reasonInstall            event.Reason = "InstallPackageRevision"
 )
 
+const (
+	fmtTLSServerSecretName = "%s-tls-server"
+	fmtTLSClientSecretName = "%s-tls-client"
+)
+
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 
@@ -96,11 +102,27 @@ func WithWebhookTLSSecretName(n string) ReconcilerOption {
 	}
 }
 
-// WithESSTLSSecretName configures the name of the TLS certificate secret that
+// WithESSTLSSecretName configures the name of the ESS TLS certificate secret that
 // Reconciler will add to PackageRevisions it creates.
 func WithESSTLSSecretName(s *string) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.essTLSSecretName = s
+	}
+}
+
+// WithTLSServerSecretName configures the name of the TLS server certificate secret that
+// Reconciler will add to PackageRevisions it creates.
+func WithTLSServerSecretName(s *string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.tlsServerSecretName = s
+	}
+}
+
+// WithTLSClientSecretName configures the name of the TLS client certificate secret that
+// Reconciler will add to PackageRevisions it creates.
+func WithTLSClientSecretName(s *string) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.tlsClientSecretName = s
 	}
 }
 
@@ -155,6 +177,8 @@ type Reconciler struct {
 	record               event.Recorder
 	webhookTLSSecretName *string
 	essTLSSecretName     *string
+	tlsServerSecretName  *string
+	tlsClientSecretName  *string
 
 	newPackage             func() v1.Package
 	newPackageRevision     func() v1.PackageRevision
@@ -191,6 +215,13 @@ func SetupProvider(mgr ctrl.Manager, o controller.Options) error {
 	if o.ESSOptions != nil && o.ESSOptions.TLSSecretName != nil {
 		opts = append(opts, WithESSTLSSecretName(o.ESSOptions.TLSSecretName))
 	}
+	if o.TLSServerSecretName != "" {
+		opts = append(opts, WithTLSServerSecretName(&o.TLSServerSecretName))
+	}
+	if o.TLSClientSecretName != "" {
+		opts = append(opts, WithTLSClientSecretName(&o.TLSClientSecretName))
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.Provider{}).
@@ -392,6 +423,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	pr.SetControllerConfigRef(p.GetControllerConfigRef())
 	pr.SetWebhookTLSSecretName(r.webhookTLSSecretName)
 	pr.SetESSTLSSecretName(r.essTLSSecretName)
+	pr.SetTLSServerSecretName(getSecretName(p.GetName(), fmtTLSServerSecretName))
+	pr.SetTLSClientSecretName(getSecretName(p.GetName(), fmtTLSClientSecretName))
 	pr.SetCommonLabels(p.GetCommonLabels())
 
 	// If current revision is not active and we have an automatic or
@@ -434,4 +467,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// its health. If updating from an existing revision, the package health
 	// will match the health of the old revision until the next reconcile.
 	return pullBasedRequeue(p.GetPackagePullPolicy()), errors.Wrap(r.client.Status().Update(ctx, p), errUpdateStatus)
+}
+
+// a k8s secret name can be at most 253 characters long
+func getSecretName(name, suffix string) *string {
+	// 2 chars for '%s' in suffix
+	if len(name) > 251-len(suffix) {
+		name = name[0 : 251-len(suffix)]
+	}
+	s := fmt.Sprintf(suffix, name)
+
+	return &s
 }

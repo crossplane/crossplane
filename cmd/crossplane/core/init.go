@@ -43,6 +43,9 @@ type initCommand struct {
 	WebhookServicePort      int32  `help:"The port of the Service that the webhook service will be run." env:"WEBHOOK_SERVICE_PORT"`
 	ESSTLSClientSecretName  string `help:"The name of the Secret that the initializer will fill with ESS TLS client certificate." env:"ESS_TLS_CLIENT_SECRET_NAME"`
 	ESSTLSServerSecretName  string `help:"The name of the Secret that the initializer will fill with ESS TLS server certificate." env:"ESS_TLS_SERVER_SECRET_NAME"`
+	TLSCASecretName         string `help:"The name of the Secret that the initializer will fill with TLS CA certificate." env:"TLS_CA_SECRET_NAME"`
+	TLSServerSecretName     string `help:"The name of the Secret that the initializer will fill with TLS server certificates." env:"TLS_SERVER_SECRET_NAME"`
+	TLSClientSecretName     string `help:"The name of the Secret that the initializer will fill with TLS client certificates." env:"TLS_CLIENT_SECRET_NAME"`
 }
 
 // Run starts the initialization process.
@@ -90,7 +93,10 @@ func (c *initCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 
 	steps = append(steps, initializer.NewLockObject(),
 		initializer.NewPackageInstaller(c.Providers, c.Configurations),
-		initializer.NewStoreConfigObject(c.Namespace))
+		initializer.NewStoreConfigObject(c.Namespace),
+		initializer.NewTLSCertificateGenerator(c.Namespace, c.TLSCASecretName, c.TLSServerSecretName, c.TLSClientSecretName, "crossplane", initializer.TLSCertificateGeneratorWithLogger(log.WithValues("Step", "TLSCertificateGenerator"))),
+	)
+
 	if err := initializer.New(cl, log, steps...).Init(context.TODO()); err != nil {
 		return errors.Wrap(err, "cannot initialize core")
 	}

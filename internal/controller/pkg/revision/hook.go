@@ -21,15 +21,18 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -41,7 +44,9 @@ const (
 	errDeleteProviderDeployment      = "cannot delete provider package deployment"
 	errDeleteProviderSA              = "cannot delete provider package service account"
 	errDeleteProviderService         = "cannot delete provider package service"
+	errDeleteProviderSecret          = "cannot delete provider package TLS secret"
 	errApplyProviderDeployment       = "cannot apply provider package deployment"
+	errApplyProviderSecret           = "cannot apply provider package secret"
 	errApplyProviderSA               = "cannot apply provider package service account"
 	errApplyProviderService          = "cannot apply provider package service"
 	errUnavailableProviderDeployment = "provider package deployment is unavailable"
@@ -98,7 +103,7 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 
 	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
 	// they aren't needed to delete Deployment, ServiceAccount, and Service.
-	s, d, svc := buildProviderDeployment(pkgProvider, pr, nil, h.namespace, []corev1.LocalObjectReference{})
+	s, d, svc, secSer, secCli := buildProviderDeployment(pkgProvider, pr, nil, h.namespace, []corev1.LocalObjectReference{})
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
@@ -107,6 +112,12 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	}
 	if err := h.client.Delete(ctx, svc); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderService)
+	}
+	if err := h.client.Delete(ctx, secSer); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderSecret)
+	}
+	if err := h.client.Delete(ctx, secCli); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteProviderSecret)
 	}
 	return nil
 }
@@ -130,12 +141,22 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err != nil {
 		return err
 	}
-	s, d, svc := buildProviderDeployment(pkgProvider, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
+	s, d, svc, secSer, secCli := buildProviderDeployment(pkgProvider, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
+	}
+	owner := []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pkgProvider, pkgProvider.GetObjectKind().GroupVersionKind()))}
+	if err := h.client.Apply(ctx, secSer); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+	if err := h.client.Apply(ctx, secCli); err != nil {
+		return errors.Wrap(err, errApplyProviderSecret)
+	}
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgProvider.Name, initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgProvider.Name)
 	}
 	if pr.GetWebhookTLSSecretName() != nil {
 		if err := h.client.Apply(ctx, svc); err != nil {

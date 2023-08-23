@@ -3,7 +3,6 @@ package initializer
 import (
 	"context"
 	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"math/big"
 	"time"
@@ -19,28 +18,10 @@ import (
 )
 
 const (
-	errGenerateCA              = "cannot generate ca certificate"
-	errParseCACertificate      = "cannot parse ca certificate"
-	errParseCAKey              = "cannot parse ca key"
-	errLoadOrGenerateSigner    = "cannot load or generate certificate signer"
-	errDecodeKey               = "cannot decode key"
-	errDecodeCert              = "cannot decode cert"
-	errFmtGetESSSecret         = "cannot get ess secret: %s"
-	errFmtCannotCreateOrUpdate = "cannot create or update secret: %s"
-)
-
-const (
 	// ESSCACertSecretName is the name of the secret that will store CA certificates
 	ESSCACertSecretName = "ess-ca-certs"
-)
 
-const (
-	// SecretKeyCACert is the secret key of CA certificate
-	SecretKeyCACert = "ca.crt"
-	// SecretKeyTLSCert is the secret key of TLS certificate
-	SecretKeyTLSCert = "tls.crt"
-	// SecretKeyTLSKey is the secret key of TLS key
-	SecretKeyTLSKey = "tls.key"
+	errFmtGetESSSecret = "cannot get ess secret: %s"
 )
 
 // ESSCertificateGenerator is an initializer step that will find the given secret
@@ -89,8 +70,8 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	}
 
 	if err == nil {
-		kd := caSecret.Data[SecretKeyTLSKey]
-		cd := caSecret.Data[SecretKeyTLSCert]
+		kd := caSecret.Data[corev1.TLSPrivateKeyKey]
+		cd := caSecret.Data[corev1.TLSCertKey]
 		if len(kd) != 0 && len(cd) != 0 {
 			e.log.Info("ESS CA secret is complete.")
 			return parseCertificateSigner(kd, cd)
@@ -119,8 +100,8 @@ func (e *ESSCertificateGenerator) loadOrGenerateCA(ctx context.Context, kube cli
 	caSecret.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, caSecret, func() error {
 		caSecret.Data = map[string][]byte{
-			SecretKeyTLSCert: caCrtByte,
-			SecretKeyTLSKey:  caKeyByte,
+			corev1.TLSCertKey:       caCrtByte,
+			corev1.TLSPrivateKeyKey: caKeyByte,
 		}
 		return nil
 	})
@@ -140,7 +121,7 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 	}
 
 	if err == nil {
-		if len(sec.Data[SecretKeyCACert]) != 0 && len(sec.Data[SecretKeyTLSKey]) != 0 && len(sec.Data[SecretKeyTLSCert]) != 0 {
+		if len(sec.Data[SecretKeyCACert]) != 0 && len(sec.Data[corev1.TLSCertKey]) != 0 && len(sec.Data[corev1.TLSPrivateKeyKey]) != 0 {
 			e.log.Info("ESS secret is complete.", "secret", nn.Name)
 			return nil
 		}
@@ -156,9 +137,9 @@ func (e *ESSCertificateGenerator) ensureCertificateSecret(ctx context.Context, k
 	sec.Namespace = nn.Namespace
 	_, err = controllerruntime.CreateOrUpdate(ctx, kube, sec, func() error {
 		sec.Data = map[string][]byte{
-			SecretKeyTLSCert: certData,
-			SecretKeyTLSKey:  keyData,
-			SecretKeyCACert:  signer.certificatePEM,
+			corev1.TLSCertKey:       certData,
+			corev1.TLSPrivateKeyKey: keyData,
+			SecretKeyCACert:         signer.certificatePEM,
 		}
 		return nil
 	})
@@ -207,32 +188,4 @@ func (e *ESSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
 		BasicConstraintsValid: true,
 	}, signer)
-}
-
-func parseCertificateSigner(key, cert []byte) (*CertificateSigner, error) {
-	block, _ := pem.Decode(key)
-	if block == nil {
-		return nil, errors.New(errDecodeKey)
-	}
-
-	sKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-	if err != nil {
-		return nil, errors.Wrap(err, errParseCAKey)
-	}
-
-	block, _ = pem.Decode(cert)
-	if block == nil {
-		return nil, errors.New(errDecodeCert)
-	}
-
-	sCert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, errors.Wrap(err, errParseCACertificate)
-	}
-
-	return &CertificateSigner{
-		key:            sKey,
-		certificate:    sCert,
-		certificatePEM: cert,
-	}, nil
 }
