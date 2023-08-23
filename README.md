@@ -11,6 +11,10 @@ control of the schema of the declarative API it offers.
 
 Crossplane is a [Cloud Native Computing Foundation][cncf] project.
 
+## Get Started
+
+Crossplane's [Get Started Docs] cover install and cloud provider quickstarts.
+
 ## Releases
 
 Currently maintained releases, as well as the next few upcoming releases are
@@ -105,6 +109,7 @@ Crossplane is under the Apache 2.0 license.
 [Past meeting recordings]: https://www.youtube.com/playlist?list=PL510POnNVaaYYYDSICFSNWFqNbx1EMr-M
 [roadmap and releases board]: https://github.com/orgs/crossplane/projects/20/views/3?pane=info
 [cncf]: https://www.cncf.io/
+[Get Started Docs]: https://docs.crossplane.io/latest/getting-started/
 [community calendar]: https://calendar.google.com/calendar/embed?src=c_2cdn0hs9e2m05rrv1233cjoj1k%40group.calendar.google.com
 [releases]: https://github.com/crossplane/crossplane/releases
 [ADOPTERS.md]: ADOPTERS.md
