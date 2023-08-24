@@ -42,11 +42,12 @@ const (
 )
 
 const (
-	errFmtGenCrd               = "cannot generate CRD for %q %q"
-	errParseValidation         = "cannot parse validation schema"
-	errInvalidClaimNames       = "invalid resource claim names"
-	errMissingClaimNames       = "missing names"
-	errFmtConflictingClaimName = "%q conflicts with composite resource name"
+	errFmtGenCrd                   = "cannot generate CRD for %q %q"
+	errParseValidation             = "cannot parse validation schema"
+	errInvalidClaimNames           = "invalid resource claim names"
+	errMissingClaimNames           = "missing names"
+	errFmtConflictingClaimName     = "%q conflicts with composite resource name"
+	errCustomResourceValidationNil = "custom resource validation cannot be nil"
 )
 
 // ForCompositeResource derives the CustomResourceDefinition for a composite
@@ -144,6 +145,11 @@ func genCrdVersion(vr v1.CompositeResourceDefinitionVersion) (*extv1.CustomResou
 	if err != nil {
 		return nil, errors.Wrapf(err, errParseValidation)
 	}
+
+	if s == nil {
+		return nil, errors.New(errCustomResourceValidationNil)
+	}
+
 	crdv.Schema.OpenAPIV3Schema.Description = s.Description
 
 	xSpec := s.Properties["spec"]
