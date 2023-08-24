@@ -43,9 +43,9 @@
 /internal/controller/pkg/            @crossplane/crossplane-reviewers @turkenh
 
 # Composition
-/apis/apiextensions/                 @crossplane/crossplane-reviewers @muvaf
-/internal/xcrd/                      @crossplane/crossplane-reviewers @muvaf
-/internal/controller/apiextensions/  @crossplane/crossplane-reviewers @muvaf
+/apis/apiextensions/                 @crossplane/crossplane-reviewers @turkenh
+/internal/xcrd/                      @crossplane/crossplane-reviewers @turkenh
+/internal/controller/apiextensions/  @crossplane/crossplane-reviewers @turkenh
 
 # RBAC
 /cmd/crossplane/rbac/                @crossplane/crossplane-reviewers @negz
