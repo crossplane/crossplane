@@ -908,8 +908,8 @@ sigs.k8s.io/controller-runtime v0.15.1 h1:9UvgKD4ZJGcj24vefUFgZFP3xej/3igL9BsOUT
 sigs.k8s.io/controller-runtime v0.15.1/go.mod h1:7ngYvp1MLT+9GeZ+6lH3LOlcHkp/+tzA/fmHa4iq9kk=
 sigs.k8s.io/controller-tools v0.12.1 h1:GyQqxzH5wksa4n3YDIJdJJOopztR5VDM+7qsyg5yE4U=
 sigs.k8s.io/controller-tools v0.12.1/go.mod h1:rXlpTfFHZMpZA8aGq9ejArgZiieHd+fkk/fTatY8A2M=
-sigs.k8s.io/e2e-framework v0.2.1-0.20230716064705-49e8554b536f h1:BN6JOYAOMYCC8FPSfALNFvH9f6Sf4k+fM8OwuZfHL4g=
-sigs.k8s.io/e2e-framework v0.2.1-0.20230716064705-49e8554b536f/go.mod h1:7k84BFZzTqYNO1qxF4gDmQRxEoSw62lSBDXSAf43e2A=
+sigs.k8s.io/e2e-framework v0.3.0 h1:eqQALBtPCth8+ulTs6lcPK7ytV5rZSSHJzQHZph4O7U=
+sigs.k8s.io/e2e-framework v0.3.0/go.mod h1:C+ef37/D90Dc7Xq1jQnNbJYscrUGpxrWog9bx2KIa+c=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
 sigs.k8s.io/kind v0.20.0 h1:f0sc3v9mQbGnjBUaqSFST1dwIuiikKVGgoTwpoP33a8=

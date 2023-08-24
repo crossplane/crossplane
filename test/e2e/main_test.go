@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/support/kind"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 
 	"github.com/crossplane/crossplane/test/e2e/config"
@@ -97,7 +98,7 @@ func TestMain(m *testing.M) {
 	var finish []env.Func
 
 	if environment.IsKindCluster() {
-		setup = []env.Func{envfuncs.CreateKindCluster(environment.GetKindClusterName())}
+		setup = []env.Func{envfuncs.CreateCluster(kind.NewProvider(), environment.GetKindClusterName())}
 	} else {
 		cfg.WithKubeconfigFile(conf.ResolveKubeConfigFile())
 	}
@@ -133,7 +134,7 @@ func TestMain(m *testing.M) {
 	// We want to destroy the cluster if we created it, but only if we created it,
 	// otherwise the random name will be meaningless.
 	if environment.ShouldDestroyKindCluster() {
-		finish = []env.Func{envfuncs.DestroyKindCluster(environment.GetKindClusterName())}
+		finish = []env.Func{envfuncs.DestroyCluster(environment.GetKindClusterName())}
 	}
 
 	// Check that all features are specifying a suite they belong to via LabelTestSuite.
