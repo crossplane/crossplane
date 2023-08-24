@@ -28,7 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20230505201702-9f6742963106
 	sigs.k8s.io/controller-runtime v0.15.1
 	sigs.k8s.io/controller-tools v0.12.1
-	sigs.k8s.io/e2e-framework v0.2.1-0.20230716064705-49e8554b536f
+	sigs.k8s.io/e2e-framework v0.3.0
 	sigs.k8s.io/kind v0.20.0
 	sigs.k8s.io/yaml v1.3.0
 )

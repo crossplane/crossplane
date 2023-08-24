@@ -28,6 +28,7 @@ import (
 	"sigs.k8s.io/e2e-framework/pkg/envconf"
 	"sigs.k8s.io/e2e-framework/pkg/envfuncs"
 	"sigs.k8s.io/e2e-framework/pkg/features"
+	"sigs.k8s.io/e2e-framework/support/kind"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
 	"sigs.k8s.io/kind/pkg/apis/config/v1alpha4"
 	"sigs.k8s.io/yaml"
@@ -117,7 +118,7 @@ func EnvFuncs(fns ...env.Func) env.Func {
 // The configuration is placed in test context afterward
 func CreateKindClusterWithConfig(clusterName, configFilePath string) env.Func {
 	return EnvFuncs(
-		envfuncs.CreateKindClusterWithConfig(clusterName, "", configFilePath),
+		envfuncs.CreateClusterWithConfig(kind.NewProvider(), clusterName, configFilePath),
 		func(ctx context.Context, config *envconf.Config) (context.Context, error) {
 			b, err := os.ReadFile(filepath.Clean(configFilePath))
 			if err != nil {
@@ -136,7 +137,7 @@ func CreateKindClusterWithConfig(clusterName, configFilePath string) env.Func {
 // ServiceIngressEndPoint returns endpoint (addr:port) that can be used for accessing
 // the service in the cluster with the given name.
 func ServiceIngressEndPoint(ctx context.Context, cfg *envconf.Config, clusterName, namespace, serviceName string) (string, error) {
-	_, found := envfuncs.GetKindClusterFromContext(ctx, clusterName)
+	_, found := envfuncs.GetClusterFromContext(ctx, clusterName)
 	client := cfg.Client()
 	service := &corev1.Service{}
 	err := client.Resources().Get(ctx, serviceName, namespace, service)
