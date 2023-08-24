@@ -1,0 +1,25 @@
+---
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: EnvironmentConfig
+metadata:
+  name: example-environment-1
+data:
+  complex:
+    a: b
+    c:
+      d: e
+      f: "1"
+# We want to test that with Optional resolution, claims still become ready even
+# if one of the environment configs is missing, using the other one.
+#---
+#apiVersion: apiextensions.crossplane.io/v1alpha1
+#kind: EnvironmentConfig
+#metadata:
+#  name: example-environment-2
+#  labels:
+#    stage: prod
+#data:
+#  complex:
+#    c:
+#      f: "2"
+#

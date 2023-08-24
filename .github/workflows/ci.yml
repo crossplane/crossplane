@@ -241,7 +241,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-suite: [base, composition-webhook-schema-validation]
+        test-suite:
+          - base
+          - composition-webhook-schema-validation
+          - environment-configs
 
     steps:
       - name: Setup QEMU

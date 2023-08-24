@@ -1,0 +1,11 @@
+---
+apiVersion: example.org/v1alpha1
+kind: SQLInstance
+metadata:
+  name: example
+  namespace: default
+  labels:
+    stage: prod
+spec:
+  parameters:
+    storageGB: 10

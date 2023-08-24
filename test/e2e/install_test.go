@@ -37,6 +37,8 @@ import (
 // Crossplane's lifecycle (installing, upgrading, etc).
 const LabelAreaLifecycle = "lifecycle"
 
+const TestSuiteLifecycle = "lifecycle"
+
 // TestCrossplaneLifecycle tests two features expecting them to be run in order:
 //   - CrossplaneUninstall: Test that it's possible to cleanly uninstall Crossplane, even
 //     after having created and deleted a claim.
@@ -56,6 +58,7 @@ func TestCrossplaneLifecycle(t *testing.T) {
 			WithLabel(LabelSize, LabelSizeSmall).
 			WithLabel(LabelModifyCrossplaneInstallation, LabelModifyCrossplaneInstallationTrue).
 			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithLabel(config.LabelTestSuite, TestSuiteLifecycle).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),

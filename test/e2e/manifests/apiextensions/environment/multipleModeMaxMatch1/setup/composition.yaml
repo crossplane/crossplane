@@ -1,0 +1,40 @@
+---
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: nop.sqlinstances.example.org
+spec:
+  compositeTypeRef:
+    apiVersion: example.org/v1alpha1
+    kind: XSQLInstance
+  environment:
+    environmentConfigs:
+      - ref:
+          name: example-environment-1
+      - type: Selector
+        selector:
+          mode: Multiple
+          maxMatch: 1          # <==
+          sortByFieldPath: data.priority
+          matchLabels:
+            - type: FromCompositeFieldPath
+              key: stage
+              valueFromFieldPath: metadata.labels[stage]
+  resources:
+    - name: nop
+      base:
+        apiVersion: nop.crossplane.io/v1alpha1
+        kind: NopResource
+        spec:
+          forProvider:
+            conditionAfter:
+              - conditionType: Ready
+                conditionStatus: "False"
+                time: 0s
+              - conditionType: Ready
+                conditionStatus: "True"
+                time: 10s
+      patches:
+        - type: FromEnvironmentFieldPath
+          fromFieldPath: complex.c.f
+          toFieldPath: metadata.annotations[valueFromEnv]
