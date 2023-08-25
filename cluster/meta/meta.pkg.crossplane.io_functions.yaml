@@ -55,6 +55,9 @@ spec:
                       description: Configuration is the name of a Configuration package
                         image.
                       type: string
+                    function:
+                      description: Function is the name of a Function package image.
+                      type: string
                     provider:
                       description: Provider is the name of a Provider package image.
                       type: string

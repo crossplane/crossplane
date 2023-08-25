@@ -40,8 +40,8 @@ type Function struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   FunctionSpec   `json:"spec"`
-	Status FunctionStatus `json:"status"`
+	Spec   FunctionSpec   `json:"spec,omitempty"`
+	Status FunctionStatus `json:"status,omitempty"`
 }
 
 // FunctionSpec specifies the configuration of a Function.

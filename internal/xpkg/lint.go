@@ -108,7 +108,7 @@ func IsFunction(o runtime.Object) error {
 // compatible with the package constraints.
 func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 	return func(o runtime.Object) error {
-		p, ok := TryConvertToPkg(o, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
+		p, ok := TryConvertToPkg(o, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1alpha1.Function{})
 		if !ok {
 			return errors.New(errNotMeta)
 		}
@@ -129,7 +129,7 @@ func PackageCrossplaneCompatible(v version.Operations) parser.ObjectLinterFn {
 
 // PackageValidSemver checks that the package uses valid semver ranges.
 func PackageValidSemver(o runtime.Object) error {
-	p, ok := TryConvertToPkg(o, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
+	p, ok := TryConvertToPkg(o, &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1alpha1.Function{})
 	if !ok {
 		return errors.New(errNotMeta)
 	}

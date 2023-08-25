@@ -1,0 +1,132 @@
+replicas: 1
+
+deploymentStrategy: RollingUpdate
+
+image:
+  repository: crossplane/crossplane
+  tag: %%VERSION%%
+  pullPolicy: IfNotPresent
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- Custom labels to add into metadata
+customLabels: {}
+
+# -- Custom annotations to add to the Crossplane deployment and pod
+customAnnotations: {}
+
+# -- Custom annotations to add to the serviceaccount of Crossplane
+serviceAccount:
+  customAnnotations: {}
+
+leaderElection: true
+args: {}
+
+provider:
+  packages: []
+
+configuration:
+  packages: []
+
+imagePullSecrets: {}
+
+registryCaBundleConfig: {}
+
+webhooks:
+  enabled: false
+
+rbacManager:
+  deploy: true
+  skipAggregatedClusterRoles: false
+  replicas: 1
+  managementPolicy: All
+  leaderElection: true
+  args: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+priorityClassName: ""
+
+resourcesCrossplane:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+securityContextCrossplane:
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+
+packageCache:
+  medium: ""
+  sizeLimit: 5Mi
+  pvc: ""
+  configMap: ""
+
+resourcesRBACManager:
+  limits:
+    cpu: 100m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+securityContextRBACManager:
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+
+metrics:
+  enabled: false
+
+extraEnvVarsCrossplane: {}
+
+extraEnvVarsRBACManager: {}
+
+podSecurityContextCrossplane: {}
+
+podSecurityContextRBACManager: {}
+
+# The alpha xfn sidecar container that runs Composition Functions. Note you also
+# need to run Crossplane with --enable-composition-functions for it to call xfn.
+xfn:
+  enabled: false
+  image:
+    repository: crossplane/xfn
+    tag: %%VERSION%%
+    pullPolicy: IfNotPresent
+  args: {}
+  extraEnvVars: {}
+  securityContext:
+    runAsUser: 65532
+    runAsGroup: 65532
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    # These capabilities allow xfn to create better user namespaces. It drops
+    # them after creating a namespace.
+    capabilities:
+      add: ["SETUID", "SETGID"]
+    # xfn needs the unshare syscall, which most RuntimeDefault seccomp profiles
+    # do not allow.
+    seccompProfile:
+      type: Unconfined
+  cache:
+    medium: ""
+    sizeLimit: 1Gi
+    pvc: ""
+    configMap: ""
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 1000m
+      memory: 1Gi
