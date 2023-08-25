@@ -205,6 +205,10 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 											Key:  "tls.key",
 											Path: "tls.key",
 										},
+										{
+											Key:  "ca.crt",
+											Path: "ca.crt",
+										},
 									},
 								},
 							},
@@ -222,6 +226,10 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 										{
 											Key:  "tls.key",
 											Path: "tls.key",
+										},
+										{
+											Key:  "ca.crt",
+											Path: "ca.crt",
 										},
 									},
 								},

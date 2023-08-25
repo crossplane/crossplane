@@ -33,6 +33,7 @@ import (
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/internal/initializer"
 )
 
 var (
@@ -360,7 +361,7 @@ func TestHookPre(t *testing.T) {
 func TestHookPost(t *testing.T) {
 	errBoom := errors.New("boom")
 	saName := "crossplane"
-	saNamespace := "crossplane-system"
+	namespace := "crossplane-system"
 
 	type args struct {
 		hook Hooks
@@ -410,7 +411,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should return error if we fail to get core Crossplane ServiceAccount.",
 			args: args{
 				hook: &ProviderHooks{
-					namespace:      saNamespace,
+					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
@@ -429,7 +430,7 @@ func TestHookPost(t *testing.T) {
 									if key.Name != saName {
 										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
 									}
-									if key.Namespace != saNamespace {
+									if key.Namespace != namespace {
 										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
 									}
 									return errBoom
@@ -460,7 +461,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should return error if we fail to apply service account for active providerrevision.",
 			args: args{
 				hook: &ProviderHooks{
-					namespace:      saNamespace,
+					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
@@ -481,7 +482,7 @@ func TestHookPost(t *testing.T) {
 									if key.Name != saName {
 										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
 									}
-									if key.Namespace != saNamespace {
+									if key.Namespace != namespace {
 										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
 									}
 									*o = corev1.ServiceAccount{
@@ -518,7 +519,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should return error if we fail to get controller config for active provider revision.",
 			args: args{
 				hook: &ProviderHooks{
-					namespace:      saNamespace,
+					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
@@ -565,7 +566,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should return error if we fail to apply deployment for active provider revision.",
 			args: args{
 				hook: &ProviderHooks{
-					namespace:      saNamespace,
+					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
@@ -584,12 +585,27 @@ func TestHookPost(t *testing.T) {
 									if key.Name != saName {
 										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
 									}
-									if key.Namespace != saNamespace {
+									if key.Namespace != namespace {
 										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
 									}
 									*o = corev1.ServiceAccount{
 										ImagePullSecrets: []corev1.LocalObjectReference{{}},
 									}
+									return nil
+								case *corev1.Secret:
+									if key.Name != initializer.RootCACertSecretName && key.Name != tlsServerSecret && key.Name != tlsClientSecret {
+										t.Errorf("unexpected Secret name: %s", key.Name)
+									}
+									if key.Namespace != namespace {
+										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
+									}
+									s := &corev1.Secret{
+										Data: map[string][]byte{
+											corev1.TLSCertKey:       []byte(caCert),
+											corev1.TLSPrivateKeyKey: []byte(caKey),
+										},
+									}
+									s.DeepCopyInto(obj.(*corev1.Secret))
 									return nil
 								default:
 									return errBoom
@@ -622,7 +638,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should return error if deployment is unavailable for provider revision.",
 			args: args{
 				hook: &ProviderHooks{
-					namespace:      saNamespace,
+					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
@@ -644,7 +660,7 @@ func TestHookPost(t *testing.T) {
 									if key.Name != saName {
 										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
 									}
-									if key.Namespace != saNamespace {
+									if key.Namespace != namespace {
 										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
 									}
 									*o = corev1.ServiceAccount{
@@ -696,7 +712,7 @@ func TestHookPost(t *testing.T) {
 			reason: "Should not return error if successfully applied service account and deployment for active provider revision.",
 			args: args{
 				hook: &ProviderHooks{
-					namespace:      saNamespace,
+					namespace:      namespace,
 					serviceAccount: saName,
 					client: resource.ClientApplicator{
 						Applicator: resource.ApplyFn(func(_ context.Context, o client.Object, _ ...resource.ApplyOption) error {
@@ -709,7 +725,7 @@ func TestHookPost(t *testing.T) {
 									if key.Name != saName {
 										t.Errorf("unexpected ServiceAccount name: %s", key.Name)
 									}
-									if key.Namespace != saNamespace {
+									if key.Namespace != namespace {
 										t.Errorf("unexpected ServiceAccount Namespace: %s", key.Namespace)
 									}
 									*o = corev1.ServiceAccount{
