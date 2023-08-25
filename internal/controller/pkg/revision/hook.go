@@ -30,6 +30,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/initializer"
@@ -50,6 +51,18 @@ const (
 	errApplyProviderSA               = "cannot apply provider package service account"
 	errApplyProviderService          = "cannot apply provider package service"
 	errUnavailableProviderDeployment = "provider package deployment is unavailable"
+
+	errNotFunction                   = "not a function package"
+	errNotFunctionRevision           = "not a function revision"
+	errDeleteFunctionDeployment      = "cannot delete function package deployment"
+	errDeleteFunctionSA              = "cannot delete function package service account"
+	errDeleteFunctionService         = "cannot delete function package service"
+	errDeleteFunctionSecret          = "cannot delete function package TLS secret"
+	errApplyFunctionDeployment       = "cannot apply function package deployment"
+	errApplyFunctionSecret           = "cannot apply function package secret"
+	errApplyFunctionSA               = "cannot apply function package service account"
+	errApplyFunctionService          = "cannot apply function package service"
+	errUnavailableFunctionDeployment = "function package deployment is unavailable"
 )
 
 // A Hooks performs operations before and after a revision establishes objects.
@@ -145,9 +158,6 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
-	if err := h.client.Apply(ctx, d); err != nil {
-		return errors.Wrap(err, errApplyProviderDeployment)
-	}
 	owner := []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(pkgProvider, pkgProvider.GetObjectKind().GroupVersionKind()))}
 	if err := h.client.Apply(ctx, secSer); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
@@ -157,6 +167,9 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	}
 	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgProvider.Name, initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
 		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgProvider.Name)
+	}
+	if err := h.client.Apply(ctx, d); err != nil {
+		return errors.Wrap(err, errApplyProviderDeployment)
 	}
 	if pr.GetWebhookTLSSecretName() != nil {
 		if err := h.client.Apply(ctx, svc); err != nil {
@@ -213,6 +226,124 @@ func (h *ConfigurationHooks) Pre(_ context.Context, _ runtime.Object, _ v1.Packa
 // Post is a no op for configuration packages.
 func (h *ConfigurationHooks) Post(context.Context, runtime.Object, v1.PackageRevision) error {
 	return nil
+}
+
+// FunctionHooks performs operations for a function package that requires a
+// controller before and after the revision establishes objects.
+type FunctionHooks struct {
+	client         resource.ClientApplicator
+	namespace      string
+	serviceAccount string
+}
+
+// NewFunctionHooks creates a new FunctionHooks.
+func NewFunctionHooks(client resource.ClientApplicator, namespace, serviceAccount string) *FunctionHooks {
+	return &FunctionHooks{
+		client:         client,
+		namespace:      namespace,
+		serviceAccount: serviceAccount,
+	}
+}
+
+// Pre cleans up a packaged controller and service account if the revision is
+// inactive.
+func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+	fo, _ := xpkg.TryConvert(pkg, &pkgmetav1alpha1.Function{})
+	pkgFunction, ok := fo.(*pkgmetav1alpha1.Function)
+	if !ok {
+		return errors.New(errNotFunction)
+	}
+
+	// TODO(hasheddan): update any status fields relevant to package revisions.
+
+	// Do not clean up SA and controller if revision is not inactive.
+	if pr.GetDesiredState() != v1.PackageRevisionInactive {
+		return nil
+	}
+
+	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
+	// they aren't needed to delete Deployment, ServiceAccount, and Service.
+	s, d, _, _ := buildFunctionDeployment(pkgFunction, pr, nil, h.namespace, []corev1.LocalObjectReference{})
+	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionDeployment)
+	}
+	if err := h.client.Delete(ctx, s); resource.IgnoreNotFound(err) != nil {
+		return errors.Wrap(err, errDeleteFunctionSA)
+	}
+
+	return nil
+}
+
+// Post creates a packaged function deployment, service account, service and secrets if the revision is active.
+//
+//nolint:gocyclo // TODO(ezgidemirel): Can this be refactored for less complexity?
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+	po, _ := xpkg.TryConvert(pkg, &pkgmetav1alpha1.Function{})
+	pkgFunction, ok := po.(*pkgmetav1alpha1.Function)
+	if !ok {
+		return errors.New("not a function package")
+	}
+	if pr.GetDesiredState() != v1.PackageRevisionActive {
+		return nil
+	}
+	cc, err := h.getControllerConfig(ctx, pr)
+	if err != nil {
+		return err
+	}
+	ps, err := h.getSAPullSecrets(ctx)
+	if err != nil {
+		return err
+	}
+	s, d, svc, secSer := buildFunctionDeployment(pkgFunction, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
+	if err := h.client.Apply(ctx, s); err != nil {
+		return errors.Wrap(err, errApplyFunctionSA)
+	}
+	owner := pr.GetOwnerReferences()
+	if err := h.client.Apply(ctx, secSer); err != nil {
+		return errors.Wrap(err, errApplyFunctionSecret)
+	}
+	if err := h.client.Apply(ctx, d); err != nil {
+		return errors.Wrap(err, errApplyFunctionDeployment)
+	}
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgFunction.Name, initializer.TLSCertificateGeneratorWithOwner(owner)).GenerateServerCertificate(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
+	}
+
+	if err := h.client.Apply(ctx, svc); err != nil {
+		return errors.Wrap(err, errApplyFunctionService)
+	}
+
+	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})
+
+	for _, c := range d.Status.Conditions {
+		if c.Type == appsv1.DeploymentAvailable {
+			if c.Status == corev1.ConditionTrue {
+				return nil
+			}
+			return errors.Errorf("%s: %s", errUnavailableFunctionDeployment, c.Message)
+		}
+	}
+	return nil
+}
+
+func (h *FunctionHooks) getSAPullSecrets(ctx context.Context) ([]corev1.LocalObjectReference, error) {
+	sa := &corev1.ServiceAccount{}
+	if err := h.client.Get(ctx, types.NamespacedName{
+		Namespace: h.namespace,
+		Name:      h.serviceAccount,
+	}, sa); err != nil {
+		return []corev1.LocalObjectReference{}, errors.Wrap(err, errGetServiceAccount)
+	}
+	return sa.ImagePullSecrets, nil
+}
+
+func (h *FunctionHooks) getControllerConfig(ctx context.Context, pr v1.PackageRevision) (*v1alpha1.ControllerConfig, error) {
+	if pr.GetControllerConfigRef() == nil {
+		return nil, nil
+	}
+	cc := &v1alpha1.ControllerConfig{}
+	err := h.client.Get(ctx, types.NamespacedName{Name: pr.GetControllerConfigRef().Name}, cc)
+	return cc, errors.Wrap(err, errGetControllerConfig)
 }
 
 // NopHooks performs no operations.

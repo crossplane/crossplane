@@ -25,6 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/internal/initializer"
@@ -174,6 +175,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 						// These are known and validated keys in TLS secrets.
 						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
 						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
+						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
 					},
 				},
 			},
@@ -205,6 +207,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 						// These are known and validated keys in TLS secrets.
 						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
 						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
+						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
 					},
 				},
 			},
@@ -405,4 +408,227 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		},
 	}
 	return s, d, svc, secSer, secCli
+}
+
+//nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
+func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret) {
+	s := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            revision.GetName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind))},
+		},
+		ImagePullSecrets: pullSecrets,
+	}
+	sec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            *revision.GetTLSServerSecretName(),
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind))},
+		},
+	}
+
+	pullPolicy := corev1.PullIfNotPresent
+	if revision.GetPackagePullPolicy() != nil {
+		pullPolicy = *revision.GetPackagePullPolicy()
+	}
+	image := revision.GetSource()
+
+	d := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      revision.GetName(),
+			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind)),
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"pkg.crossplane.io/revision": revision.GetName(),
+					"pkg.crossplane.io/function": function.GetName(),
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      function.GetName(),
+					Namespace: namespace,
+				},
+				Spec: corev1.PodSpec{
+					SecurityContext: &corev1.PodSecurityContext{
+						RunAsNonRoot: &runAsNonRoot,
+						RunAsUser:    &runAsUser,
+						RunAsGroup:   &runAsGroup,
+					},
+					ServiceAccountName: s.GetName(),
+					ImagePullSecrets:   revision.GetPackagePullSecrets(),
+					Containers: []corev1.Container{
+						{
+							Name:            function.GetName(),
+							Image:           image,
+							ImagePullPolicy: pullPolicy,
+							SecurityContext: &corev1.SecurityContext{
+								RunAsUser:                &runAsUser,
+								RunAsGroup:               &runAsGroup,
+								AllowPrivilegeEscalation: &allowPrivilegeEscalation,
+								Privileged:               &privileged,
+								RunAsNonRoot:             &runAsNonRoot,
+							},
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          promPortName,
+									ContainerPort: promPortNumber,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	if revision.GetTLSServerSecretName() != nil {
+		v := corev1.Volume{
+			Name: tlsServerCertsVolumeName,
+			VolumeSource: corev1.VolumeSource{
+				Secret: &corev1.SecretVolumeSource{
+					SecretName: *revision.GetTLSServerSecretName(),
+					Items: []corev1.KeyToPath{
+						// These are known and validated keys in TLS secrets.
+						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
+						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
+					},
+				},
+			},
+		}
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+
+		vm := corev1.VolumeMount{
+			Name:      tlsServerCertsVolumeName,
+			ReadOnly:  true,
+			MountPath: tlsServerCertsDir,
+		}
+		d.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+		envs := []corev1.EnvVar{
+			{Name: tlsServerCertDirEnvVar, Value: tlsServerCertsDir},
+		}
+		d.Spec.Template.Spec.Containers[0].Env =
+			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+	}
+
+	templateLabels := make(map[string]string)
+
+	if cc != nil {
+		s.Labels = cc.Labels
+		s.Annotations = cc.Annotations
+		d.Labels = cc.Labels
+		d.Annotations = cc.Annotations
+		if cc.Spec.ServiceAccountName != nil {
+			s.Name = *cc.Spec.ServiceAccountName
+		}
+		if cc.Spec.Metadata != nil {
+			d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
+		}
+
+		if cc.Spec.Metadata != nil {
+			for k, v := range cc.Spec.Metadata.Labels {
+				templateLabels[k] = v
+			}
+		}
+
+		if cc.Spec.Replicas != nil {
+			d.Spec.Replicas = cc.Spec.Replicas
+		}
+		if cc.Spec.Image != nil {
+			d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
+		}
+		if cc.Spec.ImagePullPolicy != nil {
+			d.Spec.Template.Spec.Containers[0].ImagePullPolicy = *cc.Spec.ImagePullPolicy
+		}
+		if len(cc.Spec.Ports) > 0 {
+			d.Spec.Template.Spec.Containers[0].Ports = cc.Spec.Ports
+		}
+		if cc.Spec.NodeSelector != nil {
+			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
+		}
+		if cc.Spec.ServiceAccountName != nil {
+			d.Spec.Template.Spec.ServiceAccountName = *cc.Spec.ServiceAccountName
+		}
+		if cc.Spec.NodeName != nil {
+			d.Spec.Template.Spec.NodeName = *cc.Spec.NodeName
+		}
+		if cc.Spec.PodSecurityContext != nil {
+			d.Spec.Template.Spec.SecurityContext = cc.Spec.PodSecurityContext
+		}
+		if cc.Spec.SecurityContext != nil {
+			d.Spec.Template.Spec.Containers[0].SecurityContext = cc.Spec.SecurityContext
+		}
+		if len(cc.Spec.ImagePullSecrets) > 0 {
+			d.Spec.Template.Spec.ImagePullSecrets = cc.Spec.ImagePullSecrets
+		}
+		if cc.Spec.Affinity != nil {
+			d.Spec.Template.Spec.Affinity = cc.Spec.Affinity
+		}
+		if len(cc.Spec.Tolerations) > 0 {
+			d.Spec.Template.Spec.Tolerations = cc.Spec.Tolerations
+		}
+		if cc.Spec.PriorityClassName != nil {
+			d.Spec.Template.Spec.PriorityClassName = *cc.Spec.PriorityClassName
+		}
+		if cc.Spec.RuntimeClassName != nil {
+			d.Spec.Template.Spec.RuntimeClassName = cc.Spec.RuntimeClassName
+		}
+		if cc.Spec.ResourceRequirements != nil {
+			d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
+		}
+		if len(cc.Spec.Args) > 0 {
+			d.Spec.Template.Spec.Containers[0].Args = cc.Spec.Args
+		}
+		if len(cc.Spec.EnvFrom) > 0 {
+			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
+		}
+		if len(cc.Spec.Env) > 0 {
+			// We already have some environment variables that we will always
+			// want to set (e.g. POD_NAMESPACE), so we just append the new ones
+			// that user provided if there are any.
+			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
+		}
+		if len(cc.Spec.Volumes) > 0 {
+			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
+		}
+		if len(cc.Spec.VolumeMounts) > 0 {
+			d.Spec.Template.Spec.Containers[0].VolumeMounts =
+				append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
+		}
+	}
+
+	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
+		templateLabels[k] = v
+	}
+	d.Spec.Template.Labels = templateLabels
+
+	pkgName := revision.GetLabels()[v1.LabelParentPackage]
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            pkgName,
+			Namespace:       namespace,
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind))},
+		},
+		Spec: corev1.ServiceSpec{
+			Selector: d.Spec.Selector.MatchLabels,
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Name:       "grpc",
+					Port:       9443,
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+	return s, d, svc, sec
 }
