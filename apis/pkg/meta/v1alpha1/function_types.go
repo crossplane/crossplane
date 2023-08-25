@@ -23,6 +23,9 @@ import (
 // FunctionSpec specifies the configuration of a Function.
 type FunctionSpec struct {
 	MetaSpec `json:",inline"`
+
+	// Image is the packaged Function image.
+	Image *string `json:"image,omitempty"`
 }
 
 // +kubebuilder:object:root=true
