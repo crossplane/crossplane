@@ -66,6 +66,8 @@ func FromTransformIOType(c v1.TransformIOType) KnownJSONType {
 		return KnownJSONTypeInteger
 	case v1.TransformIOTypeFloat64:
 		return KnownJSONTypeNumber
+	case v1.TransformIOTypeObject:
+		return KnownJSONTypeObject
 	}
 	// should never happen
 	return ""
@@ -82,7 +84,9 @@ func FromKnownJSONType(t KnownJSONType) (v1.TransformIOType, error) {
 		return v1.TransformIOTypeInt64, nil
 	case KnownJSONTypeNumber:
 		return v1.TransformIOTypeFloat64, nil
-	case KnownJSONTypeObject, KnownJSONTypeArray, KnownJSONTypeNull:
+	case KnownJSONTypeObject:
+		return v1.TransformIOTypeObject, nil
+	case KnownJSONTypeArray, KnownJSONTypeNull:
 		return "", errors.Errorf(errFmtUnsupportedJSONType, t)
 	default:
 		return "", errors.Errorf(errFmtUnknownJSONType, t)

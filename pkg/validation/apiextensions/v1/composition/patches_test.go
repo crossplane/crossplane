@@ -313,6 +313,23 @@ func TestValidateTransforms(t *testing.T) {
 				toType:   "string",
 			},
 		},
+		"AcceptObjectInputTypeToJsonStringTransform": {
+			reason: "Should accept object input type with json string transform",
+			want:   want{err: nil},
+			args: args{
+				transforms: []v1.Transform{
+					{
+						Type: v1.TransformTypeString,
+						String: &v1.StringTransform{
+							Type:    v1.StringTransformTypeConvert,
+							Convert: &[]v1.StringConversionType{v1.StringConversionTypeToJSON}[0],
+						},
+					},
+				},
+				fromType: "object",
+				toType:   "string",
+			},
+		},
 	}
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -939,6 +956,73 @@ func TestComposedTemplateGetBaseObject(t *testing.T) {
 			}
 			if diff := cmp.Diff(tc.want.output, got); diff != "" {
 				t.Errorf("\n%s\nGetBaseObject(...): -want, +got: \n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
+func TestIsValidInputForTransform(t *testing.T) {
+	type args struct {
+		t        *v1.Transform
+		fromType v1.TransformIOType
+	}
+	type want struct {
+		err bool
+	}
+	tests := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidStringTransformInputString": {
+			reason: "Valid String transformType should not return an error with input string",
+			args: args{
+				fromType: v1.TransformIOTypeString,
+				t: &v1.Transform{
+					Type: v1.TransformTypeString,
+					String: &v1.StringTransform{
+						Type:    v1.StringTransformTypeConvert,
+						Convert: toPointer(v1.StringConversionTypeToUpper),
+					},
+				},
+			},
+		},
+		"ValidStringTransformInputObjectToJson": {
+			reason: "Valid String transformType should not return an error with input object if toJson",
+			args: args{
+				fromType: v1.TransformIOTypeObject,
+				t: &v1.Transform{
+					Type: v1.TransformTypeString,
+					String: &v1.StringTransform{
+						Type:    v1.StringTransformTypeConvert,
+						Convert: toPointer(v1.StringConversionTypeToJSON),
+					},
+				},
+			},
+		},
+		"InValidStringTransformInputObjectToUpper": {
+			reason: "Valid String transformType should not return an error with input string",
+			args: args{
+				fromType: v1.TransformIOTypeObject,
+				t: &v1.Transform{
+					Type: v1.TransformTypeString,
+					String: &v1.StringTransform{
+						Type:    v1.StringTransformTypeConvert,
+						Convert: toPointer(v1.StringConversionTypeToUpper),
+					},
+				},
+			},
+			want: want{
+				err: true,
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			err := IsValidInputForTransform(tc.args.t, tc.args.fromType)
+			if tc.want.err && err == nil {
+				t.Errorf("\n%s\nIsValidInputForTransform(...): -want error, +got error: \n%s", tc.reason, err)
+				return
 			}
 		})
 	}

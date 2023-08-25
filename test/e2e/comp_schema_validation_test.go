@@ -45,6 +45,15 @@ func TestCompositionValidation(t *testing.T) {
 			),
 		},
 		{
+			// A valid Composition should be created when validated in strict mode.
+			Name:        "ValidCompositionWithAToJsonTransformIsAcceptedStrictMode",
+			Description: "A valid Composition defining a valid ToJson String transform should be created when validated in strict mode.",
+			Assessment: funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "composition-transform-tojson-valid.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "composition-transform-tojson-valid.yaml"),
+			),
+		},
+		{
 			// An invalid Composition should be rejected when validated in strict mode.
 			Name:       "InvalidCompositionIsRejectedStrictMode",
 			Assessment: funcs.ResourcesFailToApply(FieldManager, manifests, "composition-invalid.yaml"),

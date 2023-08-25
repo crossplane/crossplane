@@ -448,12 +448,14 @@ const (
 	TransformIOTypeInt     TransformIOType = "int"
 	TransformIOTypeInt64   TransformIOType = "int64"
 	TransformIOTypeFloat64 TransformIOType = "float64"
+
+	TransformIOTypeObject TransformIOType = "object"
 )
 
 // IsValid checks if the given TransformIOType is valid.
 func (c TransformIOType) IsValid() bool {
 	switch c {
-	case TransformIOTypeString, TransformIOTypeBool, TransformIOTypeInt, TransformIOTypeInt64, TransformIOTypeFloat64:
+	case TransformIOTypeString, TransformIOTypeBool, TransformIOTypeInt, TransformIOTypeInt64, TransformIOTypeFloat64, TransformIOTypeObject:
 		return true
 	}
 	return false
