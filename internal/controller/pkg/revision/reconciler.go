@@ -90,6 +90,11 @@ const (
 	errResolveDeps = "cannot resolve package dependencies"
 
 	errConfResourceObject = "cannot convert to resource.Object"
+
+	errCannotInitializeHostClientSet = "failed to initialize host clientset with in cluster config"
+	errCannotBuildMetaSchema         = "cannot build meta scheme for package parser"
+	errCannotBuildObjectSchema       = "cannot build object scheme for package parser"
+	errCannotBuildFetcher            = "cannot build fetcher for package parser"
 )
 
 // Event reasons.
@@ -228,20 +233,20 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, errCannotInitializeHostClientSet)
 	}
 
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
-		return errors.New("cannot build meta scheme for package parser")
+		return errors.New(errCannotBuildMetaSchema)
 	}
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
-		return errors.New("cannot build object scheme for package parser")
+		return errors.New(errCannotBuildObjectSchema)
 	}
 	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher for package parser")
+		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
 	r := NewReconciler(mgr,
@@ -278,20 +283,20 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, errCannotInitializeHostClientSet)
 	}
 
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
-		return errors.New("cannot build meta scheme for package parser")
+		return errors.New(errCannotBuildMetaSchema)
 	}
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
-		return errors.New("cannot build object scheme for package parser")
+		return errors.New(errCannotBuildObjectSchema)
 	}
 	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher for package parser")
+		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
 	r := NewReconciler(mgr,
@@ -321,20 +326,20 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, errCannotInitializeHostClientSet)
 	}
 
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
-		return errors.New("cannot build meta scheme for package parser")
+		return errors.New(errCannotBuildMetaSchema)
 	}
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
-		return errors.New("cannot build object scheme for package parser")
+		return errors.New(errCannotBuildObjectSchema)
 	}
 	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher for package parser")
+		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
 	r := NewReconciler(mgr,

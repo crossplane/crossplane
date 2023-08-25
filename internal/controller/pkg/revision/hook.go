@@ -53,11 +53,8 @@ const (
 	errUnavailableProviderDeployment = "provider package deployment is unavailable"
 
 	errNotFunction                   = "not a function package"
-	errNotFunctionRevision           = "not a function revision"
 	errDeleteFunctionDeployment      = "cannot delete function package deployment"
 	errDeleteFunctionSA              = "cannot delete function package service account"
-	errDeleteFunctionService         = "cannot delete function package service"
-	errDeleteFunctionSecret          = "cannot delete function package TLS secret"
 	errApplyFunctionDeployment       = "cannot apply function package deployment"
 	errApplyFunctionSecret           = "cannot apply function package secret"
 	errApplyFunctionSA               = "cannot apply function package service account"
@@ -254,7 +251,7 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 		return errors.New(errNotFunction)
 	}
 
-	// TODO(hasheddan): update any status fields relevant to package revisions.
+	// TODO(ezgidemirel): update any status fields relevant to package revisions.
 
 	// Do not clean up SA and controller if revision is not inactive.
 	if pr.GetDesiredState() != v1.PackageRevisionInactive {
@@ -281,7 +278,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1alpha1.Function{})
 	pkgFunction, ok := po.(*pkgmetav1alpha1.Function)
 	if !ok {
-		return errors.New("not a function package")
+		return errors.New(errNotFunction)
 	}
 	if pr.GetDesiredState() != v1.PackageRevisionActive {
 		return nil

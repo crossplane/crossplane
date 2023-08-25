@@ -66,8 +66,6 @@ const (
 )
 
 // Returns the service account, deployment, service, server and client TLS secrets of the provider.
-//
-//nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
 func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret, *corev1.Secret) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
@@ -166,67 +164,11 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		},
 	}
 	if revision.GetTLSServerSecretName() != nil {
-		v := corev1.Volume{
-			Name: tlsServerCertsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: *revision.GetTLSServerSecretName(),
-					Items: []corev1.KeyToPath{
-						// These are known and validated keys in TLS secrets.
-						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
-						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
-						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
-					},
-				},
-			},
-		}
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-
-		vm := corev1.VolumeMount{
-			Name:      tlsServerCertsVolumeName,
-			ReadOnly:  true,
-			MountPath: tlsServerCertsDir,
-		}
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
-
-		envs := []corev1.EnvVar{
-			{Name: tlsServerCertDirEnvVar, Value: tlsServerCertsDir},
-		}
-		d.Spec.Template.Spec.Containers[0].Env =
-			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+		mountTLSSecret(*revision.GetTLSServerSecretName(), tlsServerCertsVolumeName, tlsServerCertsDir, tlsServerCertDirEnvVar, d)
 	}
 
 	if revision.GetTLSClientSecretName() != nil {
-		v := corev1.Volume{
-			Name: tlsClientCertsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: *revision.GetTLSClientSecretName(),
-					Items: []corev1.KeyToPath{
-						// These are known and validated keys in TLS secrets.
-						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
-						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
-						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
-					},
-				},
-			},
-		}
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-
-		vm := corev1.VolumeMount{
-			Name:      tlsClientCertsVolumeName,
-			ReadOnly:  true,
-			MountPath: tlsClientCertsDir,
-		}
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
-
-		envs := []corev1.EnvVar{
-			{Name: tlsClientCertDirEnvVar, Value: tlsClientCertsDir},
-		}
-		d.Spec.Template.Spec.Containers[0].Env =
-			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+		mountTLSSecret(*revision.GetTLSClientSecretName(), tlsClientCertsVolumeName, tlsClientCertsDir, tlsClientCertDirEnvVar, d)
 	}
 
 	if revision.GetWebhookTLSSecretName() != nil {
@@ -268,149 +210,23 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	}
 
 	if revision.GetESSTLSSecretName() != nil {
-		v := corev1.Volume{
-			Name: essCertsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: *revision.GetESSTLSSecretName(),
-					Items: []corev1.KeyToPath{
-						// These are known and validated keys in TLS secrets.
-						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
-						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
-						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
-					},
-				},
-			},
-		}
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-
-		vm := corev1.VolumeMount{
-			Name:      essCertsVolumeName,
-			ReadOnly:  true,
-			MountPath: essCertsDir,
-		}
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
-
-		envs := []corev1.EnvVar{
-			{Name: essTLSCertDirEnvVar, Value: essCertsDir},
-		}
-		d.Spec.Template.Spec.Containers[0].Env =
-			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+		mountTLSSecret(*revision.GetESSTLSSecretName(), essCertsVolumeName, essCertsDir, essTLSCertDirEnvVar, d)
 	}
 
 	templateLabels := make(map[string]string)
 	if cc != nil {
-		s.Labels = cc.Labels
-		s.Annotations = cc.Annotations
-		d.Labels = cc.Labels
-		d.Annotations = cc.Annotations
-		if cc.Spec.ServiceAccountName != nil {
-			s.Name = *cc.Spec.ServiceAccountName
-		}
-		if cc.Spec.Metadata != nil {
-			d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
-		}
-
-		if cc.Spec.Metadata != nil {
-			for k, v := range cc.Spec.Metadata.Labels {
-				templateLabels[k] = v
-			}
-		}
-
-		if cc.Spec.Replicas != nil {
-			d.Spec.Replicas = cc.Spec.Replicas
-		}
-		if cc.Spec.Image != nil {
-			d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
-		}
-		if cc.Spec.ImagePullPolicy != nil {
-			d.Spec.Template.Spec.Containers[0].ImagePullPolicy = *cc.Spec.ImagePullPolicy
-		}
-		if len(cc.Spec.Ports) > 0 {
-			d.Spec.Template.Spec.Containers[0].Ports = cc.Spec.Ports
-		}
-		if cc.Spec.NodeSelector != nil {
-			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
-		}
-		if cc.Spec.ServiceAccountName != nil {
-			d.Spec.Template.Spec.ServiceAccountName = *cc.Spec.ServiceAccountName
-		}
-		if cc.Spec.NodeName != nil {
-			d.Spec.Template.Spec.NodeName = *cc.Spec.NodeName
-		}
-		if cc.Spec.PodSecurityContext != nil {
-			d.Spec.Template.Spec.SecurityContext = cc.Spec.PodSecurityContext
-		}
-		if cc.Spec.SecurityContext != nil {
-			d.Spec.Template.Spec.Containers[0].SecurityContext = cc.Spec.SecurityContext
-		}
-		if len(cc.Spec.ImagePullSecrets) > 0 {
-			d.Spec.Template.Spec.ImagePullSecrets = cc.Spec.ImagePullSecrets
-		}
-		if cc.Spec.Affinity != nil {
-			d.Spec.Template.Spec.Affinity = cc.Spec.Affinity
-		}
-		if len(cc.Spec.Tolerations) > 0 {
-			d.Spec.Template.Spec.Tolerations = cc.Spec.Tolerations
-		}
-		if cc.Spec.PriorityClassName != nil {
-			d.Spec.Template.Spec.PriorityClassName = *cc.Spec.PriorityClassName
-		}
-		if cc.Spec.RuntimeClassName != nil {
-			d.Spec.Template.Spec.RuntimeClassName = cc.Spec.RuntimeClassName
-		}
-		if cc.Spec.ResourceRequirements != nil {
-			d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
-		}
-		if len(cc.Spec.Args) > 0 {
-			d.Spec.Template.Spec.Containers[0].Args = cc.Spec.Args
-		}
-		if len(cc.Spec.EnvFrom) > 0 {
-			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
-		}
-		if len(cc.Spec.Env) > 0 {
-			// We already have some environment variables that we will always
-			// want to set (e.g. POD_NAMESPACE), so we just append the new ones
-			// that user provided if there are any.
-			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
-		}
-		if len(cc.Spec.Volumes) > 0 {
-			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
-		}
-		if len(cc.Spec.VolumeMounts) > 0 {
-			d.Spec.Template.Spec.Containers[0].VolumeMounts =
-				append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
-		}
+		setControllerConfigConfigurations(s, cc, d, templateLabels)
 	}
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
 		templateLabels[k] = v
 	}
 	d.Spec.Template.Labels = templateLabels
 
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            revision.GetName(),
-			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
-		},
-		Spec: corev1.ServiceSpec{
-			// We use whatever is on the deployment so that ControllerConfig
-			// overrides are accounted for.
-			Selector: d.Spec.Selector.MatchLabels,
-			Ports: []corev1.ServicePort{
-				{
-					Protocol:   corev1.ProtocolTCP,
-					Port:       9443,
-					TargetPort: intstr.FromInt(9443),
-				},
-			},
-		},
-	}
+	svc := getService(revision.GetName(), namespace, []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))}, d.Spec.Selector.MatchLabels)
+
 	return s, d, svc, secSer, secCli
 }
 
-//nolint:gocyclo // TODO(negz): Can this be refactored for less complexity (and fewer arguments?)
 func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
@@ -424,7 +240,7 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            *revision.GetTLSServerSecretName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind))},
+			OwnerReferences: revision.GetOwnerReferences(),
 		},
 	}
 
@@ -432,7 +248,11 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 	if revision.GetPackagePullPolicy() != nil {
 		pullPolicy = *revision.GetPackagePullPolicy()
 	}
+
 	image := revision.GetSource()
+	if function.Spec.Image != nil {
+		image = *function.Spec.Image
+	}
 
 	d := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -489,121 +309,13 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 	}
 
 	if revision.GetTLSServerSecretName() != nil {
-		v := corev1.Volume{
-			Name: tlsServerCertsVolumeName,
-			VolumeSource: corev1.VolumeSource{
-				Secret: &corev1.SecretVolumeSource{
-					SecretName: *revision.GetTLSServerSecretName(),
-					Items: []corev1.KeyToPath{
-						// These are known and validated keys in TLS secrets.
-						{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
-						{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
-						{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
-					},
-				},
-			},
-		}
-		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
-
-		vm := corev1.VolumeMount{
-			Name:      tlsServerCertsVolumeName,
-			ReadOnly:  true,
-			MountPath: tlsServerCertsDir,
-		}
-		d.Spec.Template.Spec.Containers[0].VolumeMounts =
-			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
-
-		envs := []corev1.EnvVar{
-			{Name: tlsServerCertDirEnvVar, Value: tlsServerCertsDir},
-		}
-		d.Spec.Template.Spec.Containers[0].Env =
-			append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+		mountTLSSecret(*revision.GetTLSServerSecretName(), tlsServerCertsVolumeName, tlsServerCertsDir, tlsServerCertDirEnvVar, d)
 	}
 
 	templateLabels := make(map[string]string)
 
 	if cc != nil {
-		s.Labels = cc.Labels
-		s.Annotations = cc.Annotations
-		d.Labels = cc.Labels
-		d.Annotations = cc.Annotations
-		if cc.Spec.ServiceAccountName != nil {
-			s.Name = *cc.Spec.ServiceAccountName
-		}
-		if cc.Spec.Metadata != nil {
-			d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
-		}
-
-		if cc.Spec.Metadata != nil {
-			for k, v := range cc.Spec.Metadata.Labels {
-				templateLabels[k] = v
-			}
-		}
-
-		if cc.Spec.Replicas != nil {
-			d.Spec.Replicas = cc.Spec.Replicas
-		}
-		if cc.Spec.Image != nil {
-			d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
-		}
-		if cc.Spec.ImagePullPolicy != nil {
-			d.Spec.Template.Spec.Containers[0].ImagePullPolicy = *cc.Spec.ImagePullPolicy
-		}
-		if len(cc.Spec.Ports) > 0 {
-			d.Spec.Template.Spec.Containers[0].Ports = cc.Spec.Ports
-		}
-		if cc.Spec.NodeSelector != nil {
-			d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
-		}
-		if cc.Spec.ServiceAccountName != nil {
-			d.Spec.Template.Spec.ServiceAccountName = *cc.Spec.ServiceAccountName
-		}
-		if cc.Spec.NodeName != nil {
-			d.Spec.Template.Spec.NodeName = *cc.Spec.NodeName
-		}
-		if cc.Spec.PodSecurityContext != nil {
-			d.Spec.Template.Spec.SecurityContext = cc.Spec.PodSecurityContext
-		}
-		if cc.Spec.SecurityContext != nil {
-			d.Spec.Template.Spec.Containers[0].SecurityContext = cc.Spec.SecurityContext
-		}
-		if len(cc.Spec.ImagePullSecrets) > 0 {
-			d.Spec.Template.Spec.ImagePullSecrets = cc.Spec.ImagePullSecrets
-		}
-		if cc.Spec.Affinity != nil {
-			d.Spec.Template.Spec.Affinity = cc.Spec.Affinity
-		}
-		if len(cc.Spec.Tolerations) > 0 {
-			d.Spec.Template.Spec.Tolerations = cc.Spec.Tolerations
-		}
-		if cc.Spec.PriorityClassName != nil {
-			d.Spec.Template.Spec.PriorityClassName = *cc.Spec.PriorityClassName
-		}
-		if cc.Spec.RuntimeClassName != nil {
-			d.Spec.Template.Spec.RuntimeClassName = cc.Spec.RuntimeClassName
-		}
-		if cc.Spec.ResourceRequirements != nil {
-			d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
-		}
-		if len(cc.Spec.Args) > 0 {
-			d.Spec.Template.Spec.Containers[0].Args = cc.Spec.Args
-		}
-		if len(cc.Spec.EnvFrom) > 0 {
-			d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
-		}
-		if len(cc.Spec.Env) > 0 {
-			// We already have some environment variables that we will always
-			// want to set (e.g. POD_NAMESPACE), so we just append the new ones
-			// that user provided if there are any.
-			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
-		}
-		if len(cc.Spec.Volumes) > 0 {
-			d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
-		}
-		if len(cc.Spec.VolumeMounts) > 0 {
-			d.Spec.Template.Spec.Containers[0].VolumeMounts =
-				append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
-		}
+		setControllerConfigConfigurations(s, cc, d, templateLabels)
 	}
 
 	for k, v := range d.Spec.Selector.MatchLabels { // ensure the template matches the selector
@@ -612,23 +324,143 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 	d.Spec.Template.Labels = templateLabels
 
 	pkgName := revision.GetLabels()[v1.LabelParentPackage]
-	svc := &corev1.Service{
+	svc := getService(pkgName, namespace, revision.GetOwnerReferences(), d.Spec.Selector.MatchLabels)
+	return s, d, svc, sec
+}
+
+//nolint:gocyclo // Note: ControlerConfig is deprecated and following code will be removed in the future.
+func setControllerConfigConfigurations(s *corev1.ServiceAccount, cc *v1alpha1.ControllerConfig, d *appsv1.Deployment, templateLabels map[string]string) {
+	s.Labels = cc.Labels
+	s.Annotations = cc.Annotations
+	d.Labels = cc.Labels
+	d.Annotations = cc.Annotations
+	if cc.Spec.ServiceAccountName != nil {
+		s.Name = *cc.Spec.ServiceAccountName
+	}
+	if cc.Spec.Metadata != nil {
+		d.Spec.Template.Annotations = cc.Spec.Metadata.Annotations
+	}
+
+	if cc.Spec.Metadata != nil {
+		for k, v := range cc.Spec.Metadata.Labels {
+			templateLabels[k] = v
+		}
+	}
+
+	if cc.Spec.Replicas != nil {
+		d.Spec.Replicas = cc.Spec.Replicas
+	}
+	if cc.Spec.Image != nil {
+		d.Spec.Template.Spec.Containers[0].Image = *cc.Spec.Image
+	}
+	if cc.Spec.ImagePullPolicy != nil {
+		d.Spec.Template.Spec.Containers[0].ImagePullPolicy = *cc.Spec.ImagePullPolicy
+	}
+	if len(cc.Spec.Ports) > 0 {
+		d.Spec.Template.Spec.Containers[0].Ports = cc.Spec.Ports
+	}
+	if cc.Spec.NodeSelector != nil {
+		d.Spec.Template.Spec.NodeSelector = cc.Spec.NodeSelector
+	}
+	if cc.Spec.ServiceAccountName != nil {
+		d.Spec.Template.Spec.ServiceAccountName = *cc.Spec.ServiceAccountName
+	}
+	if cc.Spec.NodeName != nil {
+		d.Spec.Template.Spec.NodeName = *cc.Spec.NodeName
+	}
+	if cc.Spec.PodSecurityContext != nil {
+		d.Spec.Template.Spec.SecurityContext = cc.Spec.PodSecurityContext
+	}
+	if cc.Spec.SecurityContext != nil {
+		d.Spec.Template.Spec.Containers[0].SecurityContext = cc.Spec.SecurityContext
+	}
+	if len(cc.Spec.ImagePullSecrets) > 0 {
+		d.Spec.Template.Spec.ImagePullSecrets = cc.Spec.ImagePullSecrets
+	}
+	if cc.Spec.Affinity != nil {
+		d.Spec.Template.Spec.Affinity = cc.Spec.Affinity
+	}
+	if len(cc.Spec.Tolerations) > 0 {
+		d.Spec.Template.Spec.Tolerations = cc.Spec.Tolerations
+	}
+	if cc.Spec.PriorityClassName != nil {
+		d.Spec.Template.Spec.PriorityClassName = *cc.Spec.PriorityClassName
+	}
+	if cc.Spec.RuntimeClassName != nil {
+		d.Spec.Template.Spec.RuntimeClassName = cc.Spec.RuntimeClassName
+	}
+	if cc.Spec.ResourceRequirements != nil {
+		d.Spec.Template.Spec.Containers[0].Resources = *cc.Spec.ResourceRequirements
+	}
+	if len(cc.Spec.Args) > 0 {
+		d.Spec.Template.Spec.Containers[0].Args = cc.Spec.Args
+	}
+	if len(cc.Spec.EnvFrom) > 0 {
+		d.Spec.Template.Spec.Containers[0].EnvFrom = cc.Spec.EnvFrom
+	}
+	if len(cc.Spec.Env) > 0 {
+		// We already have some environment variables that we will always
+		// want to set (e.g. POD_NAMESPACE), so we just append the new ones
+		// that user provided if there are any.
+		d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, cc.Spec.Env...)
+	}
+	if len(cc.Spec.Volumes) > 0 {
+		d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, cc.Spec.Volumes...)
+	}
+	if len(cc.Spec.VolumeMounts) > 0 {
+		d.Spec.Template.Spec.Containers[0].VolumeMounts =
+			append(d.Spec.Template.Spec.Containers[0].VolumeMounts, cc.Spec.VolumeMounts...)
+	}
+}
+
+func mountTLSSecret(secret, volName, mountPath, envName string, d *appsv1.Deployment) {
+	v := corev1.Volume{
+		Name: volName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: secret,
+				Items: []corev1.KeyToPath{
+					// These are known and validated keys in TLS secrets.
+					{Key: corev1.TLSCertKey, Path: corev1.TLSCertKey},
+					{Key: corev1.TLSPrivateKeyKey, Path: corev1.TLSPrivateKeyKey},
+					{Key: initializer.SecretKeyCACert, Path: initializer.SecretKeyCACert},
+				},
+			},
+		},
+	}
+	d.Spec.Template.Spec.Volumes = append(d.Spec.Template.Spec.Volumes, v)
+
+	vm := corev1.VolumeMount{
+		Name:      volName,
+		ReadOnly:  true,
+		MountPath: mountPath,
+	}
+	d.Spec.Template.Spec.Containers[0].VolumeMounts =
+		append(d.Spec.Template.Spec.Containers[0].VolumeMounts, vm)
+
+	envs := []corev1.EnvVar{
+		{Name: envName, Value: mountPath},
+	}
+	d.Spec.Template.Spec.Containers[0].Env =
+		append(d.Spec.Template.Spec.Containers[0].Env, envs...)
+}
+
+func getService(name, namespace string, owners []metav1.OwnerReference, matchLabels map[string]string) *corev1.Service {
+	return &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            pkgName,
+			Name:            name,
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind))},
+			OwnerReferences: owners,
 		},
 		Spec: corev1.ServiceSpec{
-			Selector: d.Spec.Selector.MatchLabels,
+			Selector: matchLabels,
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					Name:       "grpc",
 					Port:       9443,
 					TargetPort: intstr.FromInt(9443),
 				},
 			},
 		},
 	}
-	return s, d, svc, sec
 }
