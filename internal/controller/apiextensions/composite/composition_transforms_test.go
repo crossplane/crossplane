@@ -174,7 +174,7 @@ func TestMatchResolve(t *testing.T) {
 				i: 5,
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtMatchInputTypeInvalid, "int"), errFmtMatchPattern, 0),
+				err: errors.Wrapf(errors.Errorf(errFmtMatchInputTypeInvalid, "int"), errFmtMatchPattern, v1.MatchTransformPatternTypeLiteral, 0),
 			},
 		},
 		"ErrFallbackValueAndToInput": {
@@ -408,7 +408,7 @@ func TestMatchResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "regexp", string(v1.MatchTransformPatternTypeRegexp)), errFmtMatchPattern, 0),
+				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "regexp", string(v1.MatchTransformPatternTypeRegexp)), errFmtMatchPattern, v1.MatchTransformPatternTypeLiteral, 0),
 			},
 		},
 		"ErrInvalidRegexp": {
@@ -425,7 +425,7 @@ func TestMatchResolve(t *testing.T) {
 			want: want{
 				// This might break if Go's regexp changes its internal error
 				// messages:
-				err: errors.Wrapf(errors.Wrapf(errors.Wrap(errors.Wrap(errors.New("`?`"), "missing argument to repetition operator"), "error parsing regexp"), errMatchRegexpCompile), errFmtMatchPattern, 0),
+				err: errors.Wrapf(errors.Wrapf(errors.Wrap(errors.Wrap(errors.New("`?`"), "missing argument to repetition operator"), "error parsing regexp"), errMatchRegexpCompile), errFmtMatchPattern, v1.MatchTransformPatternTypeLiteral, 0),
 			},
 		},
 		"ErrMissingLiteral": {
@@ -439,7 +439,7 @@ func TestMatchResolve(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "literal", string(v1.MatchTransformPatternTypeLiteral)), errFmtMatchPattern, 0),
+				err: errors.Wrapf(errors.Errorf(errFmtRequiredField, "literal", string(v1.MatchTransformPatternTypeLiteral)), errFmtMatchPattern, v1.MatchTransformPatternTypeLiteral, 0),
 			},
 		},
 	}
