@@ -76,9 +76,9 @@ func (c *FallBackComposer) Compose(ctx context.Context, xr resource.Composite, r
 // PTComposer when Composition Functions are enabled.
 //
 // The PTFComposer does not support anonymous templates; it requires named
-// resources to map from P&T resources to FunctionIO resources. A validator
-// ensures that its not possible to create a Composition that uses both
-// Composition Functions and anonymous resource templates.
+// resources to map from P&T resources to Composition Function resources. A
+// validator ensures that its not possible to create a Composition that uses
+// both Composition Functions and anonymous resource templates.
 func FallBackForAnonymousTemplates(c client.Reader) TriggerFn {
 	return func(ctx context.Context, xr resource.Composite, req CompositionRequest) (bool, error) {
 		// Fall back if any templates are unnamed.

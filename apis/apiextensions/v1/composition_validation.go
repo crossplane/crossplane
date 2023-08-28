@@ -115,8 +115,8 @@ func (c *Composition) validateResources() (errs field.ErrorList) {
 //     template N.
 //  2. All resources have unique names: because other parts of the code require so.
 //  3. If the composition has any functions, it must have only named resources: This is necessary for the
-//     FunctionComposer to be able to associate entries in the spec.resources array with entries in a FunctionIO's observed
-//     and desired arrays
+//     FunctionComposer to be able to associate entries in the spec.resources array with entries in a RunFunctionRequest's observed
+//     and desired objects.
 func (c *Composition) validateResourceNames() (errs field.ErrorList) {
 	seen := map[string]bool{}
 	for resourceIndex, res := range c.Spec.Resources {

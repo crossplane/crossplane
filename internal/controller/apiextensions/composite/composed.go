@@ -23,9 +23,10 @@ import (
 )
 
 // A ResourceName uniquely identifies the composed resource within a Composition
-// or FunctionIO. This is not the metadata.name of the actual composed resource
-// instance; rather it is the name of an entry in a Composition's resources
-// array, and/or a FunctionIO's observed/desired resources array.
+// and within Composition Function gRPC calls. This is not the metadata.name of
+// the actual composed resource instance; rather it is the name of an entry in a
+// Composition's resources array, and/or a RunFunctionRequest's observed/desired
+// resources object.
 type ResourceName string
 
 // A ComposedResource is an output of the composition process.
