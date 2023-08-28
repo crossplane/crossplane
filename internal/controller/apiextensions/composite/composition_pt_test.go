@@ -61,9 +61,6 @@ func TestPTCompose(t *testing.T) {
 		err error
 	}
 
-	// TODO(negz): Update tests to handle the fact that we no longer inject one
-	// big renderer, but instead are hard-wired to call several smaller ones.
-
 	cases := map[string]struct {
 		reason string
 		params params

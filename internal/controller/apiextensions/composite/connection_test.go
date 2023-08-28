@@ -386,8 +386,6 @@ func TestExtractConnectionDetails(t *testing.T) {
 	}
 }
 
-// TODO(negz): Implement me.
-
 func TestExtractConfigsFromTemplate(t *testing.T) {
 	tfk := v1.ConnectionDetailTypeFromConnectionSecretKey
 
