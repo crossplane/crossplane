@@ -41,6 +41,7 @@ const (
 type buildCmd struct {
 	Configuration buildConfigCmd   `cmd:"" help:"Build a Configuration package."`
 	Provider      buildProviderCmd `cmd:"" help:"Build a Provider package."`
+	Function      buildFunctionCmd `cmd:"" help:"Build a Function package."`
 
 	PackageRoot string   `short:"f" help:"Path to package directory." default:"."`
 	Ignore      []string `help:"Paths, specified relative to --package-root, to exclude from the package."`
@@ -149,5 +150,17 @@ type buildProviderCmd struct {
 func (c buildProviderCmd) AfterApply(b *buildChild) error { //nolint:unparam // AfterApply requires this signature.
 	b.name = c.Name
 	b.linter = xpkg.NewProviderLinter()
+	return nil
+}
+
+// buildFunctionCmd builds a Provider.
+type buildFunctionCmd struct {
+	Name string `optional:"" help:"Name of the package to be built. Uses name in crossplane.yaml if not specified. Does not correspond to package tag."`
+}
+
+// AfterApply sets the name and linter for the parent build command.
+func (c buildFunctionCmd) AfterApply(b *buildChild) error { //nolint:unparam // AfterApply requires this signature.
+	b.name = c.Name
+	b.linter = xpkg.NewFunctionLinter()
 	return nil
 }
