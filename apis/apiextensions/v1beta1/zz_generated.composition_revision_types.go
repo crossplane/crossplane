@@ -58,7 +58,7 @@ type CompositionRevisionSpec struct {
 	// +optional
 	Resources []ComposedTemplate `json:"resources"`
 
-	// Pipeline is list of composition function steps that will be used when a
+	// Pipeline is a list of composition function steps that will be used when a
 	// composite resource referring to this composition is created. At least one
 	// of resources and pipeline must be specified. If both are specified the
 	// resources will be rendered first, then passed to the step functions for
