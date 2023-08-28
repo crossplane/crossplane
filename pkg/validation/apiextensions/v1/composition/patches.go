@@ -322,10 +322,10 @@ func validateIOTypesWithTransforms(transforms []v1.Transform, fromType, toType x
 	return field.Invalid(field.NewPath("transforms"), transforms, fmt.Sprintf("the provided transforms do not output a type compatible with the toFieldPath according to the schema: %s != %s", fromType, toType))
 }
 
-func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema.KnownJSONType) (outputType v1.TransformIOType, fErr *field.Error) {
+func validateTransformsChainIOTypes(transforms []v1.Transform, fromType xpschema.KnownJSONType) (v1.TransformIOType, *field.Error) {
 	inputType, err := xpschema.FromKnownJSONType(fromType)
 	if err != nil && fromType != "" {
-		return "", field.InternalError(field.NewPath("transforms"), fErr)
+		return "", field.InternalError(field.NewPath("transforms"), err)
 	}
 	for i, transform := range transforms {
 		transform := transform
@@ -479,8 +479,29 @@ func IsValidInputForTransform(t *v1.Transform, fromType v1.TransformIOType) erro
 			return errors.Errorf("match transform can only be used with string input types, got %s", fromType)
 		}
 	case v1.TransformTypeString:
-		if fromType != v1.TransformIOTypeString {
-			return errors.Errorf("string transform can only be used with string input types, got %s", fromType)
+		switch t.String.Type {
+		case v1.StringTransformTypeRegexp, v1.StringTransformTypeTrimSuffix, v1.StringTransformTypeTrimPrefix:
+			if fromType != v1.TransformIOTypeString {
+				return errors.Errorf("string transform can only be used with string input types, got %s", fromType)
+			}
+		case v1.StringTransformTypeFormat:
+			// any input type is valid
+		case v1.StringTransformTypeConvert:
+			if t.String.Convert == nil {
+				return errors.Errorf("string transform convert type is required for convert transform")
+			}
+			switch *t.String.Convert {
+			case v1.StringConversionTypeToLower, v1.StringConversionTypeToUpper, v1.StringConversionTypeFromBase64, v1.StringConversionTypeToBase64:
+				if fromType != v1.TransformIOTypeString {
+					return errors.Errorf("string transform can only be used with string input types, got %s", fromType)
+				}
+			case v1.StringConversionTypeToJSON, v1.StringConversionTypeToAdler32, v1.StringConversionTypeToSHA1, v1.StringConversionTypeToSHA256, v1.StringConversionTypeToSHA512:
+				// any input type is valid
+			default:
+				return errors.Errorf("unknown string conversion type %s", *t.String.Convert)
+			}
+		default:
+			return errors.Errorf("unknown string transform type %s", t.String.Type)
 		}
 	case v1.TransformTypeConvert:
 		if _, err := composite.GetConversionFunc(t.Convert, fromType); err != nil {
