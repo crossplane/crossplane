@@ -23,6 +23,7 @@ limitations under the License.
 package xcrd
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -36,6 +37,18 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
+)
+
+var (
+	group       = "example.org"
+	version     = "v1"
+	kind        = "CoolComposite"
+	listKind    = "CoolCompositeList"
+	singular    = "coolcomposite"
+	plural      = "coolcomposites"
+	name        = "coolcomposites.example.org"
+	labels      = map[string]string{"cool": "very"}
+	annotations = map[string]string{"example.org/cool": "very"}
 )
 
 func TestIsEstablished(t *testing.T) {
@@ -69,17 +82,6 @@ func TestIsEstablished(t *testing.T) {
 }
 
 func TestForCompositeResource(t *testing.T) {
-	name := "coolcomposites.example.org"
-	labels := map[string]string{"cool": "very"}
-	annotations := map[string]string{"example.org/cool": "very"}
-
-	group := "example.org"
-	version := "v1"
-	kind := "CoolComposite"
-	listKind := "CoolCompositeList"
-	singular := "coolcomposite"
-	plural := "coolcomposites"
-
 	schema := `
 {
 	"required": [
@@ -435,17 +437,6 @@ func TestForCompositeResource(t *testing.T) {
 }
 
 func TestForCompositeResourceEmptyXrd(t *testing.T) {
-	name := "coolcomposites.example.org"
-	labels := map[string]string{"cool": "very"}
-	annotations := map[string]string{"example.org/cool": "very"}
-
-	group := "example.org"
-	version := "v1"
-	kind := "CoolComposite"
-	listKind := "CoolCompositeList"
-	singular := "coolcomposite"
-	plural := "coolcomposites"
-
 	schema := "{}"
 
 	d := &v1.CompositeResourceDefinition{
@@ -725,6 +716,41 @@ func TestForCompositeResourceEmptyXrd(t *testing.T) {
 	}
 }
 
+func TestForCompositeResourceNilValidation(t *testing.T) {
+	d := &v1.CompositeResourceDefinition{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        name,
+			Labels:      labels,
+			Annotations: annotations,
+			UID:         types.UID("you-you-eye-dee"),
+		},
+		Spec: v1.CompositeResourceDefinitionSpec{
+			Group: group,
+			Names: extv1.CustomResourceDefinitionNames{
+				Plural:   plural,
+				Singular: singular,
+				Kind:     kind,
+				ListKind: listKind,
+			},
+			Versions: []v1.CompositeResourceDefinitionVersion{{
+				Name:          version,
+				Referenceable: true,
+				Served:        true,
+				Schema:        nil,
+			}},
+		},
+	}
+
+	got, err := ForCompositeResource(d)
+	if diff := cmp.Diff(errors.Wrap(errors.New(errCustomResourceValidationNil), fmt.Sprintf(errFmtGenCrd, "Composite Resource", name)), err, test.EquateErrors()); diff != "" {
+		t.Errorf("\n\nForCompositeResource(...): -want err, +got err:\n%s", diff)
+	}
+
+	if got != nil {
+		t.Errorf("ForCompositeResource(...) should return nil, got: %v", got)
+	}
+}
+
 func TestValidateClaimNames(t *testing.T) {
 	cases := map[string]struct {
 		d    *v1.CompositeResourceDefinition
@@ -824,18 +850,6 @@ func TestValidateClaimNames(t *testing.T) {
 }
 
 func TestForCompositeResourceClaim(t *testing.T) {
-	name := "coolcomposites.example.org"
-	labels := map[string]string{"cool": "very"}
-	annotations := map[string]string{"example.org/cool": "very"}
-
-	group := "example.org"
-	version := "v1"
-
-	kind := "CoolComposite"
-	listKind := "CoolCompositeList"
-	singular := "coolcomposite"
-	plural := "coolcomposites"
-
 	claimKind := "CoolClaim"
 	claimListKind := "CoolClaimList"
 	claimSingular := "coolclaim"
@@ -1176,18 +1190,6 @@ func TestForCompositeResourceClaim(t *testing.T) {
 }
 
 func TestForCompositeResourceClaimEmptyXrd(t *testing.T) {
-	name := "coolcomposites.example.org"
-	labels := map[string]string{"cool": "very"}
-	annotations := map[string]string{"example.org/cool": "very"}
-
-	group := "example.org"
-	version := "v1"
-
-	kind := "CoolComposite"
-	listKind := "CoolCompositeList"
-	singular := "coolcomposite"
-	plural := "coolcomposites"
-
 	claimKind := "CoolClaim"
 	claimListKind := "CoolClaimList"
 	claimSingular := "coolclaim"
