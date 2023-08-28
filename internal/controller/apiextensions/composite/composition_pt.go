@@ -470,11 +470,8 @@ func (a *GarbageCollectingAssociator) AssociateTemplates(ctx context.Context, cr
 			continue
 		}
 
-		// TODO(negz): Below should be || not &&. If the controller ref is nil
-		// we don't control the resource and shouldn't delete it.
-
 		// We want to garbage collect this resource, but we don't control it.
-		if c := metav1.GetControllerOf(cd); c != nil && c.UID != cr.GetUID() {
+		if c := metav1.GetControllerOf(cd); c == nil || c.UID != cr.GetUID() {
 			continue
 		}
 

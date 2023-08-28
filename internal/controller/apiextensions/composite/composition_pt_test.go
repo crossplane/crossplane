@@ -679,8 +679,8 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				tas: []TemplateAssociation{{Template: t0, Reference: r0}},
 			},
 		},
-		"UncontrolledResource": {
-			reason: "We should not garbage collect a resource that we don't control.",
+		"ResourceControlledBySomeoneElse": {
+			reason: "We should not garbage collect a resource that is controlled by another resource.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
@@ -707,18 +707,49 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				tas: []TemplateAssociation{{Template: t0}},
 			},
 		},
+		"ResourceNotControlled": {
+			reason: "We should not garbage collect a resource that has no controller reference.",
+			c: &test.MockClient{
+				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+					// The template used to create this resource is no longer known to us.
+					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is not controlled by anyone.
+					return nil
+				}),
+			},
+			args: args{
+				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: types.UID("very-unique")},
+					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
+				},
+				ct: []v1.ComposedTemplate{t0},
+			},
+			want: want{
+				tas: []TemplateAssociation{{Template: t0}},
+			},
+		},
 		"GarbageCollectionError": {
 			reason: "We should return errors encountered while garbage collecting a composed resource.",
 			c: &test.MockClient{
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
 					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is controlled by us.
+					ctrl := true
+					obj.SetOwnerReferences([]metav1.OwnerReference{{
+						Controller:         &ctrl,
+						BlockOwnerDeletion: &ctrl,
+						UID:                types.UID("it-me"),
+					}})
 					return nil
 				}),
 				MockDelete: test.NewMockDeleteFn(errBoom),
 			},
 			args: args{
 				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: "it-me"},
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
 				ct: []v1.ComposedTemplate{t0},
@@ -733,12 +764,22 @@ func TestGarbageCollectingAssociator(t *testing.T) {
 				MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
 					// The template used to create this resource is no longer known to us.
 					SetCompositionResourceName(obj, "unknown")
+
+					// This resource is controlled by us.
+					ctrl := true
+					obj.SetOwnerReferences([]metav1.OwnerReference{{
+						Controller:         &ctrl,
+						BlockOwnerDeletion: &ctrl,
+						UID:                types.UID("it-me"),
+					}})
+
 					return nil
 				}),
 				MockDelete: test.NewMockDeleteFn(nil),
 			},
 			args: args{
 				cr: &fake.Composite{
+					ObjectMeta:                  metav1.ObjectMeta{UID: "it-me"},
 					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{Refs: []corev1.ObjectReference{r0}},
 				},
 				ct: []v1.ComposedTemplate{t0},
