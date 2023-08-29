@@ -261,11 +261,14 @@ spec:
                                     description: "The expected input format. \n *
                                       `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
                                       Only used during `string -> float64` conversions.
-                                      \n If this property is null, the default conversion
-                                      is applied."
+                                      * `json` - parses the input as a JSON string.
+                                      Only used during `string -> object` or `string
+                                      -> list` conversions. \n If this property is
+                                      null, the default conversion is applied."
                                     enum:
                                     - none
                                     - quantity
+                                    - json
                                     type: string
                                   toType:
                                     description: ToType is the type of the output
@@ -276,6 +279,8 @@ spec:
                                     - int64
                                     - bool
                                     - float64
+                                    - object
+                                    - list
                                     type: string
                                 required:
                                 - toType
@@ -748,11 +753,14 @@ spec:
                                       description: "The expected input format. \n
                                         * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
                                         Only used during `string -> float64` conversions.
-                                        \n If this property is null, the default conversion
-                                        is applied."
+                                        * `json` - parses the input as a JSON string.
+                                        Only used during `string -> object` or `string
+                                        -> list` conversions. \n If this property
+                                        is null, the default conversion is applied."
                                       enum:
                                       - none
                                       - quantity
+                                      - json
                                       type: string
                                     toType:
                                       description: ToType is the type of the output
@@ -763,6 +771,8 @@ spec:
                                       - int64
                                       - bool
                                       - float64
+                                      - object
+                                      - list
                                       type: string
                                   required:
                                   - toType
@@ -1167,11 +1177,14 @@ spec:
                                       description: "The expected input format. \n
                                         * `quantity` - parses the input as a K8s [`resource.Quantity`](https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity).
                                         Only used during `string -> float64` conversions.
-                                        \n If this property is null, the default conversion
-                                        is applied."
+                                        * `json` - parses the input as a JSON string.
+                                        Only used during `string -> object` or `string
+                                        -> list` conversions. \n If this property
+                                        is null, the default conversion is applied."
                                       enum:
                                       - none
                                       - quantity
+                                      - json
                                       type: string
                                     toType:
                                       description: ToType is the type of the output
@@ -1182,6 +1195,8 @@ spec:
                                       - int64
                                       - bool
                                       - float64
+                                      - object
+                                      - list
                                       type: string
                                   required:
                                   - toType
