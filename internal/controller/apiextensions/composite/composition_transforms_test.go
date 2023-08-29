@@ -1111,6 +1111,30 @@ func TestConvertResolve(t *testing.T) {
 				o: int64(1),
 			},
 		},
+		"StringToObject": {
+			args: args{
+				i:      "{\"foo\":\"bar\"}",
+				to:     v1.TransformIOTypeObject,
+				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatJSON))),
+			},
+			want: want{
+				o: map[string]any{
+					"foo": "bar",
+				},
+			},
+		},
+		"StringToList": {
+			args: args{
+				i:      "[\"foo\", \"bar\", \"baz\"]",
+				to:     v1.TransformIOTypeArray,
+				format: (*v1.ConvertTransformFormat)(pointer.String(string(v1.ConvertTransformFormatJSON))),
+			},
+			want: want{
+				o: []any{
+					"foo", "bar", "baz",
+				},
+			},
+		},
 		"InputTypeNotSupported": {
 			args: args{
 				i:  []int{64},
@@ -1234,6 +1258,38 @@ func TestConvertTransformGetConversionFunc(t *testing.T) {
 					ToType: v1.TransformIOTypeInt,
 				},
 				from: v1.TransformIOTypeBool,
+			},
+		},
+		"JSONStringToObject": {
+			reason: "JSON string to Object should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeObject,
+					Format: &[]v1.ConvertTransformFormat{v1.ConvertTransformFormatJSON}[0],
+				},
+				from: v1.TransformIOTypeString,
+			},
+		},
+		"JSONStringToArray": {
+			reason: "JSON string to Array should be valid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeArray,
+					Format: &[]v1.ConvertTransformFormat{v1.ConvertTransformFormatJSON}[0],
+				},
+				from: v1.TransformIOTypeString,
+			},
+		},
+		"StringToObjectMissingFormat": {
+			reason: "String to Object without format should be invalid",
+			args: args{
+				ct: &v1.ConvertTransform{
+					ToType: v1.TransformIOTypeObject,
+				},
+				from: v1.TransformIOTypeString,
+			},
+			want: want{
+				err: fmt.Errorf("conversion from string to object is not supported with format none"),
 			},
 		},
 		"StringToIntInvalidFormat": {

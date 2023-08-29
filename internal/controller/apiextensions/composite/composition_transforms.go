@@ -488,4 +488,12 @@ var conversions = map[conversionPair]func(any) (any, error){
 	{from: v1.TransformIOTypeFloat64, to: v1.TransformIOTypeBool, format: v1.ConvertTransformFormatNone}: func(i any) (any, error) { //nolint:unparam // See note above.
 		return i.(float64) == float64(1), nil
 	},
+	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeObject, format: v1.ConvertTransformFormatJSON}: func(i any) (any, error) {
+		o := map[string]any{}
+		return o, json.Unmarshal([]byte(i.(string)), &o)
+	},
+	{from: v1.TransformIOTypeString, to: v1.TransformIOTypeArray, format: v1.ConvertTransformFormatJSON}: func(i any) (any, error) {
+		var o []any
+		return o, json.Unmarshal([]byte(i.(string)), &o)
+	},
 }
