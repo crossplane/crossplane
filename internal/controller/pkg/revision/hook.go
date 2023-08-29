@@ -274,9 +274,8 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 }
 
 // Post creates a packaged function deployment, service account, service and secrets if the revision is active.
-//
-//nolint:gocyclo // TODO(ezgidemirel): Can this be refactored for less complexity?
-func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // See below
+	// TODO(ezgidemirel): Can this be refactored for less complexity?
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1alpha1.Function{})
 	pkgFunction, ok := po.(*pkgmetav1alpha1.Function)
 	if !ok {

@@ -362,7 +362,7 @@ func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
 		Named(name).
 		For(&v1alpha1.FunctionRevision{}).
 		Owns(&appsv1.Deployment{}).
-		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingProviderRevisions{
+		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
 			client: mgr.GetClient(),
 		}).
 		WithOptions(o.ForControllerRuntime()).
