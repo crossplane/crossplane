@@ -184,7 +184,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 					}
 					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
 					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
+					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}
 			case *admv1.MutatingWebhookConfiguration:
 				if len(webhookTLSCert) == 0 {
@@ -200,7 +200,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 					}
 					conf.Webhooks[i].ClientConfig.Service.Name = parent.GetName()
 					conf.Webhooks[i].ClientConfig.Service.Namespace = e.namespace
-					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(webhookPort)
+					conf.Webhooks[i].ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}
 			case *extv1.CustomResourceDefinition:
 				if conf.Spec.Conversion != nil && conf.Spec.Conversion.Strategy == extv1.WebhookConverter {
@@ -219,7 +219,7 @@ func (e *APIEstablisher) validate(ctx context.Context, objs []runtime.Object, pa
 					conf.Spec.Conversion.Webhook.ClientConfig.CABundle = webhookTLSCert
 					conf.Spec.Conversion.Webhook.ClientConfig.Service.Name = parent.GetName()
 					conf.Spec.Conversion.Webhook.ClientConfig.Service.Namespace = e.namespace
-					conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(webhookPort)
+					conf.Spec.Conversion.Webhook.ClientConfig.Service.Port = pointer.Int32(servicePort)
 				}
 			}
 

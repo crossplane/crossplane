@@ -54,7 +54,8 @@ type FunctionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 	v1.PackageStatus       `json:",inline"`
 
-	// Endpoint is the gRPC endpoint where Crossplane will send RunFunctionRequests.
+	// Endpoint is the gRPC endpoint where Crossplane will send
+	// RunFunctionRequests.
 	Endpoint string `json:"endpoint,omitempty"`
 }
 
@@ -86,10 +87,16 @@ type FunctionRevision struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   v1.PackageRevisionSpec   `json:"spec,omitempty"`
-	Status v1.PackageRevisionStatus `json:"status,omitempty"`
+	Spec   v1.PackageRevisionSpec `json:"spec,omitempty"`
+	Status FunctionRevisionStatus `json:"status,omitempty"`
+}
 
-	// Endpoint is the gRPC endpoint where Crossplane will send RunFunctionRequests.
+// FunctionRevisionStatus represents the observed state of a FunctionRevision.
+type FunctionRevisionStatus struct {
+	v1.PackageRevisionStatus `json:",inline"`
+
+	// Endpoint is the gRPC endpoint where Crossplane will send
+	// RunFunctionRequests.
 	Endpoint string `json:"endpoint,omitempty"`
 }
 

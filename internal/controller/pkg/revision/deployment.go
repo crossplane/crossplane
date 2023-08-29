@@ -50,7 +50,10 @@ const (
 	webhookTLSCertDirEnvVar = "WEBHOOK_TLS_CERT_DIR"
 	webhookTLSCertDir       = "/webhook/tls"
 	webhookPortName         = "webhook"
-	webhookPort             = 9443
+
+	grpcPortName       = "grpc"
+	servicePort        = 9443
+	serviceEndpointFmt = "https://%s.%s:%d"
 
 	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
 	essCertsVolumeName  = "ess-client-certs"
@@ -203,7 +206,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 
 		port := corev1.ContainerPort{
 			Name:          webhookPortName,
-			ContainerPort: webhookPort,
+			ContainerPort: servicePort,
 		}
 		d.Spec.Template.Spec.Containers[0].Ports = append(d.Spec.Template.Spec.Containers[0].Ports,
 			port)
@@ -299,6 +302,10 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 								{
 									Name:          promPortName,
 									ContainerPort: promPortNumber,
+								},
+								{
+									Name:          grpcPortName,
+									ContainerPort: servicePort,
 								},
 							},
 						},
@@ -457,8 +464,8 @@ func getService(name, namespace string, owners []metav1.OwnerReference, matchLab
 			Ports: []corev1.ServicePort{
 				{
 					Protocol:   corev1.ProtocolTCP,
-					Port:       9443,
-					TargetPort: intstr.FromInt(9443),
+					Port:       servicePort,
+					TargetPort: intstr.FromInt(servicePort),
 				},
 			},
 		},

@@ -312,6 +312,10 @@ func deploymentFunction(function *pkgmetav1alpha1.Function, revision string, img
 									Name:          promPortName,
 									ContainerPort: promPortNumber,
 								},
+								{
+									Name:          grpcPortName,
+									ContainerPort: servicePort,
+								},
 							},
 							Env: []corev1.EnvVar{
 								{
@@ -529,7 +533,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 						MountPath: webhookTLSCertDir,
 					}),
 					withAdditionalEnvVar(corev1.EnvVar{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir}),
-					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: webhookPort}),
+					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: servicePort}),
 				),
 				svc: service(providerWithImage, revisionWithoutCCWithWebhook),
 				ss:  secretServer(revisionWithoutCC),

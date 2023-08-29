@@ -18,11 +18,13 @@ package revision
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -1259,6 +1261,11 @@ func TestHookPost(t *testing.T) {
 				},
 				pkg: &pkgmetav1alpha1.Function{},
 				rev: &v1alpha1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							v1.LabelParentPackage: "my-function",
+						},
+					},
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -1267,9 +1274,18 @@ func TestHookPost(t *testing.T) {
 			},
 			want: want{
 				rev: &v1alpha1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							v1.LabelParentPackage: "my-function",
+						},
+					},
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
+					},
+					Status: v1alpha1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{},
+						Endpoint:              fmt.Sprintf(serviceEndpointFmt, "my-function", namespace, servicePort),
 					},
 				},
 				err: errors.Errorf("%s: %s", errUnavailableFunctionDeployment, errBoom.Error()),
@@ -1322,6 +1338,11 @@ func TestHookPost(t *testing.T) {
 				},
 				pkg: &pkgmetav1alpha1.Function{},
 				rev: &v1alpha1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							v1.LabelParentPackage: "my-function",
+						},
+					},
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
@@ -1330,9 +1351,18 @@ func TestHookPost(t *testing.T) {
 			},
 			want: want{
 				rev: &v1alpha1.FunctionRevision{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{
+							v1.LabelParentPackage: "my-function",
+						},
+					},
 					Spec: v1.PackageRevisionSpec{
 						DesiredState:        v1.PackageRevisionActive,
 						TLSServerSecretName: &tlsServerSecret,
+					},
+					Status: v1alpha1.FunctionRevisionStatus{
+						PackageRevisionStatus: v1.PackageRevisionStatus{},
+						Endpoint:              fmt.Sprintf(serviceEndpointFmt, "my-function", namespace, servicePort),
 					},
 				},
 			},
