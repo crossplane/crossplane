@@ -39,17 +39,15 @@ type ComposedResource struct {
 	Ready bool
 }
 
-// ComposedResourceState tracks the state of a composed resource through the
-// Composition process.
+// ComposedResourceState represents a composed resource (either desired or
+// observed)..
 type ComposedResourceState struct {
-	// State that is returned to the caller.
-	ComposedResource
-
-	// Things used to produce a composed resource.
-	Template *v1.ComposedTemplate
-
-	// The state of the composed resource.
-	SuccessfullyRendered bool
-	Resource             resource.Composed
-	ConnectionDetails    managed.ConnectionDetails
+	Resource          resource.Composed
+	ConnectionDetails managed.ConnectionDetails
 }
+
+// ComposedResourceStates tracks the state of composed resources.
+type ComposedResourceStates map[ResourceName]ComposedResourceState
+
+// ComposedResourceTemplates are the P&T templates for composed resources.
+type ComposedResourceTemplates map[ResourceName]v1.ComposedTemplate

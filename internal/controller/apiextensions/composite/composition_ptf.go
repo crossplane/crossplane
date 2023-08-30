@@ -115,47 +115,32 @@ func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fn
 	return fn(ctx, name, req)
 }
 
-// TODO(negz): Better name for 'Resource'. ComposedResourceState and
-// ComposedResource are both already taken. :/
-
-// An Resource is an existing, observed composed resource.
-type Resource struct {
-	Resource          resource.Composed
-	ConnectionDetails managed.ConnectionDetails
-}
-
-// Resources are composed resources.
-type Resources map[ResourceName]Resource
-
-// ComposedResourceTemplates are the P&T templates for composed resources.
-type ComposedResourceTemplates map[ResourceName]v1.ComposedTemplate
-
 // A ComposedResourceObserver observes existing composed resources.
 type ComposedResourceObserver interface {
-	ObserveComposedResources(ctx context.Context, xr resource.Composite) (Resources, error)
+	ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
 }
 
 // A ComposedResourceObserverFn observes existing composed resources.
-type ComposedResourceObserverFn func(ctx context.Context, xr resource.Composite) (Resources, error)
+type ComposedResourceObserverFn func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error)
 
 // ObserveComposedResources observes existing composed resources.
-func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr resource.Composite) (Resources, error) {
+func (fn ComposedResourceObserverFn) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 	return fn(ctx, xr)
 }
 
 // A ComposedResourceGarbageCollector deletes observed composed resources that
 // are no longer desired.
 type ComposedResourceGarbageCollector interface {
-	GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired Resources) error
+	GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error
 }
 
 // A ComposedResourceGarbageCollectorFn deletes observed composed resources that
 // are no longer desired.
-type ComposedResourceGarbageCollectorFn func(ctx context.Context, owner metav1.Object, observed, desired Resources) error
+type ComposedResourceGarbageCollectorFn func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error
 
 // GarbageCollectComposedResources deletes observed composed resources that are
 // no longer desired.
-func (fn ComposedResourceGarbageCollectorFn) GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+func (fn ComposedResourceGarbageCollectorFn) GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 	return fn(ctx, owner, observed, desired)
 }
 
@@ -298,7 +283,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	}
 
 	events := []event.Event{}
-	desired := Resources{}
+	desired := ComposedResourceStates{}
 
 	// NOTE(negz): There's a behavior change here compared to the PTComposer. It
 	// iterates over its composed resources in order. We do too, but the the
@@ -333,6 +318,12 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		// error when a patch failed we might never reach the patch that would
 		// unblock it.
 
+		// TODO(negz): I think we need to append these resources that are
+		// desired by the P&T pipeline but that failed to render to the list of
+		// composed resources that we return. If we don't the Renderer won't
+		// know they exist, and thus won't know to use them to figure out
+		// whether the XR is ready.
+
 		if err := RenderFromEnvironmentPatches(cd, req.Environment, ct.Patches); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)))
 			continue
@@ -348,7 +339,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 			continue
 		}
 
-		desired[name] = Resource{Resource: cd}
+		desired[name] = ComposedResourceState{Resource: cd}
 	}
 
 	// Build the initial desired state to be passed to our Composition Function
@@ -418,7 +409,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 			return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name)
 		}
 
-		desired[ResourceName(name)] = Resource{Resource: cd, ConnectionDetails: dr.GetConnectionDetails()}
+		desired[ResourceName(name)] = ComposedResourceState{Resource: cd, ConnectionDetails: dr.GetConnectionDetails()}
 	}
 
 	// NOTE(negz): There's a behavior change here relative to the PTComposer.
@@ -550,8 +541,8 @@ func NewExistingComposedResourceObserver(c client.Reader, f managed.ConnectionDe
 // ObserveComposedResources begins building composed resource state by
 // fetching any existing composed resources referenced by the supplied composite
 // resource, as well as their connection details.
-func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr resource.Composite) (Resources, error) {
-	ors := Resources{}
+func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+	ors := ComposedResourceStates{}
 
 	for _, ref := range xr.GetResourceReferences() {
 		// The PTComposer writes references to resources that it didn't actually
@@ -593,7 +584,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 			return nil, errors.Wrapf(err, errFmtFetchCDConnectionDetails, name, r.GetKind(), r.GetName())
 		}
 
-		ors[name] = Resource{Resource: r, ConnectionDetails: conn}
+		ors[name] = ComposedResourceState{Resource: r, ConnectionDetails: conn}
 	}
 
 	return ors, nil
@@ -601,7 +592,7 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
-func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs Resources) (*fnv1beta1.State, error) {
+func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1beta1.State, error) {
 	r, err := AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
@@ -714,8 +705,8 @@ func NewDeletingComposedResourceGarbageCollector(c client.Writer) *DeletingCompo
 // GarbageCollectComposedResources deletes any composed resource that didn't
 // come out the other end of the Composition Function pipeline (i.e. that wasn't
 // in the final desired state after running the pipeline) from the API server.
-func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
-	del := Resources{}
+func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResources(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
+	del := ComposedResourceStates{}
 	for name, cd := range observed {
 		if _, ok := desired[name]; !ok {
 			del[name] = cd
@@ -738,7 +729,7 @@ func (d *DeletingComposedResourceGarbageCollector) GarbageCollectComposedResourc
 
 // UpdateResourceRefs updates the supplied state to ensure the XR references all
 // composed resources that exist or are pending creation.
-func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired Resources) {
+func UpdateResourceRefs(xr resource.ComposedResourcesReferencer, desired ComposedResourceStates) {
 	refs := make([]corev1.ObjectReference, 0, len(desired))
 	for _, dr := range desired {
 		ref := meta.ReferenceTo(dr.Resource, dr.Resource.GetObjectKind().GroupVersionKind())

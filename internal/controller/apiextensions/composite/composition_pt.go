@@ -156,7 +156,15 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 }
 
 // Compose resources using the bases, patches, and transforms specified by the
-// supplied Composition.
+// supplied Composition. This reconciler supports only Patch & Transform
+// Composition (not the Function pipeline). It does this in roughly four steps:
+//
+//  1. Figure out which templates are associated with which existing composed
+//     resources, if any.
+//  2. Render from those templates into new or existing composed resources.
+//  3. Apply all composed resources that rendered successfully.
+//  4. Observe the readiness and connection details of all composed resources
+//     that rendered successfully.
 func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // Breaking this up doesn't seem worth yet more layers of abstraction.
 	// Inline PatchSets before composing resources.
 	ct, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
@@ -164,6 +172,13 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errInline)
 	}
 
+	// Figure out which templates are associated with which existing composed
+	// resources. This results in an array of templates associated with an array
+	// of entries in the XR's spec.resourceRefs array. If we're using a
+	// Composition with anonymous resource templates they'll be associated
+	// strictly by order. If we're using a Composition with named resource
+	// templates we'll be able to instead read the template name annotation from
+	// the composed resources to make the annotation.
 	tas, err := c.composition.AssociateTemplates(ctx, xr, ct)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errAssociate)
@@ -187,7 +202,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	// input. Errors are recorded, but not considered fatal to the composition
 	// process.
 	refs := make([]corev1.ObjectReference, len(tas))
-	cds := make([]ComposedResourceState, len(tas))
+	cds := make([]resource.Composed, len(tas))
 	for i := range tas {
 		ta := tas[i]
 
@@ -228,13 +243,14 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 			rendered = false
 		}
 
-		cds[i] = ComposedResourceState{
-			ComposedResource:     ComposedResource{ResourceName: ResourceName(name)},
-			SuccessfullyRendered: rendered,
-			Template:             &ta.Template,
-			Resource:             r,
-		}
+		// We record a reference even if we didn't render the resource because
+		// we'll determine what composed
 		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
+
+		// We only need the composed resource if it rendered correctly.
+		if rendered {
+			cds[i] = r
+		}
 	}
 
 	// We persist references to our composed resources before we create
@@ -249,17 +265,21 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 	// We apply all of our composed resources before we observe them and update
 	// in the loop below. This ensures that issues observing and processing one
 	// composed resource won't block the application of another.
-	for _, cd := range cds {
+	for i := range tas {
+		t := tas[i].Template
+		cd := cds[i]
+
 		// If we were unable to render the composed resource we should not try
 		// and apply it. The risk of doing so is that we successfully apply a
 		// partially-rendered composed resource that we can't later fix (e.g.
 		// due to an immutable field).
-		if !cd.SuccessfullyRendered {
+		if cd == nil {
 			continue
 		}
+
 		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
-		o = append(o, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
-		if err := c.client.Apply(ctx, cd.Resource, o...); err != nil {
+		o = append(o, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))...)
+		if err := c.client.Apply(ctx, cd, o...); err != nil {
 			// TODO(negz): Include the template name (if any) in this error.
 			// Including the rendered resource's kind may help too (e.g. if the
 			// template is anonymous).
@@ -267,39 +287,52 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 	}
 
-	conn := managed.ConnectionDetails{}
-	for i := range cds {
+	// Produce our array of composed resources to return to the Reconciler. The
+	// Reconciler uses this array to determine whether the XR is ready. This
+	// means it's important that we return a composed resource for every entry
+	// in tas - i.e. a composed resource for every resource template.
+	composed := make([]ComposedResource, len(tas))
+	xrConnDetails := managed.ConnectionDetails{}
+	for i := range tas {
+		t := tas[i].Template
+		cd := cds[i]
+
+		// If this resource is anonymous its "name" is just its index within the
+		// array of composed resource templates.
+		name := ResourceName(pointer.StringDeref(t.Name, strconv.Itoa(i)))
+
 		// If we were unable to render the composed resource we should not try
-		// to observe it.
-		if !cds[i].SuccessfullyRendered {
+		// to observe it. We still want to return it to the Reconciler so that
+		// it knows that this desired composed resource is not ready.
+		if cd == nil {
+			composed[i] = ComposedResource{ResourceName: name, Ready: false}
 			continue
 		}
 
-		// If this resource is anonymous its "name" is just its index.
-		name := pointer.StringDeref(cds[i].Template.Name, strconv.Itoa(i))
-
-		if err := RenderToCompositePatches(xr, cds[i].Resource, cds[i].Template.Patches); err != nil {
+		if err := RenderToCompositePatches(xr, cd, t.Patches); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtRenderToCompositePatches, name)
 		}
 
-		cds[i].ConnectionDetails, err = c.composed.FetchConnection(ctx, cds[i].Resource)
+		cdConnDetails, err := c.composed.FetchConnection(ctx, cd)
 		if err != nil {
 			return CompositionResult{}, errors.Wrap(err, errFetchDetails)
 		}
 
-		e, err := c.composed.ExtractConnection(cds[i].Resource, cds[i].ConnectionDetails, ExtractConfigsFromComposedTemplate(cds[i].Template)...)
+		extracted, err := c.composed.ExtractConnection(cd, cdConnDetails, ExtractConfigsFromComposedTemplate(&t)...)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtExtractDetails, name)
 		}
 
-		for key, val := range e {
-			conn[key] = val
+		for key, val := range extracted {
+			xrConnDetails[key] = val
 		}
 
-		cds[i].Ready, err = c.composed.IsReady(ctx, cds[i].Resource, ReadinessChecksFromComposedTemplate(cds[i].Template)...)
+		ready, err := c.composed.IsReady(ctx, cd, ReadinessChecksFromComposedTemplate(&t)...)
 		if err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtCheckReadiness, name)
 		}
+
+		composed[i] = ComposedResource{ResourceName: name, Ready: ready}
 	}
 
 	// Call Apply so that we do not just replace fields on existing XR but
@@ -320,12 +353,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	out := make([]ComposedResource, len(cds))
-	for i := range cds {
-		out[i] = cds[i].ComposedResource
-	}
-
-	return CompositionResult{ConnectionDetails: conn, Composed: out, Events: events}, nil
+	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: composed, Events: events}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,

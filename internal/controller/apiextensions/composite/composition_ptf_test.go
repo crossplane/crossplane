@@ -129,7 +129,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, errBoom
 					})),
 				},
@@ -148,7 +148,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -179,7 +179,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 				},
@@ -211,7 +211,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -245,7 +245,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -283,7 +283,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -322,7 +322,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -370,7 +370,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -422,7 +422,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -478,7 +478,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -506,7 +506,7 @@ func TestPTFCompose(t *testing.T) {
 						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
 					})),
 					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return errBoom
 					})),
 				},
@@ -541,7 +541,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -556,7 +556,7 @@ func TestPTFCompose(t *testing.T) {
 						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
 					})),
 					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
 				},
@@ -596,7 +596,7 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return nil, nil
 					})),
 					WithFunctionRunner(FunctionRunnerFn(func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (rsp *fnv1beta1.RunFunctionResponse, err error) {
@@ -624,7 +624,7 @@ func TestPTFCompose(t *testing.T) {
 						return &fnv1beta1.RunFunctionResponse{Desired: d}, nil
 					})),
 					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
 				},
@@ -664,13 +664,13 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						// We only try to extract connection details for
 						// observed resources.
-						return Resources{"uncool-resource": Resource{Resource: &fake.Composed{}}}, nil
+						return ComposedResourceStates{"uncool-resource": ComposedResourceState{Resource: &fake.Composed{}}}, nil
 					})),
 					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
 					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
@@ -729,13 +729,13 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						// We only try to extract connection details for
 						// observed resources.
-						return Resources{"uncool-resource": Resource{Resource: &fake.Composed{}}}, nil
+						return ComposedResourceStates{"uncool-resource": ComposedResourceState{Resource: &fake.Composed{}}}, nil
 					})),
 					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
 					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
@@ -797,16 +797,16 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						// We only try to extract connection details for
 						// observed resources.
-						r := Resources{
-							"observed-resource-a": Resource{
+						r := ComposedResourceStates{
+							"observed-resource-a": ComposedResourceState{
 								Resource: &fake.Composed{
 									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
 								},
 							},
-							"observed-resource-b": Resource{
+							"observed-resource-b": ComposedResourceState{
 								Resource: &fake.Composed{
 									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-b"},
 								},
@@ -815,7 +815,7 @@ func TestPTFCompose(t *testing.T) {
 						return r, nil
 					})),
 					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
 					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
@@ -897,11 +897,11 @@ func TestPTFCompose(t *testing.T) {
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (Resources, error) {
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						// We only try to extract connection details for
 						// observed resources.
-						r := Resources{
-							"observed-resource-a": Resource{
+						r := ComposedResourceStates{
+							"observed-resource-a": ComposedResourceState{
 								Resource: &fake.Composed{
 									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
 								},
@@ -958,7 +958,7 @@ func TestPTFCompose(t *testing.T) {
 						}
 						return rsp, nil
 					})),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired Resources) error {
+					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
 						return nil
 					})),
 				},
@@ -1059,7 +1059,7 @@ func TestGetComposedResources(t *testing.T) {
 	}
 
 	type want struct {
-		ors Resources
+		ors ComposedResourceStates
 		err error
 	}
 
@@ -1234,7 +1234,7 @@ func TestGetComposedResources(t *testing.T) {
 				},
 			},
 			want: want{
-				ors: Resources{"cool-resource": Resource{
+				ors: ComposedResourceStates{"cool-resource": ComposedResourceState{
 					ConnectionDetails: details,
 					Resource: func() resource.Composed {
 						cd := composed.New()
@@ -1271,7 +1271,7 @@ func TestAsState(t *testing.T) {
 	type args struct {
 		xr resource.Composite
 		xc managed.ConnectionDetails
-		rs Resources
+		rs ComposedResourceStates
 	}
 	type want struct {
 		d   *fnv1beta1.State
@@ -1292,8 +1292,8 @@ func TestAsState(t *testing.T) {
 					Kind:    "Composite",
 				})),
 				xc: managed.ConnectionDetails{"a": []byte("b")},
-				rs: Resources{
-					"cool-resource": Resource{
+				rs: ComposedResourceStates{
+					"cool-resource": ComposedResourceState{
 						Resource: composed.New(composed.FromReference(corev1.ObjectReference{
 							APIVersion: "example.org/v2",
 							Kind:       "Composed",
@@ -1547,8 +1547,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 	type args struct {
 		ctx      context.Context
 		owner    metav1.Object
-		observed Resources
-		desired  Resources
+		observed ComposedResourceStates
+		desired  ComposedResourceStates
 	}
 
 	type want struct {
@@ -1575,8 +1575,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 						UID: "cool-xr",
 					},
 				},
-				observed: Resources{
-					"undesired-resource": Resource{Resource: &fake.Composed{}},
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{Resource: &fake.Composed{}},
 				},
 			},
 			want: want{
@@ -1596,8 +1596,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 						UID: "cool-xr",
 					},
 				},
-				observed: Resources{
-					"undesired-resource": Resource{
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
@@ -1627,8 +1627,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 						UID: "cool-xr",
 					},
 				},
-				observed: Resources{
-					"undesired-resource": Resource{
+				observed: ComposedResourceStates{
+					"undesired-resource": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
@@ -1659,8 +1659,8 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 						UID: "cool-xr",
 					},
 				},
-				observed: Resources{
-					"desired-resource": Resource{
+				observed: ComposedResourceStates{
+					"desired-resource": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								// This resource is controlled by the XR.
@@ -1672,9 +1672,9 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 						},
 					},
 				},
-				desired: Resources{
+				desired: ComposedResourceStates{
 					// The observed resource above is also desired.
-					"desired-resource": Resource{},
+					"desired-resource": ComposedResourceState{},
 				},
 			},
 			want: want{
@@ -1699,7 +1699,7 @@ func TestGarbageCollectComposedResources(t *testing.T) {
 func TestUpdateResourceRefs(t *testing.T) {
 	type args struct {
 		xr  resource.ComposedResourcesReferencer
-		drs Resources
+		drs ComposedResourceStates
 	}
 
 	type want struct {
@@ -1715,22 +1715,22 @@ func TestUpdateResourceRefs(t *testing.T) {
 			reason: "We should return a consistently ordered set of references.",
 			args: args{
 				xr: &fake.Composite{},
-				drs: Resources{
-					"never-created-c": Resource{
+				drs: ComposedResourceStates{
+					"never-created-c": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "never-created-c-42",
 							},
 						},
 					},
-					"never-created-b": Resource{
+					"never-created-b": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "never-created-b-42",
 							},
 						},
 					},
-					"never-created-a": Resource{
+					"never-created-a": ComposedResourceState{
 						Resource: &fake.Composed{
 							ObjectMeta: metav1.ObjectMeta{
 								Name: "never-created-a-42",
