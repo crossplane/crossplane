@@ -636,6 +636,8 @@ func AsStruct(o runtime.Object) (*structpb.Struct, error) {
 }
 
 // FromStruct populates the supplied object with content loaded from the Struct.
+// It does this by round-tripping the object through JSON.
+// https://github.com/golang/protobuf/issues/1302#issuecomment-827092288.
 func FromStruct(o runtime.Object, s *structpb.Struct) error {
 	b, err := protojson.Marshal(s)
 	if err != nil {
