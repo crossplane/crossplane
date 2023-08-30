@@ -110,6 +110,9 @@ func TestPTFCompose(t *testing.T) {
 			reason: "We should return any error encountered while fetching the XR's connection details.",
 			params: params{
 				o: []PTFComposerOption{
+					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
+						return ComposedResourceStates{}, nil
+					})),
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, errBoom
 					})),
