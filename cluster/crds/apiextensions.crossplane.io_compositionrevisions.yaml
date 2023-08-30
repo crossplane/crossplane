@@ -108,6 +108,17 @@ spec:
                                   key:
                                     description: Key of the label to match.
                                     type: string
+                                  policy:
+                                    description: FromFieldPathPolicy specifies how
+                                      to patch from a field path. The default is 'Required',
+                                      which means the patch should fail if the path
+                                      specified via valueFromFieldPath does not exist.
+                                      Use 'Ignore' if instead you want it to result
+                                      in a no-op.
+                                    enum:
+                                    - Optional
+                                    - Required
+                                    type: string
                                   type:
                                     default: FromCompositeFieldPath
                                     description: Type specifies where the value for
@@ -1602,6 +1613,17 @@ spec:
                                 properties:
                                   key:
                                     description: Key of the label to match.
+                                    type: string
+                                  policy:
+                                    description: FromFieldPathPolicy specifies how
+                                      to patch from a field path. The default is 'Required',
+                                      which means the patch should fail if the path
+                                      specified via valueFromFieldPath does not exist.
+                                      Use 'Ignore' if instead you want it to result
+                                      in a no-op.
+                                    enum:
+                                    - Optional
+                                    - Required
                                     type: string
                                   type:
                                     default: FromCompositeFieldPath

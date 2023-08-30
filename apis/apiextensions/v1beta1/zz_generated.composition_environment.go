@@ -241,8 +241,21 @@ type EnvironmentSourceSelectorLabelMatcher struct {
 	// ValueFromFieldPath specifies the field path to look for the label value.
 	ValueFromFieldPath *string `json:"valueFromFieldPath,omitempty"`
 
+	// FromFieldPathPolicy specifies how to patch from a field path. The default is
+	// 'Required', which means the patch should fail if the path specified via valueFromFieldPath does not exist.
+	// Use 'Ignore' if instead you want it to result in a no-op.
+	// +kubebuilder:validation:Enum=Optional;Required
+	// +optional
+	FromFieldPathPolicy *FromFieldPathPolicy `json:"policy,omitempty"`
+
 	// Value specifies a literal label value.
 	Value *string `json:"value,omitempty"`
+}
+
+// FromFieldPathIsOptional returns true if the FromFieldPathPolicy is set to
+// Optional.
+func (e *EnvironmentSourceSelectorLabelMatcher) FromFieldPathIsOptional() bool {
+	return e.FromFieldPathPolicy != nil && *e.FromFieldPathPolicy == FromFieldPathPolicyOptional
 }
 
 // GetType returns the type of the label matcher, returning the default if not set.

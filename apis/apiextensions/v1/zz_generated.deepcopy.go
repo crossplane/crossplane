@@ -940,6 +940,11 @@ func (in *EnvironmentSourceSelectorLabelMatcher) DeepCopyInto(out *EnvironmentSo
 		*out = new(string)
 		**out = **in
 	}
+	if in.FromFieldPathPolicy != nil {
+		in, out := &in.FromFieldPathPolicy, &out.FromFieldPathPolicy
+		*out = new(FromFieldPathPolicy)
+		**out = **in
+	}
 	if in.Value != nil {
 		in, out := &in.Value, &out.Value
 		*out = new(string)

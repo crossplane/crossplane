@@ -114,15 +114,18 @@ func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromRef(ref *v1.Enviro
 }
 
 func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.Composite, ml []v1.EnvironmentSourceSelectorLabelMatcher) (*v1alpha1.EnvironmentConfigList, error) {
+	res := &v1alpha1.EnvironmentConfigList{}
 	matchLabels := make(client.MatchingLabels, len(ml))
 	for i, m := range ml {
 		val, err := ResolveLabelValue(m, cr)
 		if err != nil {
+			if fieldpath.IsNotFound(err) && m.FromFieldPathIsOptional() {
+				return res, nil
+			}
 			return nil, errors.Wrapf(err, errFmtResolveLabelValue, i)
 		}
 		matchLabels[m.Key] = val
 	}
-	res := &v1alpha1.EnvironmentConfigList{}
 	if err := s.kube.List(ctx, res, matchLabels); err != nil {
 		return nil, errors.Wrap(err, errListEnvironmentConfigs)
 	}
@@ -132,7 +135,7 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 func (s *APIEnvironmentSelector) buildEnvironmentConfigRefFromSelector(cl *v1alpha1.EnvironmentConfigList, selector *v1.EnvironmentSourceSelector) ([]corev1.ObjectReference, error) {
 	ec := make([]v1alpha1.EnvironmentConfig, 0)
 
-	if len(cl.Items) == 0 {
+	if cl == nil || len(cl.Items) == 0 {
 		return []corev1.ObjectReference{}, nil
 	}
 
