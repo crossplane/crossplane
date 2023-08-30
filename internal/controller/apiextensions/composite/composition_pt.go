@@ -244,7 +244,11 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 
 		// We record a reference even if we didn't render the resource because
-		// we'll determine what composed
+		// if it already exists we don't want to drop our reference to it (and
+		// thus not know about it next reconcile). If we're using anonymous
+		// resource templates we also need to record a reference even if it's
+		// empty, so that our XR's spec.resourceRefs remains the same length and
+		// order as our CompositionRevisions's array of templates.
 		refs[i] = *meta.ReferenceTo(r, r.GetObjectKind().GroupVersionKind())
 
 		// We only need the composed resource if it rendered correctly.
@@ -310,6 +314,9 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 
 		if err := RenderToCompositePatches(xr, cd, t.Patches); err != nil {
+			// Failures to render ToComposite patches are terminal because this
+			// indicates a Required ToCompositeFieldPath patch failed; i.e. the
+			// composite was _required_ to be patched, but wasn't.
 			return CompositionResult{}, errors.Wrapf(err, errFmtRenderToCompositePatches, name)
 		}
 

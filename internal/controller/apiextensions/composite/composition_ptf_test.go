@@ -713,7 +713,7 @@ func TestPTFCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtExtractConnectionDetails, "uncool-resource", "UncoolComposed", ""),
+				err: errors.Wrapf(errBoom, errFmtExtractConnectionDetails, "uncool-resource", "", ""),
 			},
 		},
 		"CheckComposedResourceReadinessError": {
@@ -781,7 +781,7 @@ func TestPTFCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errFmtReadiness, "uncool-resource", "UncoolComposed", ""),
+				err: errors.Wrapf(errBoom, errFmtReadiness, "uncool-resource", "", ""),
 			},
 		},
 		"SuccessfulPatchAndTransformOnly": {

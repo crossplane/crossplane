@@ -40,7 +40,7 @@ type ComposedResource struct {
 }
 
 // ComposedResourceState represents a composed resource (either desired or
-// observed)..
+// observed).
 type ComposedResourceState struct {
 	Resource          resource.Composed
 	ConnectionDetails managed.ConnectionDetails
