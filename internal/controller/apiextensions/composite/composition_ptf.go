@@ -284,6 +284,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 
 	events := []event.Event{}
 	desired := ComposedResourceStates{}
+	resources := make([]ComposedResource, 0, len(cts))
 
 	// NOTE(negz): There's a behavior change here compared to the PTComposer. It
 	// iterates over its composed resources in order. We do too, but the the
@@ -318,24 +319,21 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		// error when a patch failed we might never reach the patch that would
 		// unblock it.
 
-		// TODO(negz): I think we need to append these resources that are
-		// desired by the P&T pipeline but that failed to render to the list of
-		// composed resources that we return. If we don't the Renderer won't
-		// know they exist, and thus won't know to use them to figure out
-		// whether the XR is ready.
-
 		if err := RenderFromEnvironmentPatches(cd, req.Environment, ct.Patches); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)))
+			resources = append(resources, ComposedResource{ResourceName: name, Ready: false})
 			continue
 		}
 
 		if err := RenderFromCompositePatches(cd, xr, ct.Patches); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromEnvironmentPatches, name)))
+			resources = append(resources, ComposedResource{ResourceName: name, Ready: false})
 			continue
 		}
 
 		if err := RenderToCompositePatches(xr, cd, ct.Patches); err != nil {
 			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderToCompositePatches, name)))
+			resources = append(resources, ComposedResource{ResourceName: name, Ready: false})
 			continue
 		}
 
@@ -475,12 +473,11 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		}
 	}
 
-	out := make([]ComposedResource, 0, len(desired))
 	for name, dr := range desired {
 		if _, ok := observed[name]; !ok {
 			// There's no point trying to extract connection details from or
 			// check the readiness of a resource that doesn't exist yet.
-			out = append(out, ComposedResource{ResourceName: name, Ready: false})
+			resources = append(resources, ComposedResource{ResourceName: name, Ready: false})
 			continue
 		}
 
@@ -493,7 +490,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 			// resource, not only the ones it's aware of. This would also fight
 			// with the readiness logic built into the XR reconciler. Perhaps we
 			// need to include a ready boolean in the Function response?
-			out = append(out, ComposedResource{ResourceName: name, Ready: true})
+			resources = append(resources, ComposedResource{ResourceName: name, Ready: true})
 			continue
 		}
 
@@ -510,10 +507,10 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 			return CompositionResult{}, errors.Wrapf(err, errFmtReadiness, name, dr.Resource.GetObjectKind().GroupVersionKind().Kind, dr.Resource.GetName())
 		}
 
-		out = append(out, ComposedResource{ResourceName: name, Ready: ready})
+		resources = append(resources, ComposedResource{ResourceName: name, Ready: ready})
 	}
 
-	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: out, Events: events}, nil
+	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
 }
 
 func allPatches(ct []v1.ComposedTemplate) []v1.Patch {

@@ -287,11 +287,11 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 	}
 
-	// Produce our array of composed resources to return to the Reconciler. The
+	// Produce our array of resources resources to return to the Reconciler. The
 	// Reconciler uses this array to determine whether the XR is ready. This
-	// means it's important that we return a composed resource for every entry
-	// in tas - i.e. a composed resource for every resource template.
-	composed := make([]ComposedResource, len(tas))
+	// means it's important that we return a resources resource for every entry
+	// in tas - i.e. a resources resource for every resource template.
+	resources := make([]ComposedResource, len(tas))
 	xrConnDetails := managed.ConnectionDetails{}
 	for i := range tas {
 		t := tas[i].Template
@@ -305,7 +305,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		// to observe it. We still want to return it to the Reconciler so that
 		// it knows that this desired composed resource is not ready.
 		if cd == nil {
-			composed[i] = ComposedResource{ResourceName: name, Ready: false}
+			resources[i] = ComposedResource{ResourceName: name, Ready: false}
 			continue
 		}
 
@@ -332,7 +332,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 			return CompositionResult{}, errors.Wrapf(err, errFmtCheckReadiness, name)
 		}
 
-		composed[i] = ComposedResource{ResourceName: name, Ready: ready}
+		resources[i] = ComposedResource{ResourceName: name, Ready: ready}
 	}
 
 	// Call Apply so that we do not just replace fields on existing XR but
@@ -353,7 +353,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		return CompositionResult{}, errors.Wrap(err, errUpdate)
 	}
 
-	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: composed, Events: events}, nil
+	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
 }
 
 // toXRPatchesFromTAs selects patches defined in composed templates,
