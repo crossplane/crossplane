@@ -497,14 +497,16 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	// with anonymous templates. Composition validation ensures that a
 	// Composition that uses functions must have named resources templates.
 	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
+		// TODO(negz): This FallbackComposer needs to fall back if there are any
+		// resources in the resources array.
 		fb := composite.NewFallBackComposer(
-			composite.NewPTFComposer(c,
+			composite.NewFunctionComposer(c,
 				composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
 				composite.WithCompositeConnectionDetailsFetcher(fetcher),
 				composite.WithFunctionRunner(composite.NewPackagedFunctionRunner(c, credentials.NewTLS(co.ClientTLS))),
 			),
 			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),
-			composite.FallBackForAnonymousTemplates(c),
+			composite.FallBackForPatchAndTransform(c),
 		)
 
 		// Note that if external secret stores are enabled this will supercede

@@ -42,7 +42,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
-	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 )
@@ -67,7 +66,6 @@ const (
 	errFmtRunPipelineStep            = "cannot run Composition pipeline step %q"
 	errFmtDeleteCD                   = "cannot delete composed resource %q (a %s named %s)"
 	errFmtReadiness                  = "cannot determine whether composed resource %q (a %s named %s) is ready"
-	errFmtExtractConnectionDetails   = "cannot extract connection details from composed resource %q (a %s named %s)"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
 	errFmtGetFunction                = "cannot determine Function gRPC endpoint: cannot get Function %q"
@@ -77,12 +75,9 @@ const (
 	errFmtRunFunction                = "cannot run function %q"
 )
 
-// A PTFComposer (i.e. Patch, Transform, and Function Composer) supports
-// composing resources using both Patch and Transform (P&T) logic and a pipeline
-// of Composition Functions. Callers may mix P&T with Composition Functions or
-// use only one or the other. It does not support anonymous, unnamed resource
-// templates and will panic if it encounters one.
-type PTFComposer struct {
+// A FunctionComposer supports composing resources using a pipeline of
+// Composition Functions. It ignores the P&T resources array.
+type FunctionComposer struct {
 	client    resource.ClientApplicator
 	composite ptfComposite
 	composed  ptfComposed
@@ -144,75 +139,75 @@ func (fn ComposedResourceGarbageCollectorFn) GarbageCollectComposedResources(ctx
 	return fn(ctx, owner, observed, desired)
 }
 
-// A PTFComposerOption is used to configure a PTFComposer.
-type PTFComposerOption func(*PTFComposer)
+// A FunctionComposerOption is used to configure a FunctionComposer.
+type FunctionComposerOption func(*FunctionComposer)
 
-// WithCompositeConnectionDetailsFetcher configures how the PTFComposer should
+// WithCompositeConnectionDetailsFetcher configures how the FunctionComposer should
 // get the composite resource's connection details.
-func WithCompositeConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) PTFComposerOption {
-	return func(p *PTFComposer) {
+func WithCompositeConnectionDetailsFetcher(f managed.ConnectionDetailsFetcher) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.composite.ConnectionDetailsFetcher = f
 	}
 }
 
-// WithComposedResourceObserver configures how the PTFComposer should get existing
+// WithComposedResourceObserver configures how the FunctionComposer should get existing
 // composed resources.
-func WithComposedResourceObserver(g ComposedResourceObserver) PTFComposerOption {
-	return func(p *PTFComposer) {
+func WithComposedResourceObserver(g ComposedResourceObserver) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.composite.ComposedResourceObserver = g
 	}
 }
 
-// WithComposedResourceGarbageCollector configures how the PTFComposer should
+// WithComposedResourceGarbageCollector configures how the FunctionComposer should
 // garbage collect undesired composed resources.
-func WithComposedResourceGarbageCollector(d ComposedResourceGarbageCollector) PTFComposerOption {
-	return func(p *PTFComposer) {
+func WithComposedResourceGarbageCollector(d ComposedResourceGarbageCollector) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.composite.ComposedResourceGarbageCollector = d
 	}
 }
 
-// WithDryRunRenderer configures how the PTFComposer should dry-run render
+// WithDryRunRenderer configures how the FunctionComposer should dry-run render
 // composed resources - i.e. by submitting them to the API server to generate a
 // name for them.
-func WithDryRunRenderer(r DryRunRenderer) PTFComposerOption {
-	return func(p *PTFComposer) {
+func WithDryRunRenderer(r DryRunRenderer) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.composed.DryRunRenderer = r
 	}
 }
 
-// WithReadinessChecker configures how the PTFComposer checks composed resource
+// WithReadinessChecker configures how the FunctionComposer checks composed resource
 // readiness.
-func WithReadinessChecker(c ReadinessChecker) PTFComposerOption {
-	return func(p *PTFComposer) {
+func WithReadinessChecker(c ReadinessChecker) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.composed.ReadinessChecker = c
 	}
 }
 
-// WithConnectionDetailsExtractor configures how a PTFComposer extracts XR
+// WithConnectionDetailsExtractor configures how a FunctionComposer extracts XR
 // connection details from a composed resource.
-func WithConnectionDetailsExtractor(c ConnectionDetailsExtractor) PTFComposerOption {
-	return func(p *PTFComposer) {
+func WithConnectionDetailsExtractor(c ConnectionDetailsExtractor) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.composed.ConnectionDetailsExtractor = c
 	}
 }
 
-// WithFunctionRunner configures how a PTFComposer runs Composition Functions.
-func WithFunctionRunner(r FunctionRunner) PTFComposerOption {
-	return func(p *PTFComposer) {
+// WithFunctionRunner configures how a FunctionComposer runs Composition Functions.
+func WithFunctionRunner(r FunctionRunner) FunctionComposerOption {
+	return func(p *FunctionComposer) {
 		p.pipeline = r
 	}
 }
 
-// NewPTFComposer returns a new Composer that supports composing resources using
+// NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
-func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
+func NewFunctionComposer(kube client.Client, o ...FunctionComposerOption) *FunctionComposer {
 	// TODO(negz): Can we avoid double-wrapping if the supplied client is
 	// already wrapped? Or just do away with unstructured.NewClient completely?
 	kube = unstructured.NewClient(kube)
 
 	f := NewSecretConnectionDetailsFetcher(kube)
 
-	c := &PTFComposer{
+	c := &FunctionComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
 		composite: ptfComposite{
@@ -222,9 +217,7 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 		},
 
 		composed: ptfComposed{
-			DryRunRenderer:             NewAPIDryRunRenderer(kube),
-			ReadinessChecker:           ReadinessCheckerFn(IsReady),
-			ConnectionDetailsExtractor: ConnectionDetailsExtractorFn(ExtractConnectionDetails),
+			DryRunRenderer: NewAPIDryRunRenderer(kube),
 		},
 
 		pipeline: NewPackagedFunctionRunner(kube, insecure.NewCredentials()),
@@ -237,27 +230,8 @@ func NewPTFComposer(kube client.Client, o ...PTFComposerOption) *PTFComposer {
 	return c
 }
 
-// Compose resources using both either the Patch & Transform style resources
-// array, the functions array, or both.
-func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
-	// Inline PatchSets before composing resources. We do this early because
-	// there's no point fetching existing composed resources etc if we're using
-	// a broken CompositionRevision.
-	cts, err := ComposedTemplates(req.Revision.Spec.PatchSets, req.Revision.Spec.Resources)
-	if err != nil {
-		return CompositionResult{}, errors.Wrap(err, errInline)
-	}
-
-	// If we have an environment, run all environment patches before composing
-	// resources.
-	if req.Environment != nil && req.Revision.Spec.Environment != nil {
-		for i, p := range req.Revision.Spec.Environment.Patches {
-			if err := ApplyEnvironmentPatch(p, xr, req.Environment); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtPatchEnvironment, i)
-			}
-		}
-	}
-
+// Compose resources using the Functions pipeline.
+func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) { //nolint:gocyclo // We probably don't want any further abstraction for the sake of reduced complexity.
 	// Observe our existing composed resources. We need to do this before we
 	// render any P&T templates, so that we can make sure we use the same
 	// composed resource names (as in, metadata.name) every time. We know what
@@ -269,96 +243,12 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		return CompositionResult{}, errors.Wrap(err, errGetExistingCDs)
 	}
 
-	// We build a map of resource name to composed resource template so we can
-	// later lookup the template (if any) for a desired resource after the
-	// Composition Function pipeline has run. We need the templates for things
-	// like assessing whether a composed resource is ready, and determining how
-	// to derive XR connection details from a composed resource.
-	templates := ComposedResourceTemplates{}
-	for _, t := range cts {
-		// It's safe to assume *t.Name will never be nil - we disable the
-		// PTFComposer if any composed resource template is not named.
-		templates[ResourceName(*t.Name)] = t
-	}
-
-	events := []event.Event{}
-	desired := ComposedResourceStates{}
-	failed := ComposedResourceStates{}
-
-	// Process any P&T-style composed resource templates. There's a behavior
-	// change here compared to the PTComposer, which always returns an array of
-	// composed resources of the same length and order as the array of composed
-	// resource templates. We don't need to do that because we don't support
-	// anonymous resource templates, which can only be associated to existing
-	// composed resources by matching their index in the XR's spec.resourceRefs
-	// array. It's also a lot harder for us to guarantee stable order - our
-	// Functions would have to guarantee stable order too.
-	for i := range cts {
-		ct := cts[i]
-		name := ResourceName(*ct.Name)
-		cd := composed.New()
-
-		// If this template corresponds to an existing observed resource we want
-		// to keep them associated. We copy only the namespace and name, not the
-		// entire observed state, because we're trying to produce only a partial
-		// 'overlay' of desired state.
-		if or, ok := observed[name]; ok {
-			cd.SetNamespace(or.Resource.GetNamespace())
-			cd.SetName(or.Resource.GetName())
-
-			// We want to patch _to_ the XR from observed composed resources,
-			// not from desired state that we've accumulated but not yet
-			// applied. This is because folks will typically be patching from a
-			// field that is set once the observed resource is applied such as
-			// its status. Failures to patch the XR are terminal. We don't want
-			// to apply the XR if a Required patch did not work, for example.
-			if err := RenderToCompositePatches(xr, or.Resource, ct.Patches); err != nil {
-				return CompositionResult{}, errors.Wrapf(err, errFmtRenderToCompositePatches, name)
-			}
-		}
-
-		// Load the P&T base resource template into our empty composed resource.
-		// We consider this a terminal error, since it indicates a broken
-		// CompositionRevision that will never be valid.
-		if err := RenderFromJSON(cd, ct.Base.Raw); err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtParseBase, name)
-		}
-
-		// Failures to patch a composed resource from the environment or from
-		// the XR aren't terminal. We just emit a warning event and move on.
-		// This is because patches often fail because other patches need to
-		// happen first in order for them to succeed. If we returned an error
-		// when a patch failed we might never reach the patch that would unblock
-		// it. We do need to record that the patch failed though, because we
-		// don't want to actually apply the resource. For example we shouldn't
-		// apply a composed resource if a Required patch failed.
-		if err := RenderFromEnvironmentPatches(cd, req.Environment, ct.Patches); err != nil {
-			// Most likely a required FromEnvironment patch failed.
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromCompositePatches, name)))
-			failed[name] = ComposedResourceState{Resource: cd}
-			continue
-		}
-		if err := RenderFromCompositePatches(cd, xr, ct.Patches); err != nil {
-			// Most likely a required FromComposite patch failed.
-			events = append(events, event.Warning(reasonCompose, errors.Wrapf(err, errFmtRenderFromEnvironmentPatches, name)))
-			failed[name] = ComposedResourceState{Resource: cd}
-			continue
-		}
-
-		// We pass partially rendered resources to our Function pipeline for two
-		// reasons. First, because it lets the pipeline know what resource names
-		// are in-use by the P&T templates. Second, because the pipeline could
-		// potentially fix whatever is broken.
-		desired[name] = ComposedResourceState{Resource: cd}
-	}
-
 	// Build the initial observed and desired state to be passed to our
 	// Composition Function pipeline. The observed state includes the XR and its
 	// current (persisted) connection details, as well as any existing composed
 	// resource and their current connection details. The desired state includes
-	// only whatever was accumulated by the P&T logic above - i.e. by rendering
-	// any composed resource templates. It's expected that the Function pipeline
-	// will mutate the desired state.
+	// only the XR and its connection details, which will initially be identical
+	// to the observed state.
 	xrConnDetails, err := c.composite.FetchConnection(ctx, xr)
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errFetchXRConnectionDetails)
@@ -367,7 +257,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildObserved)
 	}
-	d, err := AsState(xr, xrConnDetails, desired)
+	d, err := AsState(xr, xrConnDetails, ComposedResourceStates{})
 	if err != nil {
 		return CompositionResult{}, errors.Wrap(err, errBuildDesired)
 	}
@@ -398,6 +288,8 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		r = append(r, rsp.GetResults()...)
 	}
 
+	events := []event.Event{}
+
 	// Results of fatal severity stop the Composition process. Normal or warning
 	// results are accumulated to be emitted as events by the Reconciler.
 	for _, rs := range r {
@@ -427,9 +319,8 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		xrConnDetails[k] = v
 	}
 
-	// If a resource didn't make it through the Function pipeline we consider it
-	// to no longer be desired.
-	desired = ComposedResourceStates{}
+	// Load our desired composed resources from the Function pipeline.
+	desired := ComposedResourceStates{}
 	for name, dr := range d.GetResources() {
 		cd := composed.New()
 		if err := FromStruct(cd, dr.GetResource()); err != nil {
@@ -462,28 +353,11 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		}
 	}
 
-	// We want to make sure we don't delete any observed resources that are
-	// still desired. We consider P&T resources that failed to render (and were
-	// thus not sent to the Function pipeline) to be desired. We shouldn't GC an
-	// existing composed resource just because its P&T template failed to render
-	// on this reconcile. Similarly, we want to record resource references for
-	// such resources.
-	keep := ComposedResourceStates{}
-	for name, s := range failed {
-		keep[name] = s
-	}
-	for name, s := range desired {
-		// TODO(negz): Return an error if name exists in desired? That would
-		// indicate that the Function pipeline produced a resource with the same
-		// ResourceName as a failed P&T template.
-		keep[name] = s
-	}
-
 	// Garbage collect any observed resources that aren't part of our final
 	// desired state. We must do this before we update the XR's resource
 	// references to ensure that we don't forget and leak them if a delete
 	// fails.
-	if err := c.composite.GarbageCollectComposedResources(ctx, xr, observed, keep); err != nil {
+	if err := c.composite.GarbageCollectComposedResources(ctx, xr, observed, desired); err != nil {
 		return CompositionResult{}, errors.Wrap(err, errGarbageCollectCDs)
 	}
 
@@ -493,19 +367,15 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	// randomly generated names and hit an error applying the second one we need
 	// to know that the first one (that _was_ created) exists next time we
 	// reconcile the XR.
-	UpdateResourceRefs(xr, keep)
+	UpdateResourceRefs(xr, desired)
 
-	// The supplied options ensure we merge rather than replace arrays and
-	// objects for which a merge configuration has been specified.
-	//
 	// Note that at this point state.Composite should be a new object - not the
 	// xr that was passed to this Compose method. If this call to Apply changes
 	// the XR in the API server (i.e. if it's not a no-op) the xr object that
 	// was passed to this method will have a stale meta.resourceVersion. This
 	// Subsequent attempts to update that object will therefore fail. This
 	// should be okay; the caller should keep trying until this is a no-op.
-	ao := mergeOptions(filterPatches(allPatches(cts), patchTypesToXR()...))
-	if err := c.client.Apply(ctx, xr, ao...); err != nil {
+	if err := c.client.Apply(ctx, xr); err != nil {
 		// It's important we don't proceed if this fails, because we need to be
 		// sure we've persisted our resource references before we create any new
 		// composed resources below.
@@ -516,23 +386,11 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	// below. This ensures that issues observing and processing one composed
 	// resource won't block the application of another.
 	for name, cd := range desired {
-		ao := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()}
-
-		// If this desired resource is associated with a P&T composed template,
-		// use its merge options. These determine whether objects should be
-		// merged or replaced, and whether arrays should be appended or
-		// replaced, when patching from an XR to a composed resource.
-		if t, ok := templates[name]; ok {
-			ao = append(ao, mergeOptions(filterPatches(t.Patches, patchTypesFromXR()...))...)
-		}
-
-		// TODO(negz): What about desired resources that aren't associated with
-		// a P&T template? There's currently no way to control array/object
-		// merge behaviour for them. Hopefully in future this goes away
-		// entirely, and is replaced with server-side-apply.
+		// TODO(negz): There's currently no way to control array/object merge
+		// behavior forresources from the Function pipeline. Hopefully this goes
+		// away entirely, and is replaced with server-side-apply.
 		// https://github.com/crossplane/crossplane/issues/4047
-
-		if err := c.client.Apply(ctx, cd.Resource, ao...); err != nil {
+		if err := c.client.Apply(ctx, cd.Resource, resource.MustBeControllableBy(xr.GetUID()), usage.RespectOwnerRefs()); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, name)
 		}
 	}
@@ -541,54 +399,27 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 	// Reconciler uses this array to determine whether the XR is ready. This
 	// means it's important that we return a resources resource for every entry
 	// in tas - i.e. a resources resource for every resource template.
-	resources := make([]ComposedResource, 0, len(keep))
-	for name := range keep {
-		or, ok := observed[name]
-		if !ok {
+	resources := make([]ComposedResource, 0, len(desired))
+	for name := range desired {
+		if _, ok := observed[name]; !ok {
 			// There's no point trying to extract connection details from or
 			// check the readiness of a resource that doesn't exist yet.
 			resources = append(resources, ComposedResource{ResourceName: name, Ready: false})
 			continue
 		}
 
-		t, ok := templates[name]
-		if !ok {
-			// TODO(negz): How do we know if a composed resource derived from a
-			// Function is ready? The beta Functions design said a Function
-			// could just set the XR as Ready, but this would require one
-			// Function to be able to assess the readiness of _every_ composed
-			// resource, not only the ones it's aware of. This would also fight
-			// with the readiness logic built into the XR reconciler. Perhaps we
-			// need to include a ready boolean in the Function response?
-			resources = append(resources, ComposedResource{ResourceName: name, Ready: true})
-			continue
-		}
-
-		connDetails, err := c.composed.ExtractConnection(or.Resource, or.ConnectionDetails, ExtractConfigsFromComposedTemplate(&t)...)
-		if err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtExtractConnectionDetails, name, or.Resource.GetObjectKind().GroupVersionKind().Kind, or.Resource.GetName())
-		}
-		for key, val := range connDetails {
-			xrConnDetails[key] = val
-		}
-
-		ready, err := c.composed.IsReady(ctx, or.Resource, ReadinessChecksFromComposedTemplate(&t)...)
-		if err != nil {
-			return CompositionResult{}, errors.Wrapf(err, errFmtReadiness, name, or.Resource.GetObjectKind().GroupVersionKind().Kind, or.Resource.GetName())
-		}
-
-		resources = append(resources, ComposedResource{ResourceName: name, Ready: ready})
+		// TODO(negz): How do we know if a composed resource derived from a
+		// Function is ready? The beta Functions design said a Function
+		// could just set the XR as Ready, but this would require one
+		// Function to be able to assess the readiness of _every_ composed
+		// resource, not only the ones it's aware of. This would also fight
+		// with the readiness logic built into the XR reconciler. Perhaps we
+		// need to include a ready boolean in the Function response?
+		resources = append(resources, ComposedResource{ResourceName: name, Ready: true})
+		continue
 	}
 
 	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
-}
-
-func allPatches(ct []v1.ComposedTemplate) []v1.Patch {
-	out := make([]v1.Patch, 0, len(ct))
-	for _, t := range ct {
-		out = append(out, t.Patches...)
-	}
-	return out
 }
 
 // An ExistingComposedResourceObserver uses an XR's resource references to load

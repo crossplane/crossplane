@@ -21,15 +21,11 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	corev1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
@@ -137,9 +133,7 @@ func TestFallbackComposer(t *testing.T) {
 	}
 }
 
-func TestFallBackForAnonymousTemplates(t *testing.T) {
-	errBoom := errors.New("boom")
-
+func TestFallBackForPatchAndTransform(t *testing.T) {
 	type params struct {
 		c client.Reader
 	}
@@ -159,14 +153,14 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"HasAnonymousTemplate": {
-			reason: "We should fallback if the supplied Composition has an anonymous template.",
+		"HasResources": {
+			reason: "We should fallback if the supplied CompositionRevision has resource templates.",
 			args: args{
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{
 						Spec: v1.CompositionRevisionSpec{
 							Resources: []v1.ComposedTemplate{
-								{}, // A resource without a name.
+								{}, // A resource.
 							},
 						},
 					},
@@ -176,73 +170,15 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 				fallback: true,
 			},
 		},
-		"ReferencesResourceCreatedWithAnonymousTemplate": {
-			reason: "We should fallback if the supplied XR references a composed resource created using an anonymous template.",
-			params: params{
-				c: &test.MockClient{
-					// We'll return whatever object the supplier passes in
-					// unmodified, and therefore the object will be missing the
-					// annotation that indicates the composition resource name
-					// this resource was created from.
-					MockGet: test.NewMockGetFn(nil),
-				},
-			},
+		"HasPipeline": {
+			reason: "We not should fallback if the supplied CompositionRevision has only a Composition Function pipeline.",
 			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
-						Refs: []corev1.ObjectReference{{Name: "cool-resource"}},
-					},
-				},
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{},
-				},
-			},
-			want: want{
-				fallback: true,
-			},
-		},
-		"GetResourceError": {
-			reason: "We should return an error if we can't get a referenced composed resource.",
-			params: params{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(errBoom),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
-						Refs: []corev1.ObjectReference{{Name: "cool-resource"}},
-					},
-				},
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errBoom, errGetComposed),
-			},
-		},
-		"NoResourceTemplatesOrExistingComposedResources": {
-			reason: "If there are no resource templates or composed resources (e.g. a new Composition Functions based XR) we should not fallback.",
-			params: params{
-				c: &test.MockClient{
-					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-						return kerrors.NewNotFound(schema.GroupResource{}, "")
-					}),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{
-					ComposedResourcesReferencer: fake.ComposedResourcesReferencer{
-						Refs: []corev1.ObjectReference{},
-					},
-				},
 				req: CompositionRequest{
 					Revision: &v1.CompositionRevision{
 						Spec: v1.CompositionRevisionSpec{
-							Pipeline: []v1.PipelineStep{{
-								Step: "cool-fn",
-							}},
+							Pipeline: []v1.PipelineStep{
+								{}, // A step.
+							},
 						},
 					},
 				},
@@ -251,19 +187,39 @@ func TestFallBackForAnonymousTemplates(t *testing.T) {
 				fallback: false,
 			},
 		},
+		"HasBoth": {
+			reason: "We should fallback if the supplied CompositionRevision has both resource templates and a Composition Function pipeline.",
+			args: args{
+				req: CompositionRequest{
+					Revision: &v1.CompositionRevision{
+						Spec: v1.CompositionRevisionSpec{
+							Resources: []v1.ComposedTemplate{
+								{}, // A resource.
+							},
+							Pipeline: []v1.PipelineStep{
+								{}, // A step.
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				fallback: true,
+			},
+		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			fn := FallBackForAnonymousTemplates(tc.params.c)
+			fn := FallBackForPatchAndTransform(tc.params.c)
 			fallback, err := fn(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("\n%s\nFallBackForAnonymousTemplates(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nFallBackForPatchAndTransform(...): -want, +got:\n%s", tc.reason, diff)
 			}
 
 			if diff := cmp.Diff(tc.want.fallback, fallback); diff != "" {
-				t.Errorf("\n%s\nFallBackForAnonymousTemplates(...): -want, +got:\n%s", tc.reason, diff)
+				t.Errorf("\n%s\nFallBackForPatchAndTransform(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
 	}

@@ -66,7 +66,7 @@ func TestPTFCompose(t *testing.T) {
 
 	type params struct {
 		kube client.Client
-		o    []PTFComposerOption
+		o    []FunctionComposerOption
 	}
 	type args struct {
 		ctx context.Context
@@ -84,32 +84,10 @@ func TestPTFCompose(t *testing.T) {
 		args   args
 		want   want
 	}{
-		"ComposedTemplatesError": {
-			reason: "We should return any error encountered while inlining a composition's patchsets.",
-			args: args{
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{{
-								Patches: []v1.Patch{{
-									// This reference to a non-existent patchset
-									// triggers the error.
-									Type:         v1.PatchTypePatchSet,
-									PatchSetName: pointer.String("nonexistent-patchset"),
-								}},
-							}},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrap(errors.Errorf(errFmtUndefinedPatchSet, "nonexistent-patchset"), errInline),
-			},
-		},
 		"FetchConnectionError": {
 			reason: "We should return any error encountered while fetching the XR's connection details.",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
 						return ComposedResourceStates{}, nil
 					})),
@@ -128,7 +106,7 @@ func TestPTFCompose(t *testing.T) {
 		"GetComposedResourcesError": {
 			reason: "We should return any error encountered while getting the XR's existing composed resources.",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -144,41 +122,10 @@ func TestPTFCompose(t *testing.T) {
 				err: errors.Wrap(errBoom, errGetExistingCDs),
 			},
 		},
-		"ParseComposedResourceBaseError": {
-			reason: "We should return any error encountered while parsing a composed resource base template",
-			params: params{
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						return nil, nil
-					})),
-				},
-			},
-			args: args{
-				xr: &fake.Composite{},
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{
-								{
-									Name: pointer.String("uncool-resource"),
-									Base: runtime.RawExtension{Raw: []byte("{}")}, // An invalid, empty base resource template.
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrapf(errors.Wrap(errMissingKind, errUnmarshalJSON), errFmtParseBase, "uncool-resource"),
-			},
-		},
 		"UnmarshalFunctionInputError": {
 			reason: "We should return any error encountered while unmarshalling a Composition Function input",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -210,7 +157,7 @@ func TestPTFCompose(t *testing.T) {
 		"RunFunctionError": {
 			reason: "We should return any error encountered while running a Composition Function",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -244,7 +191,7 @@ func TestPTFCompose(t *testing.T) {
 		"FatalFunctionResultError": {
 			reason: "We should return any fatal function results as an error",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -282,7 +229,7 @@ func TestPTFCompose(t *testing.T) {
 		"RenderXRFromStructError": {
 			reason: "We should return any error we encounter when rendering our XR from the struct returned in the FunFunctionResponse",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -321,7 +268,7 @@ func TestPTFCompose(t *testing.T) {
 		"RenderComposedResourceFromStructError": {
 			reason: "We should return any error we encounter when rendering a composed resource from the struct returned in the FunFunctionResponse",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -369,7 +316,7 @@ func TestPTFCompose(t *testing.T) {
 		"RenderComposedResourceMetadataError": {
 			reason: "We should return any error we encounter when rendering composed resource metadata",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -421,7 +368,7 @@ func TestPTFCompose(t *testing.T) {
 		"DryRunRenderComposedResourceError": {
 			reason: "We should return any error we encounter when dry-run rendering a composed resource",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -477,7 +424,7 @@ func TestPTFCompose(t *testing.T) {
 		"GarbageCollectComposedResourcesError": {
 			reason: "We should return any error we encounter when garbage collecting composed resources",
 			params: params{
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -540,7 +487,7 @@ func TestPTFCompose(t *testing.T) {
 					// Apply calls Get.
 					MockGet: test.NewMockGetFn(errBoom),
 				},
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -595,7 +542,7 @@ func TestPTFCompose(t *testing.T) {
 					// resource because it has a GenerateName set.
 					MockCreate: test.NewMockCreateFn(errBoom),
 				},
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -651,239 +598,6 @@ func TestPTFCompose(t *testing.T) {
 				err: errors.Wrapf(errors.Wrap(errBoom, "cannot create object"), errFmtApplyCD, "uncool-resource"),
 			},
 		},
-		"ExtractConnectionDetailsError": {
-			reason: "We should return any error we encounter when extracting XR connection details from a composed resource",
-			params: params{
-				kube: &test.MockClient{
-					// Apply calls Get and Patch for the XR.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-
-					// Apply calls Create (immediately) for the composed
-					// resource because it has a GenerateName set.
-					MockCreate: test.NewMockCreateFn(nil),
-				},
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						// We only try to extract connection details for
-						// observed resources.
-						return ComposedResourceStates{"uncool-resource": ComposedResourceState{Resource: &fake.Composed{}}}, nil
-					})),
-					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
-						return nil
-					})),
-					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
-						return nil, errBoom
-					})),
-				},
-			},
-			args: args{
-				xr: func() resource.Composite {
-					// Our XR needs a GVK to survive round-tripping through a
-					// protobuf struct (which involves using the Kubernetes-aware
-					// JSON unmarshaller that requires a GVK).
-					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "test.crossplane.io",
-						Version: "v1",
-						Kind:    "CoolComposite",
-					}))
-					xr.SetLabels(map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
-					})
-					return xr
-				}(),
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{
-								{
-									Name: pointer.String("uncool-resource"),
-
-									// Our composed resources need a GVK too -
-									// same reason as the XR above.
-									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"UncoolComposed"}`)},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrapf(errBoom, errFmtExtractConnectionDetails, "uncool-resource", "", ""),
-			},
-		},
-		"CheckComposedResourceReadinessError": {
-			reason: "We should return any error we encounter when checking the readiness of a composed resource",
-			params: params{
-				kube: &test.MockClient{
-					// Apply calls Get and Patch for the XR.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-
-					// Apply calls Create (immediately) for the composed
-					// resource because it has a GenerateName set.
-					MockCreate: test.NewMockCreateFn(nil),
-				},
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						// We only try to extract connection details for
-						// observed resources.
-						return ComposedResourceStates{"uncool-resource": ComposedResourceState{Resource: &fake.Composed{}}}, nil
-					})),
-					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
-						return nil
-					})),
-					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
-						return false, errBoom
-					})),
-				},
-			},
-			args: args{
-				xr: func() resource.Composite {
-					// Our XR needs a GVK to survive round-tripping through a
-					// protobuf struct (which involves using the Kubernetes-aware
-					// JSON unmarshaller that requires a GVK).
-					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "test.crossplane.io",
-						Version: "v1",
-						Kind:    "CoolComposite",
-					}))
-					xr.SetLabels(map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
-					})
-					return xr
-				}(),
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{
-								{
-									Name: pointer.String("uncool-resource"),
-
-									// Our composed resources need a GVK too -
-									// same reason as the XR above.
-									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"UncoolComposed"}`)},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				err: errors.Wrapf(errBoom, errFmtReadiness, "uncool-resource", "", ""),
-			},
-		},
-		"SuccessfulPatchAndTransformOnly": {
-			reason: "We should return a valid CompositionResult when a 'pure patch and transform' (i.e. Function-less) reconcile succeeds",
-			params: params{
-				kube: &test.MockClient{
-					// Apply calls Get and Patch for the XR.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
-
-					// Apply calls Create (immediately) for the composed
-					// resource because it has a GenerateName set.
-					MockCreate: test.NewMockCreateFn(nil),
-				},
-				o: []PTFComposerOption{
-					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
-						return nil, nil
-					})),
-					WithComposedResourceObserver(ComposedResourceObserverFn(func(ctx context.Context, xr resource.Composite) (ComposedResourceStates, error) {
-						// We only try to extract connection details for
-						// observed resources.
-						r := ComposedResourceStates{
-							"observed-resource-a": ComposedResourceState{
-								Resource: &fake.Composed{
-									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-a"},
-								},
-							},
-							"observed-resource-b": ComposedResourceState{
-								Resource: &fake.Composed{
-									ObjectMeta: metav1.ObjectMeta{Name: "observed-resource-b"},
-								},
-							},
-						}
-						return r, nil
-					})),
-					WithDryRunRenderer(DryRunRendererFn(func(ctx context.Context, cd resource.Object) error { return nil })),
-					WithComposedResourceGarbageCollector(ComposedResourceGarbageCollectorFn(func(ctx context.Context, owner metav1.Object, observed, desired ComposedResourceStates) error {
-						return nil
-					})),
-					WithConnectionDetailsExtractor(ConnectionDetailsExtractorFn(func(cd resource.Composed, conn managed.ConnectionDetails, cfg ...ConnectionDetailExtractConfig) (managed.ConnectionDetails, error) {
-						return managed.ConnectionDetails{cd.GetName(): []byte("secret")}, nil
-					})),
-					WithReadinessChecker(ReadinessCheckerFn(func(ctx context.Context, o ConditionedObject, rc ...ReadinessCheck) (ready bool, err error) {
-						return true, nil
-					})),
-				},
-			},
-			args: args{
-				xr: func() resource.Composite {
-					// Our XR needs a GVK to survive round-tripping through a
-					// protobuf struct (which involves using the Kubernetes-aware
-					// JSON unmarshaller that requires a GVK).
-					xr := composite.New(composite.WithGroupVersionKind(schema.GroupVersionKind{
-						Group:   "test.crossplane.io",
-						Version: "v1",
-						Kind:    "CoolComposite",
-					}))
-					xr.SetLabels(map[string]string{
-						xcrd.LabelKeyNamePrefixForComposed: "parent-xr",
-					})
-					return xr
-				}(),
-				req: CompositionRequest{
-					Revision: &v1.CompositionRevision{
-						Spec: v1.CompositionRevisionSpec{
-							Resources: []v1.ComposedTemplate{
-								// Our composed resources need a GVK too -
-								// same reason as the XR above.
-								{
-									Name: pointer.String("observed-resource-a"),
-									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"CoolComposed"}`)},
-								},
-								{
-									Name: pointer.String("observed-resource-b"),
-									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"CoolComposed"}`)},
-								},
-								{
-									// We have a template for this resource, but
-									// we didn't observe it.
-									Name: pointer.String("desired-resource"),
-									Base: runtime.RawExtension{Raw: []byte(`{"apiversion":"test.crossplane.io/v1","kind":"CoolComposed"}`)},
-								},
-							},
-						},
-					},
-				},
-			},
-			want: want{
-				res: CompositionResult{
-					Composed: []ComposedResource{
-						{ResourceName: "observed-resource-a", Ready: true},
-						{ResourceName: "observed-resource-b", Ready: true},
-						{ResourceName: "desired-resource"},
-					},
-					ConnectionDetails: managed.ConnectionDetails{
-						"observed-resource-a": []byte("secret"),
-						"observed-resource-b": []byte("secret"),
-					},
-				},
-				err: nil,
-			},
-		},
 		"SuccessfulFunctionsOnly": {
 			reason: "We should return a valid CompositionResult when a 'pure Function' (i.e. patch-and-transform-less) reconcile succeeds",
 			params: params{
@@ -896,7 +610,7 @@ func TestPTFCompose(t *testing.T) {
 					// resource because it has a GenerateName set.
 					MockCreate: test.NewMockCreateFn(nil),
 				},
-				o: []PTFComposerOption{
+				o: []FunctionComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
 						return nil, nil
 					})),
@@ -1031,7 +745,7 @@ func TestPTFCompose(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 
-			c := NewPTFComposer(tc.params.kube, tc.params.o...)
+			c := NewFunctionComposer(tc.params.kube, tc.params.o...)
 			res, err := c.Compose(tc.args.ctx, tc.args.xr, tc.args.req)
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {

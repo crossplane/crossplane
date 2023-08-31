@@ -19,12 +19,10 @@ package composite
 import (
 	"context"
 
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 )
 
 // Error strings.
@@ -69,36 +67,11 @@ func (c *FallBackComposer) Compose(ctx context.Context, xr resource.Composite, r
 	return c.preferred.Compose(ctx, xr, req)
 }
 
-// FallBackForAnonymousTemplates returns a TriggerFn that triggers a fallback if
-// the supplied Composition uses anonymous templates, or the supplied XR
-// references composed resources that appear to have been created by an
-// anonymous template. We use this to fall back from the PTFComposer to the
-// PTComposer when Composition Functions are enabled.
-//
-// The PTFComposer does not support anonymous templates; it requires named
-// resources to map from P&T resources to Composition Function resources. A
-// validator ensures that its not possible to create a Composition that uses
-// both Composition Functions and anonymous resource templates.
-func FallBackForAnonymousTemplates(c client.Reader) TriggerFn {
-	return func(ctx context.Context, xr resource.Composite, req CompositionRequest) (bool, error) {
-		// Fall back if any templates are unnamed.
-		for _, t := range req.Revision.Spec.Resources {
-			if t.Name == nil {
-				return true, nil
-			}
-		}
-
-		for _, ref := range xr.GetResourceReferences() {
-			r := composed.New(composed.FromReference(ref))
-			if err := c.Get(ctx, types.NamespacedName{Name: r.GetName()}, r); err != nil {
-				return false, errors.Wrap(resource.IgnoreNotFound(err), errGetComposed)
-			}
-
-			if GetCompositionResourceName(r) == "" {
-				return true, nil
-			}
-		}
-
-		return false, nil
+// FallBackForPatchAndTransform returns a TriggerFn that triggers a fallback if
+// the supplied CompositionRequest contains a CompositionRevision that uses a
+// resources array.
+func FallBackForPatchAndTransform(_ client.Reader) TriggerFn {
+	return func(_ context.Context, _ resource.Composite, req CompositionRequest) (bool, error) {
+		return len(req.Revision.Spec.Resources) > 0, nil
 	}
 }
