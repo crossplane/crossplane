@@ -215,6 +215,11 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentConfigurationToPV1Environ
 	var pV1EnvironmentConfiguration *EnvironmentConfiguration
 	if source != nil {
 		var v1EnvironmentConfiguration EnvironmentConfiguration
+		mapStringV1JSON := make(map[string]v12.JSON, len((*source).DefaultData))
+		for key, value := range (*source).DefaultData {
+			mapStringV1JSON[key] = c.v1JSONToV1JSON(value)
+		}
+		v1EnvironmentConfiguration.DefaultData = mapStringV1JSON
 		var v1EnvironmentSourceList []EnvironmentSource
 		if (*source).EnvironmentConfigs != nil {
 			v1EnvironmentSourceList = make([]EnvironmentSource, len((*source).EnvironmentConfigs))

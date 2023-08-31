@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package composite
 
 import (
 	"context"
@@ -40,7 +40,6 @@ const (
 	errListEnvironmentConfigs          = "failed to list environments"
 	errFmtInvalidEnvironmentSourceType = "invalid source type '%s'"
 	errFmtInvalidLabelMatcherType      = "invalid label matcher type '%s'"
-	errFmtRequiredField                = "%s is required by type %s"
 	errFmtUnknownSelectorMode          = "unknown mode '%s'"
 	errFmtSortNotMatchingTypes         = "not matching types, got %[1]v (%[1]T), expected %[2]v"
 	errFmtSortUnknownType              = "unexpected type %T"

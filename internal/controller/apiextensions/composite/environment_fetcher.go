@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package environment
+package composite
 
 import (
 	"context"
@@ -27,14 +27,13 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
-
 	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
 const (
-	errGetEnvironmentConfig = "failed to get config set from reference"
-	errMergeData            = "failed to merge data"
+	errGetEnvironmentConfig    = "failed to get config set from reference"
+	errFetchEnvironmentConfigs = "cannot fetch environment configs"
+	errMergeData               = "failed to merge data"
 
 	environmentGroup   = "internal.crossplane.io"
 	environmentVersion = "v1alpha1"
@@ -50,7 +49,7 @@ func NewNilEnvironmentFetcher() *NilEnvironmentFetcher {
 type NilEnvironmentFetcher struct{}
 
 // Fetch always returns nil.
-func (f *NilEnvironmentFetcher) Fetch(_ context.Context, _ resource.Composite, _ bool) (*Environment, error) {
+func (f *NilEnvironmentFetcher) Fetch(_ context.Context, _ EnvironmentFetcherRequest) (*Environment, error) {
 	return nil, nil
 }
 
@@ -77,22 +76,10 @@ type APIEnvironmentFetcher struct {
 //
 // Note: The `.Data` path is trimmed from the result so its necessary to include
 // it in patches.
-func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, cr resource.Composite, required bool) (*Environment, error) {
-	var env *Environment
-
-	// Return an empty environment if the XR references no EnvironmentConfigs.
-	if len(cr.GetEnvironmentConfigReferences()) == 0 {
-		env = &Environment{
-			Unstructured: unstructured.Unstructured{
-				Object: map[string]interface{}{},
-			},
-		}
-	} else {
-		var err error
-		env, err = f.fetchEnvironment(ctx, cr, required)
-		if err != nil {
-			return nil, err
-		}
+func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error) {
+	env, err := f.fetchEnvironment(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 
 	// GVK is necessary for patching because it uses unstructured conversion
@@ -104,23 +91,10 @@ func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, cr resource.Composite
 	return env, nil
 }
 
-func (f *APIEnvironmentFetcher) fetchEnvironment(ctx context.Context, cr resource.Composite, required bool) (*Environment, error) {
-	refs := cr.GetEnvironmentConfigReferences()
-	loadedConfigs := []v1alpha1.EnvironmentConfig{}
-	for _, ref := range refs {
-		config := v1alpha1.EnvironmentConfig{}
-		nn := types.NamespacedName{
-			Name: ref.Name,
-		}
-		err := f.kube.Get(ctx, nn, &config)
-		if err != nil {
-			// skip if resolution policy is optional
-			if required {
-				return nil, errors.Wrap(err, errGetEnvironmentConfig)
-			}
-			continue
-		}
-		loadedConfigs = append(loadedConfigs, config)
+func (f *APIEnvironmentFetcher) fetchEnvironment(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error) {
+	loadedConfigs, err := f.fetchEnvironmentConfigs(ctx, req)
+	if err != nil {
+		return nil, errors.Wrap(err, errFetchEnvironmentConfigs)
 	}
 
 	mergedData, err := mergeEnvironmentData(loadedConfigs)
@@ -134,10 +108,40 @@ func (f *APIEnvironmentFetcher) fetchEnvironment(ctx context.Context, cr resourc
 	}, nil
 }
 
-func mergeEnvironmentData(configs []v1alpha1.EnvironmentConfig) (map[string]interface{}, error) {
+func (f *APIEnvironmentFetcher) fetchEnvironmentConfigs(ctx context.Context, req EnvironmentFetcherRequest) ([]*v1alpha1.EnvironmentConfig, error) {
+	loadedConfigs := []*v1alpha1.EnvironmentConfig{}
+
+	// If the user provides a default environment with the composition, add it
+	// as a dummy environment config that is overwritten by all others.
+	if req.Revision != nil && req.Revision.Spec.Environment != nil && req.Revision.Spec.Environment.DefaultData != nil {
+		loadedConfigs = append(loadedConfigs, &v1alpha1.EnvironmentConfig{
+			Data: req.Revision.Spec.Environment.DefaultData,
+		})
+	}
+
+	refs := req.Composite.GetEnvironmentConfigReferences()
+	for _, ref := range refs {
+		config := &v1alpha1.EnvironmentConfig{}
+		nn := types.NamespacedName{
+			Name: ref.Name,
+		}
+		err := f.kube.Get(ctx, nn, config)
+		if err != nil {
+			// skip if resolution policy is optional
+			if req.Required {
+				return nil, errors.Wrap(err, errGetEnvironmentConfig)
+			}
+			continue
+		}
+		loadedConfigs = append(loadedConfigs, config)
+	}
+	return loadedConfigs, nil
+}
+
+func mergeEnvironmentData(configs []*v1alpha1.EnvironmentConfig) (map[string]interface{}, error) {
 	merged := map[string]interface{}{}
 	for _, e := range configs {
-		if e.Data == nil {
+		if e == nil || e.Data == nil {
 			continue
 		}
 		data, err := unmarshalData(e.Data)

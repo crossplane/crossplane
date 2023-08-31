@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package environment
+package composite
 
 import (
 	"context"
@@ -32,6 +32,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
+	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 )
 
@@ -122,11 +123,13 @@ func TestFetch(t *testing.T) {
 				"data": "val",
 			},
 		},
+		"hello": "world",
 	}
 
 	type args struct {
 		kube     client.Client
 		cr       *fake.Composite
+		revision *v1.CompositionRevision
 		required *bool
 	}
 	type want struct {
@@ -156,21 +159,53 @@ func TestFetch(t *testing.T) {
 		"DefaultOnNil": {
 			reason: "It should return an empty EnvironmentConfig if environment is nil",
 			args: args{
-				cr: composite(),
+				cr:       composite(),
+				revision: &v1.CompositionRevision{},
 			},
 			want: want{
 				env: makeEnvironment(nil),
 			},
 		},
-		"DefaultOnEmpty": {
-			reason: "It should return an empty EnvironmentConfig if the ref list is empty.",
+		"DefaultEnvironmentOnNil": {
+			reason: "It should return the default environment if nothing else is selected",
+			args: args{
+				cr: composite(),
+				revision: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							DefaultData: makeJSON(map[string]interface{}{
+								"hello": "world",
+							}),
+						},
+					},
+				},
+			},
+			want: want{
+				env: makeEnvironment(map[string]interface{}{
+					"hello": "world",
+				}),
+			},
+		},
+		"DefaultEnvironmentOnEmpty": {
+			reason: "It should return the init data if the ref list is empty.",
 			args: args{
 				cr: composite(
 					withEnvironmentRefs(),
 				),
+				revision: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							DefaultData: makeJSON(map[string]interface{}{
+								"hello": "world",
+							}),
+						},
+					},
+				},
 			},
 			want: want{
-				env: makeEnvironment(nil),
+				env: makeEnvironment(map[string]interface{}{
+					"hello": "world",
+				}),
 			},
 		},
 		"MergeMultipleSourcesInOrder": {
@@ -194,6 +229,15 @@ func TestFetch(t *testing.T) {
 						corev1.ObjectReference{Name: "b"},
 					),
 				),
+				revision: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							DefaultData: makeJSON(map[string]interface{}{
+								"hello": "world",
+							}),
+						},
+					},
+				},
 			},
 			want: want{
 				env: makeEnvironment(testDataMerged),
@@ -212,7 +256,7 @@ func TestFetch(t *testing.T) {
 				),
 			},
 			want: want{
-				err: errors.Wrapf(errBoom, errGetEnvironmentConfig),
+				err: errors.Wrap(errors.Wrapf(errBoom, errGetEnvironmentConfig), errFetchEnvironmentConfigs),
 			},
 		},
 		"NoErrorOnKubeGetErrorIfResolutionNotRequired": {
@@ -241,7 +285,11 @@ func TestFetch(t *testing.T) {
 			if tc.args.required != nil {
 				required = *tc.args.required
 			}
-			got, err := f.Fetch(context.Background(), tc.args.cr, required)
+			got, err := f.Fetch(context.Background(), EnvironmentFetcherRequest{
+				Composite: tc.args.cr,
+				Required:  required,
+				Revision:  tc.args.revision,
+			})
 
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)

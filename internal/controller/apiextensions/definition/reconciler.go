@@ -49,7 +49,6 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/apis/secrets/v1alpha1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/features"
 	"github.com/crossplane/crossplane/internal/xcrd"
@@ -449,8 +448,8 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	// subsequently skipped if the environment is nil.
 	if co.Features.Enabled(features.EnableAlphaEnvironmentConfigs) {
 		o = append(o,
-			composite.WithEnvironmentSelector(environment.NewAPIEnvironmentSelector(c)),
-			composite.WithEnvironmentFetcher(environment.NewAPIEnvironmentFetcher(c)))
+			composite.WithEnvironmentSelector(composite.NewAPIEnvironmentSelector(c)),
+			composite.WithEnvironmentFetcher(composite.NewAPIEnvironmentFetcher(c)))
 	}
 
 	// If external secret stores aren't enabled we just fetch connection details
