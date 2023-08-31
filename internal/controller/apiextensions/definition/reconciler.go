@@ -496,7 +496,7 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	// therefore 'fall back' to the PTComposer if we encounter a Composition
 	// with anonymous templates. Composition validation ensures that a
 	// Composition that uses functions must have named resources templates.
-	if co.Features.Enabled(features.EnableAlphaCompositionFunctions) {
+	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
 		fb := composite.NewFallBackComposer(
 			composite.NewPTFComposer(c,
 				composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
