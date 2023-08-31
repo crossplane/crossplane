@@ -514,10 +514,8 @@ func TestSelect(t *testing.T) {
 		"NoErrorOnInvalidOptionalLabelValueFieldPath": {
 			reason: "It should not return an error if the path to a label value is invalid, but was set as optional.",
 			args: args{
-				kube: &test.MockClient{
-					MockList: test.NewMockListFn(nil),
-				},
-				cr: composite(),
+				kube: &test.MockClient{},
+				cr:   composite(),
 				rev: &v1.CompositionRevision{
 					Spec: v1.CompositionRevisionSpec{
 						Environment: &v1.EnvironmentConfiguration{
@@ -544,6 +542,40 @@ func TestSelect(t *testing.T) {
 				cr: composite(
 					withEnvironmentRefs(),
 				),
+			},
+		},
+		"ErrorOnInvalidRequiredLabelValueFieldPath": {
+			reason: "It should return an error if the path to a label value is invalid and set as required.",
+			args: args{
+				kube: &test.MockClient{},
+				cr:   composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:                v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												Key:                 "foo",
+												ValueFromFieldPath:  pointer.String("wrong.path"),
+												FromFieldPathPolicy: &[]v1.FromFieldPathPolicy{v1.FromFieldPathPolicyRequired}[0],
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+				err: errors.Wrapf(errors.Wrapf(errors.New("wrong: no such field"), errFmtResolveLabelValue, 0), errFmtReferenceEnvironmentConfig, 0),
 			},
 		},
 		"AllRefsSortedInMultiMode": {
