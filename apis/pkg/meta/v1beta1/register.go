@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+package v1beta1
 
 import (
 	"reflect"
@@ -26,7 +26,7 @@ import (
 // Package type metadata.
 const (
 	Group   = "meta.pkg.crossplane.io"
-	Version = "v1alpha1"
+	Version = "v1beta1"
 )
 
 var (
@@ -40,23 +40,14 @@ var (
 	AddToScheme = SchemeBuilder.AddToScheme
 )
 
-// Provider type metadata.
+// Function type metadata.
 var (
-	ProviderKind             = reflect.TypeOf(Provider{}).Name()
-	ProviderGroupKind        = schema.GroupKind{Group: Group, Kind: ProviderKind}.String()
-	ProviderKindAPIVersion   = ProviderKind + "." + SchemeGroupVersion.String()
-	ProviderGroupVersionKind = SchemeGroupVersion.WithKind(ProviderKind)
-)
-
-// Configuration type metadata.
-var (
-	ConfigurationKind             = reflect.TypeOf(Configuration{}).Name()
-	ConfigurationGroupKind        = schema.GroupKind{Group: Group, Kind: ConfigurationKind}.String()
-	ConfigurationKindAPIVersion   = ConfigurationKind + "." + SchemeGroupVersion.String()
-	ConfigurationGroupVersionKind = SchemeGroupVersion.WithKind(ConfigurationKind)
+	FunctionKind             = reflect.TypeOf(Function{}).Name()
+	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
+	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
+	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
 )
 
 func init() {
-	SchemeBuilder.Register(&Configuration{})
-	SchemeBuilder.Register(&Provider{})
+	SchemeBuilder.Register(&Function{})
 }

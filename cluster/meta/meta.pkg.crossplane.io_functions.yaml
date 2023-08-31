@@ -14,7 +14,7 @@ spec:
     singular: function
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - name: v1beta1
     schema:
       openAPIV3Schema:
         description: A Function is the description of a Crossplane Function package.

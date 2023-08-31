@@ -35,6 +35,7 @@ import (
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	"github.com/crossplane/crossplane/internal/version"
 	"github.com/crossplane/crossplane/internal/version/fake"
 )
@@ -93,7 +94,7 @@ metadata:
 	_                = yaml.Unmarshal(v1alpha1ProvBytes, v1alpha1ProvMeta)
 	v1alpha1ConfMeta = &pkgmetav1alpha1.Configuration{}
 	_                = yaml.Unmarshal(v1alpha1ConfBytes, v1alpha1ConfMeta)
-	v1alpha1FuncMeta = &pkgmetav1alpha1.Function{}
+	v1alpha1FuncMeta = &pkgmetav1beta1.Function{}
 	_                = yaml.Unmarshal(v1alpha1FuncBytes, v1alpha1FuncMeta)
 	v1ProvMeta       = &pkgmetav1.Provider{}
 	_                = yaml.Unmarshal(v1ProvBytes, v1ProvMeta)

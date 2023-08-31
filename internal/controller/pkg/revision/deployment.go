@@ -25,7 +25,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
-	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
+	pkgmetav1beta1 "github.com/crossplane/crossplane/apis/pkg/meta/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
@@ -231,7 +231,7 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 	return s, d, svc, secSer, secCli
 }
 
-func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret) {
+func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret) {
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),

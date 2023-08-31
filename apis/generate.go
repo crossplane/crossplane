@@ -38,6 +38,7 @@ limitations under the License.
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/configuration_types.go pkg/meta/v1alpha1
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/provider_types.go pkg/meta/v1alpha1
 //go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/meta.go pkg/meta/v1alpha1
+//go:generate ../hack/duplicate_api_type.sh pkg/meta/v1/meta.go pkg/meta/v1beta1
 
 // NOTE(negz): We generate deepcopy methods and CRDs for each API group
 // separately because there seems to be an undiagnosed bug in controller-runtime

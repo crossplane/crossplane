@@ -30,9 +30,6 @@ const (
 
 	errWrongConvertToProvider   = "must convert to *v1.Provider"
 	errWrongConvertFromProvider = "must convert from *v1.Provider"
-
-	errWrongConvertToFunction   = "must convert to *v1alpha1.Function"
-	errWrongConvertFromFunction = "must convert from *v1alpha1.Function"
 )
 
 // A ToHubConverter converts v1alpha1 types to the 'hub' v1 type.
@@ -44,7 +41,6 @@ const (
 type ToHubConverter interface {
 	Configuration(in *Configuration) *v1.Configuration
 	Provider(in *Provider) *v1.Provider
-	Function(in *Function) *Function
 }
 
 // A FromHubConverter converts v1alpha1 types from the 'hub' v1 type.
@@ -56,7 +52,6 @@ type ToHubConverter interface {
 type FromHubConverter interface {
 	Configuration(in *v1.Configuration) *Configuration
 	Provider(in *v1.Provider) *Provider
-	Function(in *Function) *Function
 }
 
 // ConvertObjectMeta 'converts' ObjectMeta by producing a deepcopy. This
@@ -115,35 +110,6 @@ func (p *Provider) ConvertFrom(hub conversion.Hub) error {
 
 	conv := &GeneratedFromHubConverter{}
 	*p = *conv.Provider(in)
-
-	return nil
-}
-
-// Hub marks this type as the conversion hub.
-func (f *Function) Hub() {}
-
-// ConvertTo converts this Configuration to the Hub version.
-func (f *Function) ConvertTo(hub conversion.Hub) error {
-	out, ok := hub.(*Function)
-	if !ok {
-		return errors.New(errWrongConvertToFunction)
-	}
-
-	conv := &GeneratedToHubConverter{}
-	*out = *conv.Function(f)
-
-	return nil
-}
-
-// ConvertFrom converts this Function from the Hub version.
-func (f *Function) ConvertFrom(hub conversion.Hub) error {
-	in, ok := hub.(*Function)
-	if !ok {
-		return errors.New(errWrongConvertFromFunction)
-	}
-
-	conv := &GeneratedFromHubConverter{}
-	*f = *conv.Function(in)
 
 	return nil
 }
