@@ -54,7 +54,7 @@ func (c *Composition) validateFunctions() (errs field.ErrorList) {
 }
 
 // validatePatchSets checks that:
-// - patchSets are not composed of valid patches
+// - patchSets are composed of valid patches
 // - there are no nested patchSets
 // - only existing patchSets are used by resources
 func (c *Composition) validatePatchSets() (errs field.ErrorList) {
