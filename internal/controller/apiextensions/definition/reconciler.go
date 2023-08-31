@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/credentials"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
@@ -499,7 +500,9 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 		fb := composite.NewFallBackComposer(
 			composite.NewPTFComposer(c,
 				composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
-				composite.WithCompositeConnectionDetailsFetcher(fetcher)),
+				composite.WithCompositeConnectionDetailsFetcher(fetcher),
+				composite.WithFunctionRunner(composite.NewPackagedFunctionRunner(c, credentials.NewTLS(co.ClientTLS))),
+			),
 			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),
 			composite.FallBackForAnonymousTemplates(c),
 		)

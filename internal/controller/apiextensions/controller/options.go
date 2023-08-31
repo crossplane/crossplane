@@ -18,10 +18,12 @@ limitations under the License.
 package controller
 
 import (
+	"crypto/tls"
+
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 )
 
-// Options specific to pkg controllers.
+// Options specific to apiextensions controllers.
 type Options struct {
 	controller.Options
 
@@ -36,4 +38,8 @@ type Options struct {
 	// Registry is the default registry to use when pulling containers for
 	// Composition Functions
 	Registry string
+
+	// ClientTLS is the configuration used by apiextensions controllers that are
+	// clients of other services, for example Composition Functions.
+	ClientTLS *tls.Config
 }

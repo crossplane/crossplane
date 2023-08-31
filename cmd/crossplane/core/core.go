@@ -81,25 +81,26 @@ func (c *Command) Run() error {
 type startCommand struct {
 	Profile string `placeholder:"host:port" help:"Serve runtime profiling data via HTTP at /debug/pprof."`
 
-	Namespace            string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
-	ServiceAccount       string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
-	CacheDir             string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
-	LeaderElection       bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
-	Registry             string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
-	CABundlePath         string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
+	Namespace      string `short:"n" help:"Namespace used to unpack and run packages." default:"crossplane-system" env:"POD_NAMESPACE"`
+	ServiceAccount string `help:"Name of the Crossplane Service Account." default:"crossplane" env:"POD_SERVICE_ACCOUNT"`
+	CacheDir       string `short:"c" help:"Directory used for caching package images." default:"/cache" env:"CACHE_DIR"`
+	LeaderElection bool   `short:"l" help:"Use leader election for the controller manager." default:"false" env:"LEADER_ELECTION"`
+	Registry       string `short:"r" help:"Default registry used to fetch packages when not specified in tag." default:"${default_registry}" env:"REGISTRY"`
+	CABundlePath   string `help:"Additional CA bundle to use when fetching packages from registry." env:"CA_BUNDLE_PATH"`
+	UserAgent      string `help:"The User-Agent header that will be set on all package requests." default:"${default_user_agent}" env:"USER_AGENT"`
+
+	SyncInterval     time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
+	PollInterval     time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
+	MaxReconcileRate int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
+
+	ESSTLSSecretName     string `help:"The name of the TLS Secret that will be used by Crossplane and providers as clients of External Secret Store plugins." env:"ESS_TLS_SECRET_NAME"`
+	ESSTLSCertsDir       string `help:"The path of the folder which will store TLS certificates to be used by Crossplane and providers for communicating with External Secret Store plugins." env:"ESS_TLS_CERTS_DIR"`
 	WebhookTLSSecretName string `help:"The name of the TLS Secret that will be used by the webhook servers of core Crossplane and providers." env:"WEBHOOK_TLS_SECRET_NAME"`
 	WebhookTLSCertDir    string `help:"The directory of TLS certificate that will be used by the webhook server of core Crossplane. There should be tls.crt and tls.key files." env:"WEBHOOK_TLS_CERT_DIR"`
-	UserAgent            string `help:"The User-Agent header that will be set on all package requests." default:"${default_user_agent}" env:"USER_AGENT"`
-
-	SyncInterval        time.Duration `short:"s" help:"How often all resources will be double-checked for drift from the desired state." default:"1h"`
-	PollInterval        time.Duration `help:"How often individual resources will be checked for drift from the desired state." default:"1m"`
-	MaxReconcileRate    int           `help:"The global maximum rate per second at which resources may checked for drift from the desired state." default:"10"`
-	ESSTLSSecretName    string        `help:"The name of the TLS Secret that will be used by Crossplane and providers as clients of External Secret Store plugins." env:"ESS_TLS_SECRET_NAME"`
-	ESSTLSCertsDir      string        `help:"The path of the folder which will store TLS certificates to be used by Crossplane and providers for communicating with External Secret Store plugins." env:"ESS_TLS_CERTS_DIR"`
-	TLSServerSecretName string        `help:"The name of the TLS Secret that will store Crossplane's server certificate." env:"TLS_SERVER_SECRET_NAME"`
-	TLSServerCertsDir   string        `help:"The path of the folder which will store TLS server certificate of Crossplane." env:"TLS_SERVER_CERTS_DIR"`
-	TLSClientSecretName string        `help:"The name of the TLS Secret that will be store Crossplane's client certificate." env:"TLS_CLIENT_SECRET_NAME"`
-	TLSClientCertsDir   string        `help:"The path of the folder which will store TLS client certificate of Crossplane." env:"TLS_CLIENT_CERTS_DIR"`
+	TLSServerSecretName  string `help:"The name of the TLS Secret that will store Crossplane's server certificate." env:"TLS_SERVER_SECRET_NAME"`
+	TLSServerCertsDir    string `help:"The path of the folder which will store TLS server certificate of Crossplane." env:"TLS_SERVER_CERTS_DIR"`
+	TLSClientSecretName  string `help:"The name of the TLS Secret that will be store Crossplane's client certificate." env:"TLS_CLIENT_SECRET_NAME"`
+	TLSClientCertsDir    string `help:"The path of the folder which will store TLS client certificate of Crossplane." env:"TLS_CLIENT_CERTS_DIR"`
 
 	EnableEnvironmentConfigs                 bool `group:"Alpha Features:" help:"Enable support for EnvironmentConfigs."`
 	EnableExternalSecretStores               bool `group:"Alpha Features:" help:"Enable support for External Secret Stores."`
@@ -184,49 +185,59 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		return errors.Wrap(err, "Cannot create manager")
 	}
 
-	feats := &feature.Flags{}
-	if c.EnableEnvironmentConfigs {
-		feats.Enable(features.EnableAlphaEnvironmentConfigs)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
-	}
-	if c.EnableCompositionFunctions {
-		feats.Enable(features.EnableAlphaCompositionFunctions)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionFunctions)
-	}
-	if c.EnableCompositionWebhookSchemaValidation {
-		feats.Enable(features.EnableAlphaCompositionWebhookSchemaValidation)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionWebhookSchemaValidation)
-	}
-	if c.EnableUsages {
-		feats.Enable(features.EnableAlphaUsages)
-		log.Info("Alpha feature enabled", "flag", features.EnableAlphaUsages)
-	}
-	if !c.EnableCompositionRevisions {
-		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
-	}
-
 	o := controller.Options{
 		Logger:                  log,
 		MaxConcurrentReconciles: c.MaxReconcileRate,
 		PollInterval:            c.PollInterval,
 		GlobalRateLimiter:       ratelimiter.NewGlobal(c.MaxReconcileRate),
-		Features:                feats,
+		Features:                &feature.Flags{},
 	}
 
+	if !c.EnableCompositionRevisions {
+		log.Info("CompositionRevisions feature is GA and cannot be disabled. The --enable-composition-revisions flag will be removed in a future release.")
+	}
+	if c.EnableEnvironmentConfigs {
+		o.Features.Enable(features.EnableAlphaEnvironmentConfigs)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaEnvironmentConfigs)
+	}
+	if c.EnableCompositionFunctions {
+		o.Features.Enable(features.EnableAlphaCompositionFunctions)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionFunctions)
+	}
+	if c.EnableCompositionWebhookSchemaValidation {
+		o.Features.Enable(features.EnableAlphaCompositionWebhookSchemaValidation)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaCompositionWebhookSchemaValidation)
+	}
+	if c.EnableUsages {
+		o.Features.Enable(features.EnableAlphaUsages)
+		log.Info("Alpha feature enabled", "flag", features.EnableAlphaUsages)
+	}
 	if c.EnableExternalSecretStores {
-		feats.Enable(features.EnableAlphaExternalSecretStores)
+		o.Features.Enable(features.EnableAlphaExternalSecretStores)
 		log.Info("Alpha feature enabled", "flag", features.EnableAlphaExternalSecretStores)
 
-		tlsConfig, err := certificates.LoadMTLSConfig(filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyCACert),
-			filepath.Join(c.ESSTLSCertsDir, corev1.TLSCertKey), filepath.Join(c.ESSTLSCertsDir, corev1.TLSPrivateKeyKey), false)
+		tcfg, err := certificates.LoadMTLSConfig(
+			filepath.Join(c.ESSTLSCertsDir, initializer.SecretKeyCACert),
+			filepath.Join(c.ESSTLSCertsDir, corev1.TLSCertKey),
+			filepath.Join(c.ESSTLSCertsDir, corev1.TLSPrivateKeyKey),
+			false)
 		if err != nil {
-			return errors.Wrap(err, "Cannot load TLS certificates for ESS")
+			return errors.Wrap(err, "Cannot load TLS certificates for external secret stores")
 		}
 
 		o.ESSOptions = &controller.ESSOptions{
-			TLSConfig:     tlsConfig,
+			TLSConfig:     tcfg,
 			TLSSecretName: &c.ESSTLSSecretName,
 		}
+	}
+
+	clienttls, err := certificates.LoadMTLSConfig(
+		filepath.Join(c.TLSClientCertsDir, initializer.SecretKeyCACert),
+		filepath.Join(c.TLSClientCertsDir, corev1.TLSCertKey),
+		filepath.Join(c.TLSClientCertsDir, corev1.TLSPrivateKeyKey),
+		false)
+	if err != nil {
+		return errors.Wrap(err, "cannot load client TLS certificates ")
 	}
 
 	ao := apiextensionscontroller.Options{
@@ -234,6 +245,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Namespace:      c.Namespace,
 		ServiceAccount: c.ServiceAccount,
 		Registry:       c.Registry,
+		ClientTLS:      clienttls,
 	}
 
 	if err := apiextensions.Setup(mgr, ao); err != nil {
@@ -241,13 +253,14 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	}
 
 	po := pkgcontroller.Options{
-		Options:              o,
-		Cache:                xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
-		Namespace:            c.Namespace,
-		ServiceAccount:       c.ServiceAccount,
-		DefaultRegistry:      c.Registry,
-		Features:             feats,
-		FetcherOptions:       []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+		Options:         o,
+		Cache:           xpkg.NewFsPackageCache(c.CacheDir, afero.NewOsFs()),
+		Namespace:       c.Namespace,
+		ServiceAccount:  c.ServiceAccount,
+		DefaultRegistry: c.Registry,
+		FetcherOptions:  []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
+
+		// TODO(negz): I think this should be ServerTLSSecretName now.
 		WebhookTLSSecretName: c.WebhookTLSSecretName,
 	}
 

@@ -19,7 +19,6 @@ package controller
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
 
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -48,7 +47,4 @@ type Options struct {
 	// so that they can use it to serve webhooks and also the CA bundle will be
 	// injected to CRDs so that API server can make calls to the providers.
 	WebhookTLSSecretName string
-
-	// Features that should be enabled.
-	Features *feature.Flags
 }
