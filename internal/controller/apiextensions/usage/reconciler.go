@@ -24,6 +24,8 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -382,4 +384,23 @@ func detailsAnnotation(u *v1alpha1.Usage) string {
 	}
 
 	return "undefined"
+}
+
+// RespectOwnerRefs is an ApplyOption that ensures the existing owner references
+// of the current Usage are respected. We need this option to be consumed in the
+// composite controller since otherwise we lose the owner reference this
+// controller puts on the Usage.
+func RespectOwnerRefs() xpresource.ApplyOption {
+	return func(ctx context.Context, current, desired runtime.Object) error {
+		cu, ok := current.(*composed.Unstructured)
+		if !ok || cu.GetObjectKind().GroupVersionKind() != v1alpha1.UsageGroupVersionKind {
+			return nil
+		}
+		// This is a Usage resource, so we need to respect existing owner
+		// references in case it has any.
+		if len(cu.GetOwnerReferences()) > 0 {
+			desired.(metav1.Object).SetOwnerReferences(cu.GetOwnerReferences())
+		}
+		return nil
+	}
 }
