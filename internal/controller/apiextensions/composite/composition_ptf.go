@@ -43,7 +43,7 @@ import (
 
 	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 )
 
@@ -723,7 +723,7 @@ func NewPackagedFunctionRunner(c client.Client, tc credentials.TransportCredenti
 // call is made to its runtime's gRPC server endpoint, as specified by the
 // Function's status.endpoint field.
 func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
-	f := &pkgv1alpha1.Function{}
+	f := &pkgv1beta1.Function{}
 	if err := r.client.Get(ctx, client.ObjectKey{Name: name}, f); err != nil {
 		return nil, errors.Wrapf(err, errFmtGetFunction, name)
 	}

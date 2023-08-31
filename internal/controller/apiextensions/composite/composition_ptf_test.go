@@ -53,7 +53,7 @@ import (
 
 	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	pkgv1alpha1 "github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -1411,7 +1411,7 @@ func TestRunFunction(t *testing.T) {
 			params: params{
 				c: &test.MockClient{
 					MockGet: func(ctx context.Context, key client.ObjectKey, obj client.Object) error {
-						obj.(*pkgv1alpha1.Function).Status.Endpoint = "fake.test.crossplane.io"
+						obj.(*pkgv1beta1.Function).Status.Endpoint = "fake.test.crossplane.io"
 						return nil
 					},
 				},
@@ -1434,7 +1434,7 @@ func TestRunFunction(t *testing.T) {
 						lis := NewGRPCServer(t, &MockFunctionServer{err: errBoom})
 						listeners = append(listeners, lis)
 
-						obj.(*pkgv1alpha1.Function).Status.Endpoint = lis.Addr().String()
+						obj.(*pkgv1beta1.Function).Status.Endpoint = lis.Addr().String()
 						return nil
 					},
 				},
@@ -1466,7 +1466,7 @@ func TestRunFunction(t *testing.T) {
 						})
 						listeners = append(listeners, lis)
 
-						obj.(*pkgv1alpha1.Function).Status.Endpoint = lis.Addr().String()
+						obj.(*pkgv1beta1.Function).Status.Endpoint = lis.Addr().String()
 						return nil
 					},
 				},

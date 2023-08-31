@@ -34,6 +34,7 @@ import (
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
@@ -316,7 +317,7 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return errors.Wrap(err, errApplyFunctionService)
 	}
 
-	fRev := pr.(*v1alpha1.FunctionRevision)
+	fRev := pr.(*v1beta1.FunctionRevision)
 	fRev.Status.Endpoint = fmt.Sprintf(serviceEndpointFmt, svc.Name, svc.Namespace, servicePort)
 
 	pr.SetControllerReference(v1.ControllerReference{Name: d.GetName()})

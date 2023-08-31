@@ -30,6 +30,7 @@ import (
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 )
 
 type deploymentModifier func(*appsv1.Deployment)
@@ -626,7 +627,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 func TestBuildFunctionDeployment(t *testing.T) {
 	type args struct {
 		function *pkgmetav1alpha1.Function
-		revision *v1alpha1.FunctionRevision
+		revision *v1beta1.FunctionRevision
 		cc       *v1alpha1.ControllerConfig
 	}
 	type want struct {
@@ -660,7 +661,7 @@ func TestBuildFunctionDeployment(t *testing.T) {
 		},
 	}
 
-	revisionWithoutCC := &v1alpha1.FunctionRevision{
+	revisionWithoutCC := &v1beta1.FunctionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
 			Labels: map[string]string{
@@ -676,7 +677,7 @@ func TestBuildFunctionDeployment(t *testing.T) {
 		},
 	}
 
-	revisionWithCC := &v1alpha1.FunctionRevision{
+	revisionWithCC := &v1beta1.FunctionRevision{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "rev-123",
 			Labels: map[string]string{

@@ -43,10 +43,6 @@ const (
 	LabelProviderFamily = "pkg.crossplane.io/provider-family"
 )
 
-// RevisionActivationPolicy indicates how a package should activate its
-// revisions.
-type RevisionActivationPolicy string
-
 var (
 	// AutomaticActivation indicates that package should automatically activate
 	// package revisions.
@@ -64,9 +60,6 @@ func RefNames(refs []corev1.LocalObjectReference) []string {
 	}
 	return stringRefs
 }
-
-var _ Package = &Provider{}
-var _ Package = &Configuration{}
 
 // Package is the interface satisfied by package types.
 // +k8s:deepcopy-gen=false
@@ -369,9 +362,6 @@ func (p *Configuration) GetTLSServerSecretName() *string {
 func (p *Configuration) GetTLSClientSecretName() *string {
 	return nil
 }
-
-var _ PackageRevision = &ProviderRevision{}
-var _ PackageRevision = &ConfigurationRevision{}
 
 // PackageRevision is the interface satisfied by package revision types.
 // +k8s:deepcopy-gen=false
@@ -773,9 +763,6 @@ func (p *ConfigurationRevision) GetCommonLabels() map[string]string {
 func (p *ConfigurationRevision) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
-
-var _ PackageRevisionList = &ProviderRevisionList{}
-var _ PackageRevisionList = &ConfigurationRevisionList{}
 
 // PackageRevisionList is the interface satisfied by package revision list
 // types.

@@ -28,6 +28,7 @@ import (
 	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
+	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
 	"github.com/crossplane/crossplane/internal/initializer"
 )
 
@@ -235,7 +236,7 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
 			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind))},
+			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1beta1.FunctionRevisionGroupVersionKind))},
 		},
 		ImagePullSecrets: pullSecrets,
 	}
@@ -262,7 +263,7 @@ func buildFunctionDeployment(function *pkgmetav1alpha1.Function, revision v1.Pac
 			Name:      revision.GetName(),
 			Namespace: namespace,
 			OwnerReferences: []metav1.OwnerReference{
-				meta.AsController(meta.TypedReferenceTo(revision, v1alpha1.FunctionRevisionGroupVersionKind)),
+				meta.AsController(meta.TypedReferenceTo(revision, v1beta1.FunctionRevisionGroupVersionKind)),
 			},
 		},
 		Spec: appsv1.DeploymentSpec{

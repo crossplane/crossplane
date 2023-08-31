@@ -28,6 +28,14 @@ type FakePkgV1beta1 struct {
 	*testing.Fake
 }
 
+func (c *FakePkgV1beta1) Functions() v1beta1.FunctionInterface {
+	return &FakeFunctions{c}
+}
+
+func (c *FakePkgV1beta1) FunctionRevisions() v1beta1.FunctionRevisionInterface {
+	return &FakeFunctionRevisions{c}
+}
+
 func (c *FakePkgV1beta1) Locks() v1beta1.LockInterface {
 	return &FakeLocks{c}
 }

@@ -48,24 +48,6 @@ var (
 	ControllerConfigGroupVersionKind = SchemeGroupVersion.WithKind(ControllerConfigKind)
 )
 
-// Function type metadata.
-var (
-	FunctionKind             = reflect.TypeOf(Function{}).Name()
-	FunctionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionKind}.String()
-	FunctionKindAPIVersion   = FunctionKind + "." + SchemeGroupVersion.String()
-	FunctionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionKind)
-)
-
-// FunctionRevision type metadata.
-var (
-	FunctionRevisionKind             = reflect.TypeOf(FunctionRevision{}).Name()
-	FunctionRevisionGroupKind        = schema.GroupKind{Group: Group, Kind: FunctionRevisionKind}.String()
-	FunctionRevisionKindAPIVersion   = FunctionRevisionKind + "." + SchemeGroupVersion.String()
-	FunctionRevisionGroupVersionKind = SchemeGroupVersion.WithKind(FunctionRevisionKind)
-)
-
 func init() {
 	SchemeBuilder.Register(&ControllerConfig{}, &ControllerConfigList{})
-	SchemeBuilder.Register(&Function{}, &FunctionList{})
-	SchemeBuilder.Register(&FunctionRevision{}, &FunctionRevisionList{})
 }

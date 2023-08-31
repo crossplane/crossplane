@@ -28,12 +28,22 @@ import (
 
 type PkgV1beta1Interface interface {
 	RESTClient() rest.Interface
+	FunctionsGetter
+	FunctionRevisionsGetter
 	LocksGetter
 }
 
 // PkgV1beta1Client is used to interact with features provided by the pkg.crossplane.io group.
 type PkgV1beta1Client struct {
 	restClient rest.Interface
+}
+
+func (c *PkgV1beta1Client) Functions() FunctionInterface {
+	return newFunctions(c)
+}
+
+func (c *PkgV1beta1Client) FunctionRevisions() FunctionRevisionInterface {
+	return newFunctionRevisions(c)
 }
 
 func (c *PkgV1beta1Client) Locks() LockInterface {
