@@ -10,10 +10,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/resource"
 )
 
 var errBoom = errors.New("boom")
@@ -199,7 +199,7 @@ func TestResolveSelectors(t *testing.T) {
 			args: args{
 				client: &test.MockClient{
 					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						l := list.(*resource.UnstructuredList)
+						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "SomeKindList":
 							l.Items = []unstructured.Unstructured{
@@ -245,7 +245,7 @@ func TestResolveSelectors(t *testing.T) {
 			args: args{
 				client: &test.MockClient{
 					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						l := list.(*resource.UnstructuredList)
+						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "AnotherKindList":
 							l.Items = []unstructured.Unstructured{
@@ -325,7 +325,7 @@ func TestResolveSelectors(t *testing.T) {
 			args: args{
 				client: &test.MockClient{
 					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-						l := list.(*resource.UnstructuredList)
+						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "SomeKindList":
 							l.Items = []unstructured.Unstructured{
@@ -372,7 +372,7 @@ func TestResolveSelectors(t *testing.T) {
 			args: args{
 				client: &test.MockClient{
 					MockList: test.NewMockListFn(nil, func(list client.ObjectList) error {
-						l := list.(*resource.UnstructuredList)
+						l := list.(*composed.UnstructuredList)
 						switch l.GetKind() {
 						case "SomeKindList":
 							l.Items = []unstructured.Unstructured{

@@ -19,7 +19,6 @@ package usage
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
@@ -32,6 +31,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
@@ -45,7 +45,7 @@ const (
 	InUseIndexKey = "inuse.apiversion.kind.name"
 
 	// Error strings.
-	errUnexpectedOp = "unexpected operation"
+	errFmtUnexpectedOp = "unexpected operation %q, expected \"DELETE\""
 )
 
 // IndexValueForObject returns the index value for the given object.
@@ -112,7 +112,7 @@ func NewHandler(reader client.Reader, opts ...HandlerOption) *Handler {
 func (h *Handler) Handle(ctx context.Context, request admission.Request) admission.Response {
 	switch request.Operation {
 	case admissionv1.Create, admissionv1.Update, admissionv1.Connect:
-		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
+		return admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, request.Operation))
 	case admissionv1.Delete:
 		u := &unstructured.Unstructured{}
 		if err := u.UnmarshalJSON(request.OldObject.Raw); err != nil {
@@ -120,7 +120,7 @@ func (h *Handler) Handle(ctx context.Context, request admission.Request) admissi
 		}
 		return h.validateNoUsages(ctx, u)
 	default:
-		return admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp))
+		return admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, request.Operation))
 	}
 }
 

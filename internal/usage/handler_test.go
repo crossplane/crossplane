@@ -47,7 +47,7 @@ func TestHandle(t *testing.T) {
 				},
 			},
 			want: want{
-				resp: admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp)),
+				resp: admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, admissionv1.Create)),
 			},
 		},
 		"UnexpectedConnect": {
@@ -60,7 +60,7 @@ func TestHandle(t *testing.T) {
 				},
 			},
 			want: want{
-				resp: admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp)),
+				resp: admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, admissionv1.Connect)),
 			},
 		},
 		"UnexpectedUpdate": {
@@ -73,7 +73,7 @@ func TestHandle(t *testing.T) {
 				},
 			},
 			want: want{
-				resp: admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp)),
+				resp: admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, admissionv1.Update)),
 			},
 		},
 		"UnexpectedOperation": {
@@ -86,7 +86,7 @@ func TestHandle(t *testing.T) {
 				},
 			},
 			want: want{
-				resp: admission.Errored(http.StatusBadRequest, errors.New(errUnexpectedOp)),
+				resp: admission.Errored(http.StatusBadRequest, errors.Errorf(errFmtUnexpectedOp, admissionv1.Operation("unknown"))),
 			},
 		},
 		"DeleteWithoutOldObj": {

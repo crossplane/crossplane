@@ -37,12 +37,11 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/resource"
 	"github.com/crossplane/crossplane/internal/usage"
-	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
 const (
@@ -215,8 +214,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	of := u.Spec.Of
 	by := u.Spec.By
 
-	// Identify used xp resource as an unstructured object.
-	used := resource.New(resource.FromReference(v1.ObjectReference{
+	// Identify used xp composed as an unstructured object.
+	used := composed.New(composed.FromReference(v1.ObjectReference{
 		Kind:       of.Kind,
 		Name:       of.ResourceRef.Name,
 		APIVersion: of.APIVersion,
@@ -225,7 +224,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if meta.WasDeleted(u) {
 		if by != nil {
 			// Identify using resource as an unstructured object.
-			using := resource.New(resource.FromReference(v1.ObjectReference{
+			using := composed.New(composed.FromReference(v1.ObjectReference{
 				Kind:       by.Kind,
 				Name:       by.ResourceRef.Name,
 				APIVersion: by.APIVersion,
@@ -239,8 +238,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 				return reconcile.Result{}, err
 			}
 
-			if l := u.GetLabels()[xcrd.LabelKeyNamePrefixForComposed]; len(l) > 0 && l == using.GetLabels()[xcrd.LabelKeyNamePrefixForComposed] && err == nil {
-				// If the usage and using resource are part of the same composite resource, we need to wait for the using resource to be deleted
+			if err == nil {
+				// Using resource is still there, so we need to wait for it to be deleted.
 				msg := "Waiting for using resource to be deleted."
 				log.Debug(msg)
 				r.record.Event(u, event.Normal(reasonWaitUsing, msg))
@@ -341,7 +340,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	if by != nil {
 		// Identify using resource as an unstructured object.
-		using := resource.New(resource.FromReference(v1.ObjectReference{
+		using := composed.New(composed.FromReference(v1.ObjectReference{
 			Kind:       by.Kind,
 			Name:       by.ResourceRef.Name,
 			APIVersion: by.APIVersion,

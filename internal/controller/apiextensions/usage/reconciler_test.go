@@ -18,10 +18,10 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	xpresource "github.com/crossplane/crossplane-runtime/pkg/resource"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/resource"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -159,7 +159,7 @@ func TestReconcile(t *testing.T) {
 								switch o := obj.(type) {
 								case *v1alpha1.Usage:
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
-								case *resource.Unstructured:
+								case *composed.Unstructured:
 									return errBoom
 								}
 								return nil
@@ -194,13 +194,13 @@ func TestReconcile(t *testing.T) {
 								switch o := obj.(type) {
 								case *v1alpha1.Usage:
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
-								case *resource.Unstructured:
+								case *composed.Unstructured:
 									return nil
 								}
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if _, ok := obj.(*resource.Unstructured); ok {
+								if _, ok := obj.(*composed.Unstructured); ok {
 									return errBoom
 								}
 								return nil
@@ -235,7 +235,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.By = &v1alpha1.Resource{
 										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
 									}
-								case *resource.Unstructured:
+								case *composed.Unstructured:
 									if o.GetName() == "using" {
 										return errBoom
 									}
@@ -274,7 +274,7 @@ func TestReconcile(t *testing.T) {
 									}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetName() == "using" {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
@@ -323,7 +323,7 @@ func TestReconcile(t *testing.T) {
 									}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetName() == "using" {
 										o.SetAPIVersion("v1")
 										o.SetKind("AnotherKind")
@@ -380,13 +380,13 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Reason = &reason
 									return nil
 								}
-								if _, ok := obj.(*resource.Unstructured); ok {
+								if _, ok := obj.(*composed.Unstructured); ok {
 									return nil
 								}
 								return errors.New("unexpected object type")
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetLabels()[inUseLabelKey] != "true" {
 										t.Fatalf("expected %s label to be true", inUseLabelKey)
 									}
@@ -429,7 +429,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
 									return nil
 								}
-								if _, ok := obj.(*resource.Unstructured); ok {
+								if _, ok := obj.(*composed.Unstructured); ok {
 									return kerrors.NewNotFound(schema.GroupResource{}, "")
 								}
 								return errors.New("unexpected object type")
@@ -463,7 +463,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
 									return nil
 								}
-								if _, ok := obj.(*resource.Unstructured); ok {
+								if _, ok := obj.(*composed.Unstructured); ok {
 									return errBoom
 								}
 								return errors.New("unexpected object type")
@@ -502,7 +502,7 @@ func TestReconcile(t *testing.T) {
 									}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetName() == "used" {
 										o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									}
@@ -539,7 +539,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									return nil
 								}
@@ -577,7 +577,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									return nil
 								}
@@ -618,7 +618,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
 									return nil
 								}
-								if _, ok := obj.(*resource.Unstructured); ok {
+								if _, ok := obj.(*composed.Unstructured); ok {
 									return kerrors.NewNotFound(schema.GroupResource{}, "")
 								}
 								return errors.New("unexpected object type")
@@ -652,7 +652,7 @@ func TestReconcile(t *testing.T) {
 									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "cool"}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									return nil
 								}
@@ -662,7 +662,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetLabels()[inUseLabelKey] != "" {
 										t.Errorf("expected in use label to be removed")
 									}
@@ -686,63 +686,8 @@ func TestReconcile(t *testing.T) {
 				r: reconcile.Result{},
 			},
 		},
-		"SuccessfulDeleteWithUsedAndUsing": {
-			reason: "We should return no error once we have successfully deleted the usage resource with using resource defined.",
-			args: args{
-				mgr: &fake.Manager{},
-				opts: []ReconcilerOption{
-					WithClientApplicator(xpresource.ClientApplicator{
-						Client: &test.MockClient{
-							MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*v1alpha1.Usage); ok {
-									o.SetDeletionTimestamp(&now)
-									o.Spec.Of.ResourceRef = &v1alpha1.ResourceRef{Name: "used"}
-									o.Spec.By = &v1alpha1.Resource{
-										APIVersion:  "v1",
-										Kind:        "AnotherKind",
-										ResourceRef: &v1alpha1.ResourceRef{Name: "using"},
-									}
-									return nil
-								}
-								if o, ok := obj.(*resource.Unstructured); ok {
-									if o.GetName() == "used" {
-										o.SetLabels(map[string]string{inUseLabelKey: "true"})
-										return nil
-									}
-									return nil
-								}
-								return errors.New("unexpected object type")
-							}),
-							MockList: test.NewMockListFn(nil, func(obj client.ObjectList) error {
-								return nil
-							}),
-							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*resource.Unstructured); ok {
-									if o.GetLabels()[inUseLabelKey] != "" {
-										t.Errorf("expected in use label to be removed")
-									}
-									return nil
-								}
-								return errors.New("unexpected object type")
-							}),
-						},
-					}),
-					WithSelectorResolver(fakeSelectorResolver{
-						resourceSelectorFn: func(ctx context.Context, u *v1alpha1.Usage) error {
-							return nil
-						},
-					}),
-					WithFinalizer(xpresource.FinalizerFns{RemoveFinalizerFn: func(_ context.Context, _ xpresource.Object) error {
-						return nil
-					}}),
-				},
-			},
-			want: want{
-				r: reconcile.Result{},
-			},
-		},
-		"SuccessfulWaitWhenUsageAndUsingPartOfSameComposite": {
-			reason: "We should wait until the using resource is deleted when usage and using resources are part of same composite.",
+		"SuccessfulWaitWhenUsingStillThere": {
+			reason: "We should wait until the using resource is deleted.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -760,7 +705,7 @@ func TestReconcile(t *testing.T) {
 									}
 									return nil
 								}
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetName() == "used" {
 										o.SetLabels(map[string]string{inUseLabelKey: "true"})
 									}
@@ -775,7 +720,7 @@ func TestReconcile(t *testing.T) {
 								return nil
 							}),
 							MockUpdate: test.NewMockUpdateFn(nil, func(obj client.Object) error {
-								if o, ok := obj.(*resource.Unstructured); ok {
+								if o, ok := obj.(*composed.Unstructured); ok {
 									if o.GetLabels()[inUseLabelKey] != "" {
 										t.Errorf("expected in use label to be removed")
 									}

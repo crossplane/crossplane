@@ -1,17 +1,18 @@
 package e2e
 
 import (
-	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage/resource"
+	"testing"
+	"time"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/e2e-framework/klient/k8s"
 	"sigs.k8s.io/e2e-framework/klient/k8s/resources"
-	"testing"
-	"time"
-
 	"sigs.k8s.io/e2e-framework/pkg/features"
 	"sigs.k8s.io/e2e-framework/third_party/helm"
+
+	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 
 	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	pkgv1 "github.com/crossplane/crossplane/apis/pkg/v1"
@@ -122,12 +123,12 @@ func TestUsageStandalone(t *testing.T) {
 func TestUsageComposition(t *testing.T) {
 	manifests := "test/e2e/manifests/apiextensions/usage/composition"
 
-	nopList := resource.NewList(resource.FromReferenceToList(corev1.ObjectReference{
+	nopList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "nop.crossplane.io/v1alpha1",
 		Kind:       "NopResource",
 	}))
 
-	usageList := resource.NewList(resource.FromReferenceToList(corev1.ObjectReference{
+	usageList := composed.NewList(composed.FromReferenceToList(corev1.ObjectReference{
 		APIVersion: "apiextensions.crossplane.io/v1alpha1",
 		Kind:       "Usage",
 	}))

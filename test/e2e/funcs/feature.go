@@ -544,7 +544,7 @@ func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min in
 // is not deleted within the supplied duration.
 func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		if err := c.Client().Resources().List(context.TODO(), list, listOptions...); err != nil {
+		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
 		if err := wait.For(conditions.New(c.Client().Resources()).ResourcesDeleted(list), wait.WithTimeout(d)); err != nil {
@@ -563,7 +563,7 @@ func ListedResourcesDeletedWithin(d time.Duration, list k8s.ObjectList, listOpti
 // not modified within the supplied duration.
 func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(object k8s.Object), listOptions ...resources.ListOption) features.Func {
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
-		if err := c.Client().Resources().List(context.TODO(), list, listOptions...); err != nil {
+		if err := c.Client().Resources().List(ctx, list, listOptions...); err != nil {
 			return ctx
 		}
 		var found int
@@ -574,7 +574,7 @@ func ListedResourcesModifiedWith(list k8s.ObjectList, min int, modify func(objec
 		for _, obj := range metaList {
 			if o, ok := obj.(k8s.Object); ok {
 				modify(o)
-				if err = c.Client().Resources().Update(context.Background(), o); err != nil {
+				if err = c.Client().Resources().Update(ctx, o); err != nil {
 					t.Errorf("failed to update resource %s/%s: %v", o.GetNamespace(), o.GetName(), err)
 					return ctx
 				}
