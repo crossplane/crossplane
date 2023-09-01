@@ -163,10 +163,11 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err := h.client.Apply(ctx, secCli); err != nil {
 		return errors.Wrap(err, errApplyProviderSecret)
 	}
-	if pr.GetTLSServerSecretName() != nil && pr.GetTLSClientSecretName() != nil {
-		if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgProvider.Name, initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
-			return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgProvider.Name)
-		}
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, pkgProvider.Name,
+		initializer.TLSCertificateGeneratorWithServerSecretName(pr.GetTLSServerSecretName()),
+		initializer.TLSCertificateGeneratorWithClientSecretName(pr.GetTLSClientSecretName()),
+		initializer.TLSCertificateGeneratorWithOwner(owner)).Run(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgProvider.Name)
 	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyProviderDeployment)
@@ -262,7 +263,9 @@ func (h *FunctionHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	}
 
 	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
-	// they aren't needed to delete Deployment, ServiceAccount, and Service.
+	// they aren't needed to delete Deployment and service account.
+	// NOTE(ezgidemirel): Service and secret are created per package. Therefore,
+	// we're not deleting them here.
 	s, d, _, _ := buildFunctionDeployment(pkgFunction, pr, nil, h.namespace, []corev1.LocalObjectReference{})
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteFunctionDeployment)
@@ -301,15 +304,14 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 	if err := h.client.Apply(ctx, secSer); err != nil {
 		return errors.Wrap(err, errApplyFunctionSecret)
 	}
+	if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, pkgFunction.Name,
+		initializer.TLSCertificateGeneratorWithServerSecretName(pr.GetTLSServerSecretName()),
+		initializer.TLSCertificateGeneratorWithOwner(owner)).GenerateServerCertificate(ctx, h.client); err != nil {
+		return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
+	}
 	if err := h.client.Apply(ctx, d); err != nil {
 		return errors.Wrap(err, errApplyFunctionDeployment)
 	}
-	if pr.GetTLSServerSecretName() != nil && pr.GetTLSClientSecretName() != nil {
-		if err := initializer.NewTLSCertificateGenerator(h.namespace, initializer.RootCACertSecretName, *pr.GetTLSServerSecretName(), *pr.GetTLSClientSecretName(), pkgFunction.Name, initializer.TLSCertificateGeneratorWithOwner(owner)).GenerateServerCertificate(ctx, h.client); err != nil {
-			return errors.Wrapf(err, "cannot generate TLS certificates for %s", pkgFunction.Name)
-		}
-	}
-
 	if err := h.client.Apply(ctx, svc); err != nil {
 		return errors.Wrap(err, errApplyFunctionService)
 	}

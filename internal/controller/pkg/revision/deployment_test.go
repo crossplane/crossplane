@@ -506,7 +506,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 		},
 		"ImgNoCCWithWebhookTLS": {
-			reason: "If the webhook tls secret name is given, then the deploymentProvider should be configured to serve behind the given service.",
+			reason: "If the webhook tls secret name is given, then the deployment should be configured to serve behind the given service.",
 			fields: args{
 				provider: providerWithImage,
 				revision: revisionWithoutCCWithWebhook,

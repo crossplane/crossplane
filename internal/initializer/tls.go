@@ -61,8 +61,8 @@ const (
 type TLSCertificateGenerator struct {
 	namespace           string
 	caSecretName        string
-	tlsServerSecretName string
-	tlsClientSecretName string
+	tlsServerSecretName *string
+	tlsClientSecretName *string
 	subject             string
 	owner               []metav1.OwnerReference
 	certificate         CertificateGenerator
@@ -86,16 +86,28 @@ func TLSCertificateGeneratorWithOwner(owner []metav1.OwnerReference) TLSCertific
 	}
 }
 
+// TLSCertificateGeneratorWithServerSecretName returns an TLSCertificateGeneratorOption that sets server secret name.
+func TLSCertificateGeneratorWithServerSecretName(s *string) TLSCertificateGeneratorOption {
+	return func(g *TLSCertificateGenerator) {
+		g.tlsServerSecretName = s
+	}
+}
+
+// TLSCertificateGeneratorWithClientSecretName returns an TLSCertificateGeneratorOption that sets client secret name.
+func TLSCertificateGeneratorWithClientSecretName(s *string) TLSCertificateGeneratorOption {
+	return func(g *TLSCertificateGenerator) {
+		g.tlsClientSecretName = s
+	}
+}
+
 // NewTLSCertificateGenerator returns a new TLSCertificateGenerator.
-func NewTLSCertificateGenerator(ns, caSecret, tlsServerSecret, tlsClientSecret, subject string, opts ...TLSCertificateGeneratorOption) *TLSCertificateGenerator {
+func NewTLSCertificateGenerator(ns, caSecret, subject string, opts ...TLSCertificateGeneratorOption) *TLSCertificateGenerator {
 	e := &TLSCertificateGenerator{
-		namespace:           ns,
-		caSecretName:        caSecret,
-		tlsServerSecretName: tlsServerSecret,
-		tlsClientSecretName: tlsClientSecret,
-		subject:             subject,
-		certificate:         NewCertGenerator(),
-		log:                 logging.NewNopLogger(),
+		namespace:    ns,
+		caSecretName: caSecret,
+		subject:      subject,
+		certificate:  NewCertGenerator(),
+		log:          logging.NewNopLogger(),
 	}
 
 	for _, f := range opts {
@@ -270,14 +282,14 @@ func (e *TLSCertificateGenerator) Run(ctx context.Context, kube client.Client) e
 	}
 
 	if err := e.ensureServerCertificate(ctx, kube, types.NamespacedName{
-		Name:      e.tlsServerSecretName,
+		Name:      *e.tlsServerSecretName,
 		Namespace: e.namespace,
 	}, signer); err != nil {
 		return errors.Wrap(err, "could not generate server certificate")
 	}
 
 	return errors.Wrap(e.ensureClientCertificate(ctx, kube, types.NamespacedName{
-		Name:      e.tlsClientSecretName,
+		Name:      *e.tlsClientSecretName,
 		Namespace: e.namespace,
 	}, signer), "could not generate client certificate")
 }
@@ -293,7 +305,7 @@ func (e *TLSCertificateGenerator) GenerateServerCertificate(ctx context.Context,
 	}
 
 	return e.ensureServerCertificate(ctx, kube, types.NamespacedName{
-		Name:      e.tlsServerSecretName,
+		Name:      *e.tlsServerSecretName,
 		Namespace: e.namespace,
 	}, signer)
 }
@@ -309,7 +321,7 @@ func (e *TLSCertificateGenerator) GenerateClientCertificate(ctx context.Context,
 	}
 
 	return e.ensureClientCertificate(ctx, kube, types.NamespacedName{
-		Name:      e.tlsClientSecretName,
+		Name:      *e.tlsClientSecretName,
 		Namespace: e.namespace,
 	}, signer)
 }
