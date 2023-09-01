@@ -39,6 +39,16 @@ import (
 func TestFetch(t *testing.T) {
 	errBoom := errors.New("boom")
 
+	makeJSONSingle := func(val any) extv1.JSON {
+		raw, err := json.Marshal(val)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return extv1.JSON{
+			Raw: raw,
+		}
+	}
+
 	makeJSON := func(m map[string]interface{}) map[string]extv1.JSON {
 		raw, err := json.Marshal(m)
 		if err != nil {
@@ -274,6 +284,58 @@ func TestFetch(t *testing.T) {
 			},
 			want: want{
 				env: makeEnvironment(map[string]interface{}{}),
+			},
+		},
+		"ValidateEnvironmentIfSchemaSet": {
+			reason: "It should successfully validate the merged environment if a schema is defined",
+			args: args{
+				cr: composite(),
+				revision: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							DefaultData: makeJSON(testData2),
+							Validation: &v1.EnvironmentValidation{
+								JSONSchema: makeJSONSingle(map[string]any{
+									"type": "object",
+									"properties": map[string]any{
+										"int": map[string]any{
+											"type": "integer",
+										},
+									},
+								}),
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				env: makeEnvironment(testData2),
+			},
+		},
+		"ErrorIfEnvironmentDoesNotMatchSchema": {
+			reason: "It return an error if the environment does not match the defined schema",
+			args: args{
+				cr: composite(),
+				revision: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							DefaultData: makeJSON(testData2),
+							Validation: &v1.EnvironmentValidation{
+								JSONSchema: makeJSONSingle(map[string]any{
+									"type": "object",
+									"properties": map[string]any{
+										"int": map[string]any{
+											"type": "string",
+										},
+									},
+								}),
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				err: errors.Wrap(errors.New("validation failure list:\nint in body must be of type string: \"number\""), errValidateEnvironment),
 			},
 		},
 	}

@@ -17,6 +17,7 @@ limitations under the License.
 package composite
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 
@@ -25,6 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	openapispec "k8s.io/kube-openapi/pkg/validation/spec"
+	openapistrfmt "k8s.io/kube-openapi/pkg/validation/strfmt"
+	openapivalidate "k8s.io/kube-openapi/pkg/validation/validate"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	v1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
@@ -34,6 +38,8 @@ const (
 	errGetEnvironmentConfig    = "failed to get config set from reference"
 	errFetchEnvironmentConfigs = "cannot fetch environment configs"
 	errMergeData               = "failed to merge data"
+	errParseEnvironmentSchema  = "cannot parse environment JSON schema"
+	errValidateEnvironment     = "cannot validate environment against schema"
 
 	environmentGroup   = "internal.crossplane.io"
 	environmentVersion = "v1alpha1"
@@ -80,6 +86,10 @@ func (f *APIEnvironmentFetcher) Fetch(ctx context.Context, req EnvironmentFetche
 	env, err := f.fetchEnvironment(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := validateEnvironment(req, env); err != nil {
+		return nil, errors.Wrap(err, errValidateEnvironment)
 	}
 
 	// GVK is necessary for patching because it uses unstructured conversion
@@ -184,4 +194,27 @@ func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
 		out[k] = v
 	}
 	return out
+}
+
+func validateEnvironment(req EnvironmentFetcherRequest, env *Environment) error {
+	// Skip validation if no environment validation schema is specified.
+	if req.Revision == nil || req.Revision.Spec.Environment == nil || req.Revision.Spec.Environment.Validation == nil {
+		return nil
+	}
+	if env == nil {
+		env = &Environment{
+			unstructured.Unstructured{
+				Object: map[string]interface{}{},
+			},
+		}
+	}
+
+	decoder := json.NewDecoder(bytes.NewBuffer(req.Revision.Spec.Environment.Validation.JSONSchema.Raw))
+	decoder.DisallowUnknownFields()
+
+	schema := &openapispec.Schema{}
+	if err := decoder.Decode(schema); err != nil {
+		return errors.Wrap(err, errParseEnvironmentSchema)
+	}
+	return openapivalidate.AgainstSchema(schema, env.Object, openapistrfmt.Default)
 }

@@ -163,6 +163,7 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentConfigurationToPV1Environ
 			}
 		}
 		v1EnvironmentConfiguration.Patches = v1EnvironmentPatchList
+		v1EnvironmentConfiguration.Validation = c.pV1EnvironmentValidationToPV1EnvironmentValidation((*source).Validation)
 		v1EnvironmentConfiguration.Policy = c.pV1PolicyToPV1Policy((*source).Policy)
 		pV1EnvironmentConfiguration = &v1EnvironmentConfiguration
 	}
@@ -200,6 +201,15 @@ func (c *GeneratedRevisionSpecConverter) pV1EnvironmentSourceSelectorToPV1Enviro
 		pV1EnvironmentSourceSelector = &v1EnvironmentSourceSelector
 	}
 	return pV1EnvironmentSourceSelector
+}
+func (c *GeneratedRevisionSpecConverter) pV1EnvironmentValidationToPV1EnvironmentValidation(source *EnvironmentValidation) *EnvironmentValidation {
+	var pV1EnvironmentValidation *EnvironmentValidation
+	if source != nil {
+		var v1EnvironmentValidation EnvironmentValidation
+		v1EnvironmentValidation.JSONSchema = c.v1JSONToV1JSON((*source).JSONSchema)
+		pV1EnvironmentValidation = &v1EnvironmentValidation
+	}
+	return pV1EnvironmentValidation
 }
 func (c *GeneratedRevisionSpecConverter) pV1MapTransformToPV1MapTransform(source *MapTransform) *MapTransform {
 	var pV1MapTransform *MapTransform

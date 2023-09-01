@@ -523,6 +523,20 @@ spec:
                         - IfNotPresent
                         type: string
                     type: object
+                  validation:
+                    description: Validation specifies rules to validates a merged
+                      environment before composition rendering.
+                    properties:
+                      jsonSchema:
+                        description: "JSONSchema specifies the structure that the
+                          merged environment needs to comply to. It follows the structure
+                          of the [JSON Schema Specification Draft 4](http://json-schema.org/specification-links.html#draft-4).
+                          \n NOTE: Currently the validation is only applied once before
+                          the initial rendering starts. That means the schema is only
+                          applied to the data from the default environment and the
+                          loaded EnvironmentConfigs. Patches are not validated."
+                        x-kubernetes-preserve-unknown-fields: true
+                    type: object
                 type: object
               mode:
                 default: Resources
@@ -1973,6 +1987,20 @@ spec:
                         - Always
                         - IfNotPresent
                         type: string
+                    type: object
+                  validation:
+                    description: Validation specifies rules to validates a merged
+                      environment before composition rendering.
+                    properties:
+                      jsonSchema:
+                        description: "JSONSchema specifies the structure that the
+                          merged environment needs to comply to. It follows the structure
+                          of the [JSON Schema Specification Draft 4](http://json-schema.org/specification-links.html#draft-4).
+                          \n NOTE: Currently the validation is only applied once before
+                          the initial rendering starts. That means the schema is only
+                          applied to the data from the default environment and the
+                          loaded EnvironmentConfigs. Patches are not validated."
+                        x-kubernetes-preserve-unknown-fields: true
                     type: object
                 type: object
               mode:

@@ -55,6 +55,10 @@ type EnvironmentConfiguration struct {
 	// composition's resources are composed.
 	Patches []EnvironmentPatch `json:"patches,omitempty"`
 
+	// Validation specifies rules to validates a merged environment before
+	// composition rendering.
+	Validation *EnvironmentValidation `json:"validation,omitempty"`
+
 	// Policy represents the Resolve and Resolution policies which apply to
 	// all EnvironmentSourceReferences in EnvironmentConfigs list.
 	// +optional
@@ -361,4 +365,20 @@ func (e *EnvironmentPatch) Validate() *field.Error {
 		return nil
 	}
 	return p.Validate()
+}
+
+// EnvironmentValidation specifies rules to validates a merged environment before
+// composition rendering.
+type EnvironmentValidation struct {
+	// JSONSchema specifies the structure that the merged environment needs to
+	// comply to.
+	// It follows the structure of the
+	// [JSON Schema Specification Draft 4](http://json-schema.org/specification-links.html#draft-4).
+	//
+	// NOTE: Currently the validation is only applied once before the initial
+	// rendering starts.
+	// That means the schema is only applied to the data from the default
+	// environment and the loaded EnvironmentConfigs.
+	// Patches are not validated.
+	JSONSchema extv1.JSON `json:"jsonSchema,omitempty"`
 }
