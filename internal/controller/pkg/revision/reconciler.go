@@ -43,6 +43,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 	"github.com/crossplane/crossplane/apis/pkg/v1beta1"
@@ -89,6 +90,11 @@ const (
 	errResolveDeps = "cannot resolve package dependencies"
 
 	errConfResourceObject = "cannot convert to resource.Object"
+
+	errCannotInitializeHostClientSet = "failed to initialize host clientset with in cluster config"
+	errCannotBuildMetaSchema         = "cannot build meta scheme for package parser"
+	errCannotBuildObjectSchema       = "cannot build object scheme for package parser"
+	errCannotBuildFetcher            = "cannot build fetcher for package parser"
 )
 
 // Event reasons.
@@ -227,20 +233,20 @@ func SetupProviderRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, errCannotInitializeHostClientSet)
 	}
 
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
-		return errors.New("cannot build meta scheme for package parser")
+		return errors.New(errCannotBuildMetaSchema)
 	}
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
-		return errors.New("cannot build object scheme for package parser")
+		return errors.New(errCannotBuildObjectSchema)
 	}
 	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher for package parser")
+		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
 	r := NewReconciler(mgr,
@@ -277,20 +283,20 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 
 	cs, err := kubernetes.NewForConfig(mgr.GetConfig())
 	if err != nil {
-		return errors.Wrap(err, "failed to initialize host clientset with in cluster config")
+		return errors.Wrap(err, errCannotInitializeHostClientSet)
 	}
 
 	metaScheme, err := xpkg.BuildMetaScheme()
 	if err != nil {
-		return errors.New("cannot build meta scheme for package parser")
+		return errors.New(errCannotBuildMetaSchema)
 	}
 	objScheme, err := xpkg.BuildObjectScheme()
 	if err != nil {
-		return errors.New("cannot build object scheme for package parser")
+		return errors.New(errCannotBuildObjectSchema)
 	}
 	f, err := xpkg.NewK8sFetcher(cs, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
 	if err != nil {
-		return errors.Wrap(err, "cannot build fetcher for package parser")
+		return errors.Wrap(err, errCannotBuildFetcher)
 	}
 
 	r := NewReconciler(mgr,
@@ -309,6 +315,56 @@ func SetupConfigurationRevision(mgr ctrl.Manager, o controller.Options) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		For(&v1.ConfigurationRevision{}).
+		WithOptions(o.ForControllerRuntime()).
+		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
+}
+
+// SetupFunctionRevision adds a controller that reconciles FunctionRevisions.
+func SetupFunctionRevision(mgr ctrl.Manager, o controller.Options) error {
+	name := "packages/" + strings.ToLower(v1alpha1.FunctionRevisionGroupKind)
+	nr := func() v1.PackageRevision { return &v1alpha1.FunctionRevision{} }
+
+	clientset, err := kubernetes.NewForConfig(mgr.GetConfig())
+	if err != nil {
+		return errors.Wrap(err, errCannotInitializeHostClientSet)
+	}
+
+	metaScheme, err := xpkg.BuildMetaScheme()
+	if err != nil {
+		return errors.New(errCannotBuildMetaSchema)
+	}
+	objScheme, err := xpkg.BuildObjectScheme()
+	if err != nil {
+		return errors.New(errCannotBuildObjectSchema)
+	}
+	fetcher, err := xpkg.NewK8sFetcher(clientset, append(o.FetcherOptions, xpkg.WithNamespace(o.Namespace), xpkg.WithServiceAccount(o.ServiceAccount))...)
+	if err != nil {
+		return errors.Wrap(err, errCannotBuildFetcher)
+	}
+
+	r := NewReconciler(mgr,
+		WithCache(o.Cache),
+		WithDependencyManager(NewPackageDependencyManager(mgr.GetClient(), dag.NewMapDag, v1beta1.FunctionPackageType)),
+		WithHooks(NewFunctionHooks(resource.ClientApplicator{
+			Client:     mgr.GetClient(),
+			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
+		}, o.Namespace, o.ServiceAccount)),
+		WithEstablisher(NewAPIEstablisher(mgr.GetClient(), o.Namespace)),
+		WithNewPackageRevisionFn(nr),
+		WithParser(parser.New(metaScheme, objScheme)),
+		WithParserBackend(NewImageBackend(fetcher, WithDefaultRegistry(o.DefaultRegistry))),
+		WithLinter(xpkg.NewFunctionLinter()),
+		WithLogger(o.Logger.WithValues("controller", name)),
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+	)
+
+	return ctrl.NewControllerManagedBy(mgr).
+		Named(name).
+		For(&v1alpha1.FunctionRevision{}).
+		Owns(&appsv1.Deployment{}).
+		Watches(&v1alpha1.ControllerConfig{}, &EnqueueRequestForReferencingFunctionRevisions{
+			client: mgr.GetClient(),
+		}).
 		WithOptions(o.ForControllerRuntime()).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
@@ -530,7 +586,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{})
+	pkgMeta, _ := xpkg.TryConvert(pkg.GetMeta()[0], &pkgmetav1.Provider{}, &pkgmetav1.Configuration{}, &pkgmetav1alpha1.Function{})
 
 	pmo := pkgMeta.(metav1.Object)
 	meta.AddLabels(pr, pmo.GetLabels())

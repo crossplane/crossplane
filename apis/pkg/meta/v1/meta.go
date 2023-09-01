@@ -39,6 +39,9 @@ type Dependency struct {
 	// Configuration is the name of a Configuration package image.
 	Configuration *string `json:"configuration,omitempty"`
 
+	// Function is the name of a Function package image.
+	Function *string `json:"function,omitempty"`
+
 	// Version is the semantic version constraints of the dependency image.
 	Version string `json:"version"`
 }

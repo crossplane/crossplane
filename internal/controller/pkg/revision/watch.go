@@ -85,3 +85,55 @@ func (e *EnqueueRequestForReferencingProviderRevisions) add(ctx context.Context,
 		}
 	}
 }
+
+// EnqueueRequestForReferencingFunctionRevisions enqueues a request for all
+// function revisions that reference a ControllerConfig when the given
+// ControllerConfig changes.
+type EnqueueRequestForReferencingFunctionRevisions struct {
+	client client.Client
+}
+
+// Create enqueues a request for all function revisions that reference a given
+// ControllerConfig.
+func (e *EnqueueRequestForReferencingFunctionRevisions) Create(ctx context.Context, evt event.CreateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
+}
+
+// Update enqueues a request for all function revisions that reference a given
+// ControllerConfig.
+func (e *EnqueueRequestForReferencingFunctionRevisions) Update(ctx context.Context, evt event.UpdateEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.ObjectOld, q)
+	e.add(ctx, evt.ObjectNew, q)
+}
+
+// Delete enqueues a request for all function revisions that reference a given
+// ControllerConfig.
+func (e *EnqueueRequestForReferencingFunctionRevisions) Delete(ctx context.Context, evt event.DeleteEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
+}
+
+// Generic enqueues a request for all function revisions that reference a given
+// ControllerConfig.
+func (e *EnqueueRequestForReferencingFunctionRevisions) Generic(ctx context.Context, evt event.GenericEvent, q workqueue.RateLimitingInterface) {
+	e.add(ctx, evt.Object, q)
+}
+
+func (e *EnqueueRequestForReferencingFunctionRevisions) add(ctx context.Context, obj runtime.Object, queue adder) {
+	cc, ok := obj.(*v1alpha1.ControllerConfig)
+	if !ok {
+		return
+	}
+
+	l := &v1alpha1.FunctionRevisionList{}
+	if err := e.client.List(ctx, l); err != nil {
+		// TODO(hasheddan): Handle this error?
+		return
+	}
+
+	for _, pr := range l.Items {
+		ref := pr.GetControllerConfigRef()
+		if ref != nil && ref.Name == cc.GetName() {
+			queue.Add(reconcile.Request{NamespacedName: types.NamespacedName{Name: pr.GetName()}})
+		}
+	}
+}

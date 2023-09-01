@@ -106,6 +106,10 @@ type Package interface {
 
 	GetCommonLabels() map[string]string
 	SetCommonLabels(l map[string]string)
+
+	GetTLSServerSecretName() *string
+
+	GetTLSClientSecretName() *string
 }
 
 // GetCondition of this Provider.
@@ -228,6 +232,16 @@ func (p *Provider) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
 }
 
+// GetTLSServerSecretName of this Provider.
+func (p *Provider) GetTLSServerSecretName() *string {
+	return GetSecretNameWithSuffix(p.GetName(), TLSServerSecretNameSuffix)
+}
+
+// GetTLSClientSecretName of this Provider.
+func (p *Provider) GetTLSClientSecretName() *string {
+	return GetSecretNameWithSuffix(p.GetName(), TLSClientSecretNameSuffix)
+}
+
 // GetCondition of this Configuration.
 func (p *Configuration) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return p.Status.GetCondition(ct)
@@ -344,6 +358,16 @@ func (p *Configuration) GetCommonLabels() map[string]string {
 // SetCommonLabels of this Configuration.
 func (p *Configuration) SetCommonLabels(l map[string]string) {
 	p.Spec.CommonLabels = l
+}
+
+// GetTLSServerSecretName of this Configuration.
+func (p *Configuration) GetTLSServerSecretName() *string {
+	return nil
+}
+
+// GetTLSClientSecretName of this Configuration.
+func (p *Configuration) GetTLSClientSecretName() *string {
+	return nil
 }
 
 var _ PackageRevision = &ProviderRevision{}
@@ -785,4 +809,25 @@ func (p *ConfigurationRevisionList) GetRevisions() []PackageRevision {
 		prs[i] = &r
 	}
 	return prs
+}
+
+const (
+	// TLSServerSecretNameSuffix is the suffix added to the name of a secret that
+	// contains TLS server certificates.
+	TLSServerSecretNameSuffix = "-tls-server"
+	// TLSClientSecretNameSuffix is the suffix added to the name of a secret that
+	// contains TLS client certificates.
+	TLSClientSecretNameSuffix = "-tls-client"
+)
+
+// GetSecretNameWithSuffix returns a secret name with the given suffix.
+// K8s secret names can be at most 253 characters long, so we truncate the
+// name if necessary.
+func GetSecretNameWithSuffix(name, suffix string) *string {
+	if len(name) > 253-len(suffix) {
+		name = name[0 : 253-len(suffix)]
+	}
+	s := name + suffix
+
+	return &s
 }

@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	pkgmetav1 "github.com/crossplane/crossplane/apis/pkg/meta/v1"
+	pkgmetav1alpha1 "github.com/crossplane/crossplane/apis/pkg/meta/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/pkg/v1"
 	"github.com/crossplane/crossplane/apis/pkg/v1alpha1"
 )
@@ -100,6 +101,30 @@ func service(provider *pkgmetav1.Provider, rev v1.PackageRevision) *corev1.Servi
 	}
 }
 
+func serviceFunction(function *pkgmetav1alpha1.Function, rev v1.PackageRevision) *corev1.Service {
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      function.GetName(),
+			Namespace: namespace,
+		},
+		Spec: corev1.ServiceSpec{
+			// We use whatever is on the deployment so that ControllerConfig
+			// overrides are accounted for.
+			Selector: map[string]string{
+				"pkg.crossplane.io/revision": rev.GetName(),
+				"pkg.crossplane.io/function": function.GetName(),
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Protocol:   corev1.ProtocolTCP,
+					Port:       9443,
+					TargetPort: intstr.FromInt(9443),
+				},
+			},
+		},
+	}
+}
+
 func secretServer(rev v1.PackageRevision) *corev1.Secret {
 	return &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -118,7 +143,7 @@ func secretClient(rev v1.PackageRevision) *corev1.Secret {
 	}
 }
 
-func deployment(provider *pkgmetav1.Provider, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
+func deploymentProvider(provider *pkgmetav1.Provider, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
 	var (
 		replicas = int32(1)
 	)
@@ -205,6 +230,10 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 											Key:  "tls.key",
 											Path: "tls.key",
 										},
+										{
+											Key:  "ca.crt",
+											Path: "ca.crt",
+										},
 									},
 								},
 							},
@@ -222,6 +251,105 @@ func deployment(provider *pkgmetav1.Provider, revision string, img string, modif
 										{
 											Key:  "tls.key",
 											Path: "tls.key",
+										},
+										{
+											Key:  "ca.crt",
+											Path: "ca.crt",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	for _, modifier := range modifiers {
+		modifier(d)
+	}
+
+	return d
+}
+
+func deploymentFunction(function *pkgmetav1alpha1.Function, revision string, img string, modifiers ...deploymentModifier) *appsv1.Deployment {
+	var (
+		replicas = int32(1)
+	)
+
+	d := &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      revision,
+			Namespace: namespace,
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"pkg.crossplane.io/revision": revision,
+					"pkg.crossplane.io/function": function.GetName(),
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      function.GetName(),
+					Namespace: namespace,
+					Labels: map[string]string{
+						"pkg.crossplane.io/revision": revision,
+						"pkg.crossplane.io/function": function.GetName(),
+					},
+				},
+				Spec: corev1.PodSpec{
+					ServiceAccountName: revision,
+					Containers: []corev1.Container{
+						{
+							Name:            function.GetName(),
+							Image:           img,
+							ImagePullPolicy: corev1.PullIfNotPresent,
+							Ports: []corev1.ContainerPort{
+								{
+									Name:          promPortName,
+									ContainerPort: promPortNumber,
+								},
+								{
+									Name:          grpcPortName,
+									ContainerPort: servicePort,
+								},
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name:  "TLS_SERVER_CERTS_DIR",
+									Value: "/tls/server",
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "tls-server-certs",
+									ReadOnly:  true,
+									MountPath: "/tls/server",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "tls-server-certs",
+							VolumeSource: corev1.VolumeSource{
+								Secret: &corev1.SecretVolumeSource{
+									SecretName: "server-secret-name",
+									Items: []corev1.KeyToPath{
+										{
+											Key:  "tls.crt",
+											Path: "tls.crt",
+										},
+										{
+											Key:  "tls.key",
+											Path: "tls.key",
+										},
+										{
+											Key:  "ca.crt",
+											Path: "ca.crt",
 										},
 									},
 								},
@@ -371,7 +499,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			want: want{
 				sa:  serviceaccount(revisionWithoutCC),
-				d:   deployment(providerWithoutImage, revisionWithCC.GetName(), pkgImg),
+				d:   deploymentProvider(providerWithoutImage, revisionWithCC.GetName(), pkgImg),
 				svc: service(providerWithoutImage, revisionWithoutCC),
 				ss:  secretServer(revisionWithoutCC),
 				cs:  secretClient(revisionWithoutCC),
@@ -386,7 +514,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			want: want{
 				sa: serviceaccount(revisionWithoutCCWithWebhook),
-				d: deployment(providerWithImage, revisionWithoutCCWithWebhook.GetName(), img,
+				d: deploymentProvider(providerWithImage, revisionWithoutCCWithWebhook.GetName(), img,
 					withAdditionalVolume(corev1.Volume{
 						Name: webhookVolumeName,
 						VolumeSource: corev1.VolumeSource{
@@ -405,7 +533,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 						MountPath: webhookTLSCertDir,
 					}),
 					withAdditionalEnvVar(corev1.EnvVar{Name: webhookTLSCertDirEnvVar, Value: webhookTLSCertDir}),
-					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: webhookPort}),
+					withAdditionalPort(corev1.ContainerPort{Name: webhookPortName, ContainerPort: servicePort}),
 				),
 				svc: service(providerWithImage, revisionWithoutCCWithWebhook),
 				ss:  secretServer(revisionWithoutCC),
@@ -421,7 +549,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			want: want{
 				sa:  serviceaccount(revisionWithoutCC),
-				d:   deployment(providerWithoutImage, revisionWithoutCC.GetName(), img),
+				d:   deploymentProvider(providerWithoutImage, revisionWithoutCC.GetName(), img),
 				svc: service(providerWithoutImage, revisionWithoutCC),
 				ss:  secretServer(revisionWithoutCC),
 				cs:  secretClient(revisionWithoutCC),
@@ -436,7 +564,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			want: want{
 				sa: serviceaccount(revisionWithCC),
-				d: deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
+				d: deploymentProvider(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
 					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
 					"pkg.crossplane.io/provider": providerWithImage.GetName(),
 					"k":                          "v",
@@ -455,7 +583,7 @@ func TestBuildProviderDeployment(t *testing.T) {
 			},
 			want: want{
 				sa: serviceaccount(revisionWithCC),
-				d: deployment(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
+				d: deploymentProvider(providerWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
 					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
 					"pkg.crossplane.io/provider": providerWithImage.GetName(),
 					"k":                          "v"}),
@@ -488,6 +616,207 @@ func TestBuildProviderDeployment(t *testing.T) {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
 			if diff := cmp.Diff(tc.want.cs, cs, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+		})
+	}
+
+}
+
+func TestBuildFunctionDeployment(t *testing.T) {
+	type args struct {
+		function *pkgmetav1alpha1.Function
+		revision *v1alpha1.FunctionRevision
+		cc       *v1alpha1.ControllerConfig
+	}
+	type want struct {
+		sa  *corev1.ServiceAccount
+		d   *appsv1.Deployment
+		svc *corev1.Service
+		sec *corev1.Secret
+	}
+
+	img := "img:tag"
+	pkgImg := "pkg-img:tag"
+	ccImg := "cc-img:tag"
+	tlsServerSecretName := "server-secret-name"
+	tlsClientSecretName := "client-secret-name"
+
+	functionWithoutImage := &pkgmetav1alpha1.Function{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pkg",
+		},
+		Spec: pkgmetav1alpha1.FunctionSpec{
+			Image: nil,
+		},
+	}
+
+	functionWithImage := &pkgmetav1alpha1.Function{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pkg",
+		},
+		Spec: pkgmetav1alpha1.FunctionSpec{
+			Image: &img,
+		},
+	}
+
+	revisionWithoutCC := &v1alpha1.FunctionRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rev-123",
+			Labels: map[string]string{
+				"pkg.crossplane.io/package": "pkg",
+			},
+		},
+		Spec: v1.PackageRevisionSpec{
+			ControllerConfigReference: nil,
+			Package:                   pkgImg,
+			Revision:                  3,
+			TLSServerSecretName:       &tlsServerSecretName,
+			TLSClientSecretName:       &tlsClientSecretName,
+		},
+	}
+
+	revisionWithCC := &v1alpha1.FunctionRevision{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rev-123",
+			Labels: map[string]string{
+				"pkg.crossplane.io/package": "pkg",
+			},
+		},
+		Spec: v1.PackageRevisionSpec{
+			ControllerConfigReference: &v1.ControllerConfigReference{Name: "cc"},
+			Package:                   pkgImg,
+			Revision:                  3,
+			TLSServerSecretName:       &tlsServerSecretName,
+			TLSClientSecretName:       &tlsClientSecretName,
+		},
+	}
+
+	cc := &v1alpha1.ControllerConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: revisionWithCC.Name,
+		},
+		Spec: v1alpha1.ControllerConfigSpec{
+			Metadata: &v1alpha1.PodObjectMeta{
+				Labels: map[string]string{
+					"k": "v",
+				},
+			},
+			Image: &ccImg,
+		},
+	}
+
+	ccWithVolumes := &v1alpha1.ControllerConfig{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: revisionWithCC.Name,
+		},
+		Spec: v1alpha1.ControllerConfigSpec{
+			Metadata: &v1alpha1.PodObjectMeta{
+				Labels: map[string]string{
+					"k": "v",
+				},
+			},
+			Image: &ccImg,
+			Volumes: []corev1.Volume{
+				{Name: "vol-a"},
+				{Name: "vol-b"},
+			},
+			VolumeMounts: []corev1.VolumeMount{
+				{Name: "vm-a"},
+				{Name: "vm-b"},
+			},
+		},
+	}
+
+	cases := map[string]struct {
+		reason string
+		fields args
+		want   want
+	}{
+		"NoImgNoCC": {
+			reason: "If the meta function does not specify a controller image and no ControllerConfig is referenced, the package image itself should be used.",
+			fields: args{
+				function: functionWithoutImage,
+				revision: revisionWithoutCC,
+				cc:       nil,
+			},
+			want: want{
+				sa:  serviceaccount(revisionWithoutCC),
+				d:   deploymentFunction(functionWithoutImage, revisionWithoutCC.GetName(), pkgImg),
+				svc: serviceFunction(functionWithoutImage, revisionWithoutCC),
+				sec: secretServer(revisionWithoutCC),
+			},
+		},
+		"ImgNoCC": {
+			reason: "If the meta function specifies a controller image and no ControllerConfig is reference, the specified image should be used.",
+			fields: args{
+				function: functionWithImage,
+				revision: revisionWithoutCC,
+				cc:       nil,
+			},
+			want: want{
+				sa:  serviceaccount(revisionWithoutCC),
+				d:   deploymentFunction(functionWithoutImage, revisionWithoutCC.GetName(), img),
+				svc: serviceFunction(functionWithoutImage, revisionWithoutCC),
+				sec: secretServer(revisionWithoutCC),
+			},
+		},
+		"ImgCC": {
+			reason: "If a ControllerConfig is referenced and it species a controller image it should always be used.",
+			fields: args{
+				function: functionWithImage,
+				revision: revisionWithCC,
+				cc:       cc,
+			},
+			want: want{
+				sa: serviceaccount(revisionWithCC),
+				d: deploymentFunction(functionWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
+					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
+					"pkg.crossplane.io/function": functionWithImage.GetName(),
+					"k":                          "v",
+				})),
+				svc: serviceFunction(functionWithImage, revisionWithCC),
+				sec: secretServer(revisionWithoutCC),
+			},
+		},
+		"WithVolumes": {
+			reason: "If a ControllerConfig is referenced and it contains volumes and volumeMounts.",
+			fields: args{
+				function: functionWithImage,
+				revision: revisionWithCC,
+				cc:       ccWithVolumes,
+			},
+			want: want{
+				sa: serviceaccount(revisionWithCC),
+				d: deploymentFunction(functionWithImage, revisionWithCC.GetName(), ccImg, withPodTemplateLabels(map[string]string{
+					"pkg.crossplane.io/revision": revisionWithCC.GetName(),
+					"pkg.crossplane.io/function": functionWithImage.GetName(),
+					"k":                          "v"}),
+					withAdditionalVolume(corev1.Volume{Name: "vol-a"}),
+					withAdditionalVolume(corev1.Volume{Name: "vol-b"}),
+					withAdditionalVolumeMount(corev1.VolumeMount{Name: "vm-a"}),
+					withAdditionalVolumeMount(corev1.VolumeMount{Name: "vm-b"}),
+				),
+				svc: serviceFunction(functionWithImage, revisionWithCC),
+				sec: secretServer(revisionWithoutCC),
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			sa, d, svc, sec := buildFunctionDeployment(tc.fields.function, tc.fields.revision, tc.fields.cc, namespace, nil)
+
+			if diff := cmp.Diff(tc.want.sa, sa, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.d, d, cmpopts.IgnoreTypes(&corev1.SecurityContext{}, &corev1.PodSecurityContext{}, []metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.svc, svc, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
+				t.Errorf("-want, +got:\n%s\n", diff)
+			}
+			if diff := cmp.Diff(tc.want.sec, sec, cmpopts.IgnoreTypes([]metav1.OwnerReference{})); diff != "" {
 				t.Errorf("-want, +got:\n%s\n", diff)
 			}
 		})

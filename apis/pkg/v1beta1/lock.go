@@ -32,6 +32,7 @@ type PackageType string
 const (
 	ConfigurationPackageType PackageType = "Configuration"
 	ProviderPackageType      PackageType = "Provider"
+	FunctionPackageType      PackageType = "Function"
 )
 
 // LockPackage is a package that is in the lock.
