@@ -126,6 +126,16 @@ func (f *Function) SetCommonLabels(l map[string]string) {
 	f.Spec.CommonLabels = l
 }
 
+// GetTLSServerSecretName of this Function.
+func (f *Function) GetTLSServerSecretName() *string {
+	return v1.GetSecretNameWithSuffix(f.GetName(), v1.TLSServerSecretNameSuffix)
+}
+
+// GetTLSClientSecretName of this Function.
+func (f *Function) GetTLSClientSecretName() *string {
+	return nil
+}
+
 var _ v1.PackageRevisionList = &FunctionRevisionList{}
 
 // GetCondition of this FunctionRevision.

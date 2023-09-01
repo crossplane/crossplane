@@ -439,8 +439,6 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetConditions(v1.Healthy())
 							want.SetRevision(1)
-							want.SetTLSServerSecretName(&tlsServerSecret)
-							want.SetTLSClientSecretName(&tlsClientSecret)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}
@@ -657,8 +655,6 @@ func TestReconcile(t *testing.T) {
 							want.SetDesiredState(v1.PackageRevisionActive)
 							want.SetConditions(v1.Healthy())
 							want.SetRevision(3)
-							want.SetTLSServerSecretName(&tlsServerSecret)
-							want.SetTLSClientSecretName(&tlsClientSecret)
 							if diff := cmp.Diff(want, o, test.EquateConditions()); diff != "" {
 								t.Errorf("-want, +got:\n%s", diff)
 							}

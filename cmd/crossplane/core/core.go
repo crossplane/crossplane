@@ -235,8 +235,6 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		Features:             feats,
 		FetcherOptions:       []xpkg.FetcherOpt{xpkg.WithUserAgent(c.UserAgent)},
 		WebhookTLSSecretName: c.WebhookTLSSecretName,
-		TLSServerSecretName:  c.TLSServerSecretName,
-		TLSClientSecretName:  c.TLSClientSecretName,
 	}
 
 	if c.CABundlePath != "" {
