@@ -199,7 +199,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 		client: resource.ClientApplicator{
 			Client:     kube,
-			Applicator: resource.NewAPIUpdatingApplicator(kube),
+			Applicator: resource.NewAPIPatchingApplicator(kube),
 		},
 
 		composite: definition{

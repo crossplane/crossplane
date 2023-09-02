@@ -125,7 +125,7 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 		// TODO(negz): Is Updating appropriate here? Probably.
 		client: resource.ClientApplicator{
 			Client:     mgr.GetClient(),
-			Applicator: resource.NewAPIUpdatingApplicator(mgr.GetClient()),
+			Applicator: resource.NewAPIPatchingApplicator(mgr.GetClient()),
 		},
 
 		rbac: ClusterRoleRenderFn(RenderClusterRoles),
