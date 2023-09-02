@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -513,7 +514,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// resourceRef we'd risk leaking composite resources, e.g. if we hit an
 	// error between when we created the composite resource and when we
 	// persisted its resourceRef.
-	if err := r.claim.Bind(ctx, cm, cp); err != nil {
+	if err := r.claim.Bind(ctx, cm, cp); kerrors.IsConflict(err) {
+		log.Debug("Requeueing after transient error binding to composite resource"), "error", err)
+		return reconcile.Result{}, err
+	} else if err != nil {
 		log.Debug(errBindComposite, "error", err)
 		err = errors.Wrap(err, errBindComposite)
 		record.Event(cm, event.Warning(reasonBind, err))
@@ -525,6 +529,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	switch {
 	case resource.IsNotAllowed(err):
 		log.Debug("Skipped no-op composite resource apply")
+	case kerrors.IsConflict(err):
+		log.Debug("Requeueing after transient error applying the composite resource"), "error", err)
+		return reconcile.Result{}, err
 	case err != nil:
 		log.Debug(errApplyComposite, "error", err)
 		err = errors.Wrap(err, errApplyComposite)
