@@ -438,7 +438,7 @@ func TestSelect(t *testing.T) {
 			},
 			want: want{
 				cr:  composite(),
-				err: errors.Wrapf(errors.Wrap(errBoom, errListEnvironmentConfigs), errFmtReferenceEnvironmentConfig, 0),
+				err: errors.Wrapf(errors.Wrap(errBoom, errListEnvironmentConfigs), errFmtReferenceEnvironmentConfig, 0, fmt.Sprintln([]v1.EnvironmentSourceSelectorLabelMatcher{{Type: v1.EnvironmentSourceSelectorLabelMatcherTypeValue, Key: "foo", Value: pointer.String("bar")}})),
 			},
 		},
 		"NoReferenceOnKubeListEmpty": {
@@ -507,7 +507,7 @@ func TestSelect(t *testing.T) {
 				cr: composite(
 					withEnvironmentRefs(),
 				),
-				err: errors.Wrapf(errors.Wrapf(errors.New("wrong: no such field"), errFmtResolveLabelValue, 0), errFmtReferenceEnvironmentConfig, 0),
+				err: errors.Wrapf(errors.Wrapf(errors.New("wrong: no such field"), errFmtResolveLabelValue, 0), errFmtReferenceEnvironmentConfig, 0, fmt.Sprintln([]v1.EnvironmentSourceSelectorLabelMatcher{{Type: v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath, Key: "foo", ValueFromFieldPath: pointer.String("wrong.path")}})),
 			},
 		},
 		"AllRefsSortedInMultiMode": {
