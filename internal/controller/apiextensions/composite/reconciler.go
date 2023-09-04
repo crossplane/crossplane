@@ -20,7 +20,9 @@ package composite
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -623,7 +625,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Normal(reasonCompose, "Successfully composed resources"))
 	}
 
-	ready := 0
+	var unready []ComposedResource
 	for i, cd := range res.Composed {
 		// Specifying a name for P&T templates is optional but encouraged.
 		// If there was no name, fall back to using the index.
@@ -634,21 +636,27 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 		if !cd.Ready {
 			log.Debug("Composed resource is not yet ready", "id", id)
+			unready = append(unready, cd)
 			r.record.Event(xr, event.Normal(reasonCompose, fmt.Sprintf("Composed resource %q is not yet ready", id)))
 			continue
 		}
-
-		ready++
 	}
 
 	xr.SetConditions(xpv1.ReconcileSuccess())
 
 	// TODO(muvaf): If a resource becomes Unavailable at some point, should we
 	// still report it as Creating?
-	if ready != len(res.Composed) {
+	if len(unready) > 0 {
 		// We want to requeue to wait for our composed resources to
 		// become ready, since we can't watch them.
-		xr.SetConditions(xpv1.Creating())
+		names := make([]string, len(unready))
+		for i, cd := range unready {
+			names[i] = cd.ResourceName
+		}
+		// sort for stable condition messages. With functions, we don't have a
+		// stable order otherwise.
+		sort.Strings(names)
+		xr.SetConditions(xpv1.Creating().WithMessage(fmt.Sprintf("Unready resources: %s", firstNAndSomeMore(names))))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
 	}
 
@@ -657,4 +665,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	// when this controller is started.
 	xr.SetConditions(xpv1.Available())
 	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+}
+
+func firstNAndSomeMore(names []string) string {
+	if len(names) > 3 {
+		return fmt.Sprintf("%s, and %d more", strings.Join(names[:3], ", "), len(names)-3)
+	}
+	return strings.Join(names, ", ")
 }
