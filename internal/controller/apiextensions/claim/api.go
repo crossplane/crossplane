@@ -89,7 +89,7 @@ type APIConnectionPropagator struct {
 // NewAPIConnectionPropagator returns a new APIConnectionPropagator.
 func NewAPIConnectionPropagator(c client.Client) *APIConnectionPropagator {
 	return &APIConnectionPropagator{
-		client: resource.ClientApplicator{Client: c, Applicator: resource.NewAPIUpdatingApplicator(c)},
+		client: resource.ClientApplicator{Client: c, Applicator: resource.NewAPIPatchingApplicator(c)},
 	}
 }
 
