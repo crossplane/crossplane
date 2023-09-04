@@ -370,6 +370,7 @@ func (c *PTFComposer) Compose(ctx context.Context, xr resource.Composite, req Co
 		if cd.Template != nil {
 			ao = append(ao, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
 		}
+		ao = append(ao, resource.AdditiveMergePatchApplyOption) //nolint:staticcheck // intentional use of deprecated ApplyOption temporarily
 		if err := c.client.Apply(ctx, cd.Resource, ao...); err != nil {
 			return CompositionResult{}, errors.Wrapf(err, errFmtApplyCD, cd.ResourceName)
 		}

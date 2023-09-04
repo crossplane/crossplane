@@ -241,6 +241,7 @@ func (c *PTComposer) Compose(ctx context.Context, xr resource.Composite, req Com
 		}
 		o := []resource.ApplyOption{resource.MustBeControllableBy(xr.GetUID())}
 		o = append(o, mergeOptions(filterPatches(cd.Template.Patches, patchTypesFromXR()...))...)
+		o = append(o, resource.AdditiveMergePatchApplyOption) //nolint:staticcheck // intentional use of deprecated ApplyOption temporarily
 		if err := c.client.Apply(ctx, cd.Resource, o...); err != nil {
 			return CompositionResult{}, errors.Wrap(err, errApply)
 		}
