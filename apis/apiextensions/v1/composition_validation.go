@@ -53,8 +53,14 @@ func (c *Composition) validateFunctions() (errs field.ErrorList) {
 	return errs
 }
 
+// validatePatchSets checks that:
+// - patchSets are composed of valid patches
+// - there are no nested patchSets
+// - only existing patchSets are used by resources
 func (c *Composition) validatePatchSets() (errs field.ErrorList) {
+	definedPatchSets := make(map[string]bool, len(c.Spec.PatchSets))
 	for i, s := range c.Spec.PatchSets {
+		definedPatchSets[s.Name] = true
 		for j, p := range s.Patches {
 			if p.Type == PatchTypePatchSet {
 				errs = append(errs, field.Invalid(field.NewPath("spec", "patchSets").Index(i).Child("patches").Index(j).Child("type"), p.Type, errors.New("cannot use patches within patches").Error()))
@@ -62,6 +68,21 @@ func (c *Composition) validatePatchSets() (errs field.ErrorList) {
 			}
 			if err := p.Validate(); err != nil {
 				errs = append(errs, verrors.WrapFieldError(err, field.NewPath("spec", "patchSets").Index(i).Child("patches").Index(j)))
+			}
+		}
+	}
+	for i, r := range c.Spec.Resources {
+		for j, p := range r.Patches {
+			if p.Type != PatchTypePatchSet {
+				continue
+			}
+			if p.PatchSetName == nil {
+				// already covered by patch c.validateResources, but we don't assume any ordering
+				errs = append(errs, field.Required(field.NewPath("spec", "resources").Index(i).Child("patches").Index(j).Child("patchSetName"), "must be specified when type is patchSet"))
+				continue
+			}
+			if !definedPatchSets[*p.PatchSetName] {
+				errs = append(errs, field.Invalid(field.NewPath("spec", "resources").Index(i).Child("patches").Index(j).Child("patchSetName"), p.PatchSetName, "patchSetName must be the name of a declared patchSet"))
 			}
 		}
 	}

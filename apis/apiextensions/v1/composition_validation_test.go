@@ -292,6 +292,44 @@ func TestCompositionValidatePatchSets(t *testing.T) {
 				},
 			},
 		},
+		"InvalidPatchSetNameReferencedByResource": {
+			reason: "should return an error if a non existing patchSet is referenced by a resource",
+			args: args{
+				comp: &Composition{
+					Spec: CompositionSpec{
+						PatchSets: []PatchSet{
+							{
+								Name: "foo",
+								Patches: []Patch{
+									{
+										Type:          PatchTypeFromCompositeFieldPath,
+										FromFieldPath: pointer.String("spec.something"),
+									},
+								},
+							},
+						},
+						Resources: []ComposedTemplate{
+							{
+								Patches: []Patch{
+									{
+										Type:         PatchTypePatchSet,
+										PatchSetName: pointer.String("wrong"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				output: field.ErrorList{
+					{
+						Type:  field.ErrorTypeInvalid,
+						Field: "spec.resources[0].patches[0].patchSetName",
+					},
+				},
+			},
+		},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
