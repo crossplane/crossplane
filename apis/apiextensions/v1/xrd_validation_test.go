@@ -1,12 +1,9 @@
 /*
 Copyright 2022 The Crossplane Authors.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,33 +17,75 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
-	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
 
-var _ admission.Validator = &CompositeResourceDefinition{}
+func TestValidateConversion(t *testing.T) {
+	cases := map[string]struct {
+		reason string
+		c      *CompositeResourceDefinition
+		want   field.ErrorList
+	}{
+		"Valid": {
+			reason: "A CompositeResourceDefinition with a valid conversion should be accepted",
+			c: &CompositeResourceDefinition{
+				Spec: CompositeResourceDefinitionSpec{
+					Conversion: &extv1.CustomResourceConversion{
+						Strategy: extv1.NoneConverter,
+					},
+				},
+			},
+		},
+		"ValidWebhook": {
+			reason: "A CompositeResourceDefinition with a valid webhook conversion should be accepted",
+			c: &CompositeResourceDefinition{
+				Spec: CompositeResourceDefinitionSpec{
+					Conversion: &extv1.CustomResourceConversion{
+						Strategy: extv1.WebhookConverter,
+						Webhook: &extv1.WebhookConversion{
+							ClientConfig: &extv1.WebhookClientConfig{},
+						},
+					},
+				},
+			},
+		},
+		"InvalidWebhook": {
+			reason: "A CompositeResourceDefinition with an invalid webhook conversion should be rejected",
+			c: &CompositeResourceDefinition{
+				Spec: CompositeResourceDefinitionSpec{
+					Conversion: &extv1.CustomResourceConversion{
+						Strategy: extv1.WebhookConverter,
+					},
+				},
+			},
+			want: field.ErrorList{
+				field.Required(field.NewPath("spec", "conversion", "webhook"), ""),
+			},
+		},
+	}
+	for tcName, tc := range cases {
+		t.Run(tcName, func(t *testing.T) {
+			got := tc.c.validateConversion()
+			if diff := cmp.Diff(tc.want, got, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
+				t.Errorf("\n%s\nValidateConversion(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
 
 func TestValidateUpdate(t *testing.T) {
 	type args struct {
-		old runtime.Object
+		old *CompositeResourceDefinition
 		new *CompositeResourceDefinition
 	}
 	cases := map[string]struct {
 		args
 		warns admission.Warnings
-		err   error
+		errs  field.ErrorList
 	}{
-		"UnexpectedType": {
-			args: args{
-				old: &extv1.CustomResourceDefinition{},
-				new: &CompositeResourceDefinition{},
-			},
-			err: errors.New(errUnexpectedType),
-		},
 		"GroupChanged": {
 			args: args{
 				old: &CompositeResourceDefinition{
@@ -60,7 +99,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			err: errors.New(errGroupImmutable),
+			errs: field.ErrorList{field.Invalid(field.NewPath("spec", "group"), "b", "")},
 		},
 		"PluralChanged": {
 			args: args{
@@ -79,7 +118,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			err: errors.New(errPluralImmutable),
+			errs: field.ErrorList{field.Invalid(field.NewPath("spec", "names", "plural"), "a", "")},
 		},
 		"KindChanged": {
 			args: args{
@@ -98,7 +137,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			err: errors.New(errKindImmutable),
+			errs: field.ErrorList{field.Invalid(field.NewPath("spec", "names", "kind"), "a", "")},
 		},
 		"ClaimPluralChanged": {
 			args: args{
@@ -117,7 +156,7 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			err: errors.New(errClaimPluralImmutable),
+			errs: field.ErrorList{field.Invalid(field.NewPath("spec", "claimNames", "plural"), "a", "")},
 		},
 		"ClaimKindChanged": {
 			args: args{
@@ -136,36 +175,15 @@ func TestValidateUpdate(t *testing.T) {
 					},
 				},
 			},
-			err: errors.New(errClaimKindImmutable),
-		},
-		"Success": {
-			args: args{
-				old: &CompositeResourceDefinition{
-					Spec: CompositeResourceDefinitionSpec{
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind: "a",
-						},
-					},
-				},
-				new: &CompositeResourceDefinition{
-					Spec: CompositeResourceDefinitionSpec{
-						Names: extv1.CustomResourceDefinitionNames{
-							Kind: "a",
-						},
-					},
-				},
-			},
+			errs: field.ErrorList{field.Invalid(field.NewPath("spec", "claimNames", "kind"), "a", "")},
 		},
 	}
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			warns, err := tc.new.ValidateUpdate(tc.old)
-			if diff := cmp.Diff(tc.warns, warns); diff != "" {
-				t.Errorf("ValidateUpdate(): -want warnings, +got warnings:\n%s", diff)
-			}
-			if diff := cmp.Diff(tc.err, err, test.EquateErrors()); diff != "" {
-				t.Errorf("ValidateUpdate(): -want error, +got error:\n%s", diff)
+			_, gotErr := tc.new.ValidateUpdate(tc.old)
+			if diff := cmp.Diff(tc.errs, gotErr, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail")); diff != "" {
+				t.Errorf("\nValidateUpdate(...): -want, +got:\n%s", diff)
 			}
 		})
 	}

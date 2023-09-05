@@ -41,7 +41,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 
-	apiextensionsv1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions"
 	apiextensionscontroller "github.com/crossplane/crossplane/internal/controller/apiextensions/controller"
 	"github.com/crossplane/crossplane/internal/controller/pkg"
@@ -50,6 +49,7 @@ import (
 	"github.com/crossplane/crossplane/internal/initializer"
 	"github.com/crossplane/crossplane/internal/transport"
 	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/composition"
+	"github.com/crossplane/crossplane/internal/validation/apiextensions/v1/xrd"
 	"github.com/crossplane/crossplane/internal/xpkg"
 )
 
@@ -255,7 +255,7 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		// TODO(muvaf): Once the implementation of other webhook handlers are
 		// fleshed out, implement a registration pattern similar to scheme
 		// registrations.
-		if err := apiextensionsv1.SetupWebhookWithManager(mgr); err != nil {
+		if err := xrd.SetupWebhookWithManager(mgr, o); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositeresourcedefinitions")
 		}
 		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {

@@ -25,5 +25,7 @@ spec:
           properties:
             coolField:
               type: string
+            coolerField:
+              type: string
           required:
           - coolField

@@ -9,7 +9,7 @@ spec:
     plural: xnopresources
   claimNames:
     kind: NopResource
-    plural: nopresources
+    plural: Nopresources # <-- invalid, should be lowercase and immutable
   connectionSecretKeys:
   - test
   versions:
@@ -24,6 +24,8 @@ spec:
           type: object
           properties:
             coolField:
+              type: string
+            coolerField:
               type: string
           required:
           - coolField
