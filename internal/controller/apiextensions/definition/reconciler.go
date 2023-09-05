@@ -268,8 +268,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource CustomResourceDefinition"))
-
 	if meta.WasDeleted(d) {
 		d.Status.SetConditions(v1.TerminatingComposite())
 		if err := r.client.Status().Update(ctx, d); err != nil {
