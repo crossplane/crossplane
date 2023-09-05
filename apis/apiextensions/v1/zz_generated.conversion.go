@@ -564,6 +564,12 @@ func (c *GeneratedRevisionSpecConverter) v1EnvironmentSourceSelectorLabelMatcher
 		pString = &xstring
 	}
 	v1EnvironmentSourceSelectorLabelMatcher.ValueFromFieldPath = pString
+	var pV1FromFieldPathPolicy *FromFieldPathPolicy
+	if source.FromFieldPathPolicy != nil {
+		v1FromFieldPathPolicy := FromFieldPathPolicy(*source.FromFieldPathPolicy)
+		pV1FromFieldPathPolicy = &v1FromFieldPathPolicy
+	}
+	v1EnvironmentSourceSelectorLabelMatcher.FromFieldPathPolicy = pV1FromFieldPathPolicy
 	var pString2 *string
 	if source.Value != nil {
 		xstring2 := *source.Value

@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -494,6 +495,73 @@ func TestSelect(t *testing.T) {
 												Type:               v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
 												Key:                "foo",
 												ValueFromFieldPath: pointer.String("wrong.path"),
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+				err: errors.Wrapf(errors.Wrapf(errors.New("wrong: no such field"), errFmtResolveLabelValue, 0), errFmtReferenceEnvironmentConfig, 0),
+			},
+		},
+		"NoErrorOnInvalidOptionalLabelValueFieldPath": {
+			reason: "It should not return an error if the path to a label value is invalid, but was set as optional.",
+			args: args{
+				kube: &test.MockClient{},
+				cr:   composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:                v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												Key:                 "foo",
+												ValueFromFieldPath:  pointer.String("wrong.path"),
+												FromFieldPathPolicy: &[]v1.FromFieldPathPolicy{v1.FromFieldPathPolicyOptional}[0],
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want: want{
+				cr: composite(
+					withEnvironmentRefs(),
+				),
+			},
+		},
+		"ErrorOnInvalidRequiredLabelValueFieldPath": {
+			reason: "It should return an error if the path to a label value is invalid and set as required.",
+			args: args{
+				kube: &test.MockClient{},
+				cr:   composite(),
+				rev: &v1.CompositionRevision{
+					Spec: v1.CompositionRevisionSpec{
+						Environment: &v1.EnvironmentConfiguration{
+							EnvironmentConfigs: []v1.EnvironmentSource{
+								{
+									Type: v1.EnvironmentSourceTypeSelector,
+									Selector: &v1.EnvironmentSourceSelector{
+										MatchLabels: []v1.EnvironmentSourceSelectorLabelMatcher{
+											{
+												Type:                v1.EnvironmentSourceSelectorLabelMatcherTypeFromCompositeFieldPath,
+												Key:                 "foo",
+												ValueFromFieldPath:  pointer.String("wrong.path"),
+												FromFieldPathPolicy: &[]v1.FromFieldPathPolicy{v1.FromFieldPathPolicyRequired}[0],
 											},
 										},
 									},
@@ -1069,7 +1137,7 @@ func TestSelect(t *testing.T) {
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
-			if diff := cmp.Diff(tc.want.cr, tc.args.cr, test.EquateErrors()); diff != "" {
+			if diff := cmp.Diff(tc.want.cr, tc.args.cr, test.EquateErrors(), cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("\n%s\nr.Reconcile(...): -want, +got:\n%s", tc.reason, diff)
 			}
 		})
