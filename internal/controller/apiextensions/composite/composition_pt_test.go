@@ -217,7 +217,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApply),
+				err: errors.Wrap(errBoom, errApply),
 			},
 		},
 		"CompositeRenderError": {
@@ -430,7 +430,7 @@ func TestPTCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errUpdate),
+				err: errors.Wrap(errBoom, errUpdate),
 			},
 		},
 		"Success": {

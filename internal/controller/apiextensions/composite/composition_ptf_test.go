@@ -268,7 +268,7 @@ func TestPTFCompose(t *testing.T) {
 				xr: &fake.Composite{},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyXR),
+				err: errors.Wrap(errBoom, errApplyXR),
 			},
 		},
 		"DoNotApplyFailedRenders": {
@@ -373,7 +373,7 @@ func TestPTFCompose(t *testing.T) {
 				xr: &fake.Composite{},
 			},
 			want: want{
-				err: errors.Wrapf(errors.Wrap(errBoom, "cannot get object"), errFmtApplyCD, "cool-resource"),
+				err: errors.Wrapf(errBoom, errFmtApplyCD, "cool-resource"),
 			},
 		},
 		"ObserveComposedResourcesError": {
