@@ -57,7 +57,7 @@ import (
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
-func TestPTFCompose(t *testing.T) {
+func TestFunctionCompose(t *testing.T) {
 	errBoom := errors.New("boom")
 
 	var cd composed.Unstructured

@@ -79,18 +79,18 @@ const (
 // Composition Functions. It ignores the P&T resources array.
 type FunctionComposer struct {
 	client    resource.ClientApplicator
-	composite ptfComposite
-	composed  ptfComposed
+	composite xr
+	composed  cd
 	pipeline  FunctionRunner
 }
 
-type ptfComposite struct {
+type xr struct {
 	managed.ConnectionDetailsFetcher
 	ComposedResourceObserver
 	ComposedResourceGarbageCollector
 }
 
-type ptfComposed struct {
+type cd struct {
 	DryRunRenderer
 	ReadinessChecker
 	ConnectionDetailsExtractor
@@ -210,13 +210,13 @@ func NewFunctionComposer(kube client.Client, o ...FunctionComposerOption) *Funct
 	c := &FunctionComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
-		composite: ptfComposite{
+		composite: xr{
 			ConnectionDetailsFetcher:         f,
 			ComposedResourceObserver:         NewExistingComposedResourceObserver(kube, f),
 			ComposedResourceGarbageCollector: NewDeletingComposedResourceGarbageCollector(kube),
 		},
 
-		composed: ptfComposed{
+		composed: cd{
 			DryRunRenderer: NewAPIDryRunRenderer(kube),
 		},
 
