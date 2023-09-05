@@ -44,6 +44,7 @@ type ComposedResource struct {
 type ComposedResourceState struct {
 	Resource          resource.Composed
 	ConnectionDetails managed.ConnectionDetails
+	Ready             bool
 }
 
 // ComposedResourceStates tracks the state of composed resources.

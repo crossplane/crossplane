@@ -649,6 +649,7 @@ func TestFunctionCompose(t *testing.T) {
 											"apiVersion": structpb.NewStringValue("example.org/v2"),
 											"kind":       structpb.NewStringValue("Composed"),
 										}},
+										Ready: fnv1beta1.Ready_READY_TRUE,
 									},
 									"desired-resource-a": {
 										Resource: &structpb.Struct{Fields: map[string]*structpb.Value{
@@ -738,8 +739,6 @@ func TestFunctionCompose(t *testing.T) {
 				err: nil,
 			},
 		},
-		// TODO(negz): Test interactions between P&T and Functions? They're not
-		// super interesting/different from the above tests.
 	}
 
 	for name, tc := range cases {

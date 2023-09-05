@@ -354,7 +354,39 @@ message Resource {
   google.protobuf.Struct resource = 1;
 
   // The resource's connection details.
+  // 
+  // * Crossplane will set this field in a RunFunctionRequest to communicate the
+  //   the observed connection details of a composite or composed resource.
+  //
+  // * A Function should set this field in a RunFunctionResponse to indicate the
+  //   desired connection details of the composite resource.
+  //
+  // * A Function should not set this field in a RunFunctionResponse to indicate
+  //   the desired connection details of a composed resource. This will be
+  //   ignored.
   map<string, bytes> connection_details = 2;
+
+  // Ready indicates whether the resource should be considered ready.
+  // 
+  // * Crossplane will never set this field in a RunFunctionRequest.
+  //
+  // * A Function should set this field to READY_TRUE in a RunFunctionResponse
+  //   to indicate that a desired composed resource is ready.
+  //
+  // * A Function should not set this field in a RunFunctionResponse to indicate
+  //   that the desired composite resource is ready. This will be ignored.
+  Ready ready = 3;
+}
+
+// Ready indicates whether a composed resource should be considered ready.
+enum Ready {
+  READY_UNSPECIFIED = 0;
+
+  // True means the composed resource has been observed to be ready.
+  READY_TRUE = 1;
+
+  // False means the composed resource has not been observed to be ready.
+  READY_FALSE = 2;
 }
 
 // A Result of running a Function.

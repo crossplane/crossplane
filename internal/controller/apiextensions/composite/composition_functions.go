@@ -327,7 +327,15 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 			return CompositionResult{}, errors.Wrapf(err, errFmtUnmarshalDesiredCD, name)
 		}
 
-		desired[ResourceName(name)] = ComposedResourceState{Resource: cd, ConnectionDetails: dr.GetConnectionDetails()}
+		// TODO(negz): Should we try to automatically derive readiness if the
+		// Function returns READY_UNSPECIFIED? Is it safe to assume that if the
+		// Function doesn't have an opinion about readiness then we should look
+		// for the Ready: True status condition?
+		desired[ResourceName(name)] = ComposedResourceState{
+			Resource:          cd,
+			ConnectionDetails: dr.GetConnectionDetails(),
+			Ready:             dr.Ready == fnv1beta1.Ready_READY_TRUE,
+		}
 	}
 
 	// Finalize the 'rendering' of all composed resources by setting standard
@@ -396,27 +404,10 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	}
 
 	// Produce our array of resources resources to return to the Reconciler. The
-	// Reconciler uses this array to determine whether the XR is ready. This
-	// means it's important that we return a resources resource for every entry
-	// in tas - i.e. a resources resource for every resource template.
+	// Reconciler uses this array to determine whether the XR is ready.
 	resources := make([]ComposedResource, 0, len(desired))
-	for name := range desired {
-		if _, ok := observed[name]; !ok {
-			// There's no point trying to extract connection details from or
-			// check the readiness of a resource that doesn't exist yet.
-			resources = append(resources, ComposedResource{ResourceName: name, Ready: false})
-			continue
-		}
-
-		// TODO(negz): How do we know if a composed resource derived from a
-		// Function is ready? The beta Functions design said a Function
-		// could just set the XR as Ready, but this would require one
-		// Function to be able to assess the readiness of _every_ composed
-		// resource, not only the ones it's aware of. This would also fight
-		// with the readiness logic built into the XR reconciler. Perhaps we
-		// need to include a ready boolean in the Function response?
-		resources = append(resources, ComposedResource{ResourceName: name, Ready: true})
-		continue
+	for name, r := range desired {
+		resources = append(resources, ComposedResource{ResourceName: name, Ready: r.Ready})
 	}
 
 	return CompositionResult{ConnectionDetails: xrConnDetails, Composed: resources, Events: events}, nil
