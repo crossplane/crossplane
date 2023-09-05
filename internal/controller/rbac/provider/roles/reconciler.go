@@ -328,7 +328,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for _, cr := range r.rbac.RenderClusterRoles(pr, resources) {
 		cr := cr // Pin range variable so we can take its address.
 		log := log.WithValues("role-name", cr.GetName())
-		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(pr.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
+		origRV := ""
+		err := r.client.Apply(ctx, &cr,
+			resource.MustBeControllableBy(pr.GetUID()),
+			resource.AllowUpdateIf(ClusterRolesDiffer),
+			func(ctx context.Context, current, desired runtime.Object) error {
+				origRV = current.(client.Object).GetResourceVersion()
+				return nil
+			},
+		)
 		if resource.IsNotAllowed(err) {
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
 			continue
@@ -339,8 +347,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(pr, event.Warning(reasonApplyRoles, err))
 			return reconcile.Result{}, err
 		}
-		log.Debug("Applied RBAC ClusterRole")
-		applied = append(applied, cr.GetName())
+		if cr.GetResourceVersion() != origRV {
+			log.Debug("Applied RBAC ClusterRole")
+			applied = append(applied, cr.GetName())
+		}
 	}
 
 	if len(applied) > 0 {

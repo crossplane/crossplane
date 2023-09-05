@@ -28,6 +28,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -184,7 +185,14 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	for _, cr := range r.rbac.RenderClusterRoles(d) {
 		cr := cr // Pin range variable so we can take its address.
 		log := log.WithValues("role-name", cr.GetName())
-		err := r.client.Apply(ctx, &cr, resource.MustBeControllableBy(d.GetUID()), resource.AllowUpdateIf(ClusterRolesDiffer))
+		origRV := ""
+		err := r.client.Apply(ctx, &cr,
+			resource.MustBeControllableBy(d.GetUID()),
+			resource.AllowUpdateIf(ClusterRolesDiffer),
+			func(ctx context.Context, current, desired runtime.Object) error {
+				origRV = current.(client.Object).GetResourceVersion()
+				return nil
+			})
 		if resource.IsNotAllowed(err) {
 			log.Debug("Skipped no-op RBAC ClusterRole apply")
 			continue
@@ -195,8 +203,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 			r.record.Event(d, event.Warning(reasonApplyRoles, err))
 			return reconcile.Result{}, err
 		}
-		log.Debug("Applied RBAC ClusterRole")
-		applied = append(applied, cr.GetName())
+		if cr.GetResourceVersion() != origRV {
+			log.Debug("Applied RBAC ClusterRole")
+			applied = append(applied, cr.GetName())
+		}
 	}
 
 	if len(applied) > 0 {
