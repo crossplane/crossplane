@@ -404,9 +404,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Referenceable version changed; stopped composite resource controller",
 			"observed-version", observed.APIVersion,
 			"desired-version", desired.APIVersion)
-		r.record.Event(d, event.Normal(reasonEstablishXR, "Referenceable version changed; stopped composite resource controller",
-			"observed-version", observed.APIVersion,
-			"desired-version", desired.APIVersion))
 	}
 
 	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
@@ -426,7 +423,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	d.Status.SetConditions(v1.WatchingComposite())
-	r.record.Event(d, event.Normal(reasonEstablishXR, "(Re)started composite resource controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
 
