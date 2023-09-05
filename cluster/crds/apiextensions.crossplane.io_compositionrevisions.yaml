@@ -67,8 +67,10 @@ spec:
                 - kind
                 type: object
               environment:
-                description: Environment configures the environment in which resources
-                  are rendered.
+                description: "Environment configures the environment in which resources
+                  are rendered. \n THIS IS AN ALPHA FIELD. Do not use it in production.
+                  It is not honored unless the relevant Crossplane feature flag is
+                  enabled, and may be changed or removed without notice."
                 properties:
                   defaultData:
                     additionalProperties:
@@ -522,10 +524,27 @@ spec:
                         type: string
                     type: object
                 type: object
+              mode:
+                default: Resources
+                description: "Mode controls what type or \"mode\" of Composition will
+                  be used. \n \"Resources\" (the default) indicates that a Composition
+                  uses what is commonly referred to as \"Patch & Transform\" or P&T
+                  composition. This mode of Composition uses an array of resources,
+                  each a template for a composed resource. \n \"Pipeline\" indicates
+                  that a Composition specifies a pipeline of Composition Functions,
+                  each of which is responsible for producing composed resources that
+                  Crossplane should create or update. THE PIPELINE MODE IS A BETA
+                  FEATURE. It is not honored if the relevant Crossplane feature flag
+                  is disabled."
+                enum:
+                - Resources
+                - Pipeline
+                type: string
               patchSets:
-                description: PatchSets define a named set of patches that may be included
-                  by any resource in this Composition. PatchSets cannot themselves
-                  refer to other PatchSets.
+                description: "PatchSets define a named set of patches that may be
+                  included by any resource in this Composition. PatchSets cannot themselves
+                  refer to other PatchSets. \n PatchSets are only used by the \"Resources\"
+                  mode of Composition. They are ignored by other modes."
                 items:
                   description: A PatchSet is a set of patches that can be reused from
                     all resources within a Composition.
@@ -873,10 +892,10 @@ spec:
               pipeline:
                 description: "Pipeline is a list of composition function steps that
                   will be used when a composite resource referring to this composition
-                  is created. At least one of resources and pipeline must be specified.
-                  If both are specified the resources will be rendered first, then
-                  passed to the step functions for further processing. \n THIS IS
-                  A BETA FIELD. It is not honored if the relevant Crossplane feature
+                  is created. One of of resources and pipeline must be specified -
+                  you cannot specify both. \n The Pipeline is only used by the \"Pipeline\"
+                  mode of Composition. It is ignored by other modes. \n THIS IS A
+                  BETA FIELD. It is not honored if the relevant Crossplane feature
                   flag is disabled."
                 items:
                   description: A PipelineStep in a Composition Function pipeline.
@@ -909,10 +928,12 @@ spec:
               publishConnectionDetailsWithStoreConfigRef:
                 default:
                   name: default
-                description: PublishConnectionDetailsWithStoreConfig specifies the
+                description: "PublishConnectionDetailsWithStoreConfig specifies the
                   secret store config with which the connection details of composite
                   resources dynamically provisioned using this composition will be
-                  published.
+                  published. \n THIS IS AN ALPHA FIELD. Do not use it in production.
+                  It is not honored unless the relevant Crossplane feature flag is
+                  enabled, and may be changed or removed without notice."
                 properties:
                   name:
                     description: Name of the referenced StoreConfig.
@@ -921,9 +942,10 @@ spec:
                 - name
                 type: object
               resources:
-                description: Resources is the list of resource templates that will
+                description: "Resources is a list of resource templates that will
                   be used when a composite resource referring to this composition
-                  is created.
+                  is created. \n Resources are only used by the \"Resources\" mode
+                  of Composition. They are ignored by other modes."
                 items:
                   description: ComposedTemplate is used to provide information about
                     how the composed resource should be processed.
@@ -1394,7 +1416,7 @@ spec:
                 description: WriteConnectionSecretsToNamespace specifies the namespace
                   in which the connection secrets of composite resource dynamically
                   provisioned using this composition will be created. This field is
-                  planned to be removed in a future release in favor of PublishConnectionDetailsWithStoreConfigRef.
+                  planned to be replaced in a future release in favor of PublishConnectionDetailsWithStoreConfigRef.
                   Currently, both could be set independently and connection details
                   would be published to both without affecting each other as long
                   as related fields at MR level specified.
@@ -1496,8 +1518,10 @@ spec:
                 - kind
                 type: object
               environment:
-                description: Environment configures the environment in which resources
-                  are rendered.
+                description: "Environment configures the environment in which resources
+                  are rendered. \n THIS IS AN ALPHA FIELD. Do not use it in production.
+                  It is not honored unless the relevant Crossplane feature flag is
+                  enabled, and may be changed or removed without notice."
                 properties:
                   defaultData:
                     additionalProperties:
@@ -1951,10 +1975,27 @@ spec:
                         type: string
                     type: object
                 type: object
+              mode:
+                default: Resources
+                description: "Mode controls what type or \"mode\" of Composition will
+                  be used. \n \"Resources\" (the default) indicates that a Composition
+                  uses what is commonly referred to as \"Patch & Transform\" or P&T
+                  composition. This mode of Composition uses an array of resources,
+                  each a template for a composed resource. \n \"Pipeline\" indicates
+                  that a Composition specifies a pipeline of Composition Functions,
+                  each of which is responsible for producing composed resources that
+                  Crossplane should create or update. THE PIPELINE MODE IS A BETA
+                  FEATURE. It is not honored if the relevant Crossplane feature flag
+                  is disabled."
+                enum:
+                - Resources
+                - Pipeline
+                type: string
               patchSets:
-                description: PatchSets define a named set of patches that may be included
-                  by any resource in this Composition. PatchSets cannot themselves
-                  refer to other PatchSets.
+                description: "PatchSets define a named set of patches that may be
+                  included by any resource in this Composition. PatchSets cannot themselves
+                  refer to other PatchSets. \n PatchSets are only used by the \"Resources\"
+                  mode of Composition. They are ignored by other modes."
                 items:
                   description: A PatchSet is a set of patches that can be reused from
                     all resources within a Composition.
@@ -2302,10 +2343,10 @@ spec:
               pipeline:
                 description: "Pipeline is a list of composition function steps that
                   will be used when a composite resource referring to this composition
-                  is created. At least one of resources and pipeline must be specified.
-                  If both are specified the resources will be rendered first, then
-                  passed to the step functions for further processing. \n THIS IS
-                  A BETA FIELD. It is not honored if the relevant Crossplane feature
+                  is created. One of of resources and pipeline must be specified -
+                  you cannot specify both. \n The Pipeline is only used by the \"Pipeline\"
+                  mode of Composition. It is ignored by other modes. \n THIS IS A
+                  BETA FIELD. It is not honored if the relevant Crossplane feature
                   flag is disabled."
                 items:
                   description: A PipelineStep in a Composition Function pipeline.
@@ -2338,10 +2379,12 @@ spec:
               publishConnectionDetailsWithStoreConfigRef:
                 default:
                   name: default
-                description: PublishConnectionDetailsWithStoreConfig specifies the
+                description: "PublishConnectionDetailsWithStoreConfig specifies the
                   secret store config with which the connection details of composite
                   resources dynamically provisioned using this composition will be
-                  published.
+                  published. \n THIS IS AN ALPHA FIELD. Do not use it in production.
+                  It is not honored unless the relevant Crossplane feature flag is
+                  enabled, and may be changed or removed without notice."
                 properties:
                   name:
                     description: Name of the referenced StoreConfig.
@@ -2350,9 +2393,10 @@ spec:
                 - name
                 type: object
               resources:
-                description: Resources is the list of resource templates that will
+                description: "Resources is a list of resource templates that will
                   be used when a composite resource referring to this composition
-                  is created.
+                  is created. \n Resources are only used by the \"Resources\" mode
+                  of Composition. They are ignored by other modes."
                 items:
                   description: ComposedTemplate is used to provide information about
                     how the composed resource should be processed.
@@ -2823,7 +2867,7 @@ spec:
                 description: WriteConnectionSecretsToNamespace specifies the namespace
                   in which the connection secrets of composite resource dynamically
                   provisioned using this composition will be created. This field is
-                  planned to be removed in a future release in favor of PublishConnectionDetailsWithStoreConfigRef.
+                  planned to be replaced in a future release in favor of PublishConnectionDetailsWithStoreConfigRef.
                   Currently, both could be set independently and connection details
                   would be published to both without affecting each other as long
                   as related fields at MR level specified.

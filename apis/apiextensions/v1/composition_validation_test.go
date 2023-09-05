@@ -33,6 +33,112 @@ func sortFieldErrors() cmp.Option {
 	})
 }
 
+func TestCompositionValidateMode(t *testing.T) {
+	type args struct {
+		spec CompositionSpec
+	}
+	type want struct {
+		output field.ErrorList
+	}
+
+	resources := CompositionModeResources
+	pipeline := CompositionModePipeline
+
+	cases := map[string]struct {
+		reason string
+		args   args
+		want   want
+	}{
+		"ValidResources": {
+			reason: "A Resources mode Composition with an array of resources is valid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &resources,
+					Resources: []ComposedTemplate{
+						{Name: pointer.String("cool-template")},
+					},
+				},
+			},
+			want: want{
+				output: nil,
+			},
+		},
+		"ValidImplicitResources": {
+			reason: "A Composition with no explicit mode is assumed to be a Resources mode Composition, which with an array of resources is valid",
+			args: args{
+				spec: CompositionSpec{
+					// This Composition uses Resources mode implicitly.
+					Resources: []ComposedTemplate{
+						{Name: pointer.String("cool-template")},
+					},
+				},
+			},
+			want: want{
+				output: nil,
+			},
+		},
+		"InvalidResources": {
+			reason: "A Resources mode Composition without an array of resources is invalid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &resources,
+				},
+			},
+			want: want{
+				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "an array of resources is required in Resources mode (the default if no mode is specified)")},
+			},
+		},
+		"InvalidImplicitResources": {
+			reason: "A Composition with no explicit mode is assumed to be a Resources mode Composition, which is invalid without an array of resources",
+			args: args{
+				spec: CompositionSpec{},
+			},
+			want: want{
+				output: field.ErrorList{field.Required(field.NewPath("spec", "resources"), "an array of resources is required in Resources mode (the default if no mode is specified)")},
+			},
+		},
+		"ValidPipeline": {
+			reason: "A Pipeline mode Composition with an array of pipeline steps is valid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &pipeline,
+					Pipeline: []PipelineStep{
+						{
+							Step: "razor",
+						},
+					},
+				},
+			},
+			want: want{
+				output: nil,
+			},
+		},
+		"InvalidPipeline": {
+			reason: "A Pipeline mode Composition without an array of pipeline steps is invalid",
+			args: args{
+				spec: CompositionSpec{
+					Mode: &pipeline,
+				},
+			},
+			want: want{
+				output: field.ErrorList{field.Required(field.NewPath("spec", "pipeline"), "an array of pipeline steps is required in Pipeline mode")},
+			},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			c := &Composition{
+				Spec: tc.args.spec,
+			}
+			gotErrs := c.validateMode()
+			if diff := cmp.Diff(tc.want.output, gotErrs, sortFieldErrors(), cmpopts.IgnoreFields(field.Error{}, "Detail", "BadValue")); diff != "" {
+				t.Errorf("%s\nvalidateResourceNames(...): -want, +got:\n%s", tc.reason, diff)
+			}
+		})
+	}
+}
+
 func TestCompositionValidateResourceName(t *testing.T) {
 	type args struct {
 		spec CompositionSpec

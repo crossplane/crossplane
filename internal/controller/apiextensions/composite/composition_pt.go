@@ -134,11 +134,6 @@ func NewPTComposer(kube client.Client, o ...PTComposerOption) *PTComposer {
 	c := &PTComposer{
 		client: resource.ClientApplicator{Client: kube, Applicator: resource.NewAPIPatchingApplicator(kube)},
 
-		// TODO(negz): Once Composition Functions are GA this Composer will only
-		// need to handle legacy Compositions that use anonymous templates. This
-		// means we will be able to delete the GarbageCollectingAssociator and
-		// just use AssociateByOrder. Compositions with named templates will be
-		// handled by the PTFComposer.
 		composition: NewGarbageCollectingAssociator(kube),
 		composed: composedResource{
 			DryRunRenderer:             NewAPIDryRunRenderer(kube),

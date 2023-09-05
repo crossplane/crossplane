@@ -35,6 +35,25 @@ import (
 	into composition_revision_types.go.
 */
 
+// A CompositionMode determines what mode of Composition is used
+type CompositionMode string
+
+const (
+	// CompositionModeResources indicates that a Composition uses what is
+	// commonly referred to as "Patch & Transform" or P&T composition. This mode
+	// of Composition uses an array of resources, each a template for a composed
+	// resource.
+	CompositionModeResources CompositionMode = "Resources"
+
+	// CompositionModePipeline indicates that a Composition specifies a pipeline
+	// of Composition Functions, each of which is responsible for producing
+	// composed resources that Crossplane should create or update.
+	//
+	// THIS IS A BETA FEATURE. It is not honored if the relevant Crossplane
+	// feature flag is disabled.
+	CompositionModePipeline CompositionMode = "Pipeline"
+)
+
 // TypeReference is used to refer to a type for declaring compatibility.
 type TypeReference struct {
 	// APIVersion of the type.

@@ -171,6 +171,11 @@ func (in *CompositionRevisionList) DeepCopyObject() runtime.Object {
 func (in *CompositionRevisionSpec) DeepCopyInto(out *CompositionRevisionSpec) {
 	*out = *in
 	out.CompositeTypeRef = in.CompositeTypeRef
+	if in.Mode != nil {
+		in, out := &in.Mode, &out.Mode
+		*out = new(CompositionMode)
+		**out = **in
+	}
 	if in.PatchSets != nil {
 		in, out := &in.PatchSets, &out.PatchSets
 		*out = make([]PatchSet, len(*in))

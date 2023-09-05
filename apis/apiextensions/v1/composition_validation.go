@@ -28,6 +28,7 @@ import (
 func (c *Composition) Validate() (warns []string, errs field.ErrorList) {
 	type validationFunc func() field.ErrorList
 	validations := []validationFunc{
+		c.validateMode,
 		c.validatePatchSets,
 		c.validateResources,
 		c.validatePipeline,
@@ -37,6 +38,28 @@ func (c *Composition) Validate() (warns []string, errs field.ErrorList) {
 		errs = append(errs, f()...)
 	}
 	return nil, errs
+}
+
+func (c *Composition) validateMode() (errs field.ErrorList) {
+	// "Resources" mode was the original mode. It predates the mode field, so
+	// it's the default if mode isn't specified.
+	m := CompositionModeResources
+	if c.Spec.Mode != nil {
+		m = *c.Spec.Mode
+	}
+
+	switch m {
+	case CompositionModeResources:
+		if len(c.Spec.Resources) == 0 {
+			errs = append(errs, field.Required(field.NewPath("spec", "resources"), "an array of resources is required in Resources mode (the default if no mode is specified)"))
+		}
+	case CompositionModePipeline:
+		if len(c.Spec.Pipeline) == 0 {
+			errs = append(errs, field.Required(field.NewPath("spec", "pipeline"), "an array of pipeline steps is required in Pipeline mode"))
+		}
+	}
+
+	return errs
 }
 
 func (c *Composition) validatePipeline() (errs field.ErrorList) {

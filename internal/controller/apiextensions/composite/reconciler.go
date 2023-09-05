@@ -208,6 +208,14 @@ func (fn ComposerFn) Compose(ctx context.Context, xr resource.Composite, req Com
 	return fn(ctx, xr, req)
 }
 
+// A ComposerSelectorFn selects the appropriate Composer for a mode.
+type ComposerSelectorFn func(*v1.CompositionMode) Composer
+
+// Compose calls the Composer returned by calling fn.
+func (fn ComposerSelectorFn) Compose(ctx context.Context, xr resource.Composite, req CompositionRequest) (CompositionResult, error) {
+	return fn(req.Revision.Spec.Mode).Compose(ctx, xr, req)
+}
+
 // ReconcilerOption is used to configure the Reconciler.
 type ReconcilerOption func(*Reconciler)
 

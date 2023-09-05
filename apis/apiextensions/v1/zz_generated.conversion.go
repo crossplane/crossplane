@@ -14,6 +14,12 @@ type GeneratedRevisionSpecConverter struct{}
 func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevisionSpec) CompositionSpec {
 	var v1CompositionSpec CompositionSpec
 	v1CompositionSpec.CompositeTypeRef = c.v1TypeReferenceToV1TypeReference(source.CompositeTypeRef)
+	var pV1CompositionMode *CompositionMode
+	if source.Mode != nil {
+		v1CompositionMode := CompositionMode(*source.Mode)
+		pV1CompositionMode = &v1CompositionMode
+	}
+	v1CompositionSpec.Mode = pV1CompositionMode
 	var v1PatchSetList []PatchSet
 	if source.PatchSets != nil {
 		v1PatchSetList = make([]PatchSet, len(source.PatchSets))
@@ -51,6 +57,12 @@ func (c *GeneratedRevisionSpecConverter) FromRevisionSpec(source CompositionRevi
 func (c *GeneratedRevisionSpecConverter) ToRevisionSpec(source CompositionSpec) CompositionRevisionSpec {
 	var v1CompositionRevisionSpec CompositionRevisionSpec
 	v1CompositionRevisionSpec.CompositeTypeRef = c.v1TypeReferenceToV1TypeReference(source.CompositeTypeRef)
+	var pV1CompositionMode *CompositionMode
+	if source.Mode != nil {
+		v1CompositionMode := CompositionMode(*source.Mode)
+		pV1CompositionMode = &v1CompositionMode
+	}
+	v1CompositionRevisionSpec.Mode = pV1CompositionMode
 	var v1PatchSetList []PatchSet
 	if source.PatchSets != nil {
 		v1PatchSetList = make([]PatchSet, len(source.PatchSets))

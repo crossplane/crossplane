@@ -487,31 +487,37 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 			composite.WithComposer(composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))))
 	}
 
-	// If Composition Functions are enabled we want to try to use the
-	// PTFComposer. This Composer supports using P&T Composition alone,
-	// Functions alone, or mixing both. It does not support anonymous resource
-	// templates - resource templates with a nil name - because it needs the
-	// name to match entries in the resources array to entries in the observed
-	// and desired objects of a RunFunctionRequest/RunFunctionResponse. We
-	// therefore 'fall back' to the PTComposer if we encounter a Composition
-	// with anonymous templates. Composition validation ensures that a
-	// Composition that uses functions must have named resources templates.
+	// If Composition Functions are enabled we use two different Composer
+	// implementations. One supports P&T (aka 'Resources mode') and the other
+	// Functions (aka 'Pipeline mode').
 	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
-		// TODO(negz): This FallbackComposer needs to fall back if there are any
-		// resources in the resources array.
-		fb := composite.NewFallBackComposer(
-			composite.NewFunctionComposer(c,
-				composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
-				composite.WithCompositeConnectionDetailsFetcher(fetcher),
-				composite.WithFunctionRunner(composite.NewPackagedFunctionRunner(c, credentials.NewTLS(co.ClientTLS))),
-			),
-			composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher)),
-			composite.FallBackForPatchAndTransform(c),
+		ptc := composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))
+
+		fc := composite.NewFunctionComposer(c,
+			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
+			composite.WithCompositeConnectionDetailsFetcher(fetcher),
+			composite.WithFunctionRunner(composite.NewPackagedFunctionRunner(c, credentials.NewTLS(co.ClientTLS))),
 		)
 
-		// Note that if external secret stores are enabled this will supercede
+		// Note that if external secret stores are enabled this will supersede
 		// the WithComposer option specified in that block.
-		o = append(o, composite.WithComposer(fb))
+		o = append(o, composite.WithComposer(composite.ComposerSelectorFn(func(cm *v1.CompositionMode) composite.Composer {
+			// Resources mode is the implicit default.
+			m := v1.CompositionModeResources
+			if cm != nil {
+				m = *cm
+			}
+			switch m {
+			case v1.CompositionModeResources:
+				return ptc
+			case v1.CompositionModePipeline:
+				return fc
+			default:
+				// This shouldn't be possible, but just in case return the
+				// default Composer.
+				return ptc
+			}
+		})))
 	}
 
 	return o
