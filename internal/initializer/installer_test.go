@@ -352,7 +352,7 @@ func TestInstaller(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyPackage),
+				err: errors.Wrap(errBoom, errApplyPackage),
 			},
 		},
 	}

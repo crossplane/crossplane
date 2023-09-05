@@ -417,8 +417,9 @@ func TestPTFCompose(t *testing.T) {
 			params: params{
 				kube: &test.MockClient{
 					// These are both called by Apply.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet:                 test.NewMockGetFn(nil),
+					MockPatch:               test.NewMockPatchFn(nil),
+					MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}),
 				},
 				o: []PTFComposerOption{
 					WithCompositeConnectionDetailsFetcher(ConnectionDetailsFetcherFn(func(ctx context.Context, o resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {

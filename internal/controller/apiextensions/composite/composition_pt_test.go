@@ -227,8 +227,12 @@ func TestPTCompose(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 
 					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"})
+						return nil
+					}),
+					MockPatch:               test.NewMockPatchFn(nil),
+					MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -264,8 +268,12 @@ func TestPTCompose(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 
 					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"})
+						return nil
+					}),
+					MockPatch:               test.NewMockPatchFn(nil),
+					MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -304,8 +312,12 @@ func TestPTCompose(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 
 					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"})
+						return nil
+					}),
+					MockPatch:               test.NewMockPatchFn(nil),
+					MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -347,8 +359,12 @@ func TestPTCompose(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 
 					// Apply calls Get and Patch
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"})
+						return nil
+					}),
+					MockPatch:               test.NewMockPatchFn(nil),
+					MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {
@@ -424,8 +440,12 @@ func TestPTCompose(t *testing.T) {
 					MockUpdate: test.NewMockUpdateFn(nil),
 
 					// Apply uses Get and Patch.
-					MockGet:   test.NewMockGetFn(nil),
-					MockPatch: test.NewMockPatchFn(nil),
+					MockGet: test.NewMockGetFn(nil, func(obj client.Object) error {
+						obj.GetObjectKind().SetGroupVersionKind(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"})
+						return nil
+					}),
+					MockPatch:               test.NewMockPatchFn(nil),
+					MockGroupVersionKindFor: test.NewMockGroupVersionKindForFn(nil, schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Thing"}),
 				},
 				o: []PTComposerOption{
 					WithTemplateAssociator(CompositionTemplateAssociatorFn(func(ctx context.Context, c resource.Composite, ct []v1.ComposedTemplate) ([]TemplateAssociation, error) {

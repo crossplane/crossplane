@@ -59,7 +59,7 @@ func TestLockObject(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyLock),
+				err: errors.Wrap(errBoom, errApplyLock),
 			},
 		},
 	}

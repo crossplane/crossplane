@@ -153,7 +153,7 @@ func TestWebhookConfigurations(t *testing.T) {
 				svc: svc,
 			},
 			want: want{
-				err: errors.Wrap(errors.Wrap(errBoom, "cannot get object"), errApplyWebhookConfiguration),
+				err: errors.Wrap(errBoom, errApplyWebhookConfiguration),
 			},
 		},
 		"NonWebhookType": {
