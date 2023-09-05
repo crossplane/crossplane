@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2023 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -190,8 +190,8 @@ type Reconciler struct {
 	pollInterval time.Duration
 }
 
-// Reconcile a usageResource by defining a new kind of composite
-// resource and starting a controller to reconcile it.
+// Reconcile a Usage resource by resolving its selectors, defining ownership
+// relationship, adding a finalizer and handling proper deletion.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are typically complex.
 	log := r.log.WithValues("request", req)
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -250,8 +250,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		}
 		// At this point using resource is either:
 		// - not defined
-		// - not found (deleted)
-		// - not part of the same composite resource
+		// - not found (e.g. deleted)
 		// So, we can proceed with the deletion of the usage.
 
 		// Get the used resource

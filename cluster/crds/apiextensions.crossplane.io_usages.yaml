@@ -65,7 +65,8 @@ spec:
                     - name
                     type: object
                   resourceSelector:
-                    description: Selector to the resource.
+                    description: Selector to the resource. This field will be ignored
+                      if ResourceRef is set.
                     properties:
                       matchControllerRef:
                         description: MatchControllerRef ensures an object with the
@@ -98,7 +99,8 @@ spec:
                     - name
                     type: object
                   resourceSelector:
-                    description: Selector to the resource.
+                    description: Selector to the resource. This field will be ignored
+                      if ResourceRef is set.
                     properties:
                       matchControllerRef:
                         description: MatchControllerRef ensures an object with the

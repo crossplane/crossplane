@@ -1,5 +1,5 @@
 /*
-Copyright 2022 The Crossplane Authors.
+Copyright 2023 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@ type Resource struct {
 	// +optional
 	ResourceRef *ResourceRef `json:"resourceRef,omitempty"`
 	// Selector to the resource.
+	// This field will be ignored if ResourceRef is set.
 	// +optional
 	ResourceSelector *ResourceSelector `json:"resourceSelector,omitempty"`
 }
