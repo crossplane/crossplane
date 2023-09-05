@@ -102,19 +102,23 @@ spec:
                                   acts like a k8s label selector but can draw the
                                   label value from a different path.
                                 properties:
-                                  key:
-                                    description: Key of the label to match.
-                                    type: string
-                                  policy:
-                                    description: FromFieldPathPolicy specifies how
-                                      to patch from a field path. The default is 'Required',
-                                      which means the patch should fail if the path
-                                      specified via valueFromFieldPath does not exist.
-                                      Use 'Ignore' if instead you want it to result
-                                      in a no-op.
+                                  fromFieldPathPolicy:
+                                    default: Required
+                                    description: FromFieldPathPolicy specifies the
+                                      policy for the valueFromFieldPath. The default
+                                      is Required, meaning that an error will be returned
+                                      if the field is not found in the composite resource.
+                                      Optional means that if the field is not found
+                                      in the composite resource, that label pair will
+                                      just be skipped. N.B. other specified label
+                                      matchers will still be used to retrieve the
+                                      desired environment config, if any.
                                     enum:
                                     - Optional
                                     - Required
+                                    type: string
+                                  key:
+                                    description: Key of the label to match.
                                     type: string
                                   type:
                                     default: FromCompositeFieldPath
