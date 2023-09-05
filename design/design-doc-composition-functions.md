@@ -185,13 +185,19 @@ The proposal put forward by this document should:
 
 ## Proposal
 
-This document proposes that a new `pipeline` array of Function calls be added to
-the existing `Composition` type. This array of Functions would be called either
-instead of or in addition to the existing `resources` array in order to
-determine how an XR should be composed. The array of Functions acts as a
+This document proposes that a new `mode` field be added to the existing
+`Composition` type. A Composition in `mode: Pipeline` must specify a `pipeline`
+- an array of Function calls. This array of Functions would be called in order
+to determine how an XR should be composed. The array of Functions acts as a
 pipeline; the output of each Function is passed as the input to the next. The
 output of the final Function call tells Crossplane what must be done to
 reconcile the XR.
+
+When in `mode: Pipeline` the `resources` and `patchSets` fields of a
+Composition's spec are ignored. Put otherwise, a Composition must specify
+P&T-style `resources`, or a `pipeline`. It cannot specify both. The new `mode`
+field must be optional. The default value is `mode: Resources`, which honors
+(only) the P&T `resources` as do GA Compositions today.
 
 ```yaml
 apiVersion: apiextensions.crossplane.io/v2alpha1
@@ -203,6 +209,7 @@ spec:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
   # This Composition uses a pipeline of Functions instead of (P&T) resources.
+  mode: Pipeline
   pipeline:
     # Each step in the pipeline calls one Composition Function.
   - step: compose-xr-using-go-templates
@@ -233,8 +240,8 @@ Notably the Functions would not need to be responsible for interacting with the
 API server to create, update, or delete composed resources. Instead, they
 instruct Crossplane which resources should be created, updated, or deleted.
 Under the proposed design Functions could also be used for purposes besides
-rendering composed resources, for example validating the results of the
-`resources` array or earlier Functions in the `pipeline`.
+rendering composed resources, for example validating the results of earlier
+Functions in the `pipeline`.
 
 Before you can use a Function, you must install it. Installing a Function works
 just like installing a Provider:
@@ -813,6 +820,7 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
+  mode: Pipeline
   pipeline:
   - step: compose-xr-using-go-templates
     functionRef:
@@ -857,6 +865,7 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1
     kind: XPostgreSQLInstance
+  mode: Pipeline
   pipeline:
   - step: compose-xr-using-go-templates
     functionRef:
@@ -1097,6 +1106,7 @@ spec:
   compositeTypeRef:
     apiVersion: database.example.org/v1alpha1
     kind: AcmeCoDatabase
+  mode: Pipeline
   pipeline:
   - step: patch-and-transform
     functionRef:
