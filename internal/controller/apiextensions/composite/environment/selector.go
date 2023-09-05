@@ -120,11 +120,14 @@ func (s *APIEnvironmentSelector) lookUpConfigs(ctx context.Context, cr resource.
 		val, err := ResolveLabelValue(m, cr)
 		if err != nil {
 			if fieldpath.IsNotFound(err) && m.FromFieldPathIsOptional() {
-				return res, nil
+				continue
 			}
 			return nil, errors.Wrapf(err, errFmtResolveLabelValue, i)
 		}
 		matchLabels[m.Key] = val
+	}
+	if len(matchLabels) == 0 {
+		return res, nil
 	}
 	if err := s.kube.List(ctx, res, matchLabels); err != nil {
 		return nil, errors.Wrap(err, errListEnvironmentConfigs)
