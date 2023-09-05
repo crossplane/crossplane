@@ -17,6 +17,7 @@ package composite
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"google.golang.org/grpc"
@@ -56,7 +57,6 @@ const (
 	errApplyXR                  = "cannot apply composite resource"
 	errAnonymousCD              = "encountered composed resource without required \"" + AnnotationKeyCompositionResourceName + "\" annotation"
 	errUnmarshalDesiredXR       = "cannot unmarshal desired composite resource from RunFunctionResponse"
-	errFatalResult              = "fatal function pipeline result"
 	errXRAsStruct               = "cannot encode composite resource to protocol buffer Struct well-known type"
 
 	errFmtResourceName               = "composed resource %q"
@@ -73,6 +73,7 @@ const (
 	errFmtDialFunction               = "cannot gRPC dial Function %q"
 	errFmtCloseFunction              = "cannot close gRPC connection to Function %q"
 	errFmtRunFunction                = "cannot run function %q"
+	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 )
 
 // A FunctionComposer supports composing resources using a pipeline of
@@ -262,10 +263,11 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		return CompositionResult{}, errors.Wrap(err, errBuildDesired)
 	}
 
+	events := []event.Event{}
+
 	// Run any Composition Functions in the pipeline. Each Function may mutate
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
-	r := make([]*fnv1beta1.Result, 0)
 	for _, fn := range req.Revision.Spec.Pipeline {
 		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d}
 
@@ -285,27 +287,25 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		}
 
 		d = rsp.GetDesired()
-		r = append(r, rsp.GetResults()...)
-	}
 
-	events := []event.Event{}
-
-	// Results of fatal severity stop the Composition process. Normal or warning
-	// results are accumulated to be emitted as events by the Reconciler.
-	for _, rs := range r {
-		switch rs.Severity {
-		case fnv1beta1.Severity_SEVERITY_FATAL:
-			return CompositionResult{}, errors.Wrap(errors.New(rs.Message), errFatalResult)
-		case fnv1beta1.Severity_SEVERITY_WARNING:
-			events = append(events, event.Warning(reasonCompose, errors.New(rs.Message)))
-		case fnv1beta1.Severity_SEVERITY_NORMAL:
-			events = append(events, event.Normal(reasonCompose, rs.Message))
-		case fnv1beta1.Severity_SEVERITY_UNSPECIFIED:
-			// We could hit this case if a Function was built against a newer
-			// protobuf than this build of Crossplane, and the new protobuf
-			// introduced a severity that we don't know about.
-			events = append(events, event.Warning(reasonCompose, errors.Errorf("Composition Function pipeline returned a result of unknown severity (assuming warning): %s", rs.Message)))
+		// Results of fatal severity stop the Composition process. Other results
+		// are accumulated to be emitted as events by the Reconciler.
+		for _, rs := range rsp.Results {
+			switch rs.Severity {
+			case fnv1beta1.Severity_SEVERITY_FATAL:
+				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.Message)
+			case fnv1beta1.Severity_SEVERITY_WARNING:
+				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.Message)))
+			case fnv1beta1.Severity_SEVERITY_NORMAL:
+				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.Message)))
+			case fnv1beta1.Severity_SEVERITY_UNSPECIFIED:
+				// We could hit this case if a Function was built against a newer
+				// protobuf than this build of Crossplane, and the new protobuf
+				// introduced a severity that we don't know about.
+				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q returned a result of unknown severity (assuming warning): %s", fn.Step, rs.Message)))
+			}
 		}
+
 	}
 
 	// Load our new desired state from the Function pipeline.

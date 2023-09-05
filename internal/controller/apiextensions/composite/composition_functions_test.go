@@ -223,7 +223,7 @@ func TestFunctionCompose(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errors.New("oh no"), errFatalResult),
+				err: errors.Errorf(errFmtFatalResult, "run-cool-function", "oh no"),
 			},
 		},
 		"RenderXRFromStructError": {
@@ -721,17 +721,17 @@ func TestFunctionCompose(t *testing.T) {
 						{
 							Type:    "Normal",
 							Reason:  "ComposeResources",
-							Message: "A normal result",
+							Message: "Pipeline step \"run-cool-function\": A normal result",
 						},
 						{
 							Type:    "Warning",
 							Reason:  "ComposeResources",
-							Message: "A warning result",
+							Message: "Pipeline step \"run-cool-function\": A warning result",
 						},
 						{
 							Type:    "Warning",
 							Reason:  "ComposeResources",
-							Message: "Composition Function pipeline returned a result of unknown severity (assuming warning): A result of unspecified severity",
+							Message: "Pipeline step \"run-cool-function\" returned a result of unknown severity (assuming warning): A result of unspecified severity",
 						},
 					},
 				},
