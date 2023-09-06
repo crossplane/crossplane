@@ -519,6 +519,91 @@ func example() error {
 }
 ```
 
+### Actionable Conditions
+
+Conditions should be actionable for a user of Crossplane. This implies:
+
+1. conditions are made for users, not for developers.
+2. conditions should contain enough information to know where to look next.
+3. conditions are part of UX.
+
+Conditions have a `type`, a `reason` and a `message`:
+
+- The type is fixed by type, e.g. `Ready` or `Synced`. Keep the number low.
+  Uniform condition types across related kinds are preferred.
+
+  `Ready` is common in Crossplane to indicate that a resource is ready to be 
+  used by the user. Do not signal `Ready=True` earlier, e.g. do not signal
+  a claim as ready before the credential secret has been created and has
+  valid and working credentials.
+  
+- The reason is for machines and uses CamelCase. Reasons should be documented in 
+  the API docs.
+- The message is for humans and is written in plain English, without newlines,
+  and with the first letter capitalized and no trailing punctuation. It might 
+  end in an error string, e.g. `Cannot create all resources: foo, bar, and 3 more failed: condiguration.pkg.crossplane.io "foo" is invalid: package.spec is required`.
+  Keep the message reasonable short although there is no hard limit. 1000
+  characters is probably too long, 100 characters is fine.
+
+Conditions must not flap, including the reason and the message. Make sure that
+the reason and message are deterministic and stable. For example, sort in case
+of maps as maps iteration is not deterministic in Golang.
+
+Avoid timestamps and in particular relative times in condition messages as
+these change on repeated reconciliation. Rule of thumb: if another reconcile
+shows the same problem, the condition message must not change.
+
+Transient issues, e.g. apiserver conflict errors like `the object has been modified; please apply your changes to the latest version and try again`
+must not be shown in condition messages, but rather the reconciliation should
+silently requeue.
+
+### Events when something happens, no events if nothing happens
+
+Events are for users, not for Crossplane developers. Events should matter for
+a human.
+
+Events are about changes or actions. If nothing changes or no action happens, do
+not emit an event. For example, if no new composition is selected, do not emit an
+event. Successful idem-potent actions should only emit an event once. Erroring
+actions should emit an event for each error.
+
+Events should aim at telling what has changed and to which value, e.g. 
+`Successfully selected composition: eks.clusters.caas.com`, don't omit the
+composition name here.
+
+Events should not be used to tell what is going to happen, but what **has**
+happened. In reconcile functions with an update at the end, it is fine to emit
+an event before the update, in the assumption that the update will succeed.
+
+Transient issues, e.g. apiserver conflict errors like `the object has been modified; please apply your changes to the latest version and try again`
+should not be emitted as an event, but rather the reconciliation should silently
+requeue.
+
+Events are not a replacements for conditions. As a rule of thumb: the last event
+showing a problem should show up as condition message too.
+
+To keep the value for the user up, keep the number of events low. Events are for
+humans and humans will read 10, but not 1000 events per object. Emit events
+valuable for the user. Use logs instead of events for higher volume information.
+
+Examples for good events:
+- `Successfully selected composition: eks.clusters.caas.com` – the message
+  is stable, and this is an action (selecting) that succeeded. Hence, it is fine
+  to emit one event for it.
+- `Readiness probe failed: Get "https://192.168.139.246:8443/readyz": net/http: request canceled (Client.Timeout exceeded while awaiting headers)`
+  – the error string is stable, and this is an actions (probing) that failed.
+  Hence, it is fine to repeat the event.
+
+Examples for bad events:
+- `Applied RBAC ClusterRoles` – it's lacking which ClusterRoles.
+- `Bound system ClusterRole to provider ServiceAccount(s)` – it's lacking which 
+  ClusterRole, which service accounts and what this cluster role enables.
+- `(Re)started composite resource controller` – controllers are not user-facing,
+  but just an implementation detail of how APIs are implemented.
+- `Update failed: the object has been modified; please apply your changes to the latest version and try again`
+  – it's lacking which update failed. Moreover, this is a transient apiserver
+  error. The controller should silently requeue instead of emitting an event.
+
 ### Prefer Table Driven Tests
 
 As mentioned in [Contributing Code](#contributing-code) Crossplane diverges from
