@@ -103,5 +103,42 @@ func TestCompositionPatchAndTransform(t *testing.T) {
 			)).
 			Feature(),
 	)
+}
 
+// TODO(negz): How do we want to handle beta features? They're on by default.
+// Maybe in this case add a test suite that tests P&T when Functions are
+// disabled?
+
+func TestCompositionFunctions(t *testing.T) {
+
+	manifests := "test/e2e/manifests/apiextensions/composition/functions"
+	environment.Test(t,
+		features.New(t.Name()).
+			WithLabel(LabelArea, LabelAreaAPIExtensions).
+			WithLabel(LabelSize, LabelSizeSmall).
+			WithLabel(config.LabelTestSuite, config.TestSuiteDefault).
+			WithSetup("CreatePrerequisites", funcs.AllOf(
+				funcs.ApplyResources(FieldManager, manifests, "setup/*.yaml"),
+				funcs.ResourcesCreatedWithin(30*time.Second, manifests, "setup/*.yaml"),
+				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifests, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
+			)).
+			// Assess("CreateClaim", funcs.AllOf(
+			// 	funcs.ApplyResources(FieldManager, manifests, "claim.yaml"),
+			// 	funcs.ResourcesCreatedWithin(30*time.Second, manifests, "claim.yaml"),
+			// )).
+			// Assess("ClaimIsReady",
+			// 	funcs.ResourcesHaveConditionWithin(5*time.Minute, manifests, "claim.yaml", xpv1.Available())).
+			// Assess("ClaimHasPatchedField",
+			// 	funcs.ResourcesHaveFieldValueWithin(5*time.Minute, manifests, "claim.yaml", "status.coolerField", "I'M COOL!"),
+			// ).
+			// WithTeardown("DeleteClaim", funcs.AllOf(
+			// 	funcs.DeleteResources(manifests, "claim.yaml"),
+			// 	funcs.ResourcesDeletedWithin(2*time.Minute, manifests, "claim.yaml"),
+			// )).
+			WithTeardown("DeletePrerequisites", funcs.AllOf(
+				funcs.DeleteResources(manifests, "setup/*.yaml"),
+				funcs.ResourcesDeletedWithin(3*time.Minute, manifests, "setup/*.yaml"),
+			)).
+			Feature(),
+	)
 }
