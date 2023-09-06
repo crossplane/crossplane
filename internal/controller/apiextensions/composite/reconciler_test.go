@@ -358,11 +358,11 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errSelectEnvironment),
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"FetchEnvironmentError": {
-			reason: "We should return any error encountered while fetching the environment.",
+			reason: "We should requeue on any error encountered while fetching the environment.",
 			args: args{
 				mgr: &fake.Manager{},
 				opts: []ReconcilerOption{
@@ -387,7 +387,7 @@ func TestReconcile(t *testing.T) {
 				},
 			},
 			want: want{
-				err: errors.Wrap(errBoom, errFetchEnvironment),
+				r: reconcile.Result{Requeue: true},
 			},
 		},
 		"ComposeResourcesError": {
