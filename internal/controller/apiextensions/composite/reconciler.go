@@ -535,6 +535,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	// Note that this 'Composition' will be derived from a
 	// CompositionRevision if the relevant feature flag is enabled.
+	origRev := xr.GetCompositionRevisionReference()
 	rev, err := r.revision.Fetch(ctx, xr)
 	if err != nil {
 		log.Debug(errFetchComp, "error", err)
@@ -542,6 +543,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		r.record.Event(xr, event.Warning(reasonCompose, err))
 		xr.SetConditions(xpv1.ReconcileError(err))
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, xr), errUpdateStatus)
+	}
+	if rev := xr.GetCompositionRevisionReference(); rev != nil && (origRev == nil || *rev != *origRev) {
+		r.record.Event(xr, event.Normal(reasonResolve, "Selected composition revision: %s", rev.Name))
 	}
 
 	// TODO(negz): Update this to validate the revision? In practice that's what
