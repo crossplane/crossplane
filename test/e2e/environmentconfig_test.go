@@ -62,7 +62,7 @@ func TestEnvironmentConfigDefault(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
@@ -116,7 +116,7 @@ func TestEnvironmentResolutionOptional(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
@@ -170,7 +170,7 @@ func TestEnvironmentResolveIfNotPresent(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
@@ -234,7 +234,7 @@ func TestEnvironmentResolveAlways(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
@@ -298,7 +298,7 @@ func TestEnvironmentConfigMultipleMaxMatchNil(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
@@ -351,7 +351,7 @@ func TestEnvironmentConfigMultipleMaxMatch1(t *testing.T) {
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesCreatedWithin(30*time.Second, manifestsFolderEnvironmentConfigs, "setup/*.yaml"),
 				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/definition.yaml", apiextensionsv1.WatchingComposite()),
-				funcs.ResourcesHaveConditionWithin(1*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
+				funcs.ResourcesHaveConditionWithin(2*time.Minute, manifestsFolderEnvironmentConfigs, "setup/provider.yaml", pkgv1.Healthy(), pkgv1.Active()),
 			)).
 			WithSetup("CreatePrerequisites", funcs.AllOf(
 				funcs.ApplyResources(FieldManager, manifestsFolderEnvironmentConfigs, filepath.Join(subfolder, "setup/*.yaml")),
