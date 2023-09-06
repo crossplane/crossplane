@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
@@ -126,7 +127,9 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error {
 		LeaderElection:             c.LeaderElection,
 		LeaderElectionID:           "crossplane-leader-election-rbac",
 		LeaderElectionResourceLock: resourcelock.LeasesResourceLock,
-		SyncPeriod:                 &c.SyncInterval,
+		Cache: cache.Options{
+			SyncPeriod: &c.SyncInterval,
+		},
 	})
 	if err != nil {
 		return errors.Wrap(err, "cannot create manager")
