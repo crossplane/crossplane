@@ -70,6 +70,14 @@ spec:
                 description: Environment configures the environment in which resources
                   are rendered.
                 properties:
+                  defaultData:
+                    additionalProperties:
+                      x-kubernetes-preserve-unknown-fields: true
+                    description: DefaultData statically defines the initial state
+                      of the environment. It has the same schema-less structure as
+                      the data field in environment configs. It is overwritten by
+                      the selected environment configs.
+                    type: object
                   environmentConfigs:
                     description: "EnvironmentConfigs selects a list of `EnvironmentConfig`s.
                       The resolved resources are stored in the composite resource
@@ -1580,6 +1588,14 @@ spec:
                 description: Environment configures the environment in which resources
                   are rendered.
                 properties:
+                  defaultData:
+                    additionalProperties:
+                      x-kubernetes-preserve-unknown-fields: true
+                    description: DefaultData statically defines the initial state
+                      of the environment. It has the same schema-less structure as
+                      the data field in environment configs. It is overwritten by
+                      the selected environment configs.
+                    type: object
                   environmentConfigs:
                     description: "EnvironmentConfigs selects a list of `EnvironmentConfig`s.
                       The resolved resources are stored in the composite resource

@@ -18,6 +18,7 @@ package v1
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
@@ -28,6 +29,12 @@ import (
 // An EnvironmentConfiguration specifies the environment for rendering composed
 // resources.
 type EnvironmentConfiguration struct {
+	// DefaultData statically defines the initial state of the environment.
+	// It has the same schema-less structure as the data field in
+	// environment configs.
+	// It is overwritten by the selected environment configs.
+	DefaultData map[string]extv1.JSON `json:"defaultData,omitempty"`
+
 	// EnvironmentConfigs selects a list of `EnvironmentConfig`s. The resolved
 	// resources are stored in the composite resource at
 	// `spec.environmentConfigRefs` and is only updated if it is null.

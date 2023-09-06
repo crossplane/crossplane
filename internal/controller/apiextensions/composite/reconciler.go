@@ -40,7 +40,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 )
 
 const (
@@ -147,19 +146,27 @@ func (fn EnvironmentSelectorFn) SelectEnvironment(ctx context.Context, cr resour
 	return fn(ctx, cr, rev)
 }
 
+// EnvironmentFetcherRequest describes the payload for an
+// EnvironmentFetcher.
+type EnvironmentFetcherRequest struct {
+	Composite resource.Composite
+	Revision  *v1.CompositionRevision
+	Required  bool
+}
+
 // An EnvironmentFetcher fetches an appropriate environment for the supplied
 // composite resource.
 type EnvironmentFetcher interface {
-	Fetch(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error)
+	Fetch(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error)
 }
 
 // An EnvironmentFetcherFn fetches an appropriate environment for the supplied
 // composite resource.
-type EnvironmentFetcherFn func(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error)
+type EnvironmentFetcherFn func(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error)
 
 // Fetch an appropriate environment for the supplied Composite resource.
-func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error) {
-	return fn(ctx, cr, required)
+func (fn EnvironmentFetcherFn) Fetch(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error) {
+	return fn(ctx, req)
 }
 
 // A Configurator configures a composite resource using its composition.
@@ -177,15 +184,15 @@ func (fn ConfiguratorFn) Configure(ctx context.Context, cr resource.Composite, r
 
 // A Renderer is used to render a composed resource.
 type Renderer interface {
-	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
+	Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error
 }
 
 // A RendererFn may be used to render a composed resource.
-type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error
+type RendererFn func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error
 
 // Render the supplied composed resource using the supplied composite resource
 // and template as inputs.
-func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
 	return fn(ctx, cp, cd, t, env)
 }
 
@@ -193,7 +200,7 @@ func (fn RendererFn) Render(ctx context.Context, cp resource.Composite, cd resou
 // It should be treated as immutable.
 type CompositionRequest struct {
 	Revision    *v1.CompositionRevision
-	Environment *env.Environment
+	Environment *Environment
 }
 
 // A CompositionResult is the result of the composition process.
@@ -393,13 +400,13 @@ func NewReconciler(mgr manager.Manager, of resource.CompositeKind, opts ...Recon
 		},
 
 		environment: environment{
-			EnvironmentFetcher: env.NewNilEnvironmentFetcher(),
+			EnvironmentFetcher: NewNilEnvironmentFetcher(),
 		},
 
 		composite: compositeResource{
 			Finalizer:           resource.NewAPIFinalizer(kube, finalizer),
 			CompositionSelector: NewAPILabelSelectorResolver(kube),
-			EnvironmentSelector: env.NewNoopEnvironmentSelector(),
+			EnvironmentSelector: NewNoopEnvironmentSelector(),
 			Configurator:        NewConfiguratorChain(NewAPINamingConfigurator(kube), NewAPIConfigurator(kube)),
 
 			// TODO(negz): In practice this is a filtered publisher that will
@@ -562,7 +569,11 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	env, err := r.environment.Fetch(ctx, xr, rev.Spec.Environment.IsRequired())
+	env, err := r.environment.Fetch(ctx, EnvironmentFetcherRequest{
+		Composite: xr,
+		Revision:  rev,
+		Required:  rev.Spec.Environment.IsRequired(),
+	})
 	if err != nil {
 		log.Debug(errFetchEnvironment, "error", err)
 		err = errors.Wrap(err, errFetchEnvironment)

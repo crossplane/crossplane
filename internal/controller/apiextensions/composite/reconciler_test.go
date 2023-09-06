@@ -42,7 +42,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 )
 
 func TestReconcile(t *testing.T) {
@@ -381,7 +380,7 @@ func TestReconcile(t *testing.T) {
 					})),
 					WithCompositionRevisionValidator(CompositionRevisionValidatorFn(func(_ *v1.CompositionRevision) error { return nil })),
 					WithConfigurator(ConfiguratorFn(func(ctx context.Context, cr resource.Composite, rev *v1.CompositionRevision) error { return nil })),
-					WithEnvironmentFetcher(EnvironmentFetcherFn(func(ctx context.Context, cr resource.Composite, required bool) (*env.Environment, error) {
+					WithEnvironmentFetcher(EnvironmentFetcherFn(func(ctx context.Context, req EnvironmentFetcherRequest) (*Environment, error) {
 						return nil, errBoom
 					})),
 					WithCompositionUpdatePolicySelector(CompositionUpdatePolicySelectorFn(func(ctx context.Context, cr resource.Composite) error { return nil })),

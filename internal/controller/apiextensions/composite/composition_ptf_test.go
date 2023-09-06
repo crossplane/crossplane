@@ -55,7 +55,6 @@ import (
 	iov1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/io/v1alpha1"
 	fnpbv1alpha1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1alpha1"
 	v1 "github.com/crossplane/crossplane/apis/apiextensions/v1"
-	env "github.com/crossplane/crossplane/internal/controller/apiextensions/composite/environment"
 	"github.com/crossplane/crossplane/internal/xcrd"
 )
 
@@ -870,7 +869,7 @@ func TestPatchAndTransform(t *testing.T) {
 		"CompositeRenderError": {
 			reason: "We should return any error encountered while rendering an XR.",
 			params: params{
-				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
 					return errBoom
 				}),
 			},
@@ -922,10 +921,10 @@ func TestPatchAndTransform(t *testing.T) {
 		"ComposedRenderError": {
 			reason: "We should include any error encountered while rendering a composed resource in our state.",
 			params: params{
-				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+				composite: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
 					return nil
 				}),
-				composed: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *env.Environment) error {
+				composed: RendererFn(func(ctx context.Context, cp resource.Composite, cd resource.Composed, t v1.ComposedTemplate, env *Environment) error {
 					return errBoom
 				}),
 			},
