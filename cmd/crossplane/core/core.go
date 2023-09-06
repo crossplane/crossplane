@@ -18,6 +18,7 @@ limitations under the License.
 package core
 
 import (
+	"crypto/tls"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -32,6 +33,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/leaderelection/resourcelock"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
 	"github.com/crossplane/crossplane-runtime/pkg/certificates"
@@ -150,11 +152,17 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 	})
 
 	mgr, err := ctrl.NewManager(ratelimiter.LimitRESTConfig(cfg, c.MaxReconcileRate), ctrl.Options{
-		Scheme:     s,
-		SyncPeriod: &c.SyncInterval,
+		Scheme: s,
+		Cache: cache.Options{
+			SyncPeriod: &c.SyncInterval,
+		},
 		WebhookServer: webhook.NewServer(webhook.Options{
-			CertDir:       c.WebhookTLSCertDir,
-			TLSMinVersion: "1.3",
+			CertDir: c.WebhookTLSCertDir,
+			TLSOpts: []func(*tls.Config){
+				func(t *tls.Config) {
+					t.MinVersion = tls.VersionTLS13
+				},
+			},
 		}),
 
 		// controller-runtime uses both ConfigMaps and Leases for leader

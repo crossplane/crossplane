@@ -19,6 +19,7 @@ package definition
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"time"
 
@@ -266,8 +267,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	r.record.Event(d, event.Normal(reasonRenderCRD, "Rendered composite resource CustomResourceDefinition"))
-
 	if meta.WasDeleted(d) {
 		d.Status.SetConditions(v1.TerminatingComposite())
 		if err := r.client.Status().Update(ctx, d); err != nil {
@@ -374,13 +373,16 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		return reconcile.Result{}, err
 	}
 
-	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID())); err != nil {
+	origRV := ""
+	if err := r.client.Apply(ctx, crd, resource.MustBeControllableBy(d.GetUID()), resource.StoreCurrentRV(&origRV)); err != nil {
 		log.Debug(errApplyCRD, "error", err)
 		err = errors.Wrap(err, errApplyCRD)
 		r.record.Event(d, event.Warning(reasonEstablishXR, err))
 		return reconcile.Result{}, err
 	}
-	r.record.Event(d, event.Normal(reasonEstablishXR, "Applied composite resource CustomResourceDefinition"))
+	if crd.GetResourceVersion() != origRV {
+		r.record.Event(d, event.Normal(reasonEstablishXR, fmt.Sprintf("Applied composite resource CustomResourceDefinition: %s", crd.GetName())))
+	}
 
 	if !xcrd.IsEstablished(crd.Status) {
 		log.Debug(waitCRDEstablish)
@@ -399,9 +401,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 		log.Debug("Referenceable version changed; stopped composite resource controller",
 			"observed-version", observed.APIVersion,
 			"desired-version", desired.APIVersion)
-		r.record.Event(d, event.Normal(reasonEstablishXR, "Referenceable version changed; stopped composite resource controller",
-			"observed-version", observed.APIVersion,
-			"desired-version", desired.APIVersion))
 	}
 
 	ro := CompositeReconcilerOptions(r.options, d, r.client, r.log, r.record)
@@ -421,7 +420,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	d.Status.Controllers.CompositeResourceTypeRef = v1.TypeReferenceTo(d.GetCompositeGroupVersionKind())
 	d.Status.SetConditions(v1.WatchingComposite())
-	r.record.Event(d, event.Normal(reasonEstablishXR, "(Re)started composite resource controller"))
 	return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, d), errUpdateStatus)
 }
 
