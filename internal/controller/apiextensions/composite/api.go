@@ -138,14 +138,14 @@ func NewAPIRevisionFetcher(ca resource.ClientApplicator) *APIRevisionFetcher {
 // composite resource's composition reference is nil, but handles setting the
 // composition revision reference.
 func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (*v1.CompositionRevision, error) {
-	ref := cr.GetCompositionRevisionReference()
+	current := cr.GetCompositionRevisionReference()
 	pol := cr.GetCompositionUpdatePolicy()
 
 	// We've already selected a revision, and our update policy is manual.
 	// Just fetch and return the selected revision.
-	if ref != nil && pol != nil && *pol == xpv1.UpdateManual {
+	if current != nil && pol != nil && *pol == xpv1.UpdateManual {
 		rev := &v1.CompositionRevision{}
-		err := f.ca.Get(ctx, meta.NamespacedNameOf(ref), rev)
+		err := f.ca.Get(ctx, meta.NamespacedNameOf(current), rev)
 		return rev, errors.Wrap(err, errGetCompositionRevision)
 	}
 
@@ -162,19 +162,19 @@ func (f *APIRevisionFetcher) Fetch(ctx context.Context, cr resource.Composite) (
 		return nil, errors.Wrap(err, errFetchCompositionRevision)
 	}
 
-	current := v1.LatestRevision(comp, rl.Items)
-	if current == nil {
+	latest := v1.LatestRevision(comp, rl.Items)
+	if latest == nil {
 		return nil, errors.New(errNoCompatibleCompositionRevision)
 	}
 
-	if ref == nil || ref.Name != current.GetName() {
-		cr.SetCompositionRevisionReference(meta.ReferenceTo(current, v1.CompositionRevisionGroupVersionKind))
+	if current == nil || current.Name != latest.GetName() {
+		cr.SetCompositionRevisionReference(meta.ReferenceTo(latest, v1.CompositionRevisionGroupVersionKind))
 		if err := f.ca.Apply(ctx, cr); err != nil {
 			return nil, errors.Wrap(err, errUpdate)
 		}
 	}
 
-	return current, nil
+	return latest, nil
 }
 
 func (f *APIRevisionFetcher) getCompositionRevisionList(ctx context.Context, cr resource.Composite, comp *v1.Composition) (*v1.CompositionRevisionList, error) {
