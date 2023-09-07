@@ -72,7 +72,8 @@ const (
 )
 
 // Returns the service account, deployment, service, server and client TLS secrets of the provider.
-func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret, *corev1.Secret) {
+func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRevision, cc *v1alpha1.ControllerConfig, namespace string, pullSecrets []corev1.LocalObjectReference) (*corev1.ServiceAccount, *appsv1.Deployment, *corev1.Service, *corev1.Secret, *corev1.Secret) { //nolint:gocyclo // See below
+	// TODO(ezgidemirel): Can this be simplified more?
 	s := &corev1.ServiceAccount{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            revision.GetName(),
@@ -81,20 +82,24 @@ func buildProviderDeployment(provider *pkgmetav1.Provider, revision v1.PackageRe
 		},
 		ImagePullSecrets: pullSecrets,
 	}
-	secSer := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            *revision.GetTLSServerSecretName(),
-			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
-		},
+	var secSer, secCli *corev1.Secret
+	if revision.GetTLSServerSecretName() != nil {
+		secSer = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            *revision.GetTLSServerSecretName(),
+				Namespace:       namespace,
+				OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+			},
+		}
 	}
-
-	secCli := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            *revision.GetTLSClientSecretName(),
-			Namespace:       namespace,
-			OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
-		},
+	if revision.GetTLSClientSecretName() != nil {
+		secCli = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            *revision.GetTLSClientSecretName(),
+				Namespace:       namespace,
+				OwnerReferences: []metav1.OwnerReference{meta.AsController(meta.TypedReferenceTo(revision, v1.ProviderRevisionGroupVersionKind))},
+			},
+		}
 	}
 	pullPolicy := corev1.PullIfNotPresent
 	if revision.GetPackagePullPolicy() != nil {
@@ -242,12 +247,15 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 		},
 		ImagePullSecrets: pullSecrets,
 	}
-	sec := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            *revision.GetTLSServerSecretName(),
-			Namespace:       namespace,
-			OwnerReferences: revision.GetOwnerReferences(),
-		},
+	var sec *corev1.Secret
+	if revision.GetTLSServerSecretName() != nil {
+		sec = &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            *revision.GetTLSServerSecretName(),
+				Namespace:       namespace,
+				OwnerReferences: revision.GetOwnerReferences(),
+			},
+		}
 	}
 
 	pullPolicy := corev1.PullIfNotPresent

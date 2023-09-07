@@ -193,7 +193,8 @@ func ResourceDeletedWithin(d time.Duration, o k8s.Object) features.Func {
 // ResourcesHaveConditionWithin fails a test if the supplied resources do not
 // have (i.e. become) the supplied conditions within the supplied duration.
 // Comparison of conditions is modulo messages.
-func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func {
+func ResourcesHaveConditionWithin(d time.Duration, dir, pattern string, cds ...xpv1.Condition) features.Func { //nolint:gocyclo // See below
+	// TODO(ezgidemirel): Can this be refactored for less complexity?
 	return func(ctx context.Context, t *testing.T, c *envconf.Config) context.Context {
 		rs, err := decoder.DecodeAllFiles(ctx, os.DirFS(dir), pattern)
 		if err != nil {

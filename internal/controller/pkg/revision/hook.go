@@ -62,6 +62,7 @@ const (
 	errApplyFunctionSA               = "cannot apply function package service account"
 	errApplyFunctionService          = "cannot apply function package service"
 	errUnavailableFunctionDeployment = "function package deployment is unavailable"
+	errNoTLSSecretNameAssigned       = "tls secret names are not available"
 )
 
 // A Hooks performs operations before and after a revision establishes objects.
@@ -92,7 +93,8 @@ func NewProviderHooks(client resource.ClientApplicator, namespace, serviceAccoun
 
 // Pre cleans up a packaged controller and service account if the revision is
 // inactive.
-func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error {
+func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.PackageRevision) error { //nolint:gocyclo // See below
+	// TODO(ezgidemirel): Can this be refactored for less complexity?
 	po, _ := xpkg.TryConvert(pkg, &pkgmetav1.Provider{})
 	pkgProvider, ok := po.(*pkgmetav1.Provider)
 	if !ok {
@@ -116,6 +118,9 @@ func (h *ProviderHooks) Pre(ctx context.Context, pkg runtime.Object, pr v1.Packa
 	// NOTE(hasheddan): we avoid fetching pull secrets and controller config as
 	// they aren't needed to delete Deployment, ServiceAccount, and Service.
 	s, d, svc, secSer, secCli := buildProviderDeployment(pkgProvider, pr, nil, h.namespace, []corev1.LocalObjectReference{})
+	if secSer == nil || secCli == nil {
+		return errors.New(errNoTLSSecretNameAssigned)
+	}
 	if err := h.client.Delete(ctx, d); resource.IgnoreNotFound(err) != nil {
 		return errors.Wrap(err, errDeleteProviderDeployment)
 	}
@@ -154,6 +159,9 @@ func (h *ProviderHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return err
 	}
 	s, d, svc, secSer, secCli := buildProviderDeployment(pkgProvider, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
+	if secSer == nil || secCli == nil {
+		return errors.New(errNoTLSSecretNameAssigned)
+	}
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyProviderSA)
 	}
@@ -298,6 +306,9 @@ func (h *FunctionHooks) Post(ctx context.Context, pkg runtime.Object, pr v1.Pack
 		return err
 	}
 	s, d, svc, secSer := buildFunctionDeployment(pkgFunction, pr, cc, h.namespace, append(pr.GetPackagePullSecrets(), ps...))
+	if secSer == nil {
+		return errors.New(errNoTLSSecretNameAssigned)
+	}
 	if err := h.client.Apply(ctx, s); err != nil {
 		return errors.Wrap(err, errApplyFunctionSA)
 	}
