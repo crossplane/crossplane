@@ -47,8 +47,9 @@ import (
 )
 
 const (
-	timeout   = 2 * time.Minute
-	finalizer = "usage.apiextensions.crossplane.io"
+	reconcileTimeout = 1 * time.Minute
+	waitPollInterval = 30 * time.Second
+	finalizer        = "usage.apiextensions.crossplane.io"
 	// Note(turkenh): In-use label enables the "DELETE" requests on resources
 	// with this label to be intercepted by the webhook and rejected if the
 	// resource is in use.
@@ -96,7 +97,8 @@ func Setup(mgr ctrl.Manager, o apiextensionscontroller.Options) error {
 	name := "usage/" + strings.ToLower(v1alpha1.UsageGroupKind)
 	r := NewReconciler(mgr,
 		WithLogger(o.Logger.WithValues("controller", name)),
-		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))))
+		WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
+		WithPollInterval(o.PollInterval))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
@@ -146,6 +148,17 @@ func WithSelectorResolver(sr selectorResolver) ReconcilerOption {
 	}
 }
 
+// WithPollInterval specifies how long the Reconciler should wait before queueing
+// a new reconciliation after a successful reconcile. The Reconciler requeues
+// after a specified duration when it is not actively waiting for an external
+// operation, but wishes to check whether resources it does not have a watch on
+// (i.e. used/using resources) need to be reconciled.
+func WithPollInterval(after time.Duration) ReconcilerOption {
+	return func(r *Reconciler) {
+		r.pollInterval = after
+	}
+}
+
 type usageResource struct {
 	xpresource.Finalizer
 	selectorResolver
@@ -168,8 +181,6 @@ func NewReconciler(mgr manager.Manager, opts ...ReconcilerOption) *Reconciler {
 
 		log:    logging.NewNopLogger(),
 		record: event.NewNopRecorder(),
-
-		pollInterval: 30 * time.Second,
 	}
 
 	for _, f := range opts {
@@ -194,7 +205,7 @@ type Reconciler struct {
 // relationship, adding a finalizer and handling proper deletion.
 func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) { //nolint:gocyclo // Reconcilers are typically complex.
 	log := r.log.WithValues("request", req)
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+	ctx, cancel := context.WithTimeout(ctx, reconcileTimeout)
 	defer cancel()
 
 	// Get the usageResource resource for this request.
@@ -242,12 +253,18 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 			if err == nil {
 				// Using resource is still there, so we need to wait for it to be deleted.
-				msg := "Waiting for using resource to be deleted."
+				msg := fmt.Sprintf("Waiting for the using resource (which is a %q named %q) to be deleted.", by.Kind, by.ResourceRef.Name)
 				log.Debug(msg)
 				r.record.Event(u, event.Normal(reasonWaitUsing, msg))
-				return reconcile.Result{RequeueAfter: 30 * time.Second}, nil
+				// We are using a waitPollInterval which is shorter than the
+				// pollInterval to make sure we delete the usage as soon as
+				// possible after the using resource is deleted. This is
+				// to add minimal delay to the overall deletion process which is
+				// usually extended by backoff intervals.
+				return reconcile.Result{RequeueAfter: waitPollInterval}, nil
 			}
 		}
+
 		// At this point using resource is either:
 		// - not defined
 		// - not found (e.g. deleted)
@@ -371,7 +388,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (reco
 
 	u.Status.SetConditions(xpv1.Available())
 	r.record.Event(u, event.Normal(reasonUsageConfigured, "Usage configured successfully."))
-	return reconcile.Result{}, errors.Wrap(r.client.Status().Update(ctx, u), errUpdateStatus)
+	// We are only watching the Usage itself but not using or used resources.
+	// So, we need to reconcile the Usage periodically to check if the using
+	// or used resources are still there.
+	return reconcile.Result{RequeueAfter: r.pollInterval}, errors.Wrap(r.client.Status().Update(ctx, u), errUpdateStatus)
 }
 
 func detailsAnnotation(u *v1alpha1.Usage) string {

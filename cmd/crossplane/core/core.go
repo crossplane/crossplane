@@ -275,8 +275,10 @@ func (c *startCommand) Run(s *runtime.Scheme, log logging.Logger) error { //noli
 		if err := composition.SetupWebhookWithManager(mgr, o); err != nil {
 			return errors.Wrap(err, "cannot setup webhook for compositions")
 		}
-		if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
-			return errors.Wrap(err, "cannot setup webhook for usages")
+		if o.Features.Enabled(features.EnableAlphaUsages) {
+			if err := usage.SetupWebhookWithManager(mgr, o); err != nil {
+				return errors.Wrap(err, "cannot setup webhook for usages")
+			}
 		}
 	}
 

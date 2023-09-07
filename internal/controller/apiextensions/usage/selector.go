@@ -33,11 +33,10 @@ const (
 	errUpdateAfterResolveSelector            = "cannot update usage after resolving selector"
 	errResolveSelectorForUsingResource       = "cannot resolve selector at \"spec.by.resourceSelector\""
 	errResolveSelectorForUsedResource        = "cannot resolve selector at \"spec.of.resourceSelector\""
+	errNoSelectorToResolve                   = "no selector defined for resolving"
 	errListResourceMatchingLabels            = "cannot list resources matching labels"
 	errFmtResourcesNotFound                  = "no %q found matching labels: %q"
 	errFmtResourcesNotFoundWithControllerRef = "no %q found matching labels: %q and with same controller reference"
-	errIdentifyUsedResource                  = "cannot identify used resource, neither \"spec.of.resourceRef\" nor \"spec.of.resourceSelector\" is set"
-	errIdentifyUsingResource                 = "cannot identify using resource, neither \"spec.by.resourceRef\" nor \"spec.by.resourceSelector\" is set"
 )
 
 type apiSelectorResolver struct {
@@ -48,14 +47,11 @@ func newAPISelectorResolver(c client.Client) *apiSelectorResolver {
 	return &apiSelectorResolver{client: c}
 }
 
-func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error { //nolint:gocyclo // we need to resolve both selectors so no real complexity rather a duplication
+func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.Usage) error {
 	of := u.Spec.Of
 	by := u.Spec.By
 
 	if of.ResourceRef == nil || len(of.ResourceRef.Name) == 0 {
-		if of.ResourceSelector == nil {
-			return errors.New(errIdentifyUsedResource)
-		}
 		if err := r.resolveSelector(ctx, u, &of); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsedResource)
 		}
@@ -70,9 +66,6 @@ func (r *apiSelectorResolver) resolveSelectors(ctx context.Context, u *v1alpha1.
 	}
 
 	if by.ResourceRef == nil || len(by.ResourceRef.Name) == 0 {
-		if by.ResourceSelector == nil {
-			return errors.New(errIdentifyUsingResource)
-		}
 		if err := r.resolveSelector(ctx, u, by); err != nil {
 			return errors.Wrap(err, errResolveSelectorForUsingResource)
 		}
@@ -91,6 +84,9 @@ func (r *apiSelectorResolver) resolveSelector(ctx context.Context, u *v1alpha1.U
 		Kind:       rs.Kind,
 	}))
 
+	if rs.ResourceSelector == nil {
+		return errors.New(errNoSelectorToResolve)
+	}
 	if err := r.client.List(ctx, l, client.MatchingLabels(rs.ResourceSelector.MatchLabels)); err != nil {
 		return errors.Wrap(err, errListResourceMatchingLabels)
 	}

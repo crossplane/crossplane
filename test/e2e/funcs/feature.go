@@ -535,7 +535,7 @@ func ListedResourcesValidatedWithin(d time.Duration, list k8s.ObjectList, min in
 			return ctx
 		}
 
-		t.Logf("%d resource(s) have desired conditions", min)
+		t.Logf("at least %d resource(s) have desired conditions", min)
 		return ctx
 	}
 }
@@ -607,6 +607,7 @@ func DeletionBlockedByUsageWebhook(dir, pattern string) features.Func {
 			t.Fatal("expected the usage webhook to deny the request but deletion succeeded")
 			return ctx
 		}
+
 		if !strings.HasPrefix(err.Error(), "admission webhook \"nousages.apiextensions.crossplane.io\" denied the request") {
 			t.Fatalf("expected the usage webhook to deny the request but it failed with err: %s", err.Error())
 			return ctx

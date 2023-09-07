@@ -337,7 +337,7 @@ func TestResolveSelectors(t *testing.T) {
 		},
 
 		"CannotResolveNoMatchingResourcesWithControllerRef": {
-			reason: "If selectors defined for both \"of\" and \"by\", both should be resolved.",
+			reason: "We should return error if there are no matching resources with controller ref.",
 			args: args{
 				client: &test.MockClient{
 					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
@@ -387,10 +387,16 @@ func TestResolveSelectors(t *testing.T) {
 			reason: "If selectors defined for both \"of\" and \"by\", both should be resolved.",
 			args: args{
 				client: &test.MockClient{
-					MockList: test.NewMockListFn(nil, func(list client.ObjectList) error {
+					MockList: func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
 						l := list.(*composed.UnstructuredList)
+						if v := l.GroupVersionKind().Version; v != "v1" {
+							t.Errorf("unexpected list version: %s", v)
+						}
 						switch l.GetKind() {
 						case "SomeKindList":
+							if len(opts) != 1 && opts[0].(client.MatchingLabels)["foo"] != "bar" {
+								t.Errorf("unexpected list options: %v", opts)
+							}
 							l.Items = []unstructured.Unstructured{
 								{
 									Object: map[string]interface{}{
@@ -412,6 +418,9 @@ func TestResolveSelectors(t *testing.T) {
 								},
 							}
 						case "AnotherKindList":
+							if len(opts) != 1 && opts[0].(client.MatchingLabels)["baz"] != "qux" {
+								t.Errorf("unexpected list options: %v", opts)
+							}
 							l.Items = []unstructured.Unstructured{
 								{
 									Object: map[string]interface{}{
@@ -427,7 +436,7 @@ func TestResolveSelectors(t *testing.T) {
 							t.Errorf("unexpected list kind: %s", l.GetKind())
 						}
 						return nil
-					}),
+					},
 					MockUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 						return nil
 					},

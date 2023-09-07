@@ -59,9 +59,11 @@ type Resource struct {
 // UsageSpec defines the desired state of Usage.
 type UsageSpec struct {
 	// Of is the resource that is "being used".
+	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
 	Of Resource `json:"of"`
 	// By is the resource that is "using the other resource".
 	// +optional
+	// +kubebuilder:validation:XValidation:rule="has(self.resourceRef) || has(self.resourceSelector)",message="either a resource reference or a resource selector should be set."
 	By *Resource `json:"by,omitempty"`
 	// Reason is the reason for blocking deletion of the resource.
 	// +optional

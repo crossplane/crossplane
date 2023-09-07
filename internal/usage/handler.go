@@ -36,7 +36,6 @@ import (
 	xpunstructured "github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 
 	"github.com/crossplane/crossplane/apis/apiextensions/v1alpha1"
-	"github.com/crossplane/crossplane/internal/features"
 )
 
 const (
@@ -50,21 +49,22 @@ const (
 
 // IndexValueForObject returns the index value for the given object.
 func IndexValueForObject(u *unstructured.Unstructured) string {
-	return fmt.Sprintf("%s.%s.%s", u.GetAPIVersion(), u.GetKind(), u.GetName())
+	return indexValue(u.GetAPIVersion(), u.GetKind(), u.GetName())
+}
+
+func indexValue(apiVersion, kind, name string) string {
+	return fmt.Sprintf("%s.%s.%s", apiVersion, kind, name)
 }
 
 // SetupWebhookWithManager sets up the webhook with the manager.
 func SetupWebhookWithManager(mgr ctrl.Manager, options controller.Options) error {
-	if !options.Features.Enabled(features.EnableAlphaUsages) {
-		return nil
-	}
 	indexer := mgr.GetFieldIndexer()
 	if err := indexer.IndexField(context.Background(), &v1alpha1.Usage{}, InUseIndexKey, func(obj client.Object) []string {
 		u := obj.(*v1alpha1.Usage)
 		if u.Spec.Of.ResourceRef == nil || len(u.Spec.Of.ResourceRef.Name) == 0 {
 			return []string{}
 		}
-		return []string{fmt.Sprintf("%s.%s.%s", u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
+		return []string{indexValue(u.Spec.Of.APIVersion, u.Spec.Of.Kind, u.Spec.Of.ResourceRef.Name)}
 	}); err != nil {
 		return err
 	}
