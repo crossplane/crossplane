@@ -41,9 +41,10 @@ var (
 	runAsNonRoot             = true
 )
 
-// Providers are expected to use port 8080 if they expose Prometheus metrics,
-// which any provider built using controller-runtime will do by default.
 const (
+	// Providers are expected to use port 8080 if they expose Prometheus
+	// metrics, which any provider built using controller-runtime will do by
+	// default.
 	promPortName   = "metrics"
 	promPortNumber = 8080
 
@@ -52,9 +53,10 @@ const (
 	webhookTLSCertDir       = "/webhook/tls"
 	webhookPortName         = "webhook"
 
+	// See https://github.com/grpc/grpc/blob/v1.58.0/doc/naming.md
 	grpcPortName       = "grpc"
 	servicePort        = 9443
-	serviceEndpointFmt = "https://%s.%s:%d"
+	serviceEndpointFmt = "dns:///%s.%s:%d"
 
 	essTLSCertDirEnvVar = "ESS_TLS_CERTS_DIR"
 	essCertsVolumeName  = "ess-client-certs"
@@ -331,8 +333,13 @@ func buildFunctionDeployment(function *pkgmetav1beta1.Function, revision v1.Pack
 	}
 	d.Spec.Template.Labels = templateLabels
 
+	// We want a headless service so that our gRPC client (i.e. the Crossplane
+	// FunctionComposer) can load balance across the endpoints.
+	// https://kubernetes.io/docs/concepts/services-networking/service/#headless-services
 	pkgName := revision.GetLabels()[v1.LabelParentPackage]
 	svc := getService(pkgName, namespace, revision.GetOwnerReferences(), d.Spec.Selector.MatchLabels)
+	svc.Spec.ClusterIP = corev1.ClusterIPNone
+
 	return s, d, svc, sec
 }
 

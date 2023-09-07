@@ -156,10 +156,6 @@ spec:
                   It will reflect the most up to date revision, whether it has been
                   activated or not.
                 type: string
-              endpoint:
-                description: Endpoint is the gRPC endpoint where Crossplane will send
-                  RunFunctionRequests.
-                type: string
             type: object
         type: object
     served: true

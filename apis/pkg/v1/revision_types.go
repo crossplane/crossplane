@@ -117,6 +117,9 @@ type PackageRevisionSpec struct {
 type PackageRevisionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 
+	// TODO(negz): A Function doesn't have a 'controller'. Ideally we'd use a
+	// more generic name than 'ControllerRef'.
+
 	// ControllerRef references the controller (e.g. Deployment), if any, that
 	// is responsible for reconciling the objects this package revision
 	// installed.

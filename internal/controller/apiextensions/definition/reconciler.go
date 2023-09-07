@@ -23,7 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/grpc/credentials"
 	extv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	kmeta "k8s.io/apimachinery/pkg/api/meta"
@@ -493,10 +492,9 @@ func CompositeReconcilerOptions(co apiextensionscontroller.Options, d *v1.Compos
 	if co.Features.Enabled(features.EnableBetaCompositionFunctions) {
 		ptc := composite.NewPTComposer(c, composite.WithComposedConnectionDetailsFetcher(fetcher))
 
-		fc := composite.NewFunctionComposer(c,
+		fc := composite.NewFunctionComposer(c, co.FunctionRunner,
 			composite.WithComposedResourceObserver(composite.NewExistingComposedResourceObserver(c, fetcher)),
 			composite.WithCompositeConnectionDetailsFetcher(fetcher),
-			composite.WithFunctionRunner(composite.NewPackagedFunctionRunner(c, credentials.NewTLS(co.ClientTLS))),
 		)
 
 		// Note that if external secret stores are enabled this will supersede

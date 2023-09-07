@@ -20,9 +20,6 @@ import (
 	"fmt"
 	"sort"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/types/known/structpb"
 	corev1 "k8s.io/api/core/v1"
@@ -42,8 +39,7 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 
-	fnv1beta1 "github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
-	pkgv1beta1 "github.com/crossplane/crossplane/apis/pkg/v1beta1"
+	"github.com/crossplane/crossplane/apis/apiextensions/fn/proto/v1beta1"
 	"github.com/crossplane/crossplane/internal/controller/apiextensions/usage"
 )
 
@@ -68,11 +64,6 @@ const (
 	errFmtReadiness                  = "cannot determine whether composed resource %q (a %s named %s) is ready"
 	errFmtUnmarshalDesiredCD         = "cannot unmarshal desired composed resource %q from RunFunctionResponse"
 	errFmtCDAsStruct                 = "cannot encode composed resource %q to protocol buffer Struct well-known type"
-	errFmtGetFunction                = "cannot determine Function gRPC endpoint: cannot get Function %q"
-	errFmtEmptyFunctionStatus        = "cannot determine Function gRPC endpoint: Function %q has empty status.endpoint"
-	errFmtDialFunction               = "cannot gRPC dial Function %q"
-	errFmtCloseFunction              = "cannot close gRPC connection to Function %q"
-	errFmtRunFunction                = "cannot run function %q"
 	errFmtFatalResult                = "pipeline step %q returned a fatal result: %s"
 )
 
@@ -100,14 +91,14 @@ type cd struct {
 // A FunctionRunner runs a single Composition Function.
 type FunctionRunner interface {
 	// RunFunction runs the named Composition Function.
-	RunFunction(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error)
+	RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error)
 }
 
 // A FunctionRunnerFn is a function that can run a Composition Function.
-type FunctionRunnerFn func(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error)
+type FunctionRunnerFn func(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error)
 
 // RunFunction runs the named Composition Function with the supplied request.
-func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
+func (fn FunctionRunnerFn) RunFunction(ctx context.Context, name string, req *v1beta1.RunFunctionRequest) (*v1beta1.RunFunctionResponse, error) {
 	return fn(ctx, name, req)
 }
 
@@ -192,16 +183,9 @@ func WithConnectionDetailsExtractor(c ConnectionDetailsExtractor) FunctionCompos
 	}
 }
 
-// WithFunctionRunner configures how a FunctionComposer runs Composition Functions.
-func WithFunctionRunner(r FunctionRunner) FunctionComposerOption {
-	return func(p *FunctionComposer) {
-		p.pipeline = r
-	}
-}
-
 // NewFunctionComposer returns a new Composer that supports composing resources using
 // both Patch and Transform (P&T) logic and a pipeline of Composition Functions.
-func NewFunctionComposer(kube client.Client, o ...FunctionComposerOption) *FunctionComposer {
+func NewFunctionComposer(kube client.Client, r FunctionRunner, o ...FunctionComposerOption) *FunctionComposer {
 	// TODO(negz): Can we avoid double-wrapping if the supplied client is
 	// already wrapped? Or just do away with unstructured.NewClient completely?
 	kube = unstructured.NewClient(kube)
@@ -221,7 +205,7 @@ func NewFunctionComposer(kube client.Client, o ...FunctionComposerOption) *Funct
 			DryRunRenderer: NewAPIDryRunRenderer(kube),
 		},
 
-		pipeline: NewPackagedFunctionRunner(kube, insecure.NewCredentials()),
+		pipeline: r,
 	}
 
 	for _, fn := range o {
@@ -269,7 +253,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 	// the desired state returned by the last, and each Function may produce
 	// results that will be emitted as events.
 	for _, fn := range req.Revision.Spec.Pipeline {
-		req := &fnv1beta1.RunFunctionRequest{Observed: o, Desired: d}
+		req := &v1beta1.RunFunctionRequest{Observed: o, Desired: d}
 
 		if fn.Input != nil {
 			in := &structpb.Struct{}
@@ -292,13 +276,13 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		// are accumulated to be emitted as events by the Reconciler.
 		for _, rs := range rsp.Results {
 			switch rs.Severity {
-			case fnv1beta1.Severity_SEVERITY_FATAL:
+			case v1beta1.Severity_SEVERITY_FATAL:
 				return CompositionResult{}, errors.Errorf(errFmtFatalResult, fn.Step, rs.Message)
-			case fnv1beta1.Severity_SEVERITY_WARNING:
+			case v1beta1.Severity_SEVERITY_WARNING:
 				events = append(events, event.Warning(reasonCompose, errors.Errorf("Pipeline step %q: %s", fn.Step, rs.Message)))
-			case fnv1beta1.Severity_SEVERITY_NORMAL:
+			case v1beta1.Severity_SEVERITY_NORMAL:
 				events = append(events, event.Normal(reasonCompose, fmt.Sprintf("Pipeline step %q: %s", fn.Step, rs.Message)))
-			case fnv1beta1.Severity_SEVERITY_UNSPECIFIED:
+			case v1beta1.Severity_SEVERITY_UNSPECIFIED:
 				// We could hit this case if a Function was built against a newer
 				// protobuf than this build of Crossplane, and the new protobuf
 				// introduced a severity that we don't know about.
@@ -334,7 +318,7 @@ func (c *FunctionComposer) Compose(ctx context.Context, xr resource.Composite, r
 		desired[ResourceName(name)] = ComposedResourceState{
 			Resource:          cd,
 			ConnectionDetails: dr.GetConnectionDetails(),
-			Ready:             dr.Ready == fnv1beta1.Ready_READY_TRUE,
+			Ready:             dr.Ready == v1beta1.Ready_READY_TRUE,
 		}
 	}
 
@@ -481,25 +465,25 @@ func (g *ExistingComposedResourceObserver) ObserveComposedResources(ctx context.
 
 // AsState builds state for a RunFunctionRequest from the XR and composed
 // resources.
-func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*fnv1beta1.State, error) {
+func AsState(xr resource.Composite, xc managed.ConnectionDetails, rs ComposedResourceStates) (*v1beta1.State, error) {
 	r, err := AsStruct(xr)
 	if err != nil {
 		return nil, errors.Wrap(err, errXRAsStruct)
 	}
 
-	oxr := &fnv1beta1.Resource{Resource: r, ConnectionDetails: xc}
+	oxr := &v1beta1.Resource{Resource: r, ConnectionDetails: xc}
 
-	ocds := make(map[string]*fnv1beta1.Resource)
+	ocds := make(map[string]*v1beta1.Resource)
 	for name, or := range rs {
 		r, err := AsStruct(or.Resource)
 		if err != nil {
 			return nil, errors.Wrapf(err, errFmtCDAsStruct, name)
 		}
 
-		ocds[string(name)] = &fnv1beta1.Resource{Resource: r, ConnectionDetails: or.ConnectionDetails}
+		ocds[string(name)] = &v1beta1.Resource{Resource: r, ConnectionDetails: or.ConnectionDetails}
 	}
 
-	return &fnv1beta1.State{Composite: oxr, Resources: ocds}, nil
+	return &v1beta1.State{Composite: oxr, Resources: ocds}, nil
 }
 
 // AsStruct converts the supplied object to a protocol buffer Struct well-known
@@ -525,58 +509,6 @@ func FromStruct(o runtime.Object, s *structpb.Struct) error {
 	}
 
 	return errors.Wrap(json.Unmarshal(b, o), errUnmarshalJSON)
-}
-
-// A PackagedFunctionRunner runs a Function by making a gRPC call to a Function
-// package's runtime.
-type PackagedFunctionRunner struct {
-	client client.Reader
-	creds  credentials.TransportCredentials
-}
-
-// NewPackagedFunctionRunner returns a FunctionRunner that runs a Function by
-// making a gRPC call to a Function package's runtime.
-func NewPackagedFunctionRunner(c client.Client, tc credentials.TransportCredentials) *PackagedFunctionRunner {
-	return &PackagedFunctionRunner{client: c, creds: tc}
-}
-
-// RunFunction sends the supplied RunFunctionRequest to the named Function. The
-// function is expected to be a Function.pkg.crossplane.io package. The gRPC
-// call is made to its runtime's gRPC server endpoint, as specified by the
-// Function's status.endpoint field.
-func (r *PackagedFunctionRunner) RunFunction(ctx context.Context, name string, req *fnv1beta1.RunFunctionRequest) (*fnv1beta1.RunFunctionResponse, error) {
-	f := &pkgv1beta1.Function{}
-	if err := r.client.Get(ctx, client.ObjectKey{Name: name}, f); err != nil {
-		return nil, errors.Wrapf(err, errFmtGetFunction, name)
-	}
-
-	if f.Status.Endpoint == "" {
-		return nil, errors.Errorf(errFmtEmptyFunctionStatus, name)
-	}
-
-	// TODO(negz): Do we really want to dial each Function on every call? Should
-	// we maintain a cache of Function clients?
-	conn, err := grpc.DialContext(ctx, f.Status.Endpoint, grpc.WithTransportCredentials(r.creds))
-	if err != nil {
-		return nil, errors.Wrapf(err, errFmtDialFunction, name)
-	}
-	// Remember to close the connection, we are not deferring it to be able to
-	// properly handle errors, without having to use a named return.
-
-	rsp, err := fnv1beta1.NewFunctionRunnerServiceClient(conn).RunFunction(ctx, req)
-	if err != nil {
-		// TODO(negz): Parse any gRPC status codes.
-		_ = conn.Close()
-		return nil, errors.Wrapf(err, errFmtRunFunction, name)
-	}
-
-	if err := conn.Close(); err != nil {
-		return nil, errors.Wrapf(err, errFmtCloseFunction, name)
-	}
-
-	// TODO(negz): Sanity check this to ensure the function returned
-	// a valid response. Does it contain at least a desired Composite resource?
-	return rsp, nil
 }
 
 // An DeletingComposedResourceGarbageCollector deletes undesired composed resources from

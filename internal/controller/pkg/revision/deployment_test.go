@@ -122,6 +122,7 @@ func serviceFunction(function *pkgmetav1beta1.Function, rev v1.PackageRevision) 
 					TargetPort: intstr.FromInt(9443),
 				},
 			},
+			ClusterIP: corev1.ClusterIPNone,
 		},
 	}
 }

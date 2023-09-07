@@ -18,9 +18,9 @@ limitations under the License.
 package controller
 
 import (
-	"crypto/tls"
-
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
+
+	"github.com/crossplane/crossplane/internal/xfn"
 )
 
 // Options specific to apiextensions controllers.
@@ -39,7 +39,6 @@ type Options struct {
 	// Composition Functions
 	Registry string
 
-	// ClientTLS is the configuration used by apiextensions controllers that are
-	// clients of other services, for example Composition Functions.
-	ClientTLS *tls.Config
+	// FunctionRunner used to run Composition Functions.
+	FunctionRunner *xfn.PackagedFunctionRunner
 }

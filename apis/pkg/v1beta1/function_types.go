@@ -59,10 +59,6 @@ type FunctionSpec struct {
 type FunctionStatus struct {
 	xpv1.ConditionedStatus `json:",inline"`
 	v1.PackageStatus       `json:",inline"`
-
-	// Endpoint is the gRPC endpoint where Crossplane will send
-	// RunFunctionRequests.
-	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // +kubebuilder:object:root=true
